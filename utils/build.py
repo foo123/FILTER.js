@@ -99,7 +99,7 @@ def buildLib(files, minified, enc, filename):
 	if minified:
 		text = compress(text,enc)
 
-	output("/** http://github.com/foo123/FILTER\n**\n** Image Processing Filter Library for javascript and HTML5 canvas element by Nikos M.\n** http://nikos-web-development-netai.net/\n**/\n"+text, folder + filename,enc)
+	output("/** http://github.com/foo123/FILTER.js\n**\n** Image Processing Filter Library for javascript and HTML5 canvas element by Nikos M.\n** http://nikos-web-development-netai.net/\n**/\n"+text, folder + filename,enc)
 
 
 def parse_args():
