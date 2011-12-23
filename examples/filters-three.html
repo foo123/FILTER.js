@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<title>Filters with canvas, FILTER.js and Three.js</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				margin: 0px;
+				overflow: hidden;
+				padding:0;
+				position:relative;
+				height:100%;
+			}
+		</style>
+	</head>
+	<body>
+
+		<script src="../build/FILTER.js"></script>
+		<script src="Three.js"></script>
+		<script src="RequestAnimationFrame.js"></script>
+		<div id="aside" style="position:absolute;color:#fff;font-size:12px;z-index:100;width:150px;right:0">
+		<input id="test" type="button" value="Apply Filters" />
+		</div>
+		<div id="container" style="position:relative;margin:0 auto;padding:0;cursor:pointer"></div>
+		<script>
+	var aside=document.getElementById('aside');
+	var test=document.getElementById('test');
+	test.addEventListener('click',dotest,false);
+	var container=document.getElementById('container');
+	var mouseXOnMouseDown,windowHalfX;
+	var mouseYOnMouseDown,windowHalfY;
+	var targetRotationOnMouseDownY=0,targetRotationY=0;
+	var targetRotationOnMouseDownX=0,targetRotationX=0;
+	var w=window.innerWidth;
+	var h=window.innerHeight;
+	var w2=w/2;
+	var h2=h/2;
+	container.style.width=w+"px";
+	container.style.height=h+"px";
+	container.style.marginTop=0.5*(window.innerHeight-h)+'px';
+	windowHalfX=w2;
+	windowHalfY=h2;
+	
+	var scene = new THREE.Scene();
+
+	var camera = new THREE.PerspectiveCamera( 70, w / h, 1, 1000 );
+	camera.position.z = 700;
+	scene.add( camera );
+	
+
+	
+	var renderer = new THREE.CanvasRenderer();
+	renderer.setSize( w, h );
+	container.appendChild( renderer.domElement );
+	
+	var cube=new THREE.Object3D();
+	scene.add(cube);
+	
+	var sides={bottom:3,top:2,	right:0,left:1,	front:4,back:5};
+	var side=400;
+	var N=2;
+	var dsp=0;
+	var colors={inside:0x2c2c2c,top:0x2e1c3b,bottom:0x2e1c3b,left:0x2e1c3b,right:0x2e1c3b,front:0x2e1c3b,back:0x2e1c3b}; // mutually complementary colors
+	
+	var cubelets = [];
+	var xx,yy,zz;
+	var Nz=N,Nx=N,Ny=N;
+	var sidex=side, sidey=side, sidez=side;
+	var cubletsidex=sidex/(Nx+(Nx-1)*dsp);
+	var cubletsidey=sidey/(Ny+(Ny-1)*dsp);
+	var cubletsidez=sidez/(Nz+(Nz-1)*dsp);
+	
+	// build cubelets
+	var image=[];
+	var texture=[];
+	var position=[];
+	
+	// closure
+	function callback(ind) 
+	{
+		return function() { texture[ind].needsUpdate=true; };
+	}
+	for (var i=0; i<8;i++)
+	{
+		image[i]=new FILTER.Image();
+		texture[i]=new THREE.Texture(image[i].canvasElement);
+		// set closure callback
+		image[i].setImage('che.jpg',callback(i));
+	}
+	var im1=new FILTER.Image('che.jpg');
+	var im2=new FILTER.Image('che.jpg');
+	var im3=new FILTER.Image('che.jpg');
+	var im4=new FILTER.Image('che.jpg');
+	var im5=new FILTER.Image('che.jpg');
+	var im6=new FILTER.Image('che.jpg');
+	var im7=new FILTER.Image('che.jpg');
+	var tex1=new THREE.Texture(im1.canvasElement);
+	var tex2=new THREE.Texture(im2.canvasElement);
+	var tex2=new THREE.Texture(im2.canvasElement);
+	for (zz=0;zz<Nz;zz++)
+	{
+		for (xx=0;xx<Nx;xx++)
+		{
+			for (yy=0;yy<Ny;yy++)
+			{						
+				var materials=[];
+				for (var mii=0;mii<6;mii++)
+				{
+					var mat=new THREE.MeshBasicMaterial( { color: colors.inside } );
+					mat.name='inside';
+					materials.push( mat );
+				}
+				
+				// color external faces
+				if (yy==0)
+				{
+					//materials[sides['bottom']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					materials[sides['bottom']].color.setHex( colors.inside );
+					materials[sides['bottom']].name='bottom';
+				}
+				if (yy==Ny-1)
+				{
+					//materials[sides['top']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					materials[sides['top']].color.setHex( colors.inside );
+					materials[sides['top']].name='top';
+				}
+				if (xx==Nx-1)
+				{
+					materials[sides['right']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					//materials[sides['right']].color.setHex( colors.right );
+					materials[sides['right']].name='right';
+				}
+				if (xx==0)
+				{
+					materials[sides['left']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					//materials[sides['left']].color.setHex( colors.left );
+					materials[sides['left']].name='left';
+				}
+				if (zz==Nz-1)
+				{
+					materials[sides['front']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					//materials[sides['front']].color.setHex( colors.front );
+					materials[sides['front']].name='front';
+				}
+				if (zz==0)
+				{
+					materials[sides['back']]=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture('RedStar.jpg') } );
+					//materials[sides['back']].color.setHex( colors.back );
+					materials[sides['back']].name='back';
+				}
+				// add diagonal (filtered) images
+				if (yy==1 && xx==0 && zz==1)
+				{
+					materials[sides['front']]=new THREE.MeshBasicMaterial({map:texture[0], transparent:true, overdraw:true});
+				}
+				if (yy==0 && xx==1 && zz==1)
+				{
+					materials[sides['front']]=new THREE.MeshBasicMaterial({map:texture[1], transparent:true, overdraw:true});
+				}
+				if (yy==1 && xx==1 && zz==0)
+				{
+					materials[sides['back']]=new THREE.MeshBasicMaterial({map:texture[2], transparent:true, overdraw:true});
+				}
+				if (yy==0 && xx==0 && zz==0)
+				{
+					materials[sides['back']]=new THREE.MeshBasicMaterial({map:texture[3], transparent:true, overdraw:true});
+				}
+				if (yy==1 && xx==1 && zz==1)
+				{
+					materials[sides['right']]=new THREE.MeshBasicMaterial({map:texture[4], transparent:true, overdraw:true});
+				}
+				if (yy==0 && xx==1 && zz==0)
+				{
+					materials[sides['right']]=new THREE.MeshBasicMaterial({map:texture[5], transparent:true, overdraw:true});
+				}
+				if (yy==1 && xx==0 && zz==1)
+				{
+					materials[sides['left']]=new THREE.MeshBasicMaterial({map:texture[6], transparent:true, overdraw:true});
+				}
+				if (yy==0 && xx==0 && zz==0)
+				{
+					materials[sides['left']]=new THREE.MeshBasicMaterial({map:texture[7], transparent:true, overdraw:true});
+				}
+				
+				// new cubelet
+				var cubelet =new THREE.Mesh( new THREE.CubeGeometry( cubletsidex, cubletsidey, cubletsidez, 3, 3, 3, materials ), new THREE.MeshFaceMaterial() );
+				
+				// position it centered
+				cubelet.position.x = (cubletsidex+dsp*cubletsidex)*xx -sidex/2 +cubletsidex/2;
+				cubelet.position.y = (cubletsidey+dsp*cubletsidey)*yy -sidey/2 +cubletsidey/2;
+				cubelet.position.z = (cubletsidez+dsp*cubletsidez)*zz -sidez/2 +cubletsidez/2;
+				cubelet.overdraw = true;
+				// add it
+				cube.add(cubelet);
+				}
+				}
+				}
+				container.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				container.addEventListener( 'touchstart', onDocumentTouchStart, false );
+				container.addEventListener( 'touchmove', onDocumentTouchMove, false );
+			animate();
+
+		function dotest(event)
+		{
+		     new FILTER.ColorMatrixFilter(image[1]).colorize(0xff0000).apply();
+		     new FILTER.ColorMatrixFilter(image[2]).grayscale().contrast(1).apply();
+		     new FILTER.ConvolutionMatrixFilter(image[3]).motionblur(1).apply();
+		     new FILTER.ConvolutionMatrixFilter(image[4]).edge().apply();
+		     new FILTER.SobelFilter(image[5]).apply();
+		     new FILTER.ConvolutionMatrixFilter(image[6]).emboss().apply();
+		     new FILTER.ColorMatrixFilter(image[7]).colorize(0xff00ff).apply();
+			 for (var i=0;i<8;i++)
+				texture[i].needsUpdate=true;
+		}
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+				container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				container.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				container.addEventListener( 'mouseout', onDocumentMouseOut, false );
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				mouseYOnMouseDown = event.clientY - windowHalfY;
+				targetRotationOnMouseDownY = targetRotationY;
+				targetRotationOnMouseDownX = targetRotationX;
+			}
+			
+			function onDocumentMouseMove( event ) {
+
+				mouseX = event.clientX - windowHalfX;
+				mouseY = event.clientY - windowHalfY;
+
+				targetRotationY = targetRotationOnMouseDownY + ( mouseX - mouseXOnMouseDown ) * 0.02;
+				targetRotationX = targetRotationOnMouseDownX + ( mouseY - mouseYOnMouseDown ) * 0.02;
+			}
+
+			function onDocumentMouseUp( event ) {
+
+				container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				container.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				container.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+			}
+
+			function onDocumentMouseOut( event ) {
+
+				container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				container.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				container.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+			}
+
+			function onDocumentTouchStart( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				mouseYOnMouseDown = event.clientY - windowHalfY;
+				targetRotationOnMouseDownY = targetRotationY;
+				targetRotationOnMouseDownX = targetRotationX;
+				}
+			}
+
+			function onDocumentTouchMove( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				mouseYOnMouseDown = event.clientY - windowHalfY;
+				targetRotationOnMouseDownY = targetRotationY;
+				targetRotationOnMouseDownX = targetRotationX;
+				}
+			}
+
+			//
+
+			function animate() {
+				requestAnimationFrame( animate );
+				render();
+			}
+			
+			function render() {
+				cube.rotation.y += ( targetRotationY - cube.rotation.y ) * 0.05;
+				cube.rotation.x += ( targetRotationX - cube.rotation.x ) * 0.05;
+				renderer.render( scene, camera );
+			}
+		</script>
+</body></html>
