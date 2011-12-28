@@ -50,7 +50,6 @@ FILTER.ColorMatrixFilter.prototype.apply=function()
 		p[i+3]=m[15]*tmp[0]+m[16]*tmp[1]+m[17]*tmp[2]+m[18]*tmp[3]+m[19];
 	}
 	this.image.setPixelData(pd);
-	//return(pd);
 };
 FILTER.LUMA_R = 0.212671;
 FILTER.LUMA_G = 0.71516;
@@ -174,6 +173,13 @@ FILTER.ColorMatrixFilter.prototype.blend=function( mat, amount )
 };
 FILTER.ColorMatrixFilter.prototype.average=function( r, g, b )
 {
+	if (typeof r == 'undefined')
+		r=1/3;
+	if (typeof g == 'undefined')
+		g=1/3;
+	if (typeof b == 'undefined')
+		b=1/3;
+	
 	this.concat([r, g, b, 0, 0, 
 			r, g, b, 0, 0, 
 			r, g, b, 0, 0, 

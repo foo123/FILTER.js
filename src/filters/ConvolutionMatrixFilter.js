@@ -4,7 +4,7 @@ FILTER.ConvolutionMatrixFilter=function(image,weights,opaque)
 	this.image=image;
 	if (typeof weights != 'undefined')
 		this.weights=weights;
-	this.opaque=1;
+	this.opaque=true;
 	if (typeof opaque != 'undefined')
 		this.opaque=opaque;
 };
@@ -18,7 +18,7 @@ FILTER.ConvolutionMatrixFilter.prototype.apply=function()
   var src = data.data;
   var sw = data.width;
   var sh = data.height;
-  var dst=[];
+  var dst=this.image.clone().getPixelData();
   // pad output by the convolution matrix
   var w = sw;
   var h = sh;
@@ -46,16 +46,13 @@ FILTER.ConvolutionMatrixFilter.prototype.apply=function()
           }
         }
       }
-      dst[dstOff] = r;
-      dst[dstOff+1] = g;
-      dst[dstOff+2] = b;
-      dst[dstOff+3] = a + alphaFac*(255-a);
+      dst.data[dstOff] = r;
+      dst.data[dstOff+1] = g;
+      dst.data[dstOff+2] = b;
+      dst.data[dstOff+3] = a + alphaFac*(255-a);
     }
   }
-	for (var i=0;i<data.data.length;i++)
-	data.data[i]=dst[i];
-	//data.data=dst;
-  this.image.setPixelData(data);
+  this.image.setPixelData(dst);
 };
 FILTER.ConvolutionMatrixFilter.prototype.blur=function()
 {
@@ -131,21 +128,21 @@ FILTER.ConvolutionMatrixFilter.prototype.motionblur=function(dir)
 	{
 		for (i=0;i<9;i++)
 		{
-			this.weights[4*9+i]=w*1;
+			this.weights[4*9+i]=w;
 		}
 	}
 	else if (dir==2)
 	{
 		for (i=0;i<9;i++)
 		{
-			this.weights[9*i+5]=w*1;
+			this.weights[9*i+5]=w;
 		}
 	}
 	else if (dir==1)
 	{
 		for (i=0;i<9;i++)
 		{
-			this.weights[9*Math.round(i)+Math.round(i)]=w*1;
+			this.weights[9*Math.round(i)+Math.round(i)]=w;
 		}
 	}
 	return this;

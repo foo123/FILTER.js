@@ -17,6 +17,7 @@ COMMON_FILES = [
 'core/Image.js',
 'filters/ColorMatrixFilter.js',
 'filters/ConvolutionMatrixFilter.js',
+'filters/DisplacementMapFilter.js',
 'composite/SobelFilter.js'
 ]
 

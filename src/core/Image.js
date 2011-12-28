@@ -10,6 +10,21 @@ FILTER.Image=function(img,callback)
 	if (typeof img != undefined)
 		this.setImage(img,callback);
 };
+FILTER.Image.prototype.clone=function(withimage)
+{
+	if (typeof withimage == 'undefined')
+		withimage=false;
+	var im=new FILTER.Image();
+	if (this.image != undefined && this.image != null && withimage)
+	  im.setImage(this.image.src);
+	else
+	{
+		im.setWidth(this.width);
+		im.setHeight(this.height);
+		im.setPixelData(this.getPixelData());
+	}
+	return im;
+};
 FILTER.Image.prototype.createImageData=function(w,h)
 {
 	this.width=w;
@@ -21,7 +36,7 @@ FILTER.Image.prototype.createImageData=function(w,h)
 };
 FILTER.Image.prototype.getPixelData=function()
 {
-	  return this.context.getImageData(0,0,this.image.width,this.image.height);
+	  return this.context.getImageData(0,0,this.width,this.height);
 };
 FILTER.Image.prototype.setPixelData=function(data)
 {
