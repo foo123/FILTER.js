@@ -9,6 +9,7 @@ FILTER.DisplacementMapFilter=function(target,displacemap)
 	this.startY=0;
 	this.componentX=0;
 	this.componentY=0;
+	this.color=0;
 	this.mode=FILTER.DisplacementMapFilter.CLAMP;
 	this.image=target;
 	this.map=displacemap;
@@ -20,6 +21,7 @@ FILTER.CHANNEL_ALPHA=3;
 FILTER.MODE_IGNORE=0;
 FILTER.MODE_WRAP=1;
 FILTER.MODE_CLAMP=2;
+FILTER.MODE_COLOR=4;
 
 FILTER.DisplacementMapFilter.prototype=new FILTER.Filter();
 FILTER.DisplacementMapFilter.prototype.constructor=FILTER.DisplacementMapFilter;
@@ -38,6 +40,11 @@ FILTER.DisplacementMapFilter.prototype.apply=function()
   
   var sx=this.scaleX/256;
   var sy=this.scaleY/256;
+  var alpha=this.color >> 24 & 255;
+  var red=this.color >> 16 & 255;
+  var green=this.color >> 8 & 255;
+  var blue=this.color & 255;
+  
   // apply filter
   for (var y=0; y<mh; y++) {
     for (var x=0; x<mw; x++) {
@@ -52,6 +59,13 @@ FILTER.DisplacementMapFilter.prototype.apply=function()
 		{
 			case FILTER.MODE_IGNORE:
 				continue;
+				break;
+			case FILTER.MODE_COLOR:
+			  newd.data[dstoff]=red;
+			  newd.data[dstoff+1]=green;
+			  newd.data[dstoff+2]=blue;
+			  newd.data[dstoff+3]=alpha;
+			  continue;
 				break;
 			case FILTER.MODE_WRAP:
 			  if (srcy>=data.height)
