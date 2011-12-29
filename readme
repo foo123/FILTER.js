@@ -5,6 +5,8 @@ It defines an Image class which represents and Image
 and 2 basic filters 
 * ColorMatrixFilter (analogous to the actionscript version)
 * ConvolutionMatrixFilter (analogous to the actionscript version)
+* DisplacementMapFilter (analogous to actionscript version)
+* Image Blending Modes (analogous to Photoshop blends)
 
 each basic filter is generic but it also includes basic filters
 like grayscale, colorize, threshold, gauss, laplace, emboss, etc..

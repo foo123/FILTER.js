@@ -10,6 +10,10 @@ FILTER.Image=function(img,callback)
 	if (typeof img != undefined)
 		this.setImage(img,callback);
 };
+/**
+ * JavaScript implementation of common blending modes, based on
+ * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+ **/
 FILTER.blendModes = {
 	normal: function(a, b) {
 		return a;
@@ -68,7 +72,7 @@ FILTER.blendModes = {
 	},
 
 	hardLight: function(a, b) {
-		return blendingModes.overlay(b, a);
+		return FILTER.blendModes.overlay(b, a);
 	},
 
 	colorDodge: function(a, b) {
@@ -80,33 +84,33 @@ FILTER.blendModes = {
 	},
 
 	linearDodge: function(a, b) {
-		return blendingModes.add(a, b);
+		return FILTER.blendModes.add(a, b);
 	},
 
 	linearBurn: function(a, b) {
-		return blendingModes.substract(a, b);
+		return FILTER.blendModes.substract(a, b);
 	},
 
 	linearLight: function(a, b) {
 		return b < 128
-			? blendingModes.linearBurn(a, 2 * b)
-			: blendingModes.linearDodge(a, (2 * (b - 128)));
+			? FILTER.blendModes.linearBurn(a, 2 * b)
+			: FILTER.blendModes.linearDodge(a, (2 * (b - 128)));
 	},
 
 	vividLight: function(a, b) {
 		return b < 128
-			? blendingModes.colorBurn(a, 2 * b)
-			: blendingModes.colorDodge(a, (2 * (b - 128)));
+			? FILTER.blendModes.colorBurn(a, 2 * b)
+			: FILTER.blendModes.colorDodge(a, (2 * (b - 128)));
 	},
 
 	pinLight: function(a, b) {
 		return b < 128
-			? blendingModes.darken(a, 2 * b)
-			: blendingModes.lighten(a, (2 * (b - 128)));
+			? FILTER.blendModes.darken(a, 2 * b)
+			: FILTER.blendModes.lighten(a, (2 * (b - 128)));
 	},
 
 	hardMix: function(a, b) {
-		return blendingModes.vividLight(a, b) < 128 ? 0 : 255;
+		return FILTER.blendModes.vividLight(a, b) < 128 ? 0 : 255;
 	},
 
 	reflect: function(a, b) {
@@ -114,14 +118,14 @@ FILTER.blendModes = {
 	},
 
 	glow: function(a, b) {
-		return blendingModes.reflect(b, a);
+		return FILTER.blendModes.reflect(b, a);
 	},
 
 	phoenix: function(a, b) {
 		return Math.min(a, b) - Math.max(a, b) + 255;
 	}
 };
-FILTER.Image.prototype.blend=function(image,mode,amount)
+FILTER.Image.prototype.blend=function(image,mode,amount,startX,startY)
 {
 	if (typeof mode == 'undefined')
 		mode='normal';
@@ -129,11 +133,33 @@ FILTER.Image.prototype.blend=function(image,mode,amount)
 		amount=1;
 	if (amount>1) amount=1;
 	if (amount<0) amount=0;
+	if (typeof startX == 'undefined')
+		startX=0;
+	if (typeof startY == 'undefined')
+		startY=0;
+	var sx=0,sy=0;
+	if (startX<0)
+	{
+		sx=-startX;
+		startX=0;
+	}
+	if (startY<0)
+	{
+		sy=-startY;
+		startY=0;
+	}
+	if (startX>=this.width || startY>=this.height)
+	{
+		return;
+	}
 	
 	var blendingMode = FILTER.blendModes[mode];
+	var width =  Math.min(this.width, image.width-sx);
+	var height = Math.min(this.height, image.height-sy);
 	
-	var imageData1 = this.getPixelData();
-	var imageData2 = image.getPixelData();
+	var imageData1 = this.context.getImageData(startX,startY,width,height);
+	var imageData2 = image.context.getImageData(sx, sy, width, height);
+	
 
 	/** @type Array */
 	var pixels1 = imageData1.data;
@@ -142,7 +168,7 @@ FILTER.Image.prototype.blend=function(image,mode,amount)
 
 	var r, g, b, oR, oG, oB, invamount = 1 - amount;
 	
-	var len=Math.min(pixels1.length,pixels2.length);
+	var len=pixels2.length;
 	
 	// blend images
 	for (var i = 0; i < len; i += 4) {
@@ -160,7 +186,7 @@ FILTER.Image.prototype.blend=function(image,mode,amount)
 		pixels1[i + 1] = g * amount + oG * invamount;
 		pixels1[i + 2] = b * amount + oB * invamount;
 	}
-	this.setPixelData(imageData1);
+	this.context.putImageData(imageData1,startX,startY);
 };
 FILTER.Image.prototype.clone=function(withimage)
 {
