@@ -51,14 +51,15 @@ FILTER.ColorMatrixFilter.prototype.apply=function()
 	}
 	this.image.setPixelData(pd);
 };
-FILTER.LUMA_R = 0.212671;
-FILTER.LUMA_G = 0.71516;
-FILTER.LUMA_B = 0.072169;
+FILTER.LUMA={};
+FILTER.LUMA.R = 0.212671;
+FILTER.LUMA.G = 0.71516;
+FILTER.LUMA.B = 0.072169;
 FILTER.ColorMatrixFilter.prototype.grayscale=function()
 {
-    var r=FILTER.LUMA_R;
-	var g=FILTER.LUMA_G;
-	var b=FILTER.LUMA_B;
+    var r=FILTER.LUMA.R;
+	var g=FILTER.LUMA.G;
+	var b=FILTER.LUMA.B;
 	var matrix= [r, g, b, 0, 0, 
 				r, g, b, 0, 0, 
 				r, g, b, 0, 0, 
@@ -68,9 +69,9 @@ FILTER.ColorMatrixFilter.prototype.grayscale=function()
 };
 FILTER.ColorMatrixFilter.prototype.desaturate=function()
 {
-	var matrix= [FILTER.LUMA_R, FILTER.LUMA_G, FILTER.LUMA_B, 0, 0, 
-				FILTER.LUMA_R, FILTER.LUMA_G, FILTER.LUMA_B, 0, 0, 
-				FILTER.LUMA_R, FILTER.LUMA_G, FILTER.LUMA_B, 0, 0, 
+	var matrix= [FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+				FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+				FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
 				0, 0, 0, 1, 0];
 	this.concat(matrix);
 	return this;
@@ -88,9 +89,9 @@ FILTER.ColorMatrixFilter.prototype.colorize=function(rgb, amount)
 	b = ((rgb & 0xFF) / 0xFF);
 	inv_amount = (1 - amount);
 
-	var matrix=[(inv_amount + ((amount * r) * FILTER.LUMA_R)), ((amount * r) * FILTER.LUMA_G), ((amount * r) * FILTER.LUMA_B), 0, 0, 
-				((amount * g) * FILTER.LUMA_R), (inv_amount + ((amount * g) * FILTER.LUMA_G)), ((amount * g) * FILTER.LUMA_B), 0, 0, 
-				((amount * b) * FILTER.LUMA_R), ((amount * b) * FILTER.LUMA_G), (inv_amount + ((amount * b) * FILTER.LUMA_B)), 0, 0, 
+	var matrix=[(inv_amount + ((amount * r) * FILTER.LUMA.R)), ((amount * r) * FILTER.LUMA.G), ((amount * r) * FILTER.LUMA.B), 0, 0, 
+				((amount * g) * FILTER.LUMA.R), (inv_amount + ((amount * g) * FILTER.LUMA.G)), ((amount * g) * FILTER.LUMA.B), 0, 0, 
+				((amount * b) * FILTER.LUMA.R), ((amount * b) * FILTER.LUMA.G), (inv_amount + ((amount * b) * FILTER.LUMA.B)), 0, 0, 
 					0, 0, 0, 1, 0];
 	this.concat(matrix);
 	return this;
@@ -111,9 +112,9 @@ FILTER.ColorMatrixFilter.prototype.saturation=function( s )
 	var iblum;
 	
 	sInv = (1 - s);
-	irlum = (sInv * FILTER.LUMA_R);
-	iglum = (sInv * FILTER.LUMA_G);
-	iblum = (sInv * FILTER.LUMA_B);
+	irlum = (sInv * FILTER.LUMA.R);
+	iglum = (sInv * FILTER.LUMA.G);
+	iblum = (sInv * FILTER.LUMA.B);
 	
 	this.concat([(irlum + s), iglum, iblum, 0, 0, 
 			irlum, (iglum + s), iblum, 0, 0, 
@@ -155,9 +156,9 @@ FILTER.ColorMatrixFilter.prototype.adjustHue=function( degrees )
 	degrees *= Math.PI/180;
 	var cos = Math.cos(degrees);
 	var sin = Math.sin(degrees);
-	this.concat([((FILTER.LUMA_R + (cos * (1 - FILTER.LUMA_R))) + (sin * -(FILTER.LUMA_R))), ((FILTER.LUMA_G + (cos * -(FILTER.LUMA_G))) + (sin * -(FILTER.LUMA_G))), ((FILTER.LUMA_B + (cos * -(FILTER.LUMA_B))) + (sin * (1 - FILTER.LUMA_B))), 0, 0, 
-			((FILTER.LUMA_R + (cos * -(FILTER.LUMA_R))) + (sin * 0.143)), ((FILTER.LUMA_G + (cos * (1 - FILTER.LUMA_G))) + (sin * 0.14)), ((FILTER.LUMA_B + (cos * -(FILTER.LUMA_B))) + (sin * -0.283)), 0, 0, 
-			((FILTER.LUMA_R + (cos * -(FILTER.LUMA_R))) + (sin * -((1 - FILTER.LUMA_R)))), ((FILTER.LUMA_G + (cos * -(FILTER.LUMA_G))) + (sin * FILTER.LUMA_G)), ((FILTER.LUMA_B + (cos * (1 - FILTER.LUMA_B))) + (sin * FILTER.LUMA_B)), 0, 0, 
+	this.concat([((FILTER.LUMA.R + (cos * (1 - FILTER.LUMA.R))) + (sin * -(FILTER.LUMA.R))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * -(FILTER.LUMA.G))), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * (1 - FILTER.LUMA.B))), 0, 0, 
+			((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * 0.143)), ((FILTER.LUMA.G + (cos * (1 - FILTER.LUMA.G))) + (sin * 0.14)), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * -0.283)), 0, 0, 
+			((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * -((1 - FILTER.LUMA.R)))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * FILTER.LUMA.G)), ((FILTER.LUMA.B + (cos * (1 - FILTER.LUMA.B))) + (sin * FILTER.LUMA.B)), 0, 0, 
 			0, 0, 0, 1, 0]);
 	return this;
 };
@@ -189,9 +190,9 @@ FILTER.ColorMatrixFilter.prototype.threshold=function(threshold, factor)
 {
 	if (typeof factor == 'undefined')
 		factor=256;
-	this.concat([(FILTER.LUMA_R * factor), (FILTER.LUMA_G * factor), (FILTER.LUMA_B * factor), 0, (-(factor-1) * threshold), 
-			(FILTER.LUMA_R * factor), (FILTER.LUMA_G * factor), (FILTER.LUMA_B * factor), 0, (-(factor-1) * threshold), 
-			(FILTER.LUMA_R * factor), (FILTER.LUMA_G * factor), (FILTER.LUMA_B * factor), 0, (-(factor-1) * threshold), 
+	this.concat([(FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+			(FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+			(FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
 			0, 0, 0, 1, 0]);
 };
 FILTER.ColorMatrixFilter.prototype.threshold_rgb=function(threshold, factor)

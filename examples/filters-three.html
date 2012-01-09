@@ -225,7 +225,9 @@
 		     var df=new FILTER.DisplacementMapFilter(image[7],displacemap);
 			 df.scaleX=100;
 			 df.scaleY=100;
-			 df.mode=FILTER.MODE_WRAP;
+			 df.startX=-image[7].width/2;
+			 df.startY=0;
+			 df.mode=FILTER.MODE.CLAMP;
 			 df.apply();
 			 for (var i=0;i<8;i++)
 				texture[i].needsUpdate=true;

@@ -1,6 +1,17 @@
 // Displacement Map Filter
 // accepts an image as target
 // and displaces/distorts the target image according to another map image data
+FILTER.CHANNEL={};
+FILTER.CHANNEL.RED=0;
+FILTER.CHANNEL.GREEN=1;
+FILTER.CHANNEL_BLUE=2;
+FILTER.CHANNEL.ALPHA=3;
+FILTER.MODE={};
+FILTER.MODE.IGNORE=0;
+FILTER.MODE.WRAP=1;
+FILTER.MODE.CLAMP=2;
+FILTER.MODE.COLOR=4;
+
 FILTER.DisplacementMapFilter=function(target,displacemap)
 {
 	this.scaleX=1;
@@ -10,18 +21,10 @@ FILTER.DisplacementMapFilter=function(target,displacemap)
 	this.componentX=0;
 	this.componentY=0;
 	this.color=0;
-	this.mode=FILTER.DisplacementMapFilter.CLAMP;
+	this.mode=FILTER.MODE.CLAMP;
 	this.image=target;
 	this.map=displacemap;
 };
-FILTER.CHANNEL_RED=0;
-FILTER.CHANNEL_GREEN=1;
-FILTER.CHANNEL_BLUE=2;
-FILTER.CHANNEL_ALPHA=3;
-FILTER.MODE_IGNORE=0;
-FILTER.MODE_WRAP=1;
-FILTER.MODE_CLAMP=2;
-FILTER.MODE_COLOR=4;
 
 FILTER.DisplacementMapFilter.prototype=new FILTER.Filter();
 FILTER.DisplacementMapFilter.prototype.constructor=FILTER.DisplacementMapFilter;
@@ -44,53 +47,64 @@ FILTER.DisplacementMapFilter.prototype.apply=function()
   var red=this.color >> 16 & 255;
   var green=this.color >> 8 & 255;
   var blue=this.color & 255;
+  var ww=Math.min(mw,w);
+  var hh=Math.min(mh,h);
+  var sty=Math.floor(this.startY);
+  var stx=Math.floor(this.startX);
+  var comx=this.componentX;
+  var comy=this.componentY;
+  var xx,yy,dstoff,mapoff,srcy,srcx,dispoff,x,y;
+  var mode=this.mode;
   
   // apply filter
-  for (var y=0; y<mh; y++) {
-    for (var x=0; x<mw; x++) {
-      var dstoff = ((y+this.startY)*w+(x+this.startX))*4;
-	  var mapoff= (y*mw+x)*4;
-	  var srcy=y+this.startY+Math.floor((map[mapoff+this.componentY]-128)*sy);
-	  var srcx=x+this.startX+Math.floor((map[mapoff+this.componentX]-128)*sx);
+  for (y=0; y<hh; y++) {
+    for (x=0; x<ww; x++) {
+      yy=y+sty;
+	  xx=x+stx;
+	  if (yy<0 || yy>=h || xx<0 || xx>=w) continue;
+	  dstoff = ((yy)*w+(xx))*4;
+	  mapoff= (y*mw+x)*4;
+	  srcy=yy+Math.floor((map[mapoff+comy]-128)*sy);
+	  srcx=xx+Math.floor((map[mapoff+comx]-128)*sx);
 	  
-	  if (srcy>=data.height || srcy<0 || srcx>=data.width || srcx<0)
+	  if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
 	  {
-		switch(this.mode)
+		switch(mode)
 		{
-			case FILTER.MODE_IGNORE:
+			case FILTER.MODE.IGNORE:
 				continue;
 				break;
-			case FILTER.MODE_COLOR:
+			case FILTER.MODE.COLOR:
 			  newd.data[dstoff]=red;
 			  newd.data[dstoff+1]=green;
 			  newd.data[dstoff+2]=blue;
 			  newd.data[dstoff+3]=alpha;
 			  continue;
 				break;
-			case FILTER.MODE_WRAP:
-			  if (srcy>=data.height)
-				srcy-=data.height;
+			case FILTER.MODE.WRAP:
+			  if (srcy>=h)
+				srcy-=h;
 			  if (srcy<0)
-				srcy+=data.height;
-			  if (srcx>=data.width)
-				srcx-=data.width;
+				srcy+=h;
+			  if (srcx>=w)
+				srcx-=w;
 			  if (srcx<0)
-				srcx+=data.width;
+				srcx+=w;
 				break;
-			case FILTER.MODE_CLAMP:
+			case FILTER.MODE.CLAMP:
 			default:
-			  if (srcy>=data.height)
-				srcy=data.height-1;
+			  if (srcy>=h)
+				srcy=h-1;
 			  if (srcy<0)
 				srcy=0;
-			  if (srcx>=data.width)
-				srcx=data.width-1;
+			  if (srcx>=w)
+				srcx=w-1;
 			  if (srcx<0)
 				srcx=0;
 				break;
 		}
 	  }
-	  var dispoff=((srcy)*w+(srcx))*4;
+	  dispoff=((srcy)*w+(srcx))*4;
 	  
 	  // new pixel values
 	  newd.data[dstoff]=data.data[dispoff];

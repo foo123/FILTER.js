@@ -4,11 +4,15 @@ FILTER.Image=function(img,callback)
 {
 	this.width=0;
 	this.height=0;
+	this.type='undefined';
 	this.image=null;
+	this.canvasElement=null;
+	this.context=null;
 	this.canvasElement=document.createElement('canvas');
+	this.canvasElement.width=0;
+	this.canvasElement.height=0;
 	this.context=this.canvasElement.getContext('2d');
-	if (typeof img != undefined)
-		this.setImage(img,callback);
+	this.setImage(img,callback);
 };
 /**
  * JavaScript implementation of common blending modes, based on
@@ -154,6 +158,8 @@ FILTER.Image.prototype.blend=function(image,mode,amount,startX,startY)
 	}
 	
 	var blendingMode = FILTER.blendModes[mode];
+	if (blendingMode==undefined || blendingMode==null) return this;
+	
 	var width =  Math.min(this.width, image.width-sx);
 	var height = Math.min(this.height, image.height-sy);
 	
@@ -187,21 +193,16 @@ FILTER.Image.prototype.blend=function(image,mode,amount,startX,startY)
 		pixels1[i + 2] = b * amount + oB * invamount;
 	}
 	this.context.putImageData(imageData1,startX,startY);
+	return this;
 };
 FILTER.Image.prototype.clone=function(withimage)
 {
 	if (typeof withimage == 'undefined')
 		withimage=false;
-	var im=new FILTER.Image();
-	if (this.image != undefined && this.image != null && withimage)
-	  im.setImage(this.image.src);
+	if (withimage && this.image && this.image.src)
+		return new FILTER.Image(this.image.src);
 	else
-	{
-		im.setWidth(this.width);
-		im.setHeight(this.height);
-		im.setPixelData(this.getPixelData());
-	}
-	return im;
+		return new FILTER.Image(this.canvasElement);
 };
 FILTER.Image.prototype.createImageData=function(w,h)
 {
@@ -214,7 +215,7 @@ FILTER.Image.prototype.createImageData=function(w,h)
 };
 FILTER.Image.prototype.getPixelData=function()
 {
-	  return this.context.getImageData(0,0,this.width,this.height);
+	return this.context.getImageData(0,0,this.width,this.height);
 };
 FILTER.Image.prototype.setPixelData=function(data)
 {
@@ -234,29 +235,40 @@ FILTER.Image.prototype.setHeight=function(h)
 };
 FILTER.Image.prototype.setImage=function(img,callback)
 {
+	if (typeof img=='undefined' || img==null) return;
 	var thiss=this;
-	if (img instanceof Image)
+	if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
 	{
 		this.image=img;
 		this.width=img.width;
 		this.height=img.height;
+		//this.canvasElement=document.createElement('canvas');
 		this.canvasElement.width=this.width;
 		this.canvasElement.height=this.height;
 		this.context=this.canvasElement.getContext('2d');
 		this.context.drawImage(this.image,0,0);
+		if (img instanceof Image)
+			this.type='image';
+		if (img instanceof HTMLCanvasElement)
+			this.type='canvas';
+		if (img instanceof HTMLVideoElement)
+			this.type='video';
 	}
-	else
+	else // url string
 	{
 		this.image=new Image();
+		//this.canvasElement=document.createElement('canvas');
+		this.type='image-url';
 		this.image.onload=function(){
 			thiss.width=thiss.image.width;
 			thiss.height=thiss.image.height;
+			//thiss.canvasElement=document.createElement('canvas');
 			thiss.canvasElement.width=thiss.width;
 			thiss.canvasElement.height=thiss.height;
 			thiss.context=thiss.canvasElement.getContext('2d');
 			thiss.context.drawImage(thiss.image,0,0);
 			if (typeof callback != 'undefined')
-				callback.call(this);
+				callback.call(thiss);
 		};
 		this.image.src=img; // load it
 	}
