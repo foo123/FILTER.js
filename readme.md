@@ -15,6 +15,10 @@ also a SobelFilter is defined which is a composite filter (composition of generi
 source code, minified version and build tools are included  
 also 2 examples are included a basic and an example with three.js
 
+version 0.2 Changes
+* Refactored Code to use closures (more modular)
+* Added exCanvas script for Browsers that do not support Canvas
+
 *Contributor* Nikos M.  
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  
