@@ -1,6 +1,9 @@
 #FILTER.js A Javascript Library for Image Processing and Filtering using HTML5 Canvas
 
 This is a library for filtering images in javascript using canvas element.  
+
+![Filter.js](/examples/filters-che.png)
+
 It defines an Image class which represents and Image and 4 generic filters  
 
 * ColorMatrixFilter (analogous to the actionscript version)
