@@ -1,1 +1,1 @@
-python build.py --all --minified
+python build.py --deps dependencies

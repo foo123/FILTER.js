@@ -1,68 +1,2296 @@
-/** http://github.com/foo123/FILTER.js
-**
-** Image Processing Filter Library for javascript and HTML5 canvas element by Nikos M.
-** Version 0.2 
-** http://nikos-web-development-netai.net/
+/** 
+*
+* http://github.com/foo123/FILTER.js
+*
+* FILTER.js
+* Image Processing Filter Library for javascript and HTML5 canvas element
+* @version 0.2 
+* @author Nikos M.
+* @url http://nikos-web-development-netai.net
+*
 **/
-document.createElement("canvas").getContext||function(){function c(){return this.context_||(this.context_=new x(this))}function a(q,a){var b=O.call(arguments,2);return function(){return q.apply(a,b.concat(O.call(arguments)))}}function b(q){return String(q).replace(/&/g,"&amp;").replace(/"/g,"&quot;")}function f(q){q.namespaces.g_vml_||q.namespaces.add("g_vml_","urn:schemas-microsoft-com:vml","#default#VML");q.namespaces.g_o_||q.namespaces.add("g_o_","urn:schemas-microsoft-com:office:office","#default#VML");
-if(!q.styleSheets.ex_canvas_)q=q.createStyleSheet(),q.owningElement.id="ex_canvas_",q.cssText="canvas{display:inline-block;overflow:hidden;text-align:left;width:300px;height:150px}"}function d(q){var a=q.srcElement;switch(q.propertyName){case "width":a.getContext().clearRect();a.style.width=a.attributes.width.nodeValue+"px";a.firstChild.style.width=a.clientWidth+"px";break;case "height":a.getContext().clearRect(),a.style.height=a.attributes.height.nodeValue+"px",a.firstChild.style.height=a.clientHeight+
-"px"}}function e(q){q=q.srcElement;if(q.firstChild)q.firstChild.style.width=q.clientWidth+"px",q.firstChild.style.height=q.clientHeight+"px"}function h(){return[[1,0,0],[0,1,0],[0,0,1]]}function o(q,a){for(var b=h(),c=0;c<3;c++)for(var f=0;f<3;f++){for(var F=0,d=0;d<3;d++)F+=q[c][d]*a[d][f];b[c][f]=F}return b}function r(a,b){b.fillStyle=a.fillStyle;b.lineCap=a.lineCap;b.lineJoin=a.lineJoin;b.lineWidth=a.lineWidth;b.miterLimit=a.miterLimit;b.shadowBlur=a.shadowBlur;b.shadowColor=a.shadowColor;b.shadowOffsetX=
-a.shadowOffsetX;b.shadowOffsetY=a.shadowOffsetY;b.strokeStyle=a.strokeStyle;b.globalAlpha=a.globalAlpha;b.font=a.font;b.textAlign=a.textAlign;b.textBaseline=a.textBaseline;b.arcScaleX_=a.arcScaleX_;b.arcScaleY_=a.arcScaleY_;b.lineScale_=a.lineScale_}function v(a){var b=a.indexOf("(",3),c=a.indexOf(")",b+1),b=a.substring(b+1,c).split(",");if(b.length!=4||a.charAt(3)!="a")b[3]=1;return b}function C(a,b,c){return Math.min(c,Math.max(b,a))}function A(a,b,c){c<0&&c++;c>1&&c--;return 6*c<1?a+(b-a)*6*c:
-2*c<1?b:3*c<2?a+(b-a)*(2/3-c)*6:a}function w(a){if(a in M)return M[a];var b,c=1,a=String(a);if(a.charAt(0)=="#")b=a;else if(/^rgb/.test(a)){c=v(a);b="#";for(var f,l=0;l<3;l++)f=c[l].indexOf("%")!=-1?Math.floor(parseFloat(c[l])/100*255):+c[l],b+=I[C(f,0,255)];c=+c[3]}else if(/^hsl/.test(a)){l=c=v(a);b=parseFloat(l[0])/360%360;b<0&&b++;f=C(parseFloat(l[1])/100,0,1);l=C(parseFloat(l[2])/100,0,1);if(f==0)f=l=b=l;else{var F=l<0.5?l*(1+f):l+f-l*f,d=2*l-F;f=A(d,F,b+1/3);l=A(d,F,b);b=A(d,F,b-1/3)}b="#"+I[Math.floor(f*
-255)]+I[Math.floor(l*255)]+I[Math.floor(b*255)];c=c[3]}else b=Q[a]||a;return M[a]={color:b,alpha:c}}function x(a){this.m_=h();this.mStack_=[];this.aStack_=[];this.currentPath_=[];this.fillStyle=this.strokeStyle="#000";this.lineWidth=1;this.lineJoin="miter";this.lineCap="butt";this.miterLimit=u*1;this.globalAlpha=1;this.font="10px sans-serif";this.textAlign="left";this.textBaseline="alphabetic";this.canvas=a;var b="width:"+a.clientWidth+"px;height:"+a.clientHeight+"px;overflow:hidden;position:absolute",
-c=a.ownerDocument.createElement("div");c.style.cssText=b;a.appendChild(c);b=c.cloneNode(!1);b.style.backgroundColor="red";b.style.filter="alpha(opacity=0)";a.appendChild(b);this.element_=c;this.lineScale_=this.arcScaleY_=this.arcScaleX_=1}function B(a,b,c,f){a.currentPath_.push({type:"bezierCurveTo",cp1x:b.x,cp1y:b.y,cp2x:c.x,cp2y:c.y,x:f.x,y:f.y});a.currentX_=f.x;a.currentY_=f.y}function D(a,b){var c=w(a.strokeStyle),f=c.color,c=c.alpha*a.globalAlpha,l=a.lineScale_*a.lineWidth;l<1&&(c*=l);b.push("<g_vml_:stroke",
-' opacity="',c,'"',' joinstyle="',a.lineJoin,'"',' miterlimit="',a.miterLimit,'"',' endcap="',R[a.lineCap]||"square",'"',' weight="',l,'px"',' color="',f,'" />')}function s(a,b,c,f){var l=a.fillStyle,d=a.arcScaleX_,e=a.arcScaleY_,g=f.x-c.x,i=f.y-c.y;if(l instanceof j){var m=0,f={x:0,y:0},n=0,h=1;if(l.type_=="gradient"){var m=l.x1_/d,c=l.y1_/e,G=t(a,l.x0_/d,l.y0_/e),m=t(a,m,c),m=Math.atan2(m.x-G.x,m.y-G.y)*180/Math.PI;m<0&&(m+=360);m<1.0E-6&&(m=0)}else G=t(a,l.x0_,l.y0_),f={x:(G.x-c.x)/g,y:(G.y-c.y)/
-i},g/=d*u,i/=e*u,h=y.max(g,i),n=2*l.r0_/h,h=2*l.r1_/h-n;d=l.colors_;d.sort(function(a,b){return a.offset-b.offset});for(var e=d.length,G=d[0].color,c=d[e-1].color,g=d[0].alpha*a.globalAlpha,a=d[e-1].alpha*a.globalAlpha,i=[],o=0;o<e;o++){var s=d[o];i.push(s.offset*h+n+" "+s.color)}b.push('<g_vml_:fill type="',l.type_,'"',' method="none" focus="100%"',' color="',G,'"',' color2="',c,'"',' colors="',i.join(","),'"',' opacity="',a,'"',' g_o_:opacity2="',g,'"',' angle="',m,'"',' focusposition="',f.x,",",
-f.y,'" />')}else l instanceof k?g&&i&&b.push("<g_vml_:fill",' position="',-c.x/g*d*d,",",-c.y/i*e*e,'"',' type="tile"',' src="',l.src_,'" />'):(l=w(a.fillStyle),b.push('<g_vml_:fill color="',l.color,'" opacity="',l.alpha*a.globalAlpha,'" />'))}function t(a,b,c){a=a.m_;return{x:u*(b*a[0][0]+c*a[1][0]+a[2][0])-H,y:u*(b*a[0][1]+c*a[1][1]+a[2][1])-H}}function z(a,b,c){if(isFinite(b[0][0])&&isFinite(b[0][1])&&isFinite(b[1][0])&&isFinite(b[1][1])&&isFinite(b[2][0])&&isFinite(b[2][1])&&(a.m_=b,c))a.lineScale_=
-S(T(b[0][0]*b[1][1]-b[0][1]*b[1][0]))}function j(a){this.type_=a;this.r1_=this.y1_=this.x1_=this.r0_=this.y0_=this.x0_=0;this.colors_=[]}function k(a,b){if(!a||a.nodeType!=1||a.tagName!="IMG")throw new p("TYPE_MISMATCH_ERR");if(a.readyState!="complete")throw new p("INVALID_STATE_ERR");switch(b){case "repeat":case null:case "":this.repetition_="repeat";break;case "repeat-x":case "repeat-y":case "no-repeat":this.repetition_=b;break;default:throw new p("SYNTAX_ERR");}this.src_=a.src;this.width_=a.width;
-this.height_=a.height}function p(a){this.code=this[a];this.message=a+": DOM Exception "+this.code}var y=Math,i=y.round,E=y.sin,J=y.cos,T=y.abs,S=y.sqrt,u=10,H=u/2;navigator.userAgent.match(/MSIE ([\d.]+)?/);var O=Array.prototype.slice;f(document);var P={init:function(b){b=b||document;b.createElement("canvas");b.attachEvent("onreadystatechange",a(this.init_,this,b))},init_:function(a){for(var a=a.getElementsByTagName("canvas"),b=0;b<a.length;b++)this.initElement(a[b])},initElement:function(a){if(!a.getContext){a.getContext=
-c;f(a.ownerDocument);a.innerHTML="";a.attachEvent("onpropertychange",d);a.attachEvent("onresize",e);var b=a.attributes;b.width&&b.width.specified?a.style.width=b.width.nodeValue+"px":a.width=a.clientWidth;b.height&&b.height.specified?a.style.height=b.height.nodeValue+"px":a.height=a.clientHeight}return a}};P.init();for(var I=[],g=0;g<16;g++)for(var L=0;L<16;L++)I[g*16+L]=g.toString(16)+L.toString(16);var Q={aliceblue:"#F0F8FF",antiquewhite:"#FAEBD7",aquamarine:"#7FFFD4",azure:"#F0FFFF",beige:"#F5F5DC",
-bisque:"#FFE4C4",black:"#000000",blanchedalmond:"#FFEBCD",blueviolet:"#8A2BE2",brown:"#A52A2A",burlywood:"#DEB887",cadetblue:"#5F9EA0",chartreuse:"#7FFF00",chocolate:"#D2691E",coral:"#FF7F50",cornflowerblue:"#6495ED",cornsilk:"#FFF8DC",crimson:"#DC143C",cyan:"#00FFFF",darkblue:"#00008B",darkcyan:"#008B8B",darkgoldenrod:"#B8860B",darkgray:"#A9A9A9",darkgreen:"#006400",darkgrey:"#A9A9A9",darkkhaki:"#BDB76B",darkmagenta:"#8B008B",darkolivegreen:"#556B2F",darkorange:"#FF8C00",darkorchid:"#9932CC",darkred:"#8B0000",
-darksalmon:"#E9967A",darkseagreen:"#8FBC8F",darkslateblue:"#483D8B",darkslategray:"#2F4F4F",darkslategrey:"#2F4F4F",darkturquoise:"#00CED1",darkviolet:"#9400D3",deeppink:"#FF1493",deepskyblue:"#00BFFF",dimgray:"#696969",dimgrey:"#696969",dodgerblue:"#1E90FF",firebrick:"#B22222",floralwhite:"#FFFAF0",forestgreen:"#228B22",gainsboro:"#DCDCDC",ghostwhite:"#F8F8FF",gold:"#FFD700",goldenrod:"#DAA520",grey:"#808080",greenyellow:"#ADFF2F",honeydew:"#F0FFF0",hotpink:"#FF69B4",indianred:"#CD5C5C",indigo:"#4B0082",
-ivory:"#FFFFF0",khaki:"#F0E68C",lavender:"#E6E6FA",lavenderblush:"#FFF0F5",lawngreen:"#7CFC00",lemonchiffon:"#FFFACD",lightblue:"#ADD8E6",lightcoral:"#F08080",lightcyan:"#E0FFFF",lightgoldenrodyellow:"#FAFAD2",lightgreen:"#90EE90",lightgrey:"#D3D3D3",lightpink:"#FFB6C1",lightsalmon:"#FFA07A",lightseagreen:"#20B2AA",lightskyblue:"#87CEFA",lightslategray:"#778899",lightslategrey:"#778899",lightsteelblue:"#B0C4DE",lightyellow:"#FFFFE0",limegreen:"#32CD32",linen:"#FAF0E6",magenta:"#FF00FF",mediumaquamarine:"#66CDAA",
-mediumblue:"#0000CD",mediumorchid:"#BA55D3",mediumpurple:"#9370DB",mediumseagreen:"#3CB371",mediumslateblue:"#7B68EE",mediumspringgreen:"#00FA9A",mediumturquoise:"#48D1CC",mediumvioletred:"#C71585",midnightblue:"#191970",mintcream:"#F5FFFA",mistyrose:"#FFE4E1",moccasin:"#FFE4B5",navajowhite:"#FFDEAD",oldlace:"#FDF5E6",olivedrab:"#6B8E23",orange:"#FFA500",orangered:"#FF4500",orchid:"#DA70D6",palegoldenrod:"#EEE8AA",palegreen:"#98FB98",paleturquoise:"#AFEEEE",palevioletred:"#DB7093",papayawhip:"#FFEFD5",
-peachpuff:"#FFDAB9",peru:"#CD853F",pink:"#FFC0CB",plum:"#DDA0DD",powderblue:"#B0E0E6",rosybrown:"#BC8F8F",royalblue:"#4169E1",saddlebrown:"#8B4513",salmon:"#FA8072",sandybrown:"#F4A460",seagreen:"#2E8B57",seashell:"#FFF5EE",sienna:"#A0522D",skyblue:"#87CEEB",slateblue:"#6A5ACD",slategray:"#708090",slategrey:"#708090",snow:"#FFFAFA",springgreen:"#00FF7F",steelblue:"#4682B4",tan:"#D2B48C",thistle:"#D8BFD8",tomato:"#FF6347",turquoise:"#40E0D0",violet:"#EE82EE",wheat:"#F5DEB3",whitesmoke:"#F5F5F5",yellowgreen:"#9ACD32"},
-M={},K={style:"normal",variant:"normal",weight:"normal",size:10,family:"sans-serif"},N={},R={butt:"flat",round:"round"},g=x.prototype;g.clearRect=function(){if(this.textMeasureEl_)this.textMeasureEl_.removeNode(!0),this.textMeasureEl_=null;this.element_.innerHTML=""};g.beginPath=function(){this.currentPath_=[]};g.moveTo=function(a,b){var c=t(this,a,b);this.currentPath_.push({type:"moveTo",x:c.x,y:c.y});this.currentX_=c.x;this.currentY_=c.y};g.lineTo=function(a,b){var c=t(this,a,b);this.currentPath_.push({type:"lineTo",
-x:c.x,y:c.y});this.currentX_=c.x;this.currentY_=c.y};g.bezierCurveTo=function(a,b,c,f,d,e){d=t(this,d,e);a=t(this,a,b);c=t(this,c,f);B(this,a,c,d)};g.quadraticCurveTo=function(a,b,c,f){a=t(this,a,b);c=t(this,c,f);f={x:this.currentX_+2/3*(a.x-this.currentX_),y:this.currentY_+2/3*(a.y-this.currentY_)};B(this,f,{x:f.x+(c.x-this.currentX_)/3,y:f.y+(c.y-this.currentY_)/3},c)};g.arc=function(a,b,c,f,d,e){c*=u;var g=e?"at":"wa",i=a+J(f)*c-H,h=b+E(f)*c-H,f=a+J(d)*c-H,d=b+E(d)*c-H;i==f&&!e&&(i+=0.125);a=t(this,
-a,b);i=t(this,i,h);f=t(this,f,d);this.currentPath_.push({type:g,x:a.x,y:a.y,radius:c,xStart:i.x,yStart:i.y,xEnd:f.x,yEnd:f.y})};g.rect=function(a,b,c,f){this.moveTo(a,b);this.lineTo(a+c,b);this.lineTo(a+c,b+f);this.lineTo(a,b+f);this.closePath()};g.strokeRect=function(a,b,c,f){var d=this.currentPath_;this.beginPath();this.moveTo(a,b);this.lineTo(a+c,b);this.lineTo(a+c,b+f);this.lineTo(a,b+f);this.closePath();this.stroke();this.currentPath_=d};g.fillRect=function(a,b,c,f){var d=this.currentPath_;this.beginPath();
-this.moveTo(a,b);this.lineTo(a+c,b);this.lineTo(a+c,b+f);this.lineTo(a,b+f);this.closePath();this.fill();this.currentPath_=d};g.createLinearGradient=function(a,b,c,f){var d=new j("gradient");d.x0_=a;d.y0_=b;d.x1_=c;d.y1_=f;return d};g.createRadialGradient=function(a,b,c,f,d,e){var g=new j("gradientradial");g.x0_=a;g.y0_=b;g.r0_=c;g.x1_=f;g.y1_=d;g.r1_=e;return g};g.drawImage=function(a){var b,c,f,d,e,g,h,j;f=a.runtimeStyle.width;d=a.runtimeStyle.height;a.runtimeStyle.width="auto";a.runtimeStyle.height=
-"auto";var m=a.width,n=a.height;a.runtimeStyle.width=f;a.runtimeStyle.height=d;if(arguments.length==3)b=arguments[1],c=arguments[2],e=g=0,h=f=m,j=d=n;else if(arguments.length==5)b=arguments[1],c=arguments[2],f=arguments[3],d=arguments[4],e=g=0,h=m,j=n;else if(arguments.length==9)e=arguments[1],g=arguments[2],h=arguments[3],j=arguments[4],b=arguments[5],c=arguments[6],f=arguments[7],d=arguments[8];else throw Error("Invalid number of arguments");var k=t(this,b,c),o=[];o.push(" <g_vml_:group",' coordsize="',
-u*10,",",u*10,'"',' coordorigin="0,0"',' style="width:',10,"px;height:",10,"px;position:absolute;");if(this.m_[0][0]!=1||this.m_[0][1]||this.m_[1][1]!=1||this.m_[1][0]){var s=[];s.push("M11=",this.m_[0][0],",","M12=",this.m_[1][0],",","M21=",this.m_[0][1],",","M22=",this.m_[1][1],",","Dx=",i(k.x/u),",","Dy=",i(k.y/u),"");var p=t(this,b+f,c),r=t(this,b,c+d);b=t(this,b+f,c+d);k.x=y.max(k.x,p.x,r.x,b.x);k.y=y.max(k.y,p.y,r.y,b.y);o.push("padding:0 ",i(k.x/u),"px ",i(k.y/u),"px 0;filter:progid:DXImageTransform.Microsoft.Matrix(",
-s.join(""),", sizingmethod='clip');")}else o.push("top:",i(k.y/u),"px;left:",i(k.x/u),"px;");o.push(' ">','<g_vml_:image src="',a.src,'"',' style="width:',u*f,"px;"," height:",u*d,'px"',' cropleft="',e/m,'"',' croptop="',g/n,'"',' cropright="',(m-e-h)/m,'"',' cropbottom="',(n-g-j)/n,'"'," />","</g_vml_:group>");this.element_.insertAdjacentHTML("BeforeEnd",o.join(""))};g.stroke=function(a){var b=[];b.push("<g_vml_:shape",' filled="',!!a,'"',' style="position:absolute;width:',10,"px;height:",10,'px;"',
-' coordorigin="0,0"',' coordsize="',u*10,",",u*10,'"',' stroked="',!a,'"',' path="');for(var c={x:null,y:null},f={x:null,y:null},d=0;d<this.currentPath_.length;d++){var e=this.currentPath_[d];switch(e.type){case "moveTo":b.push(" m ",i(e.x),",",i(e.y));break;case "lineTo":b.push(" l ",i(e.x),",",i(e.y));break;case "close":b.push(" x ");e=null;break;case "bezierCurveTo":b.push(" c ",i(e.cp1x),",",i(e.cp1y),",",i(e.cp2x),",",i(e.cp2y),",",i(e.x),",",i(e.y));break;case "at":case "wa":b.push(" ",e.type,
-" ",i(e.x-this.arcScaleX_*e.radius),",",i(e.y-this.arcScaleY_*e.radius)," ",i(e.x+this.arcScaleX_*e.radius),",",i(e.y+this.arcScaleY_*e.radius)," ",i(e.xStart),",",i(e.yStart)," ",i(e.xEnd),",",i(e.yEnd))}if(e){if(c.x==null||e.x<c.x)c.x=e.x;if(f.x==null||e.x>f.x)f.x=e.x;if(c.y==null||e.y<c.y)c.y=e.y;if(f.y==null||e.y>f.y)f.y=e.y}}b.push(' ">');a?s(this,b,c,f):D(this,b);b.push("</g_vml_:shape>");this.element_.insertAdjacentHTML("beforeEnd",b.join(""))};g.fill=function(){this.stroke(!0)};g.closePath=
-function(){this.currentPath_.push({type:"close"})};g.save=function(){var a={};r(this,a);this.aStack_.push(a);this.mStack_.push(this.m_);this.m_=o(h(),this.m_)};g.restore=function(){if(this.aStack_.length)r(this.aStack_.pop(),this),this.m_=this.mStack_.pop()};g.translate=function(a,b){z(this,o([[1,0,0],[0,1,0],[a,b,1]],this.m_),!1)};g.rotate=function(a){var b=J(a),a=E(a);z(this,o([[b,a,0],[-a,b,0],[0,0,1]],this.m_),!1)};g.scale=function(a,b){this.arcScaleX_*=a;this.arcScaleY_*=b;z(this,o([[a,0,0],
-[0,b,0],[0,0,1]],this.m_),!0)};g.transform=function(a,b,c,f,d,e){z(this,o([[a,b,0],[c,f,0],[d,e,1]],this.m_),!0)};g.setTransform=function(a,b,c,f,d,e){z(this,[[a,b,0],[c,f,0],[d,e,1]],!0)};g.drawText_=function(a,c,f,d,e){var g=this.m_,d=0,h=1E3,j={x:0,y:0},k=[],m;m=this.font;if(N[m])m=N[m];else{var n=document.createElement("div").style;try{n.font=m}catch(o){}m=N[m]={style:n.fontStyle||K.style,variant:n.fontVariant||K.variant,weight:n.fontWeight||K.weight,size:n.fontSize||K.size,family:n.fontFamily||
-K.family}}var n=m,p=this.element_;m={};for(var r in n)m[r]=n[r];r=parseFloat(p.currentStyle.fontSize);p=parseFloat(n.size);m.size=typeof n.size=="number"?n.size:n.size.indexOf("px")!=-1?p:n.size.indexOf("em")!=-1?r*p:n.size.indexOf("%")!=-1?r/100*p:n.size.indexOf("pt")!=-1?p/0.75:r;m.size*=0.981;r=m.style+" "+m.variant+" "+m.weight+" "+m.size+"px "+m.family;p=this.element_.currentStyle;n=this.textAlign.toLowerCase();switch(n){case "left":case "center":case "right":break;case "end":n=p.direction==
-"ltr"?"right":"left";break;case "start":n=p.direction=="rtl"?"right":"left";break;default:n="left"}switch(this.textBaseline){case "hanging":case "top":j.y=m.size/1.75;break;case "middle":break;default:case null:case "alphabetic":case "ideographic":case "bottom":j.y=-m.size/2.25}switch(n){case "right":d=1E3;h=0.05;break;case "center":d=h=500}c=t(this,c+j.x,f+j.y);k.push('<g_vml_:line from="',-d,' 0" to="',h,' 0.05" ',' coordsize="100 100" coordorigin="0 0"',' filled="',!e,'" stroked="',!!e,'" style="position:absolute;width:1px;height:1px;">');
-e?D(this,k):s(this,k,{x:-d,y:0},{x:h,y:m.size});e=g[0][0].toFixed(3)+","+g[1][0].toFixed(3)+","+g[0][1].toFixed(3)+","+g[1][1].toFixed(3)+",0,0";c=i(c.x/u)+","+i(c.y/u);k.push('<g_vml_:skew on="t" matrix="',e,'" ',' offset="',c,'" origin="',d,' 0" />','<g_vml_:path textpathok="true" />','<g_vml_:textpath on="true" string="',b(a),'" style="v-text-align:',n,";font:",b(r),'" /></g_vml_:line>');this.element_.insertAdjacentHTML("beforeEnd",k.join(""))};g.fillText=function(a,b,c,f){this.drawText_(a,b,c,
-f,!1)};g.strokeText=function(a,b,c,f){this.drawText_(a,b,c,f,!0)};g.measureText=function(a){if(!this.textMeasureEl_)this.element_.insertAdjacentHTML("beforeEnd",'<span style="position:absolute;top:-20000px;left:0;padding:0;margin:0;border:none;white-space:pre;"></span>'),this.textMeasureEl_=this.element_.lastChild;var b=this.element_.ownerDocument;this.textMeasureEl_.innerHTML="";this.textMeasureEl_.style.font=this.font;this.textMeasureEl_.appendChild(b.createTextNode(a));return{width:this.textMeasureEl_.offsetWidth}};
-g.clip=function(){};g.arcTo=function(){};g.createPattern=function(a,b){return new k(a,b)};j.prototype.addColorStop=function(a,b){b=w(b);this.colors_.push({offset:a,color:b.color,alpha:b.alpha})};g=p.prototype=Error();g.INDEX_SIZE_ERR=1;g.DOMSTRING_SIZE_ERR=2;g.HIERARCHY_REQUEST_ERR=3;g.WRONG_DOCUMENT_ERR=4;g.INVALID_CHARACTER_ERR=5;g.NO_DATA_ALLOWED_ERR=6;g.NO_MODIFICATION_ALLOWED_ERR=7;g.NOT_FOUND_ERR=8;g.NOT_SUPPORTED_ERR=9;g.INUSE_ATTRIBUTE_ERR=10;g.INVALID_STATE_ERR=11;g.SYNTAX_ERR=12;g.INVALID_MODIFICATION_ERR=
-13;g.NAMESPACE_ERR=14;g.INVALID_ACCESS_ERR=15;g.VALIDATION_ERR=16;g.TYPE_MISMATCH_ERR=17;G_vmlCanvasManager=P;CanvasRenderingContext2D=x;CanvasGradient=j;CanvasPattern=k;DOMException=p}();var FILTER=FILTER||{};(function(c){c.Filter=function(a){this.image=a};c.Filter.prototype.apply=function(){}})(FILTER);
-(function(c){c.Image=function(a,b){this.height=this.width=0;this.type="undefined";this.context=this.canvasElement=this.image=null;this.canvasElement=document.createElement("canvas");this.canvasElement.width=0;this.canvasElement.height=0;this.context=this.canvasElement.getContext("2d");this.setImage(a,b)};c.blendModes={normal:function(a){return a},lighten:function(a,b){return b>a?b:a},darken:function(a,b){return b>a?a:b},multiply:function(a,b){return a*b/255},average:function(a,b){return(a+b)/2},add:function(a,
-b){return Math.min(255,a+b)},substract:function(a,b){return a+b<255?0:a+b-255},difference:function(a,b){return Math.abs(a-b)},negation:function(a,b){return 255-Math.abs(255-a-b)},screen:function(a,b){return 255-((255-a)*(255-b)>>8)},exclusion:function(a,b){return a+b-2*a*b/255},overlay:function(a,b){return b<128?2*a*b/255:255-2*(255-a)*(255-b)/255},softLight:function(a,b){return b<128?2*((a>>1)+64)*(b/255):255-2*(255-((a>>1)+64))*(255-b)/255},hardLight:function(a,b){return c.blendModes.overlay(b,
-a)},colorDodge:function(a,b){return b==255?b:Math.min(255,(a<<8)/(255-b))},colorBurn:function(a,b){return b==0?b:Math.max(0,255-(255-a<<8)/b)},linearDodge:function(a,b){return c.blendModes.add(a,b)},linearBurn:function(a,b){return c.blendModes.substract(a,b)},linearLight:function(a,b){return b<128?c.blendModes.linearBurn(a,2*b):c.blendModes.linearDodge(a,2*(b-128))},vividLight:function(a,b){return b<128?c.blendModes.colorBurn(a,2*b):c.blendModes.colorDodge(a,2*(b-128))},pinLight:function(a,b){return b<
-128?c.blendModes.darken(a,2*b):c.blendModes.lighten(a,2*(b-128))},hardMix:function(a,b){return c.blendModes.vividLight(a,b)<128?0:255},reflect:function(a,b){return b==255?b:Math.min(255,a*a/(255-b))},glow:function(a,b){return c.blendModes.reflect(b,a)},phoenix:function(a,b){return Math.min(a,b)-Math.max(a,b)+255}};c.Image.prototype.blend=function(a,b,f,d,e){typeof b=="undefined"&&(b="normal");typeof f=="undefined"&&(f=1);f>1&&(f=1);f<0&&(f=0);typeof d=="undefined"&&(d=0);typeof e=="undefined"&&(e=
-0);var h=0,o=0;d<0&&(h=-d,d=0);e<0&&(o=-e,e=0);if(!(d>=this.width||e>=this.height)){b=c.blendModes[b];if(b==void 0||b==null)return this;for(var r=Math.min(this.width,a.width-h),v=Math.min(this.height,a.height-o),C=this.context.getImageData(d,e,r,v),h=a.context.getImageData(h,o,r,v),a=C.data,h=h.data,A,w,x,B=1-f,D=h.length,s=0;s<D;s+=4)A=a[s],w=a[s+1],x=a[s+2],o=b(h[s],A),r=b(h[s+1],w),v=b(h[s+2],x),a[s]=o*f+A*B,a[s+1]=r*f+w*B,a[s+2]=v*f+x*B;this.context.putImageData(C,d,e);return this}};c.Image.prototype.clone=
-function(a){typeof a=="undefined"&&(a=!1);return a&&this.image&&this.image.src?new c.Image(this.image.src):new c.Image(this.canvasElement)};c.Image.prototype.createImageData=function(a,b){this.width=a;this.height=b;this.canvasElement.width=this.width;this.canvasElement.height=this.height;this.context=this.canvasElement.getContext("2d");return this.context.createImageData(a,b)};c.Image.prototype.getPixelData=function(){return this.context.getImageData(0,0,this.width,this.height)};c.Image.prototype.setPixelData=
-function(a){this.context.putImageData(a,0,0)};c.Image.prototype.setWidth=function(a){this.width=a;this.canvasElement.width=this.width;this.context=this.canvasElement.getContext("2d")};c.Image.prototype.setHeight=function(a){this.height=a;this.canvasElement.height=this.height;this.context=this.canvasElement.getContext("2d")};c.Image.prototype.setImage=function(a,b){if(!(typeof a=="undefined"||a==null)){var c=this;if(a instanceof Image||a instanceof HTMLCanvasElement||a instanceof HTMLVideoElement){this.image=
-a;this.width=a.width;this.height=a.height;this.canvasElement.width=this.width;this.canvasElement.height=this.height;this.context=this.canvasElement.getContext("2d");this.context.drawImage(this.image,0,0);if(a instanceof Image)this.type="image";if(a instanceof HTMLCanvasElement)this.type="canvas";if(a instanceof HTMLVideoElement)this.type="video"}else this.image=new Image,this.type="image-url",this.image.onload=function(){c.width=c.image.width;c.height=c.image.height;c.canvasElement.width=c.width;
-c.canvasElement.height=c.height;c.context=c.canvasElement.getContext("2d");c.context.drawImage(c.image,0,0);typeof b!="undefined"&&b.call(c)},this.image.src=a;this.image.crossOrigin=""}}})(FILTER);
-(function(c){c.ColorMatrixFilter=function(a,b){this.matrix=[1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0];this.image=a;typeof b!="undefined"&&this.concat(b)};c.ColorMatrixFilter.prototype=new c.Filter;c.ColorMatrixFilter.prototype.constructor=c.ColorMatrixFilter;c.ColorMatrixFilter.prototype.concat=function(a){var b=[],c=0,d,e;for(e=0;e<4;e++){for(d=0;d<5;d++)b[c+d]=a[c]*this.matrix[d]+a[c+1]*this.matrix[d+5]+a[c+2]*this.matrix[d+10]+a[c+3]*this.matrix[d+15]+(d==4?a[c+4]:0);c+=5}this.matrix=b};c.ColorMatrixFilter.prototype.apply=
-function(){for(var a=this.image.getPixelData(),b=a.data,c=this.matrix,d=0;d<b.length;d+=4){var e=[b[d],b[d+1],b[d+2],b[d+3]];b[d]=c[0]*e[0]+c[1]*e[1]+c[2]*e[2]+c[3]*e[3]+c[4];b[d+1]=c[5]*e[0]+c[6]*e[1]+c[7]*e[2]+c[8]*e[3]+c[9];b[d+2]=c[10]*e[0]+c[11]*e[1]+c[12]*e[2]+c[13]*e[3]+c[14];b[d+3]=c[15]*e[0]+c[16]*e[1]+c[17]*e[2]+c[18]*e[3]+c[19]}this.image.setPixelData(a)};c.LUMA={};c.LUMA.R=0.212671;c.LUMA.G=0.71516;c.LUMA.B=0.072169;c.ColorMatrixFilter.prototype.grayscale=function(){var a=c.LUMA.R,b=c.LUMA.G,
-f=c.LUMA.B;this.concat([a,b,f,0,0,a,b,f,0,0,a,b,f,0,0,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.desaturate=function(){this.concat([c.LUMA.R,c.LUMA.G,c.LUMA.B,0,0,c.LUMA.R,c.LUMA.G,c.LUMA.B,0,0,c.LUMA.R,c.LUMA.G,c.LUMA.B,0,0,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.colorize=function(a,b){var f,d,e,h;typeof b=="undefined"&&(b=1);f=(a>>16&255)/255;d=(a>>8&255)/255;e=(a&255)/255;h=1-b;this.concat([h+b*f*c.LUMA.R,b*f*c.LUMA.G,b*f*c.LUMA.B,0,0,b*d*c.LUMA.R,h+b*d*c.LUMA.G,b*d*
-c.LUMA.B,0,0,b*e*c.LUMA.R,b*e*c.LUMA.G,h+b*e*c.LUMA.B,0,0,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.invert=function(){this.concat([-1,0,0,0,255,0,-1,0,0,255,0,0,-1,0,255,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.saturation=function(a){var b,f,d;b=1-a;f=b*c.LUMA.R;d=b*c.LUMA.G;b*=c.LUMA.B;this.concat([f+a,d,b,0,0,f,d+a,b,0,0,f,d,b+a,0,0,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.contrast=function(a,b,c){typeof b=="undefined"&&(b=a);typeof c=="undefined"&&(c=a);
-a+=1;b+=1;c+=1;this.concat([a,0,0,0,128*(1-a),0,b,0,0,128*(1-b),0,0,c,0,128*(1-c),0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.brightness=function(a,b,c){typeof b=="undefined"&&(b=a);typeof c=="undefined"&&(c=a);this.concat([1,0,0,0,a,0,1,0,0,b,0,0,1,0,c,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.adjustHue=function(a){a*=Math.PI/180;var b=Math.cos(a),a=Math.sin(a);this.concat([c.LUMA.R+b*(1-c.LUMA.R)+a*-c.LUMA.R,c.LUMA.G+b*-c.LUMA.G+a*-c.LUMA.G,c.LUMA.B+b*-c.LUMA.B+a*(1-c.LUMA.B),
-0,0,c.LUMA.R+b*-c.LUMA.R+a*0.143,c.LUMA.G+b*(1-c.LUMA.G)+a*0.14,c.LUMA.B+b*-c.LUMA.B+a*-0.283,0,0,c.LUMA.R+b*-c.LUMA.R+a*-(1-c.LUMA.R),c.LUMA.G+b*-c.LUMA.G+a*c.LUMA.G,c.LUMA.B+b*(1-c.LUMA.B)+a*c.LUMA.B,0,0,0,0,0,1,0]);return this};c.ColorMatrixFilter.prototype.blend=function(a,b){for(var c=1-b,d=0;d<20;)this.matrix[d]=c*this.matrix[d]+b*a.matrix[d],d++};c.ColorMatrixFilter.prototype.average=function(a,b,c){typeof a=="undefined"&&(a=1/3);typeof b=="undefined"&&(b=1/3);typeof c=="undefined"&&(c=1/3);
-this.concat([a,b,c,0,0,a,b,c,0,0,a,b,c,0,0,0,0,0,1,0])};c.ColorMatrixFilter.prototype.threshold=function(a,b){typeof b=="undefined"&&(b=256);this.concat([c.LUMA.R*b,c.LUMA.G*b,c.LUMA.B*b,0,-(b-1)*a,c.LUMA.R*b,c.LUMA.G*b,c.LUMA.B*b,0,-(b-1)*a,c.LUMA.R*b,c.LUMA.G*b,c.LUMA.B*b,0,-(b-1)*a,0,0,0,1,0])};c.ColorMatrixFilter.prototype.threshold_rgb=function(a,b){typeof b=="undefined"&&(b=256);this.concat([b,0,0,0,-(b-1)*a,0,b,0,0,-(b-1)*a,0,0,b,0,-(b-1)*a,0,0,0,1,0])};c.ColorMatrixFilter.prototype.threshold_alpha=
-function(a,b){typeof a=="undefined"&&(a=0.5);typeof b=="undefined"&&(b=256);this.concat([1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,b,-b*a])}})(FILTER);
-(function(c){c.ConvolutionMatrixFilter=function(a,b,c){this.image=a;if(typeof b!="undefined")this.weights=b;this.opaque=!0;if(typeof c!="undefined")this.opaque=c};c.ConvolutionMatrixFilter.prototype=new c.Filter;c.ConvolutionMatrixFilter.prototype.constructor=c.ConvolutionMatrixFilter;c.ConvolutionMatrixFilter.prototype.apply=function(){for(var a=Math.round(Math.sqrt(this.weights.length)),b=Math.floor(a/2),c=this.image.getPixelData(),d=c.data,e=c.width,c=c.height,h=this.image.clone().getPixelData(),
-o=this.opaque?1:0,r=0;r<c;r++)for(var v=0;v<e;v++){for(var C=r,A=v,w=(r*e+v)*4,x=0,B=0,D=0,s=0,t=0;t<a;t++)for(var z=0;z<a;z++){var j=C+t-b,k=A+z-b;j>=0&&j<c&&k>=0&&k<e&&(j=(j*e+k)*4,k=this.weights[t*a+z],x+=d[j]*k,B+=d[j+1]*k,D+=d[j+2]*k,s+=d[j+3]*k)}h.data[w]=x;h.data[w+1]=B;h.data[w+2]=D;h.data[w+3]=s+o*(255-s)}this.image.setPixelData(h)};c.ConvolutionMatrixFilter.prototype.blur=function(){var a=1/9;this.weights=[a,a,a,a,a,a,a,a,a];return this};c.ConvolutionMatrixFilter.prototype.blur4=function(){this.weights=
-[0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625];return this};c.ConvolutionMatrixFilter.prototype.sharpen=function(){this.weights=[-1,-1,-1,-1,9,-1,-1,-1,-1];return this};c.ConvolutionMatrixFilter.prototype.gauss=function(){this.weights=[0.0625,0.125,0.0625,0.125,0.25,0.125,0.0625,0.125,0.0625];return this};c.ConvolutionMatrixFilter.prototype.laplace=function(){this.weights=[0,1,0,1,-4,1,0,1,0];return this};c.ConvolutionMatrixFilter.prototype.emboss=
-function(){this.weights=[-2,-1,0,-1,1,1,0,1,2];return this};c.ConvolutionMatrixFilter.prototype.edge=function(){this.weights=[0,1,0,1,-4,1,0,1,0];return this};c.ConvolutionMatrixFilter.prototype.motionblur=function(a){var b=1/9;this.weights=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];if(a==0)for(a=0;a<9;a++)this.weights[36+a]=b;else if(a==2)for(a=0;a<9;a++)this.weights[9*a+5]=b;
-else if(a==1)for(a=0;a<9;a++)this.weights[9*Math.round(a)+Math.round(a)]=b;return this}})(FILTER);
-(function(c){c.CHANNEL={};c.CHANNEL.RED=0;c.CHANNEL.GREEN=1;c.CHANNEL_BLUE=2;c.CHANNEL.ALPHA=3;c.MODE={};c.MODE.IGNORE=0;c.MODE.WRAP=1;c.MODE.CLAMP=2;c.MODE.COLOR=4;c.DisplacementMapFilter=function(a,b){this.scaleY=this.scaleX=1;this.color=this.componentY=this.componentX=this.startY=this.startX=0;this.mode=c.MODE.CLAMP;this.image=a;this.map=b};c.DisplacementMapFilter.prototype=new c.Filter;c.DisplacementMapFilter.prototype.constructor=c.DisplacementMapFilter;c.DisplacementMapFilter.prototype.apply=
-function(){var a=this.image.getPixelData(),b=a.width,f=a.height,d=this.map.clone().getPixelData(),e=d.data,h=d.width,o=d.height,d=this.image.clone().getPixelData(),r=this.scaleX/256,v=this.scaleY/256,C=this.color>>24&255,A=this.color>>16&255,w=this.color>>8&255,x=this.color&255,B=Math.min(h,b),o=Math.min(o,f),D=Math.floor(this.startY),s=Math.floor(this.startX),t=this.componentX,z=this.componentY,j,k,p,y,i,E,J=this.mode;for(E=0;E<o;E++)for(i=0;i<B;i++)if(k=E+D,j=i+s,!(k<0||k>=f||j<0||j>=b)){p=(k*b+
-j)*4;y=(E*h+i)*4;k+=Math.floor((e[y+z]-128)*v);j+=Math.floor((e[y+t]-128)*r);if(k>=f||k<0||j>=b||j<0)switch(J){case c.MODE.IGNORE:continue;case c.MODE.COLOR:d.data[p]=A;d.data[p+1]=w;d.data[p+2]=x;d.data[p+3]=C;continue;case c.MODE.WRAP:k>=f&&(k-=f);k<0&&(k+=f);j>=b&&(j-=b);j<0&&(j+=b);break;default:k>=f&&(k=f-1),k<0&&(k=0),j>=b&&(j=b-1),j<0&&(j=0)}j=(k*b+j)*4;d.data[p]=a.data[j];d.data[p+1]=a.data[j+1];d.data[p+2]=a.data[j+2];d.data[p+3]=a.data[j+3]}this.image.setPixelData(d)}})(FILTER);
-(function(c){c.SobelFilter=function(a){this.image=a};c.SobelFilter.prototype=new c.Filter;c.SobelFilter.prototype.constructor=c.SobelFilter;c.SobelFilter.prototype.apply=function(){(new c.ColorMatrixFilter(this.image)).grayscale().apply();var a=this.image.getPixelData();(new c.ConvolutionMatrixFilter(this.image,[-1,0,1,-2,0,2,-1,0,1])).apply();var b=this.image.getPixelData();this.image.setPixelData(a);(new c.ConvolutionMatrixFilter(this.image,[-1,-2,-1,0,0,0,1,2,1])).apply();for(var f=this.image.getPixelData(),
-d=[],e=0;e<a.data.length;e+=4){var h=Math.abs(b.data[e]);d[e]=h;var o=Math.abs(f.data[e]);d[e+1]=o;d[e+2]=(h+o)/4;d[e+3]=255}a=this.image.getPixelData();for(e=0;e<a.data.length;e++)a.data[e]=d[e];this.image.setPixelData(a,0,0)}})(FILTER);
+// Copyright 2006 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+// Known Issues:
+//
+// * Patterns only support repeat.
+// * Radial gradient are not implemented. The VML version of these look very
+//   different from the canvas one.
+// * Clipping paths are not implemented.
+// * Coordsize. The width and height attribute have higher priority than the
+//   width and height style values which isn't correct.
+// * Painting mode isn't implemented.
+// * Canvas width/height should is using content-box by default. IE in
+//   Quirks mode will draw the canvas using border-box. Either change your
+//   doctype to HTML5
+//   (http://www.whatwg.org/specs/web-apps/current-work/#the-doctype)
+//   or use Box Sizing Behavior from WebFX
+//   (http://webfx.eae.net/dhtml/boxsizing/boxsizing.html)
+// * Non uniform scaling does not correctly scale strokes.
+// * Optimize. There is always room for speed improvements.
+
+// Only add this code if we do not already have a canvas implementation
+if (!document.createElement('canvas').getContext) {
+
+(function() {
+
+  // alias some functions to make (compiled) code shorter
+  var m = Math;
+  var mr = m.round;
+  var ms = m.sin;
+  var mc = m.cos;
+  var abs = m.abs;
+  var sqrt = m.sqrt;
+
+  // this is used for sub pixel precision
+  var Z = 10;
+  var Z2 = Z / 2;
+
+  var IE_VERSION = +navigator.userAgent.match(/MSIE ([\d.]+)?/)[1];
+
+  /**
+   * This funtion is assigned to the <canvas> elements as element.getContext().
+   * @this {HTMLElement}
+   * @return {CanvasRenderingContext2D_}
+   */
+  function getContext() {
+    return this.context_ ||
+        (this.context_ = new CanvasRenderingContext2D_(this));
+  }
+
+  var slice = Array.prototype.slice;
+
+  /**
+   * Binds a function to an object. The returned function will always use the
+   * passed in {@code obj} as {@code this}.
+   *
+   * Example:
+   *
+   *   g = bind(f, obj, a, b)
+   *   g(c, d) // will do f.call(obj, a, b, c, d)
+   *
+   * @param {Function} f The function to bind the object to
+   * @param {Object} obj The object that should act as this when the function
+   *     is called
+   * @param {*} var_args Rest arguments that will be used as the initial
+   *     arguments when the function is called
+   * @return {Function} A new function that has bound this
+   */
+  function bind(f, obj, var_args) {
+    var a = slice.call(arguments, 2);
+    return function() {
+      return f.apply(obj, a.concat(slice.call(arguments)));
+    };
+  }
+
+  function encodeHtmlAttribute(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+
+  function addNamespace(doc, prefix, urn) {
+    if (!doc.namespaces[prefix]) {
+      doc.namespaces.add(prefix, urn, '#default#VML');
+    }
+  }
+
+  function addNamespacesAndStylesheet(doc) {
+    addNamespace(doc, 'g_vml_', 'urn:schemas-microsoft-com:vml');
+    addNamespace(doc, 'g_o_', 'urn:schemas-microsoft-com:office:office');
+
+    // Setup default CSS.  Only add one style sheet per document
+    if (!doc.styleSheets['ex_canvas_']) {
+      var ss = doc.createStyleSheet();
+      ss.owningElement.id = 'ex_canvas_';
+      ss.cssText = 'canvas{display:inline-block;overflow:hidden;' +
+          // default size is 300x150 in Gecko and Opera
+          'text-align:left;width:300px;height:150px}';
+    }
+  }
+
+  // Add namespaces and stylesheet at startup.
+  addNamespacesAndStylesheet(document);
+
+  var G_vmlCanvasManager_ = {
+    init: function(opt_doc) {
+      var doc = opt_doc || document;
+      // Create a dummy element so that IE will allow canvas elements to be
+      // recognized.
+      doc.createElement('canvas');
+      doc.attachEvent('onreadystatechange', bind(this.init_, this, doc));
+    },
+
+    init_: function(doc) {
+      // find all canvas elements
+      var els = doc.getElementsByTagName('canvas');
+      for (var i = 0; i < els.length; i++) {
+        this.initElement(els[i]);
+      }
+    },
+
+    /**
+     * Public initializes a canvas element so that it can be used as canvas
+     * element from now on. This is called automatically before the page is
+     * loaded but if you are creating elements using createElement you need to
+     * make sure this is called on the element.
+     * @param {HTMLElement} el The canvas element to initialize.
+     * @return {HTMLElement} the element that was created.
+     */
+    initElement: function(el) {
+      if (!el.getContext) {
+        el.getContext = getContext;
+
+        // Add namespaces and stylesheet to document of the element.
+        addNamespacesAndStylesheet(el.ownerDocument);
+
+        // Remove fallback content. There is no way to hide text nodes so we
+        // just remove all childNodes. We could hide all elements and remove
+        // text nodes but who really cares about the fallback content.
+        el.innerHTML = '';
+
+        // do not use inline function because that will leak memory
+        el.attachEvent('onpropertychange', onPropertyChange);
+        el.attachEvent('onresize', onResize);
+
+        var attrs = el.attributes;
+        if (attrs.width && attrs.width.specified) {
+          // TODO: use runtimeStyle and coordsize
+          // el.getContext().setWidth_(attrs.width.nodeValue);
+          el.style.width = attrs.width.nodeValue + 'px';
+        } else {
+          el.width = el.clientWidth;
+        }
+        if (attrs.height && attrs.height.specified) {
+          // TODO: use runtimeStyle and coordsize
+          // el.getContext().setHeight_(attrs.height.nodeValue);
+          el.style.height = attrs.height.nodeValue + 'px';
+        } else {
+          el.height = el.clientHeight;
+        }
+        //el.getContext().setCoordsize_()
+      }
+      return el;
+    }
+  };
+
+  function onPropertyChange(e) {
+    var el = e.srcElement;
+
+    switch (e.propertyName) {
+      case 'width':
+        el.getContext().clearRect();
+        el.style.width = el.attributes.width.nodeValue + 'px';
+        // In IE8 this does not trigger onresize.
+        el.firstChild.style.width =  el.clientWidth + 'px';
+        break;
+      case 'height':
+        el.getContext().clearRect();
+        el.style.height = el.attributes.height.nodeValue + 'px';
+        el.firstChild.style.height = el.clientHeight + 'px';
+        break;
+    }
+  }
+
+  function onResize(e) {
+    var el = e.srcElement;
+    if (el.firstChild) {
+      el.firstChild.style.width =  el.clientWidth + 'px';
+      el.firstChild.style.height = el.clientHeight + 'px';
+    }
+  }
+
+  G_vmlCanvasManager_.init();
+
+  // precompute "00" to "FF"
+  var decToHex = [];
+  for (var i = 0; i < 16; i++) {
+    for (var j = 0; j < 16; j++) {
+      decToHex[i * 16 + j] = i.toString(16) + j.toString(16);
+    }
+  }
+
+  function createMatrixIdentity() {
+    return [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ];
+  }
+
+  function matrixMultiply(m1, m2) {
+    var result = createMatrixIdentity();
+
+    for (var x = 0; x < 3; x++) {
+      for (var y = 0; y < 3; y++) {
+        var sum = 0;
+
+        for (var z = 0; z < 3; z++) {
+          sum += m1[x][z] * m2[z][y];
+        }
+
+        result[x][y] = sum;
+      }
+    }
+    return result;
+  }
+
+  function copyState(o1, o2) {
+    o2.fillStyle     = o1.fillStyle;
+    o2.lineCap       = o1.lineCap;
+    o2.lineJoin      = o1.lineJoin;
+    o2.lineWidth     = o1.lineWidth;
+    o2.miterLimit    = o1.miterLimit;
+    o2.shadowBlur    = o1.shadowBlur;
+    o2.shadowColor   = o1.shadowColor;
+    o2.shadowOffsetX = o1.shadowOffsetX;
+    o2.shadowOffsetY = o1.shadowOffsetY;
+    o2.strokeStyle   = o1.strokeStyle;
+    o2.globalAlpha   = o1.globalAlpha;
+    o2.font          = o1.font;
+    o2.textAlign     = o1.textAlign;
+    o2.textBaseline  = o1.textBaseline;
+    o2.arcScaleX_    = o1.arcScaleX_;
+    o2.arcScaleY_    = o1.arcScaleY_;
+    o2.lineScale_    = o1.lineScale_;
+  }
+
+  var colorData = {
+    aliceblue: '#F0F8FF',
+    antiquewhite: '#FAEBD7',
+    aquamarine: '#7FFFD4',
+    azure: '#F0FFFF',
+    beige: '#F5F5DC',
+    bisque: '#FFE4C4',
+    black: '#000000',
+    blanchedalmond: '#FFEBCD',
+    blueviolet: '#8A2BE2',
+    brown: '#A52A2A',
+    burlywood: '#DEB887',
+    cadetblue: '#5F9EA0',
+    chartreuse: '#7FFF00',
+    chocolate: '#D2691E',
+    coral: '#FF7F50',
+    cornflowerblue: '#6495ED',
+    cornsilk: '#FFF8DC',
+    crimson: '#DC143C',
+    cyan: '#00FFFF',
+    darkblue: '#00008B',
+    darkcyan: '#008B8B',
+    darkgoldenrod: '#B8860B',
+    darkgray: '#A9A9A9',
+    darkgreen: '#006400',
+    darkgrey: '#A9A9A9',
+    darkkhaki: '#BDB76B',
+    darkmagenta: '#8B008B',
+    darkolivegreen: '#556B2F',
+    darkorange: '#FF8C00',
+    darkorchid: '#9932CC',
+    darkred: '#8B0000',
+    darksalmon: '#E9967A',
+    darkseagreen: '#8FBC8F',
+    darkslateblue: '#483D8B',
+    darkslategray: '#2F4F4F',
+    darkslategrey: '#2F4F4F',
+    darkturquoise: '#00CED1',
+    darkviolet: '#9400D3',
+    deeppink: '#FF1493',
+    deepskyblue: '#00BFFF',
+    dimgray: '#696969',
+    dimgrey: '#696969',
+    dodgerblue: '#1E90FF',
+    firebrick: '#B22222',
+    floralwhite: '#FFFAF0',
+    forestgreen: '#228B22',
+    gainsboro: '#DCDCDC',
+    ghostwhite: '#F8F8FF',
+    gold: '#FFD700',
+    goldenrod: '#DAA520',
+    grey: '#808080',
+    greenyellow: '#ADFF2F',
+    honeydew: '#F0FFF0',
+    hotpink: '#FF69B4',
+    indianred: '#CD5C5C',
+    indigo: '#4B0082',
+    ivory: '#FFFFF0',
+    khaki: '#F0E68C',
+    lavender: '#E6E6FA',
+    lavenderblush: '#FFF0F5',
+    lawngreen: '#7CFC00',
+    lemonchiffon: '#FFFACD',
+    lightblue: '#ADD8E6',
+    lightcoral: '#F08080',
+    lightcyan: '#E0FFFF',
+    lightgoldenrodyellow: '#FAFAD2',
+    lightgreen: '#90EE90',
+    lightgrey: '#D3D3D3',
+    lightpink: '#FFB6C1',
+    lightsalmon: '#FFA07A',
+    lightseagreen: '#20B2AA',
+    lightskyblue: '#87CEFA',
+    lightslategray: '#778899',
+    lightslategrey: '#778899',
+    lightsteelblue: '#B0C4DE',
+    lightyellow: '#FFFFE0',
+    limegreen: '#32CD32',
+    linen: '#FAF0E6',
+    magenta: '#FF00FF',
+    mediumaquamarine: '#66CDAA',
+    mediumblue: '#0000CD',
+    mediumorchid: '#BA55D3',
+    mediumpurple: '#9370DB',
+    mediumseagreen: '#3CB371',
+    mediumslateblue: '#7B68EE',
+    mediumspringgreen: '#00FA9A',
+    mediumturquoise: '#48D1CC',
+    mediumvioletred: '#C71585',
+    midnightblue: '#191970',
+    mintcream: '#F5FFFA',
+    mistyrose: '#FFE4E1',
+    moccasin: '#FFE4B5',
+    navajowhite: '#FFDEAD',
+    oldlace: '#FDF5E6',
+    olivedrab: '#6B8E23',
+    orange: '#FFA500',
+    orangered: '#FF4500',
+    orchid: '#DA70D6',
+    palegoldenrod: '#EEE8AA',
+    palegreen: '#98FB98',
+    paleturquoise: '#AFEEEE',
+    palevioletred: '#DB7093',
+    papayawhip: '#FFEFD5',
+    peachpuff: '#FFDAB9',
+    peru: '#CD853F',
+    pink: '#FFC0CB',
+    plum: '#DDA0DD',
+    powderblue: '#B0E0E6',
+    rosybrown: '#BC8F8F',
+    royalblue: '#4169E1',
+    saddlebrown: '#8B4513',
+    salmon: '#FA8072',
+    sandybrown: '#F4A460',
+    seagreen: '#2E8B57',
+    seashell: '#FFF5EE',
+    sienna: '#A0522D',
+    skyblue: '#87CEEB',
+    slateblue: '#6A5ACD',
+    slategray: '#708090',
+    slategrey: '#708090',
+    snow: '#FFFAFA',
+    springgreen: '#00FF7F',
+    steelblue: '#4682B4',
+    tan: '#D2B48C',
+    thistle: '#D8BFD8',
+    tomato: '#FF6347',
+    turquoise: '#40E0D0',
+    violet: '#EE82EE',
+    wheat: '#F5DEB3',
+    whitesmoke: '#F5F5F5',
+    yellowgreen: '#9ACD32'
+  };
+
+
+  function getRgbHslContent(styleString) {
+    var start = styleString.indexOf('(', 3);
+    var end = styleString.indexOf(')', start + 1);
+    var parts = styleString.substring(start + 1, end).split(',');
+    // add alpha if needed
+    if (parts.length != 4 || styleString.charAt(3) != 'a') {
+      parts[3] = 1;
+    }
+    return parts;
+  }
+
+  function percent(s) {
+    return parseFloat(s) / 100;
+  }
+
+  function clamp(v, min, max) {
+    return Math.min(max, Math.max(min, v));
+  }
+
+  function hslToRgb(parts){
+    var r, g, b, h, s, l;
+    h = parseFloat(parts[0]) / 360 % 360;
+    if (h < 0)
+      h++;
+    s = clamp(percent(parts[1]), 0, 1);
+    l = clamp(percent(parts[2]), 0, 1);
+    if (s == 0) {
+      r = g = b = l; // achromatic
+    } else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      r = hueToRgb(p, q, h + 1 / 3);
+      g = hueToRgb(p, q, h);
+      b = hueToRgb(p, q, h - 1 / 3);
+    }
+
+    return '#' + decToHex[Math.floor(r * 255)] +
+        decToHex[Math.floor(g * 255)] +
+        decToHex[Math.floor(b * 255)];
+  }
+
+  function hueToRgb(m1, m2, h) {
+    if (h < 0)
+      h++;
+    if (h > 1)
+      h--;
+
+    if (6 * h < 1)
+      return m1 + (m2 - m1) * 6 * h;
+    else if (2 * h < 1)
+      return m2;
+    else if (3 * h < 2)
+      return m1 + (m2 - m1) * (2 / 3 - h) * 6;
+    else
+      return m1;
+  }
+
+  var processStyleCache = {};
+
+  function processStyle(styleString) {
+    if (styleString in processStyleCache) {
+      return processStyleCache[styleString];
+    }
+
+    var str, alpha = 1;
+
+    styleString = String(styleString);
+    if (styleString.charAt(0) == '#') {
+      str = styleString;
+    } else if (/^rgb/.test(styleString)) {
+      var parts = getRgbHslContent(styleString);
+      var str = '#', n;
+      for (var i = 0; i < 3; i++) {
+        if (parts[i].indexOf('%') != -1) {
+          n = Math.floor(percent(parts[i]) * 255);
+        } else {
+          n = +parts[i];
+        }
+        str += decToHex[clamp(n, 0, 255)];
+      }
+      alpha = +parts[3];
+    } else if (/^hsl/.test(styleString)) {
+      var parts = getRgbHslContent(styleString);
+      str = hslToRgb(parts);
+      alpha = parts[3];
+    } else {
+      str = colorData[styleString] || styleString;
+    }
+    return processStyleCache[styleString] = {color: str, alpha: alpha};
+  }
+
+  var DEFAULT_STYLE = {
+    style: 'normal',
+    variant: 'normal',
+    weight: 'normal',
+    size: 10,
+    family: 'sans-serif'
+  };
+
+  // Internal text style cache
+  var fontStyleCache = {};
+
+  function processFontStyle(styleString) {
+    if (fontStyleCache[styleString]) {
+      return fontStyleCache[styleString];
+    }
+
+    var el = document.createElement('div');
+    var style = el.style;
+    try {
+      style.font = styleString;
+    } catch (ex) {
+      // Ignore failures to set to invalid font.
+    }
+
+    return fontStyleCache[styleString] = {
+      style: style.fontStyle || DEFAULT_STYLE.style,
+      variant: style.fontVariant || DEFAULT_STYLE.variant,
+      weight: style.fontWeight || DEFAULT_STYLE.weight,
+      size: style.fontSize || DEFAULT_STYLE.size,
+      family: style.fontFamily || DEFAULT_STYLE.family
+    };
+  }
+
+  function getComputedStyle(style, element) {
+    var computedStyle = {};
+
+    for (var p in style) {
+      computedStyle[p] = style[p];
+    }
+
+    // Compute the size
+    var canvasFontSize = parseFloat(element.currentStyle.fontSize),
+        fontSize = parseFloat(style.size);
+
+    if (typeof style.size == 'number') {
+      computedStyle.size = style.size;
+    } else if (style.size.indexOf('px') != -1) {
+      computedStyle.size = fontSize;
+    } else if (style.size.indexOf('em') != -1) {
+      computedStyle.size = canvasFontSize * fontSize;
+    } else if(style.size.indexOf('%') != -1) {
+      computedStyle.size = (canvasFontSize / 100) * fontSize;
+    } else if (style.size.indexOf('pt') != -1) {
+      computedStyle.size = fontSize / .75;
+    } else {
+      computedStyle.size = canvasFontSize;
+    }
+
+    // Different scaling between normal text and VML text. This was found using
+    // trial and error to get the same size as non VML text.
+    computedStyle.size *= 0.981;
+
+    return computedStyle;
+  }
+
+  function buildStyle(style) {
+    return style.style + ' ' + style.variant + ' ' + style.weight + ' ' +
+        style.size + 'px ' + style.family;
+  }
+
+  var lineCapMap = {
+    'butt': 'flat',
+    'round': 'round'
+  };
+
+  function processLineCap(lineCap) {
+    return lineCapMap[lineCap] || 'square';
+  }
+
+  /**
+   * This class implements CanvasRenderingContext2D interface as described by
+   * the WHATWG.
+   * @param {HTMLElement} canvasElement The element that the 2D context should
+   * be associated with
+   */
+  function CanvasRenderingContext2D_(canvasElement) {
+    this.m_ = createMatrixIdentity();
+
+    this.mStack_ = [];
+    this.aStack_ = [];
+    this.currentPath_ = [];
+
+    // Canvas context properties
+    this.strokeStyle = '#000';
+    this.fillStyle = '#000';
+
+    this.lineWidth = 1;
+    this.lineJoin = 'miter';
+    this.lineCap = 'butt';
+    this.miterLimit = Z * 1;
+    this.globalAlpha = 1;
+    this.font = '10px sans-serif';
+    this.textAlign = 'left';
+    this.textBaseline = 'alphabetic';
+    this.canvas = canvasElement;
+
+    var cssText = 'width:' + canvasElement.clientWidth + 'px;height:' +
+        canvasElement.clientHeight + 'px;overflow:hidden;position:absolute';
+    var el = canvasElement.ownerDocument.createElement('div');
+    el.style.cssText = cssText;
+    canvasElement.appendChild(el);
+
+    var overlayEl = el.cloneNode(false);
+    // Use a non transparent background.
+    overlayEl.style.backgroundColor = 'red';
+    overlayEl.style.filter = 'alpha(opacity=0)';
+    canvasElement.appendChild(overlayEl);
+
+    this.element_ = el;
+    this.arcScaleX_ = 1;
+    this.arcScaleY_ = 1;
+    this.lineScale_ = 1;
+  }
+
+  var contextPrototype = CanvasRenderingContext2D_.prototype;
+  contextPrototype.clearRect = function() {
+    if (this.textMeasureEl_) {
+      this.textMeasureEl_.removeNode(true);
+      this.textMeasureEl_ = null;
+    }
+    this.element_.innerHTML = '';
+  };
+
+  contextPrototype.beginPath = function() {
+    // TODO: Branch current matrix so that save/restore has no effect
+    //       as per safari docs.
+    this.currentPath_ = [];
+  };
+
+  contextPrototype.moveTo = function(aX, aY) {
+    var p = getCoords(this, aX, aY);
+    this.currentPath_.push({type: 'moveTo', x: p.x, y: p.y});
+    this.currentX_ = p.x;
+    this.currentY_ = p.y;
+  };
+
+  contextPrototype.lineTo = function(aX, aY) {
+    var p = getCoords(this, aX, aY);
+    this.currentPath_.push({type: 'lineTo', x: p.x, y: p.y});
+
+    this.currentX_ = p.x;
+    this.currentY_ = p.y;
+  };
+
+  contextPrototype.bezierCurveTo = function(aCP1x, aCP1y,
+                                            aCP2x, aCP2y,
+                                            aX, aY) {
+    var p = getCoords(this, aX, aY);
+    var cp1 = getCoords(this, aCP1x, aCP1y);
+    var cp2 = getCoords(this, aCP2x, aCP2y);
+    bezierCurveTo(this, cp1, cp2, p);
+  };
+
+  // Helper function that takes the already fixed cordinates.
+  function bezierCurveTo(self, cp1, cp2, p) {
+    self.currentPath_.push({
+      type: 'bezierCurveTo',
+      cp1x: cp1.x,
+      cp1y: cp1.y,
+      cp2x: cp2.x,
+      cp2y: cp2.y,
+      x: p.x,
+      y: p.y
+    });
+    self.currentX_ = p.x;
+    self.currentY_ = p.y;
+  }
+
+  contextPrototype.quadraticCurveTo = function(aCPx, aCPy, aX, aY) {
+    // the following is lifted almost directly from
+    // http://developer.mozilla.org/en/docs/Canvas_tutorial:Drawing_shapes
+
+    var cp = getCoords(this, aCPx, aCPy);
+    var p = getCoords(this, aX, aY);
+
+    var cp1 = {
+      x: this.currentX_ + 2.0 / 3.0 * (cp.x - this.currentX_),
+      y: this.currentY_ + 2.0 / 3.0 * (cp.y - this.currentY_)
+    };
+    var cp2 = {
+      x: cp1.x + (p.x - this.currentX_) / 3.0,
+      y: cp1.y + (p.y - this.currentY_) / 3.0
+    };
+
+    bezierCurveTo(this, cp1, cp2, p);
+  };
+
+  contextPrototype.arc = function(aX, aY, aRadius,
+                                  aStartAngle, aEndAngle, aClockwise) {
+    aRadius *= Z;
+    var arcType = aClockwise ? 'at' : 'wa';
+
+    var xStart = aX + mc(aStartAngle) * aRadius - Z2;
+    var yStart = aY + ms(aStartAngle) * aRadius - Z2;
+
+    var xEnd = aX + mc(aEndAngle) * aRadius - Z2;
+    var yEnd = aY + ms(aEndAngle) * aRadius - Z2;
+
+    // IE won't render arches drawn counter clockwise if xStart == xEnd.
+    if (xStart == xEnd && !aClockwise) {
+      xStart += 0.125; // Offset xStart by 1/80 of a pixel. Use something
+                       // that can be represented in binary
+    }
+
+    var p = getCoords(this, aX, aY);
+    var pStart = getCoords(this, xStart, yStart);
+    var pEnd = getCoords(this, xEnd, yEnd);
+
+    this.currentPath_.push({type: arcType,
+                           x: p.x,
+                           y: p.y,
+                           radius: aRadius,
+                           xStart: pStart.x,
+                           yStart: pStart.y,
+                           xEnd: pEnd.x,
+                           yEnd: pEnd.y});
+
+  };
+
+  contextPrototype.rect = function(aX, aY, aWidth, aHeight) {
+    this.moveTo(aX, aY);
+    this.lineTo(aX + aWidth, aY);
+    this.lineTo(aX + aWidth, aY + aHeight);
+    this.lineTo(aX, aY + aHeight);
+    this.closePath();
+  };
+
+  contextPrototype.strokeRect = function(aX, aY, aWidth, aHeight) {
+    var oldPath = this.currentPath_;
+    this.beginPath();
+
+    this.moveTo(aX, aY);
+    this.lineTo(aX + aWidth, aY);
+    this.lineTo(aX + aWidth, aY + aHeight);
+    this.lineTo(aX, aY + aHeight);
+    this.closePath();
+    this.stroke();
+
+    this.currentPath_ = oldPath;
+  };
+
+  contextPrototype.fillRect = function(aX, aY, aWidth, aHeight) {
+    var oldPath = this.currentPath_;
+    this.beginPath();
+
+    this.moveTo(aX, aY);
+    this.lineTo(aX + aWidth, aY);
+    this.lineTo(aX + aWidth, aY + aHeight);
+    this.lineTo(aX, aY + aHeight);
+    this.closePath();
+    this.fill();
+
+    this.currentPath_ = oldPath;
+  };
+
+  contextPrototype.createLinearGradient = function(aX0, aY0, aX1, aY1) {
+    var gradient = new CanvasGradient_('gradient');
+    gradient.x0_ = aX0;
+    gradient.y0_ = aY0;
+    gradient.x1_ = aX1;
+    gradient.y1_ = aY1;
+    return gradient;
+  };
+
+  contextPrototype.createRadialGradient = function(aX0, aY0, aR0,
+                                                   aX1, aY1, aR1) {
+    var gradient = new CanvasGradient_('gradientradial');
+    gradient.x0_ = aX0;
+    gradient.y0_ = aY0;
+    gradient.r0_ = aR0;
+    gradient.x1_ = aX1;
+    gradient.y1_ = aY1;
+    gradient.r1_ = aR1;
+    return gradient;
+  };
+
+  contextPrototype.drawImage = function(image, var_args) {
+    var dx, dy, dw, dh, sx, sy, sw, sh;
+
+    // to find the original width we overide the width and height
+    var oldRuntimeWidth = image.runtimeStyle.width;
+    var oldRuntimeHeight = image.runtimeStyle.height;
+    image.runtimeStyle.width = 'auto';
+    image.runtimeStyle.height = 'auto';
+
+    // get the original size
+    var w = image.width;
+    var h = image.height;
+
+    // and remove overides
+    image.runtimeStyle.width = oldRuntimeWidth;
+    image.runtimeStyle.height = oldRuntimeHeight;
+
+    if (arguments.length == 3) {
+      dx = arguments[1];
+      dy = arguments[2];
+      sx = sy = 0;
+      sw = dw = w;
+      sh = dh = h;
+    } else if (arguments.length == 5) {
+      dx = arguments[1];
+      dy = arguments[2];
+      dw = arguments[3];
+      dh = arguments[4];
+      sx = sy = 0;
+      sw = w;
+      sh = h;
+    } else if (arguments.length == 9) {
+      sx = arguments[1];
+      sy = arguments[2];
+      sw = arguments[3];
+      sh = arguments[4];
+      dx = arguments[5];
+      dy = arguments[6];
+      dw = arguments[7];
+      dh = arguments[8];
+    } else {
+      throw Error('Invalid number of arguments');
+    }
+
+    var d = getCoords(this, dx, dy);
+
+    var w2 = sw / 2;
+    var h2 = sh / 2;
+
+    var vmlStr = [];
+
+    var W = 10;
+    var H = 10;
+
+    // For some reason that I've now forgotten, using divs didn't work
+    vmlStr.push(' <g_vml_:group',
+                ' coordsize="', Z * W, ',', Z * H, '"',
+                ' coordorigin="0,0"' ,
+                ' style="width:', W, 'px;height:', H, 'px;position:absolute;');
+
+    // If filters are necessary (rotation exists), create them
+    // filters are bog-slow, so only create them if abbsolutely necessary
+    // The following check doesn't account for skews (which don't exist
+    // in the canvas spec (yet) anyway.
+
+    if (this.m_[0][0] != 1 || this.m_[0][1] ||
+        this.m_[1][1] != 1 || this.m_[1][0]) {
+      var filter = [];
+
+      // Note the 12/21 reversal
+      filter.push('M11=', this.m_[0][0], ',',
+                  'M12=', this.m_[1][0], ',',
+                  'M21=', this.m_[0][1], ',',
+                  'M22=', this.m_[1][1], ',',
+                  'Dx=', mr(d.x / Z), ',',
+                  'Dy=', mr(d.y / Z), '');
+
+      // Bounding box calculation (need to minimize displayed area so that
+      // filters don't waste time on unused pixels.
+      var max = d;
+      var c2 = getCoords(this, dx + dw, dy);
+      var c3 = getCoords(this, dx, dy + dh);
+      var c4 = getCoords(this, dx + dw, dy + dh);
+
+      max.x = m.max(max.x, c2.x, c3.x, c4.x);
+      max.y = m.max(max.y, c2.y, c3.y, c4.y);
+
+      vmlStr.push('padding:0 ', mr(max.x / Z), 'px ', mr(max.y / Z),
+                  'px 0;filter:progid:DXImageTransform.Microsoft.Matrix(',
+                  filter.join(''), ", sizingmethod='clip');");
+
+    } else {
+      vmlStr.push('top:', mr(d.y / Z), 'px;left:', mr(d.x / Z), 'px;');
+    }
+
+    vmlStr.push(' ">' ,
+                '<g_vml_:image src="', image.src, '"',
+                ' style="width:', Z * dw, 'px;',
+                ' height:', Z * dh, 'px"',
+                ' cropleft="', sx / w, '"',
+                ' croptop="', sy / h, '"',
+                ' cropright="', (w - sx - sw) / w, '"',
+                ' cropbottom="', (h - sy - sh) / h, '"',
+                ' />',
+                '</g_vml_:group>');
+
+    this.element_.insertAdjacentHTML('BeforeEnd', vmlStr.join(''));
+  };
+
+  contextPrototype.stroke = function(aFill) {
+    var lineStr = [];
+    var lineOpen = false;
+
+    var W = 10;
+    var H = 10;
+
+    lineStr.push('<g_vml_:shape',
+                 ' filled="', !!aFill, '"',
+                 ' style="position:absolute;width:', W, 'px;height:', H, 'px;"',
+                 ' coordorigin="0,0"',
+                 ' coordsize="', Z * W, ',', Z * H, '"',
+                 ' stroked="', !aFill, '"',
+                 ' path="');
+
+    var newSeq = false;
+    var min = {x: null, y: null};
+    var max = {x: null, y: null};
+
+    for (var i = 0; i < this.currentPath_.length; i++) {
+      var p = this.currentPath_[i];
+      var c;
+
+      switch (p.type) {
+        case 'moveTo':
+          c = p;
+          lineStr.push(' m ', mr(p.x), ',', mr(p.y));
+          break;
+        case 'lineTo':
+          lineStr.push(' l ', mr(p.x), ',', mr(p.y));
+          break;
+        case 'close':
+          lineStr.push(' x ');
+          p = null;
+          break;
+        case 'bezierCurveTo':
+          lineStr.push(' c ',
+                       mr(p.cp1x), ',', mr(p.cp1y), ',',
+                       mr(p.cp2x), ',', mr(p.cp2y), ',',
+                       mr(p.x), ',', mr(p.y));
+          break;
+        case 'at':
+        case 'wa':
+          lineStr.push(' ', p.type, ' ',
+                       mr(p.x - this.arcScaleX_ * p.radius), ',',
+                       mr(p.y - this.arcScaleY_ * p.radius), ' ',
+                       mr(p.x + this.arcScaleX_ * p.radius), ',',
+                       mr(p.y + this.arcScaleY_ * p.radius), ' ',
+                       mr(p.xStart), ',', mr(p.yStart), ' ',
+                       mr(p.xEnd), ',', mr(p.yEnd));
+          break;
+      }
+
+
+      // TODO: Following is broken for curves due to
+      //       move to proper paths.
+
+      // Figure out dimensions so we can do gradient fills
+      // properly
+      if (p) {
+        if (min.x == null || p.x < min.x) {
+          min.x = p.x;
+        }
+        if (max.x == null || p.x > max.x) {
+          max.x = p.x;
+        }
+        if (min.y == null || p.y < min.y) {
+          min.y = p.y;
+        }
+        if (max.y == null || p.y > max.y) {
+          max.y = p.y;
+        }
+      }
+    }
+    lineStr.push(' ">');
+
+    if (!aFill) {
+      appendStroke(this, lineStr);
+    } else {
+      appendFill(this, lineStr, min, max);
+    }
+
+    lineStr.push('</g_vml_:shape>');
+
+    this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
+  };
+
+  function appendStroke(ctx, lineStr) {
+    var a = processStyle(ctx.strokeStyle);
+    var color = a.color;
+    var opacity = a.alpha * ctx.globalAlpha;
+    var lineWidth = ctx.lineScale_ * ctx.lineWidth;
+
+    // VML cannot correctly render a line if the width is less than 1px.
+    // In that case, we dilute the color to make the line look thinner.
+    if (lineWidth < 1) {
+      opacity *= lineWidth;
+    }
+
+    lineStr.push(
+      '<g_vml_:stroke',
+      ' opacity="', opacity, '"',
+      ' joinstyle="', ctx.lineJoin, '"',
+      ' miterlimit="', ctx.miterLimit, '"',
+      ' endcap="', processLineCap(ctx.lineCap), '"',
+      ' weight="', lineWidth, 'px"',
+      ' color="', color, '" />'
+    );
+  }
+
+  function appendFill(ctx, lineStr, min, max) {
+    var fillStyle = ctx.fillStyle;
+    var arcScaleX = ctx.arcScaleX_;
+    var arcScaleY = ctx.arcScaleY_;
+    var width = max.x - min.x;
+    var height = max.y - min.y;
+    if (fillStyle instanceof CanvasGradient_) {
+      // TODO: Gradients transformed with the transformation matrix.
+      var angle = 0;
+      var focus = {x: 0, y: 0};
+
+      // additional offset
+      var shift = 0;
+      // scale factor for offset
+      var expansion = 1;
+
+      if (fillStyle.type_ == 'gradient') {
+        var x0 = fillStyle.x0_ / arcScaleX;
+        var y0 = fillStyle.y0_ / arcScaleY;
+        var x1 = fillStyle.x1_ / arcScaleX;
+        var y1 = fillStyle.y1_ / arcScaleY;
+        var p0 = getCoords(ctx, x0, y0);
+        var p1 = getCoords(ctx, x1, y1);
+        var dx = p1.x - p0.x;
+        var dy = p1.y - p0.y;
+        angle = Math.atan2(dx, dy) * 180 / Math.PI;
+
+        // The angle should be a non-negative number.
+        if (angle < 0) {
+          angle += 360;
+        }
+
+        // Very small angles produce an unexpected result because they are
+        // converted to a scientific notation string.
+        if (angle < 1e-6) {
+          angle = 0;
+        }
+      } else {
+        var p0 = getCoords(ctx, fillStyle.x0_, fillStyle.y0_);
+        focus = {
+          x: (p0.x - min.x) / width,
+          y: (p0.y - min.y) / height
+        };
+
+        width  /= arcScaleX * Z;
+        height /= arcScaleY * Z;
+        var dimension = m.max(width, height);
+        shift = 2 * fillStyle.r0_ / dimension;
+        expansion = 2 * fillStyle.r1_ / dimension - shift;
+      }
+
+      // We need to sort the color stops in ascending order by offset,
+      // otherwise IE won't interpret it correctly.
+      var stops = fillStyle.colors_;
+      stops.sort(function(cs1, cs2) {
+        return cs1.offset - cs2.offset;
+      });
+
+      var length = stops.length;
+      var color1 = stops[0].color;
+      var color2 = stops[length - 1].color;
+      var opacity1 = stops[0].alpha * ctx.globalAlpha;
+      var opacity2 = stops[length - 1].alpha * ctx.globalAlpha;
+
+      var colors = [];
+      for (var i = 0; i < length; i++) {
+        var stop = stops[i];
+        colors.push(stop.offset * expansion + shift + ' ' + stop.color);
+      }
+
+      // When colors attribute is used, the meanings of opacity and o:opacity2
+      // are reversed.
+      lineStr.push('<g_vml_:fill type="', fillStyle.type_, '"',
+                   ' method="none" focus="100%"',
+                   ' color="', color1, '"',
+                   ' color2="', color2, '"',
+                   ' colors="', colors.join(','), '"',
+                   ' opacity="', opacity2, '"',
+                   ' g_o_:opacity2="', opacity1, '"',
+                   ' angle="', angle, '"',
+                   ' focusposition="', focus.x, ',', focus.y, '" />');
+    } else if (fillStyle instanceof CanvasPattern_) {
+      if (width && height) {
+        var deltaLeft = -min.x;
+        var deltaTop = -min.y;
+        lineStr.push('<g_vml_:fill',
+                     ' position="',
+                     deltaLeft / width * arcScaleX * arcScaleX, ',',
+                     deltaTop / height * arcScaleY * arcScaleY, '"',
+                     ' type="tile"',
+                     // TODO: Figure out the correct size to fit the scale.
+                     //' size="', w, 'px ', h, 'px"',
+                     ' src="', fillStyle.src_, '" />');
+       }
+    } else {
+      var a = processStyle(ctx.fillStyle);
+      var color = a.color;
+      var opacity = a.alpha * ctx.globalAlpha;
+      lineStr.push('<g_vml_:fill color="', color, '" opacity="', opacity,
+                   '" />');
+    }
+  }
+
+  contextPrototype.fill = function() {
+    this.stroke(true);
+  };
+
+  contextPrototype.closePath = function() {
+    this.currentPath_.push({type: 'close'});
+  };
+
+  function getCoords(ctx, aX, aY) {
+    var m = ctx.m_;
+    return {
+      x: Z * (aX * m[0][0] + aY * m[1][0] + m[2][0]) - Z2,
+      y: Z * (aX * m[0][1] + aY * m[1][1] + m[2][1]) - Z2
+    };
+  };
+
+  contextPrototype.save = function() {
+    var o = {};
+    copyState(this, o);
+    this.aStack_.push(o);
+    this.mStack_.push(this.m_);
+    this.m_ = matrixMultiply(createMatrixIdentity(), this.m_);
+  };
+
+  contextPrototype.restore = function() {
+    if (this.aStack_.length) {
+      copyState(this.aStack_.pop(), this);
+      this.m_ = this.mStack_.pop();
+    }
+  };
+
+  function matrixIsFinite(m) {
+    return isFinite(m[0][0]) && isFinite(m[0][1]) &&
+        isFinite(m[1][0]) && isFinite(m[1][1]) &&
+        isFinite(m[2][0]) && isFinite(m[2][1]);
+  }
+
+  function setM(ctx, m, updateLineScale) {
+    if (!matrixIsFinite(m)) {
+      return;
+    }
+    ctx.m_ = m;
+
+    if (updateLineScale) {
+      // Get the line scale.
+      // Determinant of this.m_ means how much the area is enlarged by the
+      // transformation. So its square root can be used as a scale factor
+      // for width.
+      var det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+      ctx.lineScale_ = sqrt(abs(det));
+    }
+  }
+
+  contextPrototype.translate = function(aX, aY) {
+    var m1 = [
+      [1,  0,  0],
+      [0,  1,  0],
+      [aX, aY, 1]
+    ];
+
+    setM(this, matrixMultiply(m1, this.m_), false);
+  };
+
+  contextPrototype.rotate = function(aRot) {
+    var c = mc(aRot);
+    var s = ms(aRot);
+
+    var m1 = [
+      [c,  s, 0],
+      [-s, c, 0],
+      [0,  0, 1]
+    ];
+
+    setM(this, matrixMultiply(m1, this.m_), false);
+  };
+
+  contextPrototype.scale = function(aX, aY) {
+    this.arcScaleX_ *= aX;
+    this.arcScaleY_ *= aY;
+    var m1 = [
+      [aX, 0,  0],
+      [0,  aY, 0],
+      [0,  0,  1]
+    ];
+
+    setM(this, matrixMultiply(m1, this.m_), true);
+  };
+
+  contextPrototype.transform = function(m11, m12, m21, m22, dx, dy) {
+    var m1 = [
+      [m11, m12, 0],
+      [m21, m22, 0],
+      [dx,  dy,  1]
+    ];
+
+    setM(this, matrixMultiply(m1, this.m_), true);
+  };
+
+  contextPrototype.setTransform = function(m11, m12, m21, m22, dx, dy) {
+    var m = [
+      [m11, m12, 0],
+      [m21, m22, 0],
+      [dx,  dy,  1]
+    ];
+
+    setM(this, m, true);
+  };
+
+  /**
+   * The text drawing function.
+   * The maxWidth argument isn't taken in account, since no browser supports
+   * it yet.
+   */
+  contextPrototype.drawText_ = function(text, x, y, maxWidth, stroke) {
+    var m = this.m_,
+        delta = 1000,
+        left = 0,
+        right = delta,
+        offset = {x: 0, y: 0},
+        lineStr = [];
+
+    var fontStyle = getComputedStyle(processFontStyle(this.font),
+                                     this.element_);
+
+    var fontStyleString = buildStyle(fontStyle);
+
+    var elementStyle = this.element_.currentStyle;
+    var textAlign = this.textAlign.toLowerCase();
+    switch (textAlign) {
+      case 'left':
+      case 'center':
+      case 'right':
+        break;
+      case 'end':
+        textAlign = elementStyle.direction == 'ltr' ? 'right' : 'left';
+        break;
+      case 'start':
+        textAlign = elementStyle.direction == 'rtl' ? 'right' : 'left';
+        break;
+      default:
+        textAlign = 'left';
+    }
+
+    // 1.75 is an arbitrary number, as there is no info about the text baseline
+    switch (this.textBaseline) {
+      case 'hanging':
+      case 'top':
+        offset.y = fontStyle.size / 1.75;
+        break;
+      case 'middle':
+        break;
+      default:
+      case null:
+      case 'alphabetic':
+      case 'ideographic':
+      case 'bottom':
+        offset.y = -fontStyle.size / 2.25;
+        break;
+    }
+
+    switch(textAlign) {
+      case 'right':
+        left = delta;
+        right = 0.05;
+        break;
+      case 'center':
+        left = right = delta / 2;
+        break;
+    }
+
+    var d = getCoords(this, x + offset.x, y + offset.y);
+
+    lineStr.push('<g_vml_:line from="', -left ,' 0" to="', right ,' 0.05" ',
+                 ' coordsize="100 100" coordorigin="0 0"',
+                 ' filled="', !stroke, '" stroked="', !!stroke,
+                 '" style="position:absolute;width:1px;height:1px;">');
+
+    if (stroke) {
+      appendStroke(this, lineStr);
+    } else {
+      // TODO: Fix the min and max params.
+      appendFill(this, lineStr, {x: -left, y: 0},
+                 {x: right, y: fontStyle.size});
+    }
+
+    var skewM = m[0][0].toFixed(3) + ',' + m[1][0].toFixed(3) + ',' +
+                m[0][1].toFixed(3) + ',' + m[1][1].toFixed(3) + ',0,0';
+
+    var skewOffset = mr(d.x / Z) + ',' + mr(d.y / Z);
+
+    lineStr.push('<g_vml_:skew on="t" matrix="', skewM ,'" ',
+                 ' offset="', skewOffset, '" origin="', left ,' 0" />',
+                 '<g_vml_:path textpathok="true" />',
+                 '<g_vml_:textpath on="true" string="',
+                 encodeHtmlAttribute(text),
+                 '" style="v-text-align:', textAlign,
+                 ';font:', encodeHtmlAttribute(fontStyleString),
+                 '" /></g_vml_:line>');
+
+    this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
+  };
+
+  contextPrototype.fillText = function(text, x, y, maxWidth) {
+    this.drawText_(text, x, y, maxWidth, false);
+  };
+
+  contextPrototype.strokeText = function(text, x, y, maxWidth) {
+    this.drawText_(text, x, y, maxWidth, true);
+  };
+
+  contextPrototype.measureText = function(text) {
+    if (!this.textMeasureEl_) {
+      var s = '<span style="position:absolute;' +
+          'top:-20000px;left:0;padding:0;margin:0;border:none;' +
+          'white-space:pre;"></span>';
+      this.element_.insertAdjacentHTML('beforeEnd', s);
+      this.textMeasureEl_ = this.element_.lastChild;
+    }
+    var doc = this.element_.ownerDocument;
+    this.textMeasureEl_.innerHTML = '';
+    this.textMeasureEl_.style.font = this.font;
+    // Don't use innerHTML or innerText because they allow markup/whitespace.
+    this.textMeasureEl_.appendChild(doc.createTextNode(text));
+    return {width: this.textMeasureEl_.offsetWidth};
+  };
+
+  /******** STUBS ********/
+  contextPrototype.clip = function() {
+    // TODO: Implement
+  };
+
+  contextPrototype.arcTo = function() {
+    // TODO: Implement
+  };
+
+  contextPrototype.createPattern = function(image, repetition) {
+    return new CanvasPattern_(image, repetition);
+  };
+
+  // Gradient / Pattern Stubs
+  function CanvasGradient_(aType) {
+    this.type_ = aType;
+    this.x0_ = 0;
+    this.y0_ = 0;
+    this.r0_ = 0;
+    this.x1_ = 0;
+    this.y1_ = 0;
+    this.r1_ = 0;
+    this.colors_ = [];
+  }
+
+  CanvasGradient_.prototype.addColorStop = function(aOffset, aColor) {
+    aColor = processStyle(aColor);
+    this.colors_.push({offset: aOffset,
+                       color: aColor.color,
+                       alpha: aColor.alpha});
+  };
+
+  function CanvasPattern_(image, repetition) {
+    assertImageIsValid(image);
+    switch (repetition) {
+      case 'repeat':
+      case null:
+      case '':
+        this.repetition_ = 'repeat';
+        break
+      case 'repeat-x':
+      case 'repeat-y':
+      case 'no-repeat':
+        this.repetition_ = repetition;
+        break;
+      default:
+        throwException('SYNTAX_ERR');
+    }
+
+    this.src_ = image.src;
+    this.width_ = image.width;
+    this.height_ = image.height;
+  }
+
+  function throwException(s) {
+    throw new DOMException_(s);
+  }
+
+  function assertImageIsValid(img) {
+    if (!img || img.nodeType != 1 || img.tagName != 'IMG') {
+      throwException('TYPE_MISMATCH_ERR');
+    }
+    if (img.readyState != 'complete') {
+      throwException('INVALID_STATE_ERR');
+    }
+  }
+
+  function DOMException_(s) {
+    this.code = this[s];
+    this.message = s +': DOM Exception ' + this.code;
+  }
+  var p = DOMException_.prototype = new Error;
+  p.INDEX_SIZE_ERR = 1;
+  p.DOMSTRING_SIZE_ERR = 2;
+  p.HIERARCHY_REQUEST_ERR = 3;
+  p.WRONG_DOCUMENT_ERR = 4;
+  p.INVALID_CHARACTER_ERR = 5;
+  p.NO_DATA_ALLOWED_ERR = 6;
+  p.NO_MODIFICATION_ALLOWED_ERR = 7;
+  p.NOT_FOUND_ERR = 8;
+  p.NOT_SUPPORTED_ERR = 9;
+  p.INUSE_ATTRIBUTE_ERR = 10;
+  p.INVALID_STATE_ERR = 11;
+  p.SYNTAX_ERR = 12;
+  p.INVALID_MODIFICATION_ERR = 13;
+  p.NAMESPACE_ERR = 14;
+  p.INVALID_ACCESS_ERR = 15;
+  p.VALIDATION_ERR = 16;
+  p.TYPE_MISMATCH_ERR = 17;
+
+  // set up externs
+  G_vmlCanvasManager = G_vmlCanvasManager_;
+  CanvasRenderingContext2D = CanvasRenderingContext2D_;
+  CanvasGradient = CanvasGradient_;
+  CanvasPattern = CanvasPattern_;
+  DOMException = DOMException_;
+})();
+
+} // if
+/**
+*
+* FILTER.js v. 0.2
+* Image manipulationa and filtering library in javascript (uses HTML5 Canvas, or mock if possible)
+* Author Nikos M.
+* URL http://nikos-web-development.netai.net
+* based on ColorMatrix for Actionscript3 by @quasimondo
+*
+**/
+var FILTER=FILTER || {};
+/**
+*
+* Filter SuperClass
+* @package FILTER.js
+*
+**/
+(function(FILTER){
+    FILTER.Filter=function(image)
+    {
+        this.image=image;
+    };
+    FILTER.Filter.prototype.apply=function()
+    {
+        // do nothing here, override
+    };
+})(FILTER);/**
+*
+* Image Canvas Class
+* @package FILTER.js
+*
+* NOTE: it won't work locally (at least with Firefox), only with server
+**/
+(function(FILTER){
+    FILTER.Image=function(img,callback)
+    {
+        this.width=0;
+        this.height=0;
+        this.type='undefined';
+        this.image=null;
+        this.canvasElement=null;
+        this.context=null;
+        this.canvasElement=document.createElement('canvas');
+        this.canvasElement.width=0;
+        this.canvasElement.height=0;
+        this.context=this.canvasElement.getContext('2d');
+        this.setImage(img,callback);
+    };
+    /**
+     * JavaScript implementation of common blending modes, based on
+     * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+     **/
+    FILTER.blendModes = {
+        normal: function(a, b) {
+            return a;
+        },
+
+        lighten: function(a, b) {
+            return (b > a) ? b : a;
+        },
+
+        darken: function(a, b) {
+            return (b > a) ? a : b;
+        },
+
+        multiply: function(a, b) {
+            return (a * b) / 255;
+        },
+
+        average: function(a, b) {
+            return (a + b) / 2;
+        },
+
+        add: function(a, b) {
+            return Math.min(255, a + b);
+        },
+
+        substract: function(a, b) {
+            return (a + b < 255) ? 0 : a + b - 255;
+        },
+
+        difference: function(a, b) {
+            return Math.abs(a - b);
+        },
+
+        negation: function(a, b) {
+            return 255 - Math.abs(255 - a - b);
+        },
+
+        screen: function(a, b) {
+            return 255 - (((255 - a) * (255 - b)) >> 8);
+        },
+
+        exclusion: function(a, b) {
+            return a + b - 2 * a * b / 255;
+        },
+
+        overlay: function(a, b) {
+            return b < 128
+                ? (2 * a * b / 255)
+                : (255 - 2 * (255 - a) * (255 - b) / 255);
+        },
+
+        softLight: function(a, b) {
+            return b < 128
+                ? (2 * ((a >> 1) + 64)) * (b / 255)
+                : 255 - (2 * (255 - (( a >> 1) + 64)) * (255 - b) / 255);
+        },
+
+        hardLight: function(a, b) {
+            return FILTER.blendModes.overlay(b, a);
+        },
+
+        colorDodge: function(a, b) {
+            return b == 255 ? b : Math.min(255, ((a << 8 ) / (255 - b)));
+        },
+
+        colorBurn: function(a, b) {
+            return b == 0 ? b : Math.max(0, (255 - ((255 - a) << 8 ) / b));
+        },
+
+        linearDodge: function(a, b) {
+            return FILTER.blendModes.add(a, b);
+        },
+
+        linearBurn: function(a, b) {
+            return FILTER.blendModes.substract(a, b);
+        },
+
+        linearLight: function(a, b) {
+            return b < 128
+                ? FILTER.blendModes.linearBurn(a, 2 * b)
+                : FILTER.blendModes.linearDodge(a, (2 * (b - 128)));
+        },
+
+        vividLight: function(a, b) {
+            return b < 128
+                ? FILTER.blendModes.colorBurn(a, 2 * b)
+                : FILTER.blendModes.colorDodge(a, (2 * (b - 128)));
+        },
+
+        pinLight: function(a, b) {
+            return b < 128
+                ? FILTER.blendModes.darken(a, 2 * b)
+                : FILTER.blendModes.lighten(a, (2 * (b - 128)));
+        },
+
+        hardMix: function(a, b) {
+            return FILTER.blendModes.vividLight(a, b) < 128 ? 0 : 255;
+        },
+
+        reflect: function(a, b) {
+            return b == 255 ? b : Math.min(255, (a * a / (255 - b)));
+        },
+
+        glow: function(a, b) {
+            return FILTER.blendModes.reflect(b, a);
+        },
+
+        phoenix: function(a, b) {
+            return Math.min(a, b) - Math.max(a, b) + 255;
+        }
+    };
+    FILTER.Image.prototype.blend=function(image,mode,amount,startX,startY)
+    {
+        if (typeof mode == 'undefined')
+            mode='normal';
+        if (typeof amount == 'undefined')
+            amount=1;
+        if (amount>1) amount=1;
+        if (amount<0) amount=0;
+        if (typeof startX == 'undefined')
+            startX=0;
+        if (typeof startY == 'undefined')
+            startY=0;
+        var sx=0,sy=0;
+        if (startX<0)
+        {
+            sx=-startX;
+            startX=0;
+        }
+        if (startY<0)
+        {
+            sy=-startY;
+            startY=0;
+        }
+        if (startX>=this.width || startY>=this.height)
+        {
+            return;
+        }
+        
+        var blendingMode = FILTER.blendModes[mode];
+        if (blendingMode==undefined || blendingMode==null) return this;
+        
+        var width =  Math.min(this.width, image.width-sx);
+        var height = Math.min(this.height, image.height-sy);
+        
+        var imageData1 = this.context.getImageData(startX,startY,width,height);
+        var imageData2 = image.context.getImageData(sx, sy, width, height);
+        
+
+        /** @type Array */
+        var pixels1 = imageData1.data;
+        /** @type Array */
+        var pixels2 = imageData2.data;
+
+        var r, g, b, oR, oG, oB, invamount = 1 - amount;
+        
+        var len=pixels2.length;
+        
+        // blend images
+        for (var i = 0; i < len; i += 4) {
+            oR = pixels1[i];
+            oG = pixels1[i + 1];
+            oB = pixels1[i + 2];
+
+            // calculate blended color
+            r = blendingMode(pixels2[i], oR);
+            g = blendingMode(pixels2[i + 1], oG);
+            b = blendingMode(pixels2[i + 2], oB);
+
+            // amount compositing
+            pixels1[i] =     r * amount + oR * invamount;
+            pixels1[i + 1] = g * amount + oG * invamount;
+            pixels1[i + 2] = b * amount + oB * invamount;
+        }
+        this.context.putImageData(imageData1,startX,startY);
+        return this;
+    };
+    FILTER.Image.prototype.clone=function(withimage)
+    {
+        if (typeof withimage == 'undefined')
+            withimage=false;
+        if (withimage && this.image && this.image.src)
+            return new FILTER.Image(this.image.src);
+        else
+            return new FILTER.Image(this.canvasElement);
+    };
+    FILTER.Image.prototype.createImageData=function(w,h)
+    {
+        this.width=w;
+        this.height=h;
+        this.canvasElement.width=this.width;
+        this.canvasElement.height=this.height;
+        this.context=this.canvasElement.getContext('2d');
+        return this.context.createImageData(w,h);
+    };
+    FILTER.Image.prototype.getPixelData=function()
+    {
+        return this.context.getImageData(0,0,this.width,this.height);
+    };
+    FILTER.Image.prototype.setPixelData=function(data)
+    {
+        this.context.putImageData(data,0,0);
+    };
+    FILTER.Image.prototype.setWidth=function(w)
+    {
+        this.width=w;
+        this.canvasElement.width=this.width;
+        this.context=this.canvasElement.getContext('2d');
+    };
+    FILTER.Image.prototype.setHeight=function(h)
+    {
+        this.height=h;
+        this.canvasElement.height=this.height;
+        this.context=this.canvasElement.getContext('2d');
+    };
+    FILTER.Image.prototype.setImage=function(img,callback)
+    {
+        if (typeof img=='undefined' || img==null) return;
+        var thiss=this;
+        if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+        {
+            this.image=img;
+            this.width=img.width;
+            this.height=img.height;
+            //this.canvasElement=document.createElement('canvas');
+            this.canvasElement.width=this.width;
+            this.canvasElement.height=this.height;
+            this.context=this.canvasElement.getContext('2d');
+            this.context.drawImage(this.image,0,0);
+            if (img instanceof Image)
+                this.type='image';
+            if (img instanceof HTMLCanvasElement)
+                this.type='canvas';
+            if (img instanceof HTMLVideoElement)
+                this.type='video';
+        }
+        else // url string
+        {
+            this.image=new Image();
+            //this.canvasElement=document.createElement('canvas');
+            this.type='image-url';
+            this.image.onload=function(){
+                thiss.width=thiss.image.width;
+                thiss.height=thiss.image.height;
+                //thiss.canvasElement=document.createElement('canvas');
+                thiss.canvasElement.width=thiss.width;
+                thiss.canvasElement.height=thiss.height;
+                thiss.context=thiss.canvasElement.getContext('2d');
+                thiss.context.drawImage(thiss.image,0,0);
+                if (typeof callback != 'undefined')
+                    callback.call(thiss);
+            };
+            this.image.src=img; // load it
+        }
+        this.image.crossOrigin = '';
+    };
+})(FILTER);/**
+*
+* Color Matrix Filter
+* matrix is 4x5 array of values which are (eg for row 1: Red value): 
+* New red Value=Multiplier for red value, multiplier for Green value, multiplier for Blue Value, Multiplier for Alpha Value,constant  bias term
+* other rows are similar but for new Green, Blue and Alpha values respectively 
+*
+* @param Target (Image)
+* @param colorMatrix (Matrix)
+* @package FILTER.js
+*
+**/
+(function(FILTER){
+    FILTER.ColorMatrixFilter=function(image,matrix)
+    {
+        this.matrix=[1,0,0,0,0,
+                    0,1,0,0,0,
+                    0,0,1,0,0,
+                    0,0,0,1,0];
+        this.image=image;
+        if (typeof matrix != 'undefined')
+            this.concat(matrix);
+    };
+    FILTER.ColorMatrixFilter.prototype=new FILTER.Filter();
+    FILTER.ColorMatrixFilter.prototype.constructor=FILTER.ColorMatrixFilter;
+    FILTER.ColorMatrixFilter.prototype.concat=function(mat)
+    {
+        var temp = [];
+        var i = 0;
+        var x, y;
+        for (y = 0; y < 4; y++ )
+        {
+            
+            for (x = 0; x < 5; x++ )
+            {
+                temp[ ( i + x) ] =  (mat[i  ])      * (this.matrix[x]) + 
+                                       (mat[(i+1)]) * (this.matrix[(x +  5)]) + 
+                                       (mat[(i+2)]) * (this.matrix[(x + 10)]) + 
+                                       (mat[(i+3)]) * (this.matrix[(x + 15)]) +
+                                       (x == 4 ? (mat[(i+4)]) : 0);
+            }
+            i+=5;
+        }
+        
+        this.matrix = temp;
+                
+    };
+    FILTER.ColorMatrixFilter.prototype.apply=function()
+    {
+        var pd=this.image.getPixelData();
+        var p=pd.data;
+        var m=this.matrix;
+        for (var i=0; i<p.length; i+=4)
+        {
+            var tmp=[p[i],p[i+1],p[i+2],p[i+3]];
+            p[i]=m[0]*tmp[0]+m[1]*tmp[1]+m[2]*tmp[2]+m[3]*tmp[3]+m[4];
+            p[i+1]=m[5]*tmp[0]+m[6]*tmp[1]+m[7]*tmp[2]+m[8]*tmp[3]+m[9];
+            p[i+2]=m[10]*tmp[0]+m[11]*tmp[1]+m[12]*tmp[2]+m[13]*tmp[3]+m[14];
+            p[i+3]=m[15]*tmp[0]+m[16]*tmp[1]+m[17]*tmp[2]+m[18]*tmp[3]+m[19];
+        }
+        this.image.setPixelData(pd);
+    };
+    FILTER.LUMA={};
+    FILTER.LUMA.R = 0.212671;
+    FILTER.LUMA.G = 0.71516;
+    FILTER.LUMA.B = 0.072169;
+    FILTER.ColorMatrixFilter.prototype.grayscale=function()
+    {
+        var r=FILTER.LUMA.R;
+        var g=FILTER.LUMA.G;
+        var b=FILTER.LUMA.B;
+        var matrix= [r, g, b, 0, 0, 
+                    r, g, b, 0, 0, 
+                    r, g, b, 0, 0, 
+                    0, 0, 0, 1, 0];
+        this.concat(matrix);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.desaturate=function()
+    {
+        var matrix= [FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+                    FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+                    FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+                    0, 0, 0, 1, 0];
+        this.concat(matrix);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.colorize=function(rgb, amount)
+    {
+        var r;
+        var g;
+        var b;
+        var inv_amount;
+        if (typeof amount=='undefined')
+            amount=1;
+        r = (((rgb >> 16) & 0xFF) / 0xFF);
+        g = (((rgb >> 8) & 0xFF) / 0xFF);
+        b = ((rgb & 0xFF) / 0xFF);
+        inv_amount = (1 - amount);
+
+        var matrix=[(inv_amount + ((amount * r) * FILTER.LUMA.R)), ((amount * r) * FILTER.LUMA.G), ((amount * r) * FILTER.LUMA.B), 0, 0, 
+                    ((amount * g) * FILTER.LUMA.R), (inv_amount + ((amount * g) * FILTER.LUMA.G)), ((amount * g) * FILTER.LUMA.B), 0, 0, 
+                    ((amount * b) * FILTER.LUMA.R), ((amount * b) * FILTER.LUMA.G), (inv_amount + ((amount * b) * FILTER.LUMA.B)), 0, 0, 
+                        0, 0, 0, 1, 0];
+        this.concat(matrix);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.invert=function()
+    {
+        this.concat([ -1 ,  0,  0, 0, 255,
+                    0 , -1,  0, 0, 255,
+                    0 ,  0, -1, 0, 255,
+                    0,   0,  0, 1,   0]);
+         return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.saturation=function( s )
+    {
+        var sInv;
+        var irlum;
+        var iglum;
+        var iblum;
+        
+        sInv = (1 - s);
+        irlum = (sInv * FILTER.LUMA.R);
+        iglum = (sInv * FILTER.LUMA.G);
+        iblum = (sInv * FILTER.LUMA.B);
+        
+        this.concat([(irlum + s), iglum, iblum, 0, 0, 
+                irlum, (iglum + s), iblum, 0, 0, 
+                irlum, iglum, (iblum + s), 0, 0, 
+                0, 0, 0, 1, 0]);
+
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.contrast=function(r, g, b)
+    {
+        if (typeof g == 'undefined')
+        g=r;
+        if (typeof b == 'undefined')
+        b=r;
+        r += 1;
+        g += 1;
+        b += 1;
+        
+        this.concat([r, 0, 0, 0, (128 * (1 - r)), 
+                0, g, 0, 0, (128 * (1 - g)), 
+                0, 0, b, 0, (128 * (1 - b)), 
+                0, 0, 0, 1, 0]);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.brightness=function(r, g, b)
+    {
+        if (typeof g == 'undefined')
+        g=r;
+        if (typeof b == 'undefined')
+        b=r;
+        this.concat([1, 0, 0, 0, r, 
+                0, 1, 0, 0, g, 
+                0, 0, 1, 0, b, 
+                0, 0, 0, 1, 0]);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.adjustHue=function( degrees )
+    {
+        degrees *= Math.PI/180;
+        var cos = Math.cos(degrees);
+        var sin = Math.sin(degrees);
+        this.concat([((FILTER.LUMA.R + (cos * (1 - FILTER.LUMA.R))) + (sin * -(FILTER.LUMA.R))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * -(FILTER.LUMA.G))), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * (1 - FILTER.LUMA.B))), 0, 0, 
+                ((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * 0.143)), ((FILTER.LUMA.G + (cos * (1 - FILTER.LUMA.G))) + (sin * 0.14)), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * -0.283)), 0, 0, 
+                ((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * -((1 - FILTER.LUMA.R)))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * FILTER.LUMA.G)), ((FILTER.LUMA.B + (cos * (1 - FILTER.LUMA.B))) + (sin * FILTER.LUMA.B)), 0, 0, 
+                0, 0, 0, 1, 0]);
+        return this;
+    };
+    FILTER.ColorMatrixFilter.prototype.blend=function( mat, amount )
+    {
+        var inv_amount = (1 - amount);
+        var i = 0;
+        while (i < 20) 
+        {
+            this.matrix[i] = ((inv_amount * (this.matrix[i])) + (amount * (mat.matrix[i])));
+            i++;
+        };
+    };
+    FILTER.ColorMatrixFilter.prototype.average=function( r, g, b )
+    {
+        if (typeof r == 'undefined')
+            r=1/3;
+        if (typeof g == 'undefined')
+            g=1/3;
+        if (typeof b == 'undefined')
+            b=1/3;
+        
+        this.concat([r, g, b, 0, 0, 
+                r, g, b, 0, 0, 
+                r, g, b, 0, 0, 
+                0, 0, 0, 1, 0]);
+    };
+    FILTER.ColorMatrixFilter.prototype.threshold=function(threshold, factor)
+    {
+        if (typeof factor == 'undefined')
+            factor=256;
+        this.concat([(FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+                (FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+                (FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+                0, 0, 0, 1, 0]);
+    };
+    FILTER.ColorMatrixFilter.prototype.threshold_rgb=function(threshold, factor)
+    {
+        if (typeof factor == 'undefined')
+            factor=256;
+        this.concat([factor, 0, 0, 0, (-(factor-1) * threshold), 
+                0, factor, 0, 0, (-(factor-1) * threshold), 
+                0,  0, factor, 0, (-(factor-1) * threshold), 
+                0, 0, 0, 1, 0]);
+    };
+    FILTER.ColorMatrixFilter.prototype.threshold_alpha=function(threshold, factor)
+    {
+        if (typeof threshold == 'undefined')
+            threshold=0.5;
+        if (typeof factor == 'undefined')
+            factor=256;
+        this.concat([1, 0, 0, 0, 0, 
+                0, 1, 0, 0, 0, 
+                0, 0, 1, 0, 0, 
+                0, 0, 0, factor, (-factor * threshold)]);
+    };
+})(FILTER);/**
+*
+* Convolution Matrix Filter
+*
+* @param Target (Image)
+* @param weights (Array)
+* @param opaque (Bool)
+* @package FILTER.js
+*
+**/
+(function(FILTER){
+    FILTER.ConvolutionMatrixFilter=function(image,weights,opaque)
+    {
+        this.image=image;
+        if (typeof weights != 'undefined')
+            this.weights=weights;
+        this.opaque=true;
+        if (typeof opaque != 'undefined')
+            this.opaque=opaque;
+    };
+    FILTER.ConvolutionMatrixFilter.prototype=new FILTER.Filter(); 
+    FILTER.ConvolutionMatrixFilter.prototype.constructor=FILTER.ConvolutionMatrixFilter; 
+    FILTER.ConvolutionMatrixFilter.prototype.apply=function() 
+    {
+      var side = Math.round(Math.sqrt(this.weights.length));
+      var halfSide = Math.floor(side/2);
+      var data=this.image.getPixelData();
+      var src = data.data;
+      var sw = data.width;
+      var sh = data.height;
+      var dst=this.image.clone().getPixelData();
+      // pad output by the convolution matrix
+      var w = sw;
+      var h = sh;
+      // go through the destination image pixels
+      var alphaFac = this.opaque ? 1 : 0;
+      for (var y=0; y<h; y++) {
+        for (var x=0; x<w; x++) {
+          var sy = y;
+          var sx = x;
+          var dstOff = (y*w+x)*4;
+          // calculate the weighed sum of the source image pixels that
+          // fall under the convolution matrix
+          var r=0, g=0, b=0, a=0;
+          for (var cy=0; cy<side; cy++) {
+            for (var cx=0; cx<side; cx++) {
+              var scy = sy + cy - halfSide;
+              var scx = sx + cx - halfSide;
+              if (scy >= 0 && scy < sh && scx >= 0 && scx < sw) {
+                var srcOff = (scy*sw+scx)*4;
+                var wt = this.weights[cy*side+cx];
+                r += src[srcOff] * wt;
+                g += src[srcOff+1] * wt;
+                b += src[srcOff+2] * wt;
+                a += src[srcOff+3] * wt;
+              }
+            }
+          }
+          dst.data[dstOff] = r;
+          dst.data[dstOff+1] = g;
+          dst.data[dstOff+2] = b;
+          dst.data[dstOff+3] = a + alphaFac*(255-a);
+        }
+      }
+      this.image.setPixelData(dst);
+    };
+    FILTER.ConvolutionMatrixFilter.prototype.blur=function()
+    {
+        var w=1/9;
+        this.weights=[ w, w, w,
+                        w, w, w,
+                        w, w, w ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.blur4=function()
+    {
+        var w=1/16;
+        this.weights=[ w, w, w, w,
+                        w, w, w, w,
+                        w, w, w, w,
+                        w, w, w, w ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.sharpen=function()
+    {
+        this.weights=[  -1, -1,  -1,
+                        -1,  9, -1,
+                         -1, -1,  -1 ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.gauss=function()
+    {
+        this.weights=[ 1.0/16.0, 2.0/16.0, 1.0/16.0,
+                    2.0/16.0, 4.0/16.0, 2.0/16.0,
+                    1.0/16.0, 2.0/16.0, 1.0/16.0
+                         ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.laplace=function()
+    {
+        this.weights=[ 0,   1,   0,
+                        1,  -4,   1,
+                        0,   1,   0
+                         ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.emboss=function()
+    {
+        this.weights=[ -2,   -1,   0,
+                        -1,  1,   1,
+                        0,   1,   2
+                         ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.edge=function()
+    {
+        this.weights=[ 0,   1,   0,
+                        1,  -4,   1,
+                        0,   1,   0
+                         ];
+        return this;
+    }; 
+    FILTER.ConvolutionMatrixFilter.prototype.motionblur=function(dir)
+    {
+        var w=1/9;
+        var i,j;
+        this.weights=[  0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0
+                         ];
+        if (dir==0)
+        {
+            for (i=0;i<9;i++)
+            {
+                this.weights[4*9+i]=w;
+            }
+        }
+        else if (dir==2)
+        {
+            for (i=0;i<9;i++)
+            {
+                this.weights[9*i+5]=w;
+            }
+        }
+        else if (dir==1)
+        {
+            for (i=0;i<9;i++)
+            {
+                this.weights[9*Math.round(i)+Math.round(i)]=w;
+            }
+        }
+        return this;
+    }; 
+})(FILTER);/**
+*
+* Displacement Map Filter
+* accepts an image as target
+* and displaces/distorts the target image according to another map image data
+*
+* @param Target (Image)
+* @param displaceMap (Image)
+* @package FILTER.js
+*
+**/
+(function(FILTER){
+    FILTER.CHANNEL={};
+    FILTER.CHANNEL.RED=0;
+    FILTER.CHANNEL.GREEN=1;
+    FILTER.CHANNEL_BLUE=2;
+    FILTER.CHANNEL.ALPHA=3;
+    FILTER.MODE={};
+    FILTER.MODE.IGNORE=0;
+    FILTER.MODE.WRAP=1;
+    FILTER.MODE.CLAMP=2;
+    FILTER.MODE.COLOR=4;
+
+    FILTER.DisplacementMapFilter=function(target,displacemap)
+    {
+        this.scaleX=1;
+        this.scaleY=1;
+        this.startX=0;
+        this.startY=0;
+        this.componentX=0;
+        this.componentY=0;
+        this.color=0;
+        this.mode=FILTER.MODE.CLAMP;
+        this.image=target;
+        this.map=displacemap;
+    };
+
+    FILTER.DisplacementMapFilter.prototype=new FILTER.Filter();
+    FILTER.DisplacementMapFilter.prototype.constructor=FILTER.DisplacementMapFilter;
+    FILTER.DisplacementMapFilter.prototype.apply=function()
+    {
+      var data=this.image.getPixelData();
+      var w = data.width;
+      var h = data.height;
+      // allow image to be map of itself
+      var mapdata=this.map.clone().getPixelData();
+      var map=mapdata.data;
+      var mw = mapdata.width;
+      var mh = mapdata.height;
+      // create new image for copy manipulations
+      var newd=this.image.clone().getPixelData();
+      
+      var sx=this.scaleX/256;
+      var sy=this.scaleY/256;
+      var alpha=this.color >> 24 & 255;
+      var red=this.color >> 16 & 255;
+      var green=this.color >> 8 & 255;
+      var blue=this.color & 255;
+      var ww=Math.min(mw,w);
+      var hh=Math.min(mh,h);
+      var sty=Math.floor(this.startY);
+      var stx=Math.floor(this.startX);
+      var comx=this.componentX;
+      var comy=this.componentY;
+      var xx,yy,dstoff,mapoff,srcy,srcx,dispoff,x,y;
+      var mode=this.mode;
+      
+      // apply filter
+      for (y=0; y<hh; y++) {
+        for (x=0; x<ww; x++) {
+          yy=y+sty;
+          xx=x+stx;
+          if (yy<0 || yy>=h || xx<0 || xx>=w) continue;
+          dstoff = ((yy)*w+(xx))*4;
+          mapoff= (y*mw+x)*4;
+          srcy=yy+Math.floor((map[mapoff+comy]-128)*sy);
+          srcx=xx+Math.floor((map[mapoff+comx]-128)*sx);
+          
+          if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
+          {
+            switch(mode)
+            {
+                case FILTER.MODE.IGNORE:
+                    continue;
+                    break;
+                case FILTER.MODE.COLOR:
+                  newd.data[dstoff]=red;
+                  newd.data[dstoff+1]=green;
+                  newd.data[dstoff+2]=blue;
+                  newd.data[dstoff+3]=alpha;
+                  continue;
+                    break;
+                case FILTER.MODE.WRAP:
+                  if (srcy>=h)
+                    srcy-=h;
+                  if (srcy<0)
+                    srcy+=h;
+                  if (srcx>=w)
+                    srcx-=w;
+                  if (srcx<0)
+                    srcx+=w;
+                    break;
+                case FILTER.MODE.CLAMP:
+                default:
+                  if (srcy>=h)
+                    srcy=h-1;
+                  if (srcy<0)
+                    srcy=0;
+                  if (srcx>=w)
+                    srcx=w-1;
+                  if (srcx<0)
+                    srcx=0;
+                    break;
+            }
+          }
+          dispoff=((srcy)*w+(srcx))*4;
+          
+          // new pixel values
+          newd.data[dstoff]=data.data[dispoff];
+          newd.data[dstoff+1]=data.data[dispoff+1];
+          newd.data[dstoff+2]=data.data[dispoff+2];
+          newd.data[dstoff+3]=data.data[dispoff+3];
+         }
+      }
+      this.image.setPixelData(newd);
+    };
+})(FILTER);/**
+*
+* Sobel  Filter (Composite Filter)
+*
+* @param Target (Image)
+* @package FILTER.js
+*
+**/
+(function(FILTER){
+    FILTER.SobelFilter=function(image)
+    {
+        this.image=image;
+    };
+    FILTER.SobelFilter.prototype=new FILTER.Filter(); 
+    FILTER.SobelFilter.prototype.constructor=FILTER.SobelFilter; 
+    FILTER.SobelFilter.prototype.apply=function() 
+    {
+        // grayscale
+        new FILTER.ColorMatrixFilter(this.image).grayscale().apply();
+        var grayscale = this.image.getPixelData();
+        // vertical gradient
+        new FILTER.ConvolutionMatrixFilter(this.image,[ -1, 0, 1,
+            -2, 0, 2,
+            -1, 0, 1 ]).apply();
+        
+        var vertical = this.image.getPixelData();
+        // restore
+        this.image.setPixelData(grayscale);
+        // horizontal gradient
+        new FILTER.ConvolutionMatrixFilter(this.image,[ -1, -2, -1,
+             0,  0,  0,
+             1,  2,  1 ]).apply();
+        var horizontal = this.image.getPixelData();
+        var dst=[];
+        for (var i=0; i<grayscale.data.length; i+=4) {
+          // make the vertical gradient red
+          var v = Math.abs(vertical.data[i]);
+          dst[i] = v;
+          // make the horizontal gradient green
+          var h = Math.abs(horizontal.data[i]);
+          dst[i+1] = h;
+          // and mix in some blue for aesthetics
+          dst[i+2] = (v+h)/4;
+          dst[i+3] = 255; // opaque alpha
+        }
+        var data = this.image.getPixelData();
+        for (var i=0;i<data.data.length;i++)
+        data.data[i]=dst[i];
+      this.image.setPixelData(data,0,0);
+    };
+})(FILTER);

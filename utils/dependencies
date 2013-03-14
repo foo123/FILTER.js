@@ -1,0 +1,13 @@
+@DEPENDENCIES
+externals/excanvas.js
+FILTER.js
+core/Filter.js
+core/Image.js
+filters/ColorMatrixFilter.js
+filters/ConvolutionMatrixFilter.js
+filters/DisplacementMapFilter.js
+composite/SobelFilter.js
+@MINIFY
+--language_in=ECMASCRIPT5_STRICT
+@OUT
+FILTER.min.js
