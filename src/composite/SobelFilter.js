@@ -19,17 +19,14 @@
         new FILTER.ColorMatrixFilter(this.image).grayscale().apply();
         var grayscale = this.image.getPixelData();
         // vertical gradient
-        new FILTER.ConvolutionMatrixFilter(this.image,[ -1, 0, 1,
-            -2, 0, 2,
-            -1, 0, 1 ]).apply();
+        new FILTER.ConvolutionMatrixFilter(this.image).sobelGradX().apply();
         
         var vertical = this.image.getPixelData();
         // restore
         this.image.setPixelData(grayscale);
         // horizontal gradient
-        new FILTER.ConvolutionMatrixFilter(this.image,[ -1, -2, -1,
-             0,  0,  0,
-             1,  2,  1 ]).apply();
+        new FILTER.ConvolutionMatrixFilter(this.image).sobelGradY().apply();
+        
         var horizontal = this.image.getPixelData();
         var dst=[];
         for (var i=0; i<grayscale.data.length; i+=4) {
@@ -48,4 +45,5 @@
         data.data[i]=dst[i];
       this.image.setPixelData(data,0,0);
     };
+    
 })(FILTER);

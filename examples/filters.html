@@ -46,8 +46,8 @@
 		{
 		     new FILTER.ColorMatrixFilter(im2).colorize(0xff0000).apply();
 		     new FILTER.ColorMatrixFilter(im3).grayscale().contrast(1).apply();
-		     new FILTER.ConvolutionMatrixFilter(im4).blur4().apply();
-		     new FILTER.ConvolutionMatrixFilter(im5).edge().apply();
+		     new FILTER.ConvolutionMatrixFilter(im4).blur(4).apply();
+		     new FILTER.ConvolutionMatrixFilter(im5).highPass(3).apply();
 		     new FILTER.SobelFilter(im6).apply();
 		     new FILTER.ConvolutionMatrixFilter(im7).emboss().apply();
 			 aside.innerHTML+="<div><ol><li>Original Image</li><li>Colorized</li><li>Grayscale and Contrast</li><li>Blured</li><li>Edges</li><li>Sobel filter</li><li>Emboss</li></ol></div>";
