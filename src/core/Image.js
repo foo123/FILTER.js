@@ -88,8 +88,6 @@
     
     FILTER.Image.prototype={
     
-        constructor : FILTER.Image,
-        
         blend : function(image, mode, amount, startX, startY) {
             if (typeof mode == 'undefined') mode='normal';
             if (typeof amount == 'undefined') amount=1;

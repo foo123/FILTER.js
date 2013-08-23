@@ -10,26 +10,75 @@
 **/
 (function(FILTER){
     
-    var // machine arrays substitute 
-        Array32F = (typeof Float32Array !== "undefined") ? Float32Array : Array,
-        Array64F = (typeof Float64Array !== "undefined") ? Float64Array : Array,
-        Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array,
-        Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array,
-        Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array
+    var 
+        ConvolutionMatrix=FILTER.Array32F
     ;
+    
+    function padMatrix(m, d, dnew) 
+    {
+        // todo
+        return m;
+    }
+    
+    function addMatrix(m1. m2)
+    {
+        var l= m1.length, i, m=new ConvolutionMatrix(m1.length);
+        for (i=0; i<l; i++) m[i]=m1[i]+m2[i];
+        return m;
+    }
+    
+    function subtractMatrix(m1. m2)
+    {
+        var l= m1.length, i, m=new ConvolutionMatrix(m1.length);
+        for (i=0; i<l; i++) m[i]=m1[i]-m2[i];
+        return m;
+    }
+    
+    function multiplyMatrix(m1, m2, d) 
+    {
+        var i, j, k, m=new ConvolutionMatrix(m1.length), sum, ind1, ind2, ind;
+        for (i=0; i<d; i++)
+        {
+            for (j=0; j<d; j++)
+            {
+                sum=0;
+                for (k=0; k<d; k++) { sum+=m1[i*d + k]*m2[k*d + j];}
+                m[i*d + j]=sum;
+            }
+        }
+        return m;
+    }
+    
+    function eye(d) 
+    { 
+        // todo
+        return new ConvolutionMatrix(
+            0, 0 ,0,
+            0, 1, 0,
+            0, 0, 0
+        ); 
+    }
     
     FILTER.ConvolutionMatrixFilter=function(image, weights, opaque)
     {
-        this.image=image;
-        if (typeof weights != 'undefined') this.weights=weights;
-        this.dim = (this.weights.length) ? Math.round(Math.sqrt(this.weights.length)) : 0;
         this.opaque=true;
         if (typeof opaque != 'undefined') this.opaque=opaque;
+        
+        this.image=image;
+        
+        if (typeof weights != 'undefined' && weights.length)
+        {
+            this.weights=new ConvolutionMatrix(weights);
+            this.dim = Math.round(Math.sqrt(weights.length));
+        }
+        else 
+        {
+            this.weights=eye(3);
+            this.dim = 3;
+        }
     };
     
     FILTER.ConvolutionMatrixFilter.prototype={
-        
-        constructor : FILTER.ConvolutionMatrixFilter,
         
         apply : function() {
             var side = this.dim, halfSide = side>>1,
@@ -74,21 +123,12 @@
             this.image.setPixelData(dst);
         },
         
-        // generic identity filter
-        eye : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            var size=d*d, w=new Array32F(size), i;
-            for (i=0; i<size; i++) w[i]=0; w[size>>1 +1]=1;
-            this.weights=w; this.dim=d;
-            return this;
-        },
-        
         // generic low-pass filter
         lowPass : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            var size=d*d, w=new Array32F(size), fact=1/size, i;
+            var size=d*d, w=new ConvolutionMatrix(size), fact=1/size, i;
             for (i=0; i<size; i++) w[i]=fact; 
-            this.weights=w; this.dim=d;
+            this.weights=multiplyMatrix(this.weights, w); this.dim=d;
             return this;
         },
 
@@ -96,21 +136,21 @@
         highPass : function(d, f) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             f=(typeof f == 'undefined') ? 1 : f;
-            var size=d*d, w=new Array32F(size), fact=-f/size, i;
+            var size=d*d, w=new ConvolutionMatrix(size), fact=-f/size, i;
             for (i=0; i<size; i++) w[i]=fact; w[size>>1 +1]=1+fact;
-            this.weights=w; this.dim=d;
+            this.weights=multiplyMatrix(this.weights, w); this.dim=d;
             return this;
         },
 
         // generic binomial low-pass filter
         binomialLowPass : function(d) {
             d=3;
-            var size=d*d, w=new Array32F(size), f=0.0625, i;
-            this.weights=[
+            var size=d*d, f=0.0625, i;
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
                             f, 2*f, f,
                             2*f, 4*f, 2*f,
                             f, 2*f, f
-                        ]; 
+                        )); 
             this.dim=d;
             return this;
         },
@@ -118,12 +158,12 @@
         // generic binomial high-pass filter
         binomialHighPass : function(d) {
             d=3;
-            var size=d*d, w=new Array32F(size), f=0.0625, i;
-            this.weights=[
+            var size=d*d, f=0.0625, i;
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
                             -f, -2*f, -f,
                             -2*f, 12*f, -2*f,
                             -f, -2*f, -f
-                        ]; 
+                        )); 
             this.dim=d;
             return this;
         },
@@ -131,10 +171,11 @@
         // X-gradient, partial X-derivative (Prewitt)
         gradX : function() {
             var sqrt2=Math.sqrt(2.0);
-            this.weights=[ -1,   0,   1,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix( 
+                            -1,   0,   1,
                             -sqrt2,  0,   sqrt2,
                             -1,   0,   1
-                        ];
+                        );
             this.dim=3;
             return this;
         },
@@ -142,10 +183,11 @@
         // Y-gradient, partial Y-derivative (Prewitt)
         gradY : function() {
             var sqrt2=Math.sqrt(2.0);
-            this.weights=[ 1,   sqrt2,   1,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            1,   sqrt2,   1,
                             0,  0,   0,
                            -1,   -sqrt2,  -1
-                        ];
+                        ));
             this.dim=3;
             return this;
         },
@@ -153,48 +195,53 @@
         // directional gradient (Prewitt)
         gradTheta : function(theta) {
             var c=Math.cos(theta), s=Math.sin(theta);
-            this.weights=[ -c+s,   s,   c+s,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            -c+s,   s,   c+s,
                             -c,  0,   s,
                            -c-s,   -s,  c-s
-                        ];
+                       ));
             this.dim=3;
             return this;
         },
         
         // partial X-derivative (Sobel)
         sobelGradX : function() {
-            this.weights=[ -1,   0,   1,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            -1,   0,   1,
                             -2,  0,   2,
                             -1,   0,   1
-                        ];
+                        ));
             this.dim=3;
             return this;
         },
         
         // partial Y-derivative (Sobel)
         sobelGradY : function() {
-            this.weights=[ 1,   2,   1,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            1,   2,   1,
                             0,  0,   0,
                             -1,   -2,   -1
-                        ];
+                        ));
             this.dim=3;
             return this;
         },
         
         laplacian : function() {
-            this.weights=[ 0,   -1,   0,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            0,   -1,   0,
                             -1,  4,   -1,
                             0,   -1,   0
-                        ];
+                        ));
             this.dim=3;
             return this;
         },
         
         emboss : function() {
-            this.weights=[ -2,   -1,   0,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            -2,   -1,   0,
                             -1,  1,   1,
                             0,   1,   2
-                         ];
+                         ));
             this.dim=3;
             return this;
         },
@@ -210,7 +257,8 @@
         motionblur : function(dir) {
             var w=1/9;
             var i,j;
-            this.weights=[  0, 0, 0, 0, 0, 0, 0, 0, 0,
+            this.weights=multiplyMatrix(this.weights, new ConvolutionMatrix(
+                            0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -219,7 +267,7 @@
                             0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0
-                             ];
+                         ));
             if (dir==0)
             {
                 for (i=0;i<9;i++)

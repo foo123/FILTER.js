@@ -40,8 +40,6 @@
 
     FILTER.DisplacementMapFilter.prototype={
     
-        constructor : FILTER.DisplacementMapFilter,
-        
         apply : function() {
             var data=this.image.getPixelData(),
                 w = data.width, h = data.height,
