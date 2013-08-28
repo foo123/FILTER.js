@@ -46,7 +46,6 @@ __0.2__
 __0.1__
 * initial release
 
-*Contributor* Nikos M.  
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  
 *URL* [WorkingClassCode](http://workingclasscode.uphero.com/ "Working Class Code")  
