@@ -6,7 +6,78 @@
 * NOTE: it won't work locally (at least with Firefox), only with server
 **/
 (function(FILTER){
-    FILTER.Image=function(img,callback)
+    
+    var 
+        blendModes,
+        Min=Math.min
+    ;
+    
+    /**
+     * JavaScript implementation of common blending modes, based on
+     * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+     **/
+    blendModes = {
+        normal: function(a, b) { return a; },
+
+        lighten: function(a, b) { return (b > a) ? b : a; },
+
+        darken: function(a, b) { return (b > a) ? a : b; },
+
+        multiply: function(a, b) { return (a * b * 0.003921568627451); },
+
+        average: function(a, b) { return 0.5*(a + b); },
+
+        add: function(a, b) { return Math.min(255, a + b); },
+
+        substract: function(a, b) {  return (a + b < 255) ? 0 : a + b - 255; },
+
+        difference: function(a, b) { return Math.abs(a - b); },
+
+        negation: function(a, b) { return 255 - Math.abs(255 - a - b); },
+
+        screen: function(a, b) { return 255 - (((255 - a) * (255 - b)) >> 8); },
+
+        exclusion: function(a, b) { return a + b - 2 * a * b * 0.003921568627451; },
+
+        overlay: function(a, b) { return b < 128 ? (2 * a * b * 0.003921568627451) : (255 - 2 * (255 - a) * (255 - b) * 0.003921568627451); },
+
+        softLight: function(a, b) { return b < 128 ? (2 * ((a >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( a >> 1) + 64)) * (255 - b) * 0.003921568627451); },
+
+        // reverse of overlay
+        hardLight: function(b, a) { return b < 128 ? (2 * a * b * 0.003921568627451) : (255 - 2 * (255 - a) * (255 - b) * 0.003921568627451); },
+
+        colorDodge: function(a, b) { return b == 255 ? b : Math.min(255, ((a << 8 ) / (255 - b))); },
+
+        colorBurn: function(a, b) { return b == 0 ? b : Math.max(0, (255 - ((255 - a) << 8 ) / b)); },
+
+        //linearDodge: blendModes.add,
+
+        //linearBurn: blendModes.substract,
+
+        linearLight: function(a, b) { return b < 128 ? blendModes.linearBurn(a, 2 * b) : blendModes.linearDodge(a, (2 * (b - 128))); },
+
+        vividLight: function(a, b) { return b < 128 ? blendModes.colorBurn(a, 2 * b) : blendModes.colorDodge(a, (2 * (b - 128))); },
+
+        pinLight: function(a, b) { return b < 128 ? blendModes.darken(a, 2 * b) : blendModes.lighten(a, (2 * (b - 128))); },
+
+        hardMix: function(a, b) { return blendModes.vividLight(a, b) < 128 ? 0 : 255; },
+
+        reflect: function(a, b) { return b == 255 ? b : Math.min(255, (a * a / (255 - b))); },
+
+        // reverse of reflect
+        glow: function(b, a) { return b == 255 ? b : Math.min(255, (a * a / (255 - b))); },
+
+        phoenix: function(a, b) { return Math.min(a, b) - Math.max(a, b) + 255; }
+    };
+    blendModes.linearDodge= blendModes.add;
+    blendModes.linearBurn= blendModes.substract;
+    
+    FILTER.blendModes=blendModes;
+    
+    //
+    //
+    // Image Class
+    FILTER.Image=function(img, callback)
     {
         this.width=0;
         this.height=0;
@@ -14,270 +85,242 @@
         this.image=null;
         this.canvasElement=null;
         this.context=null;
+        this.imageData=null;
+        this._histogram=null;
+        this._integral=null;
         this.canvasElement=document.createElement('canvas');
         this.canvasElement.width=0;
         this.canvasElement.height=0;
         this.context=this.canvasElement.getContext('2d');
+        this._histogramRefresh=true;
+        this._integralRefresh=true;
         this.setImage(img,callback);
     };
-    /**
-     * JavaScript implementation of common blending modes, based on
-     * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
-     **/
-    FILTER.blendModes = {
-        normal: function(a, b) {
-            return a;
-        },
+    
+    FILTER.Image.prototype={
+    
+        blend : function(image, mode, amount, startX, startY) {
+            if (typeof mode == 'undefined') mode='normal';
+            if (typeof amount == 'undefined') amount=1;
+            if (amount>1) amount=1;
+            if (amount<0) amount=0;
+            if (typeof startX == 'undefined')  startX=0;
+            if (typeof startY == 'undefined')  startY=0;
+            
+            var sx=0,sy=0;
+            
+            if (startX<0)
+            {
+                sx=-startX;
+                startX=0;
+            }
+            if (startY<0)
+            {
+                sy=-startY;
+                startY=0;
+            }
+            if (startX>=this.width || startY>=this.height)
+            {
+                return;
+            }
+            
+            var blendingMode = blendModes[mode];
+            if (blendingMode==undefined || blendingMode==null) return this;
+            
+            var 
+                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
+                imageData1 = this.context.getImageData(startX,startY,width,height),
+                imageData2 = image.context.getImageData(sx, sy, width, height),
+                /** @type Array */
+                pixels1 = imageData1.data,
+                /** @type Array */
+                pixels2 = imageData2.data,
+                r, g, b, oR, oG, oB, invamount = 1 - amount,
+                len=pixels2.length, i
+            ;
 
-        lighten: function(a, b) {
-            return (b > a) ? b : a;
-        },
+            
+            
+            // blend images
+            for (i = 0; i < len; i += 4) {
+                oR = pixels1[i];
+                oG = pixels1[i + 1];
+                oB = pixels1[i + 2];
 
-        darken: function(a, b) {
-            return (b > a) ? a : b;
-        },
+                // calculate blended color
+                r = blendingMode(pixels2[i], oR);
+                g = blendingMode(pixels2[i + 1], oG);
+                b = blendingMode(pixels2[i + 2], oB);
 
-        multiply: function(a, b) {
-            return (a * b) / 255;
+                // amount compositing
+                pixels1[i] =     r * amount + oR * invamount;
+                pixels1[i + 1] = g * amount + oG * invamount;
+                pixels1[i + 2] = b * amount + oB * invamount;
+            }
+            this.context.putImageData(imageData1, startX, startY);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
         },
-
-        average: function(a, b) {
-            return (a + b) / 2;
+        
+        clone : function(withimage) {
+            if (typeof withimage == 'undefined') withimage=false;
+            if (withimage && this.image && this.image.src)  return new FILTER.Image(this.image.src);
+            else  return new FILTER.Image(this.canvasElement);
         },
-
-        add: function(a, b) {
-            return Math.min(255, a + b);
+        
+        integral : function(doGray) {
+            if (this._integralRefresh) this._computeIntegral(doGray);
+            return this._integral;
         },
-
-        substract: function(a, b) {
-            return (a + b < 255) ? 0 : a + b - 255;
-        },
-
-        difference: function(a, b) {
-            return Math.abs(a - b);
-        },
-
-        negation: function(a, b) {
-            return 255 - Math.abs(255 - a - b);
-        },
-
-        screen: function(a, b) {
-            return 255 - (((255 - a) * (255 - b)) >> 8);
-        },
-
-        exclusion: function(a, b) {
-            return a + b - 2 * a * b / 255;
-        },
-
-        overlay: function(a, b) {
-            return b < 128
-                ? (2 * a * b / 255)
-                : (255 - 2 * (255 - a) * (255 - b) / 255);
-        },
-
-        softLight: function(a, b) {
-            return b < 128
-                ? (2 * ((a >> 1) + 64)) * (b / 255)
-                : 255 - (2 * (255 - (( a >> 1) + 64)) * (255 - b) / 255);
-        },
-
-        hardLight: function(a, b) {
-            return FILTER.blendModes.overlay(b, a);
-        },
-
-        colorDodge: function(a, b) {
-            return b == 255 ? b : Math.min(255, ((a << 8 ) / (255 - b)));
-        },
-
-        colorBurn: function(a, b) {
-            return b == 0 ? b : Math.max(0, (255 - ((255 - a) << 8 ) / b));
-        },
-
-        linearDodge: function(a, b) {
-            return FILTER.blendModes.add(a, b);
-        },
-
-        linearBurn: function(a, b) {
-            return FILTER.blendModes.substract(a, b);
-        },
-
-        linearLight: function(a, b) {
-            return b < 128
-                ? FILTER.blendModes.linearBurn(a, 2 * b)
-                : FILTER.blendModes.linearDodge(a, (2 * (b - 128)));
-        },
-
-        vividLight: function(a, b) {
-            return b < 128
-                ? FILTER.blendModes.colorBurn(a, 2 * b)
-                : FILTER.blendModes.colorDodge(a, (2 * (b - 128)));
-        },
-
-        pinLight: function(a, b) {
-            return b < 128
-                ? FILTER.blendModes.darken(a, 2 * b)
-                : FILTER.blendModes.lighten(a, (2 * (b - 128)));
-        },
-
-        hardMix: function(a, b) {
-            return FILTER.blendModes.vividLight(a, b) < 128 ? 0 : 255;
-        },
-
-        reflect: function(a, b) {
-            return b == 255 ? b : Math.min(255, (a * a / (255 - b)));
-        },
-
-        glow: function(a, b) {
-            return FILTER.blendModes.reflect(b, a);
-        },
-
-        phoenix: function(a, b) {
-            return Math.min(a, b) - Math.max(a, b) + 255;
-        }
-    };
-    FILTER.Image.prototype.blend=function(image,mode,amount,startX,startY)
-    {
-        if (typeof mode == 'undefined')
-            mode='normal';
-        if (typeof amount == 'undefined')
-            amount=1;
-        if (amount>1) amount=1;
-        if (amount<0) amount=0;
-        if (typeof startX == 'undefined')
-            startX=0;
-        if (typeof startY == 'undefined')
-            startY=0;
-        var sx=0,sy=0;
-        if (startX<0)
+        
+        // compute integral image (sum of columns)
+        _computeIntegral : function(doGray) 
         {
-            sx=-startX;
-            startX=0;
-        }
-        if (startY<0)
-        {
-            sy=-startY;
-            startY=0;
-        }
-        if (startX>=this.width || startY>=this.height)
-        {
-            return;
-        }
+            var w=this.width,h=this.height, count=w*h, integral = new FILTER.Array32U(count),
+                im=this.getPixelData().data, i, j, k, col, pix, gray
+            ;
+            // use one while loop instead of 2 for loops (arguably faster)
+            i=0; j=0; k=0; col=0;
+            while (i<w)
+            {
+                ii=i+k;  pix=ii << 2;
+                gray = ((4899 * im[pix] + 9617 * im[pix + 1] + 1868 * im[pix + 2]) + 8192) >>> 14;
+                col += (gray&0xFF) >>> 0;
+                if (i>0) integral[ii] = integral[ii-1] + col;
+                else  integral[ii] = col;
+                j++; k+=w;
+                if (h==j) { i++; j=0; k=0; col=0; }
+            }
+            this._integral=integral;
+            this._integralRefresh=false;
+        },
         
-        var blendingMode = FILTER.blendModes[mode];
-        if (blendingMode==undefined || blendingMode==null) return this;
+        histogram : function() {
+            if (this._histogramRefresh) this._computeHistogram();
+            return this._histogram;
+        },
         
-        var width =  Math.min(this.width, image.width-sx);
-        var height = Math.min(this.height, image.height-sy);
+        _computeHistogram : function() {
+            var im=this.getPixelData().data, i=0, l=im.length,
+                _histogramR=new FILTER.ImArray(256), 
+                _histogramG=new FILTER.ImArray(256), 
+                _histogramB=new FILTER.ImArray(256),
+                r,g,b
+            ;
+            i=0; while (i<256) { _histogramR[i]=0; _histogramG[i]=0; _histogramB[i]=0; i++; }
+            i=0;
+            while (i<l)
+            {
+                r=im[i]; g=im[i+1]; b=im[i+2];
+                _histogramR[r]++;
+                _histogramG[g]++;
+                _histogramB[b]++;
+                i+=4;
+            }
+            this._histogram=[_histogramR, _histogramG, _histogramB];
+            this._histogramRefresh=false;
+        },
         
-        var imageData1 = this.context.getImageData(startX,startY,width,height);
-        var imageData2 = image.context.getImageData(sx, sy, width, height);
-        
-
-        /** @type Array */
-        var pixels1 = imageData1.data;
-        /** @type Array */
-        var pixels2 = imageData2.data;
-
-        var r, g, b, oR, oG, oB, invamount = 1 - amount;
-        
-        var len=pixels2.length;
-        
-        // blend images
-        for (var i = 0; i < len; i += 4) {
-            oR = pixels1[i];
-            oG = pixels1[i + 1];
-            oB = pixels1[i + 2];
-
-            // calculate blended color
-            r = blendingMode(pixels2[i], oR);
-            g = blendingMode(pixels2[i + 1], oG);
-            b = blendingMode(pixels2[i + 2], oB);
-
-            // amount compositing
-            pixels1[i] =     r * amount + oR * invamount;
-            pixels1[i + 1] = g * amount + oG * invamount;
-            pixels1[i + 2] = b * amount + oB * invamount;
-        }
-        this.context.putImageData(imageData1,startX,startY);
-        return this;
-    };
-    FILTER.Image.prototype.clone=function(withimage)
-    {
-        if (typeof withimage == 'undefined')
-            withimage=false;
-        if (withimage && this.image && this.image.src)
-            return new FILTER.Image(this.image.src);
-        else
-            return new FILTER.Image(this.canvasElement);
-    };
-    FILTER.Image.prototype.createImageData=function(w,h)
-    {
-        this.width=w;
-        this.height=h;
-        this.canvasElement.width=this.width;
-        this.canvasElement.height=this.height;
-        this.context=this.canvasElement.getContext('2d');
-        return this.context.createImageData(w,h);
-    };
-    FILTER.Image.prototype.getPixelData=function()
-    {
-        return this.context.getImageData(0,0,this.width,this.height);
-    };
-    FILTER.Image.prototype.setPixelData=function(data)
-    {
-        this.context.putImageData(data,0,0);
-    };
-    FILTER.Image.prototype.setWidth=function(w)
-    {
-        this.width=w;
-        this.canvasElement.width=this.width;
-        this.context=this.canvasElement.getContext('2d');
-    };
-    FILTER.Image.prototype.setHeight=function(h)
-    {
-        this.height=h;
-        this.canvasElement.height=this.height;
-        this.context=this.canvasElement.getContext('2d');
-    };
-    FILTER.Image.prototype.setImage=function(img,callback)
-    {
-        if (typeof img=='undefined' || img==null) return;
-        var thiss=this;
-        if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
-        {
-            this.image=img;
-            this.width=img.width;
-            this.height=img.height;
-            //this.canvasElement=document.createElement('canvas');
+        createImageData : function(w,h) {
+            this.width=w;
+            this.height=h;
             this.canvasElement.width=this.width;
             this.canvasElement.height=this.height;
             this.context=this.canvasElement.getContext('2d');
-            this.context.drawImage(this.image,0,0);
-            if (img instanceof Image)
-                this.type='image';
-            if (img instanceof HTMLCanvasElement)
-                this.type='canvas';
-            if (img instanceof HTMLVideoElement)
-                this.type='video';
+            this.context.createImageData(w,h);
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            return this.imageData;
+        },
+        
+        getData : function() {
+            // clone it
+            return new FILTER.ImArray(this.imageData.data);
+        },
+        
+        setData : function(a) {
+            this.imageData.data.set(a);
+            this.context.putImageData(this.imageData, 0, 0); 
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        getPixelData : function() {
+            return this.imageData;
+        },
+        
+        setPixelData : function(data) {
+            this.context.putImageData(data,0,0); 
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setWidth : function(w) {
+            this.width=w;
+            this.canvasElement.width=this.width;
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setHeight : function(h) {
+            this.height=h;
+            this.canvasElement.height=this.height;
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setImage : function(img,callback) {
+            if (typeof img=='undefined' || img==null) return;
+            var thiss=this;
+            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            {
+                this.image=img;
+                this.width=img.width;
+                this.height=img.height;
+                //this.canvasElement=document.createElement('canvas');
+                this.canvasElement.width=this.width;
+                this.canvasElement.height=this.height;
+                this.context=this.canvasElement.getContext('2d');
+                this.context.drawImage(this.image,0,0);
+                this.imageData=this.context.getImageData(0,0,this.width,this.height);
+                if (img instanceof Image) this.type='image';
+                if (img instanceof HTMLCanvasElement)  this.type='canvas';
+                if (img instanceof HTMLVideoElement) this.type='video';
+                this._histogramRefresh=true;
+                this._integralRefresh=true;
+            }
+            else // url string
+            {
+                this.image=new Image();
+                //this.canvasElement=document.createElement('canvas');
+                this.type='image-url';
+                this.image.onload=function(){
+                    thiss.width=thiss.image.width;
+                    thiss.height=thiss.image.height;
+                    //thiss.canvasElement=document.createElement('canvas');
+                    thiss.canvasElement.width=thiss.width;
+                    thiss.canvasElement.height=thiss.height;
+                    thiss.context=thiss.canvasElement.getContext('2d');
+                    thiss.context.drawImage(thiss.image,0,0);
+                    thiss.imageData=thiss.context.getImageData(0,0,thiss.width,thiss.height);
+                    if (typeof callback != 'undefined') callback.call(thiss);
+                    thiss._histogramRefresh=true;
+                    thiss._integralRefresh=true;
+                };
+                this.image.src=img; // load it
+            }
+            this.image.crossOrigin = '';
+            return this;
         }
-        else // url string
-        {
-            this.image=new Image();
-            //this.canvasElement=document.createElement('canvas');
-            this.type='image-url';
-            this.image.onload=function(){
-                thiss.width=thiss.image.width;
-                thiss.height=thiss.image.height;
-                //thiss.canvasElement=document.createElement('canvas');
-                thiss.canvasElement.width=thiss.width;
-                thiss.canvasElement.height=thiss.height;
-                thiss.context=thiss.canvasElement.getContext('2d');
-                thiss.context.drawImage(thiss.image,0,0);
-                if (typeof callback != 'undefined')
-                    callback.call(thiss);
-            };
-            this.image.src=img; // load it
-        }
-        this.image.crossOrigin = '';
     };
+    
 })(FILTER);
