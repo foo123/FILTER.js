@@ -11,7 +11,11 @@
      * JavaScript implementation of common blending modes, based on
      * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
      **/
-    var blendModes;
+    var 
+        blendModes,
+        Min=Math.min
+    ;
+    
     blendModes = {
         normal: function(a, b) { return a; },
 
@@ -46,9 +50,9 @@
 
         colorBurn: function(a, b) { return b == 0 ? b : Math.max(0, (255 - ((255 - a) << 8 ) / b)); },
 
-        linearDodge: blendModes.add,
+        //linearDodge: blendModes.add,
 
-        linearBurn: blendModes.substract,
+        //linearBurn: blendModes.substract,
 
         linearLight: function(a, b) { return b < 128 ? blendModes.linearBurn(a, 2 * b) : blendModes.linearDodge(a, (2 * (b - 128))); },
 
@@ -65,6 +69,8 @@
 
         phoenix: function(a, b) { return Math.min(a, b) - Math.max(a, b) + 255; }
     };
+    blendModes.linearDodge= blendModes.add;
+    blendModes.linearBurn= blendModes.substract;
     
     FILTER.blendModes=blendModes;
     
@@ -95,7 +101,9 @@
             if (amount<0) amount=0;
             if (typeof startX == 'undefined')  startX=0;
             if (typeof startY == 'undefined')  startY=0;
+            
             var sx=0,sy=0;
+            
             if (startX<0)
             {
                 sx=-startX;
@@ -114,24 +122,22 @@
             var blendingMode = blendModes[mode];
             if (blendingMode==undefined || blendingMode==null) return this;
             
-            var width =  Math.min(this.width, image.width-sx);
-            var height = Math.min(this.height, image.height-sy);
-            
-            var imageData1 = this.context.getImageData(startX,startY,width,height);
-            var imageData2 = image.context.getImageData(sx, sy, width, height);
-            
+            var 
+                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
+                imageData1 = this.context.getImageData(startX,startY,width,height),
+                imageData2 = image.context.getImageData(sx, sy, width, height),
+                /** @type Array */
+                pixels1 = imageData1.data,
+                /** @type Array */
+                pixels2 = imageData2.data,
+                r, g, b, oR, oG, oB, invamount = 1 - amount,
+                len=pixels2.length, i
+            ;
 
-            /** @type Array */
-            var pixels1 = imageData1.data;
-            /** @type Array */
-            var pixels2 = imageData2.data;
-
-            var r, g, b, oR, oG, oB, invamount = 1 - amount;
             
-            var len=pixels2.length;
             
             // blend images
-            for (var i = 0; i < len; i += 4) {
+            for (i = 0; i < len; i += 4) {
                 oR = pixels1[i];
                 oG = pixels1[i + 1];
                 oB = pixels1[i + 2];

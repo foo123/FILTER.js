@@ -1,57 +1,82 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-		<title>Filters with canvas and FILTER.js</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				font-family: Monospace;
-				background-color: #121212;
-                color:#aaa;
-				margin: 0px;
-				overflow: hidden;
-				padding:0;
-				position:relative;
-				height:100%;
-			}
-		</style>
-	</head>
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+            font-family: Monospace;
+            background-color: #121212;
+            color:#aaa;
+            margin: 0px;
+            overflow: hidden;
+            padding:0;
+            position:relative;
+            height:100%;
+            }
+        </style>
+        <script src="../build/FILTER.min.js"></script>
+        <title>Filters with canvas and FILTER.js</title>
+    </head>
 	<body>
-
-		<script src="../build/FILTER.min.js"></script>
 		<div id="aside" style="position:absolute;color:#fff;font-size:12px;z-index:100;width:150px;right:0">
-		<input id="test" type="button" value="Apply Filters" />
+            <input id="test" type="button" value="Apply Filters" />
 		</div>
-		<div id="container" style="position:relative;margin:0 auto;padding:0;cursor:pointer"></div>
+		<div id="container" style="max-width:600px;position:relative;margin:0;padding:0;cursor:pointer"></div>
+        
 		<script>
-		var aside=document.getElementById('aside');
-		var test=document.getElementById('test');
-		test.addEventListener('click',dotest,false);
-		var container=document.getElementById('container');
-		var im1=new FILTER.Image('che.jpg');
-		var im2=new FILTER.Image('che.jpg');
-		var im3=new FILTER.Image('che.jpg');
-		var im4=new FILTER.Image('che.jpg');
-		var im5=new FILTER.Image('che.jpg');
-		var im6=new FILTER.Image('che.jpg');
-		var im7=new FILTER.Image('che.jpg');
-		container.appendChild(im1.canvasElement);
-		container.appendChild(im2.canvasElement);
-		container.appendChild(im3.canvasElement);
-		container.appendChild(im4.canvasElement);
-		container.appendChild(im5.canvasElement);
-		container.appendChild(im6.canvasElement);
-		container.appendChild(im7.canvasElement);
-		function dotest(event)
-		{
-		     new FILTER.ColorMatrixFilter(im2).colorize(0xff0000).apply();
-		     new FILTER.ColorMatrixFilter(im3).grayscale().contrast(1).apply();
-		     new FILTER.ConvolutionMatrixFilter(im4).blur(4).apply();
-		     new FILTER.ConvolutionMatrixFilter(im5).highPass(3).apply();
-		     new FILTER.SobelFilter(im6).apply();
-		     new FILTER.ConvolutionMatrixFilter(im7).emboss().apply();
-			 aside.innerHTML+="<div><ol><li>Original Image</li><li>Colorized</li><li>Grayscale and Contrast</li><li>Blured</li><li>Edges</li><li>Sobel filter</li><li>Emboss</li></ol></div>";
-		}
+            var 
+                aside=document.getElementById('aside'),
+                test=document.getElementById('test'),
+                container=document.getElementById('container'),
+                im1=new FILTER.Image('che.jpg'),
+                im2=new FILTER.Image('che.jpg'),
+                im3=new FILTER.Image('che.jpg'),
+                im4=new FILTER.Image('che.jpg'),
+                im5=new FILTER.Image('che.jpg'),
+                im6=new FILTER.Image('che.jpg'),
+                im7=new FILTER.Image('che.jpg')
+                ;
+            container.appendChild(im1.canvasElement);
+            container.appendChild(document.createElement('br'));
+            container.appendChild(im2.canvasElement);
+            container.appendChild(im3.canvasElement);
+            container.appendChild(im4.canvasElement);
+            container.appendChild(im5.canvasElement);
+            container.appendChild(im6.canvasElement);
+            container.appendChild(im7.canvasElement);
+            
+            test.addEventListener('click', dotest, false);
+            
+            function dotest(event)
+            {
+                 // filters
+                 var 
+                    clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+                    grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
+                    blur=new FILTER.ConvolutionMatrixFilter().boxBlur(8),
+                    gauss=new FILTER.ConvolutionMatrixFilter().gaussBlur(8),
+                    //median=new FILTER.NonLinearFilter().median(3),
+                    //sobel=new FILTER.SobelFilter(),
+                    emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
+                    //bluremboss=new FILTER.ConvolutionMatrixFilter().bluremboss(),
+                    combo1=new FILTER.CompositeConvolutionMatrixFilter([emboss]),
+                    combo2=new FILTER.CompositeConvolutionMatrixFilter([blur, emboss])
+                    ;
+                 
+                 // apply them
+                 clr.apply(im2);
+                 grc.apply(im3);
+                 //emboss.apply(im4);
+                 blur.apply(im4);
+                 gauss.apply(im5);
+                 //emboss.apply(im5);
+                 combo1.apply(im6);
+                 combo2.apply(im7);
+                 
+                 aside.innerHTML+="<div><ol><li>Original Image</li><li>Colorized</li><li>Grayscale and Contrast</li><li>Blured</li><li>Edges</li><li>Emboss</li><li>Composite filter</li></ol></div>";
+            }
 		</script>
-</body></html>
+    </body>
+</html>

@@ -1,9 +1,9 @@
 /** 
 *
-* FILTER.js Image Processing Filter Library for javascript and HTML5 canvas element
+* FILTER.js Image Processing Filter Library for JavaScript and HTML5 canvas
 * http://github.com/foo123/FILTER.js
 *
-* @version 0.2.1 
+* @version 0.3
 *
 * @author Nikos M. http://nikos-web-development-netai.net
 *
