@@ -215,7 +215,7 @@
         new FILTER.ColorMatrixFilter(image[1]).colorize(0xff0000).apply();
         new FILTER.ColorMatrixFilter(image[2]).grayscale().contrast(1).apply();
         new FILTER.ConvolutionMatrixFilter(image[3]).motionblur(1).apply();
-        new FILTER.ConvolutionMatrixFilter(image[4]).highPass(3).apply();
+        new FILTER.ConvolutionMatrixFilter(image[4]).edge().apply();
         new FILTER.SobelFilter(image[5]).apply();
         new FILTER.ConvolutionMatrixFilter(image[6]).emboss().apply();
         //new FILTER.ColorMatrixFilter(image[7]).colorize(0xff00ff).apply();
