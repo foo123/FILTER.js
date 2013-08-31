@@ -1,3 +1,2 @@
-#!/bin/sh
-
-python build.py --all --minified
+#!/usr/bin/env sh
+python build.py --deps dependencies

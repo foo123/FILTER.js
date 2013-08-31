@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        
+        <title>Filters with canvas, FILTER.js and Three.js</title>
+        
+        <style>
+            body {
+                font-family: Monospace;
+                background-color: #000;
+                margin: 0px;
+                overflow: hidden;
+                padding:0;
+                position:relative;
+                height:100%;
+            }
+        </style>
+        <script src="../../build/FILTER.min.js"></script>
+        <script src="application/three.min.js"></script>
+        <script src="application/Filter3Application.js"></script>
+    </head>
+    
+    <body>
+        <div style="display:none">
+            <!-- load images here -->
+            <img src="assets/che.jpg" id="Che" />
+            <img src="assets/RedStar.jpg" id="RedStar" />
+        </div>
+
+        <div id="aside" style="position:absolute;color:#fff;font-size:12px;z-index:100;width:150px;right:0">
+            <input id="test" type="button" value="Apply Filters" />
+        </div>
+        
+        <div id="container" style="position:relative;margin:0 auto;padding:0;cursor:pointer"></div>
+        
+        <script>
+        /*<![CDATA[ */
+                
+            Filter3Application.init();
+            
+        /*]]>*/
+        </script>
+    </body>
+</html>
