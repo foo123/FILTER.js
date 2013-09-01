@@ -1,11 +1,14 @@
 /**
 *
 * Color Matrix Filter(s)
-* matrix is 4x5 array of values which are (eg for row 1: Red value): 
-* New red Value=Multiplier for red value, multiplier for Green value, multiplier for Blue Value, Multiplier for Alpha Value,constant  bias term
-* other rows are similar but for new Green, Blue and Alpha values respectively 
 *
-* @param colorMatrix (Matrix)
+* Changes target coloring combining current pixel color values according to Matrix
+*
+* (matrix is 4x5 array of values which are (eg for row 1: Red value): 
+* New red Value=Multiplier for red value, multiplier for Green value, multiplier for Blue Value, Multiplier for Alpha Value,constant  bias term
+* other rows are similar but for new Green, Blue and Alpha values respectively) 
+*
+* @param colorMatrix (Matrix as Array)
 * @package FILTER.js
 *
 **/

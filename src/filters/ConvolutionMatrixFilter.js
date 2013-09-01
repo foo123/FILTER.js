@@ -2,8 +2,10 @@
 *
 * Convolution Matrix Filter(s)
 *
-* @param weights (Array)
-* @param opaque (Bool)
+* Convolves the target image with a matrix filter
+*
+* @param weights (Matrix as Array)
+* @param factor (filter normalizer factor)
 * @package FILTER.js
 *
 **/

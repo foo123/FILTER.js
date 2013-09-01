@@ -2,6 +2,8 @@
 *
 * Non-Linear Filter(s)
 *
+* Applies non-linear filtering/processing to target image
+*
 * @package FILTER.js
 *
 **/
@@ -96,7 +98,7 @@
                 }
                 return dst;
             }
-            else
+            else if (this.isMinimum || this.isMaximum)
             {
                 var side = this.dim, halfSide = side>>1, len=side*side,
                     dst=new FILTER.ImArray(src.length),

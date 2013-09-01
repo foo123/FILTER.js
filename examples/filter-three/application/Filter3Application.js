@@ -206,24 +206,23 @@
                 displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                 displacemap.context.fill();
                 //image[7].setPixelData(displacemap.getPixelData());
+                displacemap._refresh();
             }
         };
     }
     
     function dotest(event)
     {
-        new FILTER.ColorMatrixFilter(image[1]).colorize(0xff0000).apply();
-        new FILTER.ColorMatrixFilter(image[2]).grayscale().contrast(1).apply();
-        new FILTER.ConvolutionMatrixFilter(image[3]).motionblur(1).apply();
-        new FILTER.ConvolutionMatrixFilter(image[4]).highPass(3).apply();
-        new FILTER.SobelFilter(image[5]).apply();
-        new FILTER.ConvolutionMatrixFilter(image[6]).emboss().apply();
-        //new FILTER.ColorMatrixFilter(image[7]).colorize(0xff00ff).apply();
-        var df=new FILTER.DisplacementMapFilter(image[7],displacemap);
+        new FILTER.ColorMatrixFilter().colorize(0xff0000).apply(image[1]);
+        new FILTER.ColorMatrixFilter().grayscale().contrast(1).apply(image[2]);
+        new FILTER.ConvolutionMatrixFilter().boxBlur(5).apply(image[3]);
+        new FILTER.ConvolutionMatrixFilter().edges().apply(image[4]);
+        new FILTER.ConvolutionMatrixFilter().sobel(3).apply(image[5]);
+        new FILTER.ConvolutionMatrixFilter().emboss().apply(image[6]);
+        var df=new FILTER.DisplacementMapFilter(displacemap);
         df.scaleX=100;
         df.scaleY=100;
-        df.mode=FILTER.MODE_WRAP;
-        df.apply();
+        df.apply(image[7]);
         for (var i=0;i<8;i++)
             texture[i].needsUpdate=true;
     }

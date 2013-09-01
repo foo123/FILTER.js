@@ -81,24 +81,104 @@
     {
         this.width=0;
         this.height=0;
-        this.type='undefined';
-        this.image=null;
-        this.canvasElement=null;
         this.context=null;
         this.imageData=null;
-        this._histogram=null;
-        this._integral=null;
         this.canvasElement=document.createElement('canvas');
         this.canvasElement.width=0;
         this.canvasElement.height=0;
         this.context=this.canvasElement.getContext('2d');
+        this._histogram=null;
+        this._integral=null;
         this._histogramRefresh=true;
         this._integralRefresh=true;
-        this.setImage(img,callback);
+        this.setImage(img, callback);
     };
     
     FILTER.Image.prototype={
     
+        getData : function() {
+            // clone it
+            return new FILTER.ImArray(this.imageData.data);
+        },
+        
+        setData : function(a) {
+            this.imageData.data.set(a);
+            this.context.putImageData(this.imageData, 0, 0); 
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        getPixelData : function() {
+            return this.imageData;
+        },
+        
+        setPixelData : function(data) {
+            this.context.putImageData(data,0,0); 
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setWidth : function(w) {
+            this.width=w;
+            this.canvasElement.width=this.width;
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setHeight : function(h) {
+            this.height=h;
+            this.canvasElement.height=this.height;
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setImage : function(img, callback) {
+            if (typeof img=='undefined' || img==null) return this;
+            var thiss=this, image;
+            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            {
+                image=img;
+                this.width=img.width;
+                this.height=img.height;
+                this.canvasElement.width=this.width;
+                this.canvasElement.height=this.height;
+                this.context=this.canvasElement.getContext('2d');
+                this.context.drawImage(image,0,0);
+                this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+                this._histogramRefresh=true;
+                this._integralRefresh=true;
+            }
+            else // url string
+            {
+                image=new Image();
+                image.onload=function(){
+                    thiss.width=image.width;
+                    thiss.height=image.height;
+                    //thiss.canvasElement=document.createElement('canvas');
+                    thiss.canvasElement.width=thiss.width;
+                    thiss.canvasElement.height=thiss.height;
+                    thiss.context=thiss.canvasElement.getContext('2d');
+                    thiss.context.drawImage(image,0,0);
+                    thiss.imageData=thiss.context.getImageData(0, 0, thiss.width, thiss.height);
+                    thiss._histogramRefresh=true;
+                    thiss._integralRefresh=true;
+                    if (typeof callback != 'undefined') callback.call(thiss);
+                };
+                image.src=img; // load it
+            }
+            image.crossOrigin = '';
+            return this;
+        },
+        
         blend : function(image, mode, amount, startX, startY) {
             if (typeof mode == 'undefined') mode='normal';
             if (typeof amount == 'undefined') amount=1;
@@ -163,19 +243,23 @@
             return this;
         },
         
-        clone : function(withimage) {
-            if (typeof withimage == 'undefined') withimage=false;
-            if (withimage && this.image && this.image.src)  return new FILTER.Image(this.image.src);
-            else  return new FILTER.Image(this.canvasElement);
+        _refresh : function() {
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            return this;
         },
         
-        integral : function(doGray) {
-            if (this._integralRefresh) this._computeIntegral(doGray);
+        clone : function() {
+            return new FILTER.Image(this.canvasElement);
+        },
+        
+        integral : function() {
+            if (this._integralRefresh) this._computeIntegral();
             return this._integral;
         },
         
         // compute integral image (sum of columns)
-        _computeIntegral : function(doGray) 
+        _computeIntegral : function() 
         {
             var w=this.width,h=this.height, count=w*h, integral = new FILTER.Array32U(count),
                 im=this.getPixelData().data, i, j, k, col, pix, gray
@@ -213,9 +297,7 @@
             while (i<l)
             {
                 r=im[i]; g=im[i+1]; b=im[i+2];
-                _histogramR[r]++;
-                _histogramG[g]++;
-                _histogramB[b]++;
+                _histogramR[r]++; _histogramG[g]++; _histogramB[b]++;
                 i+=4;
             }
             this._histogram=[_histogramR, _histogramG, _histogramB];
@@ -229,96 +311,12 @@
             this.canvasElement.height=this.height;
             this.context=this.canvasElement.getContext('2d');
             this.context.createImageData(w,h);
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             return this.imageData;
         },
         
-        getData : function() {
-            // clone it
-            return new FILTER.ImArray(this.imageData.data);
-        },
-        
-        setData : function(a) {
-            this.imageData.data.set(a);
-            this.context.putImageData(this.imageData, 0, 0); 
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        getPixelData : function() {
-            return this.imageData;
-        },
-        
-        setPixelData : function(data) {
-            this.context.putImageData(data,0,0); 
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        setWidth : function(w) {
-            this.width=w;
-            this.canvasElement.width=this.width;
-            this.context=this.canvasElement.getContext('2d');
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        setHeight : function(h) {
-            this.height=h;
-            this.canvasElement.height=this.height;
-            this.context=this.canvasElement.getContext('2d');
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        setImage : function(img,callback) {
-            if (typeof img=='undefined' || img==null) return;
-            var thiss=this;
-            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
-            {
-                this.image=img;
-                this.width=img.width;
-                this.height=img.height;
-                //this.canvasElement=document.createElement('canvas');
-                this.canvasElement.width=this.width;
-                this.canvasElement.height=this.height;
-                this.context=this.canvasElement.getContext('2d');
-                this.context.drawImage(this.image,0,0);
-                this.imageData=this.context.getImageData(0,0,this.width,this.height);
-                if (img instanceof Image) this.type='image';
-                if (img instanceof HTMLCanvasElement)  this.type='canvas';
-                if (img instanceof HTMLVideoElement) this.type='video';
-                this._histogramRefresh=true;
-                this._integralRefresh=true;
-            }
-            else // url string
-            {
-                this.image=new Image();
-                //this.canvasElement=document.createElement('canvas');
-                this.type='image-url';
-                this.image.onload=function(){
-                    thiss.width=thiss.image.width;
-                    thiss.height=thiss.image.height;
-                    //thiss.canvasElement=document.createElement('canvas');
-                    thiss.canvasElement.width=thiss.width;
-                    thiss.canvasElement.height=thiss.height;
-                    thiss.context=thiss.canvasElement.getContext('2d');
-                    thiss.context.drawImage(thiss.image,0,0);
-                    thiss.imageData=thiss.context.getImageData(0,0,thiss.width,thiss.height);
-                    if (typeof callback != 'undefined') callback.call(thiss);
-                    thiss._histogramRefresh=true;
-                    thiss._integralRefresh=true;
-                };
-                this.image.src=img; // load it
-            }
-            this.image.crossOrigin = '';
+        scale : function(sx, sy) {
+            // todo
             return this;
         }
     };

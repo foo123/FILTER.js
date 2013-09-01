@@ -1,6 +1,6 @@
 /**
 *
-* Color Transforma
+* Color Transforms
 * @package FILTER.js
 *
 **/

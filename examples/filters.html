@@ -40,6 +40,15 @@
             }
             #container { max-width:240px; }
             #filters { max-width:600px; }
+            span
+            {
+                vertical-aligh:top;
+                position:relative;
+                display:inline-block;
+                width:25px;
+                padding:0;
+                padding-left:10px;
+            }
         </style>
         <script src="../build/FILTER.min.js"></script>
         <title>Filters with canvas and FILTER.js</title>
@@ -55,6 +64,9 @@
             
             // utils
             function linebreak() { return document.createElement('br'); }
+            function text(t) { return document.createTextNode(t); }
+            function wrap(tag, t) { var e=document.createElement(tag); e.innerHTML=t; return e;}
+            function span(t) { return wrap('span', t); }
             function html(el, c) { el.innerHTML=c; }
             function append(el, c) { el.innerHTML+=c; }
             function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
@@ -80,6 +92,7 @@
                         displacemap.context.beginPath();
                         displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                         displacemap.context.fill();
+                        displacemap._refresh();
                 }),
                 im2=new FILTER.Image('che.jpg'),
                 im3=new FILTER.Image('che.jpg'),
@@ -100,28 +113,39 @@
                 gauss=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
                 grad=new FILTER.ConvolutionMatrixFilter().grad(3),
-                emboss=new FILTER.ConvolutionMatrixFilter().emboss(1),
+                emboss=new FILTER.ConvolutionMatrixFilter().embossHigh(),
                 grayAndSobel=new FILTER.CompositeFilter([gray, sobel]),
-                grayAndPrewitt=new FILTER.CompositeFilter([gray, grad]),
+                grayAndPrewitt=new FILTER.CompositeFilter([gray, gauss, grad]),
                 displace=new FILTER.DisplacementMapFilter(displacemap)
                 ;
             
             addAll(container, [
+                span('1.'),
                 im1.canvasElement,
                 linebreak(),
+                span('M:'),
                 displacemap.canvasElement
             ]);
             addAll(filters, [
+                span('2.'),
                 im2.canvasElement,
+                span('3.'),
                 im3.canvasElement,
+                span('4.'),
                 im4.canvasElement,
                 linebreak(),
+                span('5.'),
                 im5.canvasElement,
+                span('6.'),
                 im6.canvasElement,
+                span('7.'),
                 im7.canvasElement,
                 linebreak(),
+                span('8.'),
                 im8.canvasElement,
+                span('9.'),
                 im9.canvasElement,
+                span('10.'),
                 im10.canvasElement
             ]);
             
@@ -139,12 +163,11 @@
                 median.apply(im8);
                 displace.scaleX=100;
                 displace.scaleY=100;
-                displace.mode=FILTER.MODE_WRAP;
                 displace.apply(im9);
                 grayAndSobel.apply(im10);
                 //grayAndPrewitt.apply(im10);
 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li></ol></div>");
+                append(aside, "<div><ol><li>Original Image</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li></ol>M: Displace Map</div>");
             }
             
 		</script>

@@ -26,7 +26,7 @@
     
     //
     //
-    // Abstract Filter
+    // Abstract Generic Filter
     FILTER.Filter=function() { };
     FILTER.Filter.prototype={
         apply : function(image) { /* do nothing here, override */ }

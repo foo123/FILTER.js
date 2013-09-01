@@ -1,8 +1,8 @@
 /**
 *
 * Displacement Map Filter
-* accepts an image as displace map
-* displaces/distorts the target image according to displace map
+*
+* Displaces/Distorts the target image according to displace map
 *
 * @param displaceMap (Image)
 * @package FILTER.js
@@ -30,37 +30,41 @@
     
     FILTER.DisplacementMapFilter=function(displacemap)
     {
-        this.scaleX=1;
-        this.scaleY=1;
-        this.startX=0;
-        this.startY=0;
-        this.componentX=0;
-        this.componentY=0;
-        this.color=0;
-        this.mode=FILTER.MODE.CLAMP;
         this.map=displacemap;
     };
 
     FILTER.DisplacementMapFilter.prototype={
     
+        // parameters
+        scaleX : 1,
+        scaleY : 1,
+        startX: 0,
+        startY: 0,
+        componentX : 0,
+        componentY : 0,
+        color : 0,
+        mode : FILTER.MODE.CLAMP,
+        map : null,
+        
         // used for internal purposes
         _apply : function(im, w, h) {
             
             if (!this.map) return im;
             
-            var map=this.map.getData(), mw = this.map.width, mh = this.map.height, ww=Min(mw, w), hh=Min(mh, h),
-                sx=this.scaleX*0.00390625 /* /256 */, sy=this.scaleY*0.00390625, /* /256 */
+            var map=this.map.getData(), mw = this.map.width, mh = this.map.height, 
+                ww=Min(mw, w), hh=Min(mh, h),
+                sx=this.scaleX*0.00390625, /* /256 */ sy=this.scaleY*0.00390625, /* /256 */
                 alpha=(this.color >> 24) & 255, red=(this.color >> 16) & 255,
                 green=(this.color >> 8) & 255, blue=this.color & 255,
                 sty=~~(this.startY), stx=~~(this.startX),
                 comx=this.componentX, comy=this.componentY, mode=this.mode,
-                xx,yy,dstoff,mapoff,srcy,srcx,dispoff,x,y,ymw, yyw, styw=sty*w, stymw=sty*mw,
+                xx,yy,dstoff,mapoff,srcy,srcx,dispoff,x,y,ymw, yyw, styw=sty*w,
                 // create new image for copy manipulations
                 dst=new FILTER.ImArray(im.length)
                 ;
-
+            
             // apply filter
-            ymw=0; yyw=styw;
+            ymw=0; yyw=0;
             for (y=0; y<hh; y++) 
             {
                 yy=y+sty;
@@ -71,7 +75,7 @@
                         xx=x+stx;
                         if (xx<0 || xx>=w) continue;
                         
-                        dstoff = (yyw+xx)<<2;  mapoff = (ymw+x)<<2;
+                        dstoff = (yyw+styw+xx)<<2;  mapoff = (ymw+x)<<2;
                         srcy = yy + ~~((map[mapoff+comy]-128)*sy);
                         srcx = xx + ~~((map[mapoff+comx]-128)*sx);
 
@@ -110,10 +114,9 @@
                         dst[dstoff+1]=im[dispoff+1];
                         dst[dstoff+2]=im[dispoff+2];
                         dst[dstoff+3]=im[dispoff+3];
-                        (x==y) && console.log(dstoff, dispoff);
                     }
                 }
-                ymw+=mw; yyw+=styw;
+                ymw+=mw; yyw+=w;
             }
             return dst;
         },
