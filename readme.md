@@ -64,7 +64,7 @@ for the RGBA components of each pixel in an image.
 
 The filter scans an image and changes the coloring of each pixel by mixing the RGBA channels of the pixel according to the matrix.
 
-The class has many pre-defined filters which can be combined in any order.
+The class has various pre-defined filters which can be combined in any order.
 
 * _desaturate/grayscale()_  Applies grayscaling to an image
 * _colorize()_ Applies pseudo-color to an image
@@ -86,13 +86,13 @@ These filters are pre-computed, however any custom filter can be created by sett
 
 Color Matrix Filters can be combined very easily since they operate only on a single pixel at a time
 
-So in order to use both a grayscale and a contrast filter the following chaining can be used:
+In order to use both a grayscale and a contrast filter use the following chaining:
 
 ````javascript
 var grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1);
 ````
 
-To apply the filter to an image use (this is NEW in 0.3+ version)
+To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 grc.apply(image);   // image is a FILTER.Image instance, see examples
@@ -119,7 +119,7 @@ A convolution matrix with large dimesions (NxN) will use pixels from a larger ne
 Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) This is related to the fact that the matrix must define a unique center
 element (ie. current pixel)  which only odd dimensions allow.
 
-The class has many pre-defined filters to use.
+The class has various pre-defined filters to use.
 
 * _lowPass/boxBlur()_  Generic (box) lowpass filter (ie. box blur)
 * _highPass()_ Generic high pass filter (derived from the associated low pass filter)
@@ -142,16 +142,16 @@ The class has many pre-defined filters to use.
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
-Convolution  Filters cannot be combined very easily since they operate on multiple pixels at a time. However using a composite filter,
+Convolution  Filters cannot be combined very easily since they operate on multiple pixels at a time. Using a composite filter,
 filters can be combined into a filter stack which apply one at a time (see below)
 
-In order to use an emboss filter the following can be used:
+In order to use an emboss filter do the following:
 
 ````javascript
 var emboss=new FILTER.ConvolutionMatrixFilter().emboss();
 ````
 
-To apply the filter to an image use (this is NEW in 0.3+ version)
+To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 emboss.apply(image);   // image is a FILTER.Image instance, see examples
@@ -171,17 +171,16 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 The filter scans an image and changes the current pixel by displacing it according to the coloring of the displacement map image
 
 
-
-Displacement Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. However using a composite filter,
+Displacement Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Using a composite filter,
 filters can be combined into a filter stack which apply one at a time (see below)
 
-In order to use an displace filter the following can be used:
+In order to use an displace filter do the following:
 
 ````javascript
 var dF=new FILTER.DisplacementMapFilter(displaceMap);
 ````
 
-To apply the filter to an image use (this is NEW in 0.3+ version)
+To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 // set any filter parameters if needed
@@ -211,16 +210,15 @@ The class has some pre-defined filters to use.
 * _erode()_ Apply erode filter
 * _dilate()_ Apply dilate filter
 
-Non Linear Filters cannot be combined very easily since they operate on multiple pixels at a time. However using a composite filter,
-filters can be combined into a filter stack which apply one at a time (see below)
+Non Linear Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
-In order to use a median filter the following can be used:
+In order to use a median filter do the following:
 
 ````javascript
 var median=new FILTER.NonLinearFilter().median(3);  // 3x3 median
 ````
 
-To apply the filter to an image use (this is NEW in 0.3+ version)
+To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 median.apply(image);   // image is a FILTER.Image instance, see examples
@@ -238,7 +236,7 @@ new FILTER.CompositeFilter([filter1, filter2, filter3, etc..]);
 This filter implements a filter stack which enables multiple filters (even other composite filters) to be applied
 more easily (and slightly faster) to an image, than to apply them one-by-one manually
 
-The class has theme methods to use.
+The class implements these methods:
 
 * _push()_  add a filter to the end of stack
 * _pop()_ remove a filter from the end of stack
@@ -246,7 +244,7 @@ The class has theme methods to use.
 * _filters()_ set the filters stack at once
 
 
-In order to use a composite filter the following can be used:
+In order to use a composite filter do the following:
 
 ````javascript
 var grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1);
@@ -254,7 +252,7 @@ var emboss=new FILTER.ConvolutionMatrixFilter().emboss();
 var combo=new FILTER.CompositeFilter([grc, emboss]);
 ````
 
-To apply the filter to an image use (this is NEW in 0.3+ version)
+To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 combo.apply(image);   // image is a FILTER.Image instance, see examples
