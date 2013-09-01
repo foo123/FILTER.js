@@ -21,15 +21,19 @@ This is a library for filtering images in javascript using canvas element.
 
 
 ###How to Use
-It defines an Image class which represents and Image and 4 generic filters  
+The framework defines an Image class which represents an Image and 5 generic filters  
 
 * __ColorMatrixFilter__ (analogous to the actionscript version)
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
+* __NonLinearFilter__ 
+* __CompositeFilter__ (an abstraction of a container for multiple filters)
+
+
 * __Image Blending Modes__ (analogous to Photoshop blends)
 
 each generic filter is prototype but it also includes basic implementation filters like 
-_grayscale_ , _colorize_ , _threshold_ , _gauss_ , _laplace_ , _emboss_ , etc..  
+_grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
 
 
 ###API Reference
