@@ -483,10 +483,6 @@
             return this.set(wm, 1/9, 9);
         },
         
-        reset : function() {
-            this.matrix=null; this.auxMatrix=null; this.dim=0; return this;
-        },
-        
         set : function(m, f, d) {
             // matrices/kernels need to be convolved -> larger kernel->tensor
             //this.matrix=multiplyMatrix(this.matrix, new CM(m), d);
@@ -565,6 +561,10 @@
         apply : function(image) {
             if (!this.matrix) return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
+        },
+        
+        reset : function() {
+            this.matrix=null; this.auxMatrix=null; this.dim=0; return this;
         }
     };
     

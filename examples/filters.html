@@ -26,8 +26,8 @@
                 padding:0;
                 cursor:pointer;
                 vertical-align:top;
-                padding-right:10px;
-                border-right:4px solid #aaa;
+                padding-right:5px;
+                border-right:2px solid #aaa;
             }
             #aside
             {
@@ -38,7 +38,7 @@
                 width:250px;
                 right:0
             }
-            #container { max-width:240px; }
+            #container { max-width:400px; }
             #filters { max-width:600px; }
             span
             {
@@ -61,6 +61,7 @@
 		<div id="filters" class="panel"></div>
         
 		<script>
+        //<![CDATA[
             
             // utils
             function linebreak() { return document.createElement('br'); }
@@ -103,7 +104,13 @@
                 im8=new FILTER.Image('che.jpg'),
                 im9=new FILTER.Image('che.jpg'),
                 im10=new FILTER.Image('che.jpg'),
+                im11=new FILTER.Image('che.jpg'),
+                im12=new FILTER.Image('che.jpg'),
+                im13=new FILTER.Image('che.jpg'),
                  // filters
+                redChannel=new FILTER.ColorMatrixFilter().redChannel().colorize(0xff0000),
+                greenChannel=new FILTER.ColorMatrixFilter().greenChannel().colorize(0x00ff00),
+                blueChannel=new FILTER.ColorMatrixFilter().blueChannel().colorize(0x0000ff),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
                 sepia=new FILTER.ColorMatrixFilter().quickSepia(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
@@ -122,18 +129,18 @@
             addAll(container, [
                 span('1.'),
                 im1.canvasElement,
-                linebreak(),
-                span('M:'),
-                displacemap.canvasElement
-            ]);
-            addAll(filters, [
                 span('2.'),
                 im2.canvasElement,
+                linebreak(),
                 span('3.'),
                 im3.canvasElement,
                 span('4.'),
                 im4.canvasElement,
                 linebreak(),
+                span('M:'),
+                displacemap.canvasElement
+            ]);
+            addAll(filters, [
                 span('5.'),
                 im5.canvasElement,
                 span('6.'),
@@ -146,7 +153,14 @@
                 span('9.'),
                 im9.canvasElement,
                 span('10.'),
-                im10.canvasElement
+                im10.canvasElement,
+                linebreak(),
+                span('11.'),
+                im11.canvasElement,
+                span('11.'),
+                im12.canvasElement,
+                span('13.'),
+                im13.canvasElement
             ]);
             
             addEvent(test, 'click', dotest);
@@ -154,22 +168,26 @@
             function dotest(event)
             {
                 // apply them
-                clr.apply(im2);
-                grc.apply(im3);
-                sepia.apply(im4);
-                blur.apply(im5);
-                gauss.apply(im6);
-                emboss.apply(im7);
-                median.apply(im8);
+                redChannel.apply(im2);
+                greenChannel.apply(im3);
+                blueChannel.apply(im4);
+                clr.apply(im5);
+                grc.apply(im6);
+                sepia.apply(im7);
+                blur.apply(im8);
+                gauss.apply(im9);
+                emboss.apply(im10);
+                median.apply(im11);
                 displace.scaleX=100;
                 displace.scaleY=100;
-                displace.apply(im9);
-                grayAndSobel.apply(im10);
+                displace.apply(im12);
+                grayAndSobel.apply(im13);
                 //grayAndPrewitt.apply(im10);
 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li></ol>M: Displace Map</div>");
+                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li></ol>M: Displace Map</div>");
             }
             
+        //]]>
 		</script>
     </body>
 </html>

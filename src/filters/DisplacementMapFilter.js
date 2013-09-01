@@ -124,6 +124,10 @@
         apply : function(image) {
             if (!this.map) return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
+        },
+        
+        reset : function() {
+            this.map=null; return this;
         }
     };
     

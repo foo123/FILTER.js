@@ -27,14 +27,16 @@
     //
     //
     // Abstract Generic Filter
-    FILTER.Filter=function() { };
+    FILTER.Filter=function() { /* do nothing here, override */ };
     FILTER.Filter.prototype={
-        apply : function(image) { /* do nothing here, override */ }
+        _apply : function(im, w, h) { /* do nothing here, override */ },
+        apply : function(image) { /* do nothing here, override */ },
+        reset : function() { /* do nothing here, override */ }
     };
     
     //
     //
-    // Composite Filter Stack
+    // Composite Filter Stack  (a variation of Composite Design Pattern)
     FILTER.CompositeFilter=function(filters) 
     { 
         this._stack=(typeof filters!='undefined' && filters.length) ? filters : [];
@@ -43,19 +45,25 @@
     FILTER.CompositeFilter.prototype={
         _stack : [],
         
-        apply : function(image) {
+        // used for internal purposes
+        _apply : function(im, w, h) {
             
-            if (!this._stack.length) return;
+            if (!this._stack.length) return im;
             
-            var im=image.getData(), w=image.width, h=image.height, 
-                _filterstack=this._stack, _stacklength=_filterstack.length, fi=0, filter;
+            var _filterstack=this._stack, _stacklength=_filterstack.length, fi=0, filter;
                 
             while (fi<_stacklength)
             {
                 filter=_filterstack[fi++]; 
                 if (filter) im=filter._apply(im, w, h);
             }
-            image.setData(im);
+            return im;
+        },
+        
+        // make it so other composite filters can be  used as simple filter components in the stack
+        apply : function(image) {
+            if (!this._stack.length) return image;
+            return image.setData(this._apply(im=image.getData(), image.width, image.height));
         },
         
         filters : function(f) {
@@ -72,9 +80,27 @@
             return this._stack.pop();
         },
         
+        shift : function(filter) {
+            this._stack.shift(filter);
+            return this;
+        },
+        
+        unshift : function() {
+            return this._stack.unshift();
+        },
+        
+        concat : function(filter) {
+            return this.push(filter);
+        },
+        
         remove : function(filter) {
             var i=this._stack.length;
             while (--i>=0) { if (filter===this._stack[i]) this._stack.splice(i,1); }
+            return this;
+        },
+        
+        reset : function() {
+            this._stack.length=0;
             return this;
         }
     };

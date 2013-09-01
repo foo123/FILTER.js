@@ -101,6 +101,46 @@
     
     FILTER.ColorMatrixFilter.prototype={
     
+        // get the image red channel as a new image
+        redChannel : function() {
+            return this.concat([
+                        1, 0, 0, 0, 0, 
+                        1, 0, 0, 0, 0, 
+                        1, 0, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
+        },
+        
+        // get the image green channel as a new image
+        greenChannel : function() {
+            return this.concat([
+                        0, 1, 0, 0, 0, 
+                        0, 1, 0, 0, 0, 
+                        0, 1, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
+        },
+        
+        // get the image blue channel as a new image
+        blueChannel : function() {
+            return this.concat([
+                        0, 0, 1, 0, 0, 
+                        0, 0, 1, 0, 0, 
+                        0, 0, 1, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
+        },
+        
+        // get the image alpha channel as a new image
+        alphaChannel : function() {
+            return this.concat([
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
+        },
+        
         desaturate : function() {
             return this.concat([
                         FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
@@ -278,10 +318,6 @@
             return this;
         },
         
-        reset : function() {
-            this.matrix=null; return this;
-        },
-        
         concat : function(mat) {
             this.matrix = (this.matrix) ? CMconcat(this.matrix, new CM(mat)) : new CM(mat);
             return this;
@@ -306,6 +342,10 @@
         apply : function(image) {
             if (!this.matrix) return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
+        },
+        
+        reset : function() {
+            this.matrix=null; return this;
         }
     };
     

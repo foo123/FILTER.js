@@ -27,9 +27,8 @@ The framework defines an Image class which represents an Image and 5 generic fil
 * __ColorMatrixFilter__ (analogous to the actionscript version)
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
-* __NonLinearFilter__ 
+* __NonLinearFilter__     
 * __CompositeFilter__ (an abstraction of a container for multiple filters)
-
 
 * __Image Blending Modes__ (analogous to Photoshop blends)
 
@@ -49,6 +48,7 @@ This is a placeholder for an image, along with basic methods to access the image
 and alter them. Image methods:
 
 * _setImage()_  Sets/Alters the underlying image
+* _clone()_ gets a copy of the image
 * _setData()_ sets the image pixel data
 * _getData()_ gets a copy of image pixel data
 * _integral()_  Computes (and caches) the image integral (not used at this time)
@@ -71,12 +71,13 @@ The filter scans an image and changes the coloring of each pixel by mixing the R
 
 The class has various pre-defined filters which can be combined in any order.
 
-* _desaturate/grayscale()_  Applies grayscaling to an image
+* _redChannel() / greenChannel() / blueChannel() / alphaChannel()_  Get the R/G/B/A channel of the image as a new image
+* _desaturate() / grayscale()_  Applies grayscaling to an image
 * _colorize()_ Applies pseudo-color to an image
 * _invert()_ Inverts image colors to their complementary
 * _saturate()_  Saturates the image (each color to maximum degree)
 * _contrast()_  Increase/Decrease image contrast
-* _brightness()_  Increase image brightness
+* _brightness()_  Adjust image brightness
 * _adjustHue()_  adjust image hue
 * _average()_   color image to an average color (similar to grayscale)
 * _quickContrastCorrection()_  
@@ -126,15 +127,15 @@ element (ie. current pixel)  which only odd dimensions allow.
 
 The class has various pre-defined filters to use.
 
-* _lowPass/boxBlur()_  Generic (box) lowpass filter (ie. box blur)
+* _lowPass() / boxBlur()_  Generic (box) lowpass filter (ie. box blur)
 * _highPass()_ Generic high pass filter (derived from the associated low pass filter)
-* _binomialLowPass/gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
+* _binomialLowPass() / gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
 * _binomialHighPass()_ Generic high pass filter (derived from the associated low pass filter)
 * _sharpen()_  Sharpen the image
-* _prewittX/gradX()_  X-gradient of the image (similar to horizontal edges)
-* _prewittY/gradY()_  Y-gradient of the image (similar to vertical edges)
-* _prewittDirectional/gradDirectional()_  Directional-gradient of the image (similar to edges along a direction)
-* _prewitt/grad()_  Total gradient of the image (similar to edges/prewitt operator)
+* _prewittX() / gradX()_  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
+* _prewittY() / gradY()_  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
+* _prewittDirectional() / gradDirectional()_  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
+* _prewitt() / grad()_  Total gradient of the image (similar to edges/prewitt operator)
 * _sobelX()_  X-gradient using Sobel operator (similar to horizontal edges)
 * _sobelY()_  Y-gradient using Sobel operator (similar to vertical edges)
 * _sobelDirectional()_  Directional-gradient using Sobel operator (similar to edges along a direction)
@@ -176,8 +177,7 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 The filter scans an image and changes the current pixel by displacing it according to the coloring of the displacement map image
 
 
-Displacement Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Using a composite filter,
-filters can be combined into a filter stack which apply one at a time (see below)
+Displacement Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
 In order to use an displace filter do the following:
 
@@ -243,10 +243,13 @@ more easily (and slightly faster) to an image, than to apply them one-by-one man
 
 The class implements these methods:
 
-* _push()_  add a filter to the end of stack
+* _push() / concat()_  add a filter to the end of stack
 * _pop()_ remove a filter from the end of stack
+* _shift()_  add a filter to the start of stack
+* _unshift()_ remove a filter from the start of stack
 * _remove()_ remove a filter by instance 
 * _filters()_ set the filters stack at once
+* _reset()_ reset the filter to identity
 
 
 In order to use a composite filter do the following:
@@ -273,6 +276,13 @@ NOTE: The filter apply method will actually change the image to which it is appl
 * add more filters (eg adaptive/statistical etc..)
 
 ###ChangeLog
+
+__0.3.1__
+* add more methods to Composite Filter (shift/unshift etc..)
+* allow other composite filters to be used as simple filter components in other composite filters (fixed)
+* add new ColorMatrixFilters: redChannel, greenChannel, blueChannel, alphaChannel
+* minor optimizations
+
 
 __0.3__
 * Add new filters (eg Gradients, Gaussian, Median, Erode, etc..)
