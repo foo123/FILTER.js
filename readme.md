@@ -4,7 +4,7 @@ __A Javascript Library for Image Processing and Filtering using HTML5 Canvas__
 
 This is a library for filtering images in javascript using canvas element.  
 
-[![Filter.js](/examples/filters-che-new.png)](http://foo123.github.com/examples/filter-three/)
+[![Filter.js](/examples/filters-che-new.png)](http://foo123.github.com/examples/filter/)
 
 
 ###Contents
@@ -16,6 +16,7 @@ This is a library for filtering images in javascript using canvas element.
 * [ChangeLog](#changelog)
 
 ###Live Example
+* [Image Processing](http://foo123.github.com/examples/filter/)
 * [Filters with Three.js](http://foo123.github.com/examples/filter-three/)
 
 
