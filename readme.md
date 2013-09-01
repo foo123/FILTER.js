@@ -9,13 +9,13 @@ This is a library for filtering images in javascript using canvas element.
 
 ###Contents
 
-* [Live Example](#live-example)
+* [Live Examples](#live-examples)
 * [How to Use](#how-to-use)
 * [API Reference](#api-reference)
 * [Todo](#todo)
 * [ChangeLog](#changelog)
 
-###Live Example
+###Live Examples
 * [Image Processing](http://foo123.github.com/examples/filter/)
 * [Filters with Three.js](http://foo123.github.com/examples/filter-three/)
 
