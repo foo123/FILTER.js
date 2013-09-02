@@ -306,20 +306,37 @@
         
         _computeHistogram : function() {
             var im=this.getPixelData().data, i=0, l=im.length,
-                _histogramR=new FILTER.ImArray(256), 
-                _histogramG=new FILTER.ImArray(256), 
-                _histogramB=new FILTER.ImArray(256),
-                r,g,b
-            ;
-            i=0; while (i<256) { _histogramR[i]=0; _histogramG[i]=0; _histogramB[i]=0; i++; }
+                r,g,b, //rangeR, rangeG, rangeB,
+                maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+                pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
+                //cdfR=new FILTER.Array32F(257), cdfG=new FILTER.Array32F(257), cdfB=new FILTER.Array32F(257),
+                i, n=1.0/(l>>2)
+                ;
+            
+            // initialize the arrays
+            i=0; while (i<256) { pdfR[i]=0; pdfG[i]=0; pdfB[i]=0; /*cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;*/ i++; }
+            //cdfR[256]=0; cdfG[256]=0; cdfB[256]=0;
+            
+            // compute pdf and maxima/minima
             i=0;
             while (i<l)
             {
                 r=im[i]; g=im[i+1]; b=im[i+2];
-                _histogramR[r]++; _histogramG[g]++; _histogramB[b]++;
+                pdfR[r]+=n; pdfG[g]+=n; pdfB[b]+=n;
+                
+                if (r>maxR) maxR=r;
+                if (r<minR) minR=r;
+                if (g>maxG) maxG=g;
+                if (g<minG) minG=g;
+                if (b>maxB) maxB=b;
+                if (b<minB) minB=b;
                 i+=4;
             }
-            this._histogram=[_histogramR, _histogramG, _histogramB];
+            
+            // compute cdf
+            //i=0; while (i<256) { cdfR[i+1]=cdfR[i]+pdfR[i]; cdfG[i+1]=cdfG[i]+pdfG[i]; cdfB[i+1]=cdfB[i]+pdfB[i]; i++; }
+            
+            this._histogram=[pdfR, pdfG, pdfB];
             this._histogramRefresh=false;
         },
         
