@@ -3,11 +3,11 @@
 ../src/core/Image.js
 ../src/core/Color.js
 ../src/core/Filter.js
+../src/filters/CustomFilter.js
 ../src/filters/ColorMatrixFilter.js
 ../src/filters/ConvolutionMatrixFilter.js
 ../src/filters/DisplacementMapFilter.js
 ../src/filters/NonLinearFilter.js
-../src/filters/CustomFilter.js
 ../src/plugins/Equalize.js
 ../src/plugins/RGBEqualize.js
 ../src/plugins/Noise.js

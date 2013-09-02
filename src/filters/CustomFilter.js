@@ -9,7 +9,8 @@
     
     //
     //
-    //  Custom Filter
+    //  Custom Filter 
+    //  used as a placeholder for constructing filters inline with an anonymous function
     FILTER.CustomFilter=function(handler)
     {
         this._handler=handler;
