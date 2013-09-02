@@ -293,7 +293,7 @@ var inlinefilter=new FILTER.CustomFilter(function(im, w, h){
 });
 
 // use it alone
-inline.apply(image);
+inlinefilter.apply(image);
 // or use it with any composite filter
 new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 

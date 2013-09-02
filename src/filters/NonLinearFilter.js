@@ -11,9 +11,9 @@
     
     // used for internal purposes
     var 
-    _MedianFilter = function(src, sw, sh) {
+    _MedianFilter = function(src, sw, sh, dim) {
         
-        var side = this.dim, halfSide = side>>1, len=side*side,
+        var side = dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -73,9 +73,9 @@
     },
     
     // used for internal purposes
-    _MaximumFilter = function(src, sw, sh) {
+    _MaximumFilter = function(src, sw, sh, dim) {
         
-        var side = this.dim, halfSide = side>>1, len=side*side,
+        var side = dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -126,9 +126,9 @@
     },
     
     // used for internal purposes
-    _MinimumFilter = function(src, sw, sh) {
+    _MinimumFilter = function(src, sw, sh, dim) {
         
-        var side = this.dim, halfSide = side>>1, len=side*side,
+        var side = dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -215,11 +215,11 @@
         // used for internal purposes
         _apply : function(src, sw, sh) {
             if (!this._applyFunc) return src;
-            return this._applyFunc.call(this, src, sw, sh);
+            return this._applyFunc(src, sw, sh, this.dim);
         },
         
         apply : function(image) {
-            if (!this.dim)  return image;
+            if (!this._applyFunc)  return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
         },
         
