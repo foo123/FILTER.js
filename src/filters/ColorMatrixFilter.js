@@ -102,7 +102,9 @@
     FILTER.ColorMatrixFilter.prototype={
     
         // get the image color channel as a new image
-        channel : function(ch) {
+        channel : function(ch, asGray) {
+            asGray=(typeof asGray=='undefined') ? false : asGray;
+            var f=(asGray) ? 1 : 0;
             switch(ch)
             {
                 case FILTER.CHANNEL.ALPHA:
@@ -116,8 +118,8 @@
                 
                 case FILTER.CHANNEL.BLUE:
                     return this.concat([
-                                0, 0, 1, 0, 0, 
-                                0, 0, 1, 0, 0, 
+                                0, 0, f, 0, 0, 
+                                0, 0, f, 0, 0, 
                                 0, 0, 1, 0, 0, 
                                 0, 0, 0, 0, 255
                             ]);
@@ -125,9 +127,9 @@
                 
                 case FILTER.CHANNEL.GREEN:
                     return this.concat([
+                                0, f, 0, 0, 0, 
                                 0, 1, 0, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 1, 0, 0, 0, 
+                                0, f, 0, 0, 0, 
                                 0, 0, 0, 0, 255
                             ]);
                     break;
@@ -136,8 +138,8 @@
                 default:
                     return this.concat([
                                 1, 0, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
+                                f, 0, 0, 0, 0, 
+                                f, 0, 0, 0, 0, 
                                 0, 0, 0, 0, 255
                             ]);
                     break;
@@ -146,23 +148,23 @@
         
         // aliases
         // get the image red channel as a new image
-        redChannel : function() {
-            return this.channel(FILTER.CHANNEL.RED);
+        redChannel : function(asGray) {
+            return this.channel(FILTER.CHANNEL.RED, asGray);
         },
         
         // get the image green channel as a new image
-        greenChannel : function() {
-            return this.channel(FILTER.CHANNEL.GREEN);
+        greenChannel : function(asGray) {
+            return this.channel(FILTER.CHANNEL.GREEN, asGray);
         },
         
         // get the image blue channel as a new image
-        blueChannel : function() {
-            return this.channel(FILTER.CHANNEL.BLUE);
+        blueChannel : function(asGray) {
+            return this.channel(FILTER.CHANNEL.BLUE, asGray);
         },
         
         // get the image alpha channel as a new image
-        alphaChannel : function() {
-            return this.channel(FILTER.CHANNEL.ALPHA);
+        alphaChannel : function(asGray) {
+            return this.channel(FILTER.CHANNEL.ALPHA, true);
         },
         
         swapChannels : function(ch1, ch2) {

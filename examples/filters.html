@@ -108,9 +108,9 @@
                 im12=new FILTER.Image('che.jpg'),
                 im13=new FILTER.Image('che.jpg'),
                  // filters
-                redChannel=new FILTER.ColorMatrixFilter().redChannel().colorize(0xff0000),
-                greenChannel=new FILTER.ColorMatrixFilter().greenChannel().colorize(0x00ff00),
-                blueChannel=new FILTER.ColorMatrixFilter().blueChannel().colorize(0x0000ff),
+                redChannel=new FILTER.ColorMatrixFilter().redChannel(),
+                greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
+                blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
                 sepia=new FILTER.ColorMatrixFilter().quickSepia(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
