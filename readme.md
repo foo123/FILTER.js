@@ -32,7 +32,7 @@ The framework defines an Image class which represents an Image and 5 generic fil
 
 * __Image Blending Modes__ (analogous to Photoshop blends)
 
-* __Extension by Plugins__ 
+* __Extension by Plugins / Inline Filters__ 
 
 each generic filter is prototype but it also includes basic implementation filters like 
 _grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
@@ -74,6 +74,7 @@ The filter scans an image and changes the coloring of each pixel by mixing the R
 The class has various pre-defined filters which can be combined in any order.
 
 * _redChannel() / greenChannel() / blueChannel() / alphaChannel()_  Get the R/G/B/A channel of the image as a new image
+* _swapChannels()_  swap 2 image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
 * _desaturate() / grayscale()_  Applies grayscaling to an image
 * _colorize()_ Applies pseudo-color to an image
 * _invert()_ Inverts image colors to their complementary
@@ -271,10 +272,32 @@ combo.remove(emboss);  // remove the emboss filter
 
 NOTE: The filter apply method will actually change the image to which it is applied
 
-__Custom Plugins__
+__Custom Plugins / Inline Filters__
 
 The library can be extended by custom plugins which add new filters.
-A comprehensive framework is provided for creating plugins that function the same a built-in filters (see examples at /src/plugins/Noise.js etc..)
+A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at /src/plugins/Noise.js etc..)
+
+For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
+
+Example:
+
+````javascript
+
+var inlinefilter=new FILTER.CustomFilter(function(im, w, h){
+    // this is the inline filter apply method
+    // do your stuff here..
+    // im is (a copy of) the image pixel data,
+    // w is the image width, h is the image height
+    // make sure to return the data back
+    return im;
+});
+
+// use it alone
+inline.apply(image);
+// or use it with any composite filter
+new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
+
+````
 
 
 ###Todo

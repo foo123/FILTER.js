@@ -215,7 +215,7 @@
         // used for internal purposes
         _apply : function(src, sw, sh) {
             if (!this._applyFunc) return src;
-            return this._applyFunc.call(this, src, w, h);
+            return this._applyFunc.call(this, src, sw, sh);
         },
         
         apply : function(image) {
