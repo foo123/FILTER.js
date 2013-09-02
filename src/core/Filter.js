@@ -30,6 +30,10 @@
         ALPHA : 3
     };
     
+    // private helper functons
+    function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
+    function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
+    
     //
     //
     // Abstract Generic Filter
@@ -123,6 +127,23 @@
             }
             return _ctx.createImageData(w, h);
         }
+    };
+    
+    // allow plugin creation
+    FILTER.Create=function(options)
+    {
+        var filterClass=function() { this.init.apply(this, Array.prototype.slice.call(arguments)); };
+        
+        options=Fextend({
+            init: function() {},
+            reset: function() { return this; },
+            apply: function(im, w, h){ return im; }
+        }, options);
+        options._apply=options.apply;
+        options.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height)); }
+        
+        filterClass.prototype=Fextend(filterClass.prototype, options);
+        return filterClass;
     };
     
 })(FILTER);

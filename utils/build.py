@@ -68,7 +68,7 @@ def mergeFiles(files, enc=False):
     buffer = []
 
     for filename in files:
-        f = openFile(os.path.join('..', 'src', filename), 'r', enc)
+        f = openFile(os.path.join(filename), 'r', enc)
         buffer.append(f.read())
         f.close()
 
@@ -77,7 +77,7 @@ def mergeFiles(files, enc=False):
 
 def output(text, filename, enc=False):
 
-    f = openFile(os.path.join('..', 'build', filename), 'w', enc)
+    f = openFile(os.path.join(filename), 'w', enc)
     f.write(text)
     f.close()
 
@@ -103,22 +103,19 @@ def compress(text, opts='', enc=False):
     return compressed
 
 
-def makeDebug(text):
-    position = 0
-    while True:
-        position = text.find("/* DEBUG", position)
-        if position == -1:
-            break
-        text = text[0:position] + text[position+8:]
-        position = text.find("*/", position)
-        text = text[0:position] + text[position+2:]
-    return text
+def extractHeader(text):
+    header = ''
+    if text.startswith('/*'):
+        position = text.find("*/", 0)
+        header = text[0:position+2]
+    return header
 
 
 def buildLib(filename, files, minified=False, opts='', enc=False):
 
     text = mergeFiles(files, enc)
-    folder = ''
+    header = extractHeader(text)
+    
 
     if minified:
         print ("=" * 50)
@@ -132,16 +129,7 @@ def buildLib(filename, files, minified=False, opts='', enc=False):
     if minified:
         text = compress(text, opts, enc)
     
-    header = ''
-    headerfile=os.path.join('..', 'src', 'header')
-    if os.path.isfile(headerfile):
-        buffer = []
-        f = openFile(headerfile, 'r', enc)
-        buffer.append(f.read())
-        f.close()
-        header = "".join(buffer)
-    
-    output(header + text, folder + filename, enc)
+    output(header + text, filename, enc)
 
 
 def parseArgs():

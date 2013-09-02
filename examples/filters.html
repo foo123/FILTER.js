@@ -76,10 +76,11 @@
             function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
             
             var 
+                che='che.jpg',
                 aside=getEl('aside'), test=getEl('test'), container=getEl('container'), filters=getEl('filters'),
                  // images
                 displacemap=new FILTER.Image(),
-                im1=new FILTER.Image('che.jpg', function(){
+                im1=new FILTER.Image(che, function(){
                         var grd;
                         // create a displace map image
                         displacemap.createImageData(im1.width,im1.height);
@@ -95,23 +96,29 @@
                         displacemap.context.fill();
                         displacemap._refresh();
                 }),
-                im2=new FILTER.Image('che.jpg'),
-                im3=new FILTER.Image('che.jpg'),
-                im4=new FILTER.Image('che.jpg'),
-                im5=new FILTER.Image('che.jpg'),
-                im6=new FILTER.Image('che.jpg'),
-                im7=new FILTER.Image('che.jpg'),
-                im8=new FILTER.Image('che.jpg'),
-                im9=new FILTER.Image('che.jpg'),
-                im10=new FILTER.Image('che.jpg'),
-                im11=new FILTER.Image('che.jpg'),
-                im12=new FILTER.Image('che.jpg'),
-                im13=new FILTER.Image('che.jpg'),
+                im2=new FILTER.Image(che),
+                im3=new FILTER.Image(che),
+                im4=new FILTER.Image(che),
+                im5=new FILTER.Image(che),
+                im6=new FILTER.Image(che),
+                im7=new FILTER.Image(che),
+                im8=new FILTER.Image(che),
+                im9=new FILTER.Image(che),
+                im10=new FILTER.Image(che),
+                im11=new FILTER.Image(che),
+                im12=new FILTER.Image(che),
+                im13=new FILTER.Image(che),
+                im14=new FILTER.Image(che),
+                 
                  // filters
                 redChannel=new FILTER.ColorMatrixFilter().redChannel(),
                 greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+                //contrast=new FILTER.ColorMatrixFilter().contrast(0.3),
+                equalize=new FILTER.HistogramEqualizeFilter(),
+                //rgbequalize=new FILTER.RGBHistogramEqualizeFilter(),
+                //noise=new FILTER.NoiseFilter(-127, 127),
                 sepia=new FILTER.ColorMatrixFilter().quickSepia(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
@@ -137,6 +144,8 @@
                 span('4.'),
                 im4.canvasElement,
                 linebreak(),
+                span('14.'),
+                im14.canvasElement,
                 span('M:'),
                 displacemap.canvasElement
             ]);
@@ -168,9 +177,11 @@
             function dotest(event)
             {
                 // apply them
+                equalize.apply(im14);
                 redChannel.apply(im2);
                 greenChannel.apply(im3);
                 blueChannel.apply(im4);
+                //rgbequalize.apply(im5);
                 clr.apply(im5);
                 grc.apply(im6);
                 sepia.apply(im7);
@@ -184,7 +195,7 @@
                 grayAndSobel.apply(im13);
                 //grayAndPrewitt.apply(im10);
 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li></ol>M: Displace Map</div>");
+                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
             }
             
         //]]>

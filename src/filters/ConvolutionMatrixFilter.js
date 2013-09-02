@@ -264,6 +264,9 @@
     
     FILTER.ConvolutionMatrixFilter.prototype={
         
+        dim: 0,
+        matrix: null,
+        
         // generic low-pass filter
         lowPass : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);

@@ -96,6 +96,25 @@
     
     FILTER.Image.prototype={
     
+        getPixel : function(x, y) {
+            var off=~~(y*this.width+x+0.5);
+            return {
+                red: this.imageData.data[off], 
+                green: this.imageData.data[off+1], 
+                blue: this.imageData.data[off+2], 
+                alpha: this.imageData.data[off+3]
+            };
+        },
+        
+        setPixel : function(x, y, r, g, b, a) {
+            var t=new FILTER.ImArray([r, g, b, a]);
+            this.context.putImageData(t, x, y); 
+            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
         getData : function() {
             // clone it
             return new FILTER.ImArray(this.imageData.data);

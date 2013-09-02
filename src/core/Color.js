@@ -50,7 +50,7 @@
         YCbCr2RGB : function(ycbcr) {
             var r, g, b, y=ycbcr.Y, cb=ycbcr.Cb, cr=ycbcr.Cr;
 			
-            r=~~(y + 1.4(cr-128));
+            r=~~(y + 1.4*(cr-128));
 			g=~~(y-0.343*(cb-128)-0.711*(cr-128));
 			b=~~(y+1.765*(cb-128));
 			return {red:r, green:g, blue:b};

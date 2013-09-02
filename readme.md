@@ -32,6 +32,8 @@ The framework defines an Image class which represents an Image and 5 generic fil
 
 * __Image Blending Modes__ (analogous to Photoshop blends)
 
+* __Extension by Plugins__ 
+
 each generic filter is prototype but it also includes basic implementation filters like 
 _grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
 
@@ -269,13 +271,27 @@ combo.remove(emboss);  // remove the emboss filter
 
 NOTE: The filter apply method will actually change the image to which it is applied
 
+__Custom Plugins__
+
+The library can be extended by custom plugins which add new filters.
+A comprehensive framework is provided for creating plugins that function the same a built-in filters (see examples at /src/plugins/Noise.js etc..)
+
 
 ###Todo
+* allow extension by plugins (both as Classes and Inline) [DONE]
 * make convolutions faster
 * use fixed-point arithmetic and/or micro-optimizations where possible
 * add more filters (eg adaptive/statistical etc..)
 
 ###ChangeLog
+
+__0.3.3__
+* allow framework to be extended by custom plugins (both as Classes and Inline)
+* add some sample custom plugins (Equalize.js, RGBEqualize.js, Noise.js)
+* add more methods to Image Class (getPixel, setPixel)
+* minor optimizations
+* new build tool
+* update examples / readme
 
 __0.3.2__
 * add new ColorMatrixFilters, _channel()_ : get a generic color channel as an image,  _swapChannels()_ : swap two image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
