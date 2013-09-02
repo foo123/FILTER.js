@@ -11,12 +11,6 @@
 (function(FILTER){
     
     // Constants
-    FILTER.CHANNEL={
-        RED : 0,
-        GREEN : 1,
-        BLUE : 2,
-        ALPHA : 3
-    };
     FILTER.MODE={
         IGNORE : 0,
         WRAP : 1,

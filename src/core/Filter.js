@@ -23,6 +23,12 @@
         toRad : Math.PI/180, 
         toDeg : 180/Math.PI
     };
+    FILTER.CHANNEL={
+        RED : 0,
+        GREEN : 1,
+        BLUE : 2,
+        ALPHA : 3
+    };
     
     //
     //

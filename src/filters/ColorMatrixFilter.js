@@ -101,44 +101,222 @@
     
     FILTER.ColorMatrixFilter.prototype={
     
+        // get the image color channel as a new image
+        channel : function(ch) {
+            switch(ch)
+            {
+                case FILTER.CHANNEL.ALPHA:
+                    return this.concat([
+                                0, 0, 0, 1, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 0, 0, 255
+                            ]);
+                    break;
+                
+                case FILTER.CHANNEL.BLUE:
+                    return this.concat([
+                                0, 0, 1, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 0, 255
+                            ]);
+                    break;
+                
+                case FILTER.CHANNEL.GREEN:
+                    return this.concat([
+                                0, 1, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 0, 255
+                            ]);
+                    break;
+                
+                case FILTER.CHANNEL.RED:
+                default:
+                    return this.concat([
+                                1, 0, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 0, 255
+                            ]);
+                    break;
+            }
+        },
+        
+        // aliases
         // get the image red channel as a new image
         redChannel : function() {
-            return this.concat([
-                        1, 0, 0, 0, 0, 
-                        1, 0, 0, 0, 0, 
-                        1, 0, 0, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
+            return this.channel(FILTER.CHANNEL.RED);
         },
         
         // get the image green channel as a new image
         greenChannel : function() {
-            return this.concat([
-                        0, 1, 0, 0, 0, 
-                        0, 1, 0, 0, 0, 
-                        0, 1, 0, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
+            return this.channel(FILTER.CHANNEL.GREEN);
         },
         
         // get the image blue channel as a new image
         blueChannel : function() {
-            return this.concat([
-                        0, 0, 1, 0, 0, 
-                        0, 0, 1, 0, 0, 
-                        0, 0, 1, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
+            return this.channel(FILTER.CHANNEL.BLUE);
         },
         
         // get the image alpha channel as a new image
         alphaChannel : function() {
-            return this.concat([
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
+            return this.channel(FILTER.CHANNEL.ALPHA);
+        },
+        
+        swapChannels : function(ch1, ch2) {
+            switch(ch1)
+            {
+                case FILTER.CHANNEL.ALPHA:
+                    switch(ch2)
+                    {
+                        case FILTER.CHANNEL.ALPHA:
+                            return this;
+                            break;
+                        
+                        case FILTER.CHANNEL.BLUE:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 0, 1, 0, 
+                                        0, 0, 1, 0, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.GREEN:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 0, 1, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.RED:
+                        default:
+                            return this.concat([
+                                        0, 0, 0, 1, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        1, 0, 0, 0, 0
+                                    ]);
+                            break;
+                    }
+                    break;
+                
+                case FILTER.CHANNEL.BLUE:
+                    switch(ch2)
+                    {
+                        case FILTER.CHANNEL.ALPHA:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 0, 1, 0, 
+                                        0, 0, 1, 0, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.BLUE:
+                            return this;
+                            break;
+                        
+                        case FILTER.CHANNEL.GREEN:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.RED:
+                        default:
+                            return this.concat([
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                    }
+                    break;
+                
+                case FILTER.CHANNEL.GREEN:
+                    switch(ch2)
+                    {
+                        case FILTER.CHANNEL.ALPHA:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 0, 1, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.BLUE:
+                            return this.concat([
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.GREEN:
+                            return this;
+                            break;
+                        
+                        case FILTER.CHANNEL.RED:
+                        default:
+                            return this.concat([
+                                        0, 1, 0, 0, 0, 
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                    }
+                    break;
+                
+                case FILTER.CHANNEL.RED:
+                default:
+                    switch(ch2)
+                    {
+                        case FILTER.CHANNEL.ALPHA:
+                            return this.concat([
+                                        0, 0, 0, 1, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        1, 0, 0, 0, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.BLUE:
+                            return this.concat([
+                                        0, 0, 1, 0, 0, 
+                                        0, 1, 0, 0, 0, 
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.GREEN:
+                            return this.concat([
+                                        0, 1, 0, 0, 0, 
+                                        1, 0, 0, 0, 0, 
+                                        0, 0, 1, 0, 0, 
+                                        0, 0, 0, 1, 0
+                                    ]);
+                            break;
+                        
+                        case FILTER.CHANNEL.RED:
+                        default:
+                            return this;
+                            break;
+                    }
+                    break;
+            }
         },
         
         desaturate : function() {
