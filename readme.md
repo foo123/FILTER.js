@@ -278,7 +278,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###ChangeLog
 
 __0.3.2__
-* add new ColorMatrixFilters, _channel()_ : get a geberic color channel as an image,  _swapChannels()_ : swap two image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
+* add new ColorMatrixFilters, _channel()_ : get a generic color channel as an image,  _swapChannels()_ : swap two image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
 
 __0.3.1__
 * add more methods to Composite Filter (shift/unshift etc..)
