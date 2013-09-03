@@ -8,20 +8,12 @@
 * New red Value=Multiplier for red value, multiplier for Green value, multiplier for Blue Value, Multiplier for Alpha Value,constant  bias term
 * other rows are similar but for new Green, Blue and Alpha values respectively) 
 *
-* @param colorMatrix (Matrix as Array)
+* @param colorMatrix Optional (a color matrix as an array of values)
 * @package FILTER.js
 *
 **/
 (function(FILTER){
 
-    // Constants
-    FILTER.LUMA={
-        R : 0.212671,
-        G : 0.71516,
-        B : 0.072169
-    };
-    
-    
     var 
         // Color Matrix
         CM=FILTER.Array32F,
@@ -323,9 +315,9 @@
         
         desaturate : function() {
             return this.concat([
-                        FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
-                        FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
-                        FILTER.LUMA.R, FILTER.LUMA.G, FILTER.LUMA.B, 0, 0, 
+                        FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
+                        FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
+                        FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
                         0, 0, 0, 1, 0
                     ]);
         },
@@ -342,26 +334,26 @@
             inv_amount = (1 - amount);
 
             return this.concat([
-                        (inv_amount + ((amount * r) * FILTER.LUMA.R)), ((amount * r) * FILTER.LUMA.G), ((amount * r) * FILTER.LUMA.B), 0, 0, 
-                        ((amount * g) * FILTER.LUMA.R), (inv_amount + ((amount * g) * FILTER.LUMA.G)), ((amount * g) * FILTER.LUMA.B), 0, 0, 
-                        ((amount * b) * FILTER.LUMA.R), ((amount * b) * FILTER.LUMA.G), (inv_amount + ((amount * b) * FILTER.LUMA.B)), 0, 0, 
+                        (inv_amount + ((amount * r) * FILTER.LUMA[0])), ((amount * r) * FILTER.LUMA[1]), ((amount * r) * FILTER.LUMA[2]), 0, 0, 
+                        ((amount * g) * FILTER.LUMA[0]), (inv_amount + ((amount * g) * FILTER.LUMA[1])), ((amount * g) * FILTER.LUMA[2]), 0, 0, 
+                        ((amount * b) * FILTER.LUMA[0]), ((amount * b) * FILTER.LUMA[1]), (inv_amount + ((amount * b) * FILTER.LUMA[2])), 0, 0, 
                             0, 0, 0, 1, 0
                         ]);
         },
         
         invert : function() {
             return this.concat([
-                        -1 ,  0,  0, 0, 255,
-                        0 , -1,  0, 0, 255,
-                        0 ,  0, -1, 0, 255,
-                        0,   0,  0, 1,   0
-                    ]);
+                    -1 ,  0,  0, 0, 255,
+                    0 , -1,  0, 0, 255,
+                    0 ,  0, -1, 0, 255,
+                    0,   0,  0, 1,   0
+                ]);
         },
         
         saturate : function( s ) {
             var sInv, irlum, iglum, iblum;
-            sInv = (1 - s);  irlum = (sInv * FILTER.LUMA.R);
-            iglum = (sInv * FILTER.LUMA.G);  iblum = (sInv * FILTER.LUMA.B);
+            sInv = (1 - s);  irlum = (sInv * FILTER.LUMA[0]);
+            iglum = (sInv * FILTER.LUMA[1]);  iblum = (sInv * FILTER.LUMA[2]);
             
             return this.concat([
                     (irlum + s), iglum, iblum, 0, 0, 
@@ -401,9 +393,9 @@
             var cos = Math.cos(degrees), sin = Math.sin(degrees);
             
             return this.concat([
-                    ((FILTER.LUMA.R + (cos * (1 - FILTER.LUMA.R))) + (sin * -(FILTER.LUMA.R))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * -(FILTER.LUMA.G))), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * (1 - FILTER.LUMA.B))), 0, 0, 
-                    ((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * 0.143)), ((FILTER.LUMA.G + (cos * (1 - FILTER.LUMA.G))) + (sin * 0.14)), ((FILTER.LUMA.B + (cos * -(FILTER.LUMA.B))) + (sin * -0.283)), 0, 0, 
-                    ((FILTER.LUMA.R + (cos * -(FILTER.LUMA.R))) + (sin * -((1 - FILTER.LUMA.R)))), ((FILTER.LUMA.G + (cos * -(FILTER.LUMA.G))) + (sin * FILTER.LUMA.G)), ((FILTER.LUMA.B + (cos * (1 - FILTER.LUMA.B))) + (sin * FILTER.LUMA.B)), 0, 0, 
+                    ((FILTER.LUMA[0] + (cos * (1 - FILTER.LUMA[0]))) + (sin * -(FILTER.LUMA[0]))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * -(FILTER.LUMA[1]))), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * (1 - FILTER.LUMA[2]))), 0, 0, 
+                    ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * 0.143)), ((FILTER.LUMA[1] + (cos * (1 - FILTER.LUMA[1]))) + (sin * 0.14)), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * -0.283)), 0, 0, 
+                    ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * -((1 - FILTER.LUMA[0])))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * FILTER.LUMA[1])), ((FILTER.LUMA[2] + (cos * (1 - FILTER.LUMA[2]))) + (sin * FILTER.LUMA[2])), 0, 0, 
                     0, 0, 0, 1, 0
                 ]);
         },
@@ -432,7 +424,19 @@
                 ]);
         },
         
-        quickSepia : function(r, g, b) {
+        quickSepia : function(amount) {
+            if (typeof amount == 'undefined') amount=10;
+            if (amount>100) amount=100;
+            amount *= 2.55;
+            return this.concat([
+                FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 40, 
+                FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 20, 
+                FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, -amount, 
+                0, 0, 0, 1, 0
+            ]);
+        },
+        
+        quickSepia2 : function(r, g, b) {
             if (typeof r == 'undefined') r=1;
             if (typeof g == 'undefined') g=r;
             if (typeof b == 'undefined') b=r;
@@ -445,7 +449,7 @@
             ]);
         },
         
-        quickSepia2 : function(r, g, b) {
+        /*quickSepia2 : function(r, g, b) {
             if (typeof r == 'undefined') r=1;
             if (typeof g == 'undefined') g=r;
             if (typeof b == 'undefined') b=r;
@@ -456,15 +460,15 @@
                 0.2720000147819519, 0.5339999794960022, b*0.1309999972581863, 0, 0, 
                 0, 0, 0, 1, 0
             ]);
-        },
+        },*/
         
         threshold : function(threshold, factor) {
             if (typeof factor == 'undefined')  factor=256;
             
             return this.concat([
-                    (FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
-                    (FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
-                    (FILTER.LUMA.R * factor), (FILTER.LUMA.G * factor), (FILTER.LUMA.B * factor), 0, (-(factor-1) * threshold), 
+                    (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
+                    (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
+                    (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
                     0, 0, 0, 1, 0
                 ]);
         },

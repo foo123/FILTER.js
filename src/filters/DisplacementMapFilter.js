@@ -4,7 +4,7 @@
 *
 * Displaces/Distorts the target image according to displace map
 *
-* @param displaceMap (Image)
+* @param displaceMap Optional (an Image used as a  dimaplcement map)
 * @package FILTER.js
 *
 **/
@@ -24,7 +24,7 @@
     
     FILTER.DisplacementMapFilter=function(displacemap)
     {
-        this.map=displacemap;
+        this.map=displacemap || null;
     };
 
     FILTER.DisplacementMapFilter.prototype={

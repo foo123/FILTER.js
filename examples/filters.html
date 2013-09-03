@@ -51,7 +51,7 @@
                 padding-left:10px;
             }
         </style>
-        <script src="../build/FILTER.min.js"></script>
+        <script src="../build/filter.min.js"></script>
         <title>Image Processing with FILTER.js</title>
     </head>
 	<body>
@@ -120,21 +120,28 @@
                 greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
-                //contrast=new FILTER.ColorMatrixFilter().contrast(0.3),
+                //gamma=new FILTER.TableLookupFilter().gammaCorrection(1.7),
+                //bright=new FILTER.ColorMatrixFilter().brightness(50),
+                //binary=new FILTER.TableLookupFilter().threshold(0.7),
+                //solarize=new FILTER.TableLookupFilter().solarize(0.5),
+                posterize=new FILTER.TableLookupFilter().posterize(4),
+                //invert=new FILTER.TableLookupFilter().invert(),
+                //combo1=new FILTER.TableLookupFilter().invert().posterize(4),
+                //combo2=new FILTER.CompositeFilter([invert, posterize]),
                 equalize=new FILTER.HistogramEqualizeFilter(),
                 //rgbequalize=new FILTER.RGBHistogramEqualizeFilter(),
                 //noise=new FILTER.NoiseFilter(-127, 127),
                 sepia=new FILTER.ColorMatrixFilter().quickSepia(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
+                //threshold=new FILTER.ColorMatrixFilter().threshold_rgb(128),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
                 median=new FILTER.NonLinearFilter().median(5),
-                blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3),
+                //blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3),
                 gauss=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
                 grad=new FILTER.ConvolutionMatrixFilter().grad(3),
                 emboss=new FILTER.ConvolutionMatrixFilter().embossHigh(),
-                grayAndSobel=new FILTER.CompositeFilter([gray, sobel]),
-                grayAndPrewitt=new FILTER.CompositeFilter([gray, gauss, grad]),
+                grsb=new FILTER.CompositeFilter([gray, sobel/*, binary*/]),
                 displace=new FILTER.DisplacementMapFilter(displacemap)
                 ;
             
@@ -181,26 +188,29 @@
             
             function dotest(event)
             {
+                //im4.flipHorizontal();
+                //im4.scale(0.5);
                 // apply them
                 equalize.apply(im14);
                 redChannel.apply(im2);
                 greenChannel.apply(im3);
                 blueChannel.apply(im4);
                 //rgbequalize.apply(im5);
+                //combo1.apply(im5);
+                //combo2.apply(im6);
                 clr.apply(im5);
                 grc.apply(im6);
                 sepia.apply(im7);
-                blur.apply(im8);
+                posterize.apply(im8);
                 gauss.apply(im9);
                 emboss.apply(im10);
                 median.apply(im11);
                 displace.scaleX=100;
                 displace.scaleY=100;
                 displace.apply(im12);
-                grayAndSobel.apply(im13);
-                //grayAndPrewitt.apply(im10);
+                grsb.apply(im13);
 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Box Blur</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale and Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
+                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
             }
             
         //]]>

@@ -20,14 +20,13 @@
                 r,g,b, rangeI,
                 maxI=0, minI=255,
                 pdfI=new FILTER.Array32F(256),
-                cdfI=new FILTER.Array32F(257),
+                cdfI=new FILTER.Array32F(256), accum=0,
                 i, y, l=im.length, n=1.0/(l>>2), ycbcr, ycbcrA=new Array(l>>2), rgba,
                 RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
                 ;
             
             // initialize the arrays
             i=0; while (i<256) { pdfI[i]=0; cdfI[i]=0; i++; }
-            cdfI[256]=0;
             
             // compute pdf and maxima/minima
             i=0; y=0;
@@ -45,8 +44,8 @@
             }
             
             // compute cdf
-            i=0; while (i<256) { cdfI[i+1]=cdfI[i]+pdfI[i]; i++; }
-            
+            accum=0; i=0; 
+            while (i<256) { accum+=pdfI[i]; cdfI[i]=accum; i++; }
             pdfI=null;  // free the space
             
             // equalize only the intesity channel
@@ -55,7 +54,7 @@
             while (i<l) 
             { 
                 ycbcr=ycbcrA[y];
-                ycbcr.Y=cdfI[ycbcr.Y+1]*rangeI+minI;
+                ycbcr.Y=cdfI[ycbcr.Y]*rangeI+minI;
                 rgba=YCbCr2RGB(ycbcr);
                 im[i]=rgba.red; im[i+1]=rgba.green; im[i+2]=rgba.blue; 
                 i+=4; y++; 

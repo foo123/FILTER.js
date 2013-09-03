@@ -2,6 +2,9 @@
 *
 * Custom Filter(s)
 *
+* Allows to create an filter on-the-fly usng an inline function
+*
+* @param handler Optional (the filter apply routine)
 * @package FILTER.js
 *
 **/

@@ -29,10 +29,7 @@
         BLUE : 2,
         ALPHA : 3
     };
-    
-    // private helper functons
-    function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
-    function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
+    FILTER.LUMA=new FILTER.Array32F([0.212671, 0.71516, 0.072169]);
     
     //
     //
@@ -115,20 +112,6 @@
         }
     };
     
-    var _canvas=null, _ctx=null;
-    
-    // static methods
-    FILTER.static={
-        createImageData : function(w, h) {
-            if (!_canvas)
-            {
-                _canvas=document.createElement('canvas');
-                _ctx=_canvas.getContext('2d');
-            }
-            return _ctx.createImageData(w, h);
-        }
-    };
-    
     // allow plugin creation
     FILTER.Create=function(options)
     {
@@ -144,6 +127,24 @@
         
         filterClass.prototype=Fextend(filterClass.prototype, options);
         return filterClass;
+    };
+    
+    // private helper functons
+    function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
+    function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
+    
+    var _canvas=null, _ctx=null;
+    
+    // static methods
+    FILTER.static={
+        createImageData : function(w, h) {
+            if (!_canvas)
+            {
+                _canvas=document.createElement('canvas');
+                _ctx=_canvas.getContext('2d');
+            }
+            return _ctx.createImageData(w, h);
+        }
     };
     
 })(FILTER);

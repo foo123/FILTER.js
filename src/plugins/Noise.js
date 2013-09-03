@@ -26,7 +26,7 @@
             // w is image width, h is image height
             // for this filter, no need to clone the image data, operate in-place
             var range=this.max-this.min, rand=Math.random, m=this.min,
-                i, l=im.length, n
+                i, l=im.length, n, r, g, b
                 ;
             
             // add noise
