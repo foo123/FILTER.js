@@ -266,6 +266,7 @@
         
         dim: 0,
         matrix: null,
+        factor: 1,
         
         // generic low-pass filter
         lowPass : function(d) {

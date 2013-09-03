@@ -23,6 +23,8 @@
 ../src/plugins/Equalize.js
 ../src/plugins/RGBEqualize.js
 ../src/plugins/Noise.js
+# INCOMPLETE
+#../src/plugins/Shadow.js
 
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT

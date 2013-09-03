@@ -24,17 +24,15 @@ This is a library for filtering images in javascript using canvas element.
 
 
 ###How to Use
-The framework defines an Image class which represents an Image and 5 generic filters  
+The framework defines an Image class which represents an Image and 6 generic Filter types
 
 * __ColorMatrixFilter__ (analogous to the actionscript version)
 * __LookupTableFilter__ 
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
-* __NonLinearFilter__     
+* __NonLinearFilter__
 * __CompositeFilter__ (an abstraction of a container for multiple filters)
-
 * __Image Blending Modes__ (analogous to Photoshop blends)
-
 * __Extension by Plugins / Inline Filters__ 
 
 each generic filter is prototype but it also includes basic implementation filters like 
@@ -81,9 +79,11 @@ The class has various pre-defined filters which can be combined in any order.
 
 * _redChannel() / greenChannel() / blueChannel() / alphaChannel()_  Get the R/G/B/A channel of the image as a new image
 * _swapChannels()_  swap 2 image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
+* _maskChannel()_  mask (remove) an image channel
 * _desaturate() / grayscale()_  Applies grayscaling to an image
 * _colorize()_ Applies pseudo-color to an image
 * _invert()_ Inverts image colors to their complementary
+* _invertAlpha()_ Inverts ALPHA channel of image
 * _saturate()_  Saturates the image (each color to maximum degree)
 * _contrast()_  Increase/Decrease image contrast
 * _brightness()_  Adjust image brightness
@@ -129,6 +129,9 @@ The filter scans an image and changes the coloring of each pixel according to th
 The class has various pre-defined filters which can be combined in any order.
 
 * _invert()_ Inverts image colors to their complementary
+* _mask()_ Apply a bit-mask to the image pixels
+* _gammaCorrection()_ Apply gamma correction to image channels
+* _exposure()_ Alter image exposure
 * _solarize()_  Apply a solarize effect
 * _posterize() / quantize()_  Quantize uniformly th image colors
 * _binarize()_  Quantize uniformly the image colors in 2 levels
@@ -352,6 +355,9 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 * use fixed-point arithmetic and/or micro-optimizations where possible
 
 ###ChangeLog
+
+__0.4.1__
+* add new filters implementations (exposure, mask etc..)
 
 __0.4__
 * add new Image methods ( _scale_ _flipHorizontal_ _flipVertical_ )

@@ -12,7 +12,7 @@
 **/
 (function(FILTER){
     
-    var Power=Math.pow, nF=1/255;
+    var Power=Math.pow, Exponential=Math.exp, nF=1/255;
     
     function eye()
     {
@@ -119,6 +119,14 @@
             return this.concat(t);
         },
         
+        mask : function(mask) {
+            var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
+                tR=new FILTER.ImArray(256), tG=new FILTER.ImArray(256), tB=new FILTER.ImArray(256)
+                ;
+            i=0; while (i<256) { tR[i]=i & maskR; tG[i]=i & maskG; tB[i]=i & maskB; i++; }
+            return this.concat(tR, tG, tB);
+        },
+        
         gammaCorrection : function(gammaR, gammaG, gammaB) {
             gammaR=gammaR || 1;
             gammaG=gammaG || gammaR;
@@ -130,6 +138,13 @@
             var tR=new FILTER.ImArray(256), tG=new FILTER.ImArray(256), tB=new FILTER.ImArray(256), i=0;
             while (i<256) { tR[i]=~~(255*Power(nF*i, gammaR)); tG[i]=~~(255*Power(nF*i, gammaG)); tB[i]=~~(255*Power(nF*i, gammaB));  i++; }
             return this.concat(tR, tG, tB);
+        },
+        
+        exposure : function(exposure) {
+            if (typeof exposure == 'undefined') exposure=1;
+            var i=0, t=new FILTER.ImArray(256);
+            i=0; while (i<256) { t[i]=~~(255 * (1 - Exponential(-exposure * i *nF))); i++; }
+            return this.concat(t);
         },
         
         concat : function(_tR, _tG, _tB) {

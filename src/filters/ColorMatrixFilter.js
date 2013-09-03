@@ -93,6 +93,8 @@
     
     FILTER.ColorMatrixFilter.prototype={
     
+        matrix: null,
+        
         // get the image color channel as a new image
         channel : function(ch, asGray) {
             asGray=(typeof asGray=='undefined') ? false : asGray;
@@ -157,6 +159,43 @@
         // get the image alpha channel as a new image
         alphaChannel : function(asGray) {
             return this.channel(FILTER.CHANNEL.ALPHA, true);
+        },
+        
+        maskChannel : function(ch) {
+            switch(ch)
+            {
+                case FILTER.CHANNEL.ALPHA:
+                    return this;
+                    break;
+                
+                case FILTER.CHANNEL.BLUE:
+                    return this.concat([
+                                1, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
+                    break;
+                
+                case FILTER.CHANNEL.GREEN:
+                    return this.concat([
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
+                    break;
+                
+                case FILTER.CHANNEL.RED:
+                default:
+                    return this.concat([
+                                0, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
+                    break;
+            }
         },
         
         swapChannels : function(ch1, ch2) {
@@ -343,10 +382,19 @@
         
         invert : function() {
             return this.concat([
-                    -1 ,  0,  0, 0, 255,
-                    0 , -1,  0, 0, 255,
-                    0 ,  0, -1, 0, 255,
-                    0,   0,  0, 1,   0
+                    -1, 0,  0, 0, 255,
+                    0, -1,  0, 0, 255,
+                    0,  0, -1, 0, 255,
+                    0,  0,  0, 1,   0
+                ]);
+        },
+        
+        invertAlpha : function() {
+            return this.concat([
+                    1,  0,  0, 0, 0,
+                    0,  1,  0, 0, 0,
+                    0,  0,  1, 0, 0,
+                    0,  0,  0, -1, 255
                 ]);
         },
         
