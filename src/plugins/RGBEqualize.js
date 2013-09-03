@@ -25,7 +25,8 @@
                 r,g,b, rangeR, rangeG, rangeB,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
                 pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
-                cdfR=new FILTER.Array32F(257), cdfG=new FILTER.Array32F(257), cdfB=new FILTER.Array32F(257),
+                cdfR=new FILTER.Array32F(256), cdfG=new FILTER.Array32F(256), cdfB=new FILTER.Array32F(256),
+                accumR, accumG, accumB,
                 i, l=im.length, n=1.0/(l>>2)
                 ;
             
@@ -34,7 +35,6 @@
             
             // initialize the arrays
             i=0; while (i<256) { pdfR[i]=0; pdfG[i]=0; pdfB[i]=0; cdfR[i]=0; cdfG[i]=0; cdfB[i]=0; i++; }
-            cdfR[256]=0; cdfG[256]=0; cdfB[256]=0;
             
             // compute pdf and maxima/minima
             i=0;
@@ -53,8 +53,8 @@
             }
             
             // compute cdf
-            i=0; while (i<256) { cdfR[i+1]=cdfR[i]+pdfR[i]; cdfG[i+1]=cdfG[i]+pdfG[i]; cdfB[i+1]=cdfB[i]+pdfB[i]; i++; }
-            
+            accumR=accumG=accumB=0; i=0;
+            while (i<256) { accumR+=pdfR[i]; cdfR[i]=accumR; accumG+=pdfG[i]; cdfG[i]=accumG; accumB+=pdfB[i]; cdfB[i]=accumB; i++; }
             pdfR=null; pdfG=null; pdfB=null;  // free the space
             
             // equalize each channel separately
@@ -63,7 +63,7 @@
             while (i<l) 
             { 
                 r=im[i]; g=im[i+1]; b=im[i+2]; 
-                im[i]=cdfR[r+1]*rangeR+minR; im[i+1]=cdfG[g+1]*rangeG+minG; im[i+2]=cdfB[b+1]*rangeB+minB; 
+                im[i]=cdfR[r]*rangeR+minR; im[i+1]=cdfG[g]*rangeG+minG; im[i+2]=cdfB[b]*rangeB+minB; 
                 i+=4; 
             }
             

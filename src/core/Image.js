@@ -86,6 +86,9 @@
         this.canvasElement=document.createElement('canvas');
         this.canvasElement.width=0;
         this.canvasElement.height=0;
+        this._tmpCanvas=document.createElement('canvas');
+        this._tmpCanvas.width=0;
+        this._tmpCanvas.height=0;
         this.context=this.canvasElement.getContext('2d');
         this._histogram=null;
         this._integral=null;
@@ -96,6 +99,11 @@
     
     FILTER.Image.prototype={
     
+        // properties
+        width : 0,
+        height : 0,
+        canvasElement : null,
+        
         getPixel : function(x, y) {
             var off=~~(y*this.width+x+0.5);
             return {
@@ -109,7 +117,7 @@
         setPixel : function(x, y, r, g, b, a) {
             var t=new FILTER.ImArray([r, g, b, a]);
             this.context.putImageData(t, x, y); 
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
@@ -133,16 +141,15 @@
         },
         
         setPixelData : function(data) {
-            this.context.putImageData(data,0,0); 
-            this.imageData=this.context.getImageData(0,0,this.width,this.height);
+            this.context.putImageData(data, 0, 0); 
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
         },
         
         setWidth : function(w) {
-            this.width=w;
-            this.canvasElement.width=this.width;
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -151,8 +158,7 @@
         },
         
         setHeight : function(h) {
-            this.height=h;
-            this.canvasElement.height=this.height;
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -168,10 +174,10 @@
                 image=img;
                 this.width=(img instanceof HTMLVideoElement) ? img.videoWidth : img.width;
                 this.height=(img instanceof HTMLVideoElement) ? img.videoHeight : img.height;
-                this.canvasElement.width=this.width;
-                this.canvasElement.height=this.height;
+                this._tmpCanvas.width=this.canvasElement.width=this.width;
+                this._tmpCanvas.height=this.canvasElement.height=this.height;
                 this.context=this.canvasElement.getContext('2d');
-                this.context.drawImage(image,0,0);
+                this.context.drawImage(image, 0, 0);
                 this.imageData=this.context.getImageData(0, 0, this.width, this.height);
                 this._histogramRefresh=true;
                 this._integralRefresh=true;
@@ -182,11 +188,10 @@
                 image.onload=function(){
                     thiss.width=image.width;
                     thiss.height=image.height;
-                    //thiss.canvasElement=document.createElement('canvas');
-                    thiss.canvasElement.width=thiss.width;
-                    thiss.canvasElement.height=thiss.height;
+                    thiss._tmpCanvas.width=thiss.canvasElement.width=thiss.width;
+                    thiss._tmpCanvas.height=thiss.canvasElement.height=thiss.height;
                     thiss.context=thiss.canvasElement.getContext('2d');
-                    thiss.context.drawImage(image,0,0);
+                    thiss.context.drawImage(image, 0, 0);
                     thiss.imageData=thiss.context.getImageData(0, 0, thiss.width, thiss.height);
                     thiss._histogramRefresh=true;
                     thiss._integralRefresh=true;
@@ -343,8 +348,8 @@
         createImageData : function(w,h) {
             this.width=w;
             this.height=h;
-            this.canvasElement.width=this.width;
-            this.canvasElement.height=this.height;
+            this._tmpCanvas.width=this.canvasElement.width=this.width;
+            this._tmpCanvas.height=this.canvasElement.height=this.height;
             this.context=this.canvasElement.getContext('2d');
             this.context.createImageData(w,h);
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -352,7 +357,40 @@
         },
         
         scale : function(sx, sy) {
-            // todo
+            sx=sx||1; sy=sy||sx;
+            var ctx=this._tmpCanvas.getContext('2d');
+            ctx.scale(sx, sy);
+            ctx.drawImage(this.canvasElement, 0, 0);
+            this.canvasElement.width=this.width=~~(sx*this.width+0.5);
+            this.canvasElement.height=this.height=~~(sy*this.height+0.5);
+            this.context.drawImage(this._tmpCanvas, 0, 0);
+            this._tmpCanvas.width=this.width;
+            this._tmpCanvas.height=this.height;
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        flipHorizontal : function() {
+            var ctx=this._tmpCanvas.getContext('2d');
+            ctx.translate(this.width, 0); ctx.scale(-1, 1);
+            ctx.drawImage(this.canvasElement, 0, 0);
+            this.context.drawImage(this._tmpCanvas, 0, 0);
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        flipVertical : function() {
+            var ctx=this._tmpCanvas.getContext('2d');
+            ctx.translate(0, this.height); ctx.scale(1, -1);
+            ctx.drawImage(this.canvasElement, 0, 0);
+            this.context.drawImage(this._tmpCanvas, 0, 0);
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
             return this;
         }
     };

@@ -34,7 +34,41 @@
                 font-size:20px;
             }
         </style>
-        <script src="../build/FILTER.min.js"></script>
+        <script src="../build/filter.min.js"></script>
+        <script>    
+         //<![CDATA[
+            
+           /**
+             * Provides requestAnimationFrame in a cross browser way.
+             * http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+             */
+
+            if ( !window.requestAnimationFrame ) {
+
+                window.requestAnimationFrame = ( function() {
+
+                    return window.webkitRequestAnimationFrame ||
+                    window.mozRequestAnimationFrame ||
+                    window.oRequestAnimationFrame ||
+                    window.msRequestAnimationFrame ||
+                    function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element ) {
+
+                        window.setTimeout( callback, 1000 / 60 );
+
+                    };
+
+                } )();
+
+            }
+            
+            // utils
+            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
+            function getEl(id) { return document.getElementById(id); }
+            function add(el, child) { el.appendChild(child); }
+            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
+            
+        //]]>
+        </script>
         <title>Video Processing with FILTER.js</title>
     </head>
 	<body>
@@ -43,7 +77,7 @@
         <h1>Video Processing with Filter.js</h1><br /><br />
         
         <div id="container" class="panel">
-            <strong>Original Video</strong><br /><br />
+            <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
             <video id="video" src="Waddys_Takeoff-The_Aftermath.mp4" autoplay loop>Video is not supported</video>
         </div>
         
@@ -56,32 +90,29 @@
         <div class="panel" style="display:block; max-width:1000px;">
             <strong>Apply Post-Process Filter to Video :</strong><br /><br />
             <select id="filterSelect" style="font-size:20px;">
-                <option value='0'>Grayscale and Sobel Edges</option>
-                <option value='1'>Colorize</option>
-                <option value='2'>Grayscale</option>
-                <option value='3'>Grayscale and Contrast</option>
-                <option value='4'>RED Channel</option>
-                <option value='5'>GREEN Channel</option>
-                <option value='6'>BLUE Channel</option>
-                <option value='7'>Equalize Histogram</option>
-                <option value='8'>Emboss</option>
-                <option value='9'>Invert</option>
-                <option value='10'>Erode</option>
-                <option value='11'>Dilate</option>
-                <option value='12'>Gauss Blur</option>
-                <option value='13'>Noise</option>
+                <option value='0'>Grayscale, Sobel Edges</option>
+                <option value='1'>Grayscale, Sobel Edges, Binary Threshold</option>
+                <option value='2'>Colorize</option>
+                <option value='3'>Grayscale</option>
+                <option value='4'>Grayscale and Contrast</option>
+                <option value='5'>Solarize</option>
+                <option value='6'>Posterize</option>
+                <option value='7'>RED Channel</option>
+                <option value='8'>GREEN Channel</option>
+                <option value='9'>BLUE Channel</option>
+                <option value='10'>Equalize Histogram</option>
+                <option value='11'>Emboss</option>
+                <option value='12'>Invert</option>
+                <option value='13'>Erode</option>
+                <option value='14'>Dilate</option>
+                <option value='15'>Gauss Blur</option>
+                <option value='16'>Noise</option>
                 <!--<option value='8'>DisplaceMap</option>-->
             </select>
         </div>
         
 		<script>
         //<![CDATA[
-            
-            // utils
-            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
-            function getEl(id) { return document.getElementById(id); }
-            function add(el, child) { el.appendChild(child); }
-            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
             
             var 
                 filterSelect=getEl('filterSelect'), 
@@ -92,10 +123,15 @@
                 postVideo=new FILTER.Image(),
                  
                  // filters
+                binary=new FILTER.TableLookupFilter().threshold(0.7),
+                solarize=new FILTER.TableLookupFilter().solarize(0.92),
+                posterize=new FILTER.TableLookupFilter().posterize(4),
+                invert=new FILTER.TableLookupFilter().invert(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
                 grs=new FILTER.CompositeFilter([gray, sobel]),
+                grsb=new FILTER.CompositeFilter([gray, sobel, binary]),
                 emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 redC=new FILTER.ColorMatrixFilter().redChannel(),
                 greenC=new FILTER.ColorMatrixFilter().greenChannel(),
@@ -105,15 +141,18 @@
                 // median is slow ..
                 erode=new FILTER.NonLinearFilter().erode(3),
                 dilate=new FILTER.NonLinearFilter().dilate(3),
-                invert=new FILTER.ColorMatrixFilter().invert(),
+                //invert=new FILTER.ColorMatrixFilter().invert(),
                 blur=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
                 noise=new FILTER.NoiseFilter(10, 70),
                 
                 videoFilters=[
                     grs,
+                    grsb,
                     clr,
                     gray,
                     grc,
+                    solarize,
+                    posterize,
                     redC,
                     greenC,
                     blueC,
@@ -145,6 +184,7 @@
                 
                 // Render every fixed interval
                 setTimeout(processVideo, renderInterval);
+                //requestAnimationFrame(processVideo);
             }
             
             // change the video filter applied

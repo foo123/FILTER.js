@@ -1,17 +1,31 @@
 @DEPENDENCIES
+
+# Core classes
 ../src/FILTER.js
 ../src/core/Image.js
-../src/core/Color.js
 ../src/core/Filter.js
+../src/core/Color.js
+
+# generic Filters
 ../src/filters/CustomFilter.js
 ../src/filters/ColorMatrixFilter.js
-../src/filters/ConvolutionMatrixFilter.js
+../src/filters/TableLookupFilter.js
 ../src/filters/DisplacementMapFilter.js
+../src/filters/ConvolutionMatrixFilter.js
 ../src/filters/NonLinearFilter.js
+
+# These filters are not used yet
+#../src/filters/GeometricMapFilter.js
+#../src/filters/StatisticalFilter.js
+#../src/filters/AdaptiveFilter.js
+
+# sample Plugins
 ../src/plugins/Equalize.js
 ../src/plugins/RGBEqualize.js
 ../src/plugins/Noise.js
+
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT
+
 @OUT
-../build/FILTER.min.js
+../build/filter.min.js

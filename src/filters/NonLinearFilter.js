@@ -11,9 +11,9 @@
     
     // used for internal purposes
     var 
-    _MedianFilter = function(src, sw, sh, dim) {
+    _MedianFilter = function(src, sw, sh) {
         
-        var side = dim, halfSide = side>>1, len=side*side,
+        var side = this.dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -54,6 +54,7 @@
                     ty+=side;
                 }
                 // take the median
+                // this is SLOW!!! ??
                 r.sort(); g.sort(); b.sort();
                 if (lenodd) // odd, take median
                 {
@@ -73,9 +74,9 @@
     },
     
     // used for internal purposes
-    _MaximumFilter = function(src, sw, sh, dim) {
+    _MaximumFilter = function(src, sw, sh) {
         
-        var side = dim, halfSide = side>>1, len=side*side,
+        var side = this.dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -126,9 +127,9 @@
     },
     
     // used for internal purposes
-    _MinimumFilter = function(src, sw, sh, dim) {
+    _MinimumFilter = function(src, sw, sh) {
         
-        var side = dim, halfSide = side>>1, len=side*side,
+        var side = this.dim, halfSide = side>>1, len=side*side,
             dst=new FILTER.ImArray(src.length),
             // pad output by the convolution matrix
             w = sw, h = sh,
@@ -190,7 +191,7 @@
     FILTER.NonLinearFilter=function()
     {
         this.dim=0;
-        this._applyFunc=null;
+        this._apply=_dummy;
     };
     
     FILTER.NonLinearFilter.prototype={
@@ -199,32 +200,31 @@
         
         median : function(d) { 
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this.dim=d; this._applyFunc=_MedianFilter; return this; 
+            this.dim=d; this._apply=_MedianFilter; return this; 
         },
         
         erode : function(d) { 
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this.dim=d; this._applyFunc=_MinimumFilter; return this; 
+            this.dim=d; this._apply=_MinimumFilter; return this; 
         },
         
         dilate : function(d) { 
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this.dim=d; this._applyFunc=_MaximumFilter; return this; 
+            this.dim=d; this._apply=_MaximumFilter; return this; 
         },
         
         // used for internal purposes
         _apply : function(src, sw, sh) {
-            if (!this._applyFunc) return src;
-            return this._applyFunc(src, sw, sh, this.dim);
+            return src;
         },
         
         apply : function(image) {
-            if (!this._applyFunc)  return image;
+            if (!this.dim)  return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
         },
         
         reset : function() {
-            this._applyFunc=null; this.dim=0; return this;
+            this._apply=_dummy; this.dim=0; return this;
         }
     };
     

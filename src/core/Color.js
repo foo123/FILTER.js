@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    var Sqrt=Math.sqrt;
+    
     // static color transform methods
     FILTER.Color={
         
@@ -17,15 +19,21 @@
             };
         },
         
+        toGray : function(r,g,b) {
+            return ~~(FILTER.LUMA[0]*r + FILTER.LUMA[1]*g + FILTER.LUMA[2]*b);
+        }, 
+        
         distance : function(rgb1, rgb2) {
             var dr=rgb1.red-rgb2.red, dg=rgb1.green-rgb2.green, db=rgb1.blue-rgb2.blue;
-            return Math.sqrt(dr*dr + dg*dg + db*db);
+            return Sqrt(dr*dr + dg*dg + db*db);
+        },
+        
+        RGB2Color : function(rgb) {
+            return ((rgb.red << 16) + (rgb.green << 8) + rgb.blue);
         },
         
         RGBA2Color : function(rgb) {
-            return (typeof rgb.alpha !='undefined') ? 
-                ((rgb.alpha << 24) + (rgb.red << 16) + (rgb.green << 8) + rgb.blue) : 
-                ((rgb.red << 16) + (rgb.green << 8) + rgb.blue);
+            return ((rgb.alpha << 24) + (rgb.red << 16) + (rgb.green << 8) + rgb.blue);
         },
         
         Color2RGBA : function(c) {

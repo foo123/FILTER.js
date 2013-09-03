@@ -26,6 +26,7 @@ This is a library for filtering images in javascript using canvas element.
 The framework defines an Image class which represents an Image and 5 generic filters  
 
 * __ColorMatrixFilter__ (analogous to the actionscript version)
+* __LookupTableFilter__ 
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
 * __NonLinearFilter__     
@@ -52,6 +53,9 @@ and alter them. Image methods:
 
 * _setImage()_  Sets/Alters the underlying image
 * _clone()_ gets a copy of the image
+* _scale()_  scale the image in x/y directions
+* _flipHorizontal()_  flip image horizontally
+* _flipVertical()_  flip image vertically
 * _setData()_ sets the image pixel data
 * _getData()_ gets a copy of image pixel data
 * _integral()_  Computes (and caches) the image integral (not used at this time)
@@ -106,6 +110,45 @@ To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 grc.apply(image);   // image is a FILTER.Image instance, see examples
+````
+
+NOTE: The filter apply method will actually change the image to which it is applied
+
+
+__Lookup Table Filter__
+
+````javascript
+new FILTER.LookupTableFilter(colorTable);
+````
+
+The (optional) colorTable parameter is an array of 256 numbers which define the color lookup map.
+
+The filter scans an image and changes the coloring of each pixel according to the color map table
+
+The class has various pre-defined filters which can be combined in any order.
+
+* _invert()_ Inverts image colors to their complementary
+* _solarize()_  Apply a solarize effect
+* _posterize() / quantize()_  Quantize uniformly th image colors
+* _binarize()_  Quantize uniformly the image colors in 2 levels
+* _thresholds()_  Quantize non-uniformly the image colors according to given thresholds
+* _threshold()_  Quantize non-uniformly the image colors in 2 levels according to given threshold
+* _reset()_  reset the filter matrix to identity
+
+These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
+
+Lookup Table Filters can be combined very easily since they operate only on a single pixel at a time
+
+In order to use both an invert and a posterize filter use the following chaining:
+
+````javascript
+var invertPosterize=new FILTER.LookupTableFilter().invert().posterize(4);
+````
+
+To apply the filter to an image do (as of 0.3+ version)
+
+````javascript
+invertPosterize.apply(image);   // image is a FILTER.Image instance, see examples
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -303,11 +346,17 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 
 ###Todo
 * allow extension by plugins (both as Classes and Inline) [DONE]
+* add more filters (eg adaptive/statistical etc..) [DONE partially]
 * make convolutions faster
 * use fixed-point arithmetic and/or micro-optimizations where possible
-* add more filters (eg adaptive/statistical etc..)
 
 ###ChangeLog
+
+__0.4__
+* add new Image methods ( _scale_ _flipHorizontal_ _flipVertical_ )
+* add new generic filter type _FILTER.LookupTableFilter()_ and some pre-computed filters ( _posterize_ _solarize_ etc..)
+* minor edits/optimizations
+* update readme / examples
 
 __0.3.3.1__
 * load a video as FILTER.Image (fixed)
