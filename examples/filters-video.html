@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                position:relative;
+                background-color: #121212;
+                font-family: Helvetica, sans-serif;
+                font-size:12px;
+                color:#aaa;
+                margin: 0px;
+                padding: 0px;
+                height:100%;
+                min-height:900px; 
+                overflow:scroll;
+            }
+            .panel
+            {
+                cursor:pointer;
+                position:relative;
+                display:inline-block;
+                max-width:500px;
+                min-height:100px;
+                vertical-align:top;
+                margin:0 25px;
+                padding:0 15px;
+                border-left:2px solid #aaa;
+            }
+            strong
+            {
+                font-size:20px;
+            }
+        </style>
+        <script src="../build/FILTER.min.js"></script>
+        <title>Video Processing with FILTER.js</title>
+    </head>
+	<body>
+        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:1rem;line-height:2rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+		
+        <h1>Video Processing with Filter.js</h1><br /><br />
+        
+        <div id="container" class="panel">
+            <strong>Original Video</strong><br /><br />
+            <video id="video" src="Waddys_Takeoff-The_Aftermath.mp4" autoplay loop>Video is not supported</video>
+        </div>
+        
+		<div id="filters" class="panel">
+            <strong>Post-Processed Video</strong><br /><br />
+        </div>
+        
+        <br /><br />
+        
+        <div class="panel" style="display:block; max-width:1000px;">
+            <strong>Apply Post-Process Filter to Video :</strong><br /><br />
+            <select id="filterSelect" style="font-size:20px;">
+                <option value='0'>Grayscale and Sobel Edges</option>
+                <option value='1'>Colorize</option>
+                <option value='2'>Grayscale</option>
+                <option value='3'>Grayscale and Contrast</option>
+                <option value='4'>RED Channel</option>
+                <option value='5'>GREEN Channel</option>
+                <option value='6'>BLUE Channel</option>
+                <option value='7'>Equalize Histogram</option>
+                <option value='8'>Emboss</option>
+                <option value='9'>Invert</option>
+                <option value='10'>Erode</option>
+                <option value='11'>Dilate</option>
+                <option value='12'>Gauss Blur</option>
+                <option value='13'>Noise</option>
+                <!--<option value='8'>DisplaceMap</option>-->
+            </select>
+        </div>
+        
+		<script>
+        //<![CDATA[
+            
+            // utils
+            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
+            function getEl(id) { return document.getElementById(id); }
+            function add(el, child) { el.appendChild(child); }
+            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
+            
+            var 
+                filterSelect=getEl('filterSelect'), 
+                video=getEl('video'), 
+                container=getEl('container'), 
+                filters=getEl('filters'),
+                
+                postVideo=new FILTER.Image(),
+                 
+                 // filters
+                gray=new FILTER.ColorMatrixFilter().grayscale(),
+                grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
+                sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
+                grs=new FILTER.CompositeFilter([gray, sobel]),
+                emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
+                redC=new FILTER.ColorMatrixFilter().redChannel(),
+                greenC=new FILTER.ColorMatrixFilter().greenChannel(),
+                blueC=new FILTER.ColorMatrixFilter().blueChannel(),
+                clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+                equ=new FILTER.HistogramEqualizeFilter(),
+                // median is slow ..
+                erode=new FILTER.NonLinearFilter().erode(3),
+                dilate=new FILTER.NonLinearFilter().dilate(3),
+                invert=new FILTER.ColorMatrixFilter().invert(),
+                blur=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
+                noise=new FILTER.NoiseFilter(10, 70),
+                
+                videoFilters=[
+                    grs,
+                    clr,
+                    gray,
+                    grc,
+                    redC,
+                    greenC,
+                    blueC,
+                    equ,
+                    emboss,
+                    invert,
+                    erode,
+                    dilate,
+                    blur,
+                    noise
+                ],
+                currentFilterIndex=0,
+                currentFilter=videoFilters[currentFilterIndex],
+                renderInterval=60
+                ;
+            
+            add(filters, postVideo.canvasElement);
+            
+            function processVideo(event)
+            {
+                if (video.paused || video.ended)  return;
+                
+                // preview the filter while hovering the option
+                currentFilter=videoFilters[filterSelect.selectedIndex||0];
+                
+                postVideo.setImage(video);
+                
+                currentFilter.apply(postVideo);
+                
+                // Render every fixed interval
+                setTimeout(processVideo, renderInterval);
+            }
+            
+            // change the video filter applied
+            /*addEvent(filterSelect, "change", function(){
+                currentFilterIndex=filterSelect.selectedIndex;
+                currentFilter=videoFilters[currentFilterIndex||0];
+            });*/
+            
+            // start process when the video is playing
+            addEvent(video, "play", processVideo);
+        //]]>
+		</script>
+    </body>
+</html>

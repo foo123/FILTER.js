@@ -17,6 +17,7 @@ This is a library for filtering images in javascript using canvas element.
 
 ###Live Examples
 * [Image Processing](http://foo123.github.com/examples/filter/)
+* [Video Processing](http://foo123.github.com/examples/filter-video/)
 * [Filters with Three.js](http://foo123.github.com/examples/filter-three/)
 
 
@@ -307,6 +308,11 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 * add more filters (eg adaptive/statistical etc..)
 
 ###ChangeLog
+
+__0.3.3.1__
+* load a video as FILTER.Image (fixed)
+* add new interactive real-time video post-process example with Filter.js
+
 
 __0.3.3__
 * allow framework to be extended by custom plugins (both as Classes and Inline)

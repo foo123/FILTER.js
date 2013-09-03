@@ -166,8 +166,8 @@
             if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
             {
                 image=img;
-                this.width=img.width;
-                this.height=img.height;
+                this.width=(img instanceof HTMLVideoElement) ? img.videoWidth : img.width;
+                this.height=(img instanceof HTMLVideoElement) ? img.videoHeight : img.height;
                 this.canvasElement.width=this.width;
                 this.canvasElement.height=this.height;
                 this.context=this.canvasElement.getContext('2d');
