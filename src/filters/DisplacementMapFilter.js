@@ -10,14 +10,6 @@
 **/
 (function(FILTER){
     
-    // Constants
-    FILTER.MODE={
-        IGNORE : 0,
-        WRAP : 1,
-        CLAMP : 2,
-        COLOR : 4
-    };
-
     var 
         Min=Math.min, Max=Math.max
     ;
@@ -45,72 +37,73 @@
             
             if (!this.map) return im;
             
-            var map=this.map.getData(), mw = this.map.width, mh = this.map.height, 
-                ww=Min(mw, w), hh=Min(mh, h),
-                sx=this.scaleX*0.00390625, /* /256 */ sy=this.scaleY*0.00390625, /* /256 */
-                alpha=(this.color >> 24) & 255, red=(this.color >> 16) & 255,
-                green=(this.color >> 8) & 255, blue=this.color & 255,
-                sty=~~(this.startY), stx=~~(this.startX),
-                comx=this.componentX, comy=this.componentY, mode=this.mode,
-                xx,yy,dstoff,mapoff,srcy,srcx,dispoff,x,y,ymw, yyw, styw=sty*w,
-                // create new image for copy manipulations
-                dst=new FILTER.ImArray(im.length)
+            var map=this.map.getData(), mapW = this.map.width, mapH = this.map.height, mapArea=mapW*mapH,
+                displace=new FILTER.Array16I(mapArea<<1), ww=Min(mapW, w), hh=Min(mapH, h),
+                sx=this.scaleX*0.00390625, sy=this.scaleY*0.00390625, comx=this.componentX, comy=this.componentY, 
+                alpha=(this.color >> 24) & 255, red=(this.color >> 16) & 255, green=(this.color >> 8) & 255, blue=this.color & 255,
+                sty=~~(this.startY), stx=~~(this.startX), mode=this.mode, styw=sty*w, bx=w-stx, by=h-sty,
+                i, j, k, x, y, ty, yy, xx, mapOff, dstOff, srcOff,
+                applyArea=(ww*hh)<<2, imArea=w*h, imLen=im.length, dst=new FILTER.ImArray(im),
+                _Ignore=FILTER.MODE.IGNORE, _Clamp=FILTER.MODE.CLAMP, _Color=FILTER.MODE.COLOR, _Wrap=FILTER.MODE.WRAP
                 ;
             
+            // pre-compute indices, 
+            // reduce redundant computations inside the main application loop (faster)
+            // this is faster if mapArea <= imArea, else a reverse algorithm is needed (todo)
+            i=0; j=0; x=0; y=0; ty=0;
+            while (i<mapArea)
+            { 
+                mapOff=(x + ty)<<2;
+                displace[j] = ~~((map[mapOff+comx]-128)*sx); displace[j+1] = ~~((map[mapOff+comy]-128)*sy);
+                i++; j+=2; x++; if (x>=mapW) { x=0; y++; ty+=mapW; }
+            } 
+            
             // apply filter
-            ymw=0; yyw=0;
-            for (y=0; y<hh; y++) 
+            i=-4; x=-1; y=0; ty=0; ty2=0;
+            while (i<applyArea)
             {
-                yy=y+sty;
-                if (yy>=0 && yy<h)
+                // update image coordinates
+                i+=4; x++; if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<-sty || y>=by || x<-stx || x>=bx) continue;
+                
+                xx=x + stx; yy=y + sty; dstOff=(xx + ty+styw)<<2;  
+                
+                j=(x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
                 {
-                    for (x=0; x<ww; x++) 
+                    switch(mode)
                     {
-                        xx=x+stx;
-                        if (xx<0 || xx>=w) continue;
+                        case _Ignore: 
+                            continue;  break;
                         
-                        dstoff = (yyw+styw+xx)<<2;  mapoff = (ymw+x)<<2;
-                        srcy = yy + ~~((map[mapoff+comy]-128)*sy);
-                        srcx = xx + ~~((map[mapoff+comx]-128)*sx);
-
-                        if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
-                        {
-                            switch(mode)
-                            {
-                                case FILTER.MODE.IGNORE: 
-                                    continue;  break;
-                                
-                                case FILTER.MODE.COLOR:
-                                    dst[dstoff]=red;  dst[dstoff+1]=green;
-                                    dst[dstoff+2]=blue;  dst[dstoff+3]=alpha;
-                                    continue;  break;
-                                    
-                                case FILTER.MODE.WRAP:
-                                    if (srcy>=h) srcy-=h;
-                                    if (srcy<0) srcy+=h;
-                                    if (srcx>=w) srcx-=w;
-                                    if (srcx<0)  srcx+=w;
-                                    break;
-                                    
-                                case FILTER.MODE.CLAMP:
-                                default:
-                                    if (srcy>=h)  srcy=h-1;
-                                    if (srcy<0) srcy=0;
-                                    if (srcx>=w) srcx=w-1;
-                                    if (srcx<0) srcx=0;
-                                    break;
-                            }
-                        }
-                        dispoff=(srcy*w + srcx)<<2;
-
-                        // new pixel values
-                        dst[dstoff]=im[dispoff];
-                        dst[dstoff+1]=im[dispoff+1];
-                        dst[dstoff+2]=im[dispoff+2];
-                        dst[dstoff+3]=im[dispoff+3];
+                        case _Color:
+                            dst[dstOff]=red;  dst[dstOff+1]=green;
+                            dst[dstOff+2]=blue;  dst[dstOff+3]=alpha;
+                            continue;  break;
+                            
+                        case _Wrap:
+                            if (srcy>=h) srcy-=h;
+                            if (srcy<0) srcy+=h;
+                            if (srcx>=w) srcx-=w;
+                            if (srcx<0)  srcx+=w;
+                            break;
+                            
+                        case _Clamp:
+                        default:
+                            if (srcy>=h)  srcy=h-1;
+                            if (srcy<0) srcy=0;
+                            if (srcx>=w) srcx=w-1;
+                            if (srcx<0) srcx=0;
+                            break;
                     }
                 }
-                ymw+=mw; yyw+=w;
+                srcOff=(srcx + srcy*w)<<2;
+                // new pixel values
+                dst[dstOff]=im[srcOff];   dst[dstOff+1]=im[srcOff+1];
+                dst[dstOff+2]=im[srcOff+2];  dst[dstOff+3]=im[srcOff+3];
             }
             return dst;
         },

@@ -29,6 +29,12 @@
         BLUE : 2,
         ALPHA : 3
     };
+    FILTER.MODE={
+        IGNORE : 0,
+        WRAP : 1,
+        CLAMP : 2,
+        COLOR : 4
+    };
     FILTER.LUMA=new FILTER.Array32F([0.212671, 0.71516, 0.072169]);
     
     //
@@ -87,13 +93,13 @@
             return this._stack.pop();
         },
         
-        shift : function(filter) {
-            this._stack.shift(filter);
-            return this;
+        shift : function() {
+            return this._stack.shift();
         },
         
-        unshift : function() {
-            return this._stack.unshift();
+        unshift : function(filter) {
+            this._stack.unshift(filter);
+            return this;
         },
         
         concat : function(filter) {

@@ -6,9 +6,8 @@
 **/
 (function(FILTER){
 
-    // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-    // not the best implementation
-    // used for illustration puproses on how to create a plugin filter
+    // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
+    // used for illustration purposes on how to create a plugin filter
     FILTER.HistogramEqualizeFilter=FILTER.Create({
         
         // this is the filter actual apply method routine

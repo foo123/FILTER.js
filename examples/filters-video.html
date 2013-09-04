@@ -107,7 +107,16 @@
                 <option value='14'>Dilate</option>
                 <option value='15'>Gauss Blur</option>
                 <option value='16'>Noise</option>
-                <!--<option value='8'>DisplaceMap</option>-->
+                <option value='17'>DisplaceMap</option>
+                <option value='18'>Pixelate</option>
+            </select>
+            &nbsp;
+            <select id="flipSelect" style="font-size:20px;">
+                <option value='0'>No Flip</option>
+                <option value='1'>Flip Horizontal</option>
+                <option value='2'>Flip Vertical</option>
+                <option value='3'>Flip Horizontal using Filter</option>
+                <option value='4'>Flip Vertical using Filter</option>
             </select>
         </div>
         
@@ -116,17 +125,23 @@
             
             var 
                 filterSelect=getEl('filterSelect'), 
+                flipSelect=getEl('flipSelect'), 
                 video=getEl('video'), 
                 container=getEl('container'), 
                 filters=getEl('filters'),
                 
+                // images
+                displacemap=new FILTER.Image(),
                 postVideo=new FILTER.Image(),
                  
                  // filters
+                flipX=new FILTER.GeometricMapFilter().flipX(),
+                flipY=new FILTER.GeometricMapFilter().flipY(),
                 binary=new FILTER.TableLookupFilter().threshold(0.7),
                 solarize=new FILTER.TableLookupFilter().solarize(0.92),
-                posterize=new FILTER.TableLookupFilter().posterize(4),
+                posterize=new FILTER.TableLookupFilter().posterize(8),
                 invert=new FILTER.TableLookupFilter().invert(),
+                //invert=new FILTER.ColorMatrixFilter().invert(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
@@ -136,15 +151,17 @@
                 redC=new FILTER.ColorMatrixFilter().redChannel(),
                 greenC=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueC=new FILTER.ColorMatrixFilter().blueChannel(),
-                clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+                clr=new FILTER.ColorMatrixFilter().colorize(0xfdc171),
                 equ=new FILTER.HistogramEqualizeFilter(),
                 // median is slow ..
                 erode=new FILTER.NonLinearFilter().erode(3),
                 dilate=new FILTER.NonLinearFilter().dilate(3),
-                //invert=new FILTER.ColorMatrixFilter().invert(),
                 blur=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
                 noise=new FILTER.NoiseFilter(10, 70),
+                displaceFilter=new FILTER.DisplacementMapFilter(),
+                pixelate=new FILTER.PixelateFilter(5),
                 
+                // filter selection list
                 videoFilters=[
                     grs,
                     grsb,
@@ -162,23 +179,70 @@
                     erode,
                     dilate,
                     blur,
-                    noise
+                    noise,
+                    displaceFilter,
+                    pixelate
                 ],
-                currentFilterIndex=0,
-                currentFilter=videoFilters[currentFilterIndex],
-                renderInterval=60
+                currentOrientation=0, displaceFilterIndex=17, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
+                renderInterval=60,
+                rnd=Math.random, dx, dy
                 ;
             
-            add(filters, postVideo.canvasElement);
+            function init()
+            {
+                var grd;
+                // create a displace map image
+                displacemap.createImageData(300,300);
+                displacemap.context.fillStyle="rgb(128,128,128)";
+                displacemap.context.fillRect(0,0, displacemap.width, displacemap.height);
+                // create radial gradient
+                grd = displacemap.context.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
+                grd.addColorStop(1, "#808080"); // neutral
+                grd.addColorStop(0, "#ffffff"); // white
+                displacemap.context.fillStyle = grd;
+                displacemap.context.beginPath();
+                displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
+                displacemap.context.fill();
+                displacemap._refresh();
+                displaceFilter.map=displacemap;
+                displaceFilter.startX=0; displaceFilter.startY=0;
+                displaceFilter.scaleX=120; displaceFilter.scaleY=120; 
+                displaceFilter.componentX=FILTER.CHANNEL.RED; displaceFilter.componentY=FILTER.CHANNEL.GREEN;
+                
+                dx=80*rnd()-40; dy=80*rnd()-40;
+                
+                add(filters, postVideo.canvasElement);
+                
+                // change the video filter applied
+                addEvent(flipSelect, "change", function(){
+                    currentOrientation=flipSelect.selectedIndex || 0;
+                });
+                
+                // start process when the video is playing
+                addEvent(video, "play", processVideo);
+            }
             
             function processVideo(event)
             {
                 if (video.paused || video.ended)  return;
                 
                 // preview the filter while hovering the option
-                currentFilter=videoFilters[filterSelect.selectedIndex||0];
+                currentFilter=videoFilters[filterSelect.selectedIndex || 0];
                 
                 postVideo.setImage(video);
+                if (1==currentOrientation)   postVideo.flipHorizontal();
+                else if (2==currentOrientation)  postVideo.flipVertical();
+                else if (3==currentOrientation)   flipX.apply(postVideo);
+                else if (4==currentOrientation)  flipY.apply(postVideo);
+                
+                if (displaceFilterIndex==filterSelect.selectedIndex)
+                {
+                    // animate the displace filter
+                    var vw=postVideo.width>>1, vh=postVideo.height>>1;
+                    displaceFilter.startX+=dx; displaceFilter.startY+=dy;
+                    if (displaceFilter.startX<-vw || displaceFilter.startX>vw) dx=-dx;
+                    if (displaceFilter.startY<-vh || displaceFilter.startY>vh) dy=-dy;
+                }
                 
                 currentFilter.apply(postVideo);
                 
@@ -187,14 +251,9 @@
                 //requestAnimationFrame(processVideo);
             }
             
-            // change the video filter applied
-            /*addEvent(filterSelect, "change", function(){
-                currentFilterIndex=filterSelect.selectedIndex;
-                currentFilter=videoFilters[currentFilterIndex||0];
-            });*/
+            // play
+            init();
             
-            // start process when the video is playing
-            addEvent(video, "play", processVideo);
         //]]>
 		</script>
     </body>

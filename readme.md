@@ -30,6 +30,7 @@ The framework defines an Image class which represents an Image and 6 generic Fil
 * __LookupTableFilter__ 
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
+* __GeometricMapFilter__
 * __NonLinearFilter__
 * __CompositeFilter__ (an abstraction of a container for multiple filters)
 * __Image Blending Modes__ (analogous to Photoshop blends)
@@ -133,7 +134,7 @@ The class has various pre-defined filters which can be combined in any order.
 * _gammaCorrection()_ Apply gamma correction to image channels
 * _exposure()_ Alter image exposure
 * _solarize()_  Apply a solarize effect
-* _posterize() / quantize()_  Quantize uniformly th image colors
+* _posterize() / quantize()_  Quantize uniformly the image colors
 * _binarize()_  Quantize uniformly the image colors in 2 levels
 * _thresholds()_  Quantize non-uniformly the image colors according to given thresholds
 * _threshold()_  Quantize non-uniformly the image colors in 2 levels according to given threshold
@@ -252,6 +253,42 @@ dF.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
+__Geometric Map Filter__
+
+````javascript
+new FILTER.GeomatricMapFilter(geometricMapFunction);
+````
+
+The filter scans an image and changes the current pixel by distorting it according to the geometric map function
+The optional geometricMap parameter is a function that implements a geometric mapping of pixels (see examples)
+
+The class has some pre-defined filters to use.
+
+* _flipX()_  Flip the target image wrt to X axis
+* _flipY()_  Flip the target image wrt to Y axis
+* _flipXY()_  Flip the target image wrt to both X and Y axis
+* _affine()_ Apply an affine transformation to the target image
+* _polar()_  Transform image to polar coords (TODO)
+* _cartesian()_  Inverse of polar (TODO)
+* _twirl()_  Apply a twirl map (TODO)
+
+Geometric Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+
+In order to use a geometric filter do the following:
+
+````javascript
+var gF=new FILTER.GeometricMapFilter().flipX();
+````
+
+To apply the filter to an image do (as of 0.3+ version)
+
+````javascript
+gF.apply(image);   // image is a FILTER.Image instance, see examples
+````
+
+NOTE: The filter apply method will actually change the image to which it is applied
+
+
 __Non Linear Filter__
 
 ````javascript
@@ -351,10 +388,17 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 ###Todo
 * allow extension by plugins (both as Classes and Inline) [DONE]
 * add more filters (eg adaptive/statistical etc..) [DONE partially]
-* make convolutions faster
-* use fixed-point arithmetic and/or micro-optimizations where possible
+* add 2d-fft routines, frequency domain filtering
+* make convolutions faster [DONE partially]
+* use fixed-point arithmetic and/or micro-optimizations where possible [DONE partially]
 
 ###ChangeLog
+
+__0.5__
+* add new generic filters (GeometricMap, Combine, Split)
+* add new plugin (Pixelate)
+* heavy convolution and loops optimizations, refactoring
+* update examples / readme
 
 __0.4.1__
 * add new filters implementations (exposure, mask etc..)

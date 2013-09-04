@@ -7,8 +7,7 @@
 (function(FILTER){
 
     // a sample noise filter
-    // not the best implementation
-    // used for illustration puproses on how to create a plugin filter
+    // used for illustration purposes on how to create a plugin filter
     FILTER.NoiseFilter=FILTER.Create({
         // parameters
         min: -127,

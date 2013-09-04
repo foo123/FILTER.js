@@ -11,11 +11,13 @@
 ../src/filters/ColorMatrixFilter.js
 ../src/filters/TableLookupFilter.js
 ../src/filters/DisplacementMapFilter.js
+../src/filters/GeometricMapFilter.js
 ../src/filters/ConvolutionMatrixFilter.js
 ../src/filters/NonLinearFilter.js
 
 # These filters are not used yet
-#../src/filters/GeometricMapFilter.js
+#../src/filters/SplitFilter.js
+#../src/filters/CombineFilter.js
 #../src/filters/StatisticalFilter.js
 #../src/filters/AdaptiveFilter.js
 
@@ -23,6 +25,8 @@
 ../src/plugins/Equalize.js
 ../src/plugins/RGBEqualize.js
 ../src/plugins/Noise.js
+../src/plugins/Pixelate.js
+
 # INCOMPLETE
 #../src/plugins/Shadow.js
 

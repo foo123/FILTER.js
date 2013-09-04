@@ -12,12 +12,11 @@
 **/
 (function(FILTER){
     
-    var Power=Math.pow, Exponential=Math.exp, nF=1/255;
-    
-    function eye()
+    function eye(inv)
     {
         var t=new FILTER.ImArray(256), i=0;
-        while (i<256) { t[i]=i; i++; }
+        if (inv)  while (i<256) { t[i]=255-i; i++; }
+        else   while (i<256) { t[i]=i; i++; }
         return t;
     }
     
@@ -26,6 +25,8 @@
         if (t) return new FILTER.ImArray(t);
         return null;
     }
+    
+    var Power=Math.pow, Exponential=Math.exp, nF=1/255, inverce=eye(1);
     
     FILTER.TableLookupFilter=function(tableR, tableG, tableB)
     {
@@ -114,9 +115,9 @@
         },
         
         invert : function() {
-            var i=0, t=new FILTER.ImArray(256);
-            i=0; while (i<256) { t[i]=255-i; i++; }
-            return this.concat(t);
+            /*var i=0, t=new FILTER.ImArray(256);
+            i=0; while (i<256) { t[i]=255-i; i++; }*/
+            return this.concat(inverce);
         },
         
         mask : function(mask) {
@@ -161,6 +162,10 @@
             
             this.tableR=tR; this.tableG=tG; this.tableB=tB;
             return this;
+        },
+        
+        combine : function(filt) {
+            return this.concat(filt.tableR, filt.tableG, filt.tableB);
         },
         
         // used for internal purposes

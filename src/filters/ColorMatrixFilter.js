@@ -555,6 +555,10 @@
             return this;
         },
         
+        combine : function(filt) {
+            return this.concat(filt.matrix);
+        },
+        
         // used for internal purposes
         _apply : function(p, w, h) {
             if (!this.matrix)  return p;

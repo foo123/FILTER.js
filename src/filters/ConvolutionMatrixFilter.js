@@ -28,7 +28,8 @@
             [1,	8, 	28,	56,	70,	56,	28,	8, 	1]
         ],
         sqrt2=FILTER.CONSTANTS.SQRT2,
-        toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg
+        toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+        Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos
     ;
     
     //
@@ -73,9 +74,8 @@
             while (l<=d)
             {
                 uprow=row.slice(); row=[1];
-                for (i=0, il=uprow.length-1; i<il; i++) { row.push(uprow[i]+uprow[i+1]); }
-                row.push(1);
-                if (l<12) _pascal.push(row.slice()); // save it for future dynamically
+                for (i=0, il=uprow.length-1; i<il; i++) { row.push(uprow[i]+uprow[i+1]); } row.push(1);
+                if (l<40) _pascal.push(row.slice()); // save it for future dynamically
                 l++;
             }
         }
@@ -201,7 +201,7 @@
         return m;
     }
     
-    function multiplyMatrix(m1, m2, d) 
+    /*function multiplyMatrix(m1, m2, d) 
     {
         var i, j, k, m=new CM(m1.length), sum, id=0, jd=0, kd=0;
         for (i=0; i<d; i++)
@@ -232,7 +232,7 @@
         var l=d*d, k, i=0, j=0, e=new CM(l);
         for (k=0; k<l; k++) { if (i==j) e[k]=1; else e[k]=0; j++; if (d==j) { i++; j=0; } }
         return e;
-    }
+    }*/
     
     function ones(d, f) 
     { 
@@ -241,25 +241,29 @@
         for (i=0; i<l; i++) o[i]=f;
         return o;
     }
+
+    // speed-up convolution for special kernels like moving-average
+    function boxConvolution(src, w, h, dim, matrix, factor, bias) 
+    {
+        // todo
+        return src;
+    }
     
     //
     //
     //  Simple Convolution Filter
-    FILTER.ConvolutionMatrixFilter=function(weights, factor)
+    FILTER.ConvolutionMatrixFilter=function(weights, factor, bias)
     {
-        this.factor=factor||1;
-        
         if (typeof weights != 'undefined' && weights.length)
         {
-            this.matrix=new CM(weights);
-            this.dim = ~~(Math.sqrt(weights.length)+0.5);
+            this.set(weights, factor||1, ~~(Sqrt(weights.length)+0.5))
+            this.bias=bias||0;
         }
         else 
         {
-            this.matrix=null;
-            this.dim = 0;
+            this.matrix=null; /*this._indices=null;*/ this.dim = 0;
+            this.auxMatrix=null; this._isGrad=false; this._useBox=false;
         }
-        this.auxMatrix=null; this._isGrad=false;
     };
     
     FILTER.ConvolutionMatrixFilter.prototype={
@@ -267,11 +271,13 @@
         dim: 0,
         matrix: null,
         factor: 1,
+        bias: 0,
         
         // generic low-pass filter
         lowPass : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            return this.set(ones(d), 1/(d*d), d);
+            this.set(ones(d), 1/(d*d), d);
+            this._useBox=true; return this;
         },
 
         // generic high-pass filter (I-LP)
@@ -281,7 +287,8 @@
             // HighPass Filter = I - (respective)LowPass Filter
             var size=d*d, fact=-f/size, w=ones(d, fact), i;
             w[size>>1 +1]=1+fact;
-            return this.set(w, 1, d);
+            this.set(w, 1, d);
+            this._useBox=true; return this;
         },
 
         // aliases
@@ -291,7 +298,7 @@
         binomialLowPass : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=gaussFilter(d);
-            return this.set(new CM(filt.kernel), 1/filt.sum, d); 
+            return this.set(filt.kernel, 1/filt.sum, d); 
         },
 
         // generic binomial(gaussian) high-pass filter
@@ -321,21 +328,21 @@
         prewittX : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=prewittFilter(d, 0);
-            return this.set(new CM(filt.kernel), 1, d);
+            return this.set(filt.kernel, 1, d);
         },
         
         // Y-gradient, partial Y-derivative (Prewitt)
         prewittY : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=prewittFilter(d, 1);
-            return this.set(new CM(filt.kernel), 1, d);
+            return this.set(filt.kernel, 1, d);
         },
         
         // directional gradient (Prewitt)
         prewittDirectional : function(d, theta) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
-            var c=Math.cos(theta), s=Math.sin(theta),
+            var c=Cos(theta), s=Sin(theta),
                 gradx=prewittFilter(d, 0), grady=prewittFilter(d, 1);
             return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), 1, d);
             /*return this.set([
@@ -349,7 +356,7 @@
         prewitt : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var gradx=prewittFilter(d, 0), grady=prewittFilter(d, 1);
-            this.set(new CM(gradx.kernel), 1, d);
+            this.set(gradx.kernel, 1, d);
             this._isGrad=true;
             this.auxMatrix=new CM(grady.kernel);
             return this;
@@ -368,21 +375,21 @@
         sobelX : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=sobelFilter(d, 0);
-            return this.set(new CM(filt.kernel), 1, d);
+            return this.set(filt.kernel, 1, d);
         },
         
         // partial Y-derivative (Sobel)
         sobelY : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=sobelFilter(d, 1);
-            return this.set(new CM(filt.kernel), 1, d);
+            return this.set(filt.kernel, 1, d);
         },
         
         // directional gradient (Sobel)
         sobelDirectional : function(d, theta) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
-            var c=Math.cos(theta), s=Math.sin(theta),
+            var c=Cos(theta), s=Sin(theta),
                 gradx=sobelFilter(d, 0), grady=sobelFilter(d, 1);
             return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), 1, d);
         },
@@ -391,7 +398,7 @@
         sobel : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var gradx=sobelFilter(d, 0), grady=sobelFilter(d, 1);
-            this.set(new CM(gradx.kernel), 1, d);
+            this.set(gradx.kernel, 1, d);
             this.auxMatrix=new CM(grady.kernel);
             this._isGrad=true;
             return this;
@@ -422,19 +429,6 @@
         
         embossLow : function() { return this.emboss(-1); },
         
-        /*bluremboss : function() {
-            this.matrix=multiplyMatrix(new CM([
-                    1/9,   1/9,   1/9,
-                    1/9,  1/9,   1/9,
-                    1/9,   1/9,   1/9
-                 ]), new CM([
-                    -2,   -1,   0,
-                    -1,  1,   1,
-                    0,   1,   2
-                 ]), 3);
-             this.dim=3; return this;
-        },*/
-        
         edges : function(d) {
             return this.set([
                     0,   1,   0,
@@ -452,7 +446,7 @@
         },
         
         motionblur : function(dir) {
-            var w=1, i,j, wm=new CM(
+            var w=1, i,j, wm=[
                         0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -462,7 +456,7 @@
                         0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0
-                         );
+                     ];
             if (dir==0)
             {
                 for (i=0;i<9;i++)
@@ -488,10 +482,23 @@
         },
         
         set : function(m, f, d) {
-            // matrices/kernels need to be convolved -> larger kernel->tensor
-            //this.matrix=multiplyMatrix(this.matrix, new CM(m), d);
+            /*var size=d*d, halfSide = d>>1, cx, cy, ty, 
+                indices=new Array(size), i;*/
+            
+            this.auxMatrix=null; this._isGrad=false; this._useBox=false;
             this.matrix=new CM(m); this.factor=f; this.dim=d; 
-            this.auxMatrix=null; this._isGrad=false;
+            
+            // pre-compute the matrix relative indices for reducing convolution loops
+            /*i=0;
+            for (cy=0, ty=0; cy<d; cy++, ty+=d){ for (cx=0; cx<side; cx++){ indices[i]=new FILTER.Array8I([cx - halfSide, cy - halfSide]); i++; } }
+            this._indices=indices;*/
+            
+            return this;
+        },
+        
+        combine : function(filt) {
+            // matrices/kernels need to be convolved -> larger kernel->tensor in order to be actually combined
+            // todo??
             return this;
         },
         
@@ -500,64 +507,61 @@
             
             if (!this.matrix) return src;
             
-            var side = this.dim, halfSide = side>>1,
-                dst=new FILTER.ImArray(src.length),
-                // pad output by the convolution matrix
-                sw = w, sh = h,
-                // go through the destination image pixels
-                //alphaFac = this.opaque ? 1 : 0,
-                x, y, sx, sy, dstOff, r=0, g=0, b=0, a=0, r1=0, g1=0, b1=0, a1=0, cx, cy, scx, scy,
-                srcOff, wt, wt2, ty, yh, scyw, syw, Abs=Math.abs
+            // use a faster convolution if possible
+            //if (this._useBox) return boxConvolution(src, w, h, this.dim, this.matrix. this.factor, this.bias);
+            
+            var 
+                matRadius=this.dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
+                mat=this.matrix, factor=this.factor, bias=this.bias, mat2=this.auxMatrix, wt, wt2,
+                _isGrad=this._isGrad, imageIndices=new FILTER.Array32I(matArea<<1), matIndices=new FILTER.Array8U(matArea),
+                imArea=w*h, imLen=src.length, dst=new FILTER.ImArray(imLen),
+                i, j, k, x, y, ty, ty2, xOff, yOff, srcOff, dstOff, r, g, b, r2, g2, b2
                 ;
             
-            yh=0;
-            for (y=0; y<h; y++) 
+            // pre-compute indices, 
+            // reduce redundant computations inside the main convolution loop (faster)
+            i=0; j=0; x=0; y=0; ty=0; ty2=0;
+            while (i<matArea)
+            { 
+                matIndices[i] = x + ty; 
+                imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty2-hsw;
+                i++; j+=2; x++; if (matRadius==x) { x=0; y++; ty+=matRadius; ty2+=w; }
+            } 
+            
+            // do direct convolution
+            i=0; x=0; y=0; ty=0;
+            while (i<imLen)
             {
-                for (x=0; x<w; x++) 
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=0; g=0; b=0; r2=0; g2=0; b2=0; 
+                j=0; k=0;
+                while (j < matArea)
                 {
-                    sy = y; sx = x;  dstOff = (yh+x)<<2;
-                    // calculate the weighed sum of the source image pixels that
-                    // fall under the convolution matrix
-                    r=0; g=0; b=0; a=0; ty=0;
-                    r1=0; g1=0; b1=0; a1=0;
-                    for (cy=0; cy<side; cy++) 
+                    xOff=x + imageIndices[k]; yOff=ty + imageIndices[k+1];
+                    if (xOff>=0 && xOff<w && yOff>=0 && yOff<imArea)
                     {
-                        scy = sy + cy - halfSide;
-                        if (scy >= 0 && scy < sh)
+                        srcOff=(xOff + yOff)<<2; wt=mat[matIndices[j]];
+                        r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        if (mat2)
                         {
-                            scyw=scy*sw;
-                            for (cx=0; cx<side; cx++) 
-                            {
-                                scx = sx + cx - halfSide;
-                                if (scx >= 0 && scx < sw) 
-                                {
-                                    srcOff = (scyw + scx)<<2; wt = this.matrix[ty + cx];
-                                    r += src[srcOff] * wt; g += src[srcOff+1] * wt;
-                                    b += src[srcOff+2] * wt; /*a += src[srcOff+3] * wt;*/
-                                    if (this.auxMatrix)
-                                    {
-                                        wt2 = this.auxMatrix[ty + cx];
-                                        r1 += src[srcOff] * wt2; g1 += src[srcOff+1] * wt2;
-                                        b1 += src[srcOff+2] * wt2; /*a += src[srcOff+3] * wt;*/
-                                    }
-                                }
-                            }
+                            wt2=mat2[matIndices[j]];
+                            r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
                         }
-                        ty+=side;
                     }
-                    if (this._isGrad)
-                    {
-                        dst[dstOff] = this.factor*(Abs(r)+Abs(r1));  dst[dstOff+1] = this.factor*(Abs(g)+Abs(g1));
-                        dst[dstOff+2] = this.factor*(Abs(b)+Abs(b1));  /*dst[dstOff+3] = this.factor*(a + alphaFac*(255-a));*/
-                    }
-                    else
-                    {
-                        dst[dstOff] = this.factor*r;  dst[dstOff+1] = this.factor*g;
-                        dst[dstOff+2] = this.factor*b;  /*dst[dstOff+3] = this.factor*(a + alphaFac*(255-a));*/
-                    }
-                    dst[dstOff+3] = src[dstOff+3];
+                    j++; k+=2;
                 }
-                yh+=w;
+                
+                // output
+                dstOff = i;
+                if (_isGrad) { dst[dstOff] = Abs(r)+Abs(r2);  dst[dstOff+1] = Abs(g)+Abs(g2);  dst[dstOff+2] = Abs(b)+Abs(b2); }
+                else { dst[dstOff] = factor*r+bias;  dst[dstOff+1] = factor*g+bias;  dst[dstOff+2] = factor*b+bias;  }
+                // alpha channel is not transformed
+                dst[dstOff+3] = src[dstOff+3];
+                
+                // update image coordinates
+                i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
             }
             return dst;
         },
@@ -568,7 +572,7 @@
         },
         
         reset : function() {
-            this.matrix=null; this.auxMatrix=null; this.dim=0; return this;
+            this.matrix=null; this._indices=null; this.auxMatrix=null; this.dim=0; return this;
         }
     };
     

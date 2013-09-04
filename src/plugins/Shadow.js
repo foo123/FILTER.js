@@ -1,19 +1,17 @@
 /**
 *
-* Shadow Filter Plugin  (INCOMPLETE)
+* Drop Shadow Filter Plugin  (INCOMPLETE)
 * @package FILTER.js
 *
 **/
 (function(FILTER){
 
-    var blurFilter=new FILTER.CpnvolutionMatrixFilter(),
-        cmFilter=new FILTER.ColorMatrixFilter(),
-        Atan2=Math.atan2, Sqrt=Math.sqrt, Cos=Math.cos, Sin=Math.sin
+    var Atan2=Math.atan2, Sqrt=Math.sqrt, Cos=Math.cos, Sin=Math.sin
         ;
         
     // a sample shadow filter  (adapted from http://www.jhlabs.com/ip/filters/ShadowFilter.html)
     // not the best implementation
-    // used for illustration puproses on how to create a plugin filter
+    // used for illustration purposes on how to create a plugin filter
     FILTER.DropShadowFilter=FILTER.Create({
         // parameters
         dx: 2,
@@ -35,6 +33,10 @@
             this.colorR=(this.color>>16)&255;
             this.colorG=(this.color>>8)&255;
             this.colorB=(this.color)&255;
+            
+            this.gaussFilter=new FILTER.ConvolutionMatrixFilter();
+            this.colorFilter=new FILTER.ColorMatrixFilter();
+            this.affineFilter=new FILTER.GeometricMapFilter().affine();
         },
         
         // this is the filter actual apply method routine
@@ -42,31 +44,29 @@
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // for this filter, no need to clone the image data, operate in-place
-            var xOffset = this.distance*Cos(this.angle), yOffset = -this.distance*Sin(this.angle)
-                l=im.length, dst=new FILTER.ImArray(im)
+            var xOffset = this.distance*Cos(this.angle), yOffset = -this.distance*Sin(this.angle),
+                l=im.length, shadow=new FILTER.ImArray(im), i
             ;
             
             // get the alpha channel
             // Make a black mask from the image's alpha channel 
-            cmFilter.reset().concat([
-                0, 0, 0, this.colorR, 0
-                0, 0, 0, this.colorG, 0
-                0, 0, 0, this.colorB, 0
+            this.colorFilter.reset().concat([
+                0, 0, 0, this.colorR, 0,
+                0, 0, 0, this.colorG, 0,
+                0, 0, 0, this.colorB, 0,
                 0, 0, 0, this.opacity, 0
             ]);
-            blurFilter.gaussBlur(this.radius);
+            this.gaussFilter.gaussBlur(this.radius);
+            this.affineFilter.a=1; this.affineFilter.b=1; this.affineFilter.c=xOffset; this.affineFilter.d=yOffset;
             
-            dst=blurFilter._apply(cmFilter._apply(dst, w, h), w, h);
-            
-            // tranlate to dx, dy, todo
-            /*g.setComposite( AlphaComposite.getInstance( AlphaComposite.SRC_OVER, opacity ) );
-            g.drawRenderedImage( shadow, AffineTransform.getTranslateInstance( xOffset, yOffset ) );
-            if ( !shadowOnly ) {
-                g.setComposite( AlphaComposite.SrcOver );
-                g.drawRenderedImage( src, null );
-            }*/
-
-            return dst;
+            shadow = this.affineFilter._apply(
+                                this.gaussFilter._apply(
+                                        this.colorFilter._apply(shadow, w, h)
+                                , w, h)
+                    , w, h);
+            // combine shadow with original image
+            i=0; while (i<l) { if (im[i+3]<255) { im[i]+=shadow[i]; im[i+1]+=shadow[i+1]; im[i+2]+=shadow[i+2]; } i+=4; }
+            return im;
         }
     });
     

@@ -8,7 +8,7 @@
 
     // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     // not the best implementation
-    // used for illustration puproses on how to create a plugin filter
+    // used for illustration purposes on how to create a plugin filter
     FILTER.RGBHistogramEqualizeFilter=FILTER.Create({
         // this is the filter constructor
         init: function(param) {

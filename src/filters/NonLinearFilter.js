@@ -10,171 +10,206 @@
 (function(FILTER){
     
     // used for internal purposes
-    var 
-    _MedianFilter = function(src, sw, sh) {
-        
-        var side = this.dim, halfSide = side>>1, len=side*side,
-            dst=new FILTER.ImArray(src.length),
-            // pad output by the convolution matrix
-            w = sw, h = sh,
-            x, y, sx, sy, dstOff, a, cx, cy, scx, scy,
-            srcOff, wt, ty, yh, scyw, r, g, b, lenodd, t
-            ;
-            
-        // init some values
-        r=[]; g=[]; b=[];
-        lenodd=len%2; t=~~(0.5*len)+lenodd
-        
-        // apply the filter
-        yh=0;
-        for (y=0; y<h; y++) 
+    var Min=Math.min, Max=Math.max;
+    /*
+    function split(a, n, x, i,j)
+    {
+        //do the left and right scan until the pointers cross
+        do
         {
-            for (x=0; x<w; x++) 
+            //scan from the left then scan from the right
+            while (a[i] < x) i++;
+            while (x < a[j]) j--;
+            //now swap values if they are in the wrong part:
+            if (i <= j)
             {
-                sy = y; sx = x;  dstOff = (yh+x)<<2;
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r.length=0; g.length=0; b.length=0; ty=0;
-                for (cy=0; cy<side; cy++) 
-                {
-                    scy = sy + cy - halfSide;
-                    if (scy >= 0 && scy < sh)
-                    {
-                        scyw=scy*sw;
-                        for (cx=0; cx<side; cx++) 
-                        {
-                            scx = sx + cx - halfSide;
-                            if (scx >= 0 && scx < sw) 
-                            {
-                                srcOff = (scyw + scx)<<2;
-                                r.push(src[srcOff]); g.push(src[srcOff+1]); b.push(src[srcOff+2]);
-                            }
-                        }
-                    }
-                    ty+=side;
-                }
-                // take the median
-                // this is SLOW!!! ??
-                r.sort(); g.sort(); b.sort();
-                if (lenodd) // odd, take median
-                {
-                    dst[dstOff] = r[t];  dst[dstOff+1] = g[t];
-                    dst[dstOff+2] = b[t];
-                }
-                else // even, take average
-                {
-                    dst[dstOff] = ~~(0.5*(r[t]+r[t+1]));  dst[dstOff+1] = ~~(0.5*(g[t]+g[t+1]));
-                    dst[dstOff+2] = ~~(0.5*(b[t]+b[t+1]));
-                }
-                dst[dstOff+3] = src[dstOff+3];
+                var t = a[i];
+                a[i] = a[j];
+                a[j] = t;
+                i++; j--;
             }
-            yh+=w;
+
+            //and continue the scan until the pointers cross:
+        } while (i <= j);
+        return {a:a, i:i, j:j};
+    }
+
+    //A function that makes use of the basic split method to find the median is:
+
+    function median(a/*, n, k* /)
+    {
+        var n=a.length, L = 0, R = n-1, k = ~~(0.5*n), i, j, x, ret;
+        while (L < R)
+        {
+            x = a[k];  i = L; j = R;  
+            ret=split(a, n, x, i, j);
+            i.ret.i; j=ret.j;
+            if (j < k)  L = i;
+            if (k < i)  R = j; 
+        }
+        return x;
+    }
+    */
+    
+    var
+        _MedianFilter = function(src, w, h) {
+        
+        var 
+            matRadius=this.dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
+            imageIndices=new FILTER.Array32I(matArea<<1),
+            imArea=w*h, imLen=src.length, dst=new FILTER.ImArray(imLen),
+            i, j, k, x, y, ty, ty2, xOff, yOff, srcOff, dstOff, rM=[], gM=[], bM=[],
+            median, isOdd
+            ;
+        
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        i=0; j=0; x=0; y=0; ty=0;
+        while (i<matArea)
+        { 
+            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
+            i++; j+=2; x++; if (x>=matRadius) { x=0; y++; ty+=w; }
+        } 
+        
+        i=0; x=0; y=0; ty=0;
+        while (i<imLen)
+        {
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            rM.length=0; gM.length=0; bM.length=0; 
+            j=0; k=0;
+            while (j < matArea)
+            {
+                xOff=x + imageIndices[k]; yOff=ty + imageIndices[k+1];
+                if (xOff>=0 && xOff<w && yOff>=0 && yOff<imArea)
+                {
+                    srcOff=(xOff + yOff)<<2;
+                    rM.push(src[srcOff]); gM.push(src[srcOff+1]); bM.push(src[srcOff+2]);
+                }
+                /*else
+                {
+                    rM.push(0); gM.push(0); bM.push(0);
+                }*/
+                j++; k+=2;
+            }
+            
+            // sort them, this is SLOW, alternative implementation needed
+            rM.sort(); gM.sort(); bM.sort();
+            median=(rM.length>>1)+1; isOdd=rM.length%2;
+            
+            // output
+            dstOff = i;
+            if (isOdd)
+            {
+                dst[dstOff] = rM[median];  dst[dstOff+1] = gM[median];
+                dst[dstOff+2] = bM[median];  dst[dstOff+3] = src[dstOff+3];
+            }
+            else
+            {
+                dst[dstOff] = ~~(0.5*(rM[median-1] + rM[median]));  dst[dstOff+1] = ~~(0.5*(gM[median-1] + gM[median]));
+                dst[dstOff+2] = ~~(0.5*(bM[median-1] + bM[median]));  dst[dstOff+3] = src[dstOff+3];
+            }
+            
+            // update image coordinates
+            i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
         }
         return dst;
     },
     
     // used for internal purposes
-    _MaximumFilter = function(src, sw, sh) {
+    _MaximumFilter = function(src, w, h) {
         
-        var side = this.dim, halfSide = side>>1, len=side*side,
-            dst=new FILTER.ImArray(src.length),
-            // pad output by the convolution matrix
-            w = sw, h = sh,
-            x, y, sx, sy, dstOff, a, cx, cy, scx, scy,
-            srcOff, wt, ty, yh, scyw, r, g, b, rinit, ginit, binit, lenodd, t
+        var 
+            matRadius=this.dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
+            imageIndices=new FILTER.Array32I(matArea<<1),
+            imArea=w*h, imLen=src.length, dst=new FILTER.ImArray(imLen),
+            i, j, k, x, y, ty, ty2, xOff, yOff, srcOff, dstOff, r, g, b, rM, gM, bM
             ;
-            
-        // init some values
-        rinit=0; ginit=0; binit=0;
         
-        // apply the filter
-        yh=0;
-        for (y=0; y<h; y++) 
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        i=0; j=0; x=0; y=0; ty=0;
+        while (i<matArea)
+        { 
+            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
+            i++; j+=2; x++; if (x>=matRadius) { x=0; y++; ty+=w; }
+        } 
+        
+        i=0; x=0; y=0; ty=0;
+        while (i<imLen)
         {
-            for (x=0; x<w; x++) 
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            rM=0; gM=0; bM=0; 
+            j=0; k=0;
+            while (j < matArea)
             {
-                sy = y; sx = x;  dstOff = (yh+x)<<2;
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=rinit; g=ginit; b=binit;  ty=0;
-                for (cy=0; cy<side; cy++) 
+                xOff=x + imageIndices[k]; yOff=ty + imageIndices[k+1];
+                if (xOff>=0 && xOff<w && yOff>=0 && yOff<imArea)
                 {
-                    scy = sy + cy - halfSide;
-                    if (scy >= 0 && scy < sh)
-                    {
-                        scyw=scy*sw;
-                        for (cx=0; cx<side; cx++) 
-                        {
-                            scx = sx + cx - halfSide;
-                            if (scx >= 0 && scx < sw) 
-                            {
-                                srcOff = (scyw + scx)<<2;
-                                if (src[srcOff]>r) r=src[srcOff];
-                                if (src[srcOff+1]>g) g=src[srcOff+1];
-                                if (src[srcOff+2]>b) b=src[srcOff+2];
-                            }
-                        }
-                    }
-                    ty+=side;
+                    srcOff=(xOff + yOff)<<2;
+                    r=src[srcOff]; g=src[srcOff+1]; b=src[srcOff+2];
+                    if (r>rM) rM=r; if (g>gM) gM=g; if (b>bM) bM=b;
                 }
-                dst[dstOff] = r;  dst[dstOff+1] = g;
-                dst[dstOff+2] = b;
-                dst[dstOff+3] = src[dstOff+3];
+                j++; k+=2;
             }
-            yh+=w;
+            
+            // output
+            dstOff = i;
+            dst[dstOff] = rM;  dst[dstOff+1] = gM;
+            dst[dstOff+2] = bM;  dst[dstOff+3] = src[dstOff+3];
+            
+            // update image coordinates
+            i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
         }
         return dst;
     },
     
     // used for internal purposes
-    _MinimumFilter = function(src, sw, sh) {
+    _MinimumFilter = function(src, w, h) {
         
-        var side = this.dim, halfSide = side>>1, len=side*side,
-            dst=new FILTER.ImArray(src.length),
-            // pad output by the convolution matrix
-            w = sw, h = sh,
-            x, y, sx, sy, dstOff, a, cx, cy, scx, scy,
-            srcOff, wt, ty, yh, scyw, r, g, b, rinit, ginit, binit, lenodd, t
+        var 
+            matRadius=this.dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
+            imageIndices=new FILTER.Array32I(matArea<<1),
+            imArea=w*h, imLen=src.length, dst=new FILTER.ImArray(imLen),
+            i, j, k, x, y, ty, ty2, xOff, yOff, srcOff, dstOff, r, g, b, rM, gM, bM
             ;
-            
-        // init some values
-        rinit=255; ginit=255; binit=255;
         
-        // apply the filter
-        yh=0;
-        for (y=0; y<h; y++) 
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        i=0; j=0; x=0; y=0; ty=0;
+        while (i<matArea)
+        { 
+            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
+            i++; j+=2; x++; if (x>=matRadius) { x=0; y++; ty+=w; }
+        } 
+        
+        i=0; x=0; y=0; ty=0;
+        while (i<imLen)
         {
-            for (x=0; x<w; x++) 
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            rM=255; gM=255; bM=255; 
+            j=0; k=0;
+            while (j < matArea)
             {
-                sy = y; sx = x;  dstOff = (yh+x)<<2;
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=rinit; g=ginit; b=binit;  ty=0;
-                for (cy=0; cy<side; cy++) 
+                xOff=x + imageIndices[k]; yOff=ty + imageIndices[k+1];
+                if (xOff>=0 && xOff<w && yOff>=0 && yOff<imArea)
                 {
-                    scy = sy + cy - halfSide;
-                    if (scy >= 0 && scy < sh)
-                    {
-                        scyw=scy*sw;
-                        for (cx=0; cx<side; cx++) 
-                        {
-                            scx = sx + cx - halfSide;
-                            if (scx >= 0 && scx < sw) 
-                            {
-                                srcOff = (scyw + scx)<<2;
-                                if (src[srcOff]<r) r=src[srcOff];
-                                if (src[srcOff+1]<g) g=src[srcOff+1];
-                                if (src[srcOff+2]<b) b=src[srcOff+2];
-                            }
-                        }
-                    }
-                    ty+=side;
+                    srcOff=(xOff + yOff)<<2;
+                    r=src[srcOff]; g=src[srcOff+1]; b=src[srcOff+2];
+                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
                 }
-                dst[dstOff] = r;  dst[dstOff+1] = g;
-                dst[dstOff+2] = b;
-                dst[dstOff+3] = src[dstOff+3];
+                j++; k+=2;
             }
-            yh+=w;
+            
+            // output
+            dstOff = i;
+            dst[dstOff] = rM;  dst[dstOff+1] = gM;
+            dst[dstOff+2] = bM;  dst[dstOff+3] = src[dstOff+3];
+            
+            // update image coordinates
+            i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
         }
         return dst;
     },
@@ -199,17 +234,18 @@
         dim: 0,
         
         median : function(d) { 
+            // allow only odd dimensions for median
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this.dim=d; this._apply=_MedianFilter; return this; 
+            this.dim=d; this._apply=_MedianFilter; return this;
         },
         
         erode : function(d) { 
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d=(typeof d == 'undefined') ? 3 : d;
             this.dim=d; this._apply=_MinimumFilter; return this; 
         },
         
         dilate : function(d) { 
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d=(typeof d == 'undefined') ? 3 : d;
             this.dim=d; this._apply=_MaximumFilter; return this; 
         },
         

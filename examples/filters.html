@@ -120,6 +120,7 @@
                 greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+                //pixelate=new FILTER.PixelateFilter(10),
                 //gamma=new FILTER.TableLookupFilter().gammaCorrection(1.7),
                 //bright=new FILTER.ColorMatrixFilter().brightness(50),
                 //binary=new FILTER.TableLookupFilter().threshold(0.7),
@@ -188,8 +189,6 @@
             
             function dotest(event)
             {
-                //im4.flipHorizontal();
-                //im4.scale(0.5);
                 // apply them
                 equalize.apply(im14);
                 redChannel.apply(im2);
