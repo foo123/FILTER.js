@@ -47,6 +47,7 @@
                     }
                     px++; if (px>=step) { px=0; py++; pyw+=w; }
                 }
+                r=~~r; g=~~g; b=~~b;
                 px=0; py=0; pyw=0;
                 while (py<step) 
                 { 
@@ -54,7 +55,7 @@
                     if (xOff<w && yOff<imArea)
                     {
                         i=(xOff + yOff)<<2; 
-                        im[i]=~~r; im[i+1]=~~g; im[i+2]=~~b; 
+                        im[i]=r; im[i+1]=g; im[i+2]=b; 
                     }
                     px++; if (px>=step) { px=0; py++; pyw+=w; }
                 }
