@@ -9,7 +9,8 @@
     
     var 
         blendModes,
-        Min=Math.min
+        Min=Math.min,
+        ImArray=FILTER.ImArray
     ;
     
     /**
@@ -74,6 +75,14 @@
     
     FILTER.blendModes=blendModes;
     
+    
+    function  createCanvas(w, h)
+    {
+        var cnv=document.createElement('canvas');
+        cnv.width=w||0; cnv.height=h||0;
+        return cnv;
+    }
+    
     //
     //
     // Image Class
@@ -83,13 +92,9 @@
         this.height=0;
         this.context=null;
         this.imageData=null;
-        this.canvasElement=document.createElement('canvas');
-        this.canvasElement.width=0;
-        this.canvasElement.height=0;
-        this._tmpCanvas=document.createElement('canvas');
-        this._tmpCanvas.width=0;
-        this._tmpCanvas.height=0;
+        this.domElement=this.canvasElement=createCanvas(this.width, this.height);
         this.context=this.canvasElement.getContext('2d');
+        this._tmpCanvas=null;
         this._histogram=null;
         this._integral=null;
         this._histogramRefresh=true;
@@ -103,6 +108,27 @@
         width : 0,
         height : 0,
         canvasElement : null,
+        domElement : null,
+        
+        clear: function() {
+          this.context.clearRect(0, 0, this.width, this.height);  return this;
+        },
+        
+        fill: function(color, x, y, w, h) {
+            color=color||0; x=x||0; y=y||0; w=w||this.width; h=h||this.height;
+            var ctx=this.context;
+            //ctx.save();
+            //ctx.lineWidth = 30;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, w, h);
+            //ctx.restore();
+            return this;
+        },
+        
+        draw : function(drawable, x, y, blendMode) {
+            // todo
+            return this;
+        },
         
         getPixel : function(x, y) {
             var off=~~(y*this.width+x+0.5);
@@ -115,7 +141,7 @@
         },
         
         setPixel : function(x, y, r, g, b, a) {
-            var t=new FILTER.ImArray([r, g, b, a]);
+            var t=new ImArray([r, g, b, a]);
             this.context.putImageData(t, x, y); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -125,7 +151,7 @@
         
         getData : function() {
             // clone it
-            return new FILTER.ImArray(this.imageData.data);
+            return new ImArray(this.imageData.data);
         },
         
         setData : function(a) {
@@ -149,7 +175,7 @@
         },
         
         setWidth : function(w) {
-            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
+            this.canvasElement.width=this.width=w;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -158,7 +184,7 @@
         },
         
         setHeight : function(h) {
-            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
+            this.canvasElement.height=this.height=h;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -174,8 +200,8 @@
                 image=img;
                 this.width=(img instanceof HTMLVideoElement) ? img.videoWidth : img.width;
                 this.height=(img instanceof HTMLVideoElement) ? img.videoHeight : img.height;
-                this._tmpCanvas.width=this.canvasElement.width=this.width;
-                this._tmpCanvas.height=this.canvasElement.height=this.height;
+                this.canvasElement.width=this.width;
+                this.canvasElement.height=this.height;
                 this.context=this.canvasElement.getContext('2d');
                 this.context.drawImage(image, 0, 0);
                 this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -188,8 +214,8 @@
                 image.onload=function(){
                     thiss.width=image.width;
                     thiss.height=image.height;
-                    thiss._tmpCanvas.width=thiss.canvasElement.width=thiss.width;
-                    thiss._tmpCanvas.height=thiss.canvasElement.height=thiss.height;
+                    thiss.canvasElement.width=thiss.width;
+                    thiss.canvasElement.height=thiss.height;
                     thiss.context=thiss.canvasElement.getContext('2d');
                     thiss.context.drawImage(image, 0, 0);
                     thiss.imageData=thiss.context.getImageData(0, 0, thiss.width, thiss.height);
@@ -285,22 +311,32 @@
         // compute integral image (sum of columns)
         _computeIntegral : function() 
         {
-            var w=this.width,h=this.height, count=w*h, integral = new FILTER.Array32U(count),
-                im=this.getPixelData().data, i, j, k, col, pix, gray
+            var w=this.width,h=this.height, count=w*h, 
+                integralR = new FILTER.Array32U(count), integralG = new FILTER.Array32U(count), integralB = new FILTER.Array32U(count),
+                im=this.getPixelData().data, i, j, k, ii, colR, colG, colB, pix
             ;
             // use one while loop instead of 2 for loops (arguably faster)
-            i=0; j=0; k=0; col=0;
-            while (i<w)
+            i=0; j=0; k=0; colR=colG=colB=0;
+            while (j<h)
             {
                 ii=i+k;  pix=ii << 2;
-                gray = ((4899 * im[pix] + 9617 * im[pix + 1] + 1868 * im[pix + 2]) + 8192) >>> 14;
-                col += (gray&0xFF) >>> 0;
-                if (i>0) integral[ii] = integral[ii-1] + col;
-                else  integral[ii] = col;
-                j++; k+=w;
-                if (h==j) { i++; j=0; k=0; col=0; }
+                colR += im[pix]; colG += im[pix+1]; colB += im[pix+2];
+                if (i>0) 
+                { 
+                    integralR[ii] = integralR[ii-1] + colR; 
+                    integralG[ii] = integralG[ii-1] + colG; 
+                    integralB[ii] = integralB[ii-1] + colB; 
+                }
+                else  
+                {
+                    integralR[ii] = colR;
+                    integralG[ii] = colG;
+                    integralB[ii] = colB;
+                }
+                
+                i++; if (i>=w) { i=0; j++; k+=w; colR=colG=colB=0; }
             }
-            this._integral=integral;
+            this._integral=[integralR, integralG, integralB];
             this._integralRefresh=false;
         },
         
@@ -346,10 +382,8 @@
         },
         
         createImageData : function(w,h) {
-            this.width=w;
-            this.height=h;
-            this._tmpCanvas.width=this.canvasElement.width=this.width;
-            this._tmpCanvas.height=this.canvasElement.height=this.height;
+            this.canvasElement.width=this.width=w;
+            this.canvasElement.height=this.height=h;
             this.context=this.canvasElement.getContext('2d');
             this.context.createImageData(w,h);
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -358,6 +392,8 @@
         
         scale : function(sx, sy) {
             sx=sx||1; sy=sy||sx;
+            // lazy
+            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.scale(sx, sy);
             ctx.drawImage(this.canvasElement, 0, 0);
@@ -373,6 +409,8 @@
         },
         
         flipHorizontal : function() {
+            // lazy
+            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.translate(this.width, 0); ctx.scale(-1, 1);
             ctx.drawImage(this.canvasElement, 0, 0);
@@ -384,6 +422,8 @@
         },
         
         flipVertical : function() {
+            // lazy
+            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.translate(0, this.height); ctx.scale(1, -1);
             ctx.drawImage(this.canvasElement, 0, 0);

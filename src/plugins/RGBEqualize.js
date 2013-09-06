@@ -10,11 +10,6 @@
     // not the best implementation
     // used for illustration purposes on how to create a plugin filter
     FILTER.RGBHistogramEqualizeFilter=FILTER.Create({
-        // this is the filter constructor
-        init: function(param) {
-            // lets assume some parameters are needed for this filter
-            //this.param=param;
-        },
         
         // this is the filter actual apply method routine
         apply: function(im, w, h) {
@@ -27,11 +22,8 @@
                 pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
                 cdfR=new FILTER.Array32F(256), cdfG=new FILTER.Array32F(256), cdfB=new FILTER.Array32F(256),
                 accumR, accumG, accumB,
-                i, l=im.length, n=1.0/(l>>2)
+                i, l=im.length, l2=l>>2, n=1.0/(l2)
                 ;
-            
-            // this.param is available here
-            //console.log(this.param);
             
             // initialize the arrays
             i=0; while (i<256) { pdfR[i]=0; pdfG[i]=0; pdfB[i]=0; cdfR[i]=0; cdfG[i]=0; cdfB[i]=0; i++; }

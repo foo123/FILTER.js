@@ -215,8 +215,8 @@
     {
         new FILTER.ColorMatrixFilter().colorize(0xff0000).apply(image[1]);
         new FILTER.ColorMatrixFilter().grayscale().contrast(1).apply(image[2]);
-        new FILTER.ConvolutionMatrixFilter().boxBlur(5).apply(image[3]);
-        new FILTER.ConvolutionMatrixFilter().edges().apply(image[4]);
+        new FILTER.ConvolutionMatrixFilter().fastGauss(3).apply(image[3]);
+        new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50).apply(image[4]);
         new FILTER.ConvolutionMatrixFilter().sobel(3).apply(image[5]);
         new FILTER.ConvolutionMatrixFilter().emboss().apply(image[6]);
         var df=new FILTER.DisplacementMapFilter(displacemap);

@@ -6,89 +6,142 @@
 **/
 (function(FILTER){
 
-    var Sqrt=Math.sqrt;
+    var Sqrt=Math.sqrt, Min=Math.min, Max=Math.max;
     
     // static color transform methods
+    // http://en.wikipedia.org/wiki/Color_space
     FILTER.Color={
         
 		blend : function(rgb1, rgb2, p) {
             return {
-                red: rgb1.red - ~~((rgb1.red - rgb2.red) * p + 0.5), 
-                green:rgb1.green - ~~((rgb1.green - rgb2.green) * p + 0.5), 
-                blue: rgb1.blue - ~~((rgb1.blue - rgb2.blue) * p + 0.5)
+                r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
+                g:rgb1.g - ~~((rgb1.g - rgb2.g) * p + 0.5), 
+                b: rgb1.b - ~~((rgb1.b - rgb2.b) * p + 0.5)
             };
         },
         
-        toGray : function(r,g,b) {
-            return ~~(FILTER.LUMA[0]*r + FILTER.LUMA[1]*g + FILTER.LUMA[2]*b);
+        toGray : function(r, g, b) {
+            var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
         }, 
         
         distance : function(rgb1, rgb2) {
-            var dr=rgb1.red-rgb2.red, dg=rgb1.green-rgb2.green, db=rgb1.blue-rgb2.blue;
+            var dr=rgb1.r-rgb2.r, dg=rgb1.g-rgb2.g, db=rgb1.b-rgb2.b;
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
         RGB2Color : function(rgb) {
-            return ((rgb.red << 16) + (rgb.green << 8) + rgb.blue);
+            return ((rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
         },
         
         RGBA2Color : function(rgb) {
-            return ((rgb.alpha << 24) + (rgb.red << 16) + (rgb.green << 8) + rgb.blue);
+            return ((rgb.a << 24) | (rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
         },
         
         Color2RGBA : function(c) {
             c=~~c;
             return {
-                red : (c >> 16) & 255,
-                green : (c >> 8) & 255,
-                blue : (c & 255),
-                alpha : (c >> 24) & 255
+                r : (c >> 16) & 255,
+                g : (c >> 8) & 255,
+                b : (c & 255),
+                a : (c >> 24) & 255
             };
         },
 
+        // http://en.wikipedia.org/wiki/YCbCr
         RGB2YCbCr : function(rgb) {
-			var y, cb, cr, r=rgb.red, g=rgb.green, b=rgb.blue;
+			var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
 			
-			y=~~(0.299*r +0.587*g +0.114*b);
-			cb=~~(128-0.169*r -0.331*g +0.500*b);
-			cr=~~(128 +0.500*r -0.42*g -0.080*b);
-			return {Y:y, Cb:cb, Cr:cr};
+			// each take full range from 0-255
+            y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
+			cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
+			cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+			return {y:y, cb:cb, cr:cr};
 		},
         
+        // http://en.wikipedia.org/wiki/YCbCr
         YCbCr2RGB : function(ycbcr) {
-            var r, g, b, y=ycbcr.Y, cb=ycbcr.Cb, cr=ycbcr.Cr;
+            var r, g, b, y=ycbcr.y, cb=ycbcr.cb, cr=ycbcr.cr;
 			
-            r=~~(y + 1.4*(cr-128));
-			g=~~(y-0.343*(cb-128)-0.711*(cr-128));
-			b=~~(y+1.765*(cb-128));
-			return {red:r, green:g, blue:b};
+			// each take full range from 0-255
+            r = ~~( y                      + 1.402   * (cr-128) );
+			g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+			b = ~~( y + 1.772   * (cb-128) );
+			return {r:r, g:g, b:b};
         },
         
-        RGB2HSV :function(rgb) {
-            var rr=rgb.red*0.0039215686274509803921568627451, // / 255
-                gg=rgb.green*0.0039215686274509803921568627451,  // / 255
-                bb=rgb.blue*0.0039215686274509803921568627451, // / 255
-                H, S, V, t1, t2, t3
+        // http://en.wikipedia.org/wiki/HSL_color_space
+        // adapted from http://www.cs.rit.edu/~ncs/colo
+        RGB2HSV : function(rgb)  {
+            var min, max, delta, 
+                r, g, b, h, s, v
             ;
-            t1= rr < gg ? (rr < bb ? (rr) : (bb)) : (gg < bb ? (gg) : (bb));
-            V = rr > gg ? (rr > bb ? (rr) : (bb)) : (gg > bb ? (gg) : (bb));
-            if (t1 == V)
+
+            r=rgb.r; g=rgb.g; b=rgb.b;
+            
+            min = Min( r, g, b );  max = Max( r, g, b );  delta = max - min;
+            v = max;				// v
+
+            if( max != 0 )
             {
-                return {H:NaN, S:0, V:V};
+                s = delta / max;		// s
             }
-            t2 = rr == t1 ? (gg - bb) : (gg == t1 ? (bb - rr) : (rr - gg));
-            t3 = rr == t1 ? (3) : (gg == t1 ? (5) : (1));
-            H = ((rr == t1 ? (3) : (gg == t1 ? (5) : (1))) - t2 / (V - t1)) * 60;
-            if (H >= 360)
+            else 
             {
-                H -= 360;
+                // r = g = b = 0		// s = 0, v is undefined
+                s = 0;  h = 0; //h = -1;
+                return { h:h, s:s, v:v };
             }
-            else if (H < 0)
+
+            if( r == max )    h = ( g - b ) / delta;		// between yellow & magenta
+            else if ( g == max )  h = 2 + ( b - r ) / delta;	// between cyan & yellow
+            else   h = 4 + ( r - g ) / delta;	// between magenta & cyan
+
+            h *= 60;				// degrees
+            if( h < 0 )  h += 360;
+            
+            return { h:h, s:s, v:v };
+        },
+        
+        // http://en.wikipedia.org/wiki/HSL_color_space
+        // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
+        HSV2RGB : function( hsv ) {
+            var i,
+                f, p, q, t,
+                r, g, b, h, s, v
+            ;
+            
+            h=hsv.h; s=hsv.s; v=hsv.v;
+            
+            if( s == 0 ) 
             {
-                H += 360;
+                // achromatic (grey)
+                r = g = b = v;
+                return {r:r, g:g, b:b};
             }
-            $ = (V - t1) / V;
-            return {H:H, S:S, V:V};
+
+            h /= 60;			// sector 0 to 5
+            i = ~~( h );
+            f = h - i;			// factorial part of h
+            p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
+
+            switch( i ) 
+            {
+                case 0:  r = v;   g = t;   b = p;
+                    break;
+                case 1: r = q;  g = v;   b = p;
+                    break;
+                case 2: r = p;  g = v;  b = t;
+                    break;
+                case 3: r = p;  g = q;  b = v;
+                    break;
+                case 4: r = t;  g = p;  b = v;
+                    break;
+                default:		// case 5:
+                    r = v;  g = p;  b = q;
+                    break;
+            }
+            
+            return {r:r, g:g, b:b};
         }
     };
     

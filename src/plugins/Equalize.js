@@ -7,7 +7,6 @@
 (function(FILTER){
 
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-    // used for illustration purposes on how to create a plugin filter
     FILTER.HistogramEqualizeFilter=FILTER.Create({
         
         // this is the filter actual apply method routine
@@ -20,7 +19,7 @@
                 maxI=0, minI=255,
                 pdfI=new FILTER.Array32F(256),
                 cdfI=new FILTER.Array32F(256), accum=0,
-                i, y, l=im.length, n=1.0/(l>>2), ycbcr, ycbcrA=new Array(l>>2), rgba,
+                i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, ycbcrA=new Array(l2), rgba,
                 RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
                 ;
             
@@ -32,11 +31,11 @@
             while (i<l)
             {
                 r=im[i]; g=im[i+1]; b=im[i+2];
-                ycbcr=RGB2YCbCr({red:r, green:g, blue:b});
-                pdfI[ycbcr.Y]+=n;
+                ycbcr=RGB2YCbCr({r:r, g:g, b:b});
+                pdfI[ycbcr.y]+=n;
                 
-                if (ycbcr.Y>maxI) maxI=ycbcr.Y;
-                if (ycbcr.Y<minI) minI=ycbcr.Y;
+                if (ycbcr.y>maxI) maxI=ycbcr.y;
+                if (ycbcr.y<minI) minI=ycbcr.y;
                 
                 ycbcrA[y]=ycbcr;
                 i+=4; y++;
@@ -53,9 +52,9 @@
             while (i<l) 
             { 
                 ycbcr=ycbcrA[y];
-                ycbcr.Y=cdfI[ycbcr.Y]*rangeI+minI;
+                ycbcr.y=cdfI[ycbcr.y]*rangeI+minI;
                 rgba=YCbCr2RGB(ycbcr);
-                im[i]=rgba.red; im[i+1]=rgba.green; im[i+2]=rgba.blue; 
+                im[i]=rgba.r; im[i+1]=rgba.g; im[i+2]=rgba.b; 
                 i+=4; y++; 
             }
             

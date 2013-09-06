@@ -10,13 +10,13 @@
 **/
 (function(FILTER){
     
-    var 
+    var IMG = FILTER.ImArray,
         Min=Math.min, Max=Math.max
     ;
     
     FILTER.DisplacementMapFilter=function(displacemap)
     {
-        this.map=displacemap || null;
+        if (displacemap) this.setMap(displacemap);
     };
 
     FILTER.DisplacementMapFilter.prototype={
@@ -30,20 +30,34 @@
         componentY : 0,
         color : 0,
         mode : FILTER.MODE.CLAMP,
-        map : null,
+        _map : null,
+        
+        combineWith : function(filt) {
+            // todo ??
+            return this;
+        },
+        
+        getMap : function() {
+            return this._map;
+        },
+        
+        setMap : function(m) {
+            this._map=m; return this;
+        },
         
         // used for internal purposes
         _apply : function(im, w, h) {
             
-            if (!this.map) return im;
+            if (!this._map) return im;
             
-            var map=this.map.getData(), mapW = this.map.width, mapH = this.map.height, mapArea=mapW*mapH,
+            var map=this._map.getData(), mapW = this._map.width, mapH = this._map.height, mapArea=mapW*mapH,
                 displace=new FILTER.Array16I(mapArea<<1), ww=Min(mapW, w), hh=Min(mapH, h),
                 sx=this.scaleX*0.00390625, sy=this.scaleY*0.00390625, comx=this.componentX, comy=this.componentY, 
                 alpha=(this.color >> 24) & 255, red=(this.color >> 16) & 255, green=(this.color >> 8) & 255, blue=this.color & 255,
-                sty=~~(this.startY), stx=~~(this.startX), mode=this.mode, styw=sty*w, bx=w-stx, by=h-sty,
+                sty=~~(this.startY), stx=~~(this.startX), mode=this.mode, styw=sty*w, 
+                bx0=-stx, by0=-sty, bx=w-stx-1, by=h-sty-1,
                 i, j, k, x, y, ty, yy, xx, mapOff, dstOff, srcOff,
-                applyArea=(ww*hh)<<2, imArea=w*h, imLen=im.length, dst=new FILTER.ImArray(im),
+                applyArea=(ww*hh)<<2, imArea=w*h, imLen=im.length, dst=new IMG(im),
                 _Ignore=FILTER.MODE.IGNORE, _Clamp=FILTER.MODE.CLAMP, _Color=FILTER.MODE.COLOR, _Wrap=FILTER.MODE.WRAP
                 ;
             
@@ -58,7 +72,7 @@
                 i++; j+=2; x++; if (x>=mapW) { x=0; y++; ty+=mapW; }
             } 
             
-            // apply filter
+            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
             i=-4; x=-1; y=0; ty=0; ty2=0;
             while (i<applyArea)
             {
@@ -66,7 +80,7 @@
                 i+=4; x++; if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
                 
                 // if inside the application area
-                if (y<-sty || y>=by || x<-stx || x>=bx) continue;
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
                 
                 xx=x + stx; yy=y + sty; dstOff=(xx + ty+styw)<<2;  
                 
@@ -85,17 +99,17 @@
                             continue;  break;
                             
                         case _Wrap:
-                            if (srcy>=h) srcy-=h;
+                            if (srcy>by) srcy-=h;
                             if (srcy<0) srcy+=h;
-                            if (srcx>=w) srcx-=w;
+                            if (srcx>bx) srcx-=w;
                             if (srcx<0)  srcx+=w;
                             break;
                             
                         case _Clamp:
                         default:
-                            if (srcy>=h)  srcy=h-1;
+                            if (srcy>by)  srcy=by;
                             if (srcy<0) srcy=0;
-                            if (srcx>=w) srcx=w-1;
+                            if (srcx>bx) srcx=bx;
                             if (srcx<0) srcx=0;
                             break;
                     }
@@ -109,12 +123,12 @@
         },
         
         apply : function(image) {
-            if (!this.map) return image;
+            if (!this._map) return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
         },
         
         reset : function() {
-            this.map=null; return this;
+            this._map=null; return this;
         }
     };
     

@@ -83,8 +83,24 @@
             var 
                 che='che.jpg',
                 aside=getEl('aside'), test=getEl('test'), container=getEl('container'), filters=getEl('filters'),
+                 
                  // images
+                im2=new FILTER.Image(che),
+                im3=new FILTER.Image(che),
+                im4=new FILTER.Image(che),
+                im5=new FILTER.Image(che),
+                im6=new FILTER.Image(che),
+                im7=new FILTER.Image(che),
+                im8=new FILTER.Image(che),
+                im9=new FILTER.Image(che),
+                im10=new FILTER.Image(che),
+                im11=new FILTER.Image(che),
+                im12=new FILTER.Image(che),
+                im13=new FILTER.Image(che),
+                im14=new FILTER.Image(che),
+                
                 displacemap=new FILTER.Image(),
+                
                 im1=new FILTER.Image(che, function(){
                         var grd;
                         // create a displace map image
@@ -101,116 +117,112 @@
                         displacemap.context.fill();
                         displacemap._refresh();
                 }),
-                im2=new FILTER.Image(che),
-                im3=new FILTER.Image(che),
-                im4=new FILTER.Image(che),
-                im5=new FILTER.Image(che),
-                im6=new FILTER.Image(che),
-                im7=new FILTER.Image(che),
-                im8=new FILTER.Image(che),
-                im9=new FILTER.Image(che),
-                im10=new FILTER.Image(che),
-                im11=new FILTER.Image(che),
-                im12=new FILTER.Image(che),
-                im13=new FILTER.Image(che),
-                im14=new FILTER.Image(che),
                  
                  // filters
                 redChannel=new FILTER.ColorMatrixFilter().redChannel(),
                 greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
-                //pixelate=new FILTER.PixelateFilter(10),
                 //gamma=new FILTER.TableLookupFilter().gammaCorrection(1.7),
-                //bright=new FILTER.ColorMatrixFilter().brightness(50),
-                //binary=new FILTER.TableLookupFilter().threshold(0.7),
                 //solarize=new FILTER.TableLookupFilter().solarize(0.5),
                 posterize=new FILTER.TableLookupFilter().posterize(4),
-                //invert=new FILTER.TableLookupFilter().invert(),
-                //combo1=new FILTER.TableLookupFilter().invert().posterize(4),
-                //combo2=new FILTER.CompositeFilter([invert, posterize]),
+                //extract=new FILTER.TableLookupFilter().extract(FILTER.CHANNEL.RED, [0x75, 0x91]),
+                //mask=new FILTER.TableLookupFilter().mask(0xffff7732),
+                //swapChannels=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.GREEN),
+                //maskChannel=new FILTER.ColorMatrixFilter().maskChannel(FILTER.CHANNEL.GREEN),
+                invert=new FILTER.TableLookupFilter().invert(),
                 equalize=new FILTER.HistogramEqualizeFilter(),
                 //rgbequalize=new FILTER.RGBHistogramEqualizeFilter(),
                 //noise=new FILTER.NoiseFilter(-127, 127),
                 sepia=new FILTER.ColorMatrixFilter().quickSepia(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
+                //binary=new FILTER.TableLookupFilter().threshold(0.7),
                 //threshold=new FILTER.ColorMatrixFilter().threshold_rgb(128),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
-                median=new FILTER.NonLinearFilter().median(5),
+                //median=new FILTER.StatisticalFilter().median(5),
+                //dilate=new FILTER.StatisticalFilter().dilate(15),
+                pixelate=new FILTER.PixelateFilter(10),
+                //hueExtractor=new FILTER.HueExtractorFilter([10, 36]), // extract hues corresponding to skin color
+                //thresh=new FILTER.TableLookupFilter().threshold(0.94),
+                //hsv=new FILTER.HSVConverterFilter(),
+                //skinExtractor=new FILTER.CompositeFilter([hsv, redChannel, invert, gray, thresh]), // extract skin region
+                //laplace=new FILTER.ConvolutionMatrixFilter().laplace(7),
+                twirl=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50),
+                //rotate=new FILTER.GeometricMapFilter().rotateCCW(),
                 //blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3),
-                gauss=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
+                //gauss=new FILTER.ConvolutionMatrixFilter().fastGauss(3),//gaussBlur(3),
+                //vertical=new FILTER.ConvolutionMatrixFilter().verticalBlur(21),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
-                grad=new FILTER.ConvolutionMatrixFilter().grad(3),
-                emboss=new FILTER.ConvolutionMatrixFilter().embossHigh(),
+                emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 grsb=new FILTER.CompositeFilter([gray, sobel/*, binary*/]),
                 displace=new FILTER.DisplacementMapFilter(displacemap)
                 ;
             
+            
             addAll(container, [
                 span('1.'),
-                im1.canvasElement,
+                im1.domElement,
                 span('2.'),
-                im2.canvasElement,
+                im2.domElement,
                 linebreak(),
                 span('3.'),
-                im3.canvasElement,
+                im3.domElement,
                 span('4.'),
-                im4.canvasElement,
+                im4.domElement,
                 linebreak(),
                 span('14.'),
-                im14.canvasElement,
+                im14.domElement,
                 span('M:'),
-                displacemap.canvasElement
+                displacemap.domElement
             ]);
             addAll(filters, [
                 span('5.'),
-                im5.canvasElement,
+                im5.domElement,
                 span('6.'),
-                im6.canvasElement,
+                im6.domElement,
                 span('7.'),
-                im7.canvasElement,
+                im7.domElement,
                 linebreak(),
                 span('8.'),
-                im8.canvasElement,
+                im8.domElement,
                 span('9.'),
-                im9.canvasElement,
+                im9.domElement,
                 span('10.'),
-                im10.canvasElement,
+                im10.domElement,
                 linebreak(),
                 span('11.'),
-                im11.canvasElement,
+                im11.domElement,
                 span('11.'),
-                im12.canvasElement,
+                im12.domElement,
                 span('13.'),
-                im13.canvasElement
+                im13.domElement
             ]);
-            
-            addEvent(test, 'click', dotest);
             
             function dotest(event)
             {
                 // apply them
-                equalize.apply(im14);
                 redChannel.apply(im2);
                 greenChannel.apply(im3);
                 blueChannel.apply(im4);
-                //rgbequalize.apply(im5);
-                //combo1.apply(im5);
-                //combo2.apply(im6);
                 clr.apply(im5);
                 grc.apply(im6);
                 sepia.apply(im7);
                 posterize.apply(im8);
-                gauss.apply(im9);
+                //gauss.apply(im9);
+                pixelate.apply(im9);
+                //skinExtractor.apply(im10);
                 emboss.apply(im10);
-                median.apply(im11);
+                twirl.apply(im11);
                 displace.scaleX=100;
                 displace.scaleY=100;
                 displace.apply(im12);
                 grsb.apply(im13);
+                equalize.apply(im14);
 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Gauss Blur</li><li>Emboss</li><li>Median</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
+                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Pixelate (Plugin)</li><li>Emboss</li><li>Geometric Twirl Map</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
             }
+            
+            addEvent(test, 'click', dotest);
             
         //]]>
 		</script>

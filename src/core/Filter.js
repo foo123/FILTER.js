@@ -19,7 +19,8 @@
     
     // Constants
     FILTER.CONSTANTS={
-        SQRT2: Math.SQRT2,
+        PI : Math.PI,
+        SQRT2 : Math.SQRT2,
         toRad : Math.PI/180, 
         toDeg : 180/Math.PI
     };
@@ -106,6 +107,25 @@
             return this.push(filter);
         },
         
+        getAt : function(i) {
+            return (this._stack.length>i) ? this._stack[i] : null;
+        },
+        
+        setAt : function(i, filter) {
+            if (this._stack.length>i) this._stack[i]=filter;
+            return this;
+        },
+        
+        insertAt : function(i, filter) {
+            this._stack.splice(i, 0, filter);
+            return this;
+        },
+        
+        removeAt : function(i) {
+            this._stack.splice(i, 1);
+            return this;
+        },
+        
         remove : function(filter) {
             var i=this._stack.length;
             while (--i>=0) { if (filter===this._stack[i]) this._stack.splice(i,1); }
@@ -142,7 +162,7 @@
     var _canvas=null, _ctx=null;
     
     // static methods
-    FILTER.static={
+    /*FILTER._static={
         createImageData : function(w, h) {
             if (!_canvas)
             {
@@ -151,6 +171,6 @@
             }
             return _ctx.createImageData(w, h);
         }
-    };
+    };*/
     
 })(FILTER);

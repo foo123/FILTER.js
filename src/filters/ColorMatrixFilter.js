@@ -14,7 +14,7 @@
 **/
 (function(FILTER){
 
-    var 
+    var //IMG = FILTER.ImArray,
         // Color Matrix
         CM=FILTER.Array32F,
         toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg
@@ -74,7 +74,34 @@
     function CMblend(m1, m2, amount)
     {
         var inv_amount = (1 - amount), i = 0, m=new CM(20);
-        while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+        
+        // unroll the loop completely
+        m[ 0 ] = (inv_amount * m1[0]) + (amount * m2[0]);
+        m[ 1 ] = (inv_amount * m1[1]) + (amount * m2[1]);
+        m[ 2 ] = (inv_amount * m1[2]) + (amount * m2[2]);
+        m[ 3 ] = (inv_amount * m1[3]) + (amount * m2[3]);
+        m[ 4 ] = (inv_amount * m1[4]) + (amount * m2[4]);
+
+        m[ 5 ] = (inv_amount * m1[5]) + (amount * m2[5]);
+        m[ 6 ] = (inv_amount * m1[6]) + (amount * m2[6]);
+        m[ 7 ] = (inv_amount * m1[7]) + (amount * m2[7]);
+        m[ 8 ] = (inv_amount * m1[8]) + (amount * m2[8]);
+        m[ 9 ] = (inv_amount * m1[9]) + (amount * m2[9]);
+        
+        m[ 10 ] = (inv_amount * m1[10]) + (amount * m2[10]);
+        m[ 11 ] = (inv_amount * m1[11]) + (amount * m2[11]);
+        m[ 12 ] = (inv_amount * m1[12]) + (amount * m2[12]);
+        m[ 13 ] = (inv_amount * m1[13]) + (amount * m2[13]);
+        m[ 14 ] = (inv_amount * m1[14]) + (amount * m2[14]);
+        
+        m[ 15 ] = (inv_amount * m1[15]) + (amount * m2[15]);
+        m[ 16 ] = (inv_amount * m1[16]) + (amount * m2[16]);
+        m[ 17 ] = (inv_amount * m1[17]) + (amount * m2[17]);
+        m[ 18 ] = (inv_amount * m1[18]) + (amount * m2[18]);
+        m[ 19 ] = (inv_amount * m1[19]) + (amount * m2[19]);
+        
+        //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+        
         return m;
     }
     
@@ -82,18 +109,18 @@
     {
         if (typeof matrix != 'undefined' && matrix.length)
         {
-            this.matrix=new CM(matrix);
+            this._matrix=new CM(matrix);
         }    
         else
         {
             // identity matrix
-            this.matrix=null;
+            this._matrix=null;
         }
     };
     
     FILTER.ColorMatrixFilter.prototype={
     
-        matrix: null,
+        _matrix: null,
         
         // get the image color channel as a new image
         channel : function(ch, asGray) {
@@ -352,6 +379,7 @@
             }
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         desaturate : function() {
             return this.concat([
                         FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
@@ -364,6 +392,7 @@
         // aliases
         grayscale : function() { return this.desaturate(); },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         colorize : function(rgb, amount) {
             var r, g, b, inv_amount;
             if (typeof amount=='undefined') amount=1;
@@ -380,6 +409,7 @@
                         ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         invert : function() {
             return this.concat([
                     -1, 0,  0, 0, 255,
@@ -398,6 +428,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         saturate : function( s ) {
             var sInv, irlum, iglum, iblum;
             sInv = (1 - s);  irlum = (sInv * FILTER.LUMA[0]);
@@ -411,6 +442,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         contrast : function(r, g, b) {
             if (typeof g == 'undefined')  g=r;
             if (typeof b == 'undefined')  b=r;
@@ -424,6 +456,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         brightness : function(r, g, b) {
             if (typeof g == 'undefined')  g=r;
             if (typeof b == 'undefined')  b=r;
@@ -436,6 +469,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         adjustHue : function( degrees ) {
             degrees *=toRad;
             var cos = Math.cos(degrees), sin = Math.sin(degrees);
@@ -448,6 +482,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         average : function( r, g, b ) {
             if (typeof r == 'undefined') r=0.3333;
             if (typeof g == 'undefined') g=0.3333;
@@ -510,6 +545,7 @@
             ]);
         },*/
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         threshold : function(threshold, factor) {
             if (typeof factor == 'undefined')  factor=256;
             
@@ -521,6 +557,7 @@
                 ]);
         },
         
+        // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         threshold_rgb : function(threshold, factor) {
             if (typeof factor == 'undefined')  factor=256;
             
@@ -544,25 +581,55 @@
                 ]);
         },
         
+        // RGB to YCbCr
+        RGB2YCbCr : function() {
+            return this.concat([
+                    0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
+                    0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
+                    -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
+                    0, 0, 0, 1, 0
+                ]);
+        },
+        
+        // YCbCr to RGB
+        YCbCr2RGB : function() {
+            return this.concat([
+                    1.402, 1, 0, 0, -179.456,  
+                    -0.71414, 1, -0.34414, 0, 135.45984,
+                    0, 1, 1.772, 0, -226.816,
+                    0, 0, 0, 1, 0
+                ]);
+        },
+        
         // blend with another filter
         blend : function( filt, amount ) {
-            this.matrix=(this.matrix) ? CMblend(this.matrix, filt.matrix, amount) : new CM(filt.matrix);
+            this._matrix=(this._matrix) ? CMblend(this._matrix, filt.getMatrix(), amount) : new CM(filt.getMatrix());
             return this;
         },
         
         concat : function(mat) {
-            this.matrix = (this.matrix) ? CMconcat(this.matrix, new CM(mat)) : new CM(mat);
+            this._matrix = (this._matrix) ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
             return this;
         },
         
-        combine : function(filt) {
-            return this.concat(filt.matrix);
+        combineWith : function(filt) {
+            return this.concat(filt.getMatrix());
+        },
+        
+        getMatrix : function() {
+            return this._matrix;
+        },
+        
+        setMatrix : function(m) {
+            this._matrix=m; return this;
         },
         
         // used for internal purposes
         _apply : function(p, w, h) {
-            if (!this.matrix)  return p;
-            var pl=p.length, m=this.matrix, i=0, t0, t1, t2, t3;
+            if (!this._matrix)  return p;
+            var pl=p.length, m=this._matrix, i=0, t0, t1, t2, t3;
+            
+            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
             while (i<pl)
             {
                 t0=p[i]; t1=p[i+1]; t2=p[i+2]; t3=p[i+3];
@@ -576,12 +643,12 @@
         },
         
         apply : function(image) {
-            if (!this.matrix) return image;
+            if (!this._matrix) return image;
             return image.setData(this._apply(image.getData(), image.width, image.height));
         },
         
         reset : function() {
-            this.matrix=null; return this;
+            this._matrix=null; return this;
         }
     };
     

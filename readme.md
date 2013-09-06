@@ -31,6 +31,7 @@ The framework defines an Image class which represents an Image and 6 generic Fil
 * __ConvolutionMatrixFilter__ (analogous to the actionscript version)
 * __DisplacementMapFilter__ (analogous to actionscript version)
 * __GeometricMapFilter__
+* __StatisticalFilter__
 * __NonLinearFilter__
 * __CompositeFilter__ (an abstraction of a container for multiple filters)
 * __Image Blending Modes__ (analogous to Photoshop blends)
@@ -53,6 +54,8 @@ and alter them. Image methods:
 
 * _setImage()_  Sets/Alters the underlying image
 * _clone()_ gets a copy of the image
+* _clear()_  clear the image data
+* _fill()_  fill the image area with a specific color
 * _scale()_  scale the image in x/y directions
 * _flipHorizontal()_  flip image horizontally
 * _flipVertical()_  flip image vertically
@@ -131,6 +134,8 @@ The class has various pre-defined filters which can be combined in any order.
 
 * _invert()_ Inverts image colors to their complementary
 * _mask()_ Apply a bit-mask to the image pixels
+* _replace()_ Replace a color with another color
+* _extract()_ Extract a color range from a specific color channel and set all rest to a background color
 * _gammaCorrection()_ Apply gamma correction to image channels
 * _exposure()_ Alter image exposure
 * _solarize()_  Apply a solarize effect
@@ -179,10 +184,13 @@ element (ie. current pixel)  which only odd dimensions allow.
 
 The class has various pre-defined filters to use.
 
+* _fastGauss()_  A faster implementation of an arbitrary gaussian low pass filter
 * _lowPass() / boxBlur()_  Generic (box) lowpass filter (ie. box blur)
 * _highPass()_ Generic high pass filter (derived from the associated low pass filter)
 * _binomialLowPass() / gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
 * _binomialHighPass()_ Generic high pass filter (derived from the associated low pass filter)
+* _horizontalBlur()_  apply blur only to horizontal direction
+* _verticalBlur()_  apply blur only to vertical direction
 * _sharpen()_  Sharpen the image
 * _prewittX() / gradX()_  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
 * _prewittY() / gradY()_  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
@@ -195,7 +203,7 @@ The class has various pre-defined filters to use.
 * _laplace()_  Total second gradient of the image (Laplacian)
 * _emboss()_   Apply emboss effect to the image
 * _edges()_  Apply an edge filter to the image
-* _motionblur()_  Apply a horizontal/vertical or diagonal motion blur to the image
+* _motionblur()_  __deprecated__ 
 * _reset()_  reset the filter matrix to identity
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
@@ -267,10 +275,14 @@ The class has some pre-defined filters to use.
 * _flipX()_  Flip the target image wrt to X axis
 * _flipY()_  Flip the target image wrt to Y axis
 * _flipXY()_  Flip the target image wrt to both X and Y axis
+* _rotateCW()_  Rotate target image clockwise 90 degrees
+* _rotateCCW()_  Rotate target image counter-clockwise 90 degrees
+* _generic()_ Apply a a user-defined generic geometric mapping to the image
 * _affine()_ Apply an affine transformation to the target image
+* _twirl()_  Apply a twirling map
+* _sphere()_  Apply a spherical map
 * _polar()_  Transform image to polar coords (TODO)
 * _cartesian()_  Inverse of polar (TODO)
-* _twirl()_  Apply a twirl map (TODO)
 
 Geometric Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
@@ -289,26 +301,28 @@ gF.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-__Non Linear Filter__
+__Statistical Filter__
 
 ````javascript
-new FILTER.NonLinearFilter();
+new FILTER.StatisticalFilter();
 ````
 
-This filter implements some non-linear processing like median filters and erode/dilate filters
+NOTE:  *This was in previous versions called NonLinearFilter*
+
+This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and kth-order statistics concepts.
 
 The class has some pre-defined filters to use.
 
 * _median()_  Apply median (ie. lowpass/remove noise) filter
-* _erode()_ Apply erode filter
-* _dilate()_ Apply dilate filter
+* _erode()_ Apply erode (maximum) filter
+* _dilate()_ Apply dilate (minimum) filter
 
-Non Linear Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
 In order to use a median filter do the following:
 
 ````javascript
-var median=new FILTER.NonLinearFilter().median(3);  // 3x3 median
+var median=new FILTER.StatisticalFilter().median(3);  // 3x3 median
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
@@ -318,6 +332,24 @@ median.apply(image);   // image is a FILTER.Image instance, see examples
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
+
+__Non Linear Filter__
+
+````javascript
+new FILTER.NonLinearFilter();
+````
+
+NOTE:  *The filters in this class have been moved to the  StatisticalFilter Class*
+
+This filter implements non-linear processing (at this time none, previous algorithms moved to Statistical Filter)
+
+
+NonLinear Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+
+
+NOTE: The filter apply method will actually change the image to which it is applied
+
+
 
 __Composite Filter__
 
@@ -336,6 +368,10 @@ The class implements these methods:
 * _shift()_  add a filter to the start of stack
 * _unshift()_ remove a filter from the start of stack
 * _remove()_ remove a filter by instance 
+* _insertAt()_ insert new filter at specified location/order
+* _removeAt()_ remove the filter at specified location/order
+* _getAt()_ get the filter at this location
+* _setAt()_ replace the filter at this location
 * _filters()_ set the filters stack at once
 * _reset()_ reset the filter to identity
 
@@ -387,12 +423,27 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 
 ###Todo
 * allow extension by plugins (both as Classes and Inline) [DONE]
-* add more filters (eg adaptive/statistical etc..) [DONE partially]
-* add 2d-fft routines, frequency domain filtering
+* add more filters (eg split/combine/blend/adaptive/statistical etc..) [DONE partially]
+* add 2d-fft routines, frequency-domain filtering
 * make convolutions faster [DONE partially]
-* use fixed-point arithmetic and/or micro-optimizations where possible [DONE partially]
+* use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
+
 
 ###ChangeLog
+
+__0.6__
+* faster convolution algorithm for specific (symmetric) comvolution kernels (eg laplace kernel, box blur kernel, box highpass kernel etc..)
+* rename _NonLinearFilter_ to _StatisticalFilter_ (make sure to change that in your code if a NonLinearFilter was used)
+* add new image methods (clear, fill etc..)
+* add new composite filter methods (removeAt, insertAt, etc..)
+* add new geometric maps (twirl, sphere, rotateCW, rotateCCW)
+* add new color matrix methods (YcbCr2RGB, RGB2YCbCr)
+* add new lookup table methods (extract, replace, mask)
+* add new color transforms (HSV2RGB, RGB2HSV)
+* add new plugins (HueExtractor, HSVConverter)
+* optimise Pixelate plugin
+* minor other optimizations
+* naming changes for some internal variables
 
 __0.5__
 * add new generic filters (GeometricMap, Combine, Split)
