@@ -94,7 +94,7 @@
         this.imageData=null;
         this.domElement=this.canvasElement=createCanvas(this.width, this.height);
         this.context=this.canvasElement.getContext('2d');
-        this._tmpCanvas=null;
+        this._tmpCanvas=createCanvas(this.width, this.height);
         this._histogram=null;
         this._integral=null;
         this._histogramRefresh=true;
@@ -175,7 +175,7 @@
         },
         
         setWidth : function(w) {
-            this.canvasElement.width=this.width=w;
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -184,7 +184,7 @@
         },
         
         setHeight : function(h) {
-            this.canvasElement.height=this.height=h;
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
             this.context=this.canvasElement.getContext('2d');
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -200,8 +200,8 @@
                 image=img;
                 this.width=(img instanceof HTMLVideoElement) ? img.videoWidth : img.width;
                 this.height=(img instanceof HTMLVideoElement) ? img.videoHeight : img.height;
-                this.canvasElement.width=this.width;
-                this.canvasElement.height=this.height;
+                this._tmpCanvas.width=this.canvasElement.width=this.width;
+                this._tmpCanvas.height=this.canvasElement.height=this.height;
                 this.context=this.canvasElement.getContext('2d');
                 this.context.drawImage(image, 0, 0);
                 this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -214,8 +214,8 @@
                 image.onload=function(){
                     thiss.width=image.width;
                     thiss.height=image.height;
-                    thiss.canvasElement.width=thiss.width;
-                    thiss.canvasElement.height=thiss.height;
+                    thiss._tmpCanvas.width=thiss.canvasElement.width=thiss.width;
+                    thiss._tmpCanvas.height=thiss.canvasElement.height=thiss.height;
                     thiss.context=thiss.canvasElement.getContext('2d');
                     thiss.context.drawImage(image, 0, 0);
                     thiss.imageData=thiss.context.getImageData(0, 0, thiss.width, thiss.height);
@@ -382,8 +382,8 @@
         },
         
         createImageData : function(w,h) {
-            this.canvasElement.width=this.width=w;
-            this.canvasElement.height=this.height=h;
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
             this.context=this.canvasElement.getContext('2d');
             this.context.createImageData(w,h);
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -393,7 +393,7 @@
         scale : function(sx, sy) {
             sx=sx||1; sy=sy||sx;
             // lazy
-            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
+            //this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.scale(sx, sy);
             ctx.drawImage(this.canvasElement, 0, 0);
@@ -410,7 +410,7 @@
         
         flipHorizontal : function() {
             // lazy
-            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
+            //this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.translate(this.width, 0); ctx.scale(-1, 1);
             ctx.drawImage(this.canvasElement, 0, 0);
@@ -423,7 +423,7 @@
         
         flipVertical : function() {
             // lazy
-            this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
+            //this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
             ctx.translate(0, this.height); ctx.scale(1, -1);
             ctx.drawImage(this.canvasElement, 0, 0);
