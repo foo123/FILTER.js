@@ -37,6 +37,7 @@
 #../src/plugins/YCbCrConverter.js
 #../src/plugins/Shadow.js
 #../src/plugins/Rippler.js
+#../src/plugins/Pixelate2.js
 
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT

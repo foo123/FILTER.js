@@ -30,7 +30,7 @@
                 integral=new FILTER.Array32F(imArea*3), colR, colG, colB,
                 matRadiusX=step, matRadiusY=step, matHalfSideX=matRadiusX>>1, matHalfSideY=matRadiusY>>1, matArea=matRadiusX*matRadiusY,
                 rowLen=(w<<1) + w, imageIndicesX, imageIndicesY,
-                i, j, jend, x, y, ty, ty2, px, py, pi, pbx,
+                i, j, jend, x, ty, px, py, pi, pbx,
                 xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4,
                 r, g, b
                 ;
@@ -60,7 +60,7 @@
             }
             
             // do direct pixelate convolution
-            i=0; x=0; y=0; ty=0;
+            i=0; x=0; ty=0;
             while (i<imLen)
             {
                 // calculate the weighed sum of the source image pixels that
@@ -95,7 +95,7 @@
                 }
                 
                 // update image coordinates
-                i+=step4; x+=step; if (x>=w) { x=0; y+=step; ty+=stepw; }
+                i+=step4; x+=step; if (x>=w) { x=0; ty+=stepw; }
             }
             
             // return the pixelated image data

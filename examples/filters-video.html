@@ -34,6 +34,7 @@
                 font-size:20px;
             }
         </style>
+        <script src="stats.min.js"></script>
         <script src="../build/filter.min.js"></script>
         <script>    
          //<![CDATA[
@@ -76,6 +77,8 @@
 		
         <h1>Video Processing with Filter.js</h1><br /><br />
         
+        <div id="statsContainer"></div>
+        
         <div id="container" class="panel">
             <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
             <video id="video" src="Waddys_Takeoff-The_Aftermath.mp4" autoplay loop>Video is not supported</video>
@@ -105,10 +108,12 @@
                 <option value='12'>Invert</option>
                 <option value='13'>Erode</option>
                 <option value='14'>Dilate</option>
-                <option value='15'>Gauss Blur</option>
+                <option value='15'>Fast Gauss Blur</option>
                 <option value='16'>Noise</option>
                 <option value='17'>DisplaceMap</option>
-                <option value='18'>Pixelate</option>
+                <option value='18'>TwirlMap</option>
+                <option value='19'>Pixelate</option>
+                <option value='20'>HSV Color Space</option>
             </select>
             &nbsp;
             <select id="flipSelect" style="font-size:20px;">
@@ -154,12 +159,15 @@
                 clr=new FILTER.ColorMatrixFilter().colorize(0xfdc171),
                 equ=new FILTER.HistogramEqualizeFilter(),
                 // median is slow ..
-                erode=new FILTER.NonLinearFilter().erode(3),
-                dilate=new FILTER.NonLinearFilter().dilate(3),
-                blur=new FILTER.ConvolutionMatrixFilter().gaussBlur(3),
+                erode=new FILTER.StatisticalFilter().erode(3),
+                dilate=new FILTER.StatisticalFilter().dilate(3),
+                blur=new FILTER.ConvolutionMatrixFilter().fastGauss(3, 5),
                 noise=new FILTER.NoiseFilter(10, 70),
                 displaceFilter=new FILTER.DisplacementMapFilter(),
+                twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
                 pixelate=new FILTER.PixelateFilter(5),
+                //pixelate2=new FILTER.Pixelate2Filter(5),
+                hsv=new FILTER.HSVConverterFilter(),
                 
                 // filter selection list
                 videoFilters=[
@@ -181,18 +189,20 @@
                     blur,
                     noise,
                     displaceFilter,
-                    pixelate
+                    twirlFilter,
+                    pixelate,
+                    hsv
                 ],
-                currentOrientation=0, displaceFilterIndex=17, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
+                currentOrientation=0, displaceFilterIndex=17, twirlFilterIndex=18, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
                 renderInterval=60,
-                rnd=Math.random, dx, dy
+                rnd=Math.random, dx, dy, dtheta, vw, vh
                 ;
             
             function init()
             {
                 var grd;
                 // create a displace map image
-                displacemap.createImageData(300,300);
+                displacemap.createImageData(250, 250);
                 displacemap.context.fillStyle="rgb(128,128,128)";
                 displacemap.context.fillRect(0,0, displacemap.width, displacemap.height);
                 // create radial gradient
@@ -204,14 +214,18 @@
                 displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                 displacemap.context.fill();
                 displacemap._refresh();
-                displaceFilter.map=displacemap;
+                displaceFilter.setMap(displacemap);
                 displaceFilter.startX=0; displaceFilter.startY=0;
                 displaceFilter.scaleX=120; displaceFilter.scaleY=120; 
                 displaceFilter.componentX=FILTER.CHANNEL.RED; displaceFilter.componentY=FILTER.CHANNEL.GREEN;
                 
-                dx=80*rnd()-40; dy=80*rnd()-40;
+                dx=10*rnd()+20; dy=10*rnd()+20; dtheta=0.1*Math.PI*rnd() + 0.05;
                 
                 add(filters, postVideo.canvasElement);
+                
+                stats = new Stats();
+                stats.setMode( 1 );
+                add(statsContainer, stats.domElement );
                 
                 // change the video filter applied
                 addEvent(flipSelect, "change", function(){
@@ -226,6 +240,8 @@
             {
                 if (video.paused || video.ended)  return;
                 
+				stats.begin();
+                
                 // preview the filter while hovering the option
                 currentFilter=videoFilters[filterSelect.selectedIndex || 0];
                 
@@ -238,13 +254,25 @@
                 if (displaceFilterIndex==filterSelect.selectedIndex)
                 {
                     // animate the displace filter
-                    var vw=postVideo.width>>1, vh=postVideo.height>>1;
+                    vw=postVideo.width>>1; vh=postVideo.height>>1;
                     displaceFilter.startX+=dx; displaceFilter.startY+=dy;
                     if (displaceFilter.startX<-vw || displaceFilter.startX>vw) dx=-dx;
                     if (displaceFilter.startY<-vh || displaceFilter.startY>vh) dy=-dy;
                 }
+                else if (twirlFilterIndex==filterSelect.selectedIndex)
+                {
+                    // animate the twirl filter
+                    vw=postVideo.width>>1; vh=postVideo.height>>1;
+                    twirlFilter.angle+=dtheta;
+                    if (twirlFilter.angle < -Math.PI/2 || twirlFilter.angle > Math.PI/2) dtheta=-dtheta;
+                    twirlFilter.centerX+=dx; twirlFilter.centerY+=dy;
+                    if (twirlFilter.centerX<0 || twirlFilter.centerX>postVideo.width) dx=-dx;
+                    if (twirlFilter.centerY<0 || twirlFilter.centerY>postVideo.height) dy=-dy;
+                }
                 
                 currentFilter.apply(postVideo);
+                
+				stats.end();
                 
                 // Render every fixed interval
                 setTimeout(processVideo, renderInterval);
