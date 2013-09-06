@@ -1,8 +1,8 @@
 #FILTER.js 
 
-__A Javascript Library for Image Processing and Filtering using HTML5 Canvas__
+__A JavaScript Library for Image Processing and Filtering using HTML5 Canvas__
 
-This is a library for filtering images in javascript using canvas element.  
+This is a library for filtering images/video in JavaScript using canvas element.  
 
 [![Filter.js](/examples/filters-image-process.png)](http://foo123.github.com/examples/filter/)
 [![Filter.js](/examples/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
@@ -24,26 +24,26 @@ This is a library for filtering images in javascript using canvas element.
 
 
 ###How to Use
-The framework defines an Image class which represents an Image and 6 generic Filter types
+The framework defines an [Image class](#image-class) which represents an Image and 7 generic Filter types
 
-* __ColorMatrixFilter__ (analogous to the actionscript version)
-* __LookupTableFilter__ 
-* __ConvolutionMatrixFilter__ (analogous to the actionscript version)
-* __DisplacementMapFilter__ (analogous to actionscript version)
-* __GeometricMapFilter__
-* __StatisticalFilter__
-* __NonLinearFilter__
-* __CompositeFilter__ (an abstraction of a container for multiple filters)
-* __Image Blending Modes__ (analogous to Photoshop blends)
-* __Extension by Plugins / Inline Filters__ 
+1. [__ColorMatrixFilter__](#color-matrix-filter) (analogous to the actionscript version)
+2. [__LookupTableFilter__](#lookup-table-filter) 
+3. [__ConvolutionMatrixFilter__](#convolution-matrix-filter) (analogous to the actionscript version)
+4. [__DisplacementMapFilter__](#displacement-map-filter) (analogous to actionscript version)
+5. [__GeometricMapFilter__](#geometric-map-filter)
+6. [__StatisticalFilter__](#statistical-filter)  (previously called NonLinearFilter)
+7. [__CompositeFilter__](#composite-filter) (an abstraction of a container for multiple filters)
 
-each generic filter is prototype but it also includes basic implementation filters like 
-_grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
+__Image Blending Modes__ (analogous to Photoshop blends)
+
+[__Extension by Plugins / Inline Filters__](#plugins-and-inline-filters) 
+
+Each generic filter is prototype but it also includes basic implementation filters like  _grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
 
 
 ###API Reference
 
-__Image Class__
+######Image Class
 
 ````javascript
 new FILTER.Image(imageOrURLOrCanvasOrVideo);
@@ -67,7 +67,7 @@ and alter them. Image methods:
 
 
 
-__Color Matrix Filter__
+######Color Matrix Filter
 
 ````javascript
 new FILTER.ColorMatrixFilter(weights);
@@ -120,7 +120,7 @@ grc.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-__Lookup Table Filter__
+######Lookup Table Filter
 
 ````javascript
 new FILTER.LookupTableFilter(colorTable);
@@ -164,7 +164,7 @@ invertPosterize.apply(image);   // image is a FILTER.Image instance, see example
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-__Convolution Matrix Filter__
+######Convolution Matrix Filter
 
 ````javascript
 new FILTER.ConvolutionMatrixFilter(weights, factor);
@@ -225,7 +225,7 @@ emboss.apply(image);   // image is a FILTER.Image instance, see examples
 
 NOTE: The filter apply method will actually change the image to which it is applied
 
-__Displacement Map Filter__
+######Displacement Map Filter
 
 ````javascript
 new FILTER.DisplacementMapFilter(displaceMap);
@@ -237,7 +237,7 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 The filter scans an image and changes the current pixel by displacing it according to the coloring of the displacement map image
 
 
-Displacement Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+Displacement Map  Filters cannot be combined very easily. Use a composite filter (see below)
 
 In order to use an displace filter do the following:
 
@@ -261,7 +261,7 @@ dF.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-__Geometric Map Filter__
+######Geometric Map Filter
 
 ````javascript
 new FILTER.GeomatricMapFilter(geometricMapFunction);
@@ -284,7 +284,7 @@ The class has some pre-defined filters to use.
 * _polar()_  Transform image to polar coords (TODO)
 * _cartesian()_  Inverse of polar (TODO)
 
-Geometric Map  Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+Geometric Map  Filters cannot be combined very easily. Use a composite filter (see below)
 
 In order to use a geometric filter do the following:
 
@@ -301,7 +301,7 @@ gF.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-__Statistical Filter__
+######Statistical Filter
 
 ````javascript
 new FILTER.StatisticalFilter();
@@ -351,7 +351,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 
 
 
-__Composite Filter__
+######Composite Filter
 
 
 ````javascript
@@ -393,7 +393,7 @@ combo.remove(emboss);  // remove the emboss filter
 
 NOTE: The filter apply method will actually change the image to which it is applied
 
-__Custom Plugins / Inline Filters__
+######Plugins and Inline Filters
 
 The library can be extended by custom plugins which add new filters.
 A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at /src/plugins/Noise.js etc..)
@@ -432,7 +432,7 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 ###ChangeLog
 
 __0.6__
-* faster convolution algorithm for specific (symmetric) comvolution kernels (eg laplace kernel, box blur kernel, box highpass kernel etc..)
+* faster convolution algorithm for specific (symmetric) convolution kernels (eg laplace kernel, box blur kernel, box highpass kernel etc..)
 * rename _NonLinearFilter_ to _StatisticalFilter_ (make sure to change that in your code if a NonLinearFilter was used)
 * add new image methods (clear, fill etc..)
 * add new composite filter methods (removeAt, insertAt, etc..)
