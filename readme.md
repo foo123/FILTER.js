@@ -422,6 +422,8 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 
 
 ###Todo
+* allow to work with Nodejs
+* increase support for Opera, IE  (alternative for imageData.set method?? )
 * allow extension by plugins (both as Classes and Inline) [DONE]
 * add more filters (eg split/combine/blend/adaptive/statistical etc..) [DONE partially]
 * add 2d-fft routines, frequency-domain filtering
