@@ -16,6 +16,7 @@
     FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
     FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
     FILTER.ImArray = (typeof Uint8ClampedArray !== "undefined") ? Uint8ClampedArray : FILTER.Array8U;
+    FILTER._notSupportTypedArrays=(!FILTER.ImArray.set);
     
     // Constants
     FILTER.CONSTANTS={
@@ -159,7 +160,7 @@
     function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
     function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
     
-    var _canvas=null, _ctx=null;
+    //var _canvas=null, _ctx=null;
     
     // static methods
     /*FILTER._static={

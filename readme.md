@@ -53,7 +53,8 @@ This is a placeholder for an image, along with basic methods to access the image
 and alter them. Image methods:
 
 * _setImage()_  Sets/Alters the underlying image
-* _clone()_ gets a copy of the image
+* _clone()_ gets a clone of the image as a new image
+* _copy()_ fast copy of the data of another Image instance
 * _clear()_  clear the image data
 * _fill()_  fill the image area with a specific color
 * _scale()_  scale the image in x/y directions
@@ -185,13 +186,13 @@ element (ie. current pixel)  which only odd dimensions allow.
 The class has various pre-defined filters to use.
 
 * _fastGauss()_  A faster implementation of an arbitrary gaussian low pass filter
-* _lowPass() / boxBlur()_  Generic (box) lowpass filter (ie. box blur)
-* _highPass()_ Generic high pass filter (derived from the associated low pass filter)
+* _lowPass() / boxBlur()_  Generic (box) fast lowpass filter (ie. box blur)
+* _highPass()_ Generic fast high pass filter (derived from the associated low pass filter)
 * _binomialLowPass() / gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
 * _binomialHighPass()_ Generic high pass filter (derived from the associated low pass filter)
 * _horizontalBlur()_  apply blur only to horizontal direction
 * _verticalBlur()_  apply blur only to vertical direction
-* _sharpen()_  Sharpen the image
+* _sharpen()_  Sharpen the image fast
 * _prewittX() / gradX()_  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
 * _prewittY() / gradY()_  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
 * _prewittDirectional() / gradDirectional()_  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
@@ -200,7 +201,7 @@ The class has various pre-defined filters to use.
 * _sobelY()_  Y-gradient using Sobel operator (similar to vertical edges)
 * _sobelDirectional()_  Directional-gradient using Sobel operator (similar to edges along a direction)
 * _sobel()_  Total gradient of the image using Sobel operator
-* _laplace()_  Total second gradient of the image (Laplacian)
+* _laplace()_  Total second gradient of the image (fast Laplacian)
 * _emboss()_   Apply emboss effect to the image
 * _edges()_  Apply an edge filter to the image
 * _motionblur()_  __deprecated__ 
@@ -420,18 +421,36 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 
 ````
 
+__Included Plugins__
+
+* Noise: generate uniform noise
+* Equalize Histogram: apply histogram equalization
+* RGBEqualize: apply histogram equalization per separate color channel
+* Pixelate: fast pixelate the image to the given scale
+* HSVConverter: convert the image to HSV color space
+* Hue Extractor: extract a range of hues from the image
+* AlphaMask: apply another image as an alpha mask to the target image
+
+
 
 ###Todo
 * allow to work with Nodejs
-* increase support for Opera, IE  (alternative for imageData.set method?? )
+* increase support for Opera, IE9  (alternative for imageData.set method?? )
 * allow extension by plugins (both as Classes and Inline) [DONE]
-* add more filters (eg split/combine/blend/adaptive/statistical etc..) [DONE partially]
+* add more filters (eg split/combine/blend/adaptive/nonlinear etc..) [DONE partially]
 * add 2d-fft routines, frequency-domain filtering
 * make convolutions faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 
 
 ###ChangeLog
+
+__0.6.1__
+* new plugin AlphaMask
+* add support for Opera, IE9(slower) (browsers tested Firefox, Chrome, IE9+, Opera)
+* minor fixes/edits
+* add sound visualization example with Filter.js
+* 3 different builds: filter.min.js (full), filter.basic.min.js (core and filters only), filter.plugins.min.js (plugins only)
 
 __0.6__
 * faster convolution algorithm for specific (symmetric) convolution kernels (eg laplace kernel, box blur kernel, box highpass kernel etc..)

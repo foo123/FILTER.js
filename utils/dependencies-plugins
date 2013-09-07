@@ -1,0 +1,17 @@
+@DEPENDENCIES
+
+# sample Plugins
+../src/plugins/Plugin.js
+../src/plugins/Noise.js
+../src/plugins/Equalize.js
+../src/plugins/RGBEqualize.js
+../src/plugins/Pixelate.js
+../src/plugins/HSVConverter.js
+../src/plugins/HueExtractor.js
+../src/plugins/AlphaMask.js
+
+@MINIFY
+--language_in=ECMASCRIPT5_STRICT
+
+@OUT
+../build/filter.plugins.min.js

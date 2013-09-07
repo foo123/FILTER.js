@@ -25,24 +25,8 @@
 #../src/filters/NonLinearFilter.js
 #../src/filters/AdaptiveFilter.js
 
-# sample Plugins
-../src/plugins/Plugin.js
-../src/plugins/Noise.js
-../src/plugins/Equalize.js
-../src/plugins/RGBEqualize.js
-../src/plugins/Pixelate.js
-../src/plugins/HSVConverter.js
-../src/plugins/HueExtractor.js
-../src/plugins/AlphaMask.js
-
-# NOT USED / INCOMPLETE
-#../src/plugins/YCbCrConverter.js
-#../src/plugins/Shadow.js
-#../src/plugins/Rippler.js
-#../src/plugins/Pixelate2.js
-
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT
 
 @OUT
-../build/filter.min.js
+../build/filter.basic.min.js

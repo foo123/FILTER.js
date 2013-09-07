@@ -55,24 +55,36 @@
         _tableB : null,
         _tableA : null,
         
-        thresholds : function(thresholds) {
+        thresholds : function(thresholdsR, thresholdsG, thresholdsB) {
             // assume thresholds are given in pointwise scheme as pointcuts
             // not in cumulative scheme
             // [ 0.5 ] => [0, 1]
             // [ 0.3, 0.3, 0.3 ] => [0, 0.3, 0.6, 1]
-            if (!thresholds.length) thresholds=[thresholds];
+            if (!thresholdsR.length) thresholdsR=[thresholdsR];
+            if (!thresholdsG) thresholdsG=thresholdsR;
+            if (!thresholdsB) thresholdsB=thresholdsG;
             /*
             // sort them into ascending order
             thresholds.sort();
             thresholds.shift(0);
             */
-            var tL=thresholds.length, numLevels=tL+1, 
-                t=new CT(256), q=new CT(numLevels), 
-                i, j, nL=255/(numLevels-1)
+            var tLR=thresholdsR.length, numLevelsR=tLR+1, 
+                tLG=thresholdsG.length, numLevelsG=tLG+1, 
+                tLB=thresholdsB.length, numLevelsB=tLB+1, 
+                tR=new CT(256), qR=new CT(numLevelsR), 
+                tG=new CT(256), qG=new CT(numLevelsG), 
+                tB=new CT(256), qB=new CT(numLevelsB), 
+                i, j, nLR=255/(numLevelsR-1), nLG=255/(numLevelsG-1), nLB=255/(numLevelsB-1)
             ;
-            i=0; while (i<numLevels) { q[i] = ~~(nL * i); i++; }
-            thresholds[0]=~~(255*thresholds[0]);
-            i=1; while (i<tL) { thresholds[i]=thresholds[i-1] + ~~(255*thresholds[i]); i++; }
+            i=0; while (i<numLevelsR) { qR[i] = ~~(nLR * i); i++; }
+            thresholdsR[0]=~~(255*thresholdsR[0]);
+            i=1; while (i<tLR) { thresholdsR[i]=thresholdsR[i-1] + ~~(255*thresholdsR[i]); i++; }
+            i=0; while (i<numLevelsG) { qG[i] = ~~(nLG * i); i++; }
+            thresholdsG[0]=~~(255*thresholdsG[0]);
+            i=1; while (i<tLG) { thresholdsG[i]=thresholdsG[i-1] + ~~(255*thresholdsG[i]); i++; }
+            i=0; while (i<numLevelsB) { qB[i] = ~~(nLB * i); i++; }
+            thresholdsB[0]=~~(255*thresholdsB[0]);
+            i=1; while (i<tLB) { thresholdsB[i]=thresholdsB[i-1] + ~~(255*thresholdsB[i]); i++; }
             /*q[0]=0;
             i=1; while (i<numLevels-1) { thresholds[i-1]=~~(255*thresholds[i-1]); q[i] = q[i-1] + thresholds[i-1]; i++; }
             q[numLevels-1]=255;*/
@@ -81,15 +93,22 @@
             while (i<256) 
             { 
                 // the non-linear mapping is here
-                j=0; while (j<tL && i>thresholds[j]) j++;
-                t[ i ] = q[ j ]; i++; 
+                j=0; while (j<tLR && i>thresholdsR[j]) j++;
+                tR[ i ] = qR[ j ]; 
+                j=0; while (j<tLG && i>thresholdsG[j]) j++;
+                tG[ i ] = qG[ j ]; 
+                j=0; while (j<tLB && i>thresholdsB[j]) j++;
+                tB[ i ] = qB[ j ]; 
+                i++; 
             }
-            return this.concat(t);
+            return this.concat(tR, tG, tB);
         },
         
-        threshold : function(threshold) {
-            threshold=threshold || 0.5;
-            return this.thresholds([threshold]);
+        threshold : function(thresholdR, thresholdG, thresholdB) {
+            thresholdR=thresholdR || 0.5;
+            thresholdG=thresholdG || thresholdR;
+            thresholdB=thresholdB || thresholdG;
+            return this.thresholds([thresholdR], [thresholdG], [thresholdB]);
         },
         
         quantize : function(numLevels) {
