@@ -17,7 +17,8 @@
     var //IMG = FILTER.ImArray,
         // Color Matrix
         CM=FILTER.Array32F,
-        toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg
+        toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+        notSupportTyped=FILTER._notSupportTypedArrays
     ;
     
      function eye()
@@ -446,8 +447,8 @@
         contrast : function(r, g, b) {
             if (typeof g == 'undefined')  g=r;
             if (typeof b == 'undefined')  b=r;
-            r += 1; g += 1; b += 1;
-            
+            r += 1.0; g += 1.0; b += 1.0;
+            this._log=true;
             return this.concat([
                     r, 0, 0, 0, (128 * (1 - r)), 
                     0, g, 0, 0, (128 * (1 - g)), 
@@ -627,16 +628,30 @@
         // used for internal purposes
         _apply : function(p, w, h) {
             if (!this._matrix)  return p;
-            var pl=p.length, m=this._matrix, i=0, t0, t1, t2, t3;
+            var pl=p.length, m=this._matrix, i=0, t0, t1, t2, t3, p0, p1, p2, p3;
             
             // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
             while (i<pl)
             {
                 t0=p[i]; t1=p[i+1]; t2=p[i+2]; t3=p[i+3];
-                p[i]    =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p[i+1]  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p[i+2]  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p[i+3]  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                if (notSupportTyped)
+                {   
+                    // clamp them manually
+                    if (p0<0) p0=0;
+                    else if (p0>255) p0=255;
+                    if (p1<0) p1=0;
+                    else if (p1>255) p1=255;
+                    if (p2<0) p2=0;
+                    else if (p2>255) p2=255;
+                    if (p3<0) p3=0;
+                    else if (p3>255) p3=255;
+                }
+                p[i]=~~p0; p[i+1]=~~p1; p[i+2]=~~p2; p[i+3]=~~p3;
                 i+=4;
             }
             return p;

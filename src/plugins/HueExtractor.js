@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    var notSupportTyped=FILTER._notSupportTypedArrays;
+    
     // a plugin to extract regions based on a HUE range
     FILTER.HueExtractorFilter=FILTER.Create({
         
@@ -30,7 +32,7 @@
             if (!this.range || !this.range.length) return im;
             
             var 
-                r,g,b, dst,
+                r,g,b, dst, t0, t1, t2, t3,
                 i, l=im.length, background, hue,
                 RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB,
                 hMin=this.range[0], hMax=this.range[this.range.length-1]
@@ -45,8 +47,21 @@
                 r=im[i]; g=im[i+1]; b=im[i+2];
                 hue=RGB2HSV({r:r, g:g, b:b}).h;
                 
-                if (hue>=hMin && hue<=hMax) {  dst[i] = im[i]; dst[i+1]=im[i+1]; dst[i+2]=im[i+2]; dst[i+3]=im[i+3]; }
-                else { dst[i] = background.r; dst[i+1]=background.g; dst[i+2]=background.b; dst[i+3]=background.a; }
+                if (hue>=hMin && hue<=hMax) {  t0 = im[i]; t1=im[i+1]; t2=im[i+2]; t3=im[i+3]; }
+                else { t0 = background.r; t1=background.g; t2=background.b; t3=background.a; }
+                if (notSupportTyped)
+                {   
+                    // clamp them manually
+                    if (t0<0) t0=0;
+                    else if (t0>255) t0=255;
+                    if (t1<0) t1=0;
+                    else if (t1>255) t1=255;
+                    if (t2<0) t2=0;
+                    else if (t2>255) t2=255;
+                    if (t3<0) t3=0;
+                    else if (t3>255) t3=255;
+                }
+                dst[i]=~~t0; dst[i+1]=~~t1; dst[i+2]=~~t2; dst[i+3]=~~t3;
                 i+=4;
             }
             

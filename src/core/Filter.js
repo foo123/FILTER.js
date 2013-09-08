@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
+    
     // typed arrays substitute 
     FILTER.Array32F = (typeof Float32Array !== "undefined") ? Float32Array : Array;
     FILTER.Array64F = (typeof Float64Array !== "undefined") ? Float64Array : Array;
@@ -15,6 +17,7 @@
     FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
     FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
     FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
+    //FILTER.ImArray = (typeof Uint8ClampedArray !== "undefined") ? Uint8ClampedArray : ((typeof CanvasPixelArray !== "undefined") ? CanvasPixelArray : FILTER.Array8U);
     FILTER.ImArray = (typeof Uint8ClampedArray !== "undefined") ? Uint8ClampedArray : FILTER.Array8U;
     FILTER._notSupportTypedArrays=(!FILTER.ImArray.set);
     

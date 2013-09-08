@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    var notSupportTyped=FILTER._notSupportTypedArrays;
+    
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter=FILTER.Create({
         
@@ -18,7 +20,7 @@
                 r,g,b, rangeI,
                 maxI=0, minI=255,
                 pdfI=new FILTER.Array32F(256),
-                cdfI=new FILTER.Array32F(256), accum=0,
+                cdfI=new FILTER.Array32F(256), accum=0, t0, t1, t2,
                 i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, ycbcrA=new Array(l2), rgba,
                 RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
                 ;
@@ -54,7 +56,18 @@
                 ycbcr=ycbcrA[y];
                 ycbcr.y=cdfI[ycbcr.y]*rangeI+minI;
                 rgba=YCbCr2RGB(ycbcr);
-                im[i]=rgba.r; im[i+1]=rgba.g; im[i+2]=rgba.b; 
+                t0=rgba.r; t1=rgba.g; t2=rgba.b; 
+                if (notSupportTyped)
+                {   
+                    // clamp them manually
+                    if (t0<0) t0=0;
+                    else if (t0>255) t0=255;
+                    if (t1<0) t1=0;
+                    else if (t1>255) t1=255;
+                    if (t2<0) t2=0;
+                    else if (t2>255) t2=255;
+                }
+                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; 
                 i+=4; y++; 
             }
             

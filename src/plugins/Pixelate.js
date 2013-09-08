@@ -6,7 +6,9 @@
 **/
 (function(FILTER){
 
-    var Sqrt=Math.sqrt;
+    var Sqrt=Math.sqrt,
+        notSupportTyped=FILTER._notSupportTypedArrays;
+    
     
     // a sample pixelate filter
     FILTER.PixelateFilter=FILTER.Create({
@@ -82,6 +84,16 @@
                 b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
                 
                 // output
+                if (notSupportTyped)
+                {   
+                    // clamp them manually
+                    if (r<0) r=0;
+                    else if (r>255) r=255;
+                    if (g<0) g=0;
+                    else if (g>255) g=255;
+                    if (b<0) b=0;
+                    else if (b>255) b=255;
+                }
                 r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
                 j=i; px=x; py=ty; pbx=x+step;
                 jend=i+size4; if (jend>imLen) jend=imLen;

@@ -113,9 +113,10 @@
         domElement : null,
         
         clear: function() {
-          var ctx=this.context;
-          ctx.clearRect(0, 0, this.width, this.height);  
-          return this;
+            var ctx=this.context;
+            ctx.clearRect(0, 0, this.width, this.height);  
+            this.imageData=ctx.getImageData(0, 0, this.width, this.height);
+            return this;
         },
         
         fill: function(color, x, y, w, h) {
@@ -135,17 +136,17 @@
         },
         
         getPixel : function(x, y) {
-            var off=~~(y*this.width+x+0.5);
+            var off=~~(y*this.width+x+0.5), data=this.imageData.data;
             return {
-                red: this.imageData.data[off], 
-                green: this.imageData.data[off+1], 
-                blue: this.imageData.data[off+2], 
-                alpha: this.imageData.data[off+3]
+                red: data[off], 
+                green: data[off+1], 
+                blue: data[off+2], 
+                alpha: data[off+3]
             };
         },
         
         setPixel : function(x, y, r, g, b, a) {
-            var t=new ImArray([r, g, b, a]);
+            var t=new ImArray([r&255, g&255, b&255, a&255]);
             this.context.putImageData(t, x, y); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -159,8 +160,14 @@
         },
         
         _setData : function(a) {
-            var data=this.imageData.data, l=a.length, i=0;
-            while (i<l) { data[i]=a[i]&0xFF; i++; }
+            var data=this.imageData.data, l=a.length, i=0, t;
+            while (i<l) 
+            { 
+                t=~~(a[i]);
+                if (t>255) t=255;
+                else if (t<0) t=0;
+                data[i]=t; i++; 
+            }
         },
         
         setData : function(a) {
@@ -173,6 +180,7 @@
                 this.imageData.data.set(a); // not supported in Opera, IE9, Safari
             }
             this.context.putImageData(this.imageData, 0, 0); 
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
@@ -313,6 +321,8 @@
         // fast copy another FILTER.Image
         copy : function(image) {
             this.setData(image.getData());
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            return this;
         },
         
         clone : function() {

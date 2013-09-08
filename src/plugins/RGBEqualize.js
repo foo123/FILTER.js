@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    var notSupportTyped=FILTER._notSupportTypedArrays;
+    
     // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     // not the best implementation
     // used for illustration purposes on how to create a plugin filter
@@ -21,7 +23,7 @@
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
                 pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
                 cdfR=new FILTER.Array32F(256), cdfG=new FILTER.Array32F(256), cdfB=new FILTER.Array32F(256),
-                accumR, accumG, accumB,
+                accumR, accumG, accumB, t0, t1, t2,
                 i, l=im.length, l2=l>>2, n=1.0/(l2)
                 ;
             
@@ -55,7 +57,18 @@
             while (i<l) 
             { 
                 r=im[i]; g=im[i+1]; b=im[i+2]; 
-                im[i]=cdfR[r]*rangeR+minR; im[i+1]=cdfG[g]*rangeG+minG; im[i+2]=cdfB[b]*rangeB+minB; 
+                t0=cdfR[r]*rangeR+minR; t1=cdfG[g]*rangeG+minG; t2=cdfB[b]*rangeB+minB; 
+                if (notSupportTyped)
+                {   
+                    // clamp them manually
+                    if (t0<0) t0=0;
+                    else if (t0>255) t0=255;
+                    if (t1<0) t1=0;
+                    else if (t1>255) t1=255;
+                    if (t2<0) t2=0;
+                    else if (t2>255) t2=255;
+                }
+                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; 
                 i+=4; 
             }
             

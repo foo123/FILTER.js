@@ -47,6 +47,7 @@
     var IMG = FILTER.ImArray,
         // Convolution Matrix
         CM=FILTER.Array32F,
+        notSupportTyped=FILTER._notSupportTypedArrays,
         
         // hardcode Pascal numbers, used for binomial kernels
         _pascal=[
@@ -226,7 +227,7 @@
             matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
             dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
             i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
-            xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, 
+            xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
             r, g, b, /*a,*/ r2, g2, b2, coeff1, coeff2,
             repeat
             ;
@@ -313,7 +314,18 @@
                     b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * src[i+2]);
                     
                     // output
-                    dst[i] = ~~(coeff1*r + coeff2*r2);  dst[i+1] = ~~(coeff1*g + coeff2*g2);  dst[i+2] = ~~(coeff1*b + coeff2*b2);
+                    t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                    if (notSupportTyped)
+                    {   
+                        // clamp them manually
+                        if (t0<0) t0=0;
+                        else if (t0>255) t0=255;
+                        if (t1<0) t1=0;
+                        else if (t1>255) t1=255;
+                        if (t2<0) t2=0;
+                        else if (t2>255) t2=255;
+                    }
+                    dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
                     //dst[i+3] = src[i+3];
                     
@@ -386,7 +398,18 @@
                     b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * src[i+2]);
                     
                     // output
-                    dst[i] = ~~(factor*r+bias);  dst[i+1] = ~~(factor*g+bias);  dst[i+2] = ~~(factor*b+bias);
+                    t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
+                    if (notSupportTyped)
+                    {   
+                        // clamp them manually
+                        if (t0<0) t0=0;
+                        else if (t0>255) t0=255;
+                        if (t1<0) t1=0;
+                        else if (t1>255) t1=255;
+                        if (t2<0) t2=0;
+                        else if (t2>255) t2=255;
+                    }
+                    dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
                     //dst[i+3] = src[i+3];
                     
@@ -701,7 +724,7 @@
                 matArea=matRadiusX*matRadiusY, matArea2=matArea<<1, hsw=matHalfSideY*w,
                 mat=this._matrix, factor=this._factor, bias=this._bias, mat2=this._matrix2, wt, wt2,
                 _isGrad=this._isGrad, imageIndices=new FILTER.Array16I(matArea<<1), matIndices=new FILTER.Array8U(matArea),
-                imArea=w*h, imLen=src.length, dst=new IMG(imLen),
+                imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
                 i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
                 bx=w-1, by=imArea-w,
                 coeff1=this._coeff1, coeff2=this._coeff2
@@ -744,12 +767,23 @@
                     // output
                     if (_isGrad)
                     {
-                        dst[i] = ~~(Abs(r)+Abs(r2));  dst[i+1] = ~~(Abs(g)+Abs(g2));  dst[i+2] = ~~(Abs(b)+Abs(b2));
+                        t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
                     }
                     else
                     {
-                        dst[i] = ~~(coeff1*r + coeff2*r2);  dst[i+1] = ~~(coeff1*g + coeff2*g2);  dst[i+2] = ~~(coeff1*b + coeff2*b2);
+                        t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                     }
+                    if (notSupportTyped)
+                    {   
+                        // clamp them manually
+                        if (t0<0) t0=0;
+                        else if (t0>255) t0=255;
+                        if (t1<0) t1=0;
+                        else if (t1>255) t1=255;
+                        if (t2<0) t2=0;
+                        else if (t2>255) t2=255;
+                    }
+                    dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
                     dst[i+3] = src[i+3];
                     
@@ -779,7 +813,18 @@
                     }
                     
                     // output
-                    dst[i] = ~~(factor*r+bias);  dst[i+1] = ~~(factor*g+bias);  dst[i+2] = ~~(factor*b+bias);
+                    t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
+                    if (notSupportTyped)
+                    {   
+                        // clamp them manually
+                        if (t0<0) t0=0;
+                        else if (t0>255) t0=255;
+                        if (t1<0) t1=0;
+                        else if (t1>255) t1=255;
+                        if (t2<0) t2=0;
+                        else if (t2>255) t2=255;
+                    }
+                    dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
                     dst[i+3] = src[i+3];
                     

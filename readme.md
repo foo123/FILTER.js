@@ -445,6 +445,10 @@ __Included Plugins__
 
 ###ChangeLog
 
+__0.6.2__
+* compatibility fixes for IE9, IE10
+* minor edits
+
 __0.6.1__
 * new plugin AlphaMask
 * add support for Opera, IE9(slower) (browsers tested Firefox, Chrome, IE9+, Opera)
