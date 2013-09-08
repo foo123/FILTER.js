@@ -284,7 +284,7 @@
         },
         
         // used for internal purposes
-        _apply : function(im, w, h) {
+        _apply : function(im, w, h/*, image*/) {
             if (!this._tableR) return im;
             
             var l=im.length, i=0, r, g, b, a,
@@ -314,7 +314,7 @@
         
         apply : function(image) {
             if (!this._tableR) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         reset : function() {

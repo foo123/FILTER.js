@@ -40,7 +40,17 @@
         cubletsidex=sidex/(Nx+(Nx-1)*dsp), cubletsidey=sidey/(Ny+(Ny-1)*dsp), cubletsidez=sidez/(Nz+(Nz-1)*dsp),
         // build cubelets
         image=[], texture=[], position=[], displacemap=new FILTER.Image(),
-        mat, starmat, materials, cubelet
+        mat, starmat, materials, cubelet,
+        // filters
+        clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
+        gray=new FILTER.ColorMatrixFilter().grayscale(),
+        grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
+        blur=new FILTER.ConvolutionMatrixFilter().fastGauss(3),
+        twirl=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50),
+        sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
+        grs=new FILTER.CompositeFilter([gray, sobel]),
+        emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
+        dF=new FILTER.DisplacementMapFilter()
         ;
     
     var self={
@@ -213,16 +223,16 @@
     
     function dotest(event)
     {
-        new FILTER.ColorMatrixFilter().colorize(0xff0000).apply(image[1]);
-        new FILTER.ColorMatrixFilter().grayscale().contrast(1).apply(image[2]);
-        new FILTER.ConvolutionMatrixFilter().fastGauss(3).apply(image[3]);
-        new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50).apply(image[4]);
-        new FILTER.ConvolutionMatrixFilter().sobel(3).apply(image[5]);
-        new FILTER.ConvolutionMatrixFilter().emboss().apply(image[6]);
-        var df=new FILTER.DisplacementMapFilter(displacemap);
-        df.scaleX=100;
-        df.scaleY=100;
-        df.apply(image[7]);
+        clr.apply(image[1]);
+        grc.apply(image[2]);
+        blur.apply(image[3]);
+        twirl.apply(image[4]);
+        grs.apply(image[5]);
+        emboss.apply(image[6]);
+        dF.setMap(displacemap);
+        dF.scaleX=100;
+        dF.scaleY=100;
+        dF.apply(image[7]);
         for (var i=0;i<8;i++)
             texture[i].needsUpdate=true;
     }

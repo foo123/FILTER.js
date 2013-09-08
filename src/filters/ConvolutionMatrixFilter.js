@@ -706,7 +706,7 @@
         },
         
         // used for internal purposes
-        _apply : function(src, w, h) {
+        _apply : function(src, w, h/*, image*/) {
             
             if (!this._matrix) return src;
             
@@ -837,7 +837,7 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         reset : function() {

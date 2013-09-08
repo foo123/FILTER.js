@@ -5,7 +5,7 @@
 * 
 * PLUGINS Package  (needs BASIC package)
 *
-* @version 0.6.2
+* @version 0.6.3
 *
 * @author Nikos M. http://nikos-web-development-netai.net
 *

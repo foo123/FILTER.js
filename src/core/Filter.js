@@ -64,7 +64,7 @@
         _stack : [],
         
         // used for internal purposes
-        _apply : function(im, w, h) {
+        _apply : function(im, w, h, image) {
             
             if (!this._stack.length) return im;
             
@@ -73,7 +73,7 @@
             while (fi<_stacklength)
             {
                 filter=_filterstack[fi++]; 
-                if (filter) im=filter._apply(im, w, h);
+                if (filter) im=filter._apply(im, w, h, image);
             }
             return im;
         },
@@ -81,7 +81,7 @@
         // make it so other composite filters can be  used as simple filter components in the stack
         apply : function(image) {
             if (!this._stack.length) return image;
-            return image.setData(this._apply(im=image.getData(), image.width, image.height));
+            return image.setData(this._apply(im=image.getData(), image.width, image.height, image));
         },
         
         filters : function(f) {
@@ -150,10 +150,10 @@
         options=Fextend({
             init: function() {},
             reset: function() { return this; },
-            apply: function(im, w, h){ return im; }
+            apply: function(im, w, h, image){ return im; }
         }, options);
         options._apply=options.apply;
-        options.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height)); }
+        options.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height, image)); }
         
         filterClass.prototype=Fextend(filterClass.prototype, options);
         return filterClass;

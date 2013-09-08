@@ -626,7 +626,7 @@
         },
         
         // used for internal purposes
-        _apply : function(p, w, h) {
+        _apply : function(p, w, h/*, image*/) {
             if (!this._matrix)  return p;
             var pl=p.length, m=this._matrix, i=0, t0, t1, t2, t3, p0, p1, p2, p3;
             
@@ -659,7 +659,7 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         reset : function() {

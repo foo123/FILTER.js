@@ -4,8 +4,8 @@ __A JavaScript Library for Image Processing and Filtering using HTML5 Canvas__
 
 This is a library for filtering images/video in JavaScript using canvas element.  
 
-[![Filter.js](/examples/filters-image-process.png)](http://foo123.github.com/examples/filter/)
-[![Filter.js](/examples/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
+[![Filter.js](/screenshots/filters-image-process.png)](http://foo123.github.com/examples/filter/)
+[![Filter.js](/screenshots/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
 
 
 ###Contents
@@ -17,9 +17,10 @@ This is a library for filtering images/video in JavaScript using canvas element.
 * [ChangeLog](#changelog)
 
 ###Live Examples
-* [Image Processing](http://foo123.github.com/examples/filter/)
-* [Video Processing](http://foo123.github.com/examples/filter-video/)
-* [Filters with Three.js](http://foo123.github.com/examples/filter-three/)
+* [Image Processing with Filter.js](http://foo123.github.com/examples/filter/)
+* [Video Processing with Filter.js](http://foo123.github.com/examples/filter-video/)
+* [Sound Visualization with Filter.js](http://foo123.github.com/examples/filter-sound/)
+* [Filter.js with Three.js](http://foo123.github.com/examples/filter-three/)
 
 
 
@@ -430,6 +431,7 @@ __Included Plugins__
 * HSVConverter: convert the image to HSV color space
 * Hue Extractor: extract a range of hues from the image
 * AlphaMask: apply another image as an alpha mask to the target image
+* Threshold: apply general (full 32bit thresholds) thresholding to an image
 
 
 
@@ -444,6 +446,14 @@ __Included Plugins__
 
 
 ###ChangeLog
+
+__0.6.3__
+* add new plugin Threshold
+* minor fixes for cross-browser support
+* typos/edits
+* add Sound Visualization example
+* update examples with new filters
+* update readme
 
 __0.6.2__
 * compatibility fixes for IE9, IE10

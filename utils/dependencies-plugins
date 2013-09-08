@@ -9,6 +9,7 @@
 ../src/plugins/HSVConverter.js
 ../src/plugins/HueExtractor.js
 ../src/plugins/AlphaMask.js
+../src/plugins/Threshold.js
 
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT

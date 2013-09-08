@@ -34,6 +34,7 @@
 ../src/plugins/HSVConverter.js
 ../src/plugins/HueExtractor.js
 ../src/plugins/AlphaMask.js
+../src/plugins/Threshold.js
 
 # NOT USED / INCOMPLETE
 #../src/plugins/YCbCrConverter.js

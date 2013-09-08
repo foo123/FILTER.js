@@ -250,7 +250,7 @@
         
         apply : function(image) {
             if (!this._dim)  return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         reset : function() {

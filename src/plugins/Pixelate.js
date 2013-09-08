@@ -21,9 +21,10 @@
         },
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h) {
+        apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
+            // image is the original image instance reference, generally not needed
             if (this.scale<=1) return im;
             if (this.scale>100) this.scale=100;
             

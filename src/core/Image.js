@@ -112,92 +112,6 @@
         canvasElement : null,
         domElement : null,
         
-        clear: function() {
-            var ctx=this.context;
-            ctx.clearRect(0, 0, this.width, this.height);  
-            this.imageData=ctx.getImageData(0, 0, this.width, this.height);
-            return this;
-        },
-        
-        fill: function(color, x, y, w, h) {
-            color=color||0; x=x||0; y=y||0; w=w||this.width; h=h||this.height;
-            var ctx=this.context;
-            //ctx.save();
-            ctx.fillStyle = color;
-            ctx.fillRect(x, y, w, h);
-            //ctx.restore();
-            this.imageData=ctx.getImageData(0, 0, this.width, this.height);
-            return this;
-        },
-        
-        draw : function(drawable, x, y, blendMode) {
-            // todo
-            return this;
-        },
-        
-        getPixel : function(x, y) {
-            var off=~~(y*this.width+x+0.5), data=this.imageData.data;
-            return {
-                red: data[off], 
-                green: data[off+1], 
-                blue: data[off+2], 
-                alpha: data[off+3]
-            };
-        },
-        
-        setPixel : function(x, y, r, g, b, a) {
-            var t=new ImArray([r&255, g&255, b&255, a&255]);
-            this.context.putImageData(t, x, y); 
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        getData : function() {
-            // clone it
-            return new ImArray(this.imageData.data);
-        },
-        
-        _setData : function(a) {
-            var data=this.imageData.data, l=a.length, i=0, t;
-            while (i<l) 
-            { 
-                t=~~(a[i]);
-                if (t>255) t=255;
-                else if (t<0) t=0;
-                data[i]=t; i++; 
-            }
-        },
-        
-        setData : function(a) {
-            if (notSupportTyped)
-            {
-                this._setData(a);
-            }
-            else
-            {
-                this.imageData.data.set(a); // not supported in Opera, IE9, Safari
-            }
-            this.context.putImageData(this.imageData, 0, 0); 
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
-        getPixelData : function() {
-            return this.imageData;
-        },
-        
-        setPixelData : function(data) {
-            this.context.putImageData(data, 0, 0); 
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
-            this._histogramRefresh=true;
-            this._integralRefresh=true;
-            return this;
-        },
-        
         setWidth : function(w) {
             this._tmpCanvas.width=this.canvasElement.width=this.width=w;
             this.context=this.canvasElement.getContext('2d');
@@ -218,17 +132,17 @@
         
         setImage : function(img, callback) {
             if (typeof img=='undefined' || img==null) return this;
-            var thiss=this, image;
+            var self=this, image, ctx;
             if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
             {
                 image=img;
-                this.width=(img instanceof HTMLVideoElement) ? img.videoWidth : img.width;
-                this.height=(img instanceof HTMLVideoElement) ? img.videoHeight : img.height;
+                this.width=(image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
+                this.height=(image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
                 this._tmpCanvas.width=this.canvasElement.width=this.width;
                 this._tmpCanvas.height=this.canvasElement.height=this.height;
-                this.context=this.canvasElement.getContext('2d');
-                this.context.drawImage(image, 0, 0);
-                this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+                ctx=this.context=this.canvasElement.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                this.imageData=ctx.getImageData(0, 0, this.width, this.height);
                 this._histogramRefresh=true;
                 this._integralRefresh=true;
             }
@@ -236,16 +150,16 @@
             {
                 image=new Image();
                 image.onload=function(){
-                    thiss.width=image.width;
-                    thiss.height=image.height;
-                    thiss._tmpCanvas.width=thiss.canvasElement.width=thiss.width;
-                    thiss._tmpCanvas.height=thiss.canvasElement.height=thiss.height;
-                    thiss.context=thiss.canvasElement.getContext('2d');
-                    thiss.context.drawImage(image, 0, 0);
-                    thiss.imageData=thiss.context.getImageData(0, 0, thiss.width, thiss.height);
-                    thiss._histogramRefresh=true;
-                    thiss._integralRefresh=true;
-                    if (typeof callback != 'undefined') callback.call(thiss);
+                    self.width=image.width;
+                    self.height=image.height;
+                    self._tmpCanvas.width=self.canvasElement.width=self.width;
+                    self._tmpCanvas.height=self.canvasElement.height=self.height;
+                    ctx=self.context=self.canvasElement.getContext('2d');
+                    ctx.drawImage(image, 0, 0);
+                    self.imageData=self.context.getImageData(0, 0, self.width, self.height);
+                    self._histogramRefresh=true;
+                    self._integralRefresh=true;
+                    if (typeof callback != 'undefined') callback.call(self);
                 };
                 image.src=img; // load it
             }
@@ -253,69 +167,64 @@
             return this;
         },
         
-        blend : function(image, mode, amount, startX, startY) {
-            if (typeof mode == 'undefined') mode='normal';
-            if (typeof amount == 'undefined') amount=1;
-            if (amount>1) amount=1;
-            if (amount<0) amount=0;
-            if (typeof startX == 'undefined')  startX=0;
-            if (typeof startY == 'undefined')  startY=0;
-            
-            var sx=0,sy=0;
-            
-            if (startX<0)
-            {
-                sx=-startX;
-                startX=0;
-            }
-            if (startY<0)
-            {
-                sy=-startY;
-                startY=0;
-            }
-            if (startX>=this.width || startY>=this.height)
-            {
-                return;
-            }
-            
-            var blendingMode = blendModes[mode];
-            if (blendingMode==undefined || blendingMode==null) return this;
-            
-            var 
-                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
-                imageData1 = this.context.getImageData(startX, startY, width, height),
-                imageData2 = image.context.getImageData(sx, sy, width, height),
-                /** @type Array */
-                pixels1 = imageData1.data,
-                /** @type Array */
-                pixels2 = imageData2.data,
-                r, g, b, oR, oG, oB, invamount = 1 - amount,
-                len=pixels2.length, i
-            ;
-
-            
-            
-            // blend images
-            for (i = 0; i < len; i += 4) 
-            {
-                oR = pixels1[i];  oG = pixels1[i + 1];  oB = pixels1[i + 2];
-
-                // calculate blended color
-                r = blendingMode(pixels2[i], oR);  g = blendingMode(pixels2[i + 1], oG);  b = blendingMode(pixels2[i + 2], oB);
-
-                // amount compositing
-                pixels1[i] = r * amount + oR * invamount;  pixels1[i + 1] = g * amount + oG * invamount;  pixels1[i + 2] = b * amount + oB * invamount;
-            }
-            this.context.putImageData(imageData1, startX, startY);
+        getPixel : function(x, y) {
+            var off=~~(y*this.width+x+0.5), data=this.imageData.data;
+            return {
+                r: data[off], 
+                g: data[off+1], 
+                b: data[off+2], 
+                a: data[off+3]
+            };
+        },
+        
+        setPixel : function(x, y, r, g, b, a) {
+            var t=new ImArray([r&255, g&255, b&255, a&255]);
+            this.context.putImageData(t, x, y); 
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
         },
         
-        _refresh : function() {
-            this.context=this.canvasElement.getContext('2d');
+        // get direct data array
+        getData : function() {
+            // clone it
+            return new ImArray(this.imageData.data);
+        },
+        
+        // set direct data array
+        setData : function(a) {
+            if (notSupportTyped) this._setData(a);
+            else this.imageData.data.set(a); // not supported in Opera, IE, Safari
+            
+            this.context.putImageData(this.imageData, 0, 0); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
             return this;
+        },
+        
+        // get the imageData object
+        getPixelData : function() {
+            return this.imageData;
+        },
+        
+        // set the imageData object
+        setPixelData : function(data) {
+            this.context.putImageData(data, 0, 0); 
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        createImageData : function(w,h) {
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
+            this.context=this.canvasElement.getContext('2d');
+            this.context.createImageData(w,h);
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            return this.imageData;
         },
         
         // fast copy another FILTER.Image
@@ -329,91 +238,9 @@
             return new FILTER.Image(this.canvasElement);
         },
         
-        integral : function() {
-            if (this._integralRefresh) this._computeIntegral();
-            return this._integral;
-        },
-        
-        // compute integral image (sum of columns)
-        _computeIntegral : function() 
-        {
-            var w=this.width,h=this.height, count=w*h, rowLen=w<<2,
-                integralR = new FILTER.Array32F(count), integralG = new FILTER.Array32F(count), integralB = new FILTER.Array32F(count),
-                im=this.getPixelData().data, i, j, x, colR, colG, colB, pix
-            ;
-            // compute integral of image in one pass
-            // first row
-            i=0; j=0; x=0; colR=colG=colB=0;
-            while (x<w)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
-                i+=4; j++; x++;
-            }
-            // other rows
-            i=rowLen; x=0; colR=colG=colB=0;
-            while (i<imLen)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j]=integralR[j-w]+colR; integralG[j]=integralG[j-w]+colG; integralB[j]=integralB[j-w]+colB;
-                i+=4; j++; x++; if (x>=w) { x=0; colR=colG=colB=0; }
-            }
-            this._integral=[integralR, integralG, integralB];
-            this._integralRefresh=false;
-        },
-        
-        histogram : function() {
-            if (this._histogramRefresh) this._computeHistogram();
-            return this._histogram;
-        },
-        
-        _computeHistogram : function() {
-            var im=this.getPixelData().data, i=0, l=im.length,
-                r,g,b, //rangeR, rangeG, rangeB,
-                maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-                pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
-                //cdfR=new FILTER.Array32F(257), cdfG=new FILTER.Array32F(257), cdfB=new FILTER.Array32F(257),
-                i, n=1.0/(l>>2)
-                ;
-            
-            // initialize the arrays
-            i=0; while (i<256) { pdfR[i]=0; pdfG[i]=0; pdfB[i]=0; /*cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;*/ i++; }
-            //cdfR[256]=0; cdfG[256]=0; cdfB[256]=0;
-            
-            // compute pdf and maxima/minima
-            i=0;
-            while (i<l)
-            {
-                r=im[i]; g=im[i+1]; b=im[i+2];
-                pdfR[r]+=n; pdfG[g]+=n; pdfB[b]+=n;
-                
-                if (r>maxR) maxR=r;
-                if (r<minR) minR=r;
-                if (g>maxG) maxG=g;
-                if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                if (b<minB) minB=b;
-                i+=4;
-            }
-            
-            // compute cdf
-            //i=0; while (i<256) { cdfR[i+1]=cdfR[i]+pdfR[i]; cdfG[i+1]=cdfG[i]+pdfG[i]; cdfB[i+1]=cdfB[i]+pdfB[i]; i++; }
-            
-            this._histogram=[pdfR, pdfG, pdfB];
-            this._histogramRefresh=false;
-        },
-        
-        createImageData : function(w,h) {
-            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
-            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
-            this.context=this.canvasElement.getContext('2d');
-            this.context.createImageData(w,h);
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
-            return this.imageData;
-        },
-        
         scale : function(sx, sy) {
             sx=sx||1; sy=sy||sx;
+            if (1==sx && 1==sy) return this;
             // lazy
             //this._tmpCanvas=this._tmpCanvas || createCanvas(this.width, this.height);
             var ctx=this._tmpCanvas.getContext('2d');
@@ -455,6 +282,182 @@
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
+            return this;
+        },
+        
+        // clear the image contents
+        clear: function() {
+            if (this.width && this.height)
+            {
+                var ctx=this.context;
+                ctx.clearRect(0, 0, this.width, this.height);  
+                this.imageData=ctx.getImageData(0, 0, this.width, this.height);
+            }
+            return this;
+        },
+        
+        // fill image region contents with a specific background color
+        fill: function(color, x, y, w, h) {
+            if (!w && this.width && !h && this.height) return this
+            else if (w && !this.width && h && !this.height)
+            {
+                // create the image data if needed
+                this._tmpCanvas.width=this.canvasElement.width=this.width=w+x;
+                this._tmpCanvas.height=this.canvasElement.height=this.height=h+y;
+                this.context=this.canvasElement.getContext('2d');
+                this.context.createImageData(w,h);
+                this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            }
+            color=color||0; x=x||0; y=y||0; w=w||this.width; h=h||this.height;
+            var ctx=this.context;
+            //ctx.save();
+            ctx.fillStyle = color;  ctx.fillRect(x, y, w, h);
+            //ctx.restore();
+            this.imageData=ctx.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        draw : function(drawable, x, y, blendMode) {
+            // todo
+            return this;
+        },
+        
+        // blend with another image using various blend modes
+        blend : function(image, mode, amount, startX, startY) {
+            if (typeof mode == 'undefined') mode='normal';
+            if (typeof amount == 'undefined') amount=1;
+            if (amount>1) amount=1;
+            else if (amount<0) amount=0;
+            if (typeof startX == 'undefined')  startX=0;
+            if (typeof startY == 'undefined')  startY=0;
+            
+            var sx=0,sy=0, ctx=this.context;
+            
+            if (startX<0) {  sx=-startX;  startX=0;  }
+            if (startY<0)  { sy=-startY;  startY=0;  }
+            
+            if (startX>=this.width || startY>=this.height)   return this;
+            
+            var blendingMode = blendModes[mode];
+            if (blendingMode==undefined || blendingMode==null) return this;
+            
+            var 
+                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
+                imageData1 = this.context.getImageData(startX, startY, width, height),
+                imageData2 = image.context.getImageData(sx, sy, width, height),
+                /** @type Array */
+                pixels1 = imageData1.data,
+                /** @type Array */
+                pixels2 = imageData2.data,
+                r, g, b, oR, oG, oB, invamount = 1 - amount,
+                len=pixels2.length, i
+            ;
+
+            
+            
+            // blend images
+            for (i = 0; i < len; i += 4) 
+            {
+                oR = pixels1[i];  oG = pixels1[i + 1];  oB = pixels1[i + 2];
+
+                // calculate blended color
+                r = blendingMode(pixels2[i], oR);  g = blendingMode(pixels2[i + 1], oG);  b = blendingMode(pixels2[i + 2], oB);
+
+                // amount compositing
+                pixels1[i] = r * amount + oR * invamount;  pixels1[i + 1] = g * amount + oG * invamount;  pixels1[i + 2] = b * amount + oB * invamount;
+            }
+            ctx.putImageData(imageData1, startX, startY);
+            this.imageData=ctx.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        integral : function() {
+            if (this._integralRefresh) this._computeIntegral();
+            return this._integral;
+        },
+        
+        histogram : function() {
+            if (this._histogramRefresh) this._computeHistogram();
+            return this._histogram;
+        },
+        
+        // auxilliary methods
+        _setData : function(a) {
+            var data=this.imageData.data, l=a.length, i=0, t;
+            while (i<l) { data[i]=a[i]; i++; }
+        },
+        
+        // compute integral image (sum of columns)
+        _computeIntegral : function() 
+        {
+            var w=this.width,h=this.height, count=w*h, rowLen=w<<2,
+                integralR = new FILTER.Array32F(count), integralG = new FILTER.Array32F(count), integralB = new FILTER.Array32F(count),
+                im=this.getPixelData().data, i, j, x, colR, colG, colB, pix
+            ;
+            // compute integral of image in one pass
+            // first row
+            i=0; j=0; x=0; colR=colG=colB=0;
+            while (x<w)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+                i+=4; j++; x++;
+            }
+            // other rows
+            i=rowLen; x=0; colR=colG=colB=0;
+            while (i<imLen)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integralR[j]=integralR[j-w]+colR; integralG[j]=integralG[j-w]+colG; integralB[j]=integralB[j-w]+colB;
+                i+=4; j++; x++; if (x>=w) { x=0; colR=colG=colB=0; }
+            }
+            this._integral=[integralR, integralG, integralB];
+            this._integralRefresh=false;
+        },
+        
+        _computeHistogram : function() {
+            var im=this.getPixelData().data, i=0, l=im.length,
+                r,g,b, //rangeR, rangeG, rangeB,
+                maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+                pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
+                //cdfR=new FILTER.Array32F(257), cdfG=new FILTER.Array32F(257), cdfB=new FILTER.Array32F(257),
+                i, n=1.0/(l>>2)
+                ;
+            
+            // initialize the arrays
+            i=0; while (i<256) { pdfR[i]=0; pdfG[i]=0; pdfB[i]=0; /*cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;*/ i++; }
+            //cdfR[256]=0; cdfG[256]=0; cdfB[256]=0;
+            
+            // compute pdf and maxima/minima
+            i=0;
+            while (i<l)
+            {
+                r=im[i]; g=im[i+1]; b=im[i+2];
+                pdfR[r]+=n; pdfG[g]+=n; pdfB[b]+=n;
+                
+                if (r>maxR) maxR=r;
+                if (r<minR) minR=r;
+                if (g>maxG) maxG=g;
+                if (g<minG) minG=g;
+                if (b>maxB) maxB=b;
+                if (b<minB) minB=b;
+                i+=4;
+            }
+            
+            // compute cdf
+            //i=0; while (i<256) { cdfR[i+1]=cdfR[i]+pdfR[i]; cdfG[i+1]=cdfG[i]+pdfG[i]; cdfB[i+1]=cdfB[i]+pdfB[i]; i++; }
+            
+            this._histogram=[pdfR, pdfG, pdfB];
+            this._histogramRefresh=false;
+        },
+        
+        _refresh : function() {
+            this.context=this.canvasElement.getContext('2d');
+            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             return this;
         }
     };

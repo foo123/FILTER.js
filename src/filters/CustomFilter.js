@@ -2,7 +2,7 @@
 *
 * Custom Filter(s)
 *
-* Allows to create an filter on-the-fly usng an inline function
+* Allows to create an filter on-the-fly using an inline function
 *
 * @param handler Optional (the filter apply routine)
 * @package FILTER.js
@@ -23,14 +23,14 @@
         
         _handler : null,
         
-        _apply : function(im, w, h) {
+        _apply : function(im, w, h, image) {
             if (!this._handler) return im;
-            return this._handler.call(this,im,w,h);
+            return this._handler.call(this, im, w, h, image);
         },
         
         apply : function(image) {
             if (!this._handler) return image;
-            return image.setData(this._handler.call(this, image.getData(), image.width, image.height));
+            return image.setData(this._handler.call(this, image.getData(), image.width, image.height, image));
         }
     };
     

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+        <style type="text/css">
+            body
+            {
+                background-color:#000;
+                color:#aaa;
+                cursor:arrow;
+            }
+            #container
+            {
+                position:relative;
+                margin:0;
+                padding:0;
+                z-index:0;
+            }
+            #audio-container
+            {
+                position:relative;
+                z-index:1000;
+            }
+        </style>
+        <script src="../common/js/stats.min.js"></script>
+        <script src="../common/js/dancer.min.js"></script>
+        <script src="../../build/filter.min.js"></script>
+        <script>    
+         //<![CDATA[
+            
+           /**
+             * Provides requestAnimationFrame in a cross browser way.
+             * http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+             */
+
+            if ( !window.requestAnimationFrame ) {
+
+                window.requestAnimationFrame = ( function() {
+
+                    return window.webkitRequestAnimationFrame ||
+                    window.mozRequestAnimationFrame ||
+                    window.oRequestAnimationFrame ||
+                    window.msRequestAnimationFrame ||
+                    function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element ) {
+
+                        window.setTimeout( callback, 1000 / 60 );
+
+                    };
+
+                } )();
+
+            }
+            
+            // utils
+            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
+            function getEl(id) { return document.getElementById(id); }
+            function add(el, child) { el.appendChild(child); }
+            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
+            
+        //]]>
+        </script>
+        
+        <title>Sound visualization with Filter.js</title>
+    </head>
+    
+    <body>
+        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+		
+        <h1>Sound Visualization with Filter.js</h1>
+        
+        <strong>A JS version of  <a href="http://lf8.org/simple2.swf" target="_blank">Trioptic visualization</a> 
+        (<a href="http://www.leebrimelow.com/as3-sound-spectrum-contest-results/" target="_blank">reference</a>) using Filter.js<strong>
+        <br />
+        
+        <div id="audio-container">
+            <br />
+            
+            <audio id="audio" controls="true">
+                <source src="../common/assets/trioptic.ogg" type="audio/ogg" />
+                <source src="../common/assets/trioptic.mp3" type="audio/mpeg; codecs='mp3'" />
+                Audio is not supported
+            </audio>
+            
+            <span id="loading" style="display:inline-block; margin-left:20px"></span>
+            
+            <br />
+            <div id="statsContainer"></div>
+            
+        </div>
+        
+        <div id="container"></div>
+        
+        <script>
+        //<![CDATA[
+        (function(window){
+            
+            var 
+                audio, container, statsContainer,
+                
+                AUDIO_FILE = '../common/assets/trioptic',
+                flashSWF = '../common/js/soundmanager2.swf',
+                flashJS  = '../common/js/soundmanager2.js',
+                
+                visualization, dancer, addOn,
+                trioptic, displace, blur, triopticVisualizer, 
+                z=0, renderInterval=60,  
+
+                w=window.innerWidth,  h=window.innerHeight,
+                windowHalfX = w / 2,  windowHalfY = h / 2,
+                _width=Math.min(900, w), _height=Math.min(400, h)            
+                ;
+            
+            /**
+            *
+            * Trioptic Sound FX as a FILTER.js plugin
+            *
+            **/
+
+            FILTER.TriopticSimpleFilter=FILTER.Create({
+                // parameters
+                spectrum: 0,
+                
+                init: function() {
+                    // precompute some values
+                    var i, l=1440, sintable=new FILTER.Array32F(l), squares=new FILTER.Array32U(l),
+                        Sin=Math.sin, toRad=FILTER.CONSTANTS.toRad
+                        ;
+                        
+                    i=0;
+                    while (i<l)
+                    {
+                        sintable[i]=Sin(i*toRad);
+                        squares[i]=~~(16777215*i*i); // * 0xFFFFFF
+                        i++;
+                    }
+                    this._sintable=sintable;
+                    this._squares=squares;
+                },
+                
+                // this is the filter actual apply method routine
+                apply: function(im, w, h) {
+                    // im is a copy of the image data as an image array
+                    // w is image width, h is image height
+                    // for this filter, no need to clone the image data, operate in-place
+                    var 
+                        s=this.spectrum, res=2, sintable=this._sintable, squares=this._squares,
+                        toCol=FILTER.Color.Color2RGBA, 
+                        off, rgba, i, j, ii, x, y, iw, jw, wr=w*0.5  // w/res
+                        ;
+                    
+                    //s = Pow(spectrum, 3) * w * 0.3333;
+                    s = ~~s;
+                    i = 0; iw=0;
+                    while (i < 1440)
+                    {
+                        rgba=toCol(squares[i]);
+                        if (s>=0 && s<w && i<h)
+                        {
+                            off = (s + iw)<<2; 
+                            im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                        }
+                        
+                        j = 0; jw=0;
+                        while (j < res)
+                        {
+                            x = s*sintable[i] + jw - 50;  y = i-0.5*i*(j%2); // i/j;
+                            if (x>=0 && x<w && y<h)
+                            {
+                                off = (~~(x + y*w))<<2;
+                                im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                            }
+                            j++; jw+=wr;
+                        }
+                        i++; iw+=w;
+                    }
+                    //z += 0.02;
+                    
+                    // return the new image data
+                    return im;
+                }
+            });
+                
+                
+            function prepareAudio() 
+            {
+                /*
+                * Dancer.js magic
+                */
+                Dancer.setOptions({ flashSWF : flashSWF, flashJS  : flashJS });
+
+                dancer = new Dancer();
+
+                //dancer.load({ src: AUDIO_FILE, codecs: [ 'ogg', 'mp3' ]});
+                dancer.load(audio);
+
+                Dancer.isSupported() || audioLoaded();
+                !dancer.isLoaded() ? dancer.bind( 'loaded', audioLoaded ) : audioLoaded();
+            }
+            
+          /*
+           * Loading
+           */
+            function audioLoaded() 
+            {
+                var
+                    loading = getEl( 'loading' ),
+                    anchor  = document.createElement('A'),
+                    supported = Dancer.isSupported(),
+                    p;
+
+                anchor.appendChild( document.createTextNode( supported ? 'Play!' : 'Close' ) );
+                anchor.setAttribute( 'href', '#' );
+                loading.innerHTML = '';
+                loading.appendChild( anchor );
+
+                if ( !supported ) 
+                {
+                    p = document.createElement('P');
+                    p.appendChild( document.createTextNode( 'Your browser does not currently support either Web Audio API or Audio Data API. The audio may play, but the visualizers will not move to the music; check out the latest Chrome or Firefox browsers!' ) );
+                    loading.appendChild( p );
+                }
+
+                anchor.addEventListener( 'click', function () {
+                    loading.style.display = 'none';
+                    dancer.play(); 
+                    animate();
+                });
+            }
+            
+            function prepareFilters() 
+            {
+                 // prepare visualization image
+                visualization=new FILTER.Image().fill('rgb(0,0,0)', 0, 0, _width, _height);
+                add(container, visualization.domElement);
+                
+                // prepare filters
+                //addOn=new FILTER.TableLookupFilter().threshold(0.4);
+                trioptic=new FILTER.TriopticSimpleFilter();
+                displace=new FILTER.DisplacementMapFilter();
+                blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3);
+                triopticVisualizer=new FILTER.CompositeFilter([trioptic, displace, blur]);
+            }
+
+
+            function animate() 
+            {
+                if (!dancer.isPlaying) { z=0; return; }
+                
+                var 
+                    spec=6*dancer.getFrequency(0,1), 
+                    w=visualization.width, 
+                    s = w * spec * spec * spec * 0.3333
+                    ;
+                
+                // set the various filters parameters
+                trioptic.spectrum=s;
+                
+                displace.setMap(visualization);
+                displace.startX=0;  displace.startY=0;
+                displace.componentX=FILTER.CHANNEL.BLUE;  
+                displace.componentY=FILTER.CHANNEL.GREEN;
+                displace.scaleX=z*s*0.1;  displace.scaleY=z+3;
+                
+                /*if (spec>0.62) triopticVisualizer.push(addOn);
+                else  triopticVisualizer.remove(addOn);*/
+                
+				stats.begin();
+                
+                // apply the visualization
+                triopticVisualizer.apply(visualization);
+                
+				stats.end();
+                
+                // update any param needed
+                z += 0.02;
+                //z += 0.1;
+                
+                requestAnimationFrame( animate );
+                //setTimeout(animate, renderInterval);
+            }
+
+            function init() 
+            {
+                container=getEl('container'); 
+                statsContainer=getEl('statsContainer');
+                audio=getEl('audio');
+
+                stats = new Stats();
+                stats.setMode( 1 );
+                add(statsContainer, stats.domElement );
+                
+                prepareFilters();
+                prepareAudio();
+            }
+            
+            init();
+            
+         })(window);   
+        //]]>
+        </script>
+    </body>
+</html>

@@ -33,9 +33,13 @@
             {
                 font-size:20px;
             }
+            #statsContainer
+            {
+                margin-bottom:20px;
+            }
         </style>
-        <script src="stats.min.js"></script>
-        <script src="../build/filter.min.js"></script>
+        <script src="../common/js/stats.min.js"></script>
+        <script src="../../build/filter.min.js"></script>
         <script>    
          //<![CDATA[
             
@@ -73,7 +77,7 @@
         <title>Video Processing with FILTER.js</title>
     </head>
 	<body>
-        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:1rem;line-height:2rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
 		
         <h1>Video Processing with Filter.js</h1><br /><br />
         
@@ -81,7 +85,11 @@
         
         <div id="container" class="panel">
             <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
-            <video id="video" src="Waddys_Takeoff-The_Aftermath.mp4" autoplay loop>Video is not supported</video>
+            <video id="video" autoplay loop>
+                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm" />
+                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4" />
+                Video is not supported
+            </video>
         </div>
         
 		<div id="filters" class="panel">
@@ -93,27 +101,32 @@
         <div class="panel" style="display:block; max-width:1000px;">
             <strong>Apply Post-Process Filter to Video :</strong><br /><br />
             <select id="filterSelect" style="font-size:20px;">
-                <option value='0'>Grayscale, Sobel Edges</option>
-                <option value='1'>Grayscale, Sobel Edges, Binary Threshold</option>
-                <option value='2'>Colorize</option>
-                <option value='3'>Grayscale</option>
-                <option value='4'>Grayscale and Contrast</option>
-                <option value='5'>Solarize</option>
-                <option value='6'>Posterize</option>
-                <option value='7'>RED Channel</option>
-                <option value='8'>GREEN Channel</option>
-                <option value='9'>BLUE Channel</option>
+                <option value='0'>Colorize</option>
+                <option value='1'>Grayscale</option>
+                <option value='2'>Grayscale and Contrast</option>
+                <option value='3'>Solarize</option>
+                <option value='4'>Posterize</option>
+                <option value='5'>RED Channel</option>
+                <option value='6'>GREEN Channel</option>
+                <option value='7'>BLUE Channel</option>
+                <option value='8'>Grayscale, Sobel Edges</option>
+                <option value='9'>Grayscale, Sobel Edges, Binary Threshold</option>
                 <option value='10'>Equalize Histogram</option>
                 <option value='11'>Emboss</option>
                 <option value='12'>Invert</option>
-                <option value='13'>Erode</option>
-                <option value='14'>Dilate</option>
-                <option value='15'>Fast Gauss Blur</option>
-                <option value='16'>Noise</option>
-                <option value='17'>DisplaceMap</option>
-                <option value='18'>TwirlMap</option>
-                <option value='19'>Pixelate</option>
+                <option value='13'>Erode 3x3</option>
+                <option value='14'>Dilate 3x3</option>
+                <option value='15'>Noise</option>
+                <option value='16'>DisplaceMap</option>
+                <option value='17'>TwirlMap</option>
+                <option value='18'>Pixelate 5%</option>
+                <option value='19'>Pixelate 20%</option>
                 <option value='20'>HSV Color Space</option>
+                <option value='21'>Alpha Mask</option>
+                <option value='22'>Fast Gauss Blur 3x3</option>
+                <option value='23'>Fast Gauss Blur 7x7</option>
+                <option value='24'>Fast Gauss Blur 15x15</option>
+                <option value='25'>Fast Gauss Blur 51x51</option>
             </select>
             &nbsp;
             <select id="flipSelect" style="font-size:20px;">
@@ -127,7 +140,8 @@
         
 		<script>
         //<![CDATA[
-            
+        (function(window){
+        
             var 
                 filterSelect=getEl('filterSelect'), 
                 flipSelect=getEl('flipSelect'), 
@@ -136,7 +150,8 @@
                 filters=getEl('filters'),
                 
                 // images
-                displacemap=new FILTER.Image(),
+                displacemap=new FILTER.Image().fill("rgb(128,128,128)", 0, 0, 300, 300),
+                alphamask=new FILTER.Image().fill("rgb(0,0,0)", 0, 0, 380, 270),
                 postVideo=new FILTER.Image(),
                  
                  // filters
@@ -161,18 +176,22 @@
                 // median is slow ..
                 erode=new FILTER.StatisticalFilter().erode(3),
                 dilate=new FILTER.StatisticalFilter().dilate(3),
-                blur=new FILTER.ConvolutionMatrixFilter().fastGauss(3, 5),
+                blur3=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 3),
+                blur7=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 7),
+                blur15=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 15),
+                blur51=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 51),
                 noise=new FILTER.NoiseFilter(10, 70),
                 displaceFilter=new FILTER.DisplacementMapFilter(),
                 twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
-                pixelate=new FILTER.PixelateFilter(5),
+                pixelate5=new FILTER.PixelateFilter(5),
+                pixelate20=new FILTER.PixelateFilter(20),
+                alphaMasker=new FILTER.AlphaMaskFilter(),
+                swapChannel=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.ALPHA),
                 //pixelate2=new FILTER.Pixelate2Filter(5),
                 hsv=new FILTER.HSVConverterFilter(),
                 
                 // filter selection list
                 videoFilters=[
-                    grs,
-                    grsb,
                     clr,
                     gray,
                     grc,
@@ -181,30 +200,33 @@
                     redC,
                     greenC,
                     blueC,
+                    grs,
+                    grsb,
                     equ,
                     emboss,
                     invert,
                     erode,
                     dilate,
-                    blur,
                     noise,
                     displaceFilter,
                     twirlFilter,
-                    pixelate,
-                    hsv
+                    pixelate5,
+                    pixelate20,
+                    hsv,
+                    alphaMasker,
+                    blur3,
+                    blur7,
+                    blur15,
+                    blur51
                 ],
-                currentOrientation=0, displaceFilterIndex=17, twirlFilterIndex=18, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
-                renderInterval=60,
-                rnd=Math.random, dx, dy, dtheta, vw, vh
+                currentOrientation=0, displaceFilterIndex=16, twirlFilterIndex=17, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
+                renderInterval=60,  rnd=Math.random, Max=Math.max, dx, dy, dtheta, vw, vh
                 ;
             
             function init()
             {
                 var grd;
                 // create a displace map image
-                displacemap.createImageData(250, 250);
-                displacemap.context.fillStyle="rgb(128,128,128)";
-                displacemap.context.fillRect(0,0, displacemap.width, displacemap.height);
                 // create radial gradient
                 grd = displacemap.context.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
                 grd.addColorStop(1, "#808080"); // neutral
@@ -219,9 +241,24 @@
                 displaceFilter.scaleX=120; displaceFilter.scaleY=120; 
                 displaceFilter.componentX=FILTER.CHANNEL.RED; displaceFilter.componentY=FILTER.CHANNEL.GREEN;
                 
-                dx=10*rnd()+20; dy=10*rnd()+20; dtheta=0.1*Math.PI*rnd() + 0.05;
+                // create alpha mask image
+                // create radial gradient
+                grd = alphamask.context.createRadialGradient(alphamask.width/2, alphamask.height/2, 0, alphamask.width/2, alphamask.height/2, alphamask.width/2);
+                grd.addColorStop(1, "#000000"); // black
+                grd.addColorStop(0, "#ffffff"); // white
+                alphamask.context.fillStyle = grd;
+                alphamask.context.beginPath();
+                alphamask.context.arc(alphamask.width/2,alphamask.height/2,alphamask.width/2,0,Math.PI*2,true);
+                alphamask.context.fill();
+                alphamask._refresh();
+                swapChannel.apply(alphamask);
+                alphaMasker.centerX=video.videoWidth/2;
+                alphaMasker.centerY=video.videoHeight/2;
+                alphaMasker.alphaMask=alphamask;
                 
-                add(filters, postVideo.canvasElement);
+                dx=Max(5*rnd()+5, 5); dy=Max(5*rnd()+5, 5); dtheta=Max(0.1*Math.PI*rnd() + 0.05, 0.06);
+                
+                add(filters, postVideo.domElement);
                 
                 stats = new Stats();
                 stats.setMode( 1 );
@@ -240,12 +277,13 @@
             {
                 if (video.paused || video.ended)  return;
                 
-				stats.begin();
+                stats.begin();
                 
                 // preview the filter while hovering the option
                 currentFilter=videoFilters[filterSelect.selectedIndex || 0];
                 
                 postVideo.setImage(video);
+                
                 if (1==currentOrientation)   postVideo.flipHorizontal();
                 else if (2==currentOrientation)  postVideo.flipVertical();
                 else if (3==currentOrientation)   flipX.apply(postVideo);
@@ -262,26 +300,27 @@
                 else if (twirlFilterIndex==filterSelect.selectedIndex)
                 {
                     // animate the twirl filter
-                    vw=postVideo.width>>1; vh=postVideo.height>>1;
+                    vw=postVideo.width; vh=postVideo.height;
                     twirlFilter.angle+=dtheta;
                     if (twirlFilter.angle < -Math.PI/2 || twirlFilter.angle > Math.PI/2) dtheta=-dtheta;
                     twirlFilter.centerX+=dx; twirlFilter.centerY+=dy;
-                    if (twirlFilter.centerX<0 || twirlFilter.centerX>postVideo.width) dx=-dx;
-                    if (twirlFilter.centerY<0 || twirlFilter.centerY>postVideo.height) dy=-dy;
+                    if (twirlFilter.centerX<0 || twirlFilter.centerX>vw) dx=-dx;
+                    if (twirlFilter.centerY<0 || twirlFilter.centerY>vh) dy=-dy;
                 }
                 
                 currentFilter.apply(postVideo);
                 
-				stats.end();
+                stats.end();
                 
                 // Render every fixed interval
-                setTimeout(processVideo, renderInterval);
-                //requestAnimationFrame(processVideo);
+                //setTimeout(processVideo, renderInterval);
+                requestAnimationFrame(processVideo);
             }
             
             // play
             init();
             
+        })(window);
         //]]>
 		</script>
     </body>

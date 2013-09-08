@@ -46,7 +46,7 @@
         },
         
         // used for internal purposes
-        _apply : function(im, w, h) {
+        _apply : function(im, w, h/*, image*/) {
             
             if (!this._map) return im;
             
@@ -124,7 +124,7 @@
         
         apply : function(image) {
             if (!this._map) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         reset : function() {
