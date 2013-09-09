@@ -28,7 +28,7 @@ This is a library for filtering images/video in JavaScript using canvas element.
 The framework defines an [Image class](#image-class) which represents an Image and 7 generic Filter types
 
 1. [__ColorMatrixFilter__](#color-matrix-filter) (analogous to the actionscript version)
-2. [__LookupTableFilter__](#lookup-table-filter) 
+2. [__TableLookupFilter__](#table-lookup-filter) 
 3. [__ConvolutionMatrixFilter__](#convolution-matrix-filter) (analogous to the actionscript version)
 4. [__DisplacementMapFilter__](#displacement-map-filter) (analogous to actionscript version)
 5. [__GeometricMapFilter__](#geometric-map-filter)
@@ -122,10 +122,10 @@ grc.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
-######Lookup Table Filter
+######Table Lookup Filter
 
 ````javascript
-new FILTER.LookupTableFilter(colorTable);
+new FILTER.TableLookupFilter(colorTable);
 ````
 
 The (optional) colorTable parameter is an array of 256 numbers which define the color lookup map.
@@ -154,7 +154,7 @@ Lookup Table Filters can be combined very easily since they operate only on a si
 In order to use both an invert and a posterize filter use the following chaining:
 
 ````javascript
-var invertPosterize=new FILTER.LookupTableFilter().invert().posterize(4);
+var invertPosterize=new FILTER.TableLookupFilter().invert().posterize(4);
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
@@ -436,13 +436,14 @@ __Included Plugins__
 
 
 ###Todo
-* allow to work with Nodejs
-* increase support for Opera, IE9  (alternative for imageData.set method?? )
-* allow extension by plugins (both as Classes and Inline) [DONE]
-* add more filters (eg split/combine/blend/adaptive/nonlinear etc..) [DONE partially]
-* add 2d-fft routines, frequency-domain filtering
-* make convolutions faster [DONE partially]
+* make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
+* add WebGL support for various pre-built and custom Filters [IN PROGRESS]
+* add more filters (eg split/combine/blend/adaptive/nonlinear etc..) [DONE partially]
+* add 2d-fft routines, frequency-domain filtering [IN PROGRESS]
+* allow extension by plugins (both as Classes and Inline) [DONE]
+* allow to work with Nodejs [IHN PROGRESS]
+* increase support/performance for Opera, IE  [DONE partially]
 
 
 ###ChangeLog
@@ -491,7 +492,7 @@ __0.4.1__
 
 __0.4__
 * add new Image methods ( _scale_ _flipHorizontal_ _flipVertical_ )
-* add new generic filter type _FILTER.LookupTableFilter()_ and some pre-computed filters ( _posterize_ _solarize_ etc..)
+* add new generic filter type _FILTER.TableLookupFilter()_ and some pre-computed filters ( _posterize_ _solarize_ etc..)
 * minor edits/optimizations
 * update readme / examples
 
