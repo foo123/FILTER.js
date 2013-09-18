@@ -370,8 +370,8 @@ The class implements these methods:
 
 * _push() / concat()_  add a filter to the end of stack
 * _pop()_ remove a filter from the end of stack
-* _shift()_  add a filter to the start of stack
-* _unshift()_ remove a filter from the start of stack
+* _shift()_  remove a filter from the start of stack
+* _unshift()_ add a filter to the start of stack
 * _remove()_ remove a filter by instance 
 * _insertAt()_ insert new filter at specified location/order
 * _removeAt()_ remove the filter at specified location/order
