@@ -6,6 +6,7 @@ This is a library for filtering images/video in JavaScript using canvas element.
 
 [![Filter.js](/screenshots/filters-image-process.png)](http://foo123.github.com/examples/filter/)
 [![Filter.js](/screenshots/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
+[![Filter.js](/screenshots/filter-sound-vis.png)](http://foo123.github.com/examples/filter-sound/)
 
 
 ###Contents
