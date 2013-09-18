@@ -51,7 +51,7 @@
                 padding-left:10px;
             }
         </style>
-        <script src="../../build/filter.min.js"></script>
+        <script src="../common/js/filter.min.js"></script>
         <title>Image Processing with FILTER.js</title>
     </head>
 	<body>
@@ -152,13 +152,29 @@
                 //blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3),
                 //gauss=new FILTER.ConvolutionMatrixFilter().fastGauss(3),//gaussBlur(3),
                 //vertical=new FILTER.ConvolutionMatrixFilter().verticalBlur(21),
+                //diagonal=new FILTER.ConvolutionMatrixFilter().directionalBlur(45, 9),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
+                //glow=new FILTER.ConvolutionMatrixFilter().glow(),
                 emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 grsb=new FILTER.CompositeFilter([gray, sobel/*, binary*/]),
-                displace=new FILTER.DisplacementMapFilter(displacemap)
+                displace=new FILTER.DisplacementMapFilter(displacemap),
+                bokeh=new FILTER.BokehFilter(80, 90, 60, 10)
                 ;
             
-            
+            /*
+            var tt={
+                'sin0': Math.sin(0),
+                'cos0': Math.cos(0),
+                'sin225': Math.sin(Math.PI/8),
+                'cos225': Math.cos(Math.PI/8),
+                'sin45': Math.sin(Math.PI/4),
+                'cos45': Math.cos(Math.PI/4),
+                'sin90': Math.sin(Math.PI/2),
+                'cos90': Math.cos(Math.PI/2)
+            };
+            console.log(tt);
+            console.log(glow._matrix);
+            */
             addAll(container, [
                 span('1.'),
                 im1.domElement,
@@ -200,6 +216,8 @@
             
             function dotest(event)
             {
+                //FILTER.test(4,4);
+                
                 // apply them
                 redChannel.apply(im2);
                 greenChannel.apply(im3);
@@ -211,15 +229,22 @@
                 //gauss.apply(im9);
                 pixelate.apply(im9);
                 //skinExtractor.apply(im10);
+                //console.time('median 1');
                 emboss.apply(im10);
+                //console.timeEnd('median 1');
                 twirl.apply(im11);
                 displace.scaleX=100;
                 displace.scaleY=100;
                 displace.apply(im12);
                 grsb.apply(im13);
+                //console.time('median 2');
+                //glow.apply(im13);
+                //console.timeEnd('median 2');
                 equalize.apply(im14);
 
                 append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Pixelate (Plugin)</li><li>Emboss</li><li>Geometric Twirl Map</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
+                
+                
             }
             
             addEvent(test, 'click', dotest);

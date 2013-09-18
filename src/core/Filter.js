@@ -19,11 +19,41 @@
     FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
     //FILTER.ImArray = (typeof Uint8ClampedArray !== "undefined") ? Uint8ClampedArray : ((typeof CanvasPixelArray !== "undefined") ? CanvasPixelArray : FILTER.Array8U);
     FILTER.ImArray = (typeof Uint8ClampedArray !== "undefined") ? Uint8ClampedArray : FILTER.Array8U;
-    FILTER._notSupportTypedArrays=(!FILTER.ImArray.set);
+    FILTER._notSupportTypedArrays=(!FILTER.ImArray/*.prototype*/.set);
+    
+    if (FILTER._notSupportTypedArrays)
+    {
+        // add the missing method to the array
+        if (!FILTER.ImArray.prototype.set)
+        {
+            FILTER.ImArray.prototype.set=function(a, index) {
+                var l=a.length, i=l;
+                //index=index||0;
+                while (--i) { this[i/*+index*/]=a[i]; /*i++;*/ }
+            };
+        }
+        if (typeof CanvasPixelArray !== "undefined")
+        {
+            CanvasPixelArray.prototype.set=function(a, index) {
+                var l=a.length, i=l;
+                //index=index||0;
+                while (--i) { this[i/*+index*/]=a[i]; /*i++;*/ }
+            };
+        }
+        /*else if (typeof Uint8ClampedArray !== "undefined")
+        {
+            Uint8ClampedArray.prototype.set=function(a, index) {
+                var l=a.length, i=l;
+                //index=index||0;
+                while (--i) { this[i/*+index* /]=a[i]; /*i++;* / }
+            };
+        }*/
+    }
     
     // Constants
     FILTER.CONSTANTS={
         PI : Math.PI,
+        PI2 : 2*Math.PI,
         SQRT2 : Math.SQRT2,
         toRad : Math.PI/180, 
         toDeg : 180/Math.PI
@@ -40,7 +70,11 @@
         CLAMP : 2,
         COLOR : 4
     };
-    FILTER.LUMA=new FILTER.Array32F([0.212671, 0.71516, 0.072169]);
+    FILTER.LUMA=new FILTER.Array32F([ 
+        0.212671, 
+        0.71516, 
+        0.072169 
+    ]);
     
     //
     //
@@ -132,30 +166,31 @@
         
         remove : function(filter) {
             var i=this._stack.length;
-            while (--i>=0) { if (filter===this._stack[i]) this._stack.splice(i,1); }
+            while (--i>=0) { if (filter===this._stack[i]) this._stack.splice(i, 1); }
             return this;
         },
         
         reset : function() {
-            this._stack.length=0;
-            return this;
+            this._stack.length=0;  return this;
         }
     };
     
+    //
+    //
     // allow plugin creation
-    FILTER.Create=function(options)
+    FILTER.Create=function(methods)
     {
         var filterClass=function() { this.init.apply(this, Array.prototype.slice.call(arguments)); };
         
-        options=Fextend({
+        methods=Fextend({
             init: function() {},
             reset: function() { return this; },
             apply: function(im, w, h, image){ return im; }
-        }, options);
-        options._apply=options.apply;
-        options.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height, image)); }
+        }, methods);
+        methods._apply=methods.apply;
+        methods.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height, image)); }
         
-        filterClass.prototype=Fextend(filterClass.prototype, options);
+        filterClass.prototype=Fextend(filterClass.prototype, methods);
         return filterClass;
     };
     

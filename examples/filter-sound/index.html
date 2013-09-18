@@ -27,7 +27,7 @@
         </style>
         <script src="../common/js/stats.min.js"></script>
         <script src="../common/js/dancer.min.js"></script>
-        <script src="../../build/filter.min.js"></script>
+        <script src="../common/js/filter.min.js"></script>
         <script>    
          //<![CDATA[
             
@@ -79,8 +79,10 @@
             <br />
             
             <audio id="audio" controls="true">
-                <source src="../common/assets/trioptic.ogg" type="audio/ogg" />
-                <source src="../common/assets/trioptic.mp3" type="audio/mpeg; codecs='mp3'" />
+                <source src="../common/assets/trioptic.ogg" type="audio/ogg">
+                <source src="../common/assets/trioptic.mp3" type="audio/mpeg; codecs='mp3'">
+                <!--<source src="../common/assets/circlesquare-trancenation.ogg" type="audio/ogg">
+                <source src="../common/assets/circlesquare-trancenation.mp3" type="audio/mpeg; codecs='mp3'">-->
                 Audio is not supported
             </audio>
             
@@ -123,64 +125,67 @@
                 // parameters
                 spectrum: 0,
                 
-                init: function() {
-                    // precompute some values
-                    var i, l=1440, sintable=new FILTER.Array32F(l), squares=new FILTER.Array32U(l),
-                        Sin=Math.sin, toRad=FILTER.CONSTANTS.toRad
-                        ;
+                // use a "closure" to store some precomputed values
+                apply: (function() {
                         
-                    i=0;
-                    while (i<l)
-                    {
-                        sintable[i]=Sin(i*toRad);
-                        squares[i]=~~(16777215*i*i); // * 0xFFFFFF
-                        i++;
-                    }
-                    this._sintable=sintable;
-                    this._squares=squares;
-                },
-                
-                // this is the filter actual apply method routine
-                apply: function(im, w, h) {
-                    // im is a copy of the image data as an image array
-                    // w is image width, h is image height
-                    // for this filter, no need to clone the image data, operate in-place
-                    var 
-                        s=this.spectrum, res=2, sintable=this._sintable, squares=this._squares,
-                        toCol=FILTER.Color.Color2RGBA, 
-                        off, rgba, i, j, ii, x, y, iw, jw, wr=w*0.5  // w/res
-                        ;
-                    
-                    //s = Pow(spectrum, 3) * w * 0.3333;
-                    s = ~~s;
-                    i = 0; iw=0;
-                    while (i < 1440)
-                    {
-                        rgba=toCol(squares[i]);
-                        if (s>=0 && s<w && i<h)
+                        // precompute some values
+                        var i, l=1440, sintable=new FILTER.Array32F(l), squares=new FILTER.Array32U(l),
+                            Sin=Math.sin, toRad=FILTER.CONSTANTS.toRad
+                            ;
+                            
+                        i=0;
+                        while (i<l)
                         {
-                            off = (s + iw)<<2; 
-                            im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                            sintable[i]=Sin(i*toRad);
+                            squares[i]=~~(16777215*i*i); // * 0xFFFFFF
+                            i++;
                         }
-                        
-                        j = 0; jw=0;
-                        while (j < res)
-                        {
-                            x = s*sintable[i] + jw - 50;  y = i-0.5*i*(j%2); // i/j;
-                            if (x>=0 && x<w && y<h)
+                        //this._sintable=sintable;
+                        //this._squares=squares;
+                    
+                        // this is the filter actual apply method routine
+                        return function(im, w, h) {
+                            // im is a copy of the image data as an image array
+                            // w is image width, h is image height
+                            // for this filter, no need to clone the image data, operate in-place
+                            var l=im.length,
+                                s=this.spectrum, res=2,
+                                toCol=FILTER.Color.Color2RGBA, 
+                                off, rgba, i, j, ii, x, y, iw, jw, wr=w*0.5  // w/res
+                                ;
+                            
+                            //im=new FILTER.ImArray(l);
+                            //s = Pow(spectrum, 3) * w * 0.3333;
+                            s = ~~s;
+                            i = 0; iw=0;
+                            while (i < 1440)
                             {
-                                off = (~~(x + y*w))<<2;
-                                im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                                rgba=toCol(squares[i]);
+                                if (s>=0 && s<w && i<h)
+                                {
+                                    off = (s + iw)<<2; 
+                                    im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                                }
+                                
+                                j = 0; jw=0;
+                                while (j < res)
+                                {
+                                    x = s*sintable[i] + jw - 50;  y = i-0.5*i*(j%2); // i/j;
+                                    if (x>=0 && x<w && y<h)
+                                    {
+                                        off = (~~(x + y*w))<<2;
+                                        im[off]=rgba.r; im[off+1]=rgba.g; im[off+2]=rgba.b;
+                                    }
+                                    j++; jw+=wr;
+                                }
+                                i++; iw+=w;
                             }
-                            j++; jw+=wr;
+                            //z += 0.02;
+                            
+                            // return the new image data
+                            return im;
                         }
-                        i++; iw+=w;
-                    }
-                    //z += 0.02;
-                    
-                    // return the new image data
-                    return im;
-                }
+                })()
             });
                 
                 
@@ -247,7 +252,7 @@
 
             function animate() 
             {
-                if (!dancer.isPlaying) { z=0; return; }
+                if (!dancer.isPlaying()) { z=0; return; }
                 
                 var 
                     spec=6*dancer.getFrequency(0,1), 

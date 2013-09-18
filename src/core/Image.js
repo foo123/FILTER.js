@@ -194,8 +194,8 @@
         
         // set direct data array
         setData : function(a) {
-            if (notSupportTyped) this._setData(a);
-            else this.imageData.data.set(a); // not supported in Opera, IE, Safari
+            /*if (notSupportTyped) this._setData(a);
+            else*/ this.imageData.data.set(a); // not supported in Opera, IE, Safari
             
             this.context.putImageData(this.imageData, 0, 0); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
@@ -246,13 +246,13 @@
             var ctx=this._tmpCanvas.getContext('2d');
             //ctx.save();
             ctx.scale(sx, sy);
-            //ctx.restore();
             ctx.drawImage(this.canvasElement, 0, 0);
             this.canvasElement.width=this.width=~~(sx*this.width+0.5);
             this.canvasElement.height=this.height=~~(sy*this.height+0.5);
             this.context.drawImage(this._tmpCanvas, 0, 0);
             this._tmpCanvas.width=this.width;
             this._tmpCanvas.height=this.height;
+            //ctx.restore();
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
@@ -355,8 +355,6 @@
                 len=pixels2.length, i
             ;
 
-            
-            
             // blend images
             for (i = 0; i < len; i += 4) 
             {
@@ -386,10 +384,10 @@
         },
         
         // auxilliary methods
-        _setData : function(a) {
+        /*_setData : function(a) {
             var data=this.imageData.data, l=a.length, i=0, t;
             while (i<l) { data[i]=a[i]; i++; }
-        },
+        },*/
         
         // compute integral image (sum of columns)
         _computeIntegral : function() 

@@ -10,6 +10,8 @@
 ../src/plugins/HueExtractor.js
 ../src/plugins/AlphaMask.js
 ../src/plugins/Threshold.js
+../src/plugins/YCbCrConverter.js
+../src/plugins/Bokeh.js
 
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT

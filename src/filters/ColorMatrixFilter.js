@@ -508,6 +508,23 @@
                 ]);
         },
         
+        /*
+             adapted from glfx.js
+             Gives the image a reddish-brown monochrome tint that imitates an old photograph.
+             0 to 1 (0 for no effect, 1 for full sepia coloring)
+        */
+        sepia : function(amount) {
+            if (typeof amount == 'undefined') amount=0.5;
+            if (amount>1) amount=1;
+            else if (amount<0) amount=0;
+            return this.concat([
+                1.0 - (0.607 * amount), 0.769 * amount, 0.189 * amount, 0, 0, 
+                0.349 * amount, 1.0 - (0.314 * amount), 0.168 * amount, 0, 0, 
+                0.272 * amount, 0.534 * amount, 1.0 - (0.869 * amount), 0, 0, 
+                0, 0, 0, 1, 0
+            ]);
+        },
+        
         quickSepia : function(amount) {
             if (typeof amount == 'undefined') amount=10;
             if (amount>100) amount=100;
@@ -520,7 +537,7 @@
             ]);
         },
         
-        quickSepia2 : function(r, g, b) {
+        /*quickSepia2 : function(r, g, b) {
             if (typeof r == 'undefined') r=1;
             if (typeof g == 'undefined') g=r;
             if (typeof b == 'undefined') b=r;
@@ -531,7 +548,7 @@
                 0.25, 0.25, b*0.25, 0, 0, 
                 0, 0, 0, 1, 0
             ]);
-        },
+        },*/
         
         /*quickSepia2 : function(r, g, b) {
             if (typeof r == 'undefined') r=1;

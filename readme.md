@@ -14,7 +14,7 @@ This is a library for filtering images/video in JavaScript using canvas element.
 * [How to Use](#how-to-use)
 * [API Reference](#api-reference)
 * [Todo](#todo)
-* [ChangeLog](#changelog)
+* [ChangeLog](/changelog.md)
 
 ###Live Examples
 * [Image Processing with Filter.js](http://foo123.github.com/examples/filter/)
@@ -96,7 +96,8 @@ The class has various pre-defined filters which can be combined in any order.
 * _adjustHue()_  adjust image hue
 * _average()_   color image to an average color (similar to grayscale)
 * _quickContrastCorrection()_  
-* _quickSepia()_   applies a quick pseudo-sepia effect
+* _sepia()_   applies a sepia effect
+* _quickSepia()_   applies an alternative quick sepia effect
 * _threshold()_  applies a color threshod to the image
 * *threshold_rgb()*  applies a threshod to the image only to the RGB channels
 * *threshold_alpha()*  applies a threshod to the image only to the Alpha channel
@@ -125,10 +126,10 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ######Table Lookup Filter
 
 ````javascript
-new FILTER.TableLookupFilter(colorTable);
+new FILTER.TableLookupFilter(colorTable [, colorTableG, colorTableB]);
 ````
 
-The (optional) colorTable parameter is an array of 256 numbers which define the color lookup map.
+The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
 
 The filter scans an image and changes the coloring of each pixel according to the color map table
 
@@ -191,8 +192,10 @@ The class has various pre-defined filters to use.
 * _highPass()_ Generic fast high pass filter (derived from the associated low pass filter)
 * _binomialLowPass() / gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
 * _binomialHighPass()_ Generic high pass filter (derived from the associated low pass filter)
-* _horizontalBlur()_  apply blur only to horizontal direction
-* _verticalBlur()_  apply blur only to vertical direction
+* _horizontalBlur()_  apply a fast blur only to horizontal direction
+* _verticalBlur()_  apply a fast blur only to vertical direction
+* _directionalBlur()_  apply a fast blur to an arbitrary direction (at present supports only horizontal/vertical and diagonal blurs)
+* _glow()_  apply a fast glow effect
 * _sharpen()_  Sharpen the image fast
 * _prewittX() / gradX()_  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
 * _prewittY() / gradY()_  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
@@ -205,7 +208,7 @@ The class has various pre-defined filters to use.
 * _laplace()_  Total second gradient of the image (fast Laplacian)
 * _emboss()_   Apply emboss effect to the image
 * _edges()_  Apply an edge filter to the image
-* _motionblur()_  __deprecated__ 
+* _motionblur()_  __deprecated__  (use directionalBlur)
 * _reset()_  reset the filter matrix to identity
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
@@ -280,7 +283,7 @@ The class has some pre-defined filters to use.
 * _rotateCW()_  Rotate target image clockwise 90 degrees
 * _rotateCCW()_  Rotate target image counter-clockwise 90 degrees
 * _generic()_ Apply a a user-defined generic geometric mapping to the image
-* _affine()_ Apply an affine transformation to the target image
+* _affine()_ Apply an affine transformation (using an affine transform matrix) to the target image
 * _twirl()_  Apply a twirling map
 * _sphere()_  Apply a spherical map
 * _polar()_  Transform image to polar coords (TODO)
@@ -432,6 +435,8 @@ __Included Plugins__
 * Hue Extractor: extract a range of hues from the image
 * AlphaMask: apply another image as an alpha mask to the target image
 * Threshold: apply general (full 32bit thresholds) thresholding to an image
+* YCbCrConverter: convert the image to YCbCr color space
+* Bokeh: apply a fast Bokeh (Depth-of-Field) effect to an image
 
 
 
@@ -444,97 +449,6 @@ __Included Plugins__
 * allow extension by plugins (both as Classes and Inline) [DONE]
 * allow to work with Nodejs [IHN PROGRESS]
 * increase support/performance for Opera, IE  [DONE partially]
-
-
-###ChangeLog
-
-__0.6.3__
-* add new plugin Threshold
-* minor fixes for cross-browser support
-* typos/edits
-* add Sound Visualization example
-* update examples with new filters
-* update readme
-
-__0.6.2__
-* compatibility fixes for IE9, IE10
-* minor edits
-
-__0.6.1__
-* new plugin AlphaMask
-* add support for Opera, IE9(slower) (browsers tested Firefox, Chrome, IE9+, Opera)
-* minor fixes/edits
-* add sound visualization example with Filter.js
-* 3 different builds: filter.min.js (full), filter.basic.min.js (core and filters only), filter.plugins.min.js (plugins only)
-
-__0.6__
-* faster convolution algorithm for specific (symmetric) convolution kernels (eg laplace kernel, box blur kernel, box highpass kernel etc..)
-* rename _NonLinearFilter_ to _StatisticalFilter_ (make sure to change that in your code if a NonLinearFilter was used)
-* add new image methods (clear, fill etc..)
-* add new composite filter methods (removeAt, insertAt, etc..)
-* add new geometric maps (twirl, sphere, rotateCW, rotateCCW)
-* add new color matrix methods (YcbCr2RGB, RGB2YCbCr)
-* add new lookup table methods (extract, replace, mask)
-* add new color transforms (HSV2RGB, RGB2HSV)
-* add new plugins (HueExtractor, HSVConverter)
-* optimise Pixelate plugin
-* minor other optimizations
-* naming changes for some internal variables
-
-__0.5__
-* add new generic filters (GeometricMap, Combine, Split)
-* add new plugin (Pixelate)
-* heavy convolution and loops optimizations, refactoring
-* update examples / readme
-
-__0.4.1__
-* add new filters implementations (exposure, mask etc..)
-
-__0.4__
-* add new Image methods ( _scale_ _flipHorizontal_ _flipVertical_ )
-* add new generic filter type _FILTER.TableLookupFilter()_ and some pre-computed filters ( _posterize_ _solarize_ etc..)
-* minor edits/optimizations
-* update readme / examples
-
-__0.3.3.1__
-* load a video as FILTER.Image (fixed)
-* add new interactive real-time video post-process example with Filter.js
-
-
-__0.3.3__
-* allow framework to be extended by custom plugins (both as Classes and Inline)
-* add some sample custom plugins (Equalize.js, RGBEqualize.js, Noise.js)
-* add more methods to Image Class (getPixel, setPixel)
-* minor optimizations
-* new build tool
-* update examples / readme
-
-__0.3.2__
-* add new ColorMatrixFilters, _channel()_ : get a generic color channel as an image,  _swapChannels()_ : swap two image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
-
-__0.3.1__
-* add more methods to Composite Filter (shift/unshift etc..)
-* allow other composite filters to be used as simple filter components in other composite filters (fixed)
-* add new ColorMatrixFilters: redChannel, greenChannel, blueChannel, alphaChannel
-* minor optimizations
-
-
-__0.3__
-* Add new filters (eg Gradients, Gaussian, Median, Erode, etc..)
-* Refactor the filter API (filter apply function accepts a FILTER.Image now)
-* Optimise the image and filters classes (cache data if possible, minimise copies, optimise loops etc..)
-* Minor math optimizations and micro-optimizations
-* Add Composite filters stack (applyin multiple filters on same image is faster and easier this way)
-* Add Color Transforms class (to/from Hex/RGB, to/from RGB/YCbCr etc..)
-* update examples/readme
-
-__0.2__
-* Refactored Code to use closures (more modular)
-* Added exCanvas script for Browsers that do not support Canvas
-* minimum math optimizations
-
-__0.1__
-* initial release
 
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  

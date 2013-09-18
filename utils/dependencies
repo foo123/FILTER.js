@@ -35,9 +35,10 @@
 ../src/plugins/HueExtractor.js
 ../src/plugins/AlphaMask.js
 ../src/plugins/Threshold.js
+../src/plugins/YCbCrConverter.js
+../src/plugins/Bokeh.js
 
 # NOT USED / INCOMPLETE
-#../src/plugins/YCbCrConverter.js
 #../src/plugins/Shadow.js
 #../src/plugins/Rippler.js
 #../src/plugins/Pixelate2.js

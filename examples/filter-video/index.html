@@ -19,7 +19,7 @@
             }
             .panel
             {
-                cursor:pointer;
+                cursor:arrow;
                 position:relative;
                 display:inline-block;
                 max-width:500px;
@@ -39,7 +39,7 @@
             }
         </style>
         <script src="../common/js/stats.min.js"></script>
-        <script src="../../build/filter.min.js"></script>
+        <script src="../common/js/filter.min.js"></script>
         <script>    
          //<![CDATA[
             
@@ -86,8 +86,8 @@
         <div id="container" class="panel">
             <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
             <video id="video" autoplay loop>
-                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm" />
-                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4" />
+                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4">
+                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm">
                 Video is not supported
             </video>
         </div>
@@ -101,32 +101,42 @@
         <div class="panel" style="display:block; max-width:1000px;">
             <strong>Apply Post-Process Filter to Video :</strong><br /><br />
             <select id="filterSelect" style="font-size:20px;">
-                <option value='0'>Colorize</option>
-                <option value='1'>Grayscale</option>
-                <option value='2'>Grayscale and Contrast</option>
-                <option value='3'>Solarize</option>
-                <option value='4'>Posterize</option>
-                <option value='5'>RED Channel</option>
-                <option value='6'>GREEN Channel</option>
-                <option value='7'>BLUE Channel</option>
-                <option value='8'>Grayscale, Sobel Edges</option>
-                <option value='9'>Grayscale, Sobel Edges, Binary Threshold</option>
-                <option value='10'>Equalize Histogram</option>
-                <option value='11'>Emboss</option>
-                <option value='12'>Invert</option>
-                <option value='13'>Erode 3x3</option>
-                <option value='14'>Dilate 3x3</option>
-                <option value='15'>Noise</option>
-                <option value='16'>DisplaceMap</option>
-                <option value='17'>TwirlMap</option>
-                <option value='18'>Pixelate 5%</option>
-                <option value='19'>Pixelate 20%</option>
-                <option value='20'>HSV Color Space</option>
-                <option value='21'>Alpha Mask</option>
-                <option value='22'>Fast Gauss Blur 3x3</option>
-                <option value='23'>Fast Gauss Blur 7x7</option>
-                <option value='24'>Fast Gauss Blur 15x15</option>
-                <option value='25'>Fast Gauss Blur 51x51</option>
+                <option value='#'>Colorize</option>
+                <option value='#'>Grayscale</option>
+                <option value='#'>Grayscale and Contrast</option>
+                <option value='#'>Solarize</option>
+                <option value='#'>Posterize</option>
+                <option value='#'>Invert</option>
+                <option value='#'>RED Channel</option>
+                <option value='#'>GREEN Channel</option>
+                <option value='#'>BLUE Channel</option>
+                <option value='#'>Fast Gauss Blur 3x3</option>
+                <option value='#'>Fast Gauss Blur 7x7</option>
+                <option value='#'>Fast Gauss Blur 15x15</option>
+                <option value='#'>Fast Gauss Blur 51x51</option>
+                <option value='#'>Grayscale, Sobel Edges 3x3</option>
+                <option value='#'>Grayscale, Sobel Edges 3x3, Binary Threshold</option>
+                <option value='#'>Grayscale, Laplace Edges 3x3</option>
+                <option value='#'>Grayscale, Laplace Edges 5x5</option>
+                <option value='#'>Grayscale, Laplace Edges 11x11</option>
+                <option value='#'>Grayscale, Laplace Edges 3x3, Binary Threshold</option>
+                <option value='#'>Grayscale, Laplace Edges 5x5, Binary Threshold</option>
+                <option value='#'>Grayscale, Laplace Edges 11x11, Binary Threshold</option>
+                <option value='#'>Gray, Gauss, Laplace 3x3, Threshold</option>
+                <option value='#'>Gray, Gauss, Laplace 5x5, Threshold</option>
+                <option value='#'>Emboss</option>
+                <option value='#'>Erode 3x3</option>
+                <option value='#'>Dilate 3x3</option>
+                <option value='#'>Pixelate 5%</option>
+                <option value='#'>Pixelate 10%</option>
+                <option value='#'>HSV Color Space</option>
+                <option value='#'>YCbCr Color Space</option>
+                <option value='#'>Equalize Histogram</option>
+                <option value='#'>Alpha Mask</option>
+                <option value='#'>Noise</option>
+                <option value='#'>DisplaceMap</option>
+                <option value='#'>TwirlMap</option>
+                <option value='#'>Bokeh (Depth-of-Field)</option>
             </select>
             &nbsp;
             <select id="flipSelect" style="font-size:20px;">
@@ -164,9 +174,24 @@
                 //invert=new FILTER.ColorMatrixFilter().invert(),
                 gray=new FILTER.ColorMatrixFilter().grayscale(),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
+                blur3=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 3),
+                blur7=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 7),
+                blur15=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 15),
+                blur51=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 51),
                 sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
+                laplace3=new FILTER.ConvolutionMatrixFilter().laplace(3),
+                laplace5=new FILTER.ConvolutionMatrixFilter().laplace(5),
+                laplace11=new FILTER.ConvolutionMatrixFilter().laplace(11),
                 grs=new FILTER.CompositeFilter([gray, sobel]),
                 grsb=new FILTER.CompositeFilter([gray, sobel, binary]),
+                grl3=new FILTER.CompositeFilter([gray, laplace3]),
+                grl5=new FILTER.CompositeFilter([gray, laplace5]),
+                grl11=new FILTER.CompositeFilter([gray, laplace11]),
+                grlb3=new FILTER.CompositeFilter([gray, laplace3, binary]),
+                grlb5=new FILTER.CompositeFilter([gray, laplace5, binary]),
+                grlb11=new FILTER.CompositeFilter([gray, laplace11, binary]),
+                grglb3=new FILTER.CompositeFilter([gray, blur3, laplace3, binary]),
+                grglb5=new FILTER.CompositeFilter([gray, blur3, laplace5, binary]),
                 emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 redC=new FILTER.ColorMatrixFilter().redChannel(),
                 greenC=new FILTER.ColorMatrixFilter().greenChannel(),
@@ -176,19 +201,16 @@
                 // median is slow ..
                 erode=new FILTER.StatisticalFilter().erode(3),
                 dilate=new FILTER.StatisticalFilter().dilate(3),
-                blur3=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 3),
-                blur7=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 7),
-                blur15=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 15),
-                blur51=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 51),
                 noise=new FILTER.NoiseFilter(10, 70),
                 displaceFilter=new FILTER.DisplacementMapFilter(),
                 twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
                 pixelate5=new FILTER.PixelateFilter(5),
-                pixelate20=new FILTER.PixelateFilter(20),
+                pixelate10=new FILTER.PixelateFilter(10),
                 alphaMasker=new FILTER.AlphaMaskFilter(),
                 swapChannel=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.ALPHA),
-                //pixelate2=new FILTER.Pixelate2Filter(5),
                 hsv=new FILTER.HSVConverterFilter(),
+                ycbcr=new FILTER.YCbCrConverterFilter(),
+                bokeh=new FILTER.BokehFilter(240, 140, 100, 10),
                 
                 // filter selection list
                 videoFilters=[
@@ -197,29 +219,39 @@
                     grc,
                     solarize,
                     posterize,
+                    invert,
                     redC,
                     greenC,
                     blueC,
-                    grs,
-                    grsb,
-                    equ,
-                    emboss,
-                    invert,
-                    erode,
-                    dilate,
-                    noise,
-                    displaceFilter,
-                    twirlFilter,
-                    pixelate5,
-                    pixelate20,
-                    hsv,
-                    alphaMasker,
                     blur3,
                     blur7,
                     blur15,
-                    blur51
+                    blur51,
+                    grs,
+                    grsb,
+                    grl3,
+                    grl5,
+                    grl11,
+                    grlb3,
+                    grlb5,
+                    grlb11,
+                    grglb3,
+                    grglb5,
+                    emboss,
+                    erode,
+                    dilate,
+                    pixelate5,
+                    pixelate10,
+                    hsv,
+                    ycbcr,
+                    equ,
+                    alphaMasker,
+                    noise,
+                    displaceFilter,
+                    twirlFilter,
+                    bokeh
                 ],
-                currentOrientation=0, displaceFilterIndex=16, twirlFilterIndex=17, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
+                currentOrientation=0, displaceFilterIndex=33, twirlFilterIndex=34, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
                 renderInterval=60,  rnd=Math.random, Max=Math.max, dx, dy, dtheta, vw, vh
                 ;
             
@@ -265,6 +297,11 @@
                 add(statsContainer, stats.domElement );
                 
                 // change the video filter applied
+                addEvent(filterSelect, "change", function(){
+                    currentFilterIndex=filterSelect.selectedIndex || 0;
+                });
+                
+                // change the orientation applied
                 addEvent(flipSelect, "change", function(){
                     currentOrientation=flipSelect.selectedIndex || 0;
                 });
@@ -277,10 +314,12 @@
             {
                 if (video.paused || video.ended)  return;
                 
+                var vw, vh;
+                
                 stats.begin();
                 
                 // preview the filter while hovering the option
-                currentFilter=videoFilters[filterSelect.selectedIndex || 0];
+                currentFilter=videoFilters[currentFilterIndex];
                 
                 postVideo.setImage(video);
                 
@@ -289,7 +328,7 @@
                 else if (3==currentOrientation)   flipX.apply(postVideo);
                 else if (4==currentOrientation)  flipY.apply(postVideo);
                 
-                if (displaceFilterIndex==filterSelect.selectedIndex)
+                if (displaceFilterIndex==currentFilterIndex)
                 {
                     // animate the displace filter
                     vw=postVideo.width>>1; vh=postVideo.height>>1;
@@ -297,7 +336,7 @@
                     if (displaceFilter.startX<-vw || displaceFilter.startX>vw) dx=-dx;
                     if (displaceFilter.startY<-vh || displaceFilter.startY>vh) dy=-dy;
                 }
-                else if (twirlFilterIndex==filterSelect.selectedIndex)
+                else if (twirlFilterIndex==currentFilterIndex)
                 {
                     // animate the twirl filter
                     vw=postVideo.width; vh=postVideo.height;
@@ -308,7 +347,7 @@
                     if (twirlFilter.centerY<0 || twirlFilter.centerY>vh) dy=-dy;
                 }
                 
-                currentFilter.apply(postVideo);
+                if (currentFilter) currentFilter.apply(postVideo);
                 
                 stats.end();
                 

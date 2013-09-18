@@ -135,17 +135,17 @@
                 {
                     case _Wrap:
                         if (ty>=h) ty-=h;
-                        if (ty<0) ty+=h;
+                        else if (ty<0) ty+=h;
                         if (tx>=w) tx-=w;
-                        if (tx<0)  tx+=w;
+                        else if (tx<0)  tx+=w;
                         break;
                         
                     case _Clamp:
                     default:
                         if (ty>=h)  ty=h-1;
-                        if (ty<0) ty=0;
+                        else if (ty<0) ty=0;
                         if (tx>=w) tx=w-1;
-                        if (tx<0) tx=0;
+                        else if (tx<0) tx=0;
                         break;
                 }
             }
@@ -161,40 +161,41 @@
     function affineMap(im, w, h)
     {
         var x, y, yw, i, j, imArea=w*h, imLen=im.length, dst=new IMG(imLen),
-            a=this.a, b=this.b, c=this.c, d=this.d, dw, mode=this.mode,
+            mat=this.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
+            tyw, cw, dw, mode=this.mode,
             _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
-            tx, ty, bx=w-1, by=imArea-w
+            nx, ny, bx=w-1, by=imArea-w
         ;
         
-        i=0; x=0; y=0; yw=0; dw=d*w;
+        i=0; x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
         while (i<imLen)
         {
-            tx = ~~(a*x + c); ty = ~~(b*yw + dw);
-            if (0>tx || tx>bx || 0>ty || ty>by)
+            nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
+            if (0>nx || nx>bx || 0>ny || ny>by)
             {
                 switch(mode)
                 {
                     case _Wrap:
-                        if (ty>by) ty-=imArea;
-                        if (ty<0) ty+=imArea;
-                        if (tx>=w) tx-=w;
-                        if (tx<0)  tx+=w;
+                        if (ny>by) ny-=imArea;
+                        else if (ny<0) ny+=imArea;
+                        if (nx>=w) nx-=w;
+                        else if (nx<0)  nx+=w;
                         break;
                         
                     case _Clamp:
                     default:
-                        if (ty>by)  ty=by;
-                        if (ty<0) ty=0;
-                        if (tx>bx) tx=bx;
-                        if (tx<0) tx=0;
+                        if (ny>by)  ny=by;
+                        else if (ny<0) ny=0;
+                        if (nx>bx) nx=bx;
+                        else if (nx<0) nx=0;
                         break;
                 }
             }
-            j=(tx + ty)<<2;
+            j=(nx + ny)<<2;
             dst[i]=im[j];   dst[i+1]=im[j+1];
             dst[i+2]=im[j+2];  dst[i+3]=im[j+3];
             
-            i+=4; x++; if (x>=w) { x=0; y++; yw+=w; }
+            i+=4; x++; if (x>=w) { x=0; y++; }
         }
         return dst;
     }
@@ -226,17 +227,17 @@
                     {
                         case _Wrap:
                             if (ty>by) ty-=h;
-                            if (ty<0) ty+=h;
+                            else if (ty<0) ty+=h;
                             if (tx>bx) tx-=w;
-                            if (tx<0)  tx+=w;
+                            else if (tx<0)  tx+=w;
                             break;
                             
                         case _Clamp:
                         default:
                             if (ty>by)  ty=by;
-                            if (ty<0) ty=0;
+                            else if (ty<0) ty=0;
                             if (tx>bx) tx=bx;
-                            if (tx<0) tx=0;
+                            else if (tx<0) tx=0;
                             break;
                     }
                 }
@@ -281,17 +282,17 @@
                     {
                         case _Wrap:
                             if (ty>by) ty-=h;
-                            if (ty<0) ty+=h;
+                            else if (ty<0) ty+=h;
                             if (tx>bx) tx-=w;
-                            if (tx<0)  tx+=w;
+                            else if (tx<0)  tx+=w;
                             break;
                             
                         case _Clamp:
                         default:
                             if (ty>by)  ty=by;
-                            if (ty<0) ty=0;
+                            else if (ty<0) ty=0;
                             if (tx>bx) tx=bx;
-                            if (tx<0) tx=0;
+                            else if (tx<0) tx=0;
                             break;
                     }
                 }
@@ -415,10 +416,7 @@
         _map : null,
         
         inverseTransform : null,
-        a : 1,
-        b : 1,
-        c : 0,
-        d : 0,
+        matrix : null,
         centerX : 0,
         centerY : 0,
         angle : 0,
@@ -438,9 +436,13 @@
             return this;
         },
         
-        affine : function(a, b, c, d) {
-            this.a=a; this.b=b; this.c=c; this.d=d;
-            this._map=affineMap;  return this;
+        affine : function(matrix) {
+            if (matrix)
+            {
+                this.matrix=matrix; 
+                this._map=affineMap;  
+            }
+            return this;
         },
         
         flipX : function() {
