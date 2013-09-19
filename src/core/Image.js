@@ -8,9 +8,11 @@
 (function(FILTER){
     
     var 
-        blendModes,
-        Min=Math.min,
-        ImArray=FILTER.ImArray
+        devicePixelRatio = window.devicePixelRatio || 1,
+        blendModes,  Min=Math.min,
+        IMG=FILTER.ImArray,
+        createCanvas=FILTER.createCanvas,
+        notSupportTyped=FILTER._notSupportTypedArrays
     ;
     
     /**
@@ -76,23 +78,13 @@
     FILTER.blendModes=blendModes;
     
     
-    function  createCanvas(w, h)
-    {
-        var cnv=document.createElement('canvas');
-        cnv.width=w||0; cnv.height=h||0;
-        return cnv;
-    }
-    
-    var notSupportTyped=FILTER._notSupportTypedArrays;
-    
     //
     //
     // Image Class
     FILTER.Image=function(img, callback)
     {
-        this.width=0;
-        this.height=0;
-        this.context=null;
+        this.width=0;   this.height=0;
+        this.context=null;  this.webgl=null;
         this.imageData=null;
         this.domElement=this.canvasElement=createCanvas(this.width, this.height);
         this.context=this.canvasElement.getContext('2d');
@@ -111,20 +103,25 @@
         height : 0,
         canvasElement : null,
         domElement : null,
+        context: null,
+        webgl: null,
         
         setWidth : function(w) {
-            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
-            this.context=this.canvasElement.getContext('2d');
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this.imageData=this._setDimensions(w).context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
         },
         
         setHeight : function(h) {
-            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
-            this.context=this.canvasElement.getContext('2d');
-            this.imageData=this.context.getImageData(0, 0, this.width, this.height);
+            this.imageData=this._setDimensions(h).context.getImageData(0, 0, this.width, this.height);
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            return this;
+        },
+        
+        setDimensions : function(w, h) {
+            this.imageData=this._setDimensions(w, h).context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
             return this;
@@ -132,17 +129,15 @@
         
         setImage : function(img, callback) {
             if (typeof img=='undefined' || img==null) return this;
-            var self=this, image, ctx;
+            var self=this, image, ctx, w, h;
             if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
             {
                 image=img;
-                this.width=(image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
-                this.height=(image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
-                this._tmpCanvas.width=this.canvasElement.width=this.width;
-                this._tmpCanvas.height=this.canvasElement.height=this.height;
-                ctx=this.context=this.canvasElement.getContext('2d');
+                w=(image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
+                h=(image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
+                ctx=this.context=this._setDimensions(w, h).canvasElement.getContext('2d');
                 ctx.drawImage(img, 0, 0);
-                this.imageData=ctx.getImageData(0, 0, this.width, this.height);
+                this.imageData=ctx.getImageData(0, 0, w, h);
                 this._histogramRefresh=true;
                 this._integralRefresh=true;
             }
@@ -150,11 +145,7 @@
             {
                 image=new Image();
                 image.onload=function(){
-                    self.width=image.width;
-                    self.height=image.height;
-                    self._tmpCanvas.width=self.canvasElement.width=self.width;
-                    self._tmpCanvas.height=self.canvasElement.height=self.height;
-                    ctx=self.context=self.canvasElement.getContext('2d');
+                    ctx=self.context=self._setDimensions(image.width, image.height).canvasElement.getContext('2d');
                     ctx.drawImage(image, 0, 0);
                     self.imageData=self.context.getImageData(0, 0, self.width, self.height);
                     self._histogramRefresh=true;
@@ -178,7 +169,7 @@
         },
         
         setPixel : function(x, y, r, g, b, a) {
-            var t=new ImArray([r&255, g&255, b&255, a&255]);
+            var t=new IMG([r&255, g&255, b&255, a&255]);
             this.context.putImageData(t, x, y); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
@@ -189,15 +180,23 @@
         // get direct data array
         getData : function() {
             // clone it
-            return new ImArray(this.imageData.data);
+            return new IMG(this.imageData.data);
         },
         
         // set direct data array
         setData : function(a) {
-            /*if (notSupportTyped) this._setData(a);
-            else*/ this.imageData.data.set(a); // not supported in Opera, IE, Safari
-            
-            this.context.putImageData(this.imageData, 0, 0); 
+            if (FILTER.supportWebGL)
+            {
+                // Draw the rectangle.
+                this.webgl.drawArrays(this.webgl.TRIANGLES, 0, 6);
+                this.context=this.canvasElement.getContext('2d');
+            }
+            else
+            {
+                /*if (notSupportTyped) this._setData(a);
+                else*/ this.imageData.data.set(a); // not supported in Opera, IE, Safari
+                this.context.putImageData(this.imageData, 0, 0); 
+            }
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
@@ -218,10 +217,8 @@
             return this;
         },
         
-        createImageData : function(w,h) {
-            this._tmpCanvas.width=this.canvasElement.width=this.width=w;
-            this._tmpCanvas.height=this.canvasElement.height=this.height=h;
-            this.context=this.canvasElement.getContext('2d');
+        createImageData : function(w, h) {
+            this.context=this._setDimensions(w, h).canvasElement.getContext('2d');
             this.context.createImageData(w,h);
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             return this.imageData;
@@ -247,8 +244,12 @@
             //ctx.save();
             ctx.scale(sx, sy);
             ctx.drawImage(this.canvasElement, 0, 0);
-            this.canvasElement.width=this.width=~~(sx*this.width+0.5);
-            this.canvasElement.height=this.height=~~(sy*this.height+0.5);
+            this.width=~~(sx*this.width+0.5);
+            this.height=~~(sy*this.height+0.5);
+            this.canvasElement.style.width=this.width + 'px';
+            this.canvasElement.style.height=this.height + 'px';
+            this.canvasElement.width=this.width * devicePixelRatio;
+            this.canvasElement.height=this.height * devicePixelRatio;
             this.context.drawImage(this._tmpCanvas, 0, 0);
             this._tmpCanvas.width=this.width;
             this._tmpCanvas.height=this.height;
@@ -302,10 +303,8 @@
             else if (w && !this.width && h && !this.height)
             {
                 // create the image data if needed
-                this._tmpCanvas.width=this.canvasElement.width=this.width=w+x;
-                this._tmpCanvas.height=this.canvasElement.height=this.height=h+y;
-                this.context=this.canvasElement.getContext('2d');
-                this.context.createImageData(w,h);
+                this.context=this._setDimensions(w+x, h+y).canvasElement.getContext('2d');
+                this.context.createImageData(w, h);
                 this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             }
             color=color||0; x=x||0; y=y||0; w=w||this.width; h=h||this.height;
@@ -388,6 +387,26 @@
             var data=this.imageData.data, l=a.length, i=0, t;
             while (i<l) { data[i]=a[i]; i++; }
         },*/
+        
+        _setDimensions : function(w, h) {
+            this._tmpCanvas.style.width=this.canvasElement.style.width=w + 'px';
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w * devicePixelRatio;
+            this._tmpCanvas.style.height=this.canvasElement.style.height=h + 'px';
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h * devicePixelRatio;
+            return this;
+        },
+        
+        _setWidth : function(w) {
+            this._tmpCanvas.style.width=this.canvasElement.style.width=w + 'px';
+            this._tmpCanvas.width=this.canvasElement.width=this.width=w * devicePixelRatio;
+            return this;
+        },
+        
+        _setHeight : function(h) {
+            this._tmpCanvas.style.height=this.canvasElement.style.height=h + 'px';
+            this._tmpCanvas.height=this.canvasElement.height=this.height=h * devicePixelRatio;
+            return this;
+        },
         
         // compute integral image (sum of columns)
         _computeIntegral : function() 

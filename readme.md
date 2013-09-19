@@ -442,14 +442,14 @@ __Included Plugins__
 
 
 ###Todo
+* add WebGL support for various pre-built and custom Filters [IN PROGRESS]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
-* add WebGL support for various pre-built and custom Filters [IN PROGRESS]
 * add more filters (eg split/combine/blend/adaptive/nonlinear etc..) [DONE partially]
-* add 2d-fft routines, frequency-domain filtering [IN PROGRESS]
-* allow extension by plugins (both as Classes and Inline) [DONE]
-* allow to work with Nodejs [IHN PROGRESS]
+* add 2d-fft routines, frequency-domain filtering
+* allow to work in Nodejs
 * increase support/performance for Opera, IE  [DONE partially]
+
 
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  

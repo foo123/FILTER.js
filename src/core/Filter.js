@@ -8,7 +8,9 @@
 
     // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
     
-    // typed arrays substitute 
+    //
+    //
+    // Typed Arrays Substitute 
     FILTER.Array32F = (typeof Float32Array !== "undefined") ? Float32Array : Array;
     FILTER.Array64F = (typeof Float64Array !== "undefined") ? Float64Array : Array;
     FILTER.Array8I = (typeof Int8Array !== "undefined") ? Int8Array : Array;
@@ -50,6 +52,8 @@
         }*/
     }
     
+    //
+    //
     // Constants
     FILTER.CONSTANTS={
         PI : Math.PI,

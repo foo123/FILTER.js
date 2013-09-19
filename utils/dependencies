@@ -3,6 +3,7 @@
 # Core classes
 ../src/FILTER.js
 ../src/core/Filter.js
+../src/core/WebGLFilter.js
 ../src/core/Color.js
 ../src/core/Image.js
 
