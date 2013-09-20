@@ -100,17 +100,17 @@
                             
                         case _Wrap:
                             if (srcy>by) srcy-=h;
-                            if (srcy<0) srcy+=h;
+                            else if (srcy<0) srcy+=h;
                             if (srcx>bx) srcx-=w;
-                            if (srcx<0)  srcx+=w;
+                            else if (srcx<0)  srcx+=w;
                             break;
                             
                         case _Clamp:
                         default:
                             if (srcy>by)  srcy=by;
-                            if (srcy<0) srcy=0;
+                            else if (srcy<0) srcy=0;
                             if (srcx>bx) srcx=bx;
-                            if (srcx<0) srcx=0;
+                            else if (srcx<0) srcx=0;
                             break;
                     }
                 }

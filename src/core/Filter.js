@@ -79,6 +79,29 @@
         0.71516, 
         0.072169 
     ]);
+    FILTER.supportWebGL=false;
+    FILTER.useWebGLIfAvailable=function(bool) { /* do nothing, override */  };
+
+    //
+    //
+    // WebGL Support
+    var devicePixelRatio = window.devicePixelRatio || 1
+        ;
+    
+    FILTER.createCanvas=function(w, h) {
+        var canvas=document.createElement('canvas');
+        w=w||0; h=h||0; //canvas.width=w||0; canvas.height=h||0;
+        
+        // set the display size of the canvas.
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+         
+        // set the size of the drawingBuffer
+        canvas.width = w * devicePixelRatio;
+        canvas.height = h * devicePixelRatio;
+        
+        return canvas;
+    }
     
     //
     //
