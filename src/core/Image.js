@@ -97,7 +97,9 @@
     };
     
     FILTER.Image.prototype={
-    
+        
+        constructor: FILTER.Image,
+        
         // properties
         width : 0,
         height : 0,

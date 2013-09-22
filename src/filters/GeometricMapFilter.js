@@ -411,7 +411,9 @@
     };
 
     FILTER.GeometricMapFilter.prototype={
-    
+        
+        constructor: FILTER.GeometricMapFilter,
+        
         // parameters
         _map : null,
         

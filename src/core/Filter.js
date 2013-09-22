@@ -108,6 +108,9 @@
     // Abstract Generic Filter
     FILTER.Filter=function() { /* do nothing here, override */ };
     FILTER.Filter.prototype={
+        
+        constructor: FILTER.Filter,
+        
         _apply : function(im, w, h) { /* do nothing here, override */ },
         apply : function(image) { /* do nothing here, override */ },
         reset : function() { /* do nothing here, override */ }
@@ -122,6 +125,9 @@
     };
     
     FILTER.CompositeFilter.prototype={
+        
+        constructor: FILTER.CompositeFilter,
+        
         _stack : [],
         
         // used for internal purposes

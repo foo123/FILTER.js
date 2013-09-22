@@ -568,6 +568,8 @@
     
     FILTER.StatisticalFilter.prototype={
         
+        constructor: FILTER.StatisticalFilter,
+        
         _dim: 0,
         
         median : function(d) { 

@@ -1431,6 +1431,8 @@
     
     FILTER.ConvolutionMatrixFilter.prototype={
         
+        constructor: FILTER.ConvolutionMatrixFilter,
+        
         _dim: 0,
         _dim2: 0,
         _matrix: null,

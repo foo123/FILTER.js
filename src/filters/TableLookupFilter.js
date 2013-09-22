@@ -48,7 +48,9 @@
     };
 
     FILTER.TableLookupFilter.prototype={
-    
+        
+        constructor: FILTER.TableLookupFilter,
+        
         // parameters
         _tableR : null,
         _tableG : null,

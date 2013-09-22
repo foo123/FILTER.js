@@ -120,7 +120,9 @@
     };
     
     FILTER.ColorMatrixFilter.prototype={
-    
+        
+        constructor: FILTER.ColorMatrixFilter,
+        
         _matrix: null,
         
         // get the image color channel as a new image

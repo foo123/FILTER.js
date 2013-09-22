@@ -20,7 +20,9 @@
     };
 
     FILTER.DisplacementMapFilter.prototype={
-    
+        
+        constructor: FILTER.DisplacementMapFilter,
+        
         // parameters
         scaleX : 1,
         scaleY : 1,

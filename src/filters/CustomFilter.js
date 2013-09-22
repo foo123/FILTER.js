@@ -21,6 +21,8 @@
     
     FILTER.CustomFilter.prototype={
         
+        constructor: FILTER.CustomFilter,
+        
         _handler : null,
         
         _apply : function(im, w, h, image) {
