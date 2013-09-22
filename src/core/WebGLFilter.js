@@ -220,49 +220,8 @@
         },
         
         setUniformByName(uniformName, uniformValue, uniformType) {
-            var gl=this.glContainer._gl,
-                program = this.program,
-                uniformLocation = gl.getUniformLocation(program, uniformName)
-                ;
-            uniformType = uniformType || "uniform1f";
-            switch(uniformType)
-            {
-                case "uniform1i":
-                    gl.uniform1i(uniformLocation, uniformValue);
-                    break;
-                case "uniform1f":
-                    gl.uniform1f(uniformLocation, uniformValue);
-                    break;
-                case "uniform2f":
-                    gl.prototype.uniform2f.apply(gl, [uniformLocation].concat(uniformValue));
-                    break;
-                case "uniform3f":
-                    gl.prototype.uniform3f.apply(gl, [uniformLocation].concat(uniformValue));
-                    break;
-                case "uniform4f":
-                    gl.prototype.uniform4f.apply(gl, [uniformLocation].concat(uniformValue));
-                    break;
-                case "uniform2iv":
-                    gl.uniform2iv(uniformLocation, uniformValue);
-                    break;
-                case "uniform3iv":
-                    gl.uniform3iv(uniformLocation, uniformValue);
-                    break;
-                case "uniform1fv":
-                    gl.uniform1fv(uniformLocation, uniformValue);
-                    break;
-                case "uniform2fv":
-                    gl.uniform2fv(uniformLocation, uniformValue);
-                    break;
-                case "uniform3fv":
-                    gl.uniform3fv(uniformLocation, uniformValue);
-                    break;
-                case "uniform4fv":
-                    gl.uniform4fv(uniformLocation, uniformValue);
-                    break;
-                default:
-                    throw 'unknown gl uniform type ' + uniformType;
-            }
+            var uniformLocation = this.glContainer._gl.getUniformLocation(this.program, uniformName);
+            this.setUniformByLocation(uniformLocation, uniformValue, uniformType);
             return this;
         }
     };
@@ -856,15 +815,15 @@
     var _canvas=createCanvas();
     supportWebGL=WebGL.getWebGL(_canvas);
     supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
-    FILTER.supportWebGL=false;
-    FILTER.supportWebGLSharedResources=false;
+    FILTER.useWebGL=false;
+    FILTER.useWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) {
         console.log(supportWebGL);
-        FILTER.supportWebGL=(bool && supportWebGL);
+        FILTER.useWebGL=(bool && supportWebGL) ? true : false;
     };
     FILTER.useWebGLSharedResourcesIfAvailable=function(bool) {
         console.log(supportWebGLSharedResources);
-        FILTER.supportWebGLSharedResources=(bool && supportWebGLSharedResources);
+        FILTER.useWebGLSharedResources=(bool && supportWebGLSharedResources) ? true : false;
     };
     
     var webglfilterId=0;

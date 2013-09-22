@@ -79,8 +79,8 @@
         0.71516, 
         0.072169 
     ]);
-    FILTER.supportWebGL=false;
-    FILTER.supportWebGLSharedResources=false;
+    FILTER.useWebGL=false;
+    FILTER.useWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) { /* do nothing, override */  };
     FILTER.useWebGLSharedResourcesIfAvailable=function(bool) { /* do nothing, override */  };
 

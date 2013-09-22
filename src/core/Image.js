@@ -187,18 +187,9 @@
         
         // set direct data array
         setData : function(a) {
-            if (FILTER.supportWebGL)
-            {
-                // Draw the rectangle.
-                this.webgl.drawArrays(this.webgl.TRIANGLES, 0, 6);
-                this.context=this.canvasElement.getContext('2d');
-            }
-            else
-            {
-                /*if (notSupportTyped) this._setData(a);
-                else*/ this.imageData.data.set(a); // not supported in Opera, IE, Safari
-                this.context.putImageData(this.imageData, 0, 0); 
-            }
+            /*if (notSupportTyped) this._setData(a);
+            else*/ this.imageData.data.set(a); // not supported in Opera, IE, Safari
+            this.context.putImageData(this.imageData, 0, 0); 
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             this._histogramRefresh=true;
             this._integralRefresh=true;
