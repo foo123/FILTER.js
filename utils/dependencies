@@ -16,15 +16,11 @@
 ../src/filters/ConvolutionMatrixFilter.js
 ../src/filters/StatisticalFilter.js
 
-# renamed to StatisticalFilter, use that instead
-#../src/filters/NonLinearFilter.js
-
-# These filters are not implemented yet
-#../src/filters/BlendFilter.js
-#../src/filters/SplitFilter.js
-#../src/filters/CombineFilter.js
-#../src/filters/NonLinearFilter.js
-#../src/filters/AdaptiveFilter.js
+# webgl generic Filters
+../src/filters/webgl/ColorMatrixFilter.js
+../src/filters/webgl/DisplacementMapFilter.js
+../src/filters/webgl/GeometricMapFilter.js
+../src/filters/webgl/ConvolutionMatrixFilter.js
 
 # sample Plugins
 ../src/plugins/Plugin.js
@@ -38,11 +34,6 @@
 ../src/plugins/Threshold.js
 ../src/plugins/YCbCrConverter.js
 ../src/plugins/Bokeh.js
-
-# NOT USED / INCOMPLETE
-#../src/plugins/Shadow.js
-#../src/plugins/Rippler.js
-#../src/plugins/Pixelate2.js
 
 @MINIFY
 --language_in=ECMASCRIPT5_STRICT

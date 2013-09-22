@@ -50,10 +50,7 @@
         
         _shaders: null,
         _uniforms: null,
-        _locations: null,
-        _values: null,
         _textures: null,
-        _tlocations: null,
         _uniformsNeedUpdate: false,
         _texturesNeedUpdate: false,
         
@@ -61,15 +58,14 @@
             this.glContainer._gl.deleteProgram(this.program);
             this.program=null;
             this._uniforms=null;
-            this._locations=null;
-            this._values=null;
+            this._textures=null;
             return this;
         },
         
         setContainer: function(webgl) {
             this.glContainer=webgl;
-            //this._uniformsNeedUpdate=true;
-            //this._texturesNeedUpdate=true;
+            this._uniformsNeedUpdate=true;
+            this._texturesNeedUpdate=true;
             return this;
         },
         
@@ -105,9 +101,8 @@
             
             if (this._uniformsNeedUpdate) this.updateUniformLocations();
             
-            var i, loc=this._locations, vL=Math.min(values.length, loc.length);
-            this._values=values;
-            for (i=0; i<vL; i++)  this.setUniformByLocation(loc[i], values[i].value, values[i].type);
+            var i, u=this._uniforms, l=Math.min(values.length, u.length);
+            for (i=0; i<l; i++)  this.setUniformByLocation(u[i].location, values[i], u[i].type);
             
             return this;
         },
@@ -117,11 +112,11 @@
             
             if (this._texturesNeedUpdate) this.updateTextureLocations();
             
-            var gl=this.glContainer._gl, i, loc=this._tlocations, tL=Math.min(textures.length, loc.length);
-            for (i=0; i<tL; i++)  
+            var gl=this.glContainer._gl, i, t=this._textures, l=Math.min(textures.length, t.length);
+            for (i=0; i<l; i++)  
             {
                 // set which texture units to render with.
-                gl.uniform1i(loc[i], i);  // texture unit
+                gl.uniform1i(t[i].location, i);  // texture unit
                 gl.activeTexture( gl.TEXTURE0 + i );
                 gl.bindTexture( gl.TEXTURE_2D, textures[i] );
             }
@@ -133,8 +128,7 @@
             this.glContainer._gl.deleteProgram(this.program);
             this.program=null;
             this._uniforms=null;
-            this._locations=null;
-            this._values=null;
+            this._textures=null;
             return this;
         },
         
@@ -144,8 +138,12 @@
         },
         
         getCachedUniformLocation: function(uniformName) {
-            var i=this._uniforms.indexOf(uniformName);
-            return this._locations[i];
+            var i, u=this._uniforms, l=u.length;
+            for (i=0; i<l i++)
+            {
+                if (u[i].name==uniformName) return u[i].location;
+            }
+            return null;
         },
         
         getUniformLocation: function(uniformName) {
@@ -160,18 +158,16 @@
         },
         
         updateUniformLocations: function() {
-            var gl=this.glContainer._gl, i, nL=this._uniforms.length, locations=new Array(nL), prg=this.program;
-            for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, this._uniforms[i]);
+            var gl=this.glContainer._gl, i, u=this._uniforms, uL=u.length, prg=this.program;
+            for (i=0; i<uL; i++)  u[i].location=gl.getUniformLocation(prg, u[i].name);
             this._uniformsNeedUpdate=false;
-            this._locations=locations;
             return this;
         },
         
         updateTextureLocations: function() {
-            var gl=this.glContainer._gl, i, tL=this._textures.length, locations=new Array(tL), prg=this.program;
-            for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, this._textures[i]);
+            var gl=this.glContainer._gl, i, t=this._textures, tL=t.length, prg=this.program;
+            for (i=0; i<tL; i++)  t[i].location=gl.getUniformLocation(prg, t[i].name);
             this._texturesNeedUpdate=false;
-            this._tlocations=locations;
             return this;
         },
         
@@ -226,7 +222,7 @@
         }
     };
     // export it
-    FILTER.WEbGLProgram=WEbGLProgram;
+    FILTER.WebGLProgram=WebGLProgram;
     
     
     //
@@ -826,48 +822,43 @@
         FILTER.useWebGLSharedResources=(bool && supportWebGLSharedResources) ? true : false;
     };
     
-    var webglfilterId=0;
-    
     //
     //
     // Generic WebGL Filter
-    FILTER.WEbGLFilter=function(shaders, uniforms) 
+    FILTER.WebGLFilter=function(shaders, uniforms) 
     { 
-        this._shaders=shaders; 
-        this._uniforms=uniforms || []; 
-        ++webglfilterId;
-        this.id=webglfilterId;
+        this.shaders=shaders; 
+        this.uniforms=uniforms || null; 
+        this.id=FILTER.getId();
     };
-    FILTER.WEbGLFilter.prototype={
+    FILTER.WebGLFilter.prototype={
         
-        constructor: FILTER.WEbGLFilter,
+        constructor: FILTER.WebGLFilter,
         
         id: 0,
         
-        _shaders: null,
-        _compiledShaders: null,
-        _uniforms: null,
-        _textures: null,
-        _values: null,
+        shaders: null,
+        uniforms: null,
+        textures: null,
+        filterParams: null,
         
-        _getProgram: function(webgl) {
+        _getProgram: function(webgl, shaders, uniforms, textures) {
             var webglprogram=webgl.getProgramById(this.id);
             if (!webglprogram)
             {
-                var i, sL=this._shaders.length;
-                this._compiledShaders=new Array(sL);
+                var i, sL=shaders.length, compiledShaders=new Array(sL);
                 for (i=0; i<sL; i++)
-                    this._compiledShaders[i]=webgl.loadShader(this._shaders[i].source, this._shaders[i].type);
+                    compiledShaders[i]=webgl.loadShader(shaders[i].source, shaders[i].type);
                 
-                webglprogram=webgl.compileProgram(this.id, this._compiledShaders, {uniforms: this._uniforms, textures: this._textures});
+                webglprogram=webgl.compileProgram(this.id, compiledShaders, {uniforms: uniforms, textures: textures});
                 webgl.addProgram(webglprogram);
             }
             return webglprogram;
         },
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
-            var webglprogram=this._getProgram(webgl);
-            webgl.useStoredProgram(webglprogram.setUniformValues(this._values));
+            var webglprogram=this._getProgram(webgl, this.shaders, this.uniforms, this.textures);
+            webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
             webgl.bindTexture(inBuffer);
             if (outBuffer)
                 // make this the framebuffer we are rendering to.
@@ -886,114 +877,11 @@
         }
     };
     
+    
     //
     //
     // GLSL Shaders
     FILTER.Shaders={
-        
-        generic: {
-            
-            attributes: {
-                a_position : {type: "attribute2fv", value: []},
-                a_texCoord: {type: "attribute2fv", value: []}
-            },
-            
-            uniforms: {
-                u_resolution: {type: "uniform2fv", value: []},
-                u_flipY: {type: "uniform1f", value: 0.0}
-            },
-            
-            textures: [
-                {name: "u_image", image: null, texture: null}
-            ],
-            
-            vertex: {
-                type: "vertex",
-                
-                source: "\
-                    attribute vec2 a_position;\
-                    attribute vec2 a_texCoord;\
-                    \
-                    uniform vec2 u_resolution;\
-                    uniform float u_flipY;\
-                    \
-                    //varying vec2 v_posCoord;\
-                    varying vec2 v_texCoord;\
-                    \
-                    void main() {\
-                       // convert the rectangle from pixels to 0.0 to 1.0\
-                       vec2 zeroToOne = a_position / u_resolution;\
-                       // convert from 0->1 to -1->+1 (clipspace)\
-                       vec2 clipSpace = zeroToOne*2.0 - 1.0;\
-                        \
-                       gl_Position = vec4(clipSpace * vec2(1, u_flipY), 0, 1);\
-                        \
-                       // pass the texCoord to the fragment shader\
-                       // The GPU will interpolate this value between points.\
-                       v_texCoord = a_texCoord;\
-                     }"
-            },
-                
-            // dummy
-            fragment: {
-                type: "fragment",
-                
-                source: "\
-                    precision mediump float;\
-                    \
-                    // our texture\
-                    uniform sampler2D u_image;\
-                    \
-                    // the texCoords passed in from the vertex shader.\
-                    varying vec2 v_texCoord;\
-                    \
-                    void main() {\
-                        gl_FragColor=texture2D(u_image, v_texCoord);\
-                     }"
-            }
-        },
-        
-        colorMatrix: {
-            
-            attributes: null,
-            
-            uniforms: {
-                u_textureSize: {type: "uniform2fv", value: []},
-                u_CM: {type: "uniform1f", value: null}
-            },
-                
-            textures: [
-                {name: "u_image", image: null, texture: null}
-            ],
-            
-            vertex: null,
-            
-            fragment: {
-                type: "fragment",
-                
-                source: "\
-                    precision mediump float;\
-                    \
-                    // our texture\
-                    uniform sampler2D u_image;\
-                    uniform vec2 u_textureSize;\
-                    uniform float u_CM[20];\
-                    const float norm=0.0039215686274509803921568627451; // 1/255\
-                    \
-                    // the texCoords passed in from the vertex shader.\
-                    varying vec2 v_texCoord;\
-                    \
-                    void main() {\
-                       vec4 rgba =texture2D(u_image, v_texCoord);\
-                       float r, g, b, a;\
-                       r = dot( vec4( u_CM[0], u_CM[1], u_CM[2], u_CM[3] ), rgba ) + norm*u_CM[4];\
-                       g = dot( vec4( u_CM[5], u_CM[6], u_CM[7], u_CM[8] ), rgba ) + norm*u_CM[9];\
-                       b = dot( vec4( u_CM[10], u_CM[11], u_CM[12], u_CM[13] ), rgba ) + norm*u_CM[14];\
-                       a = dot( vec4( u_CM[15], u_CM[16], u_CM[17], u_CM[18] ), rgba ) + norm*u_CM[19];\
-                       gl_FragColor = clamp( vec4(r, g, b, a), 0.0,  1.0);\
-                     }"
-            }
-        },
         
         tableLookup: {
             
@@ -1036,431 +924,7 @@
                        gl_FragColor = vec4(tR, tG, tB, rgba.a);\
                      }"
             }
-        },
-        
-        convolutionMatrix: {
-            
-            attributes: null,
-            
-            uniforms: {
-                u_textureSize: {type: "uniform2fv", value: []},
-                u_coeff: {type: "uniform2fv", value: [1.0, 0.0]},
-                u_hasKernel2: {type: "uniform1i", value: 0}
-                u_isGrad: {type: "uniform1i", value: 0}
-                u_kernelRadius: {type: "uniform1i", value: 0},
-                u_kernelSize: {type: "uniform1i", value: 0},
-                // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
-                u_kernel: {type: "uniform1f", value: null}
-                u_kernel2: {type: "uniform1f", value: null}
-            },
-                
-            textures: [
-                {name: "u_image", image: null, texture: null}
-            ],
-            
-            vertex: null,
-            
-            fragment: {
-                type: "fragment",
-                
-                source: "\
-                    precision mediump float;\
-                    \
-                    // our texture\
-                    uniform sampler2D u_image;\
-                    uniform vec2 u_textureSize;\
-                    uniform vec2 u_coeff;\
-                    uniform bool u_hasKernel2;\
-                    uniform bool u_isGrad;\
-                    uniform int u_kernelRadius;\
-                    uniform int u_kernelSize;\
-                    const int MAX_KERNEL_SIZE = "+MAX_KERNEL_SIZE+";\
-                    uniform float u_kernel[MAX_KERNEL_SIZE];\
-                    uniform float u_kernel2[MAX_KERNEL_SIZE];\
-                    \
-                    // the texCoords passed in from the vertex shader.\
-                    varying vec2 v_texCoord;\
-                    \
-                    void main() {\
-                       vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;\
-                       vec4 tcolor=0;\
-                       vec3 kernelSum=0;\
-                       vec3 kernelSum2=0;\
-                       int i, j, k;\
-                       k=0;\
-                       // allow to compute second convolution in-parallel (eg Gradients etc..)\
-                       if (u_hasKernel2)\
-                       {\
-                           for (j=-u_kernelRadius; j<=u_kernelRadius; j++)\
-                           {\
-                               for (i=-u_kernelRadius; i<=u_kernelRadius; i++)\
-                               {\
-                                   tcolor = texture2D(u_image, v_texCoord + onePixel * vec2(i, j));\
-                                   kernelSum += tcolor.rgb * u_kernel[k];\
-                                   kernelSum2 += tcolor.rgb * u_kernel2[k];\
-                                   k++;\
-                               }\
-                           }\
-                       }\
-                       else\
-                       {\
-                           for (j=-u_kernelRadius; j<=u_kernelRadius; j++)\
-                           {\
-                               for (i=-u_kernelRadius; i<=u_kernelRadius; i++)\
-                               {\
-                                   tcolor = texture2D(u_image, v_texCoord + onePixel * vec2(i, j));\
-                                   kernelSum += tcolor.rgb * u_kernel[k];\
-                                   k++;\
-                               }\
-                           }\
-                       }\
-                       if (u_hasKernel2)\
-                       {\
-                            if (u_isGrad)\
-                            {\
-                                gl_FragColor = clamp( vec4((abs(kernelSum) + abs(kernelSum2)), texture2D(u_image, v_texCoord).a), 0.0,  1.0);\
-                            }\
-                            else\
-                            {\
-                                gl_FragColor = clamp( vec4(((u_coeff[0] * kernelSum) + (u_coeff[1] * kernelSum2)), texture2D(u_image, v_texCoord).a), 0.0,  1.0);\
-                            }\
-                       }\
-                       else\
-                       {\
-                            gl_FragColor = clamp( vec4(((u_coeff[0] * kernelSum) + u_coeff[1]), texture2D(u_image, v_texCoord).a), 0.0,  1.0);\
-                       }\
-                     }"
-            }
-        },
-        
-        displacementMap: {
-            attributes: null,
-            
-            uniforms: {
-                u_start: {type: "uniform2fv", value: []},
-                u_scale: {type: "uniform2fv", value: []},
-                u_component: {type: "uniform2fv", value: []},
-                u_color: {type: "uniform4fv", value: [0.0, 0.0, 0.0, 0.0]},
-                u_mode: {type: "uniform1i", value: 1}
-            },
-            
-            textures: [
-                {name: "u_image", image: null, texture: null},
-                // http://www.john-smith.me/hassles-with-array-access-in-webgl--and-a-couple-of-workarounds
-                {name: "u_map", image: null, texture: null}
-            ],
-            
-            vertex: {
-                type: "vertex",
-                
-                source: "\
-                    precision mediump float;\
-                    \
-                    attribute vec2 a_position;\
-                    attribute vec2 a_texCoord;\
-                    \
-                    uniform vec2 u_resolution;\
-                    uniform float u_flipY;\
-                    \
-                    #ifdef VERTEX_TEXTURES\
-                    \
-                        // our displace map\
-                        uniform sampler2D u_map;\
-                        uniform vec2 u_start;\
-                        uniform vec2 u_scale;\
-                        uniform vec2 u_component;\
-                        uniform vec4 u_color;\
-                        uniform int u_mode;\
-                    \
-                    #endif\
-                    \
-                    varying vec2 v_texCoord;\
-                    \
-                    void main() {\
-                       // convert the rectangle from pixels to 0.0 to 1.0\
-                       vec2 zeroToOne = a_position / u_resolution;\
-                       // convert from 0->1 to 0->2\
-                       vec2 zeroToTwo = zeroToOne * 2.0;\
-                       // convert from 0->2 to -1->+1 (clipspace)\
-                       vec2 clipSpace = zeroToTwo - 1.0;\
-                        \
-                       #ifdef VERTEX_TEXTURES\
-                        \
-                            vec4 displaceRGBA = texture2D(u_map, clipSpace);\
-                            vec2 displace = vec2(displaceRGBA[u_component.x], displaceRGBA[u_component.y]) - 0.5;\
-                            vec2 srcOff = u_start + clipSpace + (displace * u_scale);\
-                           if (srcOff.x<-1.0 || srcOff.x>1.0 || srcOff.y<-1.0 || srcOff.y>1.0)\
-                           {\
-                                if ("+FILTER.MODE.IGNORE+"==u_mode)\
-                                {\
-                                    // do nothing\
-                                    srcOff=clipSpace;\
-                                }\
-                                //else if ("+FILTER.MODE.COLOR+"==u_mode)\
-                                //{\
-                                    // do nothing\
-                                //}\
-                                else if ("+FILTER.MODE.WRAP+"==u_mode)\
-                                {\
-                                    if (srcOff.y>1.0) srcOff.y-=1.0;\
-                                    else if (srcOff.y<-1.0) srcOff.y+=1.0;\
-                                    if (srcOff.x>1.0) srcOff.x-=1.0;\
-                                    else if (srcOff.x<-1.0)  srcOff.x+=1.0;\
-                                }\
-                                else //if ("+FILTER.MODE.CLAMP+"==u_mode)\
-                                {\
-                                    srcOff=clamp(srcOff, -1.0,  1.0);\
-                                }\
-                           }\
-                        \
-                        #else\
-                        \
-                            vec2 srcOff = clipSpace;\
-                        \
-                        #endif\
-                        \
-                       gl_Position = vec4(srcOff * vec2(1, u_flipY), 0, 1);\
-                        \
-                       // pass the texCoord to the fragment shader\
-                       // The GPU will interpolate this value between points.\
-                       v_texCoord = a_texCoord;\
-                    }"
-            },
-            
-            fragment: null
-        },
-        
-        geometricMap: {
-            twirl: {
-                
-                attributes: null,
-                
-                uniforms: {
-                    u_textureSize: {type: "uniform2fv", value: []},
-                    u_center: {type: "uniform2fv", value: []},
-                    u_angle: {type: "uniform1f", value: 0.0},
-                    u_radius: {type: "uniform1f", value: 0.0}
-                },
-                    
-                textures: [
-                    {name: "u_image", image: null, texture: null}
-                ],
-                
-                vertex: null,
-                
-                fragment: {
-                    type: "fragment",
-                    
-                    source: "\
-                            precision mediump float;\
-                            \
-                            // our texture\
-                            uniform sampler2D u_image;\
-                            uniform vec2 u_textureSize;\
-                            uniform vec2 u_center;\
-                            uniform float u_angle;\
-                            uniform float u_radius;\
-                            \
-                            // the texCoords passed in from the vertex shader.\
-                            varying vec2 v_texCoord;\
-                            \
-                            void main() {\
-                                if (u_radius<=0.0)\
-                                {\
-                                    gl_FragColor = texture2D(u_image, v_texCoord);\
-                                }\
-                                else\
-                                {\
-                                    vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;\
-                                    vec2 st = v_texCoord * onePixel;\
-                                    u_center = u_center * onePixel;\
-                                    vec2 txy = st - u_center;\
-                                    float d = length(txy);\
-                                    float theta = 0.0;\
-                                     if (d < u_radius)\
-                                     {\
-                                        float fact = u_angle/u_radius;\
-                                        theta = atan(txy.t, txy.s) + fact*(radius-d);\
-                                        txy = u_center + d*vec2(cos(theta), sin(theta));\
-                                        gl_FragColor = texture2D(u_image, clamp(txy, 0.0, 1.0));\
-                                    }\
-                                    else\
-                                    {\
-                                        gl_FragColor = texture2D(u_image, v_texCoord);\
-                                    }\
-                             }\
-                         }"
-                }
-            },
-            
-            sphere: {
-                
-                attributes: null,
-                
-                uniforms: {
-                    u_textureSize: {type: "uniform2fv", value: []},
-                    u_center: {type: "uniform2fv", value: []},
-                    u_radius: {type: "uniform1f", value: 0.0}
-                },
-                    
-                textures: [
-                    {name: "u_image", image: null, texture: null}
-                ],
-                
-                vertex: null,
-                
-                fragment: {
-                    type: "fragment",
-                    
-                    source: "\
-                            precision mediump float;\
-                            \
-                            // our texture\
-                            uniform sampler2D u_image;\
-                            uniform vec2 u_textureSize;\
-                            uniform vec2 u_center;\
-                            uniform float u_radius;\
-                            //const float refraction = 0.555556;\
-                            const float invrefraction=0.444444; // 1-refraction\
-                            \
-                            // the texCoords passed in from the vertex shader.\
-                            varying vec2 v_texCoord;\
-                            \
-                            void main() {\
-                                if (u_radius<=0.0)\
-                                {\
-                                    gl_FragColor = texture2D(u_image, v_texCoord);\
-                                }\
-                                else \
-                                {\
-                                    vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;\
-                                    vec2 st = v_texCoord * onePixel;\
-                                    u_center = u_center * onePixel;\
-                                    vec2 txy = st - u_center; \
-                                    vec2 txy2 = txy * txy;\
-                                    float r2 = txy2.x + txy2.y;\
-                                    float radius2 = u_radius*u_radius;\
-                                    if (r2 < radius2)\
-                                    {\
-                                        float d2 = radius2 - r2;\
-                                        float d = sqrt(d2);\
-                                        vec2 theta = vec2(asin(txy.s / sqrt(txy2.x + d2)), asin(txy.t) / sqrt(txy2.y + d2)) * invrefraction;\
-                                        txy = st - ds * tan(theta);\
-                                        gl_FragColor = texture2D(u_image, clamp(txy, 0.0, 1.0));\
-                                    }\
-                                    else\
-                                    {\
-                                        gl_FragColor = texture2D(u_image, v_texCoord);\
-                                    }\
-                             }\
-                         }"
-                }
-            },
-            
-            flipX: {
-                
-                attributes: null,
-                
-                uniforms: {
-                    u_textureSize: {type: "uniform2fv", value: []},
-                    u_center: {type: "uniform2fv", value: []},
-                    u_radius: {type: "uniform1f", value: 0.0}
-                },
-                    
-                textures: [
-                    {name: "u_image", image: null, texture: null}
-                ],
-                
-                vertex: null,
-                
-                fragment: {
-                    type: "fragment",
-                    
-                    source: "\
-                            precision mediump float;\
-                            \
-                            // our texture\
-                            uniform sampler2D u_image;\
-                            \
-                            // the texCoords passed in from the vertex shader.\
-                            varying vec2 v_texCoord;\
-                            \
-                            void main() {\
-                                gl_FragColor = texture2D(u_image, vec2(1.0-v_texCoord.s, v_texCoord.t));\
-                         }"
-                }
-            },
-            flipY: {
-                
-                attributes: null,
-                
-                uniforms: {
-                    u_textureSize: {type: "uniform2fv", value: []},
-                    u_center: {type: "uniform2fv", value: []},
-                    u_radius: {type: "uniform1f", value: 0.0}
-                },
-                    
-                textures: [
-                    {name: "u_image", image: null, texture: null}
-                ],
-                
-                vertex: null,
-                
-                fragment: {
-                    type: "fragment",
-                    
-                    source: "\
-                            precision mediump float;\
-                            \
-                            // our texture\
-                            uniform sampler2D u_image;\
-                            \
-                            // the texCoords passed in from the vertex shader.\
-                            varying vec2 v_texCoord;\
-                            \
-                            void main() {\
-                                gl_FragColor = texture2D(u_image, vec2(v_texCoord.s, 1.0-v_texCoord.t));\
-                         }"
-                }
-            },
-            flipXY: {
-                
-                attributes: null,
-                
-                uniforms: {
-                    u_textureSize: {type: "uniform2fv", value: []},
-                    u_center: {type: "uniform2fv", value: []},
-                    u_radius: {type: "uniform1f", value: 0.0}
-                },
-                    
-                textures: [
-                    {name: "u_image", image: null, texture: null}
-                ],
-                
-                vertex: null,
-                
-                fragment: {
-                    type: "fragment",
-                    
-                    source: "\
-                            precision mediump float;\
-                            \
-                            // our texture\
-                            uniform sampler2D u_image;\
-                            \
-                            // the texCoords passed in from the vertex shader.\
-                            varying vec2 v_texCoord;\
-                            \
-                            void main() {\
-                                gl_FragColor = texture2D(u_image, vec2(1.0-v_texCoord.s, 1.0-v_texCoord.t));\
-                         }"
-                }
-            },
-            affine: null
-        },
-        
-        // TODO ??
-        statistical: null
+        }
     };
     
     

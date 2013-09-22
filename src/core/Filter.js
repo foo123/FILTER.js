@@ -105,6 +105,9 @@
         return canvas;
     }
     
+    var _filterId=0;
+    FILTER.getId=function() { return ++_filterId; };
+    
     //
     //
     // Abstract Generic Filter
