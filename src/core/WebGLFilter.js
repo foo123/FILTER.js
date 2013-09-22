@@ -28,14 +28,15 @@
     //
     //
     // Generic WebGL Program Class
-    function WebGLProgram(webgl, program, uniforms)  
+    function WebGLProgram(webgl, id, program, uniforms, textures)  
     {
         this.glContainer=webgl || null;
+        this.id=id || 0;
         this.program=program || null;
         if (uniforms)
-        {
             this.setUniforms(uniforms);
-        }
+        if (textures)
+            this.setTextures(textures);
     }
     WebGLProgram.prototype={
     
@@ -43,13 +44,18 @@
         
         glContainer: null,
         
+        id: 0,
+        
         program: null,
         
         _shaders: null,
         _uniforms: null,
         _locations: null,
         _values: null,
+        _textures: null,
+        _tlocations: null,
         _uniformsNeedUpdate: false,
+        _texturesNeedUpdate: false,
         
         dispose: function() {
             this.glContainer._gl.deleteProgram(this.program);
@@ -63,12 +69,14 @@
         setContainer: function(webgl) {
             this.glContainer=webgl;
             //this._uniformsNeedUpdate=true;
+            //this._texturesNeedUpdate=true;
             return this;
         },
         
         setProgram: function(program) {
             this.program=program;
             this._uniformsNeedUpdate=true;
+            this._texturesNeedUpdate=true;
             return this;
         },
         
@@ -82,6 +90,16 @@
             return this;
         },
         
+        setTextures: function(textures) {
+            if (textures)
+            {
+                this._textures=textures;
+                this.updateTextureLocations();
+                this._texturesNeedUpdate=false;
+            }
+            return this;
+        },
+        
         setUniformValues: function(values) {
             if (!values)  return this;
             
@@ -90,6 +108,23 @@
             var i, loc=this._locations, vL=Math.min(values.length, loc.length);
             this._values=values;
             for (i=0; i<vL; i++)  this.setUniformByLocation(loc[i], values[i].value, values[i].type);
+            
+            return this;
+        },
+        
+        attachTextures: function(textures) {
+            if (!textures)  return this;
+            
+            if (this._texturesNeedUpdate) this.updateTextureLocations();
+            
+            var gl=this.glContainer._gl, i, loc=this._tlocations, tL=Math.min(textures.length, loc.length);
+            for (i=0; i<tL; i++)  
+            {
+                // set which texture units to render with.
+                gl.uniform1i(loc[i], i);  // texture unit
+                gl.activeTexture( gl.TEXTURE0 + i );
+                gl.bindTexture( gl.TEXTURE_2D, textures[i] );
+            }
             
             return this;
         },
@@ -129,6 +164,14 @@
             for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, this._uniforms[i]);
             this._uniformsNeedUpdate=false;
             this._locations=locations;
+            return this;
+        },
+        
+        updateTextureLocations: function() {
+            var gl=this.glContainer._gl, i, tL=this._textures.length, locations=new Array(tL), prg=this.program;
+            for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, this._textures[i]);
+            this._texturesNeedUpdate=false;
+            this._tlocations=locations;
             return this;
         },
         
@@ -314,6 +357,7 @@
         _enabledAttributes: {},
         _programs: [],
         _currentProgram: null,
+        _currentProgramIndex: -1,
         
         // adapted from Kronos WebGL specifications
         glTypeToArrayBufferType: function(type) {
@@ -390,16 +434,46 @@
             return this;
         },
         
-        addProgram: function(program) {
-            this._programs.push(program);
+        useProgram: function(program){
+            this._gl.useProgram( program );
             return this;
         },
         
-        removeProgram: function(program) {
+        addProgram: function(webglprogram) {
+            this._programs.push(webglprogram);
+            return this;
+        },
+        
+        getProgramById: function(id) {
             var i, programs=this._programs, pL=programs.length;
             for (i=0; i<pL; i++)
             {
-                if (programs[i]===program)
+                if (programs[i].id===id)
+                {
+                    return programs[i];
+                }
+            }
+            return null;
+        },
+        
+        removeProgram: function(webglprogram) {
+            var i, programs=this._programs, pL=programs.length;
+            for (i=0; i<pL; i++)
+            {
+                if (programs[i]===webglprogram)
+                {
+                    programs.splice(i, 1);
+                    return this;
+                }
+            }
+            return this;
+        },
+        
+        removeProgramById: function(id) {
+            var i, programs=this._programs, pL=programs.length;
+            for (i=0; i<pL; i++)
+            {
+                if (programs[i].id===id)
                 {
                     programs.splice(i, 1);
                     return this;
@@ -413,15 +487,40 @@
             return this;
         },
         
-        useProgram: function(program){
-            this._gl.useProgram( program );
-            this._currentProgram = {program: program};
+        useStoredProgram: function(webglprogram){
+            var i, programs=this._programs, pL=programs.length;
+            for (i=0; i<pL; i++)
+            {
+                if (programs[i]===webglprogram)
+                {
+                    this._currentProgram = this._programs[i];
+                    this._currentProgramIndex = i;
+                    this._gl.useProgram( this._programs[i].program );
+                    return this;
+                }
+            }
             return this;
         },
         
-        useProgramByIndex: function(i){
-            this._gl.useProgram( this._programs[i].program );
+        useStoredProgramById: function(id){
+            var i, programs=this._programs, pL=programs.length;
+            for (i=0; i<pL; i++)
+            {
+                if (programs[i].id===id)
+                {
+                    this._currentProgram = this._programs[i];
+                    this._currentProgramIndex = i;
+                    this._gl.useProgram( this._programs[i].program );
+                    return this;
+                }
+            }
+            return this;
+        },
+        
+        useStoredProgramByIndex: function(i){
             this._currentProgram = this._programs[i];
+            this._currentProgramIndex = i;
+            this._gl.useProgram( this._programs[i].program );
             return this;
         },
         
@@ -553,7 +652,7 @@
             return this._gl.getAttribLocation( program, id );
         },
 
-        setFloatAttribute: function(index, buffer, size, offset){
+        setFloatAttribute: function(index, buffer, size, offset) {
             this.bindArrayBuffer( buffer );
             this.enableAttribute( index );
             this._gl.vertexAttribPointer( index, size, this._gl.FLOAT, false, 0, offset );
@@ -589,47 +688,47 @@
             return this;
         },
 
-        uniform1iv: function(uniform,value){
+        uniform1iv: function(uniform,value) {
             this._gl.uniform1iv( uniform, value );
             return this;
         },
 
-        uniform2iv: function(uniform, value){
+        uniform2iv: function(uniform, value) {
             this._gl.uniform2iv( uniform, value );
             return this;
         },
 
-        uniform3iv: function(uniform, value){
+        uniform3iv: function(uniform, value) {
             this._gl.uniform3iv( uniform, value );
             return this;
         },
 
-        uniform1fv: function(uniform, value){
+        uniform1fv: function(uniform, value) {
             this._gl.uniform1fv( uniform, value );
             return this;
         },
 
-        uniform2fv: function(uniform, value){
+        uniform2fv: function(uniform, value) {
             this._gl.uniform2fv( uniform, value );
             return this;
         },
 
-        uniform3fv: function(uniform, value){
+        uniform3fv: function(uniform, value) {
             this._gl.uniform3fv( uniform, value );
             return this;
         },
 
-        uniform4fv: function(uniform, value){
+        uniform4fv: function(uniform, value) {
             this._gl.uniform3fv( uniform, value );
             return this;
         },
 
-        uniformMatrix3fv: function(location, value){
+        uniformMatrix3fv: function(location, value) {
             this._gl.uniformMatrix3fv( location, false, value );
             return this;
         },
 
-        uniformMatrix4fv: function(location, value){
+        uniformMatrix4fv: function(location, value) {
             this._gl.uniformMatrix4fv( location, false, value );
             return this;
         },
@@ -714,32 +813,9 @@
             return this;
         },
         
-        attachTextures: function(program, textures){
-            var i, tL=textures.length, loc, tex, texture, gl=this._gl;
-            
-            for (i=0; i<tL; i++)
-            {
-                texture=textures[i];
-                
-                if (!texture.texture && texture.image)
-                    texture.texture=this.loadTexture(texture.image);
-                
-                if (!texture.texture) continue;
-                
-                // lookup the sampler locations.
-                loc = gl.getUniformLocation(program, texture.name);
-                
-                // set which texture units to render with.
-                gl.uniform1i(loc, i);  // texture unit
-                gl.activeTexture( gl.TEXTURE0 + i );
-                gl.bindTexture( gl.TEXTURE_2D, texture.texture );
-            }
-            return this;
-        },
-        
         // adapted from WebGL foundamentals
-        compileProgram: function(shaders, props) {
-            var gl=this._gl, program, linked, i, sl=shaders.length, attsL;
+        compileProgram: function(id, shaders, props) {
+            var gl=this._gl, program, linked, i, sl=shaders.length;
             
             program = gl.createProgram();
             
@@ -748,13 +824,13 @@
                 gl.attachShader(program, shaders[i]);
             }
             
-            if (atts) 
+            /*if (props) 
             {
                 for (i = 0; i < attsL; ++i) 
                 {
                     gl.bindAttribLocation(program,  atts[i].location,  atts[i].value);
                 }
-            }
+            }*/
             gl.linkProgram(program);
 
             // Check the link status
@@ -766,8 +842,12 @@
                 gl.deleteProgram(program);
                 return null;
             }
-            
-            return new WebGLProgram(gl, program);
+            var webglprogram=new WebGLProgram(this, id, program);
+            if (props)
+            {
+                webglprogram.setUniforms(props.uniforms).setTextures(props.textures);
+            }
+            return webglprogram;
         }
     };
     // export it
@@ -787,33 +867,63 @@
         FILTER.supportWebGLSharedResources=(bool && supportWebGLSharedResources);
     };
     
+    var webglfilterId=0;
+    
     //
     //
-    //
-    FILTER.WEbGLFilter=function(shader) { this._shader=shader; };
+    // Generic WebGL Filter
+    FILTER.WEbGLFilter=function(shaders, uniforms) 
+    { 
+        this._shaders=shaders; 
+        this._uniforms=uniforms || []; 
+        ++webglfilterId;
+        this.id=webglfilterId;
+    };
     FILTER.WEbGLFilter.prototype={
         
         constructor: FILTER.WEbGLFilter,
         
-        _shaders: null,
-        _program: null,
+        id: 0,
         
-        compile: function() {
+        _shaders: null,
+        _compiledShaders: null,
+        _uniforms: null,
+        _textures: null,
+        _values: null,
+        
+        _getProgram: function(webgl) {
+            var webglprogram=webgl.getProgramById(this.id);
+            if (!webglprogram)
+            {
+                var i, sL=this._shaders.length;
+                this._compiledShaders=new Array(sL);
+                for (i=0; i<sL; i++)
+                    this._compiledShaders[i]=webgl.loadShader(this._shaders[i].source, this._shaders[i].type);
+                
+                webglprogram=webgl.compileProgram(this.id, this._compiledShaders, {uniforms: this._uniforms, textures: this._textures});
+                webgl.addProgram(webglprogram);
+            }
+            return webglprogram;
         },
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
-            webgl
-                useProgram(this._program)
-                .bindTexture(inBuffer)
-            // make this the framebuffer we are rendering to.
-                .bindFramebuffer(outBuffer)
-            // Tell the shader the resolution of the framebuffer.
-                .uniform2f(resolutionLocation, w, h)
+            var webglprogram=this._getProgram(webgl);
+            webgl.useStoredProgram(webglprogram.setUniformValues(this._values));
+            webgl.bindTexture(inBuffer);
+            if (outBuffer)
+                // make this the framebuffer we are rendering to.
+                webgl.bindFramebuffer(outBuffer);
             // Tell webgl the viewport setting needed for framebuffer.
+            webgl
                 .viewport(0, 0, w, h)
             // draw
                 .drawArrays(6)
             ;
+        },
+        
+        apply: function(image) {
+            this._apply(image.webgl, image.width, image.height, image.canvasElement, null);
+            return image;
         }
     };
     
