@@ -9,7 +9,7 @@
     //
     //
     // WebGL Support
-    var supportWebGL=false, WEBGLNAME=null,
+    var supportWebGL=false, supportWebGLSharedResources=false,  WEBGLNAME=null,
         createCanvas=FILTER.createCanvas,
         MAX_KERNEL_SIZE=121
         ;
@@ -17,13 +17,223 @@
     // http://www.khronos.org/webgl/wiki/Main_Page
     // http://www.html5rocks.com/en/tutorials/webgl/webgl_fundamentals/
     
+    // Add your prefix here.
+    var browserPrefixes = [
+      "",
+      "MOZ_",
+      "OP_",
+      "WEBKIT_"
+    ], browserPrefixesLength=browserPrefixes.length;
+
+    //
+    //
+    // Generic WebGL Program Class
+    function WebGLProgram(webgl, program, uniforms)  
+    {
+        this.glContainer=webgl || null;
+        this.program=program || null;
+        if (uniforms)
+        {
+            this.setUniforms(uniforms);
+        }
+    }
+    WebGLProgram.prototype={
+    
+        constructor: WebGLProgram,
+        
+        glContainer: null,
+        
+        program: null,
+        
+        _shaders: null,
+        _uniforms: null,
+        _locations: null,
+        _values: null,
+        _uniformsNeedUpdate: false,
+        
+        dispose: function() {
+            this.glContainer._gl.deleteProgram(this.program);
+            this.program=null;
+            this._uniforms=null;
+            this._locations=null;
+            this._values=null;
+            return this;
+        },
+        
+        setContainer: function(webgl) {
+            this.glContainer=webgl;
+            //this._uniformsNeedUpdate=true;
+            return this;
+        },
+        
+        setProgram: function(program) {
+            this.program=program;
+            this._uniformsNeedUpdate=true;
+            return this;
+        },
+        
+        setUniforms: function(uniforms) {
+            if (uniforms)
+            {
+                this._uniforms=uniforms;
+                this.updateUniformLocations();
+                this._uniformsNeedUpdate=false;
+            }
+            return this;
+        },
+        
+        setUniformValues: function(values) {
+            if (!values)  return this;
+            
+            if (this._uniformsNeedUpdate) this.updateUniformLocations();
+            
+            var i, loc=this._locations, vL=Math.min(values.length, loc.length);
+            this._values=values;
+            for (i=0; i<vL; i++)  this.setUniformByLocation(loc[i], values[i].value, values[i].type);
+            
+            return this;
+        },
+        
+        deleteProgram: function() {
+            this.glContainer._gl.deleteProgram(this.program);
+            this.program=null;
+            this._uniforms=null;
+            this._locations=null;
+            this._values=null;
+            return this;
+        },
+        
+        useProgram: function() {
+            this.glContainer._gl.useProgram(this.program);
+            return this;
+        },
+        
+        getCachedUniformLocation: function(uniformName) {
+            var i=this._uniforms.indexOf(uniformName);
+            return this._locations[i];
+        },
+        
+        getUniformLocation: function(uniformName) {
+            var gl=this.glContainer._gl;
+            return gl.getUniformLocation(this.program, uniformName);
+        },
+        
+        getUniformLocations: function(uniformNames) {
+            var gl=this.glContainer._gl, i, nL=uniformNames.length, locations=new Array(nL), prg=this.program;
+            for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, uniformNames[i]);
+            return locations;
+        },
+        
+        updateUniformLocations: function() {
+            var gl=this.glContainer._gl, i, nL=this._uniforms.length, locations=new Array(nL), prg=this.program;
+            for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, this._uniforms[i]);
+            this._uniformsNeedUpdate=false;
+            this._locations=locations;
+            return this;
+        },
+        
+        setUniformByLocation: function(uniformLocation, uniformValue, uniformType) {
+            var gl=this.glContainer._gl;
+            uniformType = uniformType || "uniform1f";
+            switch(uniformType)
+            {
+                case "uniform1i":
+                    gl.uniform1i(uniformLocation, uniformValue);
+                    break;
+                case "uniform1f":
+                    gl.uniform1f(uniformLocation, uniformValue);
+                    break;
+                case "uniform2f":
+                    gl.prototype.uniform2f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform3f":
+                    gl.prototype.uniform3f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform4f":
+                    gl.prototype.uniform4f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform2iv":
+                    gl.uniform2iv(uniformLocation, uniformValue);
+                    break;
+                case "uniform3iv":
+                    gl.uniform3iv(uniformLocation, uniformValue);
+                    break;
+                case "uniform1fv":
+                    gl.uniform1fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform2fv":
+                    gl.uniform2fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform3fv":
+                    gl.uniform3fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform4fv":
+                    gl.uniform4fv(uniformLocation, uniformValue);
+                    break;
+                default:
+                    throw 'unknown gl uniform type ' + uniformType;
+            }
+            return this;
+        },
+        
+        setUniformByName(uniformName, uniformValue, uniformType) {
+            var gl=this.glContainer._gl,
+                program = this.program,
+                uniformLocation = gl.getUniformLocation(program, uniformName)
+                ;
+            uniformType = uniformType || "uniform1f";
+            switch(uniformType)
+            {
+                case "uniform1i":
+                    gl.uniform1i(uniformLocation, uniformValue);
+                    break;
+                case "uniform1f":
+                    gl.uniform1f(uniformLocation, uniformValue);
+                    break;
+                case "uniform2f":
+                    gl.prototype.uniform2f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform3f":
+                    gl.prototype.uniform3f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform4f":
+                    gl.prototype.uniform4f.apply(gl, [uniformLocation].concat(uniformValue));
+                    break;
+                case "uniform2iv":
+                    gl.uniform2iv(uniformLocation, uniformValue);
+                    break;
+                case "uniform3iv":
+                    gl.uniform3iv(uniformLocation, uniformValue);
+                    break;
+                case "uniform1fv":
+                    gl.uniform1fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform2fv":
+                    gl.uniform2fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform3fv":
+                    gl.uniform3fv(uniformLocation, uniformValue);
+                    break;
+                case "uniform4fv":
+                    gl.uniform4fv(uniformLocation, uniformValue);
+                    break;
+                default:
+                    throw 'unknown gl uniform type ' + uniformType;
+            }
+            return this;
+        }
+    };
+    // export it
+    FILTER.WEbGLProgram=WEbGLProgram;
+    
+    
     //
     //
     // Generic WebGL Class
     function WebGL(canvas, options)
     {
-        if (canvas)
-            this._gl=WebGL.getWebGL(canvas, options);
+        canvas = canvas || createCanvas();
+        this._gl=WebGL.getWebGL(canvas, options);
     }
     
     //
@@ -33,11 +243,11 @@
     WebGL.getWebGL=function(canvas, opt_attribs) {
         if (!window.WebGLRenderingContext)  return null;
 
-        return WebGL.getGLContext(canvas, opt_attribs);
+        return WebGL.getContext(canvas, opt_attribs);
     };
     
     // adapted from Kronos WebGL specifications
-    WebGL.getGLContext=function(canvas, opt_attribs) {
+    WebGL.getContext=function(canvas, opt_attribs) {
         opt_attribs=opt_attribs || { depth: false, alpha: true, premultipliedAlpha: false, antialias: true, stencil: false, preserveDrawingBuffer: false };
         if (!WEBGLNAME)
         {
@@ -62,6 +272,34 @@
         return gl;
     };
     
+    // adapted from Kronos WebGL specifications
+    WebGL.getSupportedExtensionWithKnownPrefixes=function(gl, name) {
+        var supported = gl.getSupportedExtensions();
+        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
+        {
+            var prefixedName = browserPrefixes[ii] + name;
+            if (supported.indexOf(prefixedName) >= 0) 
+            {
+                return prefixedName;
+            }
+        }
+        return null;
+    };
+
+    // adapted from Kronos WebGL specifications
+    WebGL.getExtensionWithKnownPrefixes=function(gl, name)  {
+        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
+        {
+            var prefixedName = browserPrefixes[ii] + name;
+            var ext = gl.getExtension(prefixedName);
+            if (ext) 
+            {
+                return ext;
+            }
+        }
+        return null;
+    };
+    
     //
     //
     // instance methods
@@ -71,7 +309,60 @@
         
         _gl: null,
         _boundBuffer: null,
+        _boundTexture: null,
+        _boundFrameBuffer: null,
         _enabledAttributes: {},
+        _programs: [],
+        _currentProgram: null,
+        
+        // adapted from Kronos WebGL specifications
+        glTypeToArrayBufferType: function(type) {
+            var gl=this._gl;
+            switch (type) 
+            {
+                case gl.BYTE:
+                    return FILTER.Array8I;
+                case gl.UNSIGNED_BYTE:
+                    return FILTER.Array8U;
+                case gl.SHORT:
+                    return FILTER.Array16I;
+                case gl.UNSIGNED_SHORT:
+                case gl.UNSIGNED_SHORT_5_6_5:
+                case gl.UNSIGNED_SHORT_4_4_4_4:
+                case gl.UNSIGNED_SHORT_5_5_5_1:
+                    return FILTER.Array16U;
+                case gl.INT:
+                    return FILTER.Array32I;
+                case gl.UNSIGNED_INT:
+                    return FILTER.Array32U;
+                case gl.FLOAT:
+                    return FILTER.Array32F;
+                default:
+                throw 'unknown gl type';
+            }
+        },
+
+        getBytesPerComponent: function(type) {
+            var gl=this._gl;
+            switch (type) 
+            {
+                case gl.BYTE:
+                case gl.UNSIGNED_BYTE:
+                    return 1;
+                case gl.SHORT:
+                case gl.UNSIGNED_SHORT:
+                case gl.UNSIGNED_SHORT_5_6_5:
+                case gl.UNSIGNED_SHORT_4_4_4_4:
+                case gl.UNSIGNED_SHORT_5_5_5_1:
+                    return 2;
+                case gl.INT:
+                case gl.UNSIGNED_INT:
+                case gl.FLOAT:
+                    return 4;
+                default:
+                throw 'unknown gl type';
+            }
+        },
         
         // adapted from Three.js
         deleteBuffer: function(buffer){
@@ -98,7 +389,42 @@
             this._gl.deleteProgram(RenderBuffer);
             return this;
         },
-
+        
+        addProgram: function(program) {
+            this._programs.push(program);
+            return this;
+        },
+        
+        removeProgram: function(program) {
+            var i, programs=this._programs, pL=programs.length;
+            for (i=0; i<pL; i++)
+            {
+                if (programs[i]===program)
+                {
+                    programs.splice(i, 1);
+                    return this;
+                }
+            }
+            return this;
+        },
+        
+        removeProgramByIndex: function(i) {
+            this._programs.splice(i, 1);
+            return this;
+        },
+        
+        useProgram: function(program){
+            this._gl.useProgram( program );
+            this._currentProgram = {program: program};
+            return this;
+        },
+        
+        useProgramByIndex: function(i){
+            this._gl.useProgram( this._programs[i].program );
+            this._currentProgram = this._programs[i];
+            return this;
+        },
+        
         createBuffer: function(){
             return this._gl.createBuffer();
         },
@@ -164,6 +490,24 @@
             return this;
         },
 
+        bindTexture: function(texBuffer) {
+            if (this._boundTexture != texBuffer)
+            {
+                this._gl.bindTexture(this._gl.TEXTURE_2D, texBuffer);
+                this._boundTexture = texBuffer;
+            }
+            return this;
+        },
+        
+        bindFramebuffer: function(fBuffer){
+            if (this._boundFrameBuffer != fBuffer)
+            {
+                this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, fBuffer);
+                this._boundFrameBuffer = fBuffer;
+            }
+            return this;
+        },
+        
         bindArrayBuffer: function(buffer){
             if (this._boundBuffer != buffer)
             {
@@ -205,42 +549,42 @@
             return this;
         },
 
-        getAttribLocation: function( program, id ){
+        getAttribLocation: function( program, id ) {
             return this._gl.getAttribLocation( program, id );
         },
 
-        setFloatAttribute: function(index,buffer,size,offset){
+        setFloatAttribute: function(index, buffer, size, offset){
             this.bindArrayBuffer( buffer );
             this.enableAttribute( index );
             this._gl.vertexAttribPointer( index, size, this._gl.FLOAT, false, 0, offset );
             return this;
         },
 
-        getUniformLocation: function( program, id ){
+        getUniformLocation: function( program, id ) {
             return this._gl.getUniformLocation( program, id );
         },
 
-        uniform1i: function(uniform,value){
+        uniform1i: function(uniform, value) {
             this._gl.uniform1i( uniform, value );
             return this;
         },
 
-        uniform1f: function(uniform,value){
+        uniform1f: function(uniform, value) {
             this._gl.uniform1f( uniform, value );
             return this;
         },
 
-        uniform2f: function(uniform,value1, value2){
+        uniform2f: function(uniform,value1, value2) {
             this._gl.uniform2f( uniform, value1, value2 );
             return this;
         },
 
-        uniform3f: function(uniform, value1, value2, value3){
+        uniform3f: function(uniform, value1, value2, value3) {
             this._gl.uniform3f( uniform, value1, value2, value3 );
             return this;
         },
 
-        uniform4f: function(uniform, value1, value2, value3, value4){
+        uniform4f: function(uniform, value1, value2, value3, value4) {
             this._gl.uniform4f( uniform, value1, value2, value3, value4);
             return this;
         },
@@ -250,51 +594,46 @@
             return this;
         },
 
-        uniform2iv: function(uniform,value){
+        uniform2iv: function(uniform, value){
             this._gl.uniform2iv( uniform, value );
             return this;
         },
 
-        uniform3iv: function(uniform,value){
+        uniform3iv: function(uniform, value){
             this._gl.uniform3iv( uniform, value );
             return this;
         },
 
-        uniform1fv: function(uniform,value){
+        uniform1fv: function(uniform, value){
             this._gl.uniform1fv( uniform, value );
             return this;
         },
 
-        uniform2fv: function(uniform,value){
+        uniform2fv: function(uniform, value){
             this._gl.uniform2fv( uniform, value );
             return this;
         },
 
-        uniform3fv: function(uniform,value){
+        uniform3fv: function(uniform, value){
             this._gl.uniform3fv( uniform, value );
             return this;
         },
 
-        uniform4fv: function(uniform,value){
+        uniform4fv: function(uniform, value){
             this._gl.uniform3fv( uniform, value );
             return this;
         },
 
-        uniformMatrix3fv: function(location,value){
+        uniformMatrix3fv: function(location, value){
             this._gl.uniformMatrix3fv( location, false, value );
             return this;
         },
 
-        uniformMatrix4fv: function(location,value){
+        uniformMatrix4fv: function(location, value){
             this._gl.uniformMatrix4fv( location, false, value );
             return this;
         },
 
-        useProgram: function(program){
-            this._gl.useProgram( program );
-            return this;
-        },
-        
         setRectangle: function(x, y, w, h) {
             var x1=x, y1=y, x2=x+w, y2=y+h;
             
@@ -368,9 +707,10 @@
         },
         
         setTexture: function(texture, unit){
-			unit=unit||0;
-            this._gl.activeTexture( this._gl.TEXTURE0 + unit );
-			this._gl.bindTexture( this._gl.TEXTURE_2D, texture );
+			var gl=this._gl;
+            unit=unit||0;
+            gl.activeTexture( gl.TEXTURE0 + unit );
+			gl.bindTexture( gl.TEXTURE_2D, texture );
             return this;
         },
         
@@ -427,22 +767,59 @@
                 return null;
             }
             
-            return program;
+            return new WebGLProgram(gl, program);
         }
     };
+    // export it
     FILTER.WebGL=WebGL;
     
-    supportWebGL=WebGL.getWebGL(createCanvas());
+    var _canvas=createCanvas();
+    supportWebGL=WebGL.getWebGL(_canvas);
+    supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
     FILTER.supportWebGL=false;
+    FILTER.supportWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) {
         console.log(supportWebGL);
         FILTER.supportWebGL=(bool && supportWebGL);
     };
-    
+    FILTER.useWebGLSharedResourcesIfAvailable=function(bool) {
+        console.log(supportWebGLSharedResources);
+        FILTER.supportWebGLSharedResources=(bool && supportWebGLSharedResources);
+    };
     
     //
     //
-    //  GLSL Shaders
+    //
+    FILTER.WEbGLFilter=function(shader) { this._shader=shader; };
+    FILTER.WEbGLFilter.prototype={
+        
+        constructor: FILTER.WEbGLFilter,
+        
+        _shaders: null,
+        _program: null,
+        
+        compile: function() {
+        },
+        
+        _apply: function(webgl, w, h, inBuffer, outBuffer) {
+            webgl
+                useProgram(this._program)
+                .bindTexture(inBuffer)
+            // make this the framebuffer we are rendering to.
+                .bindFramebuffer(outBuffer)
+            // Tell the shader the resolution of the framebuffer.
+                .uniform2f(resolutionLocation, w, h)
+            // Tell webgl the viewport setting needed for framebuffer.
+                .viewport(0, 0, w, h)
+            // draw
+                .drawArrays(6)
+            ;
+        }
+    };
+    
+    //
+    //
+    // GLSL Shaders
     FILTER.Shaders={
         
         generic: {

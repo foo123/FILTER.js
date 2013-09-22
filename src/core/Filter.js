@@ -80,11 +80,13 @@
         0.072169 
     ]);
     FILTER.supportWebGL=false;
+    FILTER.supportWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) { /* do nothing, override */  };
+    FILTER.useWebGLSharedResourcesIfAvailable=function(bool) { /* do nothing, override */  };
 
     //
     //
-    // WebGL Support
+    // for WebGL Support
     var devicePixelRatio = window.devicePixelRatio || 1
         ;
     

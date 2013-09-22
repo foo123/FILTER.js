@@ -1,6 +1,6 @@
 /**
 *
-* Color Transforms
+* Color Methods / Transforms
 * @package FILTER.js
 *
 **/
@@ -8,11 +8,34 @@
 
     var Sqrt=Math.sqrt, Min=Math.min, Max=Math.max;
     
-    // static color transform methods
+    // static Color Methods and Transforms
     // http://en.wikipedia.org/wiki/Color_space
     FILTER.Color={
         
-		blend : function(rgb1, rgb2, p) {
+        ubyteToFloat: function(ub) { return ub * 0.0039215686274509803921568627451; /* 1 / 255; */ },
+
+        ubyteColorToFloatColor: function(color) {
+            var ii, cL=color.length, floatColor=new Array(cL);
+            for (i=0; i<cL; i++)  floatColor[i] = color[i] * 0.0039215686274509803921568627451;
+            return floatColor;
+        },
+        
+        hexColorToFloatColor: function(color) {
+            var r, g, b,a;
+            r = (color>>16)&255;
+            g = (color>>8)&255;
+            b = (color)&255;
+            a = (color>>24)&255;
+
+            return [
+                r * 0.0039215686274509803921568627451,
+                g * 0.0039215686274509803921568627451,
+                b * 0.0039215686274509803921568627451,
+                a * 0.0039215686274509803921568627451
+            ];
+        },
+		
+        blend : function(rgb1, rgb2, p) {
             return {
                 r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
                 g:rgb1.g - ~~((rgb1.g - rgb2.g) * p + 0.5), 
