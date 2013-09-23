@@ -113,7 +113,9 @@
         {name: "u_scale", type: "uniform2fv", location: null, value: null},
         {name: "u_component", type: "uniform2fv", location: null, value: null},
         {name: "u_color", type: "uniform4fv", location: null, value: [0.0, 0.0, 0.0, 0.0]},
-        {name: "u_mode", type: "uniform1i", location: null, value: 1}
+        {name: "u_mode", type: "uniform1i", location: null, value: 1},
+        // http://www.john-smith.me/hassles-with-array-access-in-webgl--and-a-couple-of-workarounds
+        {name: "u_map", image: null, location: null, texture: null, isTexture: true}
     ];
     
     
@@ -122,7 +124,7 @@
     // DisplacementMap WebGL Filter
     FILTER.WebGLDisplacementMapFilter=function() 
     { 
-        this.id=FILTER.getId();
+        this.id='WGLDM4'; //FILTER.getId();
     };
     FILTER.WebGLDisplacementMapFilter.prototype={
         
@@ -133,9 +135,7 @@
         filterParams: null, 
         
         textures: [
-            {name: "u_image", image: null, location: null, texture: null},
-            // http://www.john-smith.me/hassles-with-array-access-in-webgl--and-a-couple-of-workarounds
-            {name: "u_map", image: null, location: null, texture: null}
+            {name: "u_image", image: null, location: null, texture: null}
         ],
             
         _getProgram: FILTER.WebGLFilter.prototype._getProgram,

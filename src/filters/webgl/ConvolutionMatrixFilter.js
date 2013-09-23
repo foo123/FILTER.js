@@ -47,7 +47,8 @@
                     uniform vec2 u_coeff;\
                     uniform bool u_hasKernel2;\
                     uniform bool u_isGrad;\
-                    uniform int u_kernelRadius;\
+                    uniform int u_kernelRadiusX;\
+                    uniform int u_kernelRadiusY;\
                     uniform int u_kernelSize;\
                     const int MAX_KERNEL_SIZE = "+MAX_KERNEL_SIZE+";\
                     uniform float u_kernel[MAX_KERNEL_SIZE];\
@@ -66,9 +67,9 @@
                        // allow to compute second convolution in-parallel (eg Gradients etc..)\
                        if (u_hasKernel2)\
                        {\
-                           for (j=-u_kernelRadius; j<=u_kernelRadius; j++)\
+                           for (j=-u_kernelRadius; j<=u_kernelRadiusY; j++)\
                            {\
-                               for (i=-u_kernelRadius; i<=u_kernelRadius; i++)\
+                               for (i=-u_kernelRadius; i<=u_kernelRadiusX; i++)\
                                {\
                                    tcolor = texture2D(u_image, v_texCoord + onePixel * vec2(i, j));\
                                    kernelSum += tcolor.rgb * u_kernel[k];\
@@ -106,9 +107,9 @@
                        }\
                      }"
             }
-        ],
+    ],
 
-        convolutionAttributes= [
+    convolutionAttributes= [
         {name: "a_position", type: "attribute2fv", location: null, value: null},
         {name: "a_texCoord", type: "attribute2fv", location: null, value: null}
     ],
@@ -120,7 +121,8 @@
         {name: "u_coeff", type: "uniform2fv", location: null, value: null},
         {name: "u_hasKernel2", type: "uniform1i", location: null, value: 0},
         {name: "u_isGrad", type: "uniform1i", location: null, value: 0},
-        {name: "u_kernelRadius", type: "uniform1i", location: null, value: 0},
+        {name: "u_kernelRadiusX", type: "uniform1i", location: null, value: 0},
+        {name: "u_kernelRadiusY", type: "uniform1i", location: null, value: 0},
         {name: "u_kernelSize", type: "uniform1i", location: null, value: 0},
         // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
         {name: "u_kernel[0]", type: "uniform1f", location: null, value: null},
@@ -133,7 +135,7 @@
     // ConvolutionMatrix WebGL Filter
     FILTER.WebGLConvolutionMatrixFilter=function() 
     { 
-        this.id=FILTER.getId();
+        this.id='WGLCM2'; //FILTER.getId();
     };
     FILTER.WebGLConvolutionMatrixFilter.prototype={
         
@@ -150,7 +152,7 @@
         _getProgram: FILTER.WebGLFilter.prototype._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
-            var webglprogram=this._getProgram(webgl, convolutionShaders, convolutionUniforms, this.textures);
+            var webglprogram=this._getProgram(webgl, convolutionShaders, convolutionAttributes, convolutionUniforms, this.textures);
             webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
             webgl.bindTexture(inBuffer);
             if (outBuffer)
@@ -169,5 +171,8 @@
             return image;
         }
     };
+    
+    // export an instance
+    FILTER.WebGLConvolutionMatrixFilterInstance=new FILTER.WebGLConvolutionMatrixFilter();
     
 })(FILTER);

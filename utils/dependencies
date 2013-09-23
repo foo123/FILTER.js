@@ -14,6 +14,7 @@
 ../src/filters/DisplacementMapFilter.js
 ../src/filters/GeometricMapFilter.js
 ../src/filters/ConvolutionMatrixFilter.js
+../src/filters/MorphologicalFilter.js
 ../src/filters/StatisticalFilter.js
 
 # webgl generic Filters
@@ -35,8 +36,8 @@
 ../src/plugins/YCbCrConverter.js
 ../src/plugins/Bokeh.js
 
-@MINIFY
---language_in=ECMASCRIPT5_STRICT
+#@MINIFY
+#--language_in=ECMASCRIPT5_STRICT
 
 @OUT
 ../build/filter.min.js

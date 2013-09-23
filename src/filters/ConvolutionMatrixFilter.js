@@ -1415,18 +1415,21 @@
     //  Simple Convolution Filter
     FILTER.ConvolutionMatrixFilter=function(weights, factor, bias)
     {
+        this._coeff=new CM([1.0, 0.0]);
         if (typeof weights != 'undefined' && weights.length)
         {
-            this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1)
-            this._bias=bias||0;
+            this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
         }
         else 
         {
             this._matrix=null; this._dim = 0;
         }
-        this._matrix2=null; this._coeff1=this._coeff2=0;
+        this._matrix2=null;
         this._dim2=this._dim;
         this._isGrad=false; this._doFast=0; this._doSeparable=false;
+        
+        if (FILTER.useWebGL)
+            this._webglInstance=FILTER.WebGLConvolutionMatrixFilterInstance;
     };
     
     FILTER.ConvolutionMatrixFilter.prototype={
@@ -1437,15 +1440,14 @@
         _dim2: 0,
         _matrix: null,
         _matrix2: null,
-        _factor: 1,
-        _bias: 0,
-        _coeff1: 0,
-        _coeff2: 0,
+        _coeff: 0,
+        
+        _webglInstance: null,
         
         // generic low-pass filter
         lowPass : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this.set(ones(d), d, 1/(d*d));
+            this.set(ones(d), d, 1/(d*d), 0.0);
             this._doFast=1; return this;
         },
 
@@ -1455,7 +1457,7 @@
             f=(typeof f == 'undefined') ? 1 : f;
             // HighPass Filter = I - (respective)LowPass Filter
             var size=d*d, fact=-f/size, w=ones(d, fact, 1+fact);
-            this.set(w, d, 1);
+            this.set(w, d, 1.0, 0.0);
             this._doFast=1; return this;
         },
 
@@ -1483,7 +1485,7 @@
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             //var filt=verticalKernel(d);
             //this.set(filt.kernel, 1, 1/filt.sum); 
-            this.set(average1DKernel(d), 1, 1/d); 
+            this.set(average1DKernel(d), 1, 1/d, 0.0); 
             this._dim2=d; this._doFast=1; return this;
         },
         
@@ -1491,7 +1493,7 @@
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             //var filt=horizontalKernel(d);
             //this.set(filt.kernel, d, 1/filt.sum); 
-            this.set(average1DKernel(d), d, 1/d); 
+            this.set(average1DKernel(d), d, 1/d, 0.0); 
             this._dim2=1; this._doFast=1; return this;
         },
         
@@ -1500,7 +1502,7 @@
             theta*=toRad;
             var c=Cos(theta), s=-Sin(theta),
                 filt=twos2(d, c, s, 1/d);
-            return this.set(filt, d, 1);
+            return this.set(filt, d, 1.0, 0.0);
         },
         
         // fast gauss filter
@@ -1509,7 +1511,7 @@
             quality=quality||1; quality=~~quality;
             if (quality<1) quality=1;
             else if (quality>3) quality=3;
-            this.set(ones(d), d, 1/(d*d));
+            this.set(ones(d), d, 1/(d*d), 0.0);
             this._doFast=quality; return this;
         },
         
@@ -1519,8 +1521,8 @@
             /*var filt=gaussKernel(d);
             return this.set(filt.kernel, d, 1/filt.sum); */
             var kernel=binomial1DKernel(d), sum=1<<(d-1), fact=1/sum;
-            this.set(kernel, d, 1);
-            this._matrix2=new CM(kernel); this._coeff1=this._coeff2=fact;
+            this.set(kernel, d, fact, fact);
+            this._matrix2=new CM(kernel);
             this._doSeparable=true; return this;
         },
 
@@ -1529,7 +1531,7 @@
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=gaussKernel(d);
             // HighPass Filter = I - (respective)LowPass Filter
-            return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1); 
+            return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
         },
         
         // aliases
@@ -1539,14 +1541,14 @@
         prewittX : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=prewittKernel(d, 0);
-            return this.set(filt.kernel, d, 1);
+            return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // Y-gradient, partial Y-derivative (Prewitt)
         prewittY : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=prewittKernel(d, 1);
-            return this.set(filt.kernel, d, 1);
+            return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // directional gradient (Prewitt)
@@ -1555,14 +1557,14 @@
             theta*=toRad;
             var c=Cos(theta), s=Sin(theta),
                 gradx=prewittKernel(d, 0), grady=prewittKernel(d, 1);
-            return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1);
+            return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
         },
         
         // gradient magnitude (Prewitt)
         prewitt : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var gradx=prewittKernel(d, 0), grady=prewittKernel(d, 1);
-            this.set(gradx.kernel, d, 1);
+            this.set(gradx.kernel, d, 1.0, 0.0);
             this._isGrad=true;
             this._matrix2=new CM(grady.kernel);
             return this;
@@ -1581,14 +1583,14 @@
         sobelX : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=sobelKernel(d, 0);
-            return this.set(filt.kernel, d, 1);
+            return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // partial Y-derivative (Sobel)
         sobelY : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var filt=sobelKernel(d, 1);
-            return this.set(filt.kernel, d, 1);
+            return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // directional gradient (Sobel)
@@ -1597,14 +1599,14 @@
             theta*=toRad;
             var c=Cos(theta), s=Sin(theta),
                 gradx=sobelKernel(d, 0), grady=sobelKernel(d, 1);
-            return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1);
+            return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
         },
         
         // gradient magnitude (Sobel)
         sobel : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var gradx=sobelKernel(d, 0), grady=sobelKernel(d, 1);
-            this.set(gradx.kernel, d, 1);
+            this.set(gradx.kernel, d, 1.0, 0.0);
             this._matrix2=new CM(grady.kernel);
             this._isGrad=true;
             return this;
@@ -1625,7 +1627,7 @@
         laplace : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
             var size=d*d, laplacian=ones(d, -1, size-1);
-            this.set(laplacian, d, 1);
+            this.set(laplacian, d, 1.0, 0.0);
             this._doFast=1; return this;
         },
         
@@ -1639,7 +1641,7 @@
             angle=(typeof angle == 'undefined') ? (-0.25*Math.PI) : (angle*toRad);
             amount=amount||1;
             var dx = amount*Cos(angle), dy = -amount*Sin(angle), filt=twos(d, dx, dy, 1);
-            return this.set(filt, d, 1);
+            return this.set(filt, d, 1.0, 0.0);
         },
         
         edges : function(m) {
@@ -1648,7 +1650,7 @@
                     0,   m,   0,
                     m,  -4*m, m,
                     0,   m,   0
-                 ], 3, 1);
+                 ], 3, 1.0, 0.0);
         },
         
         /*motionblur : function(dir, d) {
@@ -1687,9 +1689,9 @@
             return this.set(wm, 9, 1/9);
         },*/
         
-        set : function(m, d, f) {
-            this._matrix2=null; this._coeff1=this._coeff2=0; this._isGrad=false; this._doFast=0; this._doSeparable=false;
-            this._matrix=new CM(m); this._dim2=this._dim=d; this._factor=f||1; 
+        set : function(m, d, f, b) {
+            this._matrix2=null; this._isGrad=false; this._doFast=0; this._doSeparable=false;
+            this._matrix=new CM(m); this._dim2=this._dim=d; this._coeff[0]=f||1; this._coeff[1]=b||0;
             return this;
         },
         
@@ -1705,7 +1707,7 @@
         
         setMatrix : function(m, d) {
             this._matrix=m; this._dim2=this._dim=d;
-            this._matrix2=null; this._coeff1=this._coeff2=0; this._isGrad=false; this._doFast=0; this._doSeparable=false;
+            this._matrix2=null; this._coeff[0]=1; this._coeff[1]=0; this._isGrad=false; this._doFast=0; this._doSeparable=false;
             return this;
         },
         
@@ -1718,39 +1720,39 @@
             if (this._doFast) 
             {
                 if (this._matrix2)
-                    return integralConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff1, this._coeff2, this._doFast);
+                    return integralConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doFast);
                 else
-                    return integralConvolution(src, w, h, this._matrix, null, this._dim, this._dim2, this._factor, this._bias, this._doFast);
+                    return integralConvolution(src, w, h, this._matrix, null, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doFast);
             }
             // handle some common cases fast
             else if (this._doSeparable)
             {
-                return separableConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff1, this._coeff2/*, this._factor, this._bias*/);
+                return separableConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1]/*, this._factor, this._bias*/);
             }
             else if (3==this._dim)
             {
                 if (this._matrix2)
-                    return convolution3(src, w, h, this._matrix, this._matrix2, this._coeff1, this._coeff2, this._isGrad);
+                    return convolution3(src, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
                 else
-                    return convolution3(src, w, h, this._matrix, null, this._factor, this._bias, false);
+                    return convolution3(src, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
             }
             else if (5==this._dim)
             {
                 if (this._matrix2)
-                    return convolution5(src, w, h, this._matrix, this._matrix2, this._coeff1, this._coeff2, this._isGrad);
+                    return convolution5(src, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
                 else
-                    return convolution5(src, w, h, this._matrix, null, this._factor, this._bias, false);
+                    return convolution5(src, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
             }
             
             var 
                 matRadiusX=this._dim, matRadiusY=this._dim, matHalfSideX=matRadiusX>>1, matHalfSideY=matRadiusY>>1, 
                 matArea=matRadiusX*matRadiusY, matArea2=matArea<<1, hsw=matHalfSideY*w,
-                mat=this._matrix, factor=this._factor, bias=this._bias, mat2=this._matrix2, wt, wt2,
+                mat=this._matrix, mat2=this._matrix2, wt, wt2,
                 _isGrad=this._isGrad, imageIndices=new FILTER.Array16I(matArea<<1), matIndices=new FILTER.Array8U(matArea),
                 imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
                 i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
                 bx=w-1, by=imArea-w,
-                coeff1=this._coeff1, coeff2=this._coeff2
+                coeff1=this._coeff[0], coeff2=this._coeff[1]
                 ;
             
             // pre-compute indices, 
@@ -1836,7 +1838,7 @@
                     }
                     
                     // output
-                    t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
+                    t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
                     if (notSupportTyped)
                     {   
                         // clamp them manually
@@ -1860,7 +1862,29 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            if (this._webglInstance)
+            {
+                var w=image.width, h=image.height;
+                this._webglInstance.filterParams=[
+                    new CM([w, h]),
+                    1.0,
+                    new CM([w, h]),
+                    this._coeff, 
+                    (this._matrix2) ? 1 : 0,
+                    (this._isGrad) ? 1 : 0,
+                    this._dim>>1,
+                    this._dim2>>1,
+                    this._matrix.length,
+                    this._matrix,
+                    (this._matrix2) ? this._matrix2 : new CM([0])
+                ];
+                this._webglInstance._apply(image.webgl, w, h);
+                return image;
+            }
+            else
+            {
+                return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            }
         },
         
         reset : function() {

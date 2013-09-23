@@ -331,7 +331,7 @@
     // GeometricMap WebGL Filter
     FILTER.WebGLGeometricMapFilter=function(type) 
     { 
-        this.id=FILTER.getId();
+        this.id='WGLGM8'; //FILTER.getId();
     };
     FILTER.WebGLGeometricMapFilter.prototype={
         
@@ -347,7 +347,7 @@
             
         _getProgram: FILTER.WebGLFilter.prototype._getProgram,
         
-        _apply: function(filterParams, webgl, w, h, inBuffer, outBuffer) {
+        _apply: function(webgl, w, h, inBuffer, outBuffer) {
             switch(type)
             {
                 case "twirl":
@@ -369,7 +369,7 @@
                     var webglprogram=null;
                     break;
             }
-            webgl.useStoredProgram(webglprogram.setUniformValues(filterParams));
+            webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
             webgl.bindTexture(inBuffer);
             if (outBuffer)
                 // make this the framebuffer we are rendering to.

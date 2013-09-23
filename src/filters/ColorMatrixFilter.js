@@ -117,6 +117,9 @@
             // identity matrix
             this._matrix=null;
         }
+        
+        if (FILTER.useWebGL)
+            this._webglInstance=FILTER.WebGLColorMatrixFilterInstance;
     };
     
     FILTER.ColorMatrixFilter.prototype={
@@ -124,6 +127,8 @@
         constructor: FILTER.ColorMatrixFilter,
         
         _matrix: null,
+        
+        _webglInstance: null,
         
         // get the image color channel as a new image
         channel : function(ch, asGray) {
@@ -678,7 +683,22 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            if (this._webglInstance)
+            {
+                var w=image.width, h=image.height;
+                this._webglInstance.filterParams=[
+                    new CM([w, h]),
+                    1.0,
+                    new CM([w, h]),
+                    this._matrix
+                ];
+                this._webglInstance._apply(image.webgl, w, h);
+                return image;
+            }
+            else
+            {
+                return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            }
         },
         
         reset : function() {

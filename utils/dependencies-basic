@@ -14,6 +14,7 @@
 ../src/filters/DisplacementMapFilter.js
 ../src/filters/GeometricMapFilter.js
 ../src/filters/ConvolutionMatrixFilter.js
+../src/filters/MorphologicalFilter.js
 ../src/filters/StatisticalFilter.js
 
 # webgl generic Filters

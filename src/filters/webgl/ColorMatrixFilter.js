@@ -77,7 +77,7 @@
     // ColorMatrix WebGL Filter
     FILTER.WebGLColorMatrixFilter=function() 
     { 
-        this.id=FILTER.getId();
+        this.id='WGLDM1'; //FILTER.getId();
     };
     FILTER.WebGLColorMatrixFilter.prototype={
         
@@ -113,5 +113,8 @@
             return image;
         }
     };
+    
+    // export an instance
+    FILTER.WebGLColorMatrixFilterInstance=new FILTER.WebGLColorMatrixFilter();
     
 })(FILTER);

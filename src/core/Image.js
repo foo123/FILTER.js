@@ -83,12 +83,14 @@
     // Image Class
     FILTER.Image=function(img, callback)
     {
-        this.width=0;   this.height=0;
-        this.context=null;  this.webgl=null;
+        this.width=0;   
+        this.height=0;
+        this.context=null;
         this.imageData=null;
         this.domElement=this.canvasElement=createCanvas(this.width, this.height);
         this.context=this.canvasElement.getContext('2d');
         this._tmpCanvas=createCanvas(this.width, this.height);
+        this.webgl=null;
         this._histogram=null;
         this._integral=null;
         this._histogramRefresh=true;
@@ -142,6 +144,7 @@
                 this.imageData=ctx.getImageData(0, 0, w, h);
                 this._histogramRefresh=true;
                 this._integralRefresh=true;
+                this.webgl=(FILTER.useWebGL) ? new FILTER.WebGL(this.canvasElement) : null;
             }
             else // url string
             {
@@ -152,6 +155,7 @@
                     self.imageData=self.context.getImageData(0, 0, self.width, self.height);
                     self._histogramRefresh=true;
                     self._integralRefresh=true;
+                    self.webgl=(FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
                     if (typeof callback != 'undefined') callback.call(self);
                 };
                 image.src=img; // load it

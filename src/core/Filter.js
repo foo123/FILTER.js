@@ -79,11 +79,18 @@
         0.71516, 
         0.072169 
     ]);
+    
+    // logging
+    var log=FILTER.log=(window.console && window.console.log) ? window.console.log : function(s) { /* do nothing*/ };
+    FILTER.warning=function(s) { log('WARNING: '+s); };
+    FILTER.error=function(s) { log('ERROR: '+s); };
+    
+    // webgl support
     FILTER.useWebGL=false;
     FILTER.useWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) { /* do nothing, override */  };
     FILTER.useWebGLSharedResourcesIfAvailable=function(bool) { /* do nothing, override */  };
-
+    
     //
     //
     // for WebGL Support
@@ -153,7 +160,7 @@
         // make it so other composite filters can be  used as simple filter components in the stack
         apply : function(image) {
             if (!this._stack.length) return image;
-            return image.setData(this._apply(im=image.getData(), image.width, image.height, image));
+            return image.setData(this._apply(image.getData(), image.width, image.height, image));
         },
         
         filters : function(f) {
@@ -235,19 +242,5 @@
     // private helper functons
     function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
     function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
-    
-    //var _canvas=null, _ctx=null;
-    
-    // static methods
-    /*FILTER._static={
-        createImageData : function(w, h) {
-            if (!_canvas)
-            {
-                _canvas=document.createElement('canvas');
-                _ctx=_canvas.getContext('2d');
-            }
-            return _ctx.createImageData(w, h);
-        }
-    };*/
     
 })(FILTER);

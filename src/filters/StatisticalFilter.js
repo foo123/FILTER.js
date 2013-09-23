@@ -270,12 +270,12 @@
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        j=0; x=0; ty=0;
+        x=0; ty=0; j=0;
         while (j<matArea2)
         { 
-            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
+            imageIndices[j] = (x-matHalfSide); imageIndices[j+1] = (ty-hsw);
             j+=2; x++; if (x>=matRadius) { x=0; ty+=w; }
-        } 
+        }
         
         i=0; x=0; ty=0;
         while (i<imLen)
@@ -417,12 +417,12 @@
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        j=0; x=0; ty=0;
+        x=0; ty=0; j=0;
         while (j<matArea2)
         { 
-            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
+            imageIndices[j] = (x-matHalfSide); imageIndices[j+1] = (ty-hsw);
             j+=2; x++; if (x>=matRadius) { x=0; ty+=w; }
-        } 
+        }
         
         i=0; x=0; ty=0;
         while (i<imLen)
@@ -584,12 +584,12 @@
             this._dim=d; this._apply=_MedianFilter2; return this;
         },*/
         
-        erode : function(d) { 
+        minimum : function(d) { 
             d=(typeof d == 'undefined') ? 3 : d;
             this._dim=d; this._apply=_MinimumFilter; return this; 
         },
         
-        dilate : function(d) { 
+        maximum : function(d) { 
             d=(typeof d == 'undefined') ? 3 : d;
             this._dim=d; this._apply=_MaximumFilter; return this; 
         },

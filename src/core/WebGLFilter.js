@@ -28,11 +28,13 @@
     //
     //
     // Generic WebGL Program Class
-    function WebGLProgram(webgl, id, program, uniforms, textures)  
+    function WebGLProgram(webgl, id, program, attributes, uniforms, textures)  
     {
         this.glContainer=webgl || null;
         this.id=id || 0;
         this.program=program || null;
+        if (attributes)
+            this.setAttributes(attributes);
         if (uniforms)
             this.setUniforms(uniforms);
         if (textures)
@@ -49,8 +51,10 @@
         program: null,
         
         _shaders: null,
+        _attributes: null,
         _uniforms: null,
         _textures: null,
+        _attributesNeedUpdate: false,
         _uniformsNeedUpdate: false,
         _texturesNeedUpdate: false,
         
@@ -76,6 +80,16 @@
             return this;
         },
         
+        setAttributes: function(attributes) {
+            if (attributes)
+            {
+                this._attributes=attributes;
+                this.updateAttributeLocations();
+                this._attributesNeedUpdate=false;
+            }
+            return this;
+        },
+        
         setUniforms: function(uniforms) {
             if (uniforms)
             {
@@ -93,6 +107,33 @@
                 this.updateTextureLocations();
                 this._texturesNeedUpdate=false;
             }
+            return this;
+        },
+        
+        enableAttributes: function() {
+            var gl=this.glContainer._gl;
+            // this process is hard-coded for now
+            var positionLocation=this._attributes[0].location,
+                texCoordLocation=this._attributes[1].location;
+                
+            // provide texture coordinates for the rectangle.
+            var texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
+                0.0,  0.0,
+                1.0,  0.0,
+                0.0,  1.0,
+                0.0,  1.0,
+                1.0,  0.0,
+                1.0,  1.0]), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(texCoordLocation);
+            gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+            
+            // Create a buffer for the position of the rectangle corners.
+            var buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
             return this;
         },
         
@@ -155,6 +196,13 @@
             var gl=this.glContainer._gl, i, nL=uniformNames.length, locations=new Array(nL), prg=this.program;
             for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, uniformNames[i]);
             return locations;
+        },
+        
+        updateAttributeLocations: function() {
+            var gl=this.glContainer._gl, i, a=this._attributes, aL=a.length, prg=this.program;
+            for (i=0; i<aL; i++)  a[i].location=gl.getAttribLocation(prg, a[i].name);
+            this._attributesNeedUpdate=false;
+            return this;
         },
         
         updateUniformLocations: function() {
@@ -727,7 +775,7 @@
             if (!compiled && !gl.isContextLost()) 
             {
                 // Something went wrong during compilation; get the error
-                //lastError = gl.getShaderInfoLog(shader);
+                FILTER.error(gl.getShaderInfoLog(shader));
                 gl.deleteShader(shader);
                 return null;
             }
@@ -774,18 +822,7 @@
             
             program = gl.createProgram();
             
-            for (i = 0; i < sl; ++i) 
-            {
-                gl.attachShader(program, shaders[i]);
-            }
-            
-            /*if (props) 
-            {
-                for (i = 0; i < attsL; ++i) 
-                {
-                    gl.bindAttribLocation(program,  atts[i].location,  atts[i].value);
-                }
-            }*/
+            for (i = 0; i < sl; ++i)  gl.attachShader(program, shaders[i]);
             gl.linkProgram(program);
 
             // Check the link status
@@ -793,42 +830,56 @@
             if (!linked && !gl.isContextLost()) 
             {
                 // something went wrong with the link
-                //lastError = gl.getProgramInfoLog (program);
+                FILTER.error(gl.getProgramInfoLog(program));
                 gl.deleteProgram(program);
                 return null;
             }
-            var webglprogram=new WebGLProgram(this, id, program);
+            var webglprogram=new WebGLProgram(this, id, program, props.attributes, props.uniforms, props.textures);
+            
+            /*
             if (props)
-            {
-                webglprogram.setUniforms(props.uniforms).setTextures(props.textures);
-            }
+                webglprogram.setAttributes(props.attributes).setUniforms(props.uniforms).setTextures(props.textures);
+            */
+            
             return webglprogram;
         }
     };
     // export it
     FILTER.WebGL=WebGL;
     
-    var _canvas=createCanvas();
-    supportWebGL=WebGL.getWebGL(_canvas);
-    supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
+    var _canvas, _isInit=false;
+    function webGLInit()
+    {
+        if (_isInit) return;
+        _canvas=createCanvas();
+        supportWebGL=WebGL.getWebGL(_canvas);
+        supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
+        _isInit=true;
+    }
     FILTER.useWebGL=false;
     FILTER.useWebGLSharedResources=false;
     FILTER.useWebGLIfAvailable=function(bool) {
-        console.log(supportWebGL);
+        if (!_isInit) webGLInit();
         FILTER.useWebGL=(bool && supportWebGL) ? true : false;
+        if (bool && !supportWebGL)
+            FILTER.warning('WebGL is NOT supported, fallback to default Canvas API');
     };
     FILTER.useWebGLSharedResourcesIfAvailable=function(bool) {
-        console.log(supportWebGLSharedResources);
+        if (!_isInit) webGLInit();
         FILTER.useWebGLSharedResources=(bool && supportWebGLSharedResources) ? true : false;
+        if (bool && !supportWebGLSharedResources)
+            FILTER.warning('WebGL Shared Resources are NOT supported, fallback to non-shared resources');
     };
     
     //
     //
     // Generic WebGL Filter
-    FILTER.WebGLFilter=function(shaders, uniforms) 
+    FILTER.WebGLFilter=function(shaders, attributes, uniforms, textures) 
     { 
-        this.shaders=shaders; 
+        this.shaders=shaders || null; 
+        this.attributes=attributes || null; 
         this.uniforms=uniforms || null; 
+        this.textures=textures || null; 
         this.id=FILTER.getId();
     };
     FILTER.WebGLFilter.prototype={
@@ -837,12 +888,16 @@
         
         id: 0,
         
-        shaders: null,
-        uniforms: null,
-        textures: null,
         filterParams: null,
         
-        _getProgram: function(webgl, shaders, uniforms, textures) {
+        triangles: 6,
+        
+        shaders: null,
+        attributes: null,
+        uniforms: null,
+        textures: null,
+        
+        _getProgram: function(webgl, shaders, attributes, uniforms, textures) {
             var webglprogram=webgl.getProgramById(this.id);
             if (!webglprogram)
             {
@@ -850,25 +905,21 @@
                 for (i=0; i<sL; i++)
                     compiledShaders[i]=webgl.loadShader(shaders[i].source, shaders[i].type);
                 
-                webglprogram=webgl.compileProgram(this.id, compiledShaders, {uniforms: uniforms, textures: textures});
+                webglprogram=webgl.compileProgram(this.id, compiledShaders, {attributes: attributes, uniforms: uniforms, textures: textures});
                 webgl.addProgram(webglprogram);
             }
             return webglprogram;
         },
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
-            var webglprogram=this._getProgram(webgl, this.shaders, this.uniforms, this.textures);
-            webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
+            var webglprogram=this._getProgram(webgl, this.shaders, this.attributes, this.uniforms, this.textures);
+            webgl.useStoredProgram(webglprogram);
+            webglprogram.enableAttributes().setUniformValues(this.filterParams);
             webgl.bindTexture(inBuffer);
             if (outBuffer)
                 // make this the framebuffer we are rendering to.
                 webgl.bindFramebuffer(outBuffer);
-            // Tell webgl the viewport setting needed for framebuffer.
-            webgl
-                .viewport(0, 0, w, h)
-            // draw
-                .drawArrays(6)
-            ;
+            webgl.viewport(0, 0, w, h).drawArrays(this.triangles);
         },
         
         apply: function(image) {
