@@ -79,8 +79,8 @@
     ],
     
     attributes= [
-        {name: "a_position", type: "attribute2fv", location: null, value: null},
-        {name: "a_texCoord", type: "attribute2fv", location: null, value: null}
+        {name: "a_position", size: 2, type: "FLOAT", location: null, value: null},
+        {name: "a_texCoord", size: 2, type: "FLOAT", location: null, value: null}
     ],
     
     twirlUniforms= [
@@ -323,7 +323,10 @@
     flipxyUniforms= [
         {name: "u_resolution", type: "uniform2fv", location: null, value: null},
         {name: "u_flipY", type: "uniform1f", location: null, value: 0.0}
-    ];
+    ],
+    
+    texture={name: "u_image", image: null, location: null, texture: null}
+    ;
     
     
     //
@@ -339,53 +342,48 @@
         
         id: 0,
         
+        triangles: FILTER.WebGLFilter.prototype.triangles,
+        
         filterParams: null, 
         
-        textures: [
-            {name: "u_image", image: null, location: null, texture: null}
-        ],
-            
         _getProgram: FILTER.WebGLFilter.prototype._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
+            // get this filter's (cached / singleton) program
             switch(type)
             {
                 case "twirl":
-                    var webglprogram=this._getProgram(webgl, twirlShaders, twirlUniforms, this.textures);
+                    var webglprogram=this._getProgram(webgl, twirlShaders, attributes, twirlUniforms, this.textures);
                     break;
                 case "sphere":
-                    var webglprogram=this._getProgram(webgl, sphereShaders, sphereUniforms, this.textures);
+                    var webglprogram=this._getProgram(webgl, sphereShaders, attributes, sphereUniforms, this.textures);
                     break;
                 case "flipx":
-                    var webglprogram=this._getProgram(webgl, flipxShaders, flipxUniforms, this.textures);
+                    var webglprogram=this._getProgram(webgl, flipxShaders, attributes, flipxUniforms, this.textures);
                     break;
                 case "flipy":
-                    var webglprogram=this._getProgram(webgl, flipyShaders, flipyUniforms, this.textures);
+                    var webglprogram=this._getProgram(webgl, flipyShaders, attributes, flipyUniforms, this.textures);
                     break;
                 case "flipxy":
-                    var webglprogram=this._getProgram(webgl, flipxyShaders, flipxyUniforms, this.textures);
+                    var webglprogram=this._getProgram(webgl, flipxyShaders, attributes, flipxyUniforms, this.textures);
                     break;
                 default
                     var webglprogram=null;
                     break;
             }
-            webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
-            webgl.bindTexture(inBuffer);
-            if (outBuffer)
-                // make this the framebuffer we are rendering to.
-                webgl.bindFramebuffer(outBuffer);
-            // Tell webgl the viewport setting needed for framebuffer.
-            webgl
-                .viewport(0, 0, w, h)
-            // draw
-                .drawArrays(6)
-            ;
+            // use this filter's program
+            webgl.switchToStoredProgram(webglprogram);
+            // update any filter-specific parameters
+            webglprogram.enableAttributes(BUFFERS).setUniformValues(this.filterParams);
+            // set the input buffer
+            webgl.setTextureFramebuffer(inBuffer);
+            // set the output buffer
+            webgl.setTextureFramebuffer(outBuffer);
+            // render
+            webgl.drawTriangles(this.triangles);
         },
         
-        apply: function(image) {
-            this._apply(image.webgl, image.width, image.height, image.canvasElement, null);
-            return image;
-        }
+        apply: FILTER.WebGLFilter.prototype.apply
     };
     
 })(FILTER);

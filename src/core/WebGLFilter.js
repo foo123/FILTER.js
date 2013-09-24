@@ -1,6 +1,6 @@
 /**
 *
-* WebGLFilter Classes and Shaders
+* WebGLFilter Classes
 * @package FILTER.js
 *
 **/
@@ -30,53 +30,69 @@
     // Generic WebGL Program Class
     function WebGLProgram(webgl, id, program, attributes, uniforms, textures)  
     {
-        this.glContainer=webgl || null;
         this.id=id || 0;
-        this.program=program || null;
-        if (attributes)
-            this.setAttributes(attributes);
-        if (uniforms)
-            this.setUniforms(uniforms);
-        if (textures)
-            this.setTextures(textures);
+        this.setContainer(webgl);
+        this.setProgram(program);
+        if (attributes)  this.setAttributes(attributes);
+        if (uniforms)  this.setUniforms(uniforms);
+        if (textures) this.setTextures(textures);
     }
     WebGLProgram.prototype={
     
         constructor: WebGLProgram,
         
         glContainer: null,
+        _gl: null,
         
         id: 0,
         
         program: null,
         
         _shaders: null,
-        _attributes: null,
-        _uniforms: null,
-        _textures: null,
+        _attributes: [],
+        _uniforms: [],
+        _textures: [],
         _attributesNeedUpdate: false,
         _uniformsNeedUpdate: false,
         _texturesNeedUpdate: false,
         
+        use: function() {
+            this._gl.useProgram(this.program);
+            return this;
+        },
+        
         dispose: function() {
-            this.glContainer._gl.deleteProgram(this.program);
+            this._gl.deleteProgram(this.program);
             this.program=null;
+            this._attributes=null;
             this._uniforms=null;
             this._textures=null;
+            this._attributesNeedUpdate=false;
+            this._uniformsNeedUpdate=false;
+            this._texturesNeedUpdate=false;
             return this;
         },
         
         setContainer: function(webgl) {
-            this.glContainer=webgl;
-            this._uniformsNeedUpdate=true;
-            this._texturesNeedUpdate=true;
+            if (webgl)
+            {
+                this.glContainer=webgl;
+                this._gl=webgl._gl;
+                this._attributesNeedUpdate=true;
+                this._uniformsNeedUpdate=true;
+                this._texturesNeedUpdate=true;
+            }
             return this;
         },
         
         setProgram: function(program) {
-            this.program=program;
-            this._uniformsNeedUpdate=true;
-            this._texturesNeedUpdate=true;
+            if (program)
+            {
+                this.program=program;
+                this._attributesNeedUpdate=true;
+                this._uniformsNeedUpdate=true;
+                this._texturesNeedUpdate=true;
+            }
             return this;
         },
         
@@ -110,30 +126,45 @@
             return this;
         },
         
-        enableAttributes: function() {
-            var gl=this.glContainer._gl;
-            // this process is hard-coded for now
-            var positionLocation=this._attributes[0].location,
-                texCoordLocation=this._attributes[1].location;
-                
-            // provide texture coordinates for the rectangle.
-            var texCoordBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
-                0.0,  0.0,
-                1.0,  0.0,
-                0.0,  1.0,
-                0.0,  1.0,
-                1.0,  0.0,
-                1.0,  1.0]), gl.STATIC_DRAW);
-            gl.enableVertexAttribArray(texCoordLocation);
-            gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+        enableAttributes: function(buffers) {
+            if (!buffers) return this;
             
-            // Create a buffer for the position of the rectangle corners.
-            var buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+            if (this._attributesNeedUpdate) this.updateAttributeLocations();
+            
+            var gl=this._gl,
+                a=this._attributes, aL=Math.min(a.length, buffers.length), 
+                i, buffer;
+            
+            for (i=0; i<aL; i++)
+            {
+                if (!a[i].enabled)
+                {
+                    // should re-create buffer every time ??
+                    if (!a[i].buffer)  a[i].buffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, a[i].buffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, buffers[i].buffer, gl.STATIC_DRAW);
+                    gl.enableVertexAttribArray(a[i].location);
+                    gl.vertexAttribPointer(a[i].location, a[i].size, gl[a[i].type], false, 0, 0);
+                    a[i].enabled=true;
+                }
+            }
+            return this;
+        },
+        
+        disableAttributes: function() {
+            var gl=this._gl,
+                a=this._attributes, aL=a.length, i;
+            
+            for (i=0; i<aL; i++)
+            {
+                if (a[i].enabled)
+                {
+                    // should delete buffer every time ??
+                    //if (a[i].buffer)  gl.deleteBuffer(a[i].buffer)
+                    gl.disableVertexAttribArray(a[i].location);
+                    a[i].enabled=false;
+                }
+            }
             return this;
         },
         
@@ -153,7 +184,7 @@
             
             if (this._texturesNeedUpdate) this.updateTextureLocations();
             
-            var gl=this.glContainer._gl, i, t=this._textures, l=Math.min(textures.length, t.length);
+            var gl=this._gl, i, t=this._textures, l=Math.min(textures.length, t.length);
             for (i=0; i<l; i++)  
             {
                 // set which texture units to render with.
@@ -162,19 +193,6 @@
                 gl.bindTexture( gl.TEXTURE_2D, textures[i] );
             }
             
-            return this;
-        },
-        
-        deleteProgram: function() {
-            this.glContainer._gl.deleteProgram(this.program);
-            this.program=null;
-            this._uniforms=null;
-            this._textures=null;
-            return this;
-        },
-        
-        useProgram: function() {
-            this.glContainer._gl.useProgram(this.program);
             return this;
         },
         
@@ -188,39 +206,38 @@
         },
         
         getUniformLocation: function(uniformName) {
-            var gl=this.glContainer._gl;
-            return gl.getUniformLocation(this.program, uniformName);
+            return this._gl.getUniformLocation(this.program, uniformName);
         },
         
         getUniformLocations: function(uniformNames) {
-            var gl=this.glContainer._gl, i, nL=uniformNames.length, locations=new Array(nL), prg=this.program;
+            var gl=this._gl, i, nL=uniformNames.length, locations=new Array(nL), prg=this.program;
             for (i=0; i<nL; i++)  locations[i]=gl.getUniformLocation(prg, uniformNames[i]);
             return locations;
         },
         
         updateAttributeLocations: function() {
-            var gl=this.glContainer._gl, i, a=this._attributes, aL=a.length, prg=this.program;
+            var gl=this._gl, i, a=this._attributes, aL=a.length, prg=this.program;
             for (i=0; i<aL; i++)  a[i].location=gl.getAttribLocation(prg, a[i].name);
             this._attributesNeedUpdate=false;
             return this;
         },
         
         updateUniformLocations: function() {
-            var gl=this.glContainer._gl, i, u=this._uniforms, uL=u.length, prg=this.program;
+            var gl=this._gl, i, u=this._uniforms, uL=u.length, prg=this.program;
             for (i=0; i<uL; i++)  u[i].location=gl.getUniformLocation(prg, u[i].name);
             this._uniformsNeedUpdate=false;
             return this;
         },
         
         updateTextureLocations: function() {
-            var gl=this.glContainer._gl, i, t=this._textures, tL=t.length, prg=this.program;
+            var gl=this._gl, i, t=this._textures, tL=t.length, prg=this.program;
             for (i=0; i<tL; i++)  t[i].location=gl.getUniformLocation(prg, t[i].name);
             this._texturesNeedUpdate=false;
             return this;
         },
         
         setUniformByLocation: function(uniformLocation, uniformValue, uniformType) {
-            var gl=this.glContainer._gl;
+            var gl=this._gl;
             uniformType = uniformType || "uniform1f";
             switch(uniformType)
             {
@@ -264,7 +281,7 @@
         },
         
         setUniformByName(uniformName, uniformValue, uniformType) {
-            var uniformLocation = this.glContainer._gl.getUniformLocation(this.program, uniformName);
+            var uniformLocation = this._gl.getUniformLocation(this.program, uniformName);
             this.setUniformByLocation(uniformLocation, uniformValue, uniformType);
             return this;
         }
@@ -354,10 +371,7 @@
         constructor: WebGL,
         
         _gl: null,
-        _boundBuffer: null,
-        _boundTexture: null,
-        _boundFrameBuffer: null,
-        _enabledAttributes: {},
+        _boundFB: null,
         _programs: [],
         _currentProgram: null,
         _currentProgramIndex: -1,
@@ -411,34 +425,69 @@
             }
         },
         
-        // adapted from Three.js
-        deleteBuffer: function(buffer){
-            this._gl.deleteBuffer(buffer);
-            return this;
+        // adapted from WebGL foundamentals
+        loadShader: function(shaderSource, shaderType) {
+            var shader, compiled, type, gl=this._gl;
+            
+            type=("vertex"==shaderType) ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
+            
+            // Create the shader object
+            shader = gl.createShader(type);
+
+            // Load the shader source
+            gl.shaderSource(shader, shaderSource);
+
+            // Compile the shader
+            gl.compileShader(shader);
+
+            // Check the compile status
+            compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (!compiled && !gl.isContextLost()) 
+            {
+                // Something went wrong during compilation; get the error
+                FILTER.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+
+            return shader;
         },
 
-        deleteTexture: function(texture){
-            this._gl.deleteTexture( texture );
-            return this;
-        },
+        // adapted from WebGL foundamentals
+        compileProgram: function(id, shaders, props) {
+            var gl=this._gl, program, linked, i, sl=shaders.length;
+            
+            program = gl.createProgram();
+            
+            for (i = 0; i < sl; ++i)  gl.attachShader(program, shaders[i]);
+            gl.linkProgram(program);
 
-        deleteFramebuffer: function(Framebuffer){
-            this._gl.deleteFramebuffer(Framebuffer);
-            return this;
+            // Check the link status
+            linked = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (!linked && !gl.isContextLost()) 
+            {
+                // something went wrong with the link
+                FILTER.error(gl.getProgramInfoLog(program));
+                gl.deleteProgram(program);
+                return null;
+            }
+            var webglprogram=new WebGLProgram(this, id, program, props.attributes, props.uniforms, props.textures);
+            
+            /*
+            if (props)
+                webglprogram.setAttributes(props.attributes).setUniforms(props.uniforms).setTextures(props.textures);
+            */
+            
+            return webglprogram;
         },
-
-        deleteRenderbuffer: function(RenderBuffer){
-            this._gl.deleteRenderbuffer(RenderBuffer);
-            return this;
-        },
-
-        deleteProgram: function(RenderBuffer){
-            this._gl.deleteProgram(RenderBuffer);
+        
+        useProgram: function(program) {
+            this._gl.useProgram( program );
             return this;
         },
         
-        useProgram: function(program){
-            this._gl.useProgram( program );
+        deleteProgram: function(RenderBuffer) {
+            this._gl.deleteProgram(RenderBuffer);
             return this;
         },
         
@@ -496,13 +545,21 @@
             {
                 if (programs[i]===webglprogram)
                 {
-                    this._currentProgram = this._programs[i];
                     this._currentProgramIndex = i;
-                    this._gl.useProgram( this._programs[i].program );
+                    this._currentProgram = this._programs[i];
+                    this._currentProgram.use();
                     return this;
                 }
             }
             return this;
+        },
+        
+        switchToStoredProgram: function(webglprogram) {
+            if (this._currentProgram)
+            {
+                this._currentProgram.disableAttributes();
+            }
+            return this.useStoredProgram(webglprogram);
         },
         
         useStoredProgramById: function(id){
@@ -511,155 +568,202 @@
             {
                 if (programs[i].id===id)
                 {
-                    this._currentProgram = this._programs[i];
                     this._currentProgramIndex = i;
-                    this._gl.useProgram( this._programs[i].program );
+                    this._currentProgram = this._programs[i];
+                    this._currentProgram.use();
                     return this;
                 }
             }
             return this;
         },
         
+        switchToStoredProgramById: function(id) {
+            if (this._currentProgram)
+            {
+                this._currentProgram.disableAttributes();
+            }
+            return this.useStoredProgramById(id);
+        },
+        
         useStoredProgramByIndex: function(i){
-            this._currentProgram = this._programs[i];
             this._currentProgramIndex = i;
-            this._gl.useProgram( this._programs[i].program );
+            this._currentProgram = this._programs[i];
+            this._currentProgram.use();
             return this;
         },
         
-        createBuffer: function(){
+        switchToStoredProgramByIndex: function(i) {
+            if (this._currentProgram)
+            {
+                this._currentProgram.disableAttributes();
+            }
+            return this.useStoredProgramByIndex(i);
+        },
+        
+        createBuffer: function() {
             return this._gl.createBuffer();
         },
 
-        setStaticArrayBuffer: function(buffer,data){
-            this.bindArrayBuffer( buffer );
-            this._gl.bufferData( this._gl.ARRAY_BUFFER, data, this._gl.STATIC_DRAW );
+        bindBuffer: function(buffer) {
+            this._gl.bindBuffer( this._gl.ARRAY_BUFFER, buffer );
             return this;
         },
 
-        setStaticIndexBuffer: function(buffer,data){
+        bindElementArrayBuffer: function(buffer) {
+            this._gl.bindBuffer( this._gl.ELEMENT_ARRAY_BUFFER, buffer );
+            return this;
+        },
+
+        disposeBuffer: function(buffer) {
+            this._gl.deleteBuffer(buffer);
+            buffer=null;
+            return this;
+        },
+
+        createFramebuffer: function() {
+            return this._gl.createFramebuffer();
+        },
+
+        bindFramebuffer: function(fb) {
+            this._gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            return this;
+        },
+        
+        disposeFramebuffer: function(fb) {
+            this._gl.deleteFramebuffer(fb);
+            fb=null;
+            return this;
+        },
+
+        /*createRenderbuffer: function() {
+            return this._gl.createRenderbuffer();
+        },
+
+        bindRenderbuffer: function(rb) {
+            this._gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+            return this;
+        },
+        
+        disposeRenderbuffer: function(rb) {
+            this._gl.deleteRenderbuffer(rb);
+            return this;
+        },*/
+
+        setStaticArrayBuffer: function(buffer, data) {
+            var gl=this._gl;
+            this.bindBuffer( buffer );
+            gl.bufferData( gl.ARRAY_BUFFER, data, gl.STATIC_DRAW );
+            return this;
+        },
+
+        setStaticIndexBuffer: function(buffer, data){
+            var gl=this._gl;
             this.bindElementArrayBuffer( buffer );
-            this._gl.bufferData( this._gl.ELEMENT_ARRAY_BUFFER, data, this._gl.STATIC_DRAW );
+            gl.bufferData( gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW );
             return this;
         },
 
-        setDynamicArrayBuffer: function(buffer,data){
-            this.bindArrayBuffer( buffer );
-            this._gl.bufferData( this._gl.ARRAY_BUFFER, data, this._gl.DYNAMIC_DRAW );
+        setDynamicArrayBuffer: function(buffer, data){
+            var gl=this._gl;
+            this.bindBuffer( buffer );
+            gl.bufferData( gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW );
             return this;
         },
 
-        setDynamicIndexBuffer: function(buffer,data){
+        setDynamicIndexBuffer: function(buffer, data){
+            var gl=this._gl;
             this.bindElementArrayBuffer( buffer );
-            this._gl.bufferData( this._gl.ELEMENT_ARRAY_BUFFER, data, this._gl.DYNAMIC_DRAW );
+            gl.bufferData( gl.ELEMENT_ARRAY_BUFFER, data, gl.DYNAMIC_DRAW );
             return this;
         },
 
-        drawTriangles: function(count){
-            this._gl.drawArrays( this._gl.TRIANGLES, 0, count );
+        createTextureFramebuffer: function(w, h) {
+            var gl=this._gl, texture, buffer;
+            fbuffer = gl.createFramebuffer();
+            //bind framebuffer to texture
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbuffer);
+            texture = this.createTexture(w, h);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            // restore default framebuffer
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            
+            return {
+                texture: texture,
+                buffer: fbuffer,
+                width: w, height: h
+            };
+        },
+        
+        disposeTextureFramebuffer: function(fb) {
+            var gl=this._gl;
+            gl.deleteTexture(fb.texture);
+            gl.deleteFramebuffer(fb.buffer);
+            fb.texture=null; fb.buffer=null; fb=null;
             return this;
         },
-
-        drawTriangleStrip: function(count){
-            this._gl.drawArrays( this._gl.TRIANGLE_STRIP, 0, count );
-            return this;
+        
+        createTexture: function(w, h, image) {
+            var gl=this._gl, texture;
+            image=image || null;
+            // Create and initialize the WebGLTexture object.
+            texture = gl.createTexture();
+            //set properties for the texture
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            // restore default texture
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            
+            return texture;
         },
 
-        drawLines: function(count){
-            this._gl.drawArrays( this._gl.LINES, 0, count );
-            return this;
-        },
-
-        drawLineStrip: function(count){
-            this._gl.drawArrays( this._gl.LINE_STRIP, 0, count );
-            return this;
-        },
-
-        drawPoints: function(count){
-            this._gl.drawArrays( this._gl.POINTS, 0, count );
-            return this;
-        },
-
-        drawTriangleElements: function(buffer,count,offset){
-            this.bindElementArrayBuffer( buffer );
-            this._gl.drawElements( this._gl.TRIANGLES, count, this._gl.UNSIGNED_SHORT, offset ); // 2 bytes per Uint16
-            return this;
-        },
-
-        drawLineElements: function(buffer,count,offset){
-            this.bindElementArrayBuffer(  buffer );
-            this._gl.drawElements( this._gl.LINES, count, this._gl.UNSIGNED_SHORT, offset ); // 2 bytes per Uint16
-            return this;
-        },
-
-        bindTexture: function(texBuffer) {
-            if (this._boundTexture != texBuffer)
+        bindTexture: function(tex) {
+            if (this._boundTex!=tex)
             {
-                this._gl.bindTexture(this._gl.TEXTURE_2D, texBuffer);
-                this._boundTexture = texBuffer;
+                this._gl.bindTexture(this._gl.TEXTURE_2D, tex);
+                this._boundTex=tex;
             }
             return this;
         },
         
-        bindFramebuffer: function(fBuffer){
-            if (this._boundFrameBuffer != fBuffer)
-            {
-                this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, fBuffer);
-                this._boundFrameBuffer = fBuffer;
-            }
+        setTexture: function(texture, unit) {
+			var gl=this._gl;
+            unit=unit||0;
+            gl.activeTexture( gl.TEXTURE0 + unit );
+			gl.bindTexture( gl.TEXTURE_2D, texture );
             return this;
         },
         
-        bindArrayBuffer: function(buffer){
-            if (this._boundBuffer != buffer)
+        setTextureFrameBuffer: function(fb) {
+            if (fb)
             {
-                this._gl.bindBuffer( this._gl.ARRAY_BUFFER, buffer );
-                this._boundBuffer = buffer;
-
-            }
-            return this;
-        },
-
-        bindElementArrayBuffer: function(buffer){
-            if (this._boundBuffer != buffer)
-            {
-                this._gl.bindBuffer( this._gl.ELEMENT_ARRAY_BUFFER, buffer );
-                this._boundBuffer = buffer;
-
-            }
-            return this;
-        },
-
-        enableAttribute: function( attribute ) {
-            if ( ! this._enabledAttributes[ attribute ] ) 
-            {
-                this._gl.enableVertexAttribArray( attribute );
-                this._enabledAttributes[ attribute ] = true;
-            }
-            return this;
-        },
-
-        disableAttributes: function() {
-            for ( var attribute in this._enabledAttributes ) 
-            {
-                if ( this._enabledAttributes[ attribute ] ) 
+                var gl=this._gl;
+                if (this._boundFB!=fb)
                 {
-                    this._gl.disableVertexAttribArray( attribute );
-                    this._enabledAttributes[ attribute ] = false;
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, fb.buffer);
+                    gl.viewport(0, 0, fb.width, fb.height);
+                    this._boundFB=fb;
                 }
             }
             return this;
         },
-
+        
+        getDefaultTextureFrameBuffer: function(w, h) {
+            return {texture: null, buffer: null, width:w, height: h};
+        },
+        
+        disposeTexture: function(texture) {
+            var gl=this._gl;
+            gl.deleteTexture(texture);
+            texture=null;
+            return this;
+        },
+        
         getAttribLocation: function( program, id ) {
             return this._gl.getAttribLocation( program, id );
-        },
-
-        setFloatAttribute: function(index, buffer, size, offset) {
-            this.bindArrayBuffer( buffer );
-            this.enableAttribute( index );
-            this._gl.vertexAttribPointer( index, size, this._gl.FLOAT, false, 0, offset );
-            return this;
         },
 
         getUniformLocation: function( program, id ) {
@@ -755,93 +859,46 @@
             return this;
         },
         
-        // adapted from WebGL foundamentals
-        loadShader: function(shaderSource, shaderType) {
-            var shader, compiled, type, gl=this._gl;
-            
-            type=("vertex"==shaderType) ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
-            
-            // Create the shader object
-            shader = gl.createShader(type);
-
-            // Load the shader source
-            gl.shaderSource(shader, shaderSource);
-
-            // Compile the shader
-            gl.compileShader(shader);
-
-            // Check the compile status
-            compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-            if (!compiled && !gl.isContextLost()) 
-            {
-                // Something went wrong during compilation; get the error
-                FILTER.error(gl.getShaderInfoLog(shader));
-                gl.deleteShader(shader);
-                return null;
-            }
-
-            return shader;
-        },
-
-        // adapted from Kronos / WebGL foundamentals
-        loadTexture: function(image) {
-            var texture, gl=this._gl;
-            
-            // Create and initialize the WebGLTexture object.
-            texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            // adapted from WebGL foundamentals
-            // Set up texture so we can render any size image and so we are
-            // working with pixels.
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            // make the texture the same size as the image
-            //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, image);
-           
-            // Return the WebGLTexture object immediately.
-            return texture;
-        },
-        
-        setTexture: function(texture, unit){
-			var gl=this._gl;
-            unit=unit||0;
-            gl.activeTexture( gl.TEXTURE0 + unit );
-			gl.bindTexture( gl.TEXTURE_2D, texture );
+        clear: function() {
+            this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
             return this;
         },
         
-        // adapted from WebGL foundamentals
-        compileProgram: function(id, shaders, props) {
-            var gl=this._gl, program, linked, i, sl=shaders.length;
-            
-            program = gl.createProgram();
-            
-            for (i = 0; i < sl; ++i)  gl.attachShader(program, shaders[i]);
-            gl.linkProgram(program);
+        drawTriangles: function(count){
+            this._gl.drawArrays( this._gl.TRIANGLES, 0, count );
+            return this;
+        },
 
-            // Check the link status
-            linked = gl.getProgramParameter(program, gl.LINK_STATUS);
-            if (!linked && !gl.isContextLost()) 
-            {
-                // something went wrong with the link
-                FILTER.error(gl.getProgramInfoLog(program));
-                gl.deleteProgram(program);
-                return null;
-            }
-            var webglprogram=new WebGLProgram(this, id, program, props.attributes, props.uniforms, props.textures);
-            
-            /*
-            if (props)
-                webglprogram.setAttributes(props.attributes).setUniforms(props.uniforms).setTextures(props.textures);
-            */
-            
-            return webglprogram;
+        drawTriangleStrip: function(count){
+            this._gl.drawArrays( this._gl.TRIANGLE_STRIP, 0, count );
+            return this;
+        },
+
+        drawLines: function(count){
+            this._gl.drawArrays( this._gl.LINES, 0, count );
+            return this;
+        },
+
+        drawLineStrip: function(count){
+            this._gl.drawArrays( this._gl.LINE_STRIP, 0, count );
+            return this;
+        },
+
+        drawPoints: function(count){
+            this._gl.drawArrays( this._gl.POINTS, 0, count );
+            return this;
+        },
+
+        drawTriangleElements: function(buffer,count,offset){
+            this.bindElementArrayBuffer( buffer );
+            this._gl.drawElements( this._gl.TRIANGLES, count, this._gl.UNSIGNED_SHORT, offset ); // 2 bytes per Uint16
+            return this;
+        },
+
+        drawLineElements: function(buffer,count,offset){
+            this.bindElementArrayBuffer(  buffer );
+            this._gl.drawElements( this._gl.LINES, count, this._gl.UNSIGNED_SHORT, offset ); // 2 bytes per Uint16
+            return this;
         }
     };
     // export it
@@ -911,19 +968,28 @@
             return webglprogram;
         },
         
-        _apply: function(webgl, w, h, inBuffer, outBuffer) {
+        _apply: function(webgl, w, h, inTexture, outBuffer) {
+            // get this filter's (cached / singleton) program
             var webglprogram=this._getProgram(webgl, this.shaders, this.attributes, this.uniforms, this.textures);
-            webgl.useStoredProgram(webglprogram);
-            webglprogram.enableAttributes().setUniformValues(this.filterParams);
-            webgl.bindTexture(inBuffer);
-            if (outBuffer)
-                // make this the framebuffer we are rendering to.
-                webgl.bindFramebuffer(outBuffer);
-            webgl.viewport(0, 0, w, h).drawArrays(this.triangles);
+            // use this filter's program
+            webgl.switchToStoredProgram(webglprogram);
+            // update any filter-specific parameters
+            webglprogram.enableAttributes(BUFFERS).setUniformValues(this.filterParams);
+            // set the input texture
+            webgl.setTextureFramebuffer(inBuffer);
+            // set the output buffer
+            webgl.setTextureFramebuffer(outBuffer);
+            // render
+            webgl.drawTriangles(this.triangles);
         },
         
         apply: function(image) {
-            this._apply(image.webgl, image.width, image.height, image.canvasElement, null);
+            var 
+                webgl=image.webgl, w=image.width, h=image.height,
+                inBuffer=webgl.createTextureFramebuffer(w, h, image.canvasElement),
+                outBuffer=webgl.getDefaultTextureFrameBuffer(w, h)
+            ;
+            this._apply(webgl, w, h, inBuffer, outBuffer);
             return image;
         }
     };

@@ -1424,8 +1424,7 @@
         {
             this._matrix=null; this._dim = 0;
         }
-        this._matrix2=null;
-        this._dim2=this._dim;
+        this._matrix2=null;  this._dim2=this._dim;
         this._isGrad=false; this._doFast=0; this._doSeparable=false;
         
         if (FILTER.useWebGL)

@@ -61,8 +61,8 @@
     ],
     
     cmAttributes= [
-        {name: "a_position", type: "attribute2fv", location: null, value: null},
-        {name: "a_texCoord", type: "attribute2fv", location: null, value: null}
+        {name: "a_position", size: 2, type: "FLOAT", location: null, value: null},
+        {name: "a_texCoord", size: 2, type: "FLOAT", location: null, value: null}
     ],
     
     cmUniforms= [
@@ -70,7 +70,10 @@
         {name: "u_flipY", type: "uniform1f", location: null, value: 0.0},
         {name: "u_textureSize", type: "uniform2fv", location: null, value: null},
         {name: "u_CM[0]", type: "uniform1f", location: null, value: null}
-    ];
+    ],
+    
+    texture={name: "u_image", image: null, location: null, texture: null}
+    ;
         
     //
     //
@@ -87,31 +90,26 @@
         
         filterParams: null, 
         
-        textures: [
-            {name: "u_image", image: null, location: null, texture: null}
-        ],
-            
+        triangles: FILTER.WebGLFilter.prototype.triangles,
+        
         _getProgram: FILTER.WebGLFilter.prototype._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
-            var webglprogram=this._getProgram(webgl, cmShaders, cmUniforms, this.textures);
-            webgl.useStoredProgram(webglprogram.setUniformValues(this.filterParams));
-            webgl.bindTexture(inBuffer);
-            if (outBuffer)
-                // make this the framebuffer we are rendering to.
-                webgl.bindFramebuffer(outBuffer);
-            // Tell webgl the viewport setting needed for framebuffer.
-            webgl
-                .viewport(0, 0, w, h)
-            // draw
-                .drawArrays(6)
-            ;
+            // get this filter's (cached / singleton) program
+            var webglprogram=this._getProgram(webgl, this.shaders, this.attributes, this.uniforms, this.textures);
+            // use this filter's program
+            webgl.switchToStoredProgram(webglprogram);
+            // update any filter-specific parameters
+            webglprogram.enableAttributes(BUFFERS).setUniformValues(this.filterParams);
+            // set the input buffer
+            webgl.setTextureFramebuffer(inBuffer);
+            // set the output buffer
+            webgl.setTextureFramebuffer(outBuffer);
+            // render
+            webgl.drawTriangles(this.triangles);
         },
         
-        apply: function(image) {
-            this._apply(image.webgl, image.width, image.height, image.canvasElement, null);
-            return image;
-        }
+        apply: FILTER.WebGLFilter.prototype.apply
     };
     
     // export an instance
