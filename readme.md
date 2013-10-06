@@ -1,5 +1,8 @@
 #FILTER.js 
 
+## Further development on this project has stopped!!
+
+
 __A JavaScript Library for Image Processing and Filtering using HTML5 Canvas__
 
 This is a library for filtering images/video in JavaScript using canvas element.  
