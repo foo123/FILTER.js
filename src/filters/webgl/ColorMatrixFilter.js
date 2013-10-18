@@ -72,27 +72,30 @@
         {name: "u_CM[0]", type: "uniform1f", location: null, value: null}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null}
+    texture={name: "u_image", image: null, location: null, texture: null},
+    
+    WebGLFilter=FILTER.WebGLFilter.prototype
     ;
         
     //
     //
-    // ColorMatrix WebGL Filter
-    FILTER.WebGLColorMatrixFilter=function() 
-    { 
+    // ColorMatrix WebGL Filter  (IN PROGRESS!!)
+    var WebGLColorMatrixFilter=FILTER.WebGLColorMatrixFilter=function() { 
         this.id='WGLDM1'; //FILTER.getId();
     };
-    FILTER.WebGLColorMatrixFilter.prototype={
+    WebGLColorMatrixFilter.prototype={
         
-        constructor: FILTER.WebGLColorMatrixFilter,
+        constructor: WebGLColorMatrixFilter,
         
         id: 0,
         
         filterParams: null, 
         
-        triangles: FILTER.WebGLFilter.prototype.triangles,
+        // inherit
+        triangles: WebGLFilter.triangles,
         
-        _getProgram: FILTER.WebGLFilter.prototype._getProgram,
+        // inherit
+        _getProgram: WebGLFilter._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
@@ -109,7 +112,8 @@
             webgl.drawTriangles(this.triangles);
         },
         
-        apply: FILTER.WebGLFilter.prototype.apply
+        // inherit
+        apply: WebGLFilter.apply
     };
     
     // export an instance

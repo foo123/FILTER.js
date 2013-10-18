@@ -29,15 +29,16 @@ This is a library for filtering images/video in JavaScript using canvas element.
 
 
 ###How to Use
-The framework defines an [Image class](#image-class) which represents an Image and 7 generic Filter types
+The framework defines an [Image class](#image-class), which represents an Image, a Color-Utils Class and 8 generic Filter types
 
 1. [__ColorMatrixFilter__](#color-matrix-filter) (analogous to the actionscript version)
 2. [__TableLookupFilter__](#table-lookup-filter) 
 3. [__ConvolutionMatrixFilter__](#convolution-matrix-filter) (analogous to the actionscript version)
 4. [__DisplacementMapFilter__](#displacement-map-filter) (analogous to actionscript version)
 5. [__GeometricMapFilter__](#geometric-map-filter)
-6. [__StatisticalFilter__](#statistical-filter)  (previously called NonLinearFilter)
-7. [__CompositeFilter__](#composite-filter) (an abstraction of a container for multiple filters)
+6. [__MorphologicalFilter__](#morphological-filter)
+7. [__StatisticalFilter__](#statistical-filter)  (previously called NonLinearFilter)
+8. [__CompositeFilter__](#composite-filter) (an abstraction of a container for multiple filters)
 
 __Image Blending Modes__ (analogous to Photoshop blends)
 
@@ -310,6 +311,40 @@ gF.apply(image);   // image is a FILTER.Image instance, see examples
 NOTE: The filter apply method will actually change the image to which it is applied
 
 
+######Morphological Filter
+
+````javascript
+new FILTER.MorphologicalFilter();
+````
+
+This filter implements basic morphological processing like erode and dilate filters with arbitrary structure elements (given as matrix array)
+
+The class has some pre-defined filters to use.
+
+* _erode()_ Apply erode filter
+* _dilate()_ Apply dilate filter
+
+Morphological Filters cannot be combined very easily since they operate on multiple pixels at a time with non-linear processing. Use a composite filter (see below)
+
+In order to use a dilate filter do the following:
+
+````javascript
+var dilate=new FILTER.MorphologicalFilter().dilate([
+        1, 1, 1,
+        0, 0, 0,
+        1, 1, 1
+]);  // dilate with a 3x3 structure element
+````
+
+To apply the filter to an image do (as of 0.3+ version)
+
+````javascript
+dilate.apply(image);   // image is a FILTER.Image instance, see examples
+````
+
+NOTE: The filter apply method will actually change the image to which it is applied
+
+
 ######Statistical Filter
 
 ````javascript
@@ -323,8 +358,8 @@ This filter implements some statistical processing like median filters and erode
 The class has some pre-defined filters to use.
 
 * _median()_  Apply median (ie. lowpass/remove noise) filter
-* _erode()_ Apply erode (maximum) filter
-* _dilate()_ Apply dilate (minimum) filter
+* _minimum()/erode()_ Apply erode (minimum) filter
+* _maximum()/dilate()_ Apply dilate (maximum) filter
 
 Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
@@ -439,7 +474,7 @@ __Included Plugins__
 * Hue Extractor: extract a range of hues from the image
 * AlphaMask: apply another image as an alpha mask to the target image
 * Threshold: apply general (full 32bit thresholds) thresholding to an image
-* YCbCrConverter: convert the image to YCbCr color space
+* YCbCrConverter: convert the image to YCbCr color space (similar filter exists also in ColorMatrixFilter)
 * Bokeh: apply a fast Bokeh (Depth-of-Field) effect to an image
 
 
@@ -448,9 +483,10 @@ __Included Plugins__
 * add WebGL support for various pre-built and custom Filters [IN PROGRESS]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
+* add caching of filter parameters where applicable [DONE partially]
 * add more filters (eg split/combine/blend/adaptive/nonlinear etc..) [DONE partially]
 * add 2d-fft routines, frequency-domain filtering
-* allow to work in Nodejs
+* allow to work in Node
 * increase support/performance for Opera, IE  [DONE partially]
 
 

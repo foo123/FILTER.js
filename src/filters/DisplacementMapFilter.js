@@ -14,14 +14,14 @@
         Min=Math.min, Max=Math.max
     ;
     
-    FILTER.DisplacementMapFilter=function(displacemap)
-    {
+    // DisplacementMapFilter
+    var DisplacementMapFilter=FILTER.DisplacementMapFilter=function(displacemap) {
         if (displacemap) this.setMap(displacemap);
     };
 
-    FILTER.DisplacementMapFilter.prototype={
+    DisplacementMapFilter.prototype={
         
-        constructor: FILTER.DisplacementMapFilter,
+        constructor: DisplacementMapFilter,
         
         // parameters
         scaleX : 1,

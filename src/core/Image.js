@@ -10,7 +10,7 @@
     var 
         devicePixelRatio = window.devicePixelRatio || 1,
         blendModes,  Min=Math.min,
-        IMG=FILTER.ImArray,
+        IMG=FILTER.ImArray, A32F=FILTER.Array32F,
         createCanvas=FILTER.createCanvas,
         notSupportTyped=FILTER._notSupportTypedArrays
     ;
@@ -19,7 +19,7 @@
      * JavaScript implementation of common blending modes, based on
      * http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
      **/
-    blendModes = {
+    blendModes = FILTER.blendModes = {
         normal: function(a, b) { return a; },
 
         lighten: function(a, b) { return (b > a) ? b : a; },
@@ -72,17 +72,15 @@
 
         phoenix: function(a, b) { return Math.min(a, b) - Math.max(a, b) + 255; }
     };
+    // aliases
     blendModes.linearDodge= blendModes.add;
     blendModes.linearBurn= blendModes.substract;
-    
-    FILTER.blendModes=blendModes;
     
     
     //
     //
     // Image Class
-    FILTER.Image=function(img, callback)
-    {
+    var FImage=FILTER.Image=function(img, callback) {
         this.width=0;   
         this.height=0;
         this.context=null;
@@ -98,9 +96,9 @@
         this.setImage(img, callback);
     };
     
-    FILTER.Image.prototype={
+    FImage.prototype={
         
-        constructor: FILTER.Image,
+        constructor: FImage,
         
         // properties
         width : 0,
@@ -139,20 +137,22 @@
                 image=img;
                 w=(image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
                 h=(image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
-                ctx=this.context=this._setDimensions(w, h).canvasElement.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                this.imageData=ctx.getImageData(0, 0, w, h);
-                this._histogramRefresh=true;
-                this._integralRefresh=true;
-                this.webgl=(FILTER.useWebGL) ? new FILTER.WebGL(this.canvasElement) : null;
+                ctx=self.context=self._setDimensions(w, h).canvasElement.getContext('2d');
+                ctx.drawImage(image, 0, 0);
+                self.imageData=ctx.getImageData(0, 0, w, h);
+                self._histogramRefresh=true;
+                self._integralRefresh=true;
+                self.webgl=(FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
             }
             else // url string
             {
                 image=new Image();
                 image.onload=function(){
-                    ctx=self.context=self._setDimensions(image.width, image.height).canvasElement.getContext('2d');
+                    w=image.width;
+                    h=image.height;
+                    ctx=self.context=self._setDimensions(w, h).canvasElement.getContext('2d');
                     ctx.drawImage(image, 0, 0);
-                    self.imageData=self.context.getImageData(0, 0, self.width, self.height);
+                    self.imageData=ctx.getImageData(0, 0, w, h);
                     self._histogramRefresh=true;
                     self._integralRefresh=true;
                     self.webgl=(FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
@@ -229,7 +229,7 @@
         },
         
         clone : function() {
-            return new FILTER.Image(this.canvasElement);
+            return new FImage(this.canvasElement);
         },
         
         scale : function(sx, sy) {
@@ -300,7 +300,7 @@
             else if (w && !this.width && h && !this.height)
             {
                 // create the image data if needed
-                this.context=this._setDimensions(w+x, h+y).canvasElement.getContext('2d');
+                this.context=this._setDimensions(w, h).canvasElement.getContext('2d');
                 this.context.createImageData(w, h);
                 this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             }
@@ -409,7 +409,7 @@
         _computeIntegral : function() 
         {
             var w=this.width,h=this.height, count=w*h, rowLen=w<<2,
-                integralR = new FILTER.Array32F(count), integralG = new FILTER.Array32F(count), integralB = new FILTER.Array32F(count),
+                integralR = new A32F(count), integralG = new A32F(count), integralB = new A32F(count),
                 im=this.getPixelData().data, i, j, x, colR, colG, colB, pix
             ;
             // compute integral of image in one pass
@@ -437,8 +437,8 @@
             var im=this.getPixelData().data, i=0, l=im.length,
                 r,g,b, //rangeR, rangeG, rangeB,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-                pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
-                //cdfR=new FILTER.Array32F(257), cdfG=new FILTER.Array32F(257), cdfB=new FILTER.Array32F(257),
+                pdfR=new A32F(256), pdfG=new A32F(256), pdfB=new A32F(256),
+                //cdfR=new A32F(257), cdfG=new A32F(257), cdfB=new A32F(257),
                 i, n=1.0/(l>>2)
                 ;
             

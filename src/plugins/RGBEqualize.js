@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F;
     
     // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     // not the best implementation
@@ -22,8 +22,8 @@
             var 
                 r,g,b, rangeR, rangeG, rangeB,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-                pdfR=new FILTER.Array32F(256), pdfG=new FILTER.Array32F(256), pdfB=new FILTER.Array32F(256),
-                cdfR=new FILTER.Array32F(256), cdfG=new FILTER.Array32F(256), cdfB=new FILTER.Array32F(256),
+                pdfR=new A32F(256), pdfG=new A32F(256), pdfB=new A32F(256),
+                cdfR=new A32F(256), cdfG=new A32F(256), cdfB=new A32F(256),
                 accumR, accumG, accumB, t0, t1, t2,
                 i, l=im.length, l2=l>>2, n=1.0/(l2)
                 ;

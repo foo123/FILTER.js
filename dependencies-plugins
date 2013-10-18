@@ -1,0 +1,39 @@
+###################################################
+#
+#   The buildtools repository is at:
+#   https://github.com/foo123/scripts/buildtools
+#
+###################################################
+
+@DEPENDENCIES
+
+# sample Plugins
+./src/plugins/Plugin.js
+./src/plugins/Noise.js
+./src/plugins/Equalize.js
+./src/plugins/RGBEqualize.js
+./src/plugins/Pixelate.js
+./src/plugins/HSVConverter.js
+./src/plugins/HueExtractor.js
+./src/plugins/AlphaMask.js
+./src/plugins/Threshold.js
+./src/plugins/YCbCrConverter.js
+./src/plugins/Bokeh.js
+
+# TODO, allow some pre-process to take place
+#@PREPROCESS
+
+@MINIFY
+# Minify the Package
+@CLOSURE
+# Options for Java Closure Compiler (if used), (default minify options)
+--language_in=ECMASCRIPT5_STRICT
+@UGLIFY
+# Options for Node UglifyJS Compiler (if used), (default minify options, mangle and compress)
+-m -c
+
+# TODO, allow some post-process to take place
+#@POSTPROCESS
+
+@OUT
+./build/filter.plugins.min.js

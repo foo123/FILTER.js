@@ -10,8 +10,7 @@
     //
     // WebGL Support
     var supportWebGL=false, supportWebGLSharedResources=false,  WEBGLNAME=null,
-        createCanvas=FILTER.createCanvas,
-        MAX_KERNEL_SIZE=121
+        createCanvas=FILTER.createCanvas
         ;
     
     // http://www.khronos.org/webgl/wiki/Main_Page
@@ -28,15 +27,15 @@
     //
     //
     // Generic WebGL Program Class
-    function WebGLProgram(webgl, id, program, attributes, uniforms, textures)  
-    {
+    var WebGLProgram=FILTER.WebGLProgram=function(webgl, id, program, attributes, uniforms, textures)  {
         this.id=id || 0;
         this.setContainer(webgl);
         this.setProgram(program);
         if (attributes)  this.setAttributes(attributes);
         if (uniforms)  this.setUniforms(uniforms);
         if (textures) this.setTextures(textures);
-    }
+    };
+    
     WebGLProgram.prototype={
     
         constructor: WebGLProgram,
@@ -286,18 +285,15 @@
             return this;
         }
     };
-    // export it
-    FILTER.WebGLProgram=WebGLProgram;
     
     
     //
     //
     // Generic WebGL Class
-    function WebGL(canvas, options)
-    {
+    var WebGL=FILTER.WebGL=function(canvas, options)  {
         canvas = canvas || createCanvas();
         this._gl=WebGL.getWebGL(canvas, options);
-    }
+    };
     
     //
     //
@@ -730,10 +726,10 @@
         },
         
         setTexture: function(texture, unit) {
-			var gl=this._gl;
+            var gl=this._gl;
             unit=unit||0;
             gl.activeTexture( gl.TEXTURE0 + unit );
-			gl.bindTexture( gl.TEXTURE_2D, texture );
+            gl.bindTexture( gl.TEXTURE_2D, texture );
             return this;
         },
         
@@ -901,37 +897,11 @@
             return this;
         }
     };
-    // export it
-    FILTER.WebGL=WebGL;
-    
-    var _canvas, _isInit=false;
-    function webGLInit()
-    {
-        if (_isInit) return;
-        _canvas=createCanvas();
-        supportWebGL=WebGL.getWebGL(_canvas);
-        supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
-        _isInit=true;
-    }
-    FILTER.useWebGL=false;
-    FILTER.useWebGLSharedResources=false;
-    FILTER.useWebGLIfAvailable=function(bool) {
-        if (!_isInit) webGLInit();
-        FILTER.useWebGL=(bool && supportWebGL) ? true : false;
-        if (bool && !supportWebGL)
-            FILTER.warning('WebGL is NOT supported, fallback to default Canvas API');
-    };
-    FILTER.useWebGLSharedResourcesIfAvailable=function(bool) {
-        if (!_isInit) webGLInit();
-        FILTER.useWebGLSharedResources=(bool && supportWebGLSharedResources) ? true : false;
-        if (bool && !supportWebGLSharedResources)
-            FILTER.warning('WebGL Shared Resources are NOT supported, fallback to non-shared resources');
-    };
     
     //
     //
     // Generic WebGL Filter
-    FILTER.WebGLFilter=function(shaders, attributes, uniforms, textures) 
+    var WebGLFilter=FILTER.WebGLFilter=function(shaders, attributes, uniforms, textures) 
     { 
         this.shaders=shaders || null; 
         this.attributes=attributes || null; 
@@ -939,9 +909,9 @@
         this.textures=textures || null; 
         this.id=FILTER.getId();
     };
-    FILTER.WebGLFilter.prototype={
+    WebGLFilter.prototype={
         
-        constructor: FILTER.WebGLFilter,
+        constructor: WebGLFilter,
         
         id: 0,
         
@@ -998,6 +968,7 @@
     //
     //
     // GLSL Shaders
+    /*
     FILTER.Shaders={
         
         tableLookup: {
@@ -1043,6 +1014,30 @@
             }
         }
     };
+    */
     
+    var _canvas, _isInit=false;
+    function webGLInit()
+    {
+        if (_isInit) return;
+        _canvas=createCanvas();
+        supportWebGL=WebGL.getWebGL(_canvas);
+        supportWebGLSharedResources=supportWebGL && WebGL.getSupportedExtensionWithKnownPrefixes(supportWebGL, "WEBGL_shared_resources");
+        _isInit=true;
+    }
+    FILTER.useWebGL=false;
+    FILTER.useWebGLSharedResources=false;
+    FILTER.useWebGLIfAvailable=function(bool) {
+        if (!_isInit) webGLInit();
+        FILTER.useWebGL=(bool && supportWebGL) ? true : false;
+        if (bool && !supportWebGL)
+            FILTER.warning('WebGL is NOT supported, fallback to default Canvas API');
+    };
+    FILTER.useWebGLSharedResourcesIfAvailable=function(bool) {
+        if (!_isInit) webGLInit();
+        FILTER.useWebGLSharedResources=(bool && supportWebGLSharedResources) ? true : false;
+        if (bool && !supportWebGLSharedResources)
+            FILTER.warning('WebGL Shared Resources are NOT supported, fallback to non-shared resources');
+    };
     
 })(FILTER);

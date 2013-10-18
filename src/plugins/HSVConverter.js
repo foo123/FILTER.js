@@ -6,7 +6,9 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays, RGB2HSV=FILTER.Color.RGB2HSV,                 
+        toCol=0.70833333333333333333333333333333 // 255/360
+        ;
     
     // a plugin to convert an RGB Image to an HSV Image
     FILTER.HSVConverterFilter=FILTER.Create({
@@ -19,8 +21,7 @@
             // for this filter, no need to clone the image data, operate in-place
             
             var 
-                r,g,b, i, l=im.length, hsv, h, s, v, t0, t1, t2,
-                RGB2HSV=FILTER.Color.RGB2HSV, toCol=0.70833333333333333333333333333333 // 255/360
+                r,g,b, i, l=im.length, hsv, h, s, v, t0, t1, t2
                 ;
             
             i=0;

@@ -11,39 +11,6 @@
 **/
 (function(FILTER){
     
-    /*function multiplyMatrix(m1, m2, d) 
-    {
-        var i, j, k, m=new CM(m1.length), sum, id=0, jd=0, kd=0;
-        for (i=0; i<d; i++)
-        {
-            //jd=0;
-            for (j=0; j<d; j++)
-            {
-                sum=0; kd=0;
-                for (k=0; k<d; k++) { sum+=m1[id + k]*m2[kd + j]; kd+=d; }
-                m[id + j]=sum; //jd+=d;
-            }
-            id+=d;
-        }
-        return m;
-    }
-    
-    function unit(d) 
-    { 
-        d=(0==d%2) ? d+1 : d;
-        var l=d*d, i, center=(l>>2)+1, e=new CM(l);
-        for (i=0; i<l; i++) e[i]=0;  e[center]=1;
-        return e;
-    }
-    
-    function eye(d) 
-    { 
-        d=(0==d%2) ? d+1 : d;
-        var l=d*d, k, i=0, j=0, e=new CM(l);
-        for (k=0; k<l; k++) { if (i==j) e[k]=1; else e[k]=0; j++; if (d==j) { i++; j=0; } }
-        return e;
-    }*/
-    
     var IMG = FILTER.ImArray,
         // Convolution Matrix
         CM=FILTER.Array32F,
@@ -52,14 +19,14 @@
         // hardcode Pascal numbers, used for binomial kernels
         _pascal=[
             [1],
-            [1,	1],
-            [1,	2,	1],
-            [1,	3,	3, 	1],
-            [1,	4, 	6, 	4, 	1],
-            [1,	5, 	10,	10,	5, 	1],
-            [1,	6, 	15,	20,	15,	6, 	1],
-            [1,	7, 	21,	35,	35,	21,	7, 	1],
-            [1,	8, 	28,	56,	70,	56,	28,	8, 	1]
+            [1, 1],
+            [1, 2,  1],
+            [1, 3,  3,  1],
+            [1, 4,  6,  4,  1],
+            [1, 5,  10, 10, 5,  1],
+            [1, 6,  15, 20, 15, 6,  1],
+            [1, 7,  21, 35, 35, 21, 7,  1],
+            [1, 8,  28, 56, 70, 56, 28, 8,  1]
         ],
         sqrt2=FILTER.CONSTANTS.SQRT2,
         toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
@@ -1413,8 +1380,7 @@
     //
     //
     //  Simple Convolution Filter
-    FILTER.ConvolutionMatrixFilter=function(weights, factor, bias)
-    {
+    var ConvolutionMatrixFilter=FILTER.ConvolutionMatrixFilter=function(weights, factor, bias) {
         this._coeff=new CM([1.0, 0.0]);
         if (typeof weights != 'undefined' && weights.length)
         {
@@ -1427,19 +1393,18 @@
         this._matrix2=null;  this._dim2=this._dim;
         this._isGrad=false; this._doFast=0; this._doSeparable=false;
         
-        if (FILTER.useWebGL)
-            this._webglInstance=FILTER.WebGLConvolutionMatrixFilterInstance;
+        if (FILTER.useWebGL)  this._webglInstance=FILTER.WebGLConvolutionMatrixFilterInstance;
     };
     
-    FILTER.ConvolutionMatrixFilter.prototype={
+    ConvolutionMatrixFilter.prototype={
         
-        constructor: FILTER.ConvolutionMatrixFilter,
+        constructor: ConvolutionMatrixFilter,
         
         _dim: 0,
         _dim2: 0,
         _matrix: null,
         _matrix2: null,
-        _coeff: 0,
+        _coeff: null,
         
         _webglInstance: null,
         
@@ -1460,9 +1425,6 @@
             this._doFast=1; return this;
         },
 
-        // aliases
-        boxBlur : function(d) { return this.lowPass(d); },
-        
         glow : function(f, d) { 
             f=(typeof f == 'undefined') ? 0.5 : f;  
             return this.highPass(d, -f); 
@@ -1533,9 +1495,6 @@
             return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
         },
         
-        // aliases
-        gaussBlur : function(d) { return this.binomialLowPass(d); },
-        
         // X-gradient, partial X-derivative (Prewitt)
         prewittX : function(d) {
             d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
@@ -1568,15 +1527,6 @@
             this._matrix2=new CM(grady.kernel);
             return this;
         },
-        
-        //aliases
-        gradX : function(d) { return this.prewittX(d); },
-        
-        gradY : function(d) { return this.prewittY(d); },
-        
-        gradDirectional : function(theta, d) { return this.prewittDirectional(theta, d); },
-        
-        grad : function(d) { return this.prewitt(d); },
         
         // partial X-derivative (Sobel)
         sobelX : function(d) {
@@ -1861,7 +1811,7 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            if (this._webglInstance)
+            /*if (this._webglInstance)
             {
                 var w=image.width, h=image.height;
                 this._webglInstance.filterParams=[
@@ -1881,14 +1831,56 @@
                 return image;
             }
             else
-            {
+            {*/
                 return image.setData(this._apply(image.getData(), image.width, image.height, image));
-            }
+            /*}*/
         },
         
         reset : function() {
             this._matrix=null; this._matrix2=null; this._dim=0; return this;
         }
     };
+    // aliases
+    ConvolutionMatrixFilter.prototype.boxBlur = ConvolutionMatrixFilter.prototype.lowPass;
+    ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.binomialLowPass;
+    ConvolutionMatrixFilter.prototype.gradX = ConvolutionMatrixFilter.prototype.prewittX;
+    ConvolutionMatrixFilter.prototype.gradY = ConvolutionMatrixFilter.prototype.prewittY;
+    ConvolutionMatrixFilter.prototype.gradDirectional = ConvolutionMatrixFilter.prototype.prewittDirectional;
+    ConvolutionMatrixFilter.prototype.grad = ConvolutionMatrixFilter.prototype.prewitt;
+        
+    
+    /*function multiplyMatrix(m1, m2, d) 
+    {
+        var i, j, k, m=new CM(m1.length), sum, id=0, jd=0, kd=0;
+        for (i=0; i<d; i++)
+        {
+            //jd=0;
+            for (j=0; j<d; j++)
+            {
+                sum=0; kd=0;
+                for (k=0; k<d; k++) { sum+=m1[id + k]*m2[kd + j]; kd+=d; }
+                m[id + j]=sum; //jd+=d;
+            }
+            id+=d;
+        }
+        return m;
+    }
+    
+    function unit(d) 
+    { 
+        d=(0==d%2) ? d+1 : d;
+        var l=d*d, i, center=(l>>2)+1, e=new CM(l);
+        for (i=0; i<l; i++) e[i]=0;  e[center]=1;
+        return e;
+    }
+    
+    function eye(d) 
+    { 
+        d=(0==d%2) ? d+1 : d;
+        var l=d*d, k, i=0, j=0, e=new CM(l);
+        for (k=0; k<l; k++) { if (i==j) e[k]=1; else e[k]=0; j++; if (d==j) { i++; j=0; } }
+        return e;
+    }*/
+    
     
 })(FILTER);

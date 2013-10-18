@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays, Min=Math.min;
     
     // a plugin to mask an image using the alpha channel of another image
     FILTER.AlphaMaskFilter=FILTER.Create({
@@ -37,7 +37,7 @@
                 i, l=im.length, l2=alpha.length, 
                 w2=this.alphaMask.width, h2=this.alphaMask.height,
                 x, x2, y, y2, off, xc, yc, 
-                wm=Math.min(w,w2), hm=Math.min(h, h2),  cX, cY, 
+                wm=Min(w,w2), hm=Min(h, h2),  cX, cY, 
                 dw=(w-w2)>>1, dh=(h-h2)>>1
                 ;
             

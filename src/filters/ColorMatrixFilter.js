@@ -106,8 +106,8 @@
         return m;
     }
     
-    FILTER.ColorMatrixFilter=function(matrix)
-    {
+    // ColorMatrixFilter
+    var ColorMatrixFilter=FILTER.ColorMatrixFilter=function(matrix) {
         if (typeof matrix != 'undefined' && matrix.length)
         {
             this._matrix=new CM(matrix);
@@ -118,13 +118,12 @@
             this._matrix=null;
         }
         
-        if (FILTER.useWebGL)
-            this._webglInstance=FILTER.WebGLColorMatrixFilterInstance;
+        if (FILTER.useWebGL) this._webglInstance=FILTER.WebGLColorMatrixFilterInstance;
     };
     
-    FILTER.ColorMatrixFilter.prototype={
+    ColorMatrixFilter.prototype={
         
-        constructor: FILTER.ColorMatrixFilter,
+        constructor: ColorMatrixFilter,
         
         _matrix: null,
         
@@ -396,9 +395,6 @@
                         0, 0, 0, 1, 0
                     ]);
         },
-        
-        // aliases
-        grayscale : function() { return this.desaturate(); },
         
         // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         colorize : function(rgb, amount) {
@@ -683,7 +679,7 @@
         
         apply : function(image) {
             if (!this._matrix) return image;
-            if (this._webglInstance)
+            /*if (this._webglInstance)
             {
                 var w=image.width, h=image.height;
                 this._webglInstance.filterParams=[
@@ -696,14 +692,17 @@
                 return image;
             }
             else
-            {
+            {*/
                 return image.setData(this._apply(image.getData(), image.width, image.height, image));
-            }
+            /*}*/
         },
         
         reset : function() {
             this._matrix=null; return this;
         }
     };
+    // aliases
+    ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
+        
     
 })(FILTER);

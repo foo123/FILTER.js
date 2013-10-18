@@ -34,7 +34,7 @@
                 a * 0.0039215686274509803921568627451
             ];
         },
-		
+        
         blend : function(rgb1, rgb2, p) {
             return {
                 r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
@@ -72,24 +72,24 @@
 
         // http://en.wikipedia.org/wiki/YCbCr
         RGB2YCbCr : function(rgb) {
-			var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
-			
-			// each take full range from 0-255
+            var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
+            
+            // each take full range from 0-255
             y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-			cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-			cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-			return {y:y, cb:cb, cr:cr};
-		},
+            cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
+            cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+            return {y:y, cb:cb, cr:cr};
+        },
         
         // http://en.wikipedia.org/wiki/YCbCr
         YCbCr2RGB : function(ycbcr) {
             var r, g, b, y=ycbcr.y, cb=ycbcr.cb, cr=ycbcr.cr;
-			
-			// each take full range from 0-255
+            
+            // each take full range from 0-255
             r = ~~( y                      + 1.402   * (cr-128) );
-			g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-			b = ~~( y + 1.772   * (cb-128) );
-			return {r:r, g:g, b:b};
+            g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+            b = ~~( y + 1.772   * (cb-128) );
+            return {r:r, g:g, b:b};
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -102,24 +102,24 @@
             r=rgb.r; g=rgb.g; b=rgb.b;
             
             min = Min( r, g, b );  max = Max( r, g, b );  delta = max - min;
-            v = max;				// v
+            v = max;                // v
 
             if( max != 0 )
             {
-                s = delta / max;		// s
+                s = delta / max;        // s
             }
             else 
             {
-                // r = g = b = 0		// s = 0, v is undefined
+                // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
                 return { h:h, s:s, v:v };
             }
 
-            if( r == max )    h = ( g - b ) / delta;		// between yellow & magenta
-            else if ( g == max )  h = 2 + ( b - r ) / delta;	// between cyan & yellow
-            else   h = 4 + ( r - g ) / delta;	// between magenta & cyan
+            if( r == max )    h = ( g - b ) / delta;        // between yellow & magenta
+            else if ( g == max )  h = 2 + ( b - r ) / delta;    // between cyan & yellow
+            else   h = 4 + ( r - g ) / delta;   // between magenta & cyan
 
-            h *= 60;				// degrees
+            h *= 60;                // degrees
             if( h < 0 )  h += 360;
             
             return { h:h, s:s, v:v };
@@ -142,9 +142,9 @@
                 return {r:r, g:g, b:b};
             }
 
-            h /= 60;			// sector 0 to 5
+            h /= 60;            // sector 0 to 5
             i = ~~( h );
-            f = h - i;			// factorial part of h
+            f = h - i;          // factorial part of h
             p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
 
             switch( i ) 
@@ -159,7 +159,7 @@
                     break;
                 case 4: r = t;  g = p;  b = v;
                     break;
-                default:		// case 5:
+                default:        // case 5:
                     r = v;  g = p;  b = q;
                     break;
             }

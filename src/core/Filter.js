@@ -6,6 +6,12 @@
 **/
 (function(FILTER){
 
+    var hasOwnProperty=Object.prototype.hasOwnProperty, slice=Array.prototype.slice;
+    // private helper functons
+    function hasOwn(o, p) { return o && hasOwnProperty.call(o, p); }
+    function extend(o1, o2) { o1=o1||{}; for (var p in o2) { if (hasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
+    
+    
     // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
     
     //
@@ -82,8 +88,7 @@
     
     // logging
     var log=FILTER.log=(window.console && window.console.log) ? window.console.log : function(s) { /* do nothing*/ };
-    FILTER.warning=function(s) { log('WARNING: '+s); };
-    FILTER.error=function(s) { log('ERROR: '+s); };
+    FILTER.warning=function(s) { log('WARNING: '+s); }; FILTER.error=function(s) { log('ERROR: '+s); };
     
     // webgl support
     FILTER.useWebGL=false;
@@ -118,10 +123,10 @@
     //
     //
     // Abstract Generic Filter
-    FILTER.Filter=function() { /* do nothing here, override */ };
-    FILTER.Filter.prototype={
+    var Filter=FILTER.Filter=function() { /* do nothing here, override */ };
+    Filter.prototype={
         
-        constructor: FILTER.Filter,
+        constructor: Filter,
         
         _apply : function(im, w, h) { /* do nothing here, override */ },
         apply : function(image) { /* do nothing here, override */ },
@@ -131,14 +136,13 @@
     //
     //
     // Composite Filter Stack  (a variation of Composite Design Pattern)
-    FILTER.CompositeFilter=function(filters) 
-    { 
+    var CompositeFilter=FILTER.CompositeFilter=function(filters) { 
         this._stack=(typeof filters!='undefined' && filters.length) ? filters : [];
     };
     
-    FILTER.CompositeFilter.prototype={
+    CompositeFilter.prototype={
         
-        constructor: FILTER.CompositeFilter,
+        constructor: CompositeFilter,
         
         _stack : [],
         
@@ -223,11 +227,10 @@
     //
     //
     // allow plugin creation
-    FILTER.Create=function(methods)
-    {
-        var filterClass=function() { this.init.apply(this, Array.prototype.slice.call(arguments)); };
+    FILTER.Create=function(methods) {
+        var filterClass=function() { this.init.apply(this, slice.call(arguments)); };
         
-        methods=Fextend({
+        methods=extend({
             init: function() {},
             reset: function() { return this; },
             apply: function(im, w, h, image){ return im; }
@@ -235,12 +238,8 @@
         methods._apply=methods.apply;
         methods.apply=function(image) { return image.setData(this._apply(image.getData(), image.width, image.height, image)); }
         
-        filterClass.prototype=Fextend(filterClass.prototype, methods);
+        filterClass.prototype=extend(filterClass.prototype, methods);
         return filterClass;
     };
-    
-    // private helper functons
-    function FhasOwn(o, p) { return o && Object.prototype.hasOwnProperty.call(o, p); }
-    function Fextend(o1, o2) { o1=o1||{}; for (var p in o2) { if (FhasOwn(o2, p))  o1[p]=o2[p];  }  return o1; }
     
 })(FILTER);

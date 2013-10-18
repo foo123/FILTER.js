@@ -39,17 +39,17 @@
     
     var Power=Math.pow, Exponential=Math.exp, nF=1/255, trivial=eye(), inverce=eye(1);
     
-    FILTER.TableLookupFilter=function(tR, tG, tB, tA)
-    {
+    // TableLookupFilter
+    var TableLookupFilter=FILTER.TableLookupFilter=function(tR, tG, tB, tA) {
         this._tableR=tR || null;
         this._tableG=tG || this._tableR;
         this._tableB=tB || this._tableG;
         this._tableA=tA || null;
     };
 
-    FILTER.TableLookupFilter.prototype={
+    TableLookupFilter.prototype={
         
-        constructor: FILTER.TableLookupFilter,
+        constructor: TableLookupFilter,
         
         // parameters
         _tableR : null,

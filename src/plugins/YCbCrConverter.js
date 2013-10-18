@@ -6,6 +6,8 @@
 **/
 (function(FILTER){
 
+    var RGB2YCBCR=FILTER.Color.RGB2YCbCr;
+    
     // a plugin to convert an RGB Image to an YCbCr Image
     FILTER.YCbCrConverterFilter=FILTER.Create({
         
@@ -16,8 +18,7 @@
             // for this filter, no need to clone the image data, operate in-place
             
             var 
-                r,g,b, i, l=im.length, ycbcr,
-                RGB2YCBCR=FILTER.Color.RGB2YCbCr
+                r,g,b, i, l=im.length, ycbcr
                 ;
             
             i=0;

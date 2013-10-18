@@ -141,16 +141,15 @@
     //
     //
     //  Morphological Filter
-    FILTER.MorphologicalFilter=function()
-    {
+    var MorphologicalFilter=FILTER.MorphologicalFilter=function() {
         this._dim=0;
         this.structureElement=null;
         this._apply=_dummy;
     };
     
-    FILTER.MorphologicalFilter.prototype={
+    MorphologicalFilter.prototype={
         
-        constructor: FILTER.MorphologicalFilter,
+        constructor: MorphologicalFilter,
         
         _dim: 0,
         

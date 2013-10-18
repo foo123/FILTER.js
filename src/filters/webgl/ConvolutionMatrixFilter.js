@@ -6,9 +6,9 @@
 **/
 (function(FILTER){
 
-    var MAX_KERNEL_SIZE=121
-        ;
-    var convolutionShaders= [
+    var MAX_KERNEL_SIZE=121,
+    
+        convolutionShaders= [
             {
                 type: "vertex",
                 
@@ -129,28 +129,31 @@
         {name: "u_kernel2[0]", type: "uniform1f", location: null, value: null}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null}
+    texture={name: "u_image", image: null, location: null, texture: null},
+    
+    WebGLFilter=FILTER.WebGLFilter.prototype
     ;
         
     
     //
     //
-    // ConvolutionMatrix WebGL Filter
-    FILTER.WebGLConvolutionMatrixFilter=function() 
-    { 
+    // ConvolutionMatrix WebGL Filter (IN PROGRESS!!)
+    var WebGLConvolutionMatrixFilter=FILTER.WebGLConvolutionMatrixFilter=function() { 
         this.id='WGLCM2'; //FILTER.getId();
     };
-    FILTER.WebGLConvolutionMatrixFilter.prototype={
+    WebGLConvolutionMatrixFilter.prototype={
         
-        constructor: FILTER.WebGLConvolutionMatrixFilter,
+        constructor: WebGLConvolutionMatrixFilter,
         
         id: 0,
         
         filterParams: null, 
         
-        triangles: FILTER.WebGLFilter.prototype.triangles,
+        // inherit
+        triangles: WebGLFilter.triangles,
         
-        _getProgram: FILTER.WebGLFilter.prototype._getProgram,
+        // inherit
+        _getProgram: WebGLFilter._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
@@ -167,7 +170,8 @@
             webgl.drawTriangles(this.triangles);
         },
         
-        apply: FILTER.WebGLFilter.prototype.apply
+        // inherit
+        apply: WebGLFilter.apply
     };
     
     // export an instance

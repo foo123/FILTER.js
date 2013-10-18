@@ -6,7 +6,9 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays,
+        RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
+        ;
     
     // a plugin to apply a general threshold filtering to an image
     FILTER.ThresholdFilter=FILTER.Create({
@@ -36,7 +38,6 @@
             var 
                 t0, t1, t2, t3, color, rgba,
                 i, j, l=im.length,
-                RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA,
                 thresholds=this.thresholds, tl=thresholds.length, colors=this.quantizedColors, cl=colors.length
                 ;
             

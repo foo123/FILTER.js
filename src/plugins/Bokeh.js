@@ -7,7 +7,7 @@
 (function(FILTER){
 
     var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, Abs=Math.abs, 
-        notSupportTyped=FILTER._notSupportTypedArrays;
+        notSupportTyped=FILTER._notSupportTypedArrays, IMG=FILTER.ImArray, A32F=FILTER.Array32F;
     
     // a simple bokeh (depth-of-field) filter
     FILTER.BokehFilter=FILTER.Create({
@@ -42,13 +42,13 @@
             
             if (m<=0) return src;
             
-            dst=new FILTER.ImArray(src);
+            dst=new IMG(src);
             
             imArea=w*h;
             bx1=0; bx2=w-1; by1=0; by2=imArea-w;
             
             integralLen=(imArea<<1)+imArea;  rowLen=(w<<1)+w;
-            integral=new FILTER.Array32F(integralLen);
+            integral=new A32F(integralLen);
             
             // compute integral of image in one pass
             // first row

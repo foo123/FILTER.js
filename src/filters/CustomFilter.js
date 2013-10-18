@@ -14,14 +14,13 @@
     //
     //  Custom Filter 
     //  used as a placeholder for constructing filters inline with an anonymous function
-    FILTER.CustomFilter=function(handler)
-    {
+    var CustomFilter=FILTER.CustomFilter=function(handler) {
         this._handler=handler;
     };
     
-    FILTER.CustomFilter.prototype={
+    CustomFilter.prototype={
         
-        constructor: FILTER.CustomFilter,
+        constructor: CustomFilter,
         
         _handler : null,
         

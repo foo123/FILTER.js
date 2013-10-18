@@ -17,10 +17,7 @@
         toRad=FILTER.CONSTANTS.toRad
         ;
     
-    /*function trivialMap(im, w, h)
-    {
-        return im;
-    }*/
+    /*function trivialMap(im, w, h) { return im; }*/
     
     function flipXMap(im, w, h)
     {
@@ -405,14 +402,14 @@
         */
     }
     
-    FILTER.GeometricMapFilter=function(inverseTransform)
-    {
+    // GeometricMapFilter
+    var GeometricMapFilter=FILTER.GeometricMapFilter=function(inverseTransform) {
         this.generic(inverseTransform);
     };
 
-    FILTER.GeometricMapFilter.prototype={
+    GeometricMapFilter.prototype={
         
-        constructor: FILTER.GeometricMapFilter,
+        constructor: GeometricMapFilter,
         
         // parameters
         _map : null,

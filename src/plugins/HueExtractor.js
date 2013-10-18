@@ -6,7 +6,10 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays,
+        IMG=FILTER.ImArray, 
+        RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
+        ;
     
     // a plugin to extract regions based on a HUE range
     FILTER.HueExtractorFilter=FILTER.Create({
@@ -34,12 +37,11 @@
             var 
                 r,g,b, dst, t0, t1, t2, t3,
                 i, l=im.length, background, hue,
-                RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB,
                 hMin=this.range[0], hMax=this.range[this.range.length-1]
                 ;
             
-            dst=new FILTER.ImArray(l);
-            background=FILTER.Color.Color2RGBA(this.background||0);
+            dst=new IMG(l);
+            background=Color2RGBA(this.background||0);
             
             i=0;
             while (i<l)

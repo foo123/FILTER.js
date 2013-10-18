@@ -7,7 +7,7 @@
 (function(FILTER){
 
     var Sqrt=Math.sqrt,
-        notSupportTyped=FILTER._notSupportTypedArrays;
+        notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F;
     
     
     // a sample pixelate filter
@@ -30,7 +30,7 @@
             
             var imLen=im.length, imArea=w*h, step=~~(Sqrt(imArea)*this.scale*0.01), 
                 size=step*step, inv_size=1.0/size, step4=step<<2, stepw=w*step, size4=size<<2,
-                integral=new FILTER.Array32F(imArea*3), colR, colG, colB,
+                integral=new A32F(imArea*3), colR, colG, colB,
                 matRadiusX=step, matRadiusY=step, matHalfSideX=matRadiusX>>1, matHalfSideY=matRadiusY>>1, matArea=matRadiusX*matRadiusY,
                 rowLen=(w<<1) + w, imageIndicesX, imageIndicesY,
                 i, j, jend, x, ty, px, py, pi, pbx,

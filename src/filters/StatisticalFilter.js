@@ -9,88 +9,6 @@
 **/
 (function(FILTER){
     
-    /*
-    function split(a, n, x, i,j)
-    {
-        //do the left and right scan until the pointers cross
-        do
-        {
-            //scan from the left then scan from the right
-            while (a[i] < x) i++;
-            while (x < a[j]) j--;
-            //now swap values if they are in the wrong part:
-            if (i <= j)
-            {
-                var t = a[i];
-                a[i] = a[j];
-                a[j] = t;
-                i++; j--;
-            }
-
-            //and continue the scan until the pointers cross:
-        } while (i <= j);
-        return {a:a, i:i, j:j};
-    }
-
-    //A function that makes use of the basic split method to find the median is:
-
-    function median(a/*, n, k* /)
-    {
-        var n=a.length, L = 0, R = n-1, k = ~~(0.5*n), i, j, x, ret;
-        while (L < R)
-        {
-            x = a[k];  i = L; j = R;  
-            ret=split(a, n, x, i, j);
-            i.ret.i; j=ret.j;
-            if (j < k)  L = i;
-            if (k < i)  R = j; 
-        }
-        return x;
-    }
-    */
-    
-    /*function peek() { return this[0]; }
-    function peekReverse() { return this[this.length-1]; }*/
-    /*function empty() { this.length=0; return this; }
-    function poll() { return this.shift(); }
-    function pollReverse() { return this.pop(); }
-    function bisectInsert(val)
-    {
-        var l=this.length, middle, upper, lower;
-        
-        if (0==l) { this.push(val); return this; }
-        else if (1==l) { if (val>=this[0]) this.push(val); else this.unshift(val); return this; }
-        
-        lower=0; upper=l; middle=((upper-lower)>>1) + lower;
-        while (lower<upper)
-        {
-            if (val>this[middle])   lower=middle+1;
-            else  upper=middle;
-            middle=((upper-lower)>>1) + lower;
-        }
-        if (middle>=l) this.push(val);
-        else this.splice(middle, 0, val);
-        return this;
-    }
-    function bisectInsertReverse(val)
-    {
-        var l=this.length, middle, upper, lower;
-        
-        if (0==l) { this.push(val); return this; }
-        else if (1==l) { if (val<this[0]) this.push(val); else this.unshift(val); return this; }
-        
-        lower=0; upper=l; middle=((upper-lower)>>1) + lower;
-        while (lower<upper)
-        {
-            if (val<this[middle])   lower=middle+1;
-            else  upper=middle;
-            middle=((upper-lower)>>1) + lower;
-        }
-        if (middle>=l) this.push(val);
-        else this.splice(middle, 0, val);
-        return this;
-    }
-    */
     // used for internal purposes
     var IMG = FILTER.ImArray, 
         Min=Math.min, Max=Math.max;
@@ -560,15 +478,14 @@
     //
     //
     //  Statistical Filter
-    FILTER.StatisticalFilter=function()
-    {
+    var StatisticalFilter=FILTER.StatisticalFilter=function() {
         this._dim=0;
         this._apply=_dummy;
     };
     
-    FILTER.StatisticalFilter.prototype={
+    StatisticalFilter.prototype={
         
-        constructor: FILTER.StatisticalFilter,
+        constructor: StatisticalFilter,
         
         _dim: 0,
         
@@ -608,5 +525,92 @@
             this._apply=_dummy; this._dim=0; return this;
         }
     };
+    // aliiases
+    StatisticalFilter.prototype.erode=StatisticalFilter.prototype.minimum;
+    StatisticalFilter.prototype.dilate=StatisticalFilter.prototype.maximum;
+    
+    
+    /*
+    function split(a, n, x, i,j)
+    {
+        //do the left and right scan until the pointers cross
+        do
+        {
+            //scan from the left then scan from the right
+            while (a[i] < x) i++;
+            while (x < a[j]) j--;
+            //now swap values if they are in the wrong part:
+            if (i <= j)
+            {
+                var t = a[i];
+                a[i] = a[j];
+                a[j] = t;
+                i++; j--;
+            }
+
+            //and continue the scan until the pointers cross:
+        } while (i <= j);
+        return {a:a, i:i, j:j};
+    }
+
+    //A function that makes use of the basic split method to find the median is:
+
+    function median(a/*, n, k* /)
+    {
+        var n=a.length, L = 0, R = n-1, k = ~~(0.5*n), i, j, x, ret;
+        while (L < R)
+        {
+            x = a[k];  i = L; j = R;  
+            ret=split(a, n, x, i, j);
+            i.ret.i; j=ret.j;
+            if (j < k)  L = i;
+            if (k < i)  R = j; 
+        }
+        return x;
+    }
+    */
+    
+    /*function peek() { return this[0]; }
+    function peekReverse() { return this[this.length-1]; }*/
+    /*function empty() { this.length=0; return this; }
+    function poll() { return this.shift(); }
+    function pollReverse() { return this.pop(); }
+    function bisectInsert(val)
+    {
+        var l=this.length, middle, upper, lower;
+        
+        if (0==l) { this.push(val); return this; }
+        else if (1==l) { if (val>=this[0]) this.push(val); else this.unshift(val); return this; }
+        
+        lower=0; upper=l; middle=((upper-lower)>>1) + lower;
+        while (lower<upper)
+        {
+            if (val>this[middle])   lower=middle+1;
+            else  upper=middle;
+            middle=((upper-lower)>>1) + lower;
+        }
+        if (middle>=l) this.push(val);
+        else this.splice(middle, 0, val);
+        return this;
+    }
+    function bisectInsertReverse(val)
+    {
+        var l=this.length, middle, upper, lower;
+        
+        if (0==l) { this.push(val); return this; }
+        else if (1==l) { if (val<this[0]) this.push(val); else this.unshift(val); return this; }
+        
+        lower=0; upper=l; middle=((upper-lower)>>1) + lower;
+        while (lower<upper)
+        {
+            if (val<this[middle])   lower=middle+1;
+            else  upper=middle;
+            middle=((upper-lower)>>1) + lower;
+        }
+        if (middle>=l) this.push(val);
+        else this.splice(middle, 0, val);
+        return this;
+    }
+    */
     
 })(FILTER);

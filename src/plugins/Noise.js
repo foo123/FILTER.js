@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays, rand=Math.random;
     
     // a sample noise filter
     // used for illustration purposes on how to create a plugin filter
@@ -27,7 +27,7 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            var range=this.max-this.min, rand=Math.random, m=this.min,
+            var range=this.max-this.min, m=this.min,
                 i, l=im.length, n, r, g, b, t0, t1, t2
                 ;
             

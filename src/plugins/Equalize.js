@@ -6,7 +6,9 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays;
+    var notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F,
+        RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
+        ;
     
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter=FILTER.Create({
@@ -20,10 +22,9 @@
             var 
                 r,g,b, rangeI,
                 maxI=0, minI=255,
-                pdfI=new FILTER.Array32F(256),
-                cdfI=new FILTER.Array32F(256), accum=0, t0, t1, t2,
-                i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, ycbcrA=new Array(l2), rgba,
-                RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
+                pdfI=new A32F(256),
+                cdfI=new A32F(256), accum=0, t0, t1, t2,
+                i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, ycbcrA=new Array(l2), rgba
                 ;
             
             // initialize the arrays

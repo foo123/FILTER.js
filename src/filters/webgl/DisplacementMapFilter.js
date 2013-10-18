@@ -118,28 +118,30 @@
         {name: "u_map", image: null, location: null, texture: null, isTexture: true}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null}
+    texture={name: "u_image", image: null, location: null, texture: null},
+    
+    WebGLFilter=FILTER.WebGLFilter.prototype;
     ;
     
-    
     //
     //
-    // DisplacementMap WebGL Filter
-    FILTER.WebGLDisplacementMapFilter=function() 
-    { 
+    // DisplacementMap WebGL Filter  (IN PROGRESS!!)
+    var WebGLDisplacementMapFilterFILTER.WebGLDisplacementMapFilter=function() { 
         this.id='WGLDM4'; //FILTER.getId();
     };
-    FILTER.WebGLDisplacementMapFilter.prototype={
+    WebGLDisplacementMapFilter.prototype={
         
-        constructor: FILTER.WebGLDisplacementMapFilter,
+        constructor: WebGLDisplacementMapFilter,
         
         id: 0,
         
-        triangles: FILTER.WebGLFilter.prototype.triangles,
+        // inherit
+        triangles: WebGLFilter.triangles,
         
         filterParams: null, 
         
-        _getProgram: FILTER.WebGLFilter.prototype._getProgram,
+        // inherit
+        _getProgram: WebGLFilter._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
@@ -156,7 +158,8 @@
             webgl.drawTriangles(this.triangles);
         },
         
-        apply: FILTER.WebGLFilter.prototype.apply
+        // inherit
+        apply: WebGLFilter.apply
     };
     
 })(FILTER);
