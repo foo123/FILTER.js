@@ -54,18 +54,18 @@
         <script src="../common/js/filter.min.js"></script>
         <title>Image Processing with FILTER.js</title>
     </head>
-	<body>
+    <body>
         <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
-		
+        
         <h1>Image Processing with Filter.js</h1><br /><br />
         
         <div id="aside"><input id="test" type="button" value="Apply Filters" /></div>
         
-		<div id="container" class="panel"></div>
+        <div id="container" class="panel"></div>
         
-		<div id="filters" class="panel"></div>
+        <div id="filters" class="panel"></div>
         
-		<script>
+        <script>
         //<![CDATA[
             
             // utils
@@ -130,7 +130,13 @@
                 //mask=new FILTER.TableLookupFilter().mask(0xffff7732),
                 //swapChannels=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.GREEN),
                 //maskChannel=new FILTER.ColorMatrixFilter().maskChannel(FILTER.CHANNEL.GREEN),
-                invert=new FILTER.TableLookupFilter().invert(),
+                //invert=new FILTER.TableLookupFilter().invert(),
+                /*erode=new FILTER.MorphologicalFilter().erode([
+                    0, 0, 0, 1,
+                    0, 0, 1, 0,
+                    0, 1, 0, 0,
+                    1, 0, 0, 0
+                ]),*/
                 equalize=new FILTER.HistogramEqualizeFilter(),
                 //rgbequalize=new FILTER.RGBHistogramEqualizeFilter(),
                 //noise=new FILTER.NoiseFilter(-127, 127),
@@ -140,7 +146,7 @@
                 //threshold=new FILTER.ColorMatrixFilter().threshold_rgb(128),
                 grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
                 //median=new FILTER.StatisticalFilter().median(5),
-                //dilate=new FILTER.StatisticalFilter().dilate(15),
+                //maximum=new FILTER.StatisticalFilter().maximum(15),
                 pixelate=new FILTER.PixelateFilter(10),
                 //hueExtractor=new FILTER.HueExtractorFilter([10, 36]), // extract hues corresponding to skin color
                 //thresh=new FILTER.TableLookupFilter().threshold(0.94),
@@ -161,20 +167,6 @@
                 bokeh=new FILTER.BokehFilter(80, 90, 60, 10)
                 ;
             
-            /*
-            var tt={
-                'sin0': Math.sin(0),
-                'cos0': Math.cos(0),
-                'sin225': Math.sin(Math.PI/8),
-                'cos225': Math.cos(Math.PI/8),
-                'sin45': Math.sin(Math.PI/4),
-                'cos45': Math.cos(Math.PI/4),
-                'sin90': Math.sin(Math.PI/2),
-                'cos90': Math.cos(Math.PI/2)
-            };
-            console.log(tt);
-            console.log(glow._matrix);
-            */
             addAll(container, [
                 span('1.'),
                 im1.domElement,
@@ -216,8 +208,6 @@
             
             function dotest(event)
             {
-                //FILTER.test(4,4);
-                
                 // apply them
                 redChannel.apply(im2);
                 greenChannel.apply(im3);
@@ -229,17 +219,13 @@
                 //gauss.apply(im9);
                 pixelate.apply(im9);
                 //skinExtractor.apply(im10);
-                //console.time('median 1');
                 emboss.apply(im10);
-                //console.timeEnd('median 1');
                 twirl.apply(im11);
                 displace.scaleX=100;
                 displace.scaleY=100;
                 displace.apply(im12);
                 grsb.apply(im13);
-                //console.time('median 2');
                 //glow.apply(im13);
-                //console.timeEnd('median 2');
                 equalize.apply(im14);
 
                 append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Pixelate (Plugin)</li><li>Emboss</li><li>Geometric Twirl Map</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
@@ -250,6 +236,6 @@
             addEvent(test, 'click', dotest);
             
         //]]>
-		</script>
+        </script>
     </body>
 </html>

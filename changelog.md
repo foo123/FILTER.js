@@ -1,5 +1,8 @@
 ###ChangeLog
 
+__0.6.5__
+* some tidy up of the repo and files
+
 __0.6.4__
 * fix affineMap filter of the GeometricMap class (was defined in wrong way)
 * add YCbCrConverter plugin filter

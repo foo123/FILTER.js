@@ -354,7 +354,7 @@
     
     function cartesianMap(im, w, h)
     {
-        // toto
+        // todo
         return im;
         
         /*

@@ -32,7 +32,7 @@
         w2=w/2, h2=h/2,
         
         scene, camera, renderer, cube,
-        sides={bottom:3,top:2,	right:0,left:1,	front:4,back:5},
+        sides={bottom:3,top:2,  right:0,left:1, front:4,back:5},
         side=400, N=2, dsp=0,
         colors={inside:0x2c2c2c,top:0x2e1c3b,bottom:0x2e1c3b,left:0x2e1c3b,right:0x2e1c3b,front:0x2e1c3b,back:0x2e1c3b}, // mutually complementary colors
         cubelets = [], xx,yy,zz, Nz=N,Nx=N,Ny=N,
@@ -92,13 +92,13 @@
 
             mat=new THREE.MeshBasicMaterial( { color: colors.inside } );
             mat.name='inside';
-            starmat=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture(document.getElementById('RedStar').src) } );	
+            starmat=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture(document.getElementById('RedStar').src) } );    
             for (zz=0;zz<Nz;zz++)
             {
                 for (xx=0;xx<Nx;xx++)
                 {
                     for (yy=0;yy<Ny;yy++)
-                    {						
+                    {                       
                         materials=[];
                         for (var mii=0;mii<6;mii++)
                         {

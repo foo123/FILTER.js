@@ -13,7 +13,7 @@
     
     var IMG = FILTER.ImArray,
         // Convolution Matrix
-        CM=FILTER.Array32F,
+        CM=FILTER.Array32F, A32F=FILTER.Array32F, A16I=FILTER.Array16I, A8U=FILTER.Array8U,
         notSupportTyped=FILTER._notSupportTypedArrays,
         
         // hardcode Pascal numbers, used for binomial kernels
@@ -244,166 +244,6 @@
         return o;
     }
     
-    /*
-    // compute integral image in NxN steps
-    function SAT(src, w, h)
-    {
-        var imLen=src.length, imArea, integral, integralLen, colR, colG, colB, colA,
-            rowLen, i, j, x /*, y, ty* /;
-            
-        rowLen=(w<<2); integral=new FILTER.Array32F(imLen);
-        
-        // compute integral of image in one pass
-        // first row
-        i=0; x=0; colR=colG=colB=colA=0;
-        while (x<w)
-        {
-            colR+=src[i]; colG+=src[i+1]; colB+=src[i+2]; colA+=src[i+3];
-            integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
-            i+=4; x++;
-        }
-        // other rows
-        i=rowLen; x=0; colR=colG=colB=colA=0;
-        while (i<imLen)
-        {
-            colR+=src[i]; colG+=src[i+1]; colB+=src[i+2]; colA+=src[i+3];
-            integral[i]=integral[i-rowLen]+colR; 
-            integral[i+1]=integral[i-rowLen+1]+colG; 
-            integral[i+2]=integral[i-rowLen+2]+colB;
-            integral[i+3]=integral[i-rowLen+3]+colA;
-            i+=4; x++; if (x>=w) { x=0; colR=colG=colB=colA=0; }
-        }
-        
-        return integral;
-    }
-    
-    // compute a SAT (integral image) using succesive subdivision dynamic programming in Nlog(N) steps
-    // http://www.shaderwrangler.com/publications/sat/SAT_EG2005.pdf
-    function dynamicSAT(src, w, h)
-    {
-        var imLen=src.length, imArea=w*h, integral,
-            x, y, ty, x1, y1, ty1, x2, y2, ty2, ix, iy,
-            doubleStepX, doubleStepY, doubleStepX2, doubleStepY2, 
-            p00, p01, p10, p11,
-            prev00, prev01, prev10,
-            logW, logH, logx, logy
-            ;
-            
-        // compute integral of image in one pass by succesive subdivision (logarithmic)
-        /*
-        integral(0-w, 0-h/2)=integral(0-w/2, 0-h/2) + integral(w/2-w, 0-h/2);
-        integral(0-w, h/2-h)=integral(0-w/2, h/2-h) + integral(w/2-w, h/2-h);
-        integral(0-w, 0-h)=integral(0-w, 0-h/2) + integral(0-w, h/2-h);
-        * /
-        
-        integral=new FILTER.Array32F(src);
-        logW=~~(Math.log(w)/Math.LN2 + 1); logH=~~(Math.log(h)/Math.LN2 + 1);
-        
-        doubleStepX=1; doubleStepY=w;
-        doubleStepX2=2; doubleStepY2=w<<1;
-        x=0; y=0; ty=0; 
-        logx=0; logy=0;
-        while (logy<logH)
-        {
-            for (iy=0; iy<doubleStepY; iy+=w)
-            {
-                for (ix=0; ix<doubleStepX; ix++)
-                {
-                    x1=x+ix;  ty1=ty+iy;
-                    x2=x1+doubleStepX2-1;  ty2=ty1+doubleStepY2-w;
-                    
-                    if (x2>=w) x2=w-1;
-                    if (ty2>imArea-w) ty2=imArea-w;
-                    
-                    if (x1>=x2 || ty1>=ty2) continue;
-                    
-                    p00=(x1 + ty1)<<2; p01=(x1 + ty2)<<2;
-                    p10=(x2 + ty1)<<2; p11=(x2 + ty2)<<2;
-                
-                    /*if (x1>0)
-                    {
-                        prev00 = new FILTER.Array32F([integral[p00-4], integral[p00-3], integral[p00-2], integral[p00-1]]);
-                        prev10 = new FILTER.Array32F([integral[p10-4], integral[p10-3], integral[p10-2], integral[p10-1]]);
-                    }
-                    else* /
-                    {
-                        prev00 = new FILTER.Array32F([0, 0, 0, 0]);
-                        prev10 = new FILTER.Array32F([0, 0, 0, 0]);
-                    }
-                    
-                    /*if (ty1>0)
-                    {
-                        var pp00=p00-(w<<2), pp01=p01-(w<<2);
-                        prev00 = new FILTER.Array32F([prev00[0]+integral[pp00], prev00[1]+integral[pp00+1], prev00[2]+integral[pp00+2], prev00[3]+integral[pp00+3]]);
-                        prev01 = new FILTER.Array32F([integral[pp01], integral[pp01+1], integral[pp01+2], integral[pp01+3]]);
-                    }
-                    else* /
-                    {
-                        prev01 = new FILTER.Array32F([0, 0, 0, 0]);
-                    }
-                    
-                    // R
-                    integral[p00]+=prev00[0];                                     // first element
-                    integral[p01]+=prev01[0]+integral[p00];                       // first row
-                    integral[p10]+=prev10[0]+integral[p00];                       // first column
-                    integral[p11]+=integral[p10]+integral[p01]-integral[p00];   // second column
-                    
-                    // G
-                    integral[p00+1]+=prev00[1];                                     // first element
-                    integral[p01+1]+=prev01[1]+integral[p00+1];                     // first row
-                    integral[p10+1]+=prev10[1]+integral[p00+1];                       // first column
-                    integral[p11+1]+=integral[p10+1]+integral[p01+1]-integral[p00+1];   // second column
-                    
-                    // B
-                    integral[p00+2]+=prev00[2];                                     // first element
-                    integral[p01+2]+=prev01[2]+integral[p00+2];                     // first row
-                    integral[p10+2]+=prev10[2]+integral[p00+2];                       // first column
-                    integral[p11+2]+=integral[p10+2]+integral[p01+2]-integral[p00+2];   // second column
-                    
-                    // A
-                    integral[p00+3]+=prev00[3];                                     // first element
-                    integral[p01+3]+=prev01[3]+integral[p00+3];                     // first row
-                    integral[p10+3]+=prev10[3]+integral[p00+3];                       // first column
-                    integral[p11+3]+=integral[p10+3]+integral[p01+3]-integral[p00+3];   // second column
-                }
-            }
-            x+=doubleStepX2;
-            if (x>=w) { x=0; y+=doubleStepX2; ty+=doubleStepY2; }
-            if (y>=h) { x=0; y=0; ty=0; doubleStepX=doubleStepX2; doubleStepY=doubleStepY2; doubleStepX2<<=1; doubleStepY2<<=1; logx++; logy++; }
-        }
-        
-        return integral;
-    }
-    
-    FILTER.test=function(w, h)
-    {
-        var im, i, rnd=Math.random;
-        
-        w=w||4; h=h||4;
-        im=new FILTER.ImArray(w*h*4);
-        i=0;
-        while (i<im.length)
-        {
-            im[i]=~~(255*rnd());
-            im[i+1]=~~(255*rnd());
-            im[i+2]=~~(255*rnd());
-            im[i+3]=~~(255*rnd());
-            i+=4;
-        }
-        
-        console.time('SAT');
-        var SAT1=SAT(im, w, h);
-        console.timeEnd('SAT');
-        console.time('RESAT');
-        var DSAT1=dynamicSAT(im, w, h);
-        console.timeEnd('RESAT');
-        
-        console.log(im);
-        console.log(SAT1);
-        console.log(DSAT1);
-    }
-    */
-    
     // speed-up convolution for special kernels like moving-average
     function integralConvolution(src, w, h, matrix, matrix2, dimX, dimY, factor, bias, numRepeats) 
     {
@@ -442,7 +282,7 @@
             while (repeat<numRepeats)
             {
             
-                dst=new IMG(src); integral=new FILTER.Array32F(integralLen);
+                dst=new IMG(src); integral=new A32F(integralLen);
                 
                 // compute integral of image in one pass
                 // first row
@@ -530,7 +370,7 @@
             while (repeat<numRepeats)
             {
             
-                dst=new IMG(src); integral=new FILTER.Array32F(integralLen);
+                dst=new IMG(src); integral=new A32F(integralLen);
                 
                 // compute integral of image in one pass
                 // first row
@@ -649,7 +489,7 @@
             coeff=coeffs[numPasses];
             
             // pre-compute indices, 
-            imageIndices=new FILTER.Array16I(matArea<<1); matIndices=new FILTER.Array8U(matArea);
+            imageIndices=new A16I(matArea<<1); matIndices=new A8U(matArea);
             // reduce redundant computations inside the main convolution loop (faster)
             j=0; k=0; x=0; ty=0; ty2=0; hsw=matHalfSideY*w;
             while (k<matArea)
@@ -719,7 +559,7 @@
         var 
             matRadiusX=matRadiusY=3, matHalfSideX=matHalfSideY=1, 
             matArea=9, matArea2=18, hsw=w, wt, wt2,
-            imageIndices=new FILTER.Array16I(18), matIndices=new FILTER.Array8U(9),
+            imageIndices=new A16I(18), matIndices=new A8U(9),
             imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
             i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
             bx=w-1, by=imArea-w,
@@ -939,7 +779,7 @@
         var 
             matRadiusX=matRadiusY=5, matHalfSideX=matHalfSideY=2, 
             matArea=25, matArea2=50, hsw=w, wt, wt2,
-            imageIndices=new FILTER.Array16I(50), matIndices=new FILTER.Array8U(25),
+            imageIndices=new A16I(50), matIndices=new A8U(25),
             imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
             i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
             bx=w-1, by=imArea-w,
@@ -1697,7 +1537,7 @@
                 matRadiusX=this._dim, matRadiusY=this._dim, matHalfSideX=matRadiusX>>1, matHalfSideY=matRadiusY>>1, 
                 matArea=matRadiusX*matRadiusY, matArea2=matArea<<1, hsw=matHalfSideY*w,
                 mat=this._matrix, mat2=this._matrix2, wt, wt2,
-                _isGrad=this._isGrad, imageIndices=new FILTER.Array16I(matArea<<1), matIndices=new FILTER.Array8U(matArea),
+                _isGrad=this._isGrad, imageIndices=new A16I(matArea<<1), matIndices=new A8U(matArea),
                 imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
                 i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
                 bx=w-1, by=imArea-w,

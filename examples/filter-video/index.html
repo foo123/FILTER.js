@@ -76,9 +76,9 @@
         </script>
         <title>Video Processing with FILTER.js</title>
     </head>
-	<body>
+    <body>
         <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
-		
+        
         <h1>Video Processing with Filter.js</h1><br /><br />
         
         <div id="statsContainer"></div>
@@ -92,7 +92,7 @@
             </video>
         </div>
         
-		<div id="filters" class="panel">
+        <div id="filters" class="panel">
             <strong>Post-Processed Video</strong><br /><br />
         </div>
         
@@ -125,8 +125,9 @@
                 <option value='#'>Gray, Gauss, Laplace 3x3, Threshold</option>
                 <option value='#'>Gray, Gauss, Laplace 5x5, Threshold</option>
                 <option value='#'>Emboss</option>
-                <option value='#'>Erode 3x3</option>
-                <option value='#'>Dilate 3x3</option>
+                <option value='#'>Minimum 3x3</option>
+                <option value='#'>Maximum 3x3</option>
+                <option value='#'>Morphological Dilate</option>
                 <option value='#'>Pixelate 5%</option>
                 <option value='#'>Pixelate 10%</option>
                 <option value='#'>HSV Color Space</option>
@@ -148,7 +149,7 @@
             </select>
         </div>
         
-		<script>
+        <script>
         //<![CDATA[
         (function(window){
         
@@ -199,8 +200,14 @@
                 clr=new FILTER.ColorMatrixFilter().colorize(0xfdc171),
                 equ=new FILTER.HistogramEqualizeFilter(),
                 // median is slow ..
-                erode=new FILTER.StatisticalFilter().erode(3),
-                dilate=new FILTER.StatisticalFilter().dilate(3),
+                minimum=new FILTER.StatisticalFilter().erode(3),
+                maximum=new FILTER.StatisticalFilter().dilate(3),
+                mdilate=new FILTER.MorphologicalFilter().dilate([
+                    0, 0, 0, 1,
+                    0, 0, 1, 0,
+                    0, 1, 0, 0,
+                    1, 0, 0, 0
+                ]),
                 noise=new FILTER.NoiseFilter(10, 70),
                 displaceFilter=new FILTER.DisplacementMapFilter(),
                 twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
@@ -238,8 +245,9 @@
                     grglb3,
                     grglb5,
                     emboss,
-                    erode,
-                    dilate,
+                    minimum,
+                    maximum,
+                    mdilate,
                     pixelate5,
                     pixelate10,
                     hsv,
@@ -361,6 +369,6 @@
             
         })(window);
         //]]>
-		</script>
+        </script>
     </body>
 </html>

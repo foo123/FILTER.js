@@ -68,7 +68,7 @@
     
     <body>
         <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
-		
+        
         <h1>Sound Visualization with Filter.js</h1>
         
         <strong>A JS version of  <a href="http://lf8.org/simple2.swf" target="_blank">Trioptic visualization</a> 
@@ -130,7 +130,8 @@
                         
                         // precompute some values
                         var i, l=1440, sintable=new FILTER.Array32F(l), squares=new FILTER.Array32U(l),
-                            Sin=Math.sin, toRad=FILTER.CONSTANTS.toRad
+                            Sin=Math.sin, toRad=FILTER.CONSTANTS.toRad,
+                            toCol=FILTER.Color.Color2RGBA
                             ;
                             
                         i=0;
@@ -150,7 +151,6 @@
                             // for this filter, no need to clone the image data, operate in-place
                             var l=im.length,
                                 s=this.spectrum, res=2,
-                                toCol=FILTER.Color.Color2RGBA, 
                                 off, rgba, i, j, ii, x, y, iw, jw, wr=w*0.5  // w/res
                                 ;
                             
@@ -240,7 +240,6 @@
                  // prepare visualization image
                 visualization=new FILTER.Image().fill('rgb(0,0,0)', 0, 0, _width, _height);
                 add(container, visualization.domElement);
-                
                 // prepare filters
                 //addOn=new FILTER.TableLookupFilter().threshold(0.4);
                 trioptic=new FILTER.TriopticSimpleFilter();
@@ -272,12 +271,12 @@
                 /*if (spec>0.62) triopticVisualizer.push(addOn);
                 else  triopticVisualizer.remove(addOn);*/
                 
-				stats.begin();
+                stats.begin();
                 
                 // apply the visualization
                 triopticVisualizer.apply(visualization);
                 
-				stats.end();
+                stats.end();
                 
                 // update any param needed
                 z += 0.02;

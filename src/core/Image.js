@@ -73,8 +73,8 @@
         phoenix: function(a, b) { return Math.min(a, b) - Math.max(a, b) + 255; }
     };
     // aliases
-    blendModes.linearDodge= blendModes.add;
-    blendModes.linearBurn= blendModes.substract;
+    blendModes.linearDodge = blendModes.add;
+    blendModes.linearBurn = blendModes.substract;
     
     
     //

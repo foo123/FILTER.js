@@ -125,15 +125,6 @@
             return this.concat(t);
         },
         
-        // aliases
-        levels : function(numLevels) {
-            return this.quantize(numLevels);
-        },
-        
-        posterize : function(numLevels) {
-            return this.quantize(numLevels);
-        },
-        
         binarize : function() {
             return this.quantize(2);
         },
@@ -323,5 +314,7 @@
             this._tableR=null; this._tableG=null; this._tableB=null; this._tableA=null; return this;
         }
     };
+    // aliases
+    TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;
     
 })(FILTER);

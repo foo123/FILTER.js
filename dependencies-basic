@@ -24,6 +24,10 @@
 ./src/filters/MorphologicalFilter.js
 ./src/filters/StatisticalFilter.js
 
+# svg and css based generic Filters
+#./src/filters/SVGFilter.js
+#./src/filters/CSSFilter.js
+
 # webgl generic Filters
 #./src/filters/webgl/ColorMatrixFilter.js
 #./src/filters/webgl/DisplacementMapFilter.js

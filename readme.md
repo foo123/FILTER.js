@@ -481,6 +481,8 @@ __Included Plugins__
 
 ###Todo
 * add WebGL support for various pre-built and custom Filters [IN PROGRESS]
+* add SVG Filters interface support for various pre-built and custom Filters
+* add CSS Filters interface support for various pre-built and custom Filters
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 * add caching of filter parameters where applicable [DONE partially]

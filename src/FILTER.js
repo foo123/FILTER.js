@@ -8,4 +8,4 @@
 * @author Nikos M. http://nikos-web-development-netai.net
 *
 **/
-var FILTER=FILTER || {};
+var FILTER=FILTER || { VERSION: "0.7" };

@@ -10,7 +10,7 @@
 **/
 (function(FILTER){
     
-    var IMG = FILTER.ImArray,
+    var IMG = FILTER.ImArray, A16I=FILTER.Array16I,
         Min=Math.min, Max=Math.max
     ;
     
@@ -53,7 +53,7 @@
             if (!this._map) return im;
             
             var map=this._map.getData(), mapW = this._map.width, mapH = this._map.height, mapArea=mapW*mapH,
-                displace=new FILTER.Array16I(mapArea<<1), ww=Min(mapW, w), hh=Min(mapH, h),
+                displace=new A16I(mapArea<<1), ww=Min(mapW, w), hh=Min(mapH, h),
                 sx=this.scaleX*0.00390625, sy=this.scaleY*0.00390625, comx=this.componentX, comy=this.componentY, 
                 alpha=(this.color >> 24) & 255, red=(this.color >> 16) & 255, green=(this.color >> 8) & 255, blue=this.color & 255,
                 sty=~~(this.startY), stx=~~(this.startX), mode=this.mode, styw=sty*w, 
