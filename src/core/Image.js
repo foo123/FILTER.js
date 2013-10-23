@@ -380,6 +380,10 @@
             return this._histogram;
         },
         
+        toString : function() {
+            return "[" + "FILTER Image: " + this.name + "]";
+        },
+        
         // auxilliary methods
         /*_setData : function(a) {
             var data=this.imageData.data, l=a.length, i=0, t;

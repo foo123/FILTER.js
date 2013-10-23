@@ -18,6 +18,8 @@
         // NOTE: quantizedColors should contain 1 more element than thresholds
         quantizedColors : null,
         
+        name : "ThresholdFilter",
+        
         // constructor
         init : function(thresholds, quantizedColors) {
             this.thresholds=thresholds;
@@ -48,12 +50,12 @@
                 
                 // maybe use sth faster here ??
                 j=0; while (j<tl && color>thresholds[j]) j++;
-                if (j<cl) color=colors[j]; else color=255;
+                color= (j<cl) ? colors[j] : color=255;
                 
                 rgba=Color2RGBA(color);
                 t0=rgba.r; t1=rgba.g; t2=rgba.b; t3=rgba.a;
                 
-                if (notSupportClamp)
+                /*if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -64,8 +66,8 @@
                     else if (t2>255) t2=255;
                     if (t3<0) t3=0;
                     else if (t3>255) t3=255;
-                }
-                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; im[i+3]=~~t3;
+                }*/
+                im[i]=t0; im[i+1]=t1; im[i+2]=t2; im[i+3]=t3;
                 i+=4;
             }
             

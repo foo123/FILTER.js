@@ -298,13 +298,25 @@
                 tG=this._tableG || clone(tR); tB=this._tableB || clone(tG);
                 tG2=clone(tG); tB2=clone(tB);
                 // concat/compose the filter's tables, same as composing the filters
-                i=0; while (i<256) { tR[i]=_tR[tR2[i]]; tG[i]=_tG[tG2[i]]; tB[i]=_tB[tB2[i]]; i++; }
+                i=0; 
+                while (i<256) 
+                { 
+                    tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
+                    tG[i]=clamp( _tG[clamp( tG2[i] )] ); 
+                    tB[i]=clamp( _tB[clamp( tB2[i] )] ); 
+                    i++; 
+                }
                 this._tableR=tR; this._tableG=tG; this._tableB=tB;
             }
             else
             {
                 // concat/compose the filter's tables, same as composing the filters
-                i=0; while (i<256) { tR[i]=_tR[tR2[i]]; i++; }
+                i=0; 
+                while (i<256) 
+                { 
+                    tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
+                    i++; 
+                }
                 this._tableR=tR; this._tableG=this._tableR; this._tableB=this._tableR;
             }
             

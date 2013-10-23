@@ -16,6 +16,8 @@
         centerX : 0,
         centerY : 0,
         
+        name : "AlphaMaskFilter",
+        
         // constructor
         init : function(alphaMask, centerX, centerY) {
             this.alphaMask=alphaMask||null;

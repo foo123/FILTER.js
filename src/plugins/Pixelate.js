@@ -10,10 +10,12 @@
         notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     
-    // a sample pixelate filter
+    // a sample fast pixelate filter
     FILTER.PixelateFilter=FILTER.Create({
         // parameters
         scale: 1,
+        
+        name : "PixelateFilter",
         
         // this is the filter constructor
         init: function(scale) {

@@ -211,6 +211,10 @@
             return this;
         },
         
+        toString : function() {
+            return "[" + "FILTER: " + this.name + "]";
+        },
+        
         // for internal use, each filter overrides this
         _apply : function(im, w, h, image) { /* do nothing here, override */ 
             return im;
@@ -304,6 +308,17 @@
             return this;
         },
         
+        toString : function() {
+            var out="", s=this._stack;
+            
+            out += "[" + "FILTER: " + this.name + "]" + "\n";
+            out += "[\n";
+            out += "    " + s.join("\n    ") + "\n";
+            out += "]\n";
+            
+            return out;
+        },
+        
         // used for internal purposes
         _apply : function(im, w, h, image) {
             
@@ -332,6 +347,10 @@
     CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
     CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
     
+    var toStringPlugin = function() {
+        return "[" + "FILTER Plugin: " + this.name + "]";
+    };
+        
     //
     //
     // allow plugin creation
@@ -341,6 +360,7 @@
         methods = Merge({
                         init : function() {},
                         name : "PluginFilter",
+                        toString : toStringPlugin,
                         apply : function(im, w, h, image){ return im; }
                     }, 
                     methods);

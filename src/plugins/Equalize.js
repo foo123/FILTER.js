@@ -13,6 +13,8 @@
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter=FILTER.Create({
         
+        name : "HistogramEqualizeFilter",
+        
         // this is the filter actual apply method routine
         apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
@@ -58,7 +60,7 @@
                 ycbcr=ycbcrA[y];
                 ycbcr.y=cdfI[ycbcr.y]*rangeI+minI;
                 rgba=YCbCr2RGB(ycbcr);
-                t0=rgba.r; t1=rgba.g; t2=rgba.b; 
+                t0=~~rgba.r; t1=~~rgba.g; t2=~~rgba.b; 
                 if (notSupportClamp)
                 {   
                     // clamp them manually

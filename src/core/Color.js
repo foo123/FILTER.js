@@ -12,6 +12,8 @@
     // http://en.wikipedia.org/wiki/Color_space
     FILTER.Color={
         
+        name : "ColorTransforms",
+        
         clamp : function(v, m, M) { return Min(M, Max(v, m)); },
         
         clampPixel : function(v) { return Min(255, Max(v, 0)); },
@@ -169,6 +171,10 @@
             }
             
             return {r:r, g:g, b:b};
+        },
+        
+        toString : function() {
+            return "[" + "FILTER: " + this.name + "]";
         }
     };
     

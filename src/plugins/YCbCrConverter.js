@@ -11,6 +11,8 @@
     // a plugin to convert an RGB Image to an YCbCr Image
     FILTER.YCbCrConverterFilter=FILTER.Create({
         
+        name : "YCbCrConverterFilter",
+        
         // this is the filter actual apply method routine
         apply: function(im, w, h) {
             // im is a copy of the image data as an image array

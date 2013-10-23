@@ -15,6 +15,8 @@
         min: -127,
         max: 127,
         
+        name : "NoiseFilter",
+        
         // this is the filter constructor
         init: function(min, max) {
             this.min=min||-127;

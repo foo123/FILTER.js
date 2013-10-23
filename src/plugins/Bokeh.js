@@ -17,6 +17,8 @@
         radius: 10,
         amount: 10,
         
+        name : "BokehFilter",
+        
         // this is the filter constructor
         init: function(centerX, centerY, radius, amount) {
             this.centerX=centerX||0;

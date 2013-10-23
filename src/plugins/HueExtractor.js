@@ -18,6 +18,8 @@
         range : null,
         background : 0,
         
+        name : "HueExtractorFilter",
+        
         // constructor
         init : function(range, background) {
             this.range=range;
