@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays, RGB2HSV=FILTER.Color.RGB2HSV,                 
+    var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
         toCol=0.70833333333333333333333333333333 // 255/360
         ;
     
@@ -31,7 +31,7 @@
                 hsv=RGB2HSV({r:r, g:g, b:b});
                 h=hsv.h*toCol; s=hsv.s*255; v=hsv.v;
                 t0=h; t1=v; t2=s;
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;

@@ -29,7 +29,7 @@ This is a library for filtering images/video in JavaScript using canvas element.
 
 
 ###How to Use
-The framework defines an [Image class](#image-class), which represents an Image, a Color-Utils Class and 8 generic Filter types
+The framework defines an [Image Proxy class](#image-class), which represents an Image, a Color-Utils Class and 8 generic Filter types
 
 1. [__ColorMatrixFilter__](#color-matrix-filter) (analogous to the actionscript version)
 2. [__TableLookupFilter__](#table-lookup-filter) 
@@ -71,6 +71,16 @@ and alter them. Image methods:
 * _integral()_  Computes (and caches) the image integral (not used at this time)
 * _histogram()_  Computes (and caches) the image histogram
 * *_refresh()*  Refreshes the internal image pointers
+
+
+
+######Generic Filter
+
+Each filter (and plugin) is an extension of the generic filter, which provides some common methods.
+
+* _turnOff()_  allow the filter to be turned OFF, without losing its settings (eg in a filter chain)
+* _turnOn()_  turn ON the filter
+* _isOn()_   check if filter is ON or OFF
 
 
 
@@ -147,6 +157,7 @@ The class has various pre-defined filters which can be combined in any order.
 * _gammaCorrection()_ Apply gamma correction to image channels
 * _exposure()_ Alter image exposure
 * _solarize()_  Apply a solarize effect
+* _solarize2()_  Apply alternative solarize effect
 * _posterize() / quantize()_  Quantize uniformly the image colors
 * _binarize()_  Quantize uniformly the image colors in 2 levels
 * _thresholds()_  Quantize non-uniformly the image colors according to given thresholds
@@ -321,8 +332,10 @@ This filter implements basic morphological processing like erode and dilate filt
 
 The class has some pre-defined filters to use.
 
-* _erode()_ Apply erode filter
-* _dilate()_ Apply dilate filter
+* _erode()_ Apply erode operation
+* _dilate()_ Apply dilate operation
+* _opening()_ Apply opening operation
+* _closing()_ Apply closing operation
 
 Morphological Filters cannot be combined very easily since they operate on multiple pixels at a time with non-linear processing. Use a composite filter (see below)
 
@@ -330,10 +343,10 @@ In order to use a dilate filter do the following:
 
 ````javascript
 var dilate=new FILTER.MorphologicalFilter().dilate([
-        1, 1, 1,
-        0, 0, 0,
-        1, 1, 1
-]);  // dilate with a 3x3 structure element
+        0, 0, 1,
+        0, 1, 0,
+        1, 1, 0
+]);  // dilate with a 3x3 diagonal structure element
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
@@ -358,8 +371,8 @@ This filter implements some statistical processing like median filters and erode
 The class has some pre-defined filters to use.
 
 * _median()_  Apply median (ie. lowpass/remove noise) filter
-* _minimum()/erode()_ Apply erode (minimum) filter
-* _maximum()/dilate()_ Apply dilate (maximum) filter
+* _minimum()/erode()_ Apply minimum (erode) filter
+* _maximum()/dilate()_ Apply maximum (dilate) filter
 
 Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
@@ -407,7 +420,7 @@ more easily (and slightly faster) to an image, than to apply them one-by-one man
 
 The class implements these methods:
 
-* _push() / concat()_  add a filter to the end of stack
+* _push()/concat()_  add a filter to the end of stack
 * _pop()_ remove a filter from the end of stack
 * _shift()_  remove a filter from the start of stack
 * _unshift()_ add a filter to the start of stack
@@ -417,7 +430,7 @@ The class implements these methods:
 * _getAt()_ get the filter at this location
 * _setAt()_ replace the filter at this location
 * _filters()_ set the filters stack at once
-* _reset()_ reset the filter to identity
+* _reset()/empty()_ reset the filter to identity
 
 
 In order to use a composite filter do the following:
@@ -432,7 +445,9 @@ To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
 combo.apply(image);   // image is a FILTER.Image instance, see examples
-combo.remove(emboss);  // remove the emboss filter
+combo.remove(emboss);  // remove the emboss filter from the chain
+// or also
+emboss.turnOff();    // turn off the emboss filter while on the chain without losing its settings
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied

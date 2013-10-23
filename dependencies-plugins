@@ -25,12 +25,17 @@
 
 @MINIFY
 # Minify the Package
-@CLOSURE
-# Options for Java Closure Compiler (if used), (default minify options)
---language_in=ECMASCRIPT5_STRICT
 @UGLIFY
-# Options for Node UglifyJS Compiler (if used), (default minify options, mangle and compress)
+# Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
 -m -c
+@CLOSURE
+# Options for Java Closure Compiler (if used)
+--language_in=ECMASCRIPT5_STRICT
+@YUI
+# Options for Java YUI Compressor Compiler (if used)
+--preserve-semi
+
+@ # dummy separator between blocks, it can be useful
 
 # TODO, allow some post-process to take place
 #@POSTPROCESS

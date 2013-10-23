@@ -6,8 +6,8 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays,
-        IMG=FILTER.ImArray, 
+    var notSupportClamp=FILTER._notSupportClamp,
+        IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
         RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
         ;
     
@@ -35,13 +35,17 @@
             if (!this.range || !this.range.length) return im;
             
             var 
-                r,g,b, dst, t0, t1, t2, t3,
+                r, g, b, br, bg, bb, ba,
+                //t0, t1, t2, t3,
                 i, l=im.length, background, hue,
                 hMin=this.range[0], hMax=this.range[this.range.length-1]
                 ;
             
-            dst=new IMG(l);
             background=Color2RGBA(this.background||0);
+            br=~~clamp(background.r); 
+            bg=~~clamp(background.g); 
+            bb=~~clamp(background.b); 
+            ba=~~clamp(background.a);
             
             i=0;
             while (i<l)
@@ -49,9 +53,10 @@
                 r=im[i]; g=im[i+1]; b=im[i+2];
                 hue=RGB2HSV({r:r, g:g, b:b}).h;
                 
-                if (hue>=hMin && hue<=hMax) {  t0 = im[i]; t1=im[i+1]; t2=im[i+2]; t3=im[i+3]; }
-                else { t0 = background.r; t1=background.g; t2=background.b; t3=background.a; }
-                if (notSupportTyped)
+                if (hue<hMin || hue>hMax) {  im[i]=br; im[i+1]=bg; im[i+2]=bb; im[i+3]=ba; }
+                /*if (hue>=hMin && hue<=hMax) {  t0 = im[i]; t1=im[i+1]; t2=im[i+2]; t3=im[i+3]; }
+                else { t0=br; t1=bg; t2=bb; t3=ba; }
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -63,12 +68,12 @@
                     if (t3<0) t3=0;
                     else if (t3>255) t3=255;
                 }
-                dst[i]=~~t0; dst[i+1]=~~t1; dst[i+2]=~~t2; dst[i+3]=~~t3;
+                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; im[i+3]=~~t3;*/
                 i+=4;
             }
             
             // return the new image data
-            return dst;
+            return im;
         }
     });
     

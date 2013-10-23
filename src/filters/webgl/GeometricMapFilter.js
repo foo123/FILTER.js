@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
 
     var twirlShaders= [
         {
@@ -325,33 +325,25 @@
         {name: "u_flipY", type: "uniform1f", location: null, value: 0.0}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null},
-    
-    WebGLFilter=FILTER.WebGLFilter.prototype
+    texture={name: "u_image", image: null, location: null, texture: null}
     ;
     
     
     //
     //
     // GeometricMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLGeometricMapFilter=FILTER.WebGLGeometricMapFilter=function(type) { 
-        this.id='WGLGM8'; //FILTER.getId();
-    };
-    WebGLGeometricMapFilter.prototype={
+    var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = FILTER.Extends( FILTER.WebGLFilter,
+    {
         
-        constructor: WebGLGeometricMapFilter,
+        name : "WebGLGeometricMapFilter",
         
-        id: 0,
+        constructor : function(type) { 
+            this.id='WGLGM8'; //FILTER.getId();
+        },
         
-        // inherit
-        triangles: WebGLFilter.triangles,
+        filterParams : null, 
         
-        filterParams: null, 
-        
-        // inherit
-        _getProgram: WebGLFilter._getProgram,
-        
-        _apply: function(webgl, w, h, inBuffer, outBuffer) {
+        _apply : function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
             switch(type)
             {
@@ -384,10 +376,7 @@
             webgl.setTextureFramebuffer(outBuffer);
             // render
             webgl.drawTriangles(this.triangles);
-        },
-        
-        // inherit
-        apply: WebGLFilter.apply
-    };
+        }
+    });
     
 })(FILTER);

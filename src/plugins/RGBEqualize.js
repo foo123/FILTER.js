@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F;
+    var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     // not the best implementation
@@ -59,7 +59,7 @@
             { 
                 r=im[i]; g=im[i+1]; b=im[i+2]; 
                 t0=cdfR[r]*rangeR+minR; t1=cdfG[g]*rangeG+minG; t2=cdfB[b]*rangeB+minB; 
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;

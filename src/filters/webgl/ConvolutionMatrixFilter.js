@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
 
     var MAX_KERNEL_SIZE=121,
     
@@ -129,31 +129,23 @@
         {name: "u_kernel2[0]", type: "uniform1f", location: null, value: null}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null},
-    
-    WebGLFilter=FILTER.WebGLFilter.prototype
+    texture={name: "u_image", image: null, location: null, texture: null}
     ;
         
     
     //
     //
     // ConvolutionMatrix WebGL Filter (IN PROGRESS!!)
-    var WebGLConvolutionMatrixFilter=FILTER.WebGLConvolutionMatrixFilter=function() { 
-        this.id='WGLCM2'; //FILTER.getId();
-    };
-    WebGLConvolutionMatrixFilter.prototype={
+    var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = FILTER.Extends( FILTER.WebGLFilter,
+    {
         
-        constructor: WebGLConvolutionMatrixFilter,
+        name : "WebGLConvolutionMatrixFilter",
         
-        id: 0,
+        constructor : function() { 
+            this.id='WGLCM2'; //FILTER.getId();
+        },
         
         filterParams: null, 
-        
-        // inherit
-        triangles: WebGLFilter.triangles,
-        
-        // inherit
-        _getProgram: WebGLFilter._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
@@ -168,13 +160,10 @@
             webgl.setTextureFramebuffer(outBuffer);
             // render
             webgl.drawTriangles(this.triangles);
-        },
-        
-        // inherit
-        apply: WebGLFilter.apply
-    };
+        }
+    });
     
     // export an instance
-    FILTER.WebGLConvolutionMatrixFilterInstance=new FILTER.WebGLConvolutionMatrixFilter();
+    FILTER.WebGLConvolutionMatrixFilterInstance=new WebGLConvolutionMatrixFilter();
     
 })(FILTER);

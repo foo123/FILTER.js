@@ -7,7 +7,7 @@
 (function(FILTER){
 
     var Sqrt=Math.sqrt,
-        notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F;
+        notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     
     // a sample pixelate filter
@@ -33,7 +33,7 @@
                 integral=new A32F(imArea*3), colR, colG, colB,
                 matRadiusX=step, matRadiusY=step, matHalfSideX=matRadiusX>>1, matHalfSideY=matRadiusY>>1, matArea=matRadiusX*matRadiusY,
                 rowLen=(w<<1) + w, imageIndicesX, imageIndicesY,
-                i, j, jend, x, ty, px, py, pi, pbx,
+                i, j, x, ty, px, py, pi, ys,
                 xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4,
                 r, g, b
                 ;
@@ -62,53 +62,91 @@
                 i+=4; j+=3; x++; if (x>=w) { x=0; colR=colG=colB=0; }
             }
             
+            // first block
+            // calculate the weighed sum of the source image pixels that
+            // fall under the pixelate convolution matrix
+            xOff1=0; yOff1=0;  xOff2=imageIndicesX; yOff2=imageIndicesY;
+            
+            // fix borders
+            if (xOff2>bx2) xOff2=bx2;
+            if (yOff2>by2) yOff2=by2;
+            
+            // compute integral positions
+            p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
+            p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+            
+            // compute matrix sum of these elements
+            // maybe using a gaussian average could be better (but more computational) ??
+            r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
+            g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
+            b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
+            if (notSupportClamp)
+            {   
+                // clamp them manually
+                if (r<0) r=0;
+                else if (r>255) r=255;
+                if (g<0) g=0;
+                else if (g>255) g=255;
+                if (b<0) b=0;
+                else if (b>255) b=255;
+            }
+            r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
+            
             // do direct pixelate convolution
             i=0; x=0; ty=0;
+            px=0; py=0; ys=0;
             while (i<imLen)
             {
-                // calculate the weighed sum of the source image pixels that
-                // fall under the pixelate convolution matrix
-                xOff1=x; yOff1=ty;  xOff2=x + imageIndicesX; yOff2=ty + imageIndicesY;
-                
-                // fix borders
-                if (xOff2>bx2) xOff2=bx2;
-                if (yOff2>by2) yOff2=by2;
-                
-                // compute integral positions
-                p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements
-                // maybe using a gaussian average could be better (but more computational) ??
-                r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-                
                 // output
-                if (notSupportTyped)
-                {   
-                    // clamp them manually
-                    if (r<0) r=0;
-                    else if (r>255) r=255;
-                    if (g<0) g=0;
-                    else if (g>255) g=255;
-                    if (b<0) b=0;
-                    else if (b>255) b=255;
-                }
-                r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
-                j=i; px=x; py=ty; pbx=x+step;
-                jend=i+size4; if (jend>imLen) jend=imLen;
-                while (j<jend) 
+                // replace the area equal to the given pixelate size
+                // with the average color, computed in previous step
+                pi=(px+x + py+ty)<<2;
+                im[pi] = r;  im[pi+1] = g;  im[pi+2] = b; 
+                
+                // next pixel
+                px++; 
+                if (px+x>=w || px>=step) 
                 { 
-                    // replace the an area equal to the given pixelate size
-                    // with the average color, computed in previous step
-                    pi=(px + py)<<2;
-                    im[pi] = r;  im[pi+1] = g;  im[pi+2] = b; 
-                    j+=4; px++; if (px>=w || px>=pbx) { px=x; py+=w; }
+                    px=0; ys++; py+=w; 
                 }
                 
-                // update image coordinates
-                i+=step4; x+=step; if (x>=w) { x=0; ty+=stepw; }
+                // next block
+                if (py+ty>=imArea || ys>=step)
+                {
+                    // update image coordinates
+                    x+=step; if (x>=w) { x=0; ty+=stepw; }
+                    px=0; py=0; ys=0;
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the pixelate convolution matrix
+                    xOff1=x; yOff1=ty;  xOff2=x+imageIndicesX; yOff2=ty+imageIndicesY;
+                    
+                    // fix borders
+                    if (xOff2>bx2) xOff2=bx2;
+                    if (yOff2>by2) yOff2=by2;
+                    
+                    // compute integral positions
+                    p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                    
+                    // compute matrix sum of these elements
+                    // maybe using a gaussian average could be better (but more computational) ??
+                    r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
+                    g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
+                    b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
+                    if (notSupportClamp)
+                    {   
+                        // clamp them manually
+                        if (r<0) r=0;
+                        else if (r>255) r=255;
+                        if (g<0) g=0;
+                        else if (g>255) g=255;
+                        if (b<0) b=0;
+                        else if (b>255) b=255;
+                    }
+                    r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
+                }
+                i+=4; 
             }
             
             // return the pixelated image data

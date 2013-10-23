@@ -163,8 +163,8 @@
                 //glow=new FILTER.ConvolutionMatrixFilter().glow(),
                 emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 grsb=new FILTER.CompositeFilter([gray, sobel/*, binary*/]),
-                displace=new FILTER.DisplacementMapFilter(displacemap),
-                bokeh=new FILTER.BokehFilter(80, 90, 60, 10)
+                displace=new FILTER.DisplacementMapFilter(displacemap)//,
+                //bokeh=new FILTER.BokehFilter(80, 90, 60, 10)
                 ;
             
             addAll(container, [
@@ -232,6 +232,25 @@
                 
                 
             }
+            
+            /*function dotest2()
+            {
+                var A=FILTER.ImArray, 
+                a, a2;
+                a=new A([1,2,3]);
+                a2=new A(a);//.set(a);
+                
+                a[1]=5;
+                console.log(a[1]);
+                console.log(a2[1]);            
+                
+                // in Opera, a2[1]=5 now, it is copy-by-reference
+                // if a2 is simple Uint8Array, a copy by-value is done, Opera bug??
+                console.log(FILTER.isOpera);
+                console.log(FILTER.ImArray.toString());
+                console.log(Uint8ClampedArray.toString());
+                console.log(FILTER._notSupportTypedArrays);
+            }*/
             
             addEvent(test, 'click', dotest);
             

@@ -8,21 +8,26 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
     
-    var IMG = FILTER.ImArray, A16I=FILTER.Array16I,
+    var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
+        A16I=FILTER.Array16I,
         Min=Math.min, Max=Math.max
     ;
     
+    //
+    //
     // DisplacementMapFilter
-    var DisplacementMapFilter=FILTER.DisplacementMapFilter=function(displacemap) {
-        if (displacemap) this.setMap(displacemap);
-    };
-
-    DisplacementMapFilter.prototype={
+    var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Extends( FILTER.Filter,
+    {
         
-        constructor: DisplacementMapFilter,
+        name : "DisplacementMapFilter",
         
+        constructor : function(displacemap) {
+            if (displacemap) this.setMap(displacemap);
+        },
+        
+        _map : null,
         // parameters
         scaleX : 1,
         scaleY : 1,
@@ -32,10 +37,14 @@
         componentY : 0,
         color : 0,
         mode : FILTER.MODE.CLAMP,
-        _map : null,
         
         combineWith : function(filt) {
             // todo ??
+            return this;
+        },
+        
+        reset : function() {
+            this._map=null; 
             return this;
         },
         
@@ -44,13 +53,14 @@
         },
         
         setMap : function(m) {
-            this._map=m; return this;
+            this._map=m; 
+            return this;
         },
         
         // used for internal purposes
         _apply : function(im, w, h/*, image*/) {
             
-            if (!this._map) return im;
+            if ( !this._isOn || !this._map ) return im;
             
             var map=this._map.getData(), mapW = this._map.width, mapH = this._map.height, mapArea=mapW*mapH,
                 displace=new A16I(mapArea<<1), ww=Min(mapW, w), hh=Min(mapH, h),
@@ -59,7 +69,7 @@
                 sty=~~(this.startY), stx=~~(this.startX), mode=this.mode, styw=sty*w, 
                 bx0=-stx, by0=-sty, bx=w-stx-1, by=h-sty-1,
                 i, j, k, x, y, ty, yy, xx, mapOff, dstOff, srcOff,
-                applyArea=(ww*hh)<<2, imArea=w*h, imLen=im.length, dst=new IMG(im),
+                applyArea=(ww*hh)<<2, imArea=w*h, imLen=im.length, imcopy=new IMGcopy(im),
                 _Ignore=FILTER.MODE.IGNORE, _Clamp=FILTER.MODE.CLAMP, _Color=FILTER.MODE.COLOR, _Wrap=FILTER.MODE.WRAP
                 ;
             
@@ -96,8 +106,8 @@
                             continue;  break;
                         
                         case _Color:
-                            dst[dstOff]=red;  dst[dstOff+1]=green;
-                            dst[dstOff+2]=blue;  dst[dstOff+3]=alpha;
+                            im[dstOff]=red;  im[dstOff+1]=green;
+                            im[dstOff+2]=blue;  im[dstOff+3]=alpha;
                             continue;  break;
                             
                         case _Wrap:
@@ -118,20 +128,17 @@
                 }
                 srcOff=(srcx + srcy*w)<<2;
                 // new pixel values
-                dst[dstOff]=im[srcOff];   dst[dstOff+1]=im[srcOff+1];
-                dst[dstOff+2]=im[srcOff+2];  dst[dstOff+3]=im[srcOff+3];
+                im[dstOff]=imcopy[srcOff];   im[dstOff+1]=imcopy[srcOff+1];
+                im[dstOff+2]=imcopy[srcOff+2];  im[dstOff+3]=imcopy[srcOff+3];
             }
-            return dst;
+            return im;
         },
         
         apply : function(image) {
-            if (!this._map) return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height, image));
-        },
-        
-        reset : function() {
-            this._map=null; return this;
+            if ( this._isOn && this._map )
+                return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            return image;
         }
-    };
+    });
     
 })(FILTER);

@@ -7,7 +7,7 @@
 (function(FILTER){
 
     var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, Abs=Math.abs, 
-        notSupportTyped=FILTER._notSupportTypedArrays, IMG=FILTER.ImArray, A32F=FILTER.Array32F;
+        notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a simple bokeh (depth-of-field) filter
     FILTER.BokehFilter=FILTER.Create({
@@ -26,12 +26,12 @@
         },
         
         // this is the filter actual apply method routine
-        apply: function(src, w, h/*, image*/) {
+        apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
-            var imLen=src.length, imArea, integral, integralLen, colR, colG, colB,
-                rowLen, i, j, x , y, ty, dst,
+            var imLen=im.length, imArea, integral, integralLen, colR, colG, colB,
+                rowLen, i, j, x , y, ty, 
                 cX=this.centerX, cY=this.centerY, 
                 r=this.radius, m=this.amount,
                 d, dx, dy, blur, blurw, wt,
@@ -40,9 +40,7 @@
                 bx1, bx2, by1, by2
                 ;
             
-            if (m<=0) return src;
-            
-            dst=new IMG(src);
+            if (m<=0) return im;
             
             imArea=w*h;
             bx1=0; bx2=w-1; by1=0; by2=imArea-w;
@@ -55,7 +53,7 @@
             i=0; j=0; x=0; colR=colG=colB=0;
             while (x<w)
             {
-                colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                 integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                 i+=4; j+=3; x++;
             }
@@ -63,7 +61,7 @@
             i=rowLen+w; j=rowLen; x=0; colR=colG=colB=0;
             while (i<imLen)
             {
-                colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                 integral[j]=integral[j-rowLen]+colR; 
                 integral[j+1]=integral[j-rowLen+1]+colG; 
                 integral[j+2]=integral[j-rowLen+2]+colB;
@@ -116,7 +114,7 @@
                     t2 = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
                     
                     // output
-                    if (notSupportTyped)
+                    if (notSupportClamp)
                     {   
                         // clamp them manually
                         if (t0<0) t0=0;
@@ -126,17 +124,18 @@
                         if (t2<0) t2=0;
                         else if (t2>255) t2=255;
                     }
-                    dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                    im[i] = ~~t0;  im[i+1] = ~~t1;  im[i+2] = ~~t2;
                     // alpha channel is not transformed
-                    //dst[i+3] = src[i+3];
+                    //im[i+3] = im[i+3];
                 }
+
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
             }
             
             // return the new image data
-            return dst;
+            return im;
         }
     });
     

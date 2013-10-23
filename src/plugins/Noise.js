@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays, rand=Math.random;
+    var notSupportClamp=FILTER._notSupportClamp, rand=Math.random;
     
     // a sample noise filter
     // used for illustration purposes on how to create a plugin filter
@@ -38,7 +38,7 @@
                 r=im[i]; g=im[i+1]; b=im[i+2];
                 n=range*rand()+m;
                 t0=r+n; t1=g+n; t2=b+n; 
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;

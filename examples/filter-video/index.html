@@ -130,13 +130,17 @@
                 <option value='#'>Morphological Dilate</option>
                 <option value='#'>Pixelate 5%</option>
                 <option value='#'>Pixelate 10%</option>
+                <option value='#'>Pixelate 15%</option>
                 <option value='#'>HSV Color Space</option>
+                <option value='#'>Hue only as grayscale Image</option>
+                <option value='#'>Extract range of Hues, Open Morphological</option>
                 <option value='#'>YCbCr Color Space</option>
                 <option value='#'>Equalize Histogram</option>
                 <option value='#'>Alpha Mask</option>
                 <option value='#'>Noise</option>
                 <option value='#'>DisplaceMap</option>
                 <option value='#'>TwirlMap</option>
+                <option value='#'>SphereMap</option>
                 <option value='#'>Bokeh (Depth-of-Field)</option>
             </select>
             &nbsp;
@@ -169,7 +173,8 @@
                 flipX=new FILTER.GeometricMapFilter().flipX(),
                 flipY=new FILTER.GeometricMapFilter().flipY(),
                 binary=new FILTER.TableLookupFilter().threshold(0.7),
-                solarize=new FILTER.TableLookupFilter().solarize(0.92),
+                solarize=new FILTER.TableLookupFilter().solarize(0.6),
+                //solarize2=new FILTER.TableLookupFilter().solarize2(0.4),
                 posterize=new FILTER.TableLookupFilter().posterize(8),
                 invert=new FILTER.TableLookupFilter().invert(),
                 //invert=new FILTER.ColorMatrixFilter().invert(),
@@ -195,28 +200,37 @@
                 grglb5=new FILTER.CompositeFilter([gray, blur3, laplace5, binary]),
                 emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
                 redC=new FILTER.ColorMatrixFilter().redChannel(),
+                redCGray=new FILTER.ColorMatrixFilter().redChannel(true),
                 greenC=new FILTER.ColorMatrixFilter().greenChannel(),
                 blueC=new FILTER.ColorMatrixFilter().blueChannel(),
                 clr=new FILTER.ColorMatrixFilter().colorize(0xfdc171),
                 equ=new FILTER.HistogramEqualizeFilter(),
                 // median is slow ..
-                minimum=new FILTER.StatisticalFilter().erode(3),
-                maximum=new FILTER.StatisticalFilter().dilate(3),
+                minimum=new FILTER.StatisticalFilter().minimum(3),
+                maximum=new FILTER.StatisticalFilter().maximum(3),
                 mdilate=new FILTER.MorphologicalFilter().dilate([
-                    0, 0, 0, 1,
-                    0, 0, 1, 0,
-                    0, 1, 0, 0,
-                    1, 0, 0, 0
+                    0, 0, 0, 0, 1,
+                    0, 0, 0, 1, 0,
+                    0, 0, 1, 0, 0,
+                    0, 1, 0, 0, 0,
+                    1, 0, 0, 0, 0
                 ]),
+                open=new FILTER.MorphologicalFilter().opening(3),
                 noise=new FILTER.NoiseFilter(10, 70),
                 displaceFilter=new FILTER.DisplacementMapFilter(),
                 twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
+                sphereFilter=new FILTER.GeometricMapFilter().sphere(200, 120, 100),
                 pixelate5=new FILTER.PixelateFilter(5),
                 pixelate10=new FILTER.PixelateFilter(10),
+                pixelate15=new FILTER.PixelateFilter(15),
                 alphaMasker=new FILTER.AlphaMaskFilter(),
                 swapChannel=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.ALPHA),
                 hsv=new FILTER.HSVConverterFilter(),
-                ycbcr=new FILTER.YCbCrConverterFilter(),
+                hueOnly=new FILTER.CompositeFilter([hsv, redCGray]),
+                hueE=new FILTER.HueExtractorFilter([10, 150]),
+                hueExtractor=new FILTER.CompositeFilter([hueE, open]),
+                ycbcr=new FILTER.ColorMatrixFilter().RGB2YCbCr(),
+                //ycbcr=new FILTER.YCbCrConverterFilter(),
                 bokeh=new FILTER.BokehFilter(240, 140, 100, 10),
                 
                 // filter selection list
@@ -250,16 +264,21 @@
                     mdilate,
                     pixelate5,
                     pixelate10,
+                    pixelate15,
                     hsv,
+                    hueOnly,
+                    hueExtractor,
                     ycbcr,
                     equ,
                     alphaMasker,
                     noise,
                     displaceFilter,
                     twirlFilter,
+                    sphereFilter,
                     bokeh
                 ],
-                currentOrientation=0, displaceFilterIndex=33, twirlFilterIndex=34, currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
+                currentOrientation=0, 
+                currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
                 renderInterval=60,  rnd=Math.random, Max=Math.max, dx, dy, dtheta, vw, vh
                 ;
             
@@ -336,7 +355,7 @@
                 else if (3==currentOrientation)   flipX.apply(postVideo);
                 else if (4==currentOrientation)  flipY.apply(postVideo);
                 
-                if (displaceFilterIndex==currentFilterIndex)
+                if (displaceFilter===currentFilter)
                 {
                     // animate the displace filter
                     vw=postVideo.width>>1; vh=postVideo.height>>1;
@@ -344,7 +363,7 @@
                     if (displaceFilter.startX<-vw || displaceFilter.startX>vw) dx=-dx;
                     if (displaceFilter.startY<-vh || displaceFilter.startY>vh) dy=-dy;
                 }
-                else if (twirlFilterIndex==currentFilterIndex)
+                else if (twirlFilter===currentFilter)
                 {
                     // animate the twirl filter
                     vw=postVideo.width; vh=postVideo.height;
@@ -353,6 +372,14 @@
                     twirlFilter.centerX+=dx; twirlFilter.centerY+=dy;
                     if (twirlFilter.centerX<0 || twirlFilter.centerX>vw) dx=-dx;
                     if (twirlFilter.centerY<0 || twirlFilter.centerY>vh) dy=-dy;
+                }
+                else if (sphereFilter===currentFilter)
+                {
+                    // animate the sphere filter
+                    vw=postVideo.width; vh=postVideo.height;
+                    sphereFilter.centerX+=dx; sphereFilter.centerY+=dy;
+                    if (sphereFilter.centerX<0 || sphereFilter.centerX>vw) dx=-dx;
+                    if (sphereFilter.centerY<0 || sphereFilter.centerY>vh) dy=-dy;
                 }
                 
                 if (currentFilter) currentFilter.apply(postVideo);

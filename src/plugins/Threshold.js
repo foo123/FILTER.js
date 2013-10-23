@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays,
+    var notSupportClamp=FILTER._notSupportClamp,
         RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
         ;
     
@@ -53,7 +53,7 @@
                 rgba=Color2RGBA(color);
                 t0=rgba.r; t1=rgba.g; t2=rgba.b; t3=rgba.a;
                 
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;

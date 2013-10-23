@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
 
     var dmShaders= [
         {
@@ -118,32 +118,24 @@
         {name: "u_map", image: null, location: null, texture: null, isTexture: true}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null},
-    
-    WebGLFilter=FILTER.WebGLFilter.prototype;
+    texture={name: "u_image", image: null, location: null, texture: null}
     ;
     
     //
     //
     // DisplacementMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLDisplacementMapFilterFILTER.WebGLDisplacementMapFilter=function() { 
-        this.id='WGLDM4'; //FILTER.getId();
-    };
-    WebGLDisplacementMapFilter.prototype={
+    var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = FILTER.Extends( FILTER.WebGLFilter,
+    {
         
-        constructor: WebGLDisplacementMapFilter,
+        name : "WebGLDisplacementMapFilter",
         
-        id: 0,
+        constructor : function() { 
+            this.id='WGLDM4'; //FILTER.getId();
+        },
         
-        // inherit
-        triangles: WebGLFilter.triangles,
+        filterParams : null, 
         
-        filterParams: null, 
-        
-        // inherit
-        _getProgram: WebGLFilter._getProgram,
-        
-        _apply: function(webgl, w, h, inBuffer, outBuffer) {
+        _apply : function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
             var webglprogram=this._getProgram(webgl, this.shaders, this.attributes, this.uniforms, this.textures);
             // use this filter's program
@@ -156,10 +148,7 @@
             webgl.setTextureFramebuffer(outBuffer);
             // render
             webgl.drawTriangles(this.triangles);
-        },
-        
-        // inherit
-        apply: WebGLFilter.apply
-    };
+        }
+    });
     
 })(FILTER);

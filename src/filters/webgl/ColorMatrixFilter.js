@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
 
     var cmShaders= [
         {
@@ -72,30 +72,22 @@
         {name: "u_CM[0]", type: "uniform1f", location: null, value: null}
     ],
     
-    texture={name: "u_image", image: null, location: null, texture: null},
-    
-    WebGLFilter=FILTER.WebGLFilter.prototype
+    texture={name: "u_image", image: null, location: null, texture: null}
     ;
         
     //
     //
     // ColorMatrix WebGL Filter  (IN PROGRESS!!)
-    var WebGLColorMatrixFilter=FILTER.WebGLColorMatrixFilter=function() { 
-        this.id='WGLDM1'; //FILTER.getId();
-    };
-    WebGLColorMatrixFilter.prototype={
+    var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = FILTER.Extends( FILTER.WebGLFilter,
+    {
         
-        constructor: WebGLColorMatrixFilter,
+        name : "WebGLColorMatrixFilter",
         
-        id: 0,
+        constructor : function() { 
+            this.id='WGLDM1'; //FILTER.getId();
+        },
         
         filterParams: null, 
-        
-        // inherit
-        triangles: WebGLFilter.triangles,
-        
-        // inherit
-        _getProgram: WebGLFilter._getProgram,
         
         _apply: function(webgl, w, h, inBuffer, outBuffer) {
             // get this filter's (cached / singleton) program
@@ -110,13 +102,10 @@
             webgl.setTextureFramebuffer(outBuffer);
             // render
             webgl.drawTriangles(this.triangles);
-        },
-        
-        // inherit
-        apply: WebGLFilter.apply
-    };
+        }
+    });
     
     // export an instance
-    FILTER.WebGLColorMatrixFilterInstance=new FILTER.WebGLColorMatrixFilter();
+    FILTER.WebGLColorMatrixFilterInstance=new WebGLColorMatrixFilter();
     
 })(FILTER);

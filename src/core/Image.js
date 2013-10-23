@@ -5,14 +5,14 @@
 *
 * NOTE: it won't work locally (at least with Firefox), only with server
 **/
-(function(FILTER){
+(function(FILTER, undef){
     
     var 
-        devicePixelRatio = window.devicePixelRatio || 1,
-        blendModes,  Min=Math.min,
+        devicePixelRatio = FILTER.devicePixelRatio,
         IMG=FILTER.ImArray, A32F=FILTER.Array32F,
         createCanvas=FILTER.createCanvas,
-        notSupportTyped=FILTER._notSupportTypedArrays
+        notSupportTyped=FILTER._notSupportTypedArrays,
+        blendModes,  Min=Math.min
     ;
     
     /**
@@ -79,26 +79,27 @@
     
     //
     //
-    // Image Class
-    var FImage=FILTER.Image=function(img, callback) {
-        this.width=0;   
-        this.height=0;
-        this.context=null;
-        this.imageData=null;
-        this.domElement=this.canvasElement=createCanvas(this.width, this.height);
-        this.context=this.canvasElement.getContext('2d');
-        this._tmpCanvas=createCanvas(this.width, this.height);
-        this.webgl=null;
-        this._histogram=null;
-        this._integral=null;
-        this._histogramRefresh=true;
-        this._integralRefresh=true;
-        this.setImage(img, callback);
-    };
-    
-    FImage.prototype={
+    // Image (Proxy) Class
+    var FImage = FILTER.Image = FILTER.Extends( Object,
+    {
         
-        constructor: FImage,
+        name : "ImageProxy",
+        
+        constructor : function(img, callback) {
+            this.width=0;   
+            this.height=0;
+            this.context=null;
+            this.imageData=null;
+            this.domElement=this.canvasElement=createCanvas(this.width, this.height);
+            this.context=this.canvasElement.getContext('2d');
+            this._tmpCanvas=createCanvas(this.width, this.height);
+            this.webgl=null;
+            this._histogram=null;
+            this._integral=null;
+            this._histogramRefresh=true;
+            this._integralRefresh=true;
+            this.setImage(img, callback);
+        },
         
         // properties
         width : 0,
@@ -474,6 +475,6 @@
             this.imageData=this.context.getImageData(0, 0, this.width, this.height);
             return this;
         }
-    };
+    });
     
 })(FILTER);

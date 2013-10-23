@@ -9,12 +9,17 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
     
-    var IMG = FILTER.ImArray,
+    var 
+        sqrt2=FILTER.CONSTANTS.SQRT2, toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+        Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
+        
         // Convolution Matrix
-        CM=FILTER.Array32F, A32F=FILTER.Array32F, A16I=FILTER.Array16I, A8U=FILTER.Array8U,
-        notSupportTyped=FILTER._notSupportTypedArrays,
+        CM=FILTER.Array32F, 
+        IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+        A32F=FILTER.Array32F, A16I=FILTER.Array16I, A8U=FILTER.Array8U,
+        notSupportClamp=FILTER._notSupportClamp,
         
         // hardcode Pascal numbers, used for binomial kernels
         _pascal=[
@@ -27,10 +32,7 @@
             [1, 6,  15, 20, 15, 6,  1],
             [1, 7,  21, 35, 35, 21, 7,  1],
             [1, 8,  28, 56, 70, 56, 28, 8,  1]
-        ],
-        sqrt2=FILTER.CONSTANTS.SQRT2,
-        toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
-        Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos
+        ]
     ;
     
     //
@@ -71,14 +73,6 @@
     {
         var i, j, kl=k1.length, k, ker=[], sum=0;
         for (i=0; i<kl; i++) { for (j=0; j<kl; j++) { k=k1[i]*k2[j];  sum+=k;  ker.push(k); } }
-        /*
-        else // recursive kernels
-        {
-            for (i=0; i<kl; i++)
-            {
-                for (j=0; j<kl; j++) { k=convolveKernels(k1[i], k2[j]);  sum+=k.sum;  ker=ker.concat(k.ker); }
-            }
-        }*/
         return {kernel:ker, sum:sum};
     }
     
@@ -204,7 +198,6 @@
             tx+=dx;
         }
         c=c||1;  o[center]=c;
-        //console.log(o);
         return o;
     }
     
@@ -245,9 +238,9 @@
     }
     
     // speed-up convolution for special kernels like moving-average
-    function integralConvolution(src, w, h, matrix, matrix2, dimX, dimY, factor, bias, numRepeats) 
+    function integralConvolution(im, w, h, matrix, matrix2, dimX, dimY, factor, bias, numRepeats) 
     {
-        var imLen=src.length, imArea, integral, integralLen, colR, colG, colB, /*colA=0,*/
+        var imLen=im.length, imArea, integral, integralLen, colR, colG, colB, /*colA=0,*/
             matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
             dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
             i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
@@ -282,14 +275,14 @@
             while (repeat<numRepeats)
             {
             
-                dst=new IMG(src); integral=new A32F(integralLen);
+                dst=new IMG(imLen); integral=new A32F(integralLen);
                 
                 // compute integral of image in one pass
                 // first row
                 i=0; j=0; x=0;colR=colG=colB=0;
                 while (x<w)
                 {
-                    colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                     i+=4; j+=3; x++;
                 }
@@ -297,7 +290,7 @@
                 i=rowLen+w; j=rowLen; x=0; colR=colG=colB=0;
                 while (i<imLen)
                 {
-                    colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=integral[j-rowLen]+colR; integral[j+1]=integral[j-rowLen+1]+colG; integral[j+2]=integral[j-rowLen+2]+colB;
                     i+=4; j+=3; x++; if (x>=w) { x=0; colR=colG=colB=0; }
                 }
@@ -329,17 +322,17 @@
                     
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
-                    r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * src[i]);
-                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * src[i+1]);
-                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * src[i+2]);
+                    r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * im[i]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                     
-                    r2 = wt2 * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset2 * src[i]);
-                    g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * src[i+1]);
-                    b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * src[i+2]);
+                    r2 = wt2 * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset2 * im[i]);
+                    g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
+                    b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
                     
                     // output
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                    if (notSupportTyped)
+                    if (notSupportClamp)
                     {   
                         // clamp them manually
                         if (t0<0) t0=0;
@@ -351,14 +344,14 @@
                     }
                     dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
-                    //dst[i+3] = src[i+3];
+                    dst[i+3] = im[i+3];
                     
                     // update image coordinates
                     i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
                 }
                 
                 // do another pass??
-                src=dst;  repeat++;
+                im=dst;  repeat++;
             }
         }
         else
@@ -370,14 +363,14 @@
             while (repeat<numRepeats)
             {
             
-                dst=new IMG(src); integral=new A32F(integralLen);
+                dst=new IMG(imLen); integral=new A32F(integralLen);
                 
                 // compute integral of image in one pass
                 // first row
                 i=0; j=0; x=0; colR=colG=colB=0;
                 while (x<w)
                 {
-                    colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                     i+=4; j+=3; x++;
                 }
@@ -385,7 +378,7 @@
                 i=rowLen+w; j=rowLen; x=0; colR=colG=colB=0;
                 while (i<imLen)
                 {
-                    colR+=src[i]; colG+=src[i+1]; colB+=src[i+2];
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=integral[j-rowLen]+colR; integral[j+1]=integral[j-rowLen+1]+colG; integral[j+2]=integral[j-rowLen+2]+colB;
                     i+=4; j+=3; x++; if (x>=w) { x=0; colR=colG=colB=0; }
                 }
@@ -417,13 +410,13 @@
                     
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
-                    r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * src[i]);
-                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * src[i+1]);
-                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * src[i+2]);
+                    r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * im[i]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                     
                     // output
                     t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
-                    if (notSupportTyped)
+                    if (notSupportClamp)
                     {   
                         // clamp them manually
                         if (t0<0) t0=0;
@@ -435,23 +428,23 @@
                     }
                     dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                     // alpha channel is not transformed
-                    //dst[i+3] = src[i+3];
+                    dst[i+3] = im[i+3];
                     
                     // update image coordinates
                     i+=4; x++; if (x>=w) { x=0; y++; ty+=w; }
                 }
                 
                 // do another pass??
-                src=dst;  repeat++;
+                im=dst;  repeat++;
             }
         }
         return dst;
     }
     
     // speed-up convolution for separable kernels
-    function separableConvolution(src, w, h, matrix, matrix2, dim1, dim2, coeff1, coeff2/*, factor, bias*/) 
+    function separableConvolution(im, w, h, matrix, matrix2, dim1, dim2, coeff1, coeff2/*, factor, bias*/) 
     {
-        var imLen=src.length, imArea,
+        var imLen=im.length, imArea,
             matRadiusXA, matRadiusYA, matHalfSideXA, matHalfSideYA, matAreaA, matA,
             matRadiusX, matRadiusY, matHalfSideX, matHalfSideY, matArea, mat,
             dst, hsw, matIndices, imageIndices,
@@ -479,7 +472,7 @@
         numPasses=2;  //pass=0;
         while (--numPasses)
         {
-            dst=new IMG(src);
+            dst=new IMG(imLen);
             
             matArea=matAreaA[numPasses];
             mat=matA[numPasses];
@@ -513,7 +506,7 @@
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff=(xOff + yOff)<<2; wt=coeff * mat[matIndices[k]];
-                        r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                        r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     }
                     j+=2; k++;
                 }
@@ -529,7 +522,7 @@
                 }*/
                 t0 = r;  t1 = g;  t2 = b;
                 
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -541,26 +534,26 @@
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
-                dst[i+3] = src[i+3];
+                dst[i+3] = im[i+3];
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; ty+=w; }
             }
             
             // do another pass??
-            src=dst;  //pass++;
+            im=dst;  //pass++;
         }
         return dst;
     }
     
     // some common convolution cases can be handled faster (3x3)
-    function convolution3(src, w, h, matrix, matrix2, factor, bias, _isGrad) 
+    function convolution3(im, w, h, matrix, matrix2, factor, bias, _isGrad) 
     {
         var 
             matRadiusX=matRadiusY=3, matHalfSideX=matHalfSideY=1, 
             matArea=9, matArea2=18, hsw=w, wt, wt2,
             imageIndices=new A16I(18), matIndices=new A8U(9),
-            imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
+            imArea=w*h, imLen=im.length, dst=new IMG(imLen), t0, t1, t2,
             i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
             bx=w-1, by=imArea-w,
             coeff1=factor, coeff2=bias
@@ -590,73 +583,73 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[0]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[0]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[0]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[0]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[2]; yOff=ty + imageIndices[3];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[1]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[1]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[1]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[1]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[4]; yOff=ty + imageIndices[5];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[2]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[2]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[2]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[2]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[6]; yOff=ty + imageIndices[7];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[3]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[3]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[3]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[3]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[8]; yOff=ty + imageIndices[9];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[4]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[4]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[4]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[4]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[10]; yOff=ty + imageIndices[11];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[5]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[5]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[5]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[5]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[12]; yOff=ty + imageIndices[13];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[6]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[6]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[6]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[6]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[14]; yOff=ty + imageIndices[15];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[7]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[7]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[7]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[7]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[16]; yOff=ty + imageIndices[17];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[8]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[8]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[8]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[8]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 
                 // output
@@ -668,7 +661,7 @@
                 {
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -680,7 +673,7 @@
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
-                dst[i+3] = src[i+3];
+                dst[i+3] = im[i+3];
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -699,60 +692,60 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[0]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[0]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[2]; yOff=ty + imageIndices[3];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[1]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[1]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[4]; yOff=ty + imageIndices[5];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[2]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[2]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[6]; yOff=ty + imageIndices[7];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[3]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[3]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[8]; yOff=ty + imageIndices[9];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[4]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[4]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[10]; yOff=ty + imageIndices[11];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[5]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[5]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[12]; yOff=ty + imageIndices[13];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[6]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[6]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[14]; yOff=ty + imageIndices[15];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[7]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[7]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[16]; yOff=ty + imageIndices[17];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[8]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[8]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 
                 // output
                 t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -764,7 +757,7 @@
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
-                dst[i+3] = src[i+3];
+                dst[i+3] = im[i+3];
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -774,13 +767,13 @@
     }
     
     // some common convolution cases can be handled faster (5x5)
-    function convolution5(src, w, h, matrix, matrix2, factor, bias, _isGrad) 
+    function convolution5(im, w, h, matrix, matrix2, factor, bias, _isGrad) 
     {
         var 
             matRadiusX=matRadiusY=5, matHalfSideX=matHalfSideY=2, 
             matArea=25, matArea2=50, hsw=w, wt, wt2,
             imageIndices=new A16I(50), matIndices=new A8U(25),
-            imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
+            imArea=w*h, imLen=im.length, dst=new IMG(imLen), t0, t1, t2,
             i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
             bx=w-1, by=imArea-w,
             coeff1=factor, coeff2=bias
@@ -810,201 +803,201 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[0]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[0]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[0]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[0]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[2]; yOff=ty + imageIndices[3];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[1]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[1]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[1]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[1]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[4]; yOff=ty + imageIndices[5];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[2]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[2]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[2]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[2]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[6]; yOff=ty + imageIndices[7];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[3]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[3]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[3]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[3]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[8]; yOff=ty + imageIndices[9];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[4]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[4]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[4]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[4]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[10]; yOff=ty + imageIndices[11];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[5]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[5]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[5]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[5]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[12]; yOff=ty + imageIndices[13];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[6]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[6]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[6]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[6]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[14]; yOff=ty + imageIndices[15];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[7]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[7]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[7]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[7]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[16]; yOff=ty + imageIndices[17];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[8]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[8]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[8]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[8]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[18]; yOff=ty + imageIndices[19];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[9]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[9]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[9]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[9]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[20]; yOff=ty + imageIndices[21];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[10]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[10]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[10]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[10]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[22]; yOff=ty + imageIndices[23];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[11]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[11]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[11]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[11]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[24]; yOff=ty + imageIndices[25];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[12]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[12]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[12]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[12]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[26]; yOff=ty + imageIndices[27];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[13]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[13]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[13]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[13]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[28]; yOff=ty + imageIndices[29];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[14]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[14]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[14]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[14]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[30]; yOff=ty + imageIndices[31];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[15]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[15]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[15]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[15]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[32]; yOff=ty + imageIndices[33];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[16]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[16]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[16]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[16]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[34]; yOff=ty + imageIndices[35];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[17]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[17]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[17]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[17]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[36]; yOff=ty + imageIndices[27];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[18]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[18]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[18]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[18]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[38]; yOff=ty + imageIndices[39];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[19]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[19]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[19]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[19]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[40]; yOff=ty + imageIndices[41];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[20]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[20]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[20]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[20]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[42]; yOff=ty + imageIndices[43];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[21]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[21]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[21]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[21]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[44]; yOff=ty + imageIndices[45];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[22]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[22]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[22]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[22]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[46]; yOff=ty + imageIndices[47];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[23]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[23]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[23]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[23]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 xOff=x + imageIndices[48]; yOff=ty + imageIndices[49];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[24]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[24]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                     // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2=matrix2[matIndices[24]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                    wt2=matrix2[matIndices[24]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                 }
                 
                 // output
@@ -1016,7 +1009,7 @@
                 {
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -1028,7 +1021,7 @@
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
-                dst[i+3] = src[i+3];
+                dst[i+3] = im[i+3];
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -1047,156 +1040,156 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[0]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[0]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[2]; yOff=ty + imageIndices[3];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[1]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[1]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[4]; yOff=ty + imageIndices[5];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[2]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[2]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[6]; yOff=ty + imageIndices[7];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[3]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[3]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[8]; yOff=ty + imageIndices[9];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[4]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[4]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[10]; yOff=ty + imageIndices[11];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[5]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[5]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[12]; yOff=ty + imageIndices[13];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[6]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[6]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[14]; yOff=ty + imageIndices[15];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[7]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[7]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[16]; yOff=ty + imageIndices[17];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[8]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[8]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[18]; yOff=ty + imageIndices[19];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[9]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[9]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[20]; yOff=ty + imageIndices[21];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[10]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[10]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[22]; yOff=ty + imageIndices[23];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[11]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[11]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[24]; yOff=ty + imageIndices[25];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[12]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[12]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[26]; yOff=ty + imageIndices[27];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[13]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[13]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[28]; yOff=ty + imageIndices[29];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[14]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[14]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[30]; yOff=ty + imageIndices[31];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[15]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[15]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[32]; yOff=ty + imageIndices[33];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[16]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[16]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[34]; yOff=ty + imageIndices[35];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[17]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[17]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[36]; yOff=ty + imageIndices[27];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[18]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[18]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[38]; yOff=ty + imageIndices[39];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[19]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[19]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[40]; yOff=ty + imageIndices[41];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[20]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[20]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[42]; yOff=ty + imageIndices[43];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[21]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[21]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[44]; yOff=ty + imageIndices[45];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[22]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[22]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[46]; yOff=ty + imageIndices[47];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[23]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[23]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 xOff=x + imageIndices[48]; yOff=ty + imageIndices[49];
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2; 
-                    wt=matrix[matIndices[24]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                    wt=matrix[matIndices[24]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                 }
                 
                 // output
                 t0 = factor*r+bias;  t1 = factor*g+bias;  t2 = factor*b+bias;
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;
@@ -1208,7 +1201,7 @@
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
-                dst[i+3] = src[i+3];
+                dst[i+3] = im[i+3];
                 
                 // update image coordinates
                 i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -1219,106 +1212,105 @@
     
     //
     //
-    //  Simple Convolution Filter
-    var ConvolutionMatrixFilter=FILTER.ConvolutionMatrixFilter=function(weights, factor, bias) {
-        this._coeff=new CM([1.0, 0.0]);
-        if (typeof weights != 'undefined' && weights.length)
-        {
-            this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
-        }
-        else 
-        {
-            this._matrix=null; this._dim = 0;
-        }
-        this._matrix2=null;  this._dim2=this._dim;
-        this._isGrad=false; this._doFast=0; this._doSeparable=false;
+    //  Convolution Matrix Filter
+    var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Extends( FILTER.Filter,
+    {
         
-        if (FILTER.useWebGL)  this._webglInstance=FILTER.WebGLConvolutionMatrixFilterInstance;
-    };
-    
-    ConvolutionMatrixFilter.prototype={
+        name : "ConvolutionMatrixFilter",
         
-        constructor: ConvolutionMatrixFilter,
+        constructor: function(weights, factor, bias) {
+            this._coeff=new CM([1.0, 0.0]);
+            
+            if ( weights && weights.length)
+            {
+                this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
+            }
+            else 
+            {
+                this._matrix=null; this._dim = 0;
+            }
+            this._matrix2=null;  this._dim2=this._dim;
+            this._isGrad=false; this._doIntegral=0; this._doSeparable=false;
+            
+            if ( FILTER.useWebGL )  this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance;
+        },
         
         _dim: 0,
         _dim2: 0,
         _matrix: null,
         _matrix2: null,
         _coeff: null,
+        _isGrad: false,
+        _doIntegral: 0,
+        _doSeparable: false,
         
         _webglInstance: null,
         
         // generic low-pass filter
         lowPass : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             this.set(ones(d), d, 1/(d*d), 0.0);
-            this._doFast=1; return this;
+            this._doIntegral=1; return this;
         },
 
         // generic high-pass filter (I-LP)
         highPass : function(d, f) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            f=(typeof f == 'undefined') ? 1 : f;
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            f = ( f === undef ) ? 1 : f;
             // HighPass Filter = I - (respective)LowPass Filter
             var size=d*d, fact=-f/size, w=ones(d, fact, 1+fact);
             this.set(w, d, 1.0, 0.0);
-            this._doFast=1; return this;
+            this._doIntegral=1; return this;
         },
 
         glow : function(f, d) { 
-            f=(typeof f == 'undefined') ? 0.5 : f;  
+            f = ( f === undef ) ? 0.5 : f;  
             return this.highPass(d, -f); 
         },
         
         sharpen : function(f, d) { 
-            f=(typeof f == 'undefined') ? 0.5 : f;  
-            /*if (f<=0)
-                return this.set([
-                    0, -2, 0, 
-                    -2, 10, -2, 
-                    0, -2, 0
-                ], 3, 0.5);
-            else*/
-                return this.highPass(d, f); 
+            f = ( f === undef ) ? 0.5 : f;  
+            return this.highPass(d, f); 
         },
         
         verticalBlur : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             //var filt=verticalKernel(d);
             //this.set(filt.kernel, 1, 1/filt.sum); 
             this.set(average1DKernel(d), 1, 1/d, 0.0); 
-            this._dim2=d; this._doFast=1; return this;
+            this._dim2=d; this._doIntegral=1; return this;
         },
         
         horizontalBlur : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             //var filt=horizontalKernel(d);
             //this.set(filt.kernel, d, 1/filt.sum); 
             this.set(average1DKernel(d), d, 1/d, 0.0); 
-            this._dim2=1; this._doFast=1; return this;
+            this._dim2=1; this._doIntegral=1; return this;
         },
         
+        // supports only vertical, horizontal, diagonal
         directionalBlur : function(theta, d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            theta*=toRad;
-            var c=Cos(theta), s=-Sin(theta),
-                filt=twos2(d, c, s, 1/d);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            theta *= toRad;
+            var c = Cos(theta), s = -Sin(theta),
+                filt = twos2(d, c, s, 1/d);
             return this.set(filt, d, 1.0, 0.0);
         },
         
         // fast gauss filter
         fastGauss : function(quality, d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            quality=quality||1; quality=~~quality;
-            if (quality<1) quality=1;
-            else if (quality>3) quality=3;
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            quality = ~~(quality||1);
+            if ( quality < 1 ) quality = 1;
+            else if ( quality > 3 ) quality = 3;
             this.set(ones(d), d, 1/(d*d), 0.0);
-            this._doFast=quality; return this;
+            this._doIntegral=quality; return this;
         },
         
         // generic binomial(quasi-gaussian) low-pass filter
         binomialLowPass : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             /*var filt=gaussKernel(d);
             return this.set(filt.kernel, d, 1/filt.sum); */
             var kernel=binomial1DKernel(d), sum=1<<(d-1), fact=1/sum;
@@ -1329,7 +1321,7 @@
 
         // generic binomial(quasi-gaussian) high-pass filter
         binomialHighPass : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt=gaussKernel(d);
             // HighPass Filter = I - (respective)LowPass Filter
             return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
@@ -1337,21 +1329,23 @@
         
         // X-gradient, partial X-derivative (Prewitt)
         prewittX : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt=prewittKernel(d, 0);
+            // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // Y-gradient, partial Y-derivative (Prewitt)
         prewittY : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt=prewittKernel(d, 1);
+            // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // directional gradient (Prewitt)
         prewittDirectional : function(theta, d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
             var c=Cos(theta), s=Sin(theta),
                 gradx=prewittKernel(d, 0), grady=prewittKernel(d, 1);
@@ -1360,7 +1354,7 @@
         
         // gradient magnitude (Prewitt)
         prewitt : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var gradx=prewittKernel(d, 0), grady=prewittKernel(d, 1);
             this.set(gradx.kernel, d, 1.0, 0.0);
             this._isGrad=true;
@@ -1370,21 +1364,23 @@
         
         // partial X-derivative (Sobel)
         sobelX : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt=sobelKernel(d, 0);
+            // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // partial Y-derivative (Sobel)
         sobelY : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt=sobelKernel(d, 1);
+            // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
         },
         
         // directional gradient (Sobel)
         sobelDirectional : function(theta, d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
             var c=Cos(theta), s=Sin(theta),
                 gradx=sobelKernel(d, 0), grady=sobelKernel(d, 1);
@@ -1393,7 +1389,7 @@
         
         // gradient magnitude (Sobel)
         sobel : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var gradx=sobelKernel(d, 0), grady=sobelKernel(d, 1);
             this.set(gradx.kernel, d, 1.0, 0.0);
             this._matrix2=new CM(grady.kernel);
@@ -1414,10 +1410,10 @@
         },*/
         
         laplace : function(d) {
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var size=d*d, laplacian=ones(d, -1, size-1);
             this.set(laplacian, d, 1.0, 0.0);
-            this._doFast=1; return this;
+            this._doIntegral=1; return this;
         },
         
         emboss : function(angle, amount, d) {
@@ -1426,8 +1422,8 @@
                      -x,    1,   x,
                      y-x,   y,   y+x
                  ], 3, 1);*/
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            angle=(typeof angle == 'undefined') ? (-0.25*Math.PI) : (angle*toRad);
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            angle=( angle === undef ) ? (-0.25*Math.PI) : (angle*toRad);
             amount=amount||1;
             var dx = amount*Cos(angle), dy = -amount*Sin(angle), filt=twos(d, dx, dy, 1);
             return this.set(filt, d, 1.0, 0.0);
@@ -1479,8 +1475,14 @@
         },*/
         
         set : function(m, d, f, b) {
-            this._matrix2=null; this._isGrad=false; this._doFast=0; this._doSeparable=false;
+            this._matrix2=null; this._isGrad=false; this._doIntegral=0; this._doSeparable=false;
             this._matrix=new CM(m); this._dim2=this._dim=d; this._coeff[0]=f||1; this._coeff[1]=b||0;
+            return this;
+        },
+        
+        reset : function() {
+            this._matrix=null; this._matrix2=null; this._dim=0; this._dim2=0;
+            this._isGrad=false; this._doIntegral=0; this._doSeparable=false;
             return this;
         },
         
@@ -1496,41 +1498,41 @@
         
         setMatrix : function(m, d) {
             this._matrix=m; this._dim2=this._dim=d;
-            this._matrix2=null; this._coeff[0]=1; this._coeff[1]=0; this._isGrad=false; this._doFast=0; this._doSeparable=false;
+            this._matrix2=null; this._coeff[0]=1; this._coeff[1]=0; this._isGrad=false; this._doIntegral=0; this._doSeparable=false;
             return this;
         },
         
         // used for internal purposes
-        _apply : function(src, w, h/*, image*/) {
+        _apply : function(im, w, h/*, image*/) {
             
-            if (!this._matrix) return src;
+            if ( !this._isOn || !this._matrix ) return im;
             
             // use a faster convolution if possible
-            if (this._doFast) 
+            if (this._doIntegral) 
             {
                 if (this._matrix2)
-                    return integralConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doFast);
+                    return integralConvolution(im, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doIntegral);
                 else
-                    return integralConvolution(src, w, h, this._matrix, null, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doFast);
+                    return integralConvolution(im, w, h, this._matrix, null, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doIntegral);
             }
             // handle some common cases fast
             else if (this._doSeparable)
             {
-                return separableConvolution(src, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1]/*, this._factor, this._bias*/);
+                return separableConvolution(im, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1]/*, this._factor, this._bias*/);
             }
             else if (3==this._dim)
             {
                 if (this._matrix2)
-                    return convolution3(src, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
+                    return convolution3(im, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
                 else
-                    return convolution3(src, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
+                    return convolution3(im, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
             }
             else if (5==this._dim)
             {
                 if (this._matrix2)
-                    return convolution5(src, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
+                    return convolution5(im, w, h, this._matrix, this._matrix2, this._coeff[0], this._coeff[1], this._isGrad);
                 else
-                    return convolution5(src, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
+                    return convolution5(im, w, h, this._matrix, null, this._coeff[0], this._coeff[1], false);
             }
             
             var 
@@ -1538,7 +1540,7 @@
                 matArea=matRadiusX*matRadiusY, matArea2=matArea<<1, hsw=matHalfSideY*w,
                 mat=this._matrix, mat2=this._matrix2, wt, wt2,
                 _isGrad=this._isGrad, imageIndices=new A16I(matArea<<1), matIndices=new A8U(matArea),
-                imArea=w*h, imLen=src.length, dst=new IMG(imLen), t0, t1, t2,
+                imArea=w*h, imLen=im.length, dst=new IMG(imLen), t0, t1, t2,
                 i, j, k, x, ty, ty2, xOff, yOff, srcOff, r, g, b, r2, g2, b2,
                 bx=w-1, by=imArea-w,
                 coeff1=this._coeff[0], coeff2=this._coeff[1]
@@ -1571,9 +1573,9 @@
                         if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                         {
                             srcOff=(xOff + yOff)<<2; 
-                            wt=mat[matIndices[k]]; r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                            wt=mat[matIndices[k]]; r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                             // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                            wt2=mat2[matIndices[k]]; r2+=src[srcOff] * wt2; g2+=src[srcOff+1] * wt2;  b2+=src[srcOff+2] * wt2;
+                            wt2=mat2[matIndices[k]]; r2+=im[srcOff] * wt2; g2+=im[srcOff+1] * wt2;  b2+=im[srcOff+2] * wt2;
                         }
                         j+=2; k++;
                     }
@@ -1587,7 +1589,7 @@
                     {
                         t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                     }
-                    if (notSupportTyped)
+                    if (notSupportClamp)
                     {   
                         // clamp them manually
                         if (t0<0) t0=0;
@@ -1621,14 +1623,14 @@
                         if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                         {
                             srcOff=(xOff + yOff)<<2; wt=mat[matIndices[k]];
-                            r+=src[srcOff] * wt; g+=src[srcOff+1] * wt;  b+=src[srcOff+2] * wt;
+                            r+=im[srcOff] * wt; g+=im[srcOff+1] * wt;  b+=im[srcOff+2] * wt;
                         }
                         j+=2; k++;
                     }
                     
                     // output
                     t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
-                    if (notSupportTyped)
+                    if (notSupportClamp)
                     {   
                         // clamp them manually
                         if (t0<0) t0=0;
@@ -1650,7 +1652,8 @@
         },
         
         apply : function(image) {
-            if (!this._matrix) return image;
+            if ( this._isOn && this._matrix )
+            {
             /*if (this._webglInstance)
             {
                 var w=image.width, h=image.height;
@@ -1674,12 +1677,10 @@
             {*/
                 return image.setData(this._apply(image.getData(), image.width, image.height, image));
             /*}*/
-        },
-        
-        reset : function() {
-            this._matrix=null; this._matrix2=null; this._dim=0; return this;
+            }
+            return image;
         }
-    };
+    });
     // aliases
     ConvolutionMatrixFilter.prototype.boxBlur = ConvolutionMatrixFilter.prototype.lowPass;
     ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.binomialLowPass;

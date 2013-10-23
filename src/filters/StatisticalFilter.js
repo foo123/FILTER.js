@@ -7,19 +7,19 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
     
     // used for internal purposes
-    var IMG = FILTER.ImArray, 
+    var IMG=FILTER.ImArray, A32I=FILTER.Array32I,
         Min=Math.min, Max=Math.max;
         
     var
-        _MedianFilter = function(src, w, h) {
+        _MedianFilter = function(im, w, h) {
         
         var 
-            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
-            imageIndices=new FILTER.Array32I(matArea<<1),
-            imArea=w*h, imLen=src.length, dst=new IMG(imLen),
+            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+            imageIndices=new A32I(this._indices),
+            imArea=w*h, imLen=im.length, dst=new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, 
             rM=[], gM=[], bM=[], r, g, b,
             medianR, medianG, medianB, len, len2,
@@ -28,12 +28,14 @@
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        j=0; x=0; ty=0;
+        j=0;
         while (j<matArea2)
         { 
-            imageIndices[j] = x-matHalfSide; imageIndices[j+1] = ty-hsw;
-            j+=2; x++; if (x>=matRadius) { x=0; ty+=w; }
-        } 
+            // translate to image dimensions
+            // the y coordinate
+            imageIndices[j+1]*=w;
+            j+=2;
+        }
         
         i=0; x=0; ty=0; 
         while (i<imLen)
@@ -48,7 +50,7 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2;
-                    r=src[srcOff]; g=src[srcOff+1]; b=src[srcOff+2]; 
+                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2]; 
                     rM.push(r); gM.push(g); bM.push(b);
                 }
                 j+=2;
@@ -65,7 +67,7 @@
             
             // output
             dst[i] = medianR;  dst[i+1] = medianG;   dst[i+2] = medianB;  
-            dst[i+3] = src[i+3];
+            dst[i+3] = im[i+3];
             
             // update image coordinates
             i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -176,23 +178,25 @@
     },
     */
     // used for internal purposes
-    _MaximumFilter = function(src, w, h) {
+    _MaximumFilter = function(im, w, h) {
         
         var 
-            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
-            imageIndices=new FILTER.Array32I(matArea<<1),
-            imArea=w*h, imLen=src.length, dst=new IMG(imLen),
+            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+            imageIndices=new A32I(this._indices),
+            imArea=w*h, imLen=im.length, dst=new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
             matArea2=matArea<<1, bx=w-1, by=imArea-w
             ;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        x=0; ty=0; j=0;
+        j=0;
         while (j<matArea2)
         { 
-            imageIndices[j] = (x-matHalfSide); imageIndices[j+1] = (ty-hsw);
-            j+=2; x++; if (x>=matRadius) { x=0; ty+=w; }
+            // translate to image dimensions
+            // the y coordinate
+            imageIndices[j+1]*=w;
+            j+=2;
         }
         
         i=0; x=0; ty=0;
@@ -208,14 +212,14 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2;
-                    r=src[srcOff]; g=src[srcOff+1]; b=src[srcOff+2];
+                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
                     if (r>rM) rM=r; if (g>gM) gM=g; if (b>bM) bM=b;
                 }
                 j+=2;
             }
             
             // output
-            dst[i] = rM;  dst[i+1] = gM;  dst[i+2] = bM;  dst[i+3] = src[i+3];
+            dst[i] = rM;  dst[i+1] = gM;  dst[i+2] = bM;  dst[i+3] = im[i+3];
             
             // update image coordinates
             i+=4; x++; if (x>=w) { x=0; ty+=w; }
@@ -323,23 +327,25 @@
     },
     */
     // used for internal purposes
-    _MinimumFilter = function(src, w, h) {
+    _MinimumFilter = function(im, w, h) {
         
         var 
-            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, hsw=matHalfSide*w,
-            imageIndices=new FILTER.Array32I(matArea<<1),
-            imArea=w*h, imLen=src.length, dst=new IMG(imLen),
+            matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+            imageIndices=new A32I(this._indices),
+            imArea=w*h, imLen=im.length, dst=new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
             matArea2=matArea<<1, bx=w-1, by=imArea-w
             ;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        x=0; ty=0; j=0;
+        j=0;
         while (j<matArea2)
         { 
-            imageIndices[j] = (x-matHalfSide); imageIndices[j+1] = (ty-hsw);
-            j+=2; x++; if (x>=matRadius) { x=0; ty+=w; }
+            // translate to image dimensions
+            // the y coordinate
+            imageIndices[j+1]*=w;
+            j+=2;
         }
         
         i=0; x=0; ty=0;
@@ -355,21 +361,21 @@
                 if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
                     srcOff=(xOff + yOff)<<2;
-                    r=src[srcOff]; g=src[srcOff+1]; b=src[srcOff+2];
+                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
                     if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
                 }
                 j+=2;
             }
             
             // output
-            dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = src[i+3];
+            dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
             
             // update image coordinates
             i+=4; x++; if (x>=w) { x=0; ty+=w; }
         }
         return dst;
-    },
-    /*
+    }/*,
+    
     // used for internal purposes
     _MinimumFilter2 = function(src, w, h) {
         
@@ -469,30 +475,30 @@
         return dst;
     },
     */
-    // used for internal purposes
-    _dummy = function(src, sw, sh) {
-        return src;
-    }
     ;
         
     //
     //
     //  Statistical Filter
-    var StatisticalFilter=FILTER.StatisticalFilter=function() {
-        this._dim=0;
-        this._apply=_dummy;
-    };
-    
-    StatisticalFilter.prototype={
+    var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Extends( FILTER.Filter,
+    {
         
-        constructor: StatisticalFilter,
+        name : "StatisticalFilter",
         
-        _dim: 0,
+        constructor : function() {
+            this._dim = 0;
+            this._indices = null;
+            this._filter = null;
+        },
+        
+        _dim : 0,
+        _indices : null,
+        _filter : null,
         
         median : function(d) { 
             // allow only odd dimensions for median
-            d=(typeof d == 'undefined') ? 3 : ((d%2) ? d : d+1);
-            this._dim=d; this._apply=_MedianFilter; return this;
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            return this.set(d, _MedianFilter);
         },
         
         /*median2 : function(d) { 
@@ -502,29 +508,51 @@
         },*/
         
         minimum : function(d) { 
-            d=(typeof d == 'undefined') ? 3 : d;
-            this._dim=d; this._apply=_MinimumFilter; return this; 
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            return this.set(d, _MinimumFilter);
         },
         
         maximum : function(d) { 
-            d=(typeof d == 'undefined') ? 3 : d;
-            this._dim=d; this._apply=_MaximumFilter; return this; 
+            d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+            return this.set(d, _MaximumFilter);
         },
         
-        // used for internal purposes
-        _apply : function(src, sw, sh) {
-            return src;
-        },
-        
-        apply : function(image) {
-            if (!this._dim)  return image;
-            return image.setData(this._apply(image.getData(), image.width, image.height, image));
+        set : function(d, filt) {
+            this._filter = filt; 
+            this._dim = d; 
+            // pre-compute indices, 
+            // reduce redundant computations inside the main convolution loop (faster)
+            var Indices=[], k, x, y,
+                matArea=d*d, matRadius=d, matHalfSide=(matRadius>>1);
+            x=0; y=0; k=0;
+            while (k<matArea)
+            { 
+                Indices.push(x-matHalfSide); 
+                Indices.push(y-matHalfSide);
+                k++; x++; if (x>=matRadius) { x=0; y++; }
+            }
+            this._indices=new A32I(Indices);
+            
+            return this;
         },
         
         reset : function() {
-            this._apply=_dummy; this._dim=0; return this;
+            this._filter=null; this._dim=0; this._indices=null;
+            return this;
+        },
+        
+        // used for internal purposes
+        _apply : function(im, w, h) {
+            if ( !this._isOn || !this._dim )  return im;
+            return this._filter.call(this, im, w, h);
+        },
+        
+        apply : function(image) {
+            if ( this._isOn && this._dim )
+                return image.setData(this._filter.call(this, image.getData(), image.width, image.height, image));
+            return image;
         }
-    };
+    });
     // aliiases
     StatisticalFilter.prototype.erode=StatisticalFilter.prototype.minimum;
     StatisticalFilter.prototype.dilate=StatisticalFilter.prototype.maximum;

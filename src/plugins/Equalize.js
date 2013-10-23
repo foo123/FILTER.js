@@ -6,7 +6,7 @@
 **/
 (function(FILTER){
 
-    var notSupportTyped=FILTER._notSupportTypedArrays, A32F=FILTER.Array32F,
+    var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
         RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
         ;
     
@@ -59,7 +59,7 @@
                 ycbcr.y=cdfI[ycbcr.y]*rangeI+minI;
                 rgba=YCbCr2RGB(ycbcr);
                 t0=rgba.r; t1=rgba.g; t2=rgba.b; 
-                if (notSupportTyped)
+                if (notSupportClamp)
                 {   
                     // clamp them manually
                     if (t0<0) t0=0;

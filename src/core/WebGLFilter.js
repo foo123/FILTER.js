@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+(function(FILTER, undef){
     
     // NOT FINISHED!!
     
@@ -29,35 +29,35 @@
     //
     //
     // Generic WebGL Program Class
-    var WebGLProgram=FILTER.WebGLProgram=function(webgl, id, program, attributes, uniforms, textures)  {
-        this.id=id || 0;
-        this.setContainer(webgl);
-        this.setProgram(program);
-        if (attributes)  this.setAttributes(attributes);
-        if (uniforms)  this.setUniforms(uniforms);
-        if (textures) this.setTextures(textures);
-    };
+    var WebGLProgram =FILTER.WebGLProgram = FILTER.Extends( Object,
+    {
     
-    WebGLProgram.prototype={
-    
-        constructor: WebGLProgram,
+        constructor : function(webgl, id, program, attributes, uniforms, textures)  {
+            this.id=id || 0;
+            this._attributes = [];
+            this._uniforms = [];
+            this._textures = [];
+            this.setContainer(webgl);
+            this.setProgram(program);
+            if (attributes)  this.setAttributes(attributes);
+            if (uniforms)  this.setUniforms(uniforms);
+            if (textures) this.setTextures(textures);
+        },
         
-        glContainer: null,
-        _gl: null,
-        
-        id: 0,
+        glContainer : null,
+        _gl : null,
         
         program: null,
         
         _shaders: null,
-        _attributes: [],
-        _uniforms: [],
-        _textures: [],
+        _attributes: null,
+        _uniforms: null,
+        _textures: null,
         _attributesNeedUpdate: false,
         _uniformsNeedUpdate: false,
         _texturesNeedUpdate: false,
         
-        use: function() {
+        use : function() {
             this._gl.useProgram(this.program);
             return this;
         },
@@ -286,91 +286,24 @@
             this.setUniformByLocation(uniformLocation, uniformValue, uniformType);
             return this;
         }
-    };
+    });
     
     
     //
     //
     // Generic WebGL Class
-    var WebGL=FILTER.WebGL=function(canvas, options)  {
-        canvas = canvas || createCanvas();
-        this._gl=WebGL.getWebGL(canvas, options);
-    };
-    
-    //
-    //
-    // static methods
-    // adapted from Kronos WebGL specifications
-    WebGL.getWebGL=function(canvas, opt_attribs) {
-        if (!window.WebGLRenderingContext)  return null;
-
-        return WebGL.getContext(canvas, opt_attribs);
-    };
-    
-    // adapted from Kronos WebGL specifications
-    WebGL.getContext=function(canvas, opt_attribs) {
-        opt_attribs=opt_attribs || { depth: false, alpha: true, premultipliedAlpha: false, antialias: true, stencil: false, preserveDrawingBuffer: false };
-        if (!WEBGLNAME)
-        {
-            var 
-                names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"], nl=names.length,
-                gl = null, i
-            ;
+    var WebGL = FILTER.WebGL = FILTER.Extends( Object,
+    {
         
-            for (i = 0; i <nl; ++i) 
-            {
-                try {
-                    gl = canvas.getContext(names[i], opt_attribs);
-                } catch(e) { }
-                
-                if (gl)  { WEBGLNAME=names[i]; break;}
-            }
-        }
-        else
-        {
-            gl = canvas.getContext(WEBGLNAME, opt_attribs);
-        }
-        return gl;
-    };
-    
-    // adapted from Kronos WebGL specifications
-    WebGL.getSupportedExtensionWithKnownPrefixes=function(gl, name) {
-        var supported = gl.getSupportedExtensions();
-        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
-        {
-            var prefixedName = browserPrefixes[ii] + name;
-            if (supported.indexOf(prefixedName) >= 0) 
-            {
-                return prefixedName;
-            }
-        }
-        return null;
-    };
-
-    // adapted from Kronos WebGL specifications
-    WebGL.getExtensionWithKnownPrefixes=function(gl, name)  {
-        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
-        {
-            var prefixedName = browserPrefixes[ii] + name;
-            var ext = gl.getExtension(prefixedName);
-            if (ext) 
-            {
-                return ext;
-            }
-        }
-        return null;
-    };
-    
-    //
-    //
-    // instance methods
-    WebGL.prototype={
-        
-        constructor: WebGL,
+        constructor: function(canvas, options)  {
+            canvas = canvas || createCanvas();
+            this._programs = [];
+            this._gl=WebGL.getWebGL(canvas, options);
+        },
         
         _gl: null,
         _boundFB: null,
-        _programs: [],
+        _programs: null,
         _currentProgram: null,
         _currentProgramIndex: -1,
         
@@ -898,24 +831,87 @@
             this._gl.drawElements( this._gl.LINES, count, this._gl.UNSIGNED_SHORT, offset ); // 2 bytes per Uint16
             return this;
         }
+    });
+    //
+    //
+    // static methods
+    
+    // adapted from Kronos WebGL specifications
+    WebGL.getWebGL=function(canvas, opt_attribs) {
+        if (!window.WebGLRenderingContext)  return null;
+
+        return WebGL.getContext(canvas, opt_attribs);
+    };
+    
+    // adapted from Kronos WebGL specifications
+    WebGL.getContext=function(canvas, opt_attribs) {
+        opt_attribs=opt_attribs || { depth: false, alpha: true, premultipliedAlpha: false, antialias: true, stencil: false, preserveDrawingBuffer: false };
+        if (!WEBGLNAME)
+        {
+            var 
+                names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"], nl=names.length,
+                gl = null, i
+            ;
+        
+            for (i = 0; i <nl; ++i) 
+            {
+                try {
+                    gl = canvas.getContext(names[i], opt_attribs);
+                } catch(e) { }
+                
+                if (gl)  { WEBGLNAME=names[i]; break;}
+            }
+        }
+        else
+        {
+            gl = canvas.getContext(WEBGLNAME, opt_attribs);
+        }
+        return gl;
+    };
+    
+    // adapted from Kronos WebGL specifications
+    WebGL.getSupportedExtensionWithKnownPrefixes=function(gl, name) {
+        var supported = gl.getSupportedExtensions();
+        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
+        {
+            var prefixedName = browserPrefixes[ii] + name;
+            if (supported.indexOf(prefixedName) >= 0) 
+            {
+                return prefixedName;
+            }
+        }
+        return null;
+    };
+
+    // adapted from Kronos WebGL specifications
+    WebGL.getExtensionWithKnownPrefixes=function(gl, name)  {
+        for (var ii = 0; ii < browserPrefixesLength; ++ii) 
+        {
+            var prefixedName = browserPrefixes[ii] + name;
+            var ext = gl.getExtension(prefixedName);
+            if (ext) 
+            {
+                return ext;
+            }
+        }
+        return null;
     };
     
     //
     //
     // Generic WebGL Filter
-    var WebGLFilter=FILTER.WebGLFilter=function(shaders, attributes, uniforms, textures) 
-    { 
-        this.shaders=shaders || null; 
-        this.attributes=attributes || null; 
-        this.uniforms=uniforms || null; 
-        this.textures=textures || null; 
-        this.id=FILTER.getId();
-    };
-    WebGLFilter.prototype={
+    var WebGLFilter = FILTER.WebGLFilter = FILTER.Extends( FILTER.Filter,
+    {
         
-        constructor: WebGLFilter,
+        name : "GenericWebGLFilter",
         
-        id: 0,
+        constructor: function(shaders, attributes, uniforms, textures) { 
+            this.shaders=shaders || null; 
+            this.attributes=attributes || null; 
+            this.uniforms=uniforms || null; 
+            this.textures=textures || null; 
+            this.id=FILTER.getId();
+        },
         
         filterParams: null,
         
@@ -964,7 +960,7 @@
             this._apply(webgl, w, h, inBuffer, outBuffer);
             return image;
         }
-    };
+    });
     
     
     //

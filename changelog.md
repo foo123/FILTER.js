@@ -1,5 +1,13 @@
 ###ChangeLog
 
+__0.6.6__
+* fix some issues with Opera, IE (eg. GeometricMap filter)
+* add alternative solarize effects 
+* minor refactoring, optimisations, inheritance mechanism
+* add turnOn(), turnOff(), isOn(), methods for filters/plugins
+* typos/edits
+
+
 __0.6.5__
 * some tidy up of the repo and files
 

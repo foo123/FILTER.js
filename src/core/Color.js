@@ -12,6 +12,10 @@
     // http://en.wikipedia.org/wiki/Color_space
     FILTER.Color={
         
+        clamp : function(v, m, M) { return Min(M, Max(v, m)); },
+        
+        clampPixel : function(v) { return Min(255, Max(v, 0)); },
+        
         ubyteToFloat: function(ub) { return ub * 0.0039215686274509803921568627451; /* 1 / 255; */ },
 
         ubyteColorToFloatColor: function(color) {
