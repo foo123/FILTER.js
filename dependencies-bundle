@@ -1,0 +1,29 @@
+###################################################
+#
+#   The buildtools repository is at:
+#   https://github.com/foo123/scripts/buildtools
+#
+###################################################
+
+# A '#' represents a comment and everything after it is skipped
+# Lines starting with # or blank lines are skipped
+# Lines starting with @ are blocks/directives and describe how the build is going to be processed
+# One line for each setting, no multiple settings on same line, line indentation does not matter
+# Blocks with =[] define LISTS (arrays)
+# Blocks with ={} define MAPS (hashmaps)
+# Blocks with =[{}] define ORDEREDMAPS (array of hashmaps)
+# Blocks with = or nothing define VALUES (single value)
+# A key and/or value can be quoted (with ", ' or `, quotes) or unquoted
+# Lines with one or multiple '@'s define the end of that many previous blocks
+
+@BUNDLE =[]
+
+    ./build/classy.js
+    ./build/filter.min.js
+    ./build/filter.plugins.min.js
+
+@ # end block
+
+
+@OUT = 
+./build/filter.bundle.js

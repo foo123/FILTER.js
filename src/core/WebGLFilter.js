@@ -4,9 +4,9 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
     
-    // NOT FINISHED!!
+    // IN PROGRESS, TODO
     
     //
     //
@@ -29,8 +29,7 @@
     //
     //
     // Generic WebGL Program Class
-    var WebGLProgram =FILTER.WebGLProgram = FILTER.Extends( Object,
-    {
+    var WebGLProgram = FILTER.WebGLProgram = Class({
     
         constructor : function(webgl, id, program, attributes, uniforms, textures)  {
             this.id=id || 0;
@@ -292,8 +291,7 @@
     //
     //
     // Generic WebGL Class
-    var WebGL = FILTER.WebGL = FILTER.Extends( Object,
-    {
+    var WebGL = FILTER.WebGL = Class({
         
         constructor: function(canvas, options)  {
             canvas = canvas || createCanvas();
@@ -837,14 +835,14 @@
     // static methods
     
     // adapted from Kronos WebGL specifications
-    WebGL.getWebGL=function(canvas, opt_attribs) {
+    WebGL.getWebGL = function(canvas, opt_attribs) {
         if (!window.WebGLRenderingContext)  return null;
 
         return WebGL.getContext(canvas, opt_attribs);
     };
     
     // adapted from Kronos WebGL specifications
-    WebGL.getContext=function(canvas, opt_attribs) {
+    WebGL.getContext = function(canvas, opt_attribs) {
         opt_attribs=opt_attribs || { depth: false, alpha: true, premultipliedAlpha: false, antialias: true, stencil: false, preserveDrawingBuffer: false };
         if (!WEBGLNAME)
         {
@@ -870,7 +868,7 @@
     };
     
     // adapted from Kronos WebGL specifications
-    WebGL.getSupportedExtensionWithKnownPrefixes=function(gl, name) {
+    WebGL.getSupportedExtensionWithKnownPrefixes = function(gl, name) {
         var supported = gl.getSupportedExtensions();
         for (var ii = 0; ii < browserPrefixesLength; ++ii) 
         {
@@ -884,7 +882,7 @@
     };
 
     // adapted from Kronos WebGL specifications
-    WebGL.getExtensionWithKnownPrefixes=function(gl, name)  {
+    WebGL.getExtensionWithKnownPrefixes = function(gl, name)  {
         for (var ii = 0; ii < browserPrefixesLength; ++ii) 
         {
             var prefixedName = browserPrefixes[ii] + name;
@@ -900,8 +898,7 @@
     //
     //
     // Generic WebGL Filter
-    var WebGLFilter = FILTER.WebGLFilter = FILTER.Extends( FILTER.Filter,
-    {
+    var WebGLFilter = FILTER.WebGLFilter = Class( FILTER.Filter, {
         
         name : "GenericWebGLFilter",
         
@@ -1038,4 +1035,4 @@
             FILTER.warning('WebGL Shared Resources are NOT supported, fallback to non-shared resources');
     };
     
-})(FILTER);
+})(Class, FILTER);

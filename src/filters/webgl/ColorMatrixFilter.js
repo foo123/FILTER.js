@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     var cmShaders= [
         {
@@ -78,8 +78,7 @@
     //
     //
     // ColorMatrix WebGL Filter  (IN PROGRESS!!)
-    var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = FILTER.Extends( FILTER.WebGLFilter,
-    {
+    var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = Class( FILTER.WebGLFilter, {
         
         name : "WebGLColorMatrixFilter",
         
@@ -108,4 +107,4 @@
     // export an instance
     FILTER.WebGLColorMatrixFilterInstance=new WebGLColorMatrixFilter();
     
-})(FILTER);
+})(Class, FILTER);

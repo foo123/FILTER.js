@@ -4,7 +4,11 @@
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <style>
+        
+        <title>Image Processing with Filter.js</title>
+        
+        <link rel="stylesheet" type="text/css" href="../common/css/common.min.css" />
+        <style type="text/css">
             body {
                 position:relative;
                 font-family: Monospace;
@@ -17,8 +21,7 @@
                 min-height:900px; 
                 overflow:scroll;
             }
-            .panel
-            {
+            .panel {
                 display:inline-block;
                 max-width:240px;
                 position:relative;
@@ -29,8 +32,7 @@
                 padding-right:10px;
                 border-right:4px solid #aaa;
             }
-            #aside
-            {
+            #aside {
                 position:absolute;
                 color:#aaa;
                 font-size:12px;
@@ -41,8 +43,7 @@
             }
             #container { max-width:400px; }
             #filters { max-width:600px; }
-            span
-            {
+            span  {
                 vertical-aligh:top;
                 position:relative;
                 display:inline-block;
@@ -50,16 +51,78 @@
                 padding:0;
                 padding-left:10px;
             }
+            #forkongithub
+            {
+                width:100%;
+            }
+            .button {
+                -moz-box-shadow:inset 0px 1px 0px 0px #f5978e;
+                -webkit-box-shadow:inset 0px 1px 0px 0px #f5978e;
+                box-shadow:inset 0px 1px 0px 0px #f5978e;
+                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #f24537), color-stop(1, #c62d1f) );
+                background:-moz-linear-gradient( center top, #f24537 5%, #c62d1f 100% );
+                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f24537', endColorstr='#c62d1f');
+                background-color:#f24537;
+                -webkit-border-top-left-radius:20px;
+                -moz-border-radius-topleft:20px;
+                border-top-left-radius:20px;
+                -webkit-border-top-right-radius:20px;
+                -moz-border-radius-topright:20px;
+                border-top-right-radius:20px;
+                -webkit-border-bottom-right-radius:20px;
+                -moz-border-radius-bottomright:20px;
+                border-bottom-right-radius:20px;
+                -webkit-border-bottom-left-radius:20px;
+                -moz-border-radius-bottomleft:20px;
+                border-bottom-left-radius:20px;
+                text-indent:0;
+                border:1px solid #d02718;
+                display:inline-block;
+                color:#ffffff;
+                font-family:Arial;
+                font-size:15px;
+                font-weight:bold;
+                font-style:normal;
+                height:50px;
+                line-height:50px;
+                width:2000px;
+                text-decoration:none;
+                text-align:center;
+                text-shadow:1px 1px 0px #810e05;
+            }
+            .button:hover {
+                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #c62d1f), color-stop(1, #f24537) );
+                background:-moz-linear-gradient( center top, #c62d1f 5%, #f24537 100% );
+                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#c62d1f', endColorstr='#f24537');
+                background-color:#c62d1f;
+            }.button:active {
+                position:relative;
+                top:1px;
+            }
+            .button {
+                width:120px;
+                height:40px;
+                line-height:40px;
+                position:relative;
+                cursor:pointer;
+            }
+            
+            .img-area-select {
+                border: 2px dotted #79b900;
+                cursor: arrow;
+            }
         </style>
-        <script src="../common/js/filter.min.js"></script>
-        <title>Image Processing with FILTER.js</title>
+        <script type="text/javascript" src="../../js/utils.min.js"></script>
+        <script src="../common/js/filter.bundle.js"></script>
     </head>
     <body>
-        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+        <style>#forkongithub a{background:#c83022;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#c83022;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
         
-        <h1>Image Processing with Filter.js</h1><br /><br />
+        <header id="header">
+            <h1>Image Processing with Filter.js</h1><br /><br />
+        </header>
         
-        <div id="aside"><input id="test" type="button" value="Apply Filters" /></div>
+        <aside id="aside"><input id="test" class="button" type="button" value="Apply Filters" /></aside>
         
         <div id="container" class="panel"></div>
         
@@ -69,42 +132,36 @@
         //<![CDATA[
             
             // utils
-            function linebreak() { return document.createElement('br'); }
-            function text(t) { return document.createTextNode(t); }
-            function wrap(tag, t) { var e=document.createElement(tag); e.innerHTML=t; return e;}
-            function span(t) { return wrap('span', t); }
-            function html(el, c) { el.innerHTML=c; }
-            function append(el, c) { el.innerHTML+=c; }
-            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
-            function getEl(id) { return document.getElementById(id); }
-            function add(el, child) { el.appendChild(child); }
-            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
+            function br() { return U.Tag('br'); }
+            function text(t) { return U.Text(t); }
+            function span(t) { return U.Wrap('span', t); }
             
             var 
-                che='../common/assets/che.jpg',
-                aside=getEl('aside'), test=getEl('test'), container=getEl('container'), filters=getEl('filters'),
+                $F = FILTER, che = '../common/assets/che.jpg',
+                aside = U.Get('aside'), test = U.Get('test'), 
+                container = U.Get('container'), filters = U.Get('filters'),
                  
                  // images
-                im2=new FILTER.Image(che),
-                im3=new FILTER.Image(che),
-                im4=new FILTER.Image(che),
-                im5=new FILTER.Image(che),
-                im6=new FILTER.Image(che),
-                im7=new FILTER.Image(che),
-                im8=new FILTER.Image(che),
-                im9=new FILTER.Image(che),
-                im10=new FILTER.Image(che),
-                im11=new FILTER.Image(che),
-                im12=new FILTER.Image(che),
-                im13=new FILTER.Image(che),
-                im14=new FILTER.Image(che),
+                im2 = new $F.Image(che),
+                im3 = new $F.Image(che),
+                im4 = new $F.Image(che),
+                im5 = new $F.Image(che),
+                im6 = new $F.Image(che),
+                im7 = new $F.Image(che),
+                im8 = new $F.Image(che),
+                im9 = new $F.Image(che),
+                im10 = new $F.Image(che),
+                im11 = new $F.Image(che),
+                im12 = new $F.Image(che),
+                im13 = new $F.Image(che),
+                im14 = new $F.Image(che),
                 
-                displacemap=new FILTER.Image(),
+                displacemap = new $F.Image(),
                 
-                im1=new FILTER.Image(che, function(){
+                im1 = new $F.Image(che, function(){
                         var grd;
                         // create a displace map image
-                        displacemap.createImageData(im1.width,im1.height);
+                        displacemap.createImageData(im1.width, im1.height);
                         displacemap.context.fillStyle="rgb(128,128,128)";
                         displacemap.context.fillRect(0,0, displacemap.width, displacemap.height);
                         // create radial gradient
@@ -115,89 +172,91 @@
                         displacemap.context.beginPath();
                         displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                         displacemap.context.fill();
-                        displacemap._refresh();
+                        //displacemap._refresh();
                 }),
                  
                  // filters
-                redChannel=new FILTER.ColorMatrixFilter().redChannel(),
-                greenChannel=new FILTER.ColorMatrixFilter().greenChannel(),
-                blueChannel=new FILTER.ColorMatrixFilter().blueChannel(),
-                clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
-                //gamma=new FILTER.TableLookupFilter().gammaCorrection(1.7),
-                //solarize=new FILTER.TableLookupFilter().solarize(0.5),
-                posterize=new FILTER.TableLookupFilter().posterize(4),
-                //extract=new FILTER.TableLookupFilter().extract(FILTER.CHANNEL.RED, [0x75, 0x91]),
-                //mask=new FILTER.TableLookupFilter().mask(0xffff7732),
-                //swapChannels=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.GREEN),
-                //maskChannel=new FILTER.ColorMatrixFilter().maskChannel(FILTER.CHANNEL.GREEN),
-                //invert=new FILTER.TableLookupFilter().invert(),
-                /*erode=new FILTER.MorphologicalFilter().erode([
+                redChannel = new $F.ColorMatrixFilter().redChannel(),
+                greenChannel = new $F.ColorMatrixFilter().greenChannel(),
+                blueChannel = new $F.ColorMatrixFilter().blueChannel(),
+                clr = new $F.ColorMatrixFilter().colorize(0xff0000),
+                //gamma = new $F.TableLookupFilter().gammaCorrection(1.7),
+                //solarize = new $F.TableLookupFilter().solarize(0.5),
+                posterize = new $F.TableLookupFilter().posterize(4),
+                //extract = new $F.TableLookupFilter().extract($F.CHANNEL.RED, [0x75, 0x91]),
+                //mask = new $F.TableLookupFilter().mask(0xffff7732),
+                //swapChannels = new $F.ColorMatrixFilter().swapChannels($F.CHANNEL.BLUE, $F.CHANNEL.GREEN),
+                //maskChannel = new $F.ColorMatrixFilter().maskChannel($F.CHANNEL.GREEN),
+                //invert = new $F.TableLookupFilter().invert(),
+                /*erode = new $F.MorphologicalFilter().erode([
                     0, 0, 0, 1,
                     0, 0, 1, 0,
                     0, 1, 0, 0,
                     1, 0, 0, 0
                 ]),*/
-                equalize=new FILTER.HistogramEqualizeFilter(),
-                //rgbequalize=new FILTER.RGBHistogramEqualizeFilter(),
-                //noise=new FILTER.NoiseFilter(-127, 127),
-                sepia=new FILTER.ColorMatrixFilter().quickSepia(),
-                gray=new FILTER.ColorMatrixFilter().grayscale(),
-                //binary=new FILTER.TableLookupFilter().threshold(0.7),
-                //threshold=new FILTER.ColorMatrixFilter().threshold_rgb(128),
-                grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
-                //median=new FILTER.StatisticalFilter().median(5),
-                //maximum=new FILTER.StatisticalFilter().maximum(15),
-                pixelate=new FILTER.PixelateFilter(10),
-                //hueExtractor=new FILTER.HueExtractorFilter([10, 36]), // extract hues corresponding to skin color
-                //thresh=new FILTER.TableLookupFilter().threshold(0.94),
-                //hsv=new FILTER.HSVConverterFilter(),
-                //skinExtractor=new FILTER.CompositeFilter([hsv, redChannel, invert, gray, thresh]), // extract skin region
-                //laplace=new FILTER.ConvolutionMatrixFilter().laplace(7),
-                twirl=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50),
-                //rotate=new FILTER.GeometricMapFilter().rotateCCW(),
-                //blur=new FILTER.ConvolutionMatrixFilter().boxBlur(3),
-                //gauss=new FILTER.ConvolutionMatrixFilter().fastGauss(3),//gaussBlur(3),
-                //vertical=new FILTER.ConvolutionMatrixFilter().verticalBlur(21),
-                //diagonal=new FILTER.ConvolutionMatrixFilter().directionalBlur(45, 9),
-                sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
-                //glow=new FILTER.ConvolutionMatrixFilter().glow(),
-                emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
-                grsb=new FILTER.CompositeFilter([gray, sobel/*, binary*/]),
-                displace=new FILTER.DisplacementMapFilter(displacemap)//,
-                //bokeh=new FILTER.BokehFilter(80, 90, 60, 10)
-                ;
+                equalize = new $F.HistogramEqualizeFilter(),
+                //rgbequalize = new $F.RGBHistogramEqualizeFilter(),
+                //noise = new $F.NoiseFilter(-127, 127),
+                sepia = new $F.ColorMatrixFilter().sepia2(),
+                gray = new $F.ColorMatrixFilter().grayscale(),
+                //binary = new $F.TableLookupFilter().threshold(0.7),
+                //threshold = new $F.ColorMatrixFilter().threshold_rgb(128),
+                grc = new $F.ColorMatrixFilter().grayscale().contrast(1),
+                //median = new $F.StatisticalFilter().median(5),
+                //maximum = new $F.StatisticalFilter().maximum(15),
+                pixelate = new $F.PixelateFilter(10),
+                //pixelate = new $F.TriangularPixelateFilter(10),
+                //pixelate = new $F.HexagonalPixelateFilter(40),
+                //hueExtractor = new $F.HueExtractorFilter([10, 36]), // extract hues corresponding to skin color
+                //thresh = new $F.TableLookupFilter().threshold(0.94),
+                //hsv = new $F.HSVConverterFilter(),
+                //skinExtractor = new $F.CompositeFilter([hsv, redChannel, invert, gray, thresh]), // extract skin region
+                //laplace = new $F.ConvolutionMatrixFilter().laplace(7),
+                twirl = new $F.GeometricMapFilter().twirl(Math.PI/2, 120, 0.33, 0.27),
+                //rotate = new $F.GeometricMapFilter().rotateCCW(),
+                //blur = new $F.ConvolutionMatrixFilter().boxBlur(3),
+                //gauss = new $F.ConvolutionMatrixFilter().fastGauss(3),//gaussBlur(3),
+                //vertical = new $F.ConvolutionMatrixFilter().verticalBlur(21),
+                //diagonal = new $F.ConvolutionMatrixFilter().directionalBlur(45, 9),
+                sobel = new $F.ConvolutionMatrixFilter().sobel(3),
+                //glow = new $F.ConvolutionMatrixFilter().glow(),
+                emboss = new $F.ConvolutionMatrixFilter().emboss(),
+                grsb = new $F.CompositeFilter([gray, sobel/*, binary*/]),
+                displace = new $F.DisplacementMapFilter(displacemap)//,
+                //bokeh = new $F.BokehFilter(80, 90, 60, 10)
+            ;
             
-            addAll(container, [
+            container.AddAll([
                 span('1.'),
                 im1.domElement,
                 span('2.'),
                 im2.domElement,
-                linebreak(),
+                br(),
                 span('3.'),
                 im3.domElement,
                 span('4.'),
                 im4.domElement,
-                linebreak(),
+                br(),
                 span('14.'),
                 im14.domElement,
                 span('M:'),
                 displacemap.domElement
             ]);
-            addAll(filters, [
+            filters.AddAll([
                 span('5.'),
                 im5.domElement,
                 span('6.'),
                 im6.domElement,
                 span('7.'),
                 im7.domElement,
-                linebreak(),
+                br(),
                 span('8.'),
                 im8.domElement,
                 span('9.'),
                 im9.domElement,
                 span('10.'),
                 im10.domElement,
-                linebreak(),
+                br(),
                 span('11.'),
                 im11.domElement,
                 span('11.'),
@@ -206,57 +265,53 @@
                 im13.domElement
             ]);
             
-            function dotest(event)
+            function doTest(event)
             {
                 // apply them
-                redChannel.apply(im2);
-                greenChannel.apply(im3);
-                blueChannel.apply(im4);
-                clr.apply(im5);
-                grc.apply(im6);
-                sepia.apply(im7);
-                posterize.apply(im8);
-                //gauss.apply(im9);
-                pixelate.apply(im9);
-                //skinExtractor.apply(im10);
-                emboss.apply(im10);
-                twirl.apply(im11);
-                displace.scaleX=100;
-                displace.scaleY=100;
-                displace.apply(im12);
-                grsb.apply(im13);
-                //glow.apply(im13);
-                equalize.apply(im14);
+                redChannel.apply( im2 );
+                greenChannel.apply( im3 );
+                blueChannel.apply( im4 );
+                // apply to right half of image
+                clr.apply( im5.select(0.5, 0, 1, 1) ).deselect();
+                grc.apply( im6 );
+                sepia.apply( im7 );
+                posterize.apply( im8 );
+                //gauss.apply( im9 );
+                pixelate.apply( im9 );
+                //skinExtractor.apply( im10 );
+                emboss.apply( im10 );
+                twirl.apply( im11 );
+                displace.scaleX = 100;
+                displace.scaleY = 100;
+                displace.apply( im12 );
+                grsb.apply( im13 );
+                //glow.apply( im13 );
+                equalize.apply( im14 );
                 
-                //console.log(im2.toString());
-                //console.log(pixelate.toString());
-                //console.log(grsb.toString());
+                aside.Append("<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized applied to Selection</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Pixelate (Plugin)</li><li>Emboss</li><li>Geometric Twirl Map</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
                 
-                append(aside, "<div><ol><li>Original Image</li><li>Red Channel</li><li>Green Channel</li><li>Blue Channel</li><li>Red Colorized</li><li>Grayscale and Contrast</li><li>Quick Sepia</li><li>Posterize</li><li>Pixelate (Plugin)</li><li>Emboss</li><li>Geometric Twirl Map</li><li>Displace Map</li><li>Grayscale, Sobel Gradient Magnitude (Composite)</li><li>Histogram Equalization (Plugin)</li></ol>M: Displace Map</div>");
-                
-                
+                //return false;
             }
             
             /*function dotest2()
             {
-                var A=FILTER.ImArray, 
-                a, a2;
-                a=new A([1,2,3]);
-                a2=new A(a);//.set(a);
+                var A=$F.ImArray, 
+                    a, a2;
+                a = new A([1,2,3]);
+                a2 = new A(a);
                 
-                a[1]=5;
+                a[1] = 5;
                 console.log(a[1]);
                 console.log(a2[1]);            
                 
                 // in Opera, a2[1]=5 now, it is copy-by-reference
                 // if a2 is simple Uint8Array, a copy by-value is done, Opera bug??
-                console.log(FILTER.isOpera);
-                console.log(FILTER.ImArray.toString());
+                console.log($F.Browser.isOpera);
+                console.log($F.ImArray.toString());
                 console.log(Uint8ClampedArray.toString());
-                console.log(FILTER._notSupportTypedArrays);
             }*/
             
-            addEvent(test, 'click', dotest);
+            test.Event('click', doTest);
             
         //]]>
         </script>

@@ -4,7 +4,11 @@
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <style>
+        
+        <title>Video Processing with Filter.js</title>
+        
+        <link rel="stylesheet" type="text/css" href="../common/css/common.min.css" />
+        <style type="text/css">
             body {
                 position:relative;
                 background-color: #121212;
@@ -17,29 +21,71 @@
                 min-height:900px; 
                 overflow:scroll;
             }
-            .panel
-            {
+            .panel {
                 cursor:arrow;
-                position:relative;
-                display:inline-block;
-                max-width:500px;
-                min-height:100px;
-                vertical-align:top;
-                margin:0 25px;
-                padding:0 15px;
+                margin-left:20px;
                 border-left:2px solid #aaa;
             }
-            strong
-            {
+            strong {
                 font-size:20px;
             }
-            #statsContainer
-            {
+            #statsContainer {
                 margin-bottom:20px;
+            }
+            .button {
+                -moz-box-shadow:inset 0px 1px 0px 0px #f5978e;
+                -webkit-box-shadow:inset 0px 1px 0px 0px #f5978e;
+                box-shadow:inset 0px 1px 0px 0px #f5978e;
+                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #f24537), color-stop(1, #c62d1f) );
+                background:-moz-linear-gradient( center top, #f24537 5%, #c62d1f 100% );
+                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f24537', endColorstr='#c62d1f');
+                background-color:#f24537;
+                -webkit-border-top-left-radius:20px;
+                -moz-border-radius-topleft:20px;
+                border-top-left-radius:20px;
+                -webkit-border-top-right-radius:20px;
+                -moz-border-radius-topright:20px;
+                border-top-right-radius:20px;
+                -webkit-border-bottom-right-radius:20px;
+                -moz-border-radius-bottomright:20px;
+                border-bottom-right-radius:20px;
+                -webkit-border-bottom-left-radius:20px;
+                -moz-border-radius-bottomleft:20px;
+                border-bottom-left-radius:20px;
+                text-indent:0;
+                border:1px solid #d02718;
+                display:inline-block;
+                color:#ffffff;
+                font-family:Arial;
+                font-size:15px;
+                font-weight:bold;
+                font-style:normal;
+                height:50px;
+                line-height:50px;
+                width:2000px;
+                text-decoration:none;
+                text-align:center;
+                text-shadow:1px 1px 0px #810e05;
+            }
+            .button:hover {
+                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #c62d1f), color-stop(1, #f24537) );
+                background:-moz-linear-gradient( center top, #c62d1f 5%, #f24537 100% );
+                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#c62d1f', endColorstr='#f24537');
+                background-color:#c62d1f;
+            }.button:active {
+                position:relative;
+                top:1px;
+            }
+            .button {
+                width:120px;
+                height:40px;
+                line-height:40px;
+                cursor:pointer;
+                position:relative;
             }
         </style>
         <script src="../common/js/stats.min.js"></script>
-        <script src="../common/js/filter.min.js"></script>
+        <script src="../common/js/filter.bundle.js"></script>
         <script>    
          //<![CDATA[
             
@@ -74,83 +120,135 @@
             
         //]]>
         </script>
-        <title>Video Processing with FILTER.js</title>
     </head>
     <body>
-        <style>#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+        <style>#forkongithub a{background:#c83022;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#c83022;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
         
-        <h1>Video Processing with Filter.js</h1><br /><br />
+        <header id="header">
+            <h1>Video Processing with Filter.js</h1><br /><br />
+        </header>
         
         <div id="statsContainer"></div>
         
-        <div id="container" class="panel">
-            <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
-            <video id="video" autoplay loop>
-                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4">
-                <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm">
-                Video is not supported
-            </video>
-        </div>
+        <div class="col-1-1">
         
-        <div id="filters" class="panel">
-            <strong>Post-Processed Video</strong><br /><br />
+            <div id="container" class="col-2-5 panel">
+                <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
+                <video id="video" autoplay loop>
+                    <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4">
+                    <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm">
+                    Video is not supported
+                </video>
+            </div>
+            
+            <div id="filters"  class="col-2-5 panel">
+                <strong>Post-Processed Video</strong><br /><br />
+            </div>
+        
         </div>
         
         <br /><br />
         
-        <div class="panel" style="display:block; max-width:1000px;">
-            <strong>Apply Post-Process Filter to Video :</strong><br /><br />
-            <select id="filterSelect" style="font-size:20px;">
-                <option value='#'>Colorize</option>
-                <option value='#'>Grayscale</option>
-                <option value='#'>Grayscale and Contrast</option>
-                <option value='#'>Solarize</option>
-                <option value='#'>Posterize</option>
-                <option value='#'>Invert</option>
-                <option value='#'>RED Channel</option>
-                <option value='#'>GREEN Channel</option>
-                <option value='#'>BLUE Channel</option>
-                <option value='#'>Fast Gauss Blur 3x3</option>
-                <option value='#'>Fast Gauss Blur 7x7</option>
-                <option value='#'>Fast Gauss Blur 15x15</option>
-                <option value='#'>Fast Gauss Blur 51x51</option>
-                <option value='#'>Grayscale, Sobel Edges 3x3</option>
-                <option value='#'>Grayscale, Sobel Edges 3x3, Binary Threshold</option>
-                <option value='#'>Grayscale, Laplace Edges 3x3</option>
-                <option value='#'>Grayscale, Laplace Edges 5x5</option>
-                <option value='#'>Grayscale, Laplace Edges 11x11</option>
-                <option value='#'>Grayscale, Laplace Edges 3x3, Binary Threshold</option>
-                <option value='#'>Grayscale, Laplace Edges 5x5, Binary Threshold</option>
-                <option value='#'>Grayscale, Laplace Edges 11x11, Binary Threshold</option>
-                <option value='#'>Gray, Gauss, Laplace 3x3, Threshold</option>
-                <option value='#'>Gray, Gauss, Laplace 5x5, Threshold</option>
-                <option value='#'>Emboss</option>
-                <option value='#'>Minimum 3x3</option>
-                <option value='#'>Maximum 3x3</option>
-                <option value='#'>Morphological Dilate</option>
-                <option value='#'>Pixelate 5%</option>
-                <option value='#'>Pixelate 10%</option>
-                <option value='#'>Pixelate 15%</option>
-                <option value='#'>HSV Color Space</option>
-                <option value='#'>Hue only as grayscale Image</option>
-                <option value='#'>Extract range of Hues, Open Morphological</option>
-                <option value='#'>YCbCr Color Space</option>
-                <option value='#'>Equalize Histogram</option>
-                <option value='#'>Alpha Mask</option>
-                <option value='#'>Noise</option>
-                <option value='#'>DisplaceMap</option>
-                <option value='#'>TwirlMap</option>
-                <option value='#'>SphereMap</option>
-                <option value='#'>Bokeh (Depth-of-Field)</option>
-            </select>
-            &nbsp;
-            <select id="flipSelect" style="font-size:20px;">
-                <option value='0'>No Flip</option>
-                <option value='1'>Flip Horizontal</option>
-                <option value='2'>Flip Vertical</option>
-                <option value='3'>Flip Horizontal using Filter</option>
-                <option value='4'>Flip Vertical using Filter</option>
-            </select>
+        <div class="col-1-1">
+        
+            <div class="panel">
+                <strong>Apply Post-Process Filter to Video :</strong><br /><br />
+                <select id="filterSelect" style="font-size:20px;">
+                    <optgroup label="Color Matrix Filters">
+                        <option value='#'>Colorize</option>
+                        <option value='#'>Grayscale</option>
+                        <option value='#'>Grayscale and Contrast</option>
+                        <option value='#'>RED Channel</option>
+                        <option value='#'>GREEN Channel</option>
+                        <option value='#'>BLUE Channel</option>
+                    </optgroup>
+                    <optgroup label="Table Lookup Filters">
+                        <option value='#'>Solarize</option>
+                        <option value='#'>Solarize2</option>
+                        <option value='#'>Posterize</option>
+                        <option value='#'>Invert</option>
+                    </optgroup>
+                    <optgroup label="Convolution Filters">
+                        <option value='#'>Fast Gauss Blur 3x3</option>
+                        <option value='#'>Fast Gauss Blur 7x7</option>
+                        <option value='#'>Fast Gauss Blur 15x15</option>
+                        <option value='#'>Fast Gauss Blur 51x51</option>
+                        <option value='#'>Grayscale, Sobel Edges 3x3</option>
+                        <option value='#'>Grayscale, Sobel Edges 3x3, Binary Threshold</option>
+                        <option value='#'>Grayscale, Laplace Edges 5x5</option>
+                        <option value='#'>Grayscale, Laplace Edges 11x11</option>
+                        <option value='#'>Grayscale, Laplace Edges 5x5, Binary Threshold</option>
+                        <option value='#'>Grayscale, Laplace Edges 11x11, Binary Threshold</option>
+                        <option value='#'>Gray, Gauss, Laplace 5x5, Threshold</option>
+                        <option value='#'>Emboss</option>
+                    </optgroup>
+                    <optgroup label="Statistical/Morphological Filters">
+                        <option value='#'>Minimum 3x3</option>
+                        <option value='#'>Maximum 3x3</option>
+                        <option value='#'>Morphological Dilate</option>
+                    </optgroup>
+                    <optgroup label="Displace/Geometric Filters">
+                        <option value='#'>DisplaceMap</option>
+                        <option value='#'>TwirlMap</option>
+                        <option value='#'>SphereMap</option>
+                        <option value='#'>RippleMap</option>
+                    </optgroup>
+                    <optgroup label="Plugins and Composites">
+                        <option value='#'>Pixelate 5%</option>
+                        <option value='#'>Pixelate 10%</option>
+                        <option value='#'>Pixelate 15%</option>
+                        <option value='#'>Triangular Pixelate 5%</option>
+                        <option value='#'>Triangular Pixelate 10%</option>
+                        <option value='#'>Triangular Pixelate 15%</option>
+                        <option value='#'>HSV Color Space</option>
+                        <option value='#'>Hue only as grayscale Image</option>
+                        <option value='#'>Extract range of Hues, Open Morphological</option>
+                        <option value='#'>YCbCr Color Space</option>
+                        <option value='#'>Equalize Histogram</option>
+                        <option value='#'>Alpha Mask</option>
+                        <option value='#'>Blend</option>
+                        <option value='#'>Noise</option>
+                        <option value='#'>Bokeh (Depth-of-Field)</option>
+                    </optgroup>
+                </select>
+                &nbsp;
+                <select id="flipSelect" style="font-size:20px;">
+                    <option value='0'>No Flip</option>
+                    <option value='1'>Flip Horizontal</option>
+                    <option value='2'>Flip Vertical</option>
+                    <option value='3'>Flip Horizontal using Filter</option>
+                    <option value='4'>Flip Vertical using Filter</option>
+                </select>
+                &nbsp;
+                <select id="blendSelect" style="font-size:20px;">
+                    <option value='Normal'>Normal</option>
+                    <option value='Lighten'>Lighten</option>
+                    <option value='Darken'>Darken</option>
+                    <option value='Multiply'>Multiply</option>
+                    <option value='Average'>Average</option>
+                    <option value='Add'>Add</option>
+                    <option value='Subtract'>Subtract</option>
+                    <option value='Difference'>Difference</option>
+                    <option value='Negation'>Negation</option>
+                    <option value='Screen'>Screen</option>
+                    <option value='Exclusion'>Exclusion</option>
+                    <option value='Overlay'>Overlay</option>
+                    <option value='SoftLight'>SoftLight</option>
+                    <option value='HardLight'>HardLight</option>
+                    <option value='ColorDodge'>ColorDodge</option>
+                    <option value='ColorBurn'>ColorBurn</option>
+                    <option value='LinearLight'>LinearLight</option>
+                    <option value='Reflect'>Reflect</option>
+                    <option value='Glow'>Glow</option>
+                    <option value='Phoenix'>Phoenix</option>
+                    <option value='VividLight'>VividLight</option>
+                    <option value='PinLight'>PinLight</option>
+                    <option value='HardMix'>HardMix</option>
+                    <option value='LinearDodge'>LinearDodge (same as Add)</option>
+                    <option value='LinearBurn'>LinearBurn (same as Subtract)</option>
+                </select>
+            </div>
+        
         </div>
         
         <script>
@@ -158,132 +256,150 @@
         (function(window){
         
             var 
-                filterSelect=getEl('filterSelect'), 
-                flipSelect=getEl('flipSelect'), 
-                video=getEl('video'), 
-                container=getEl('container'), 
-                filters=getEl('filters'),
+                $F = FILTER, icon = new $F.Image(),
+                filterSelect = getEl('filterSelect'), 
+                flipSelect = getEl('flipSelect'), 
+                blendSelect = getEl('blendSelect'), 
+                video = getEl('video'), 
+                container = getEl('container'), 
+                filters = getEl('filters'),
                 
                 // images
-                displacemap=new FILTER.Image().fill("rgb(128,128,128)", 0, 0, 300, 300),
-                alphamask=new FILTER.Image().fill("rgb(0,0,0)", 0, 0, 380, 270),
-                postVideo=new FILTER.Image(),
+                displacemap = new $F.Image().fill("rgb(128,128,128)", 0, 0, 320, 240),
+                alphamask = new $F.Image().fill("rgb(0,0,0)", 0, 0, 200, 200),
+                //downscaleVideo = new $F.ScaledImage(0.5, 0.5),
+                //upscaleVideo = new $F.ScaledImage(2, 2),
+                postVideo = new $F.Image(),
                  
                  // filters
-                flipX=new FILTER.GeometricMapFilter().flipX(),
-                flipY=new FILTER.GeometricMapFilter().flipY(),
-                binary=new FILTER.TableLookupFilter().threshold(0.7),
-                solarize=new FILTER.TableLookupFilter().solarize(0.6),
-                //solarize2=new FILTER.TableLookupFilter().solarize2(0.4),
-                posterize=new FILTER.TableLookupFilter().posterize(8),
-                invert=new FILTER.TableLookupFilter().invert(),
-                //invert=new FILTER.ColorMatrixFilter().invert(),
-                gray=new FILTER.ColorMatrixFilter().grayscale(),
-                grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
-                blur3=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 3),
-                blur7=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 7),
-                blur15=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 15),
-                blur51=new FILTER.ConvolutionMatrixFilter().fastGauss(2, 51),
-                sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
-                laplace3=new FILTER.ConvolutionMatrixFilter().laplace(3),
-                laplace5=new FILTER.ConvolutionMatrixFilter().laplace(5),
-                laplace11=new FILTER.ConvolutionMatrixFilter().laplace(11),
-                grs=new FILTER.CompositeFilter([gray, sobel]),
-                grsb=new FILTER.CompositeFilter([gray, sobel, binary]),
-                grl3=new FILTER.CompositeFilter([gray, laplace3]),
-                grl5=new FILTER.CompositeFilter([gray, laplace5]),
-                grl11=new FILTER.CompositeFilter([gray, laplace11]),
-                grlb3=new FILTER.CompositeFilter([gray, laplace3, binary]),
-                grlb5=new FILTER.CompositeFilter([gray, laplace5, binary]),
-                grlb11=new FILTER.CompositeFilter([gray, laplace11, binary]),
-                grglb3=new FILTER.CompositeFilter([gray, blur3, laplace3, binary]),
-                grglb5=new FILTER.CompositeFilter([gray, blur3, laplace5, binary]),
-                emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
-                redC=new FILTER.ColorMatrixFilter().redChannel(),
-                redCGray=new FILTER.ColorMatrixFilter().redChannel(true),
-                greenC=new FILTER.ColorMatrixFilter().greenChannel(),
-                blueC=new FILTER.ColorMatrixFilter().blueChannel(),
-                clr=new FILTER.ColorMatrixFilter().colorize(0xfdc171),
-                equ=new FILTER.HistogramEqualizeFilter(),
+                flipX = new $F.GeometricMapFilter().flipX(),
+                flipY = new $F.GeometricMapFilter().flipY(),
+                binary = new $F.TableLookupFilter().threshold(0.7),
+                solarize = new $F.TableLookupFilter().solarize(0.6),
+                solarize2 = new $F.TableLookupFilter().solarize2(0.4),
+                posterize = new $F.TableLookupFilter().posterize(8),
+                invert = new $F.TableLookupFilter().invert(),
+                //invert = new $F.ColorMatrixFilter().invert(),
+                gray = new $F.ColorMatrixFilter().grayscale(),
+                grc = new $F.ColorMatrixFilter().grayscale().contrast(1),
+                blur3 = new $F.ConvolutionMatrixFilter().fastGauss(2, 3),
+                blur7 = new $F.ConvolutionMatrixFilter().fastGauss(2, 7),
+                blur15 = new $F.ConvolutionMatrixFilter().fastGauss(2, 15),
+                blur51 = new $F.ConvolutionMatrixFilter().fastGauss(2, 51),
+                sobel = new $F.ConvolutionMatrixFilter().sobel(3),
+                laplace5 = new $F.ConvolutionMatrixFilter().laplace(5),
+                laplace11 = new $F.ConvolutionMatrixFilter().laplace(11),
+                grs = new $F.CompositeFilter([gray, sobel]),
+                grsb = new $F.CompositeFilter([gray, sobel, binary]),
+                grl5 = new $F.CompositeFilter([gray, laplace5]),
+                grl11 = new $F.CompositeFilter([gray, laplace11]),
+                grlb5 = new $F.CompositeFilter([gray, laplace5, binary]),
+                grlb11 = new $F.CompositeFilter([gray, laplace11, binary]),
+                grglb5 = new $F.CompositeFilter([gray, blur3, laplace5, binary]),
+                emboss = new $F.ConvolutionMatrixFilter().emboss(),
+                redC = new $F.ColorMatrixFilter().redChannel(),
+                redCGray = new $F.ColorMatrixFilter().redChannel(true),
+                greenC = new $F.ColorMatrixFilter().greenChannel(),
+                blueC = new $F.ColorMatrixFilter().blueChannel(),
+                clr = new $F.ColorMatrixFilter().colorize(0xfdc171),
+                equ = new $F.HistogramEqualizeFilter(),
                 // median is slow ..
-                minimum=new FILTER.StatisticalFilter().minimum(3),
-                maximum=new FILTER.StatisticalFilter().maximum(3),
-                mdilate=new FILTER.MorphologicalFilter().dilate([
+                minimum = new $F.StatisticalFilter().minimum(3),
+                maximum = new $F.StatisticalFilter().maximum(3),
+                mdilate = new $F.MorphologicalFilter().dilate([
                     0, 0, 0, 0, 1,
                     0, 0, 0, 1, 0,
                     0, 0, 1, 0, 0,
                     0, 1, 0, 0, 0,
                     1, 0, 0, 0, 0
                 ]),
-                open=new FILTER.MorphologicalFilter().opening(3),
-                noise=new FILTER.NoiseFilter(10, 70),
-                displaceFilter=new FILTER.DisplacementMapFilter(),
-                twirlFilter=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 200, 120, 100),
-                sphereFilter=new FILTER.GeometricMapFilter().sphere(200, 120, 100),
-                pixelate5=new FILTER.PixelateFilter(5),
-                pixelate10=new FILTER.PixelateFilter(10),
-                pixelate15=new FILTER.PixelateFilter(15),
-                alphaMasker=new FILTER.AlphaMaskFilter(),
-                swapChannel=new FILTER.ColorMatrixFilter().swapChannels(FILTER.CHANNEL.BLUE, FILTER.CHANNEL.ALPHA),
-                hsv=new FILTER.HSVConverterFilter(),
-                hueOnly=new FILTER.CompositeFilter([hsv, redCGray]),
-                hueE=new FILTER.HueExtractorFilter([10, 150]),
-                hueExtractor=new FILTER.CompositeFilter([hueE, open]),
-                ycbcr=new FILTER.ColorMatrixFilter().RGB2YCbCr(),
-                //ycbcr=new FILTER.YCbCrConverterFilter(),
-                bokeh=new FILTER.BokehFilter(240, 140, 100, 10),
+                open = new $F.MorphologicalFilter().opening(3),
+                noise = new $F.NoiseFilter(10, 70),
+                displaceFilter = new $F.DisplacementMapFilter(),
+                twirlFilter = new $F.GeometricMapFilter().twirl(Math.PI/2, 150, 0.5, 0.5),
+                sphereFilter = new $F.GeometricMapFilter().sphere(150, 0.5, 0.5),
+                rippleFilter = new $F.GeometricMapFilter().ripple(10, 16, 10, 0, 0.5, 0.5),
+                pixelate5 = new $F.PixelateFilter(5),
+                pixelate10 = new $F.PixelateFilter(10),
+                pixelate15 = new $F.PixelateFilter(15),
+                trianglepixelate5 = new $F.TriangularPixelateFilter(5),
+                trianglepixelate10 = new $F.TriangularPixelateFilter(10),
+                trianglepixelate15 = new $F.TriangularPixelateFilter(15),
+                alphaMask = new $F.AlphaMaskFilter(alphamask, 0.5, 0.5),
+                blend = new $F.BlendFilter(icon),
+                swapChannel = new $F.ColorMatrixFilter().swapChannels($F.CHANNEL.BLUE, $F.CHANNEL.ALPHA),
+                hsv = new $F.HSVConverterFilter(),
+                hueOnly = new $F.CompositeFilter([hsv, redCGray]),
+                hueE = new $F.HueExtractorFilter([10, 150]),
+                hueExtractor = new $F.CompositeFilter([hueE, open]),
+                ycbcr = new $F.ColorMatrixFilter().RGB2YCbCr(),
+                //ycbcr = new $F.YCbCrConverterFilter(),
+                bokeh = new $F.BokehFilter(0.5, 0.5, 100, 10),
                 
                 // filter selection list
                 videoFilters=[
                     clr,
                     gray,
                     grc,
-                    solarize,
-                    posterize,
-                    invert,
                     redC,
                     greenC,
                     blueC,
+                    solarize,
+                    solarize2,
+                    posterize,
+                    invert,
                     blur3,
                     blur7,
                     blur15,
                     blur51,
                     grs,
                     grsb,
-                    grl3,
                     grl5,
                     grl11,
-                    grlb3,
                     grlb5,
                     grlb11,
-                    grglb3,
                     grglb5,
                     emboss,
                     minimum,
                     maximum,
                     mdilate,
+                    displaceFilter,
+                    twirlFilter,
+                    sphereFilter,
+                    rippleFilter,
                     pixelate5,
                     pixelate10,
                     pixelate15,
+                    trianglepixelate5,
+                    trianglepixelate10,
+                    trianglepixelate15,
                     hsv,
                     hueOnly,
                     hueExtractor,
                     ycbcr,
                     equ,
-                    alphaMasker,
+                    alphaMask,
+                    blend,
                     noise,
-                    displaceFilter,
-                    twirlFilter,
-                    sphereFilter,
                     bokeh
                 ],
-                currentOrientation=0, 
-                currentFilterIndex=0,  currentFilter=videoFilters[currentFilterIndex],
-                renderInterval=60,  rnd=Math.random, Max=Math.max, dx, dy, dtheta, vw, vh
-                ;
+                currentOrientation = 0, currentBlendMode = "normal",
+                currentFilterIndex = 0,  currentFilter = videoFilters[currentFilterIndex],
+                renderInterval = 60,  rnd = Math.random, Max = Math.max, dx, dy, dx2, dy2, dtheta, dr, vw, vh
+            ;
             
             function init()
             {
+                if ($F.Browser.isChrome)
+                    icon.setImage("../common/assets/chrome.png");
+                else if ($F.Browser.isOpera)
+                    icon.setImage("../common/assets/opera.png");
+                else if ($F.Browser.isIE)
+                    icon.setImage("../common/assets/ie.png");
+                else
+                    icon.setImage("../common/assets/firefox.png");
+                blendSelect.style.display = "none";
+                
                 var grd;
                 // create a displace map image
                 // create radial gradient
@@ -294,11 +410,11 @@
                 displacemap.context.beginPath();
                 displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                 displacemap.context.fill();
-                displacemap._refresh();
+                //displacemap._refresh();
                 displaceFilter.setMap(displacemap);
                 displaceFilter.startX=0; displaceFilter.startY=0;
                 displaceFilter.scaleX=120; displaceFilter.scaleY=120; 
-                displaceFilter.componentX=FILTER.CHANNEL.RED; displaceFilter.componentY=FILTER.CHANNEL.GREEN;
+                displaceFilter.componentX=$F.CHANNEL.RED; displaceFilter.componentY=$F.CHANNEL.GREEN;
                 
                 // create alpha mask image
                 // create radial gradient
@@ -307,15 +423,14 @@
                 grd.addColorStop(0, "#ffffff"); // white
                 alphamask.context.fillStyle = grd;
                 alphamask.context.beginPath();
-                alphamask.context.arc(alphamask.width/2,alphamask.height/2,alphamask.width/2,0,Math.PI*2,true);
+                alphamask.context.arc(alphamask.width/2, alphamask.height/2, alphamask.width/2, 0, Math.PI*2, true);
                 alphamask.context.fill();
-                alphamask._refresh();
+                //alphamask._refresh();
                 swapChannel.apply(alphamask);
-                alphaMasker.centerX=video.videoWidth/2;
-                alphaMasker.centerY=video.videoHeight/2;
-                alphaMasker.alphaMask=alphamask;
                 
-                dx=Max(5*rnd()+5, 5); dy=Max(5*rnd()+5, 5); dtheta=Max(0.1*Math.PI*rnd() + 0.05, 0.06);
+                dx = Max(10*rnd(), 5); dy = Max(10*rnd(), 5); 
+                dtheta = Math.PI*Max(2*rnd(), 1)/32;  
+                dr = Max(2*rnd()+1, 1);
                 
                 add(filters, postVideo.domElement);
                 
@@ -325,12 +440,27 @@
                 
                 // change the video filter applied
                 addEvent(filterSelect, "change", function(){
-                    currentFilterIndex=filterSelect.selectedIndex || 0;
+                    currentFilterIndex = filterSelect.selectedIndex || 0;
+                    // preview the filter while hovering the option
+                    currentFilter = videoFilters[currentFilterIndex];
+                    if (blend === currentFilter)
+                    {
+                        blendSelect.style.display = "inline-block";
+                    }
+                    else
+                    {
+                        blendSelect.style.display = "none";
+                    }
                 });
                 
                 // change the orientation applied
                 addEvent(flipSelect, "change", function(){
-                    currentOrientation=flipSelect.selectedIndex || 0;
+                    currentOrientation = flipSelect.selectedIndex || 0;
+                });
+                
+                // change the blend mode
+                addEvent(blendSelect, "change", function(){
+                    currentBlendMode = blendSelect.options[blendSelect.selectedIndex || 0].value;
                 });
                 
                 // start process when the video is playing
@@ -341,13 +471,12 @@
             {
                 if (video.paused || video.ended)  return;
                 
-                var vw, vh;
+                var vw, vh, brad;
                 
                 stats.begin();
                 
-                // preview the filter while hovering the option
-                currentFilter=videoFilters[currentFilterIndex];
-                
+                // down-scale
+                //downscaleVideo.setImage(video);
                 postVideo.setImage(video);
                 
                 if (1==currentOrientation)   postVideo.flipHorizontal();
@@ -355,40 +484,73 @@
                 else if (3==currentOrientation)   flipX.apply(postVideo);
                 else if (4==currentOrientation)  flipY.apply(postVideo);
                 
+                vw = postVideo.width;
+                vh = postVideo.height;
+                
                 if (displaceFilter===currentFilter)
                 {
                     // animate the displace filter
-                    vw=postVideo.width>>1; vh=postVideo.height>>1;
-                    displaceFilter.startX+=dx; displaceFilter.startY+=dy;
-                    if (displaceFilter.startX<-vw || displaceFilter.startX>vw) dx=-dx;
-                    if (displaceFilter.startY<-vh || displaceFilter.startY>vh) dy=-dy;
+                    displaceFilter.startX += dx/vw; 
+                    displaceFilter.startY += dy/vh;
+                    if (displaceFilter.startX<-0.5 || displaceFilter.startX>0.5) dx = -dx;
+                    if (displaceFilter.startY<-0.5 || displaceFilter.startY>0.5) dy = -dy;
                 }
                 else if (twirlFilter===currentFilter)
                 {
                     // animate the twirl filter
-                    vw=postVideo.width; vh=postVideo.height;
-                    twirlFilter.angle+=dtheta;
+                    twirlFilter.angle += dtheta;
                     if (twirlFilter.angle < -Math.PI/2 || twirlFilter.angle > Math.PI/2) dtheta=-dtheta;
-                    twirlFilter.centerX+=dx; twirlFilter.centerY+=dy;
-                    if (twirlFilter.centerX<0 || twirlFilter.centerX>vw) dx=-dx;
-                    if (twirlFilter.centerY<0 || twirlFilter.centerY>vh) dy=-dy;
+                    twirlFilter.centerX += dx/vw; 
+                    twirlFilter.centerY += dy/vh;
+                    if (twirlFilter.centerX<0 || twirlFilter.centerX>1) dx = -dx;
+                    if (twirlFilter.centerY<0 || twirlFilter.centerY>1) dy = -dy;
                 }
                 else if (sphereFilter===currentFilter)
                 {
                     // animate the sphere filter
-                    vw=postVideo.width; vh=postVideo.height;
-                    sphereFilter.centerX+=dx; sphereFilter.centerY+=dy;
-                    if (sphereFilter.centerX<0 || sphereFilter.centerX>vw) dx=-dx;
-                    if (sphereFilter.centerY<0 || sphereFilter.centerY>vh) dy=-dy;
+                    sphereFilter.centerX += dx/vw; 
+                    sphereFilter.centerY += dy/vh;
+                    if (sphereFilter.centerX<0 || sphereFilter.centerX>1) dx = -dx;
+                    if (sphereFilter.centerY<0 || sphereFilter.centerY>1) dy = -dy;
+                }
+                else if (rippleFilter===currentFilter)
+                {
+                    // animate the ripple filter
+                    brad = Max(vw, vh);
+                    rippleFilter.radius += dr; 
+                    rippleFilter.phase += dtheta; 
+                    rippleFilter.wavelength = 25;
+                    if (rippleFilter.phase < -Math.PI || rippleFilter.phase > Math.PI) dtheta=-dtheta;
+                    if (rippleFilter.radius<0 || rippleFilter.radius>brad) dr = -dr;
+                }
+                else if (alphaMask===currentFilter)
+                {
+                    // animate the mask filter
+                    alphaMask.centerX += dx/vw; 
+                    alphaMask.centerY += dy/vh;
+                    if (alphaMask.centerX<0 || alphaMask.centerX>1) dx = -dx;
+                    if (alphaMask.centerY<0 || alphaMask.centerY>1) dy = -dy;
+                }
+                else if (blend===currentFilter)
+                {
+                    // animate the blend filter
+                    blend.mode(currentBlendMode);
+                    blend.startX += dx; 
+                    blend.startY += dy;
+                    if (blend.startX<0 || blend.startX>postVideo.width) dx2 = -dx;
+                    if (blend.startY<0 || blend.startY>postVideo.height) dy2 = -dy;
                 }
                 
                 if (currentFilter) currentFilter.apply(postVideo);
                 
+                // up-scale
+                //upscaleVideo.setImage(downscaleVideo.canvasElement);
+                
                 stats.end();
                 
                 // Render every fixed interval
-                //setTimeout(processVideo, renderInterval);
                 requestAnimationFrame(processVideo);
+                //setTimeout(processVideo, renderInterval);
             }
             
             // play

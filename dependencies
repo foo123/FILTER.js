@@ -5,67 +5,72 @@
 #
 ###################################################
 
-@DEPENDENCIES
+# A '#' represents a comment and everything after it is skipped
+# Lines starting with # or blank lines are skipped
+# Lines starting with @ are blocks/directives and describe how the build is going to be processed
+# One line for each setting, no multiple settings on same line, line indentation does not matter
+# Blocks with =[] define LISTS (arrays)
+# Blocks with ={} define MAPS (hashmaps)
+# Blocks with =[{}] define ORDEREDMAPS (array of hashmaps)
+# Blocks with = or nothing define VALUES (single value)
+# A key and/or value can be quoted (with ", ' or `, quotes) or unquoted
+# Lines with one or multiple '@'s define the end of that many previous blocks
 
-# Core classes
-./src/FILTER.js
-./src/core/Filter.js
-#./src/core/WebGLFilter.js
-./src/core/Color.js
-./src/core/Image.js
+@SRC =[]
 
-# generic Filters
-./src/filters/CustomFilter.js
-./src/filters/ColorMatrixFilter.js
-./src/filters/TableLookupFilter.js
-./src/filters/DisplacementMapFilter.js
-./src/filters/GeometricMapFilter.js
-./src/filters/ConvolutionMatrixFilter.js
-./src/filters/MorphologicalFilter.js
-./src/filters/StatisticalFilter.js
+    !tpl:umd-header.tpl.js  # include a umd-header template
+    
+    # core Classes
+    ./src/FILTER.js
+    ./src/core/Filter.js
+    # (TODO)
+    #./src/core/WebGLFilter.js
+    ./src/core/Color.js
+    ./src/core/Image.js
 
-# svg and css based generic Filters
-#./src/filters/SVGFilter.js
-#./src/filters/CSSFilter.js
+    # generic Filters
+    ./src/filters/CustomFilter.js
+    ./src/filters/ColorMatrixFilter.js
+    ./src/filters/TableLookupFilter.js
+    ./src/filters/DisplacementMapFilter.js
+    ./src/filters/GeometricMapFilter.js
+    ./src/filters/ConvolutionMatrixFilter.js
+    ./src/filters/MorphologicalFilter.js
+    ./src/filters/StatisticalFilter.js
 
-# webgl generic Filters
-#./src/filters/webgl/ColorMatrixFilter.js
-#./src/filters/webgl/DisplacementMapFilter.js
-#./src/filters/webgl/GeometricMapFilter.js
-#./src/filters/webgl/ConvolutionMatrixFilter.js
+    # svg and css based generic Filters (TODO)
+    #./src/filters/SVGFilter.js
+    #./src/filters/CSSFilter.js
 
-# sample Plugins
-./src/plugins/Plugin.js
-./src/plugins/Noise.js
-./src/plugins/Equalize.js
-./src/plugins/RGBEqualize.js
-./src/plugins/Pixelate.js
-./src/plugins/HSVConverter.js
-./src/plugins/HueExtractor.js
-./src/plugins/AlphaMask.js
-./src/plugins/Threshold.js
-./src/plugins/YCbCrConverter.js
-./src/plugins/Bokeh.js
+    # webgl generic Filters (TODO)
+    #./src/filters/webgl/ColorMatrixFilter.js
+    #./src/filters/webgl/DisplacementMapFilter.js
+    #./src/filters/webgl/GeometricMapFilter.js
+    #./src/filters/webgl/ConvolutionMatrixFilter.js
+    
+    !tpl:umd-footer.tpl.js  # include a umd-footer template
 
-# TODO, allow some pre-process to take place
-#@PREPROCESS
+@ # end block
 
-@MINIFY
-# Minify the Package
-@UGLIFY
-# Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
--m -c
-@CLOSURE
-# Options for Java Closure Compiler (if used)
---language_in=ECMASCRIPT5_STRICT
-@YUI
-# Options for Java YUI Compressor Compiler (if used)
---preserve-semi
 
-@ # dummy separator between blocks, it can be useful
 
-# TODO, allow some post-process to take place
-#@POSTPROCESS
+# Text replacements
+@REPLACE =[{}]
+    
+    "@@VERSION@@" = "0.6.8"
+    
+    "@@MODULE_NAME@@" = "FILTER"
+    
+    "@@MODULE_DESC@@" = "JavaScript Image Processing Library"
+    
+    "@@REPO_URL@@" = "https://github.com/foo123/FILTER.js"
+    
+    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'] ]"
+    
+    "@@MODULE_ARGUMENTS@@"  = "Classy"
+    
+@ # end block
 
-@OUT
-./build/filter.min.js
+
+@OUT = 
+./build/filter.js

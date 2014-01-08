@@ -24,48 +24,61 @@
     }
     
     var 
+        $F = FILTER,
         aside, test, container, mouseXOnMouseDown, windowHalfX,
         mouseYOnMouseDown, windowHalfY,
-        targetRotationOnMouseDownY=0, targetRotationY=0,
-        targetRotationOnMouseDownX=0, targetRotationX=0,
-        w=window.innerWidth, h=window.innerHeight,
-        w2=w/2, h2=h/2,
+        targetRotationOnMouseDownY = 0, targetRotationY = 0,
+        targetRotationOnMouseDownX = 0, targetRotationX = 0,
+        w = window.innerWidth, h = window.innerHeight,
+        w2 = w/2, h2 = h/2,
         
         scene, camera, renderer, cube,
-        sides={bottom:3,top:2,  right:0,left:1, front:4,back:5},
-        side=400, N=2, dsp=0,
-        colors={inside:0x2c2c2c,top:0x2e1c3b,bottom:0x2e1c3b,left:0x2e1c3b,right:0x2e1c3b,front:0x2e1c3b,back:0x2e1c3b}, // mutually complementary colors
-        cubelets = [], xx,yy,zz, Nz=N,Nx=N,Ny=N,
-        sidex=side, sidey=side, sidez=side,
-        cubletsidex=sidex/(Nx+(Nx-1)*dsp), cubletsidey=sidey/(Ny+(Ny-1)*dsp), cubletsidez=sidez/(Nz+(Nz-1)*dsp),
+        sides = {bottom:3,top:2,  right:0,left:1, front:4,back:5},
+        side = 400, N = 2, dsp = 0,
+        colors = {
+            inside: 0x2c2c2c,
+            top: 0x2e1c3b,
+            bottom: 0x2e1c3b,
+            left: 0x2e1c3b,
+            right: 0x2e1c3b,
+            front: 0x2e1c3b,
+            back: 0x2e1c3b
+        },
+        cubelets = [], xx, yy, zz, 
+        Nz = N, Nx = N, Ny = N,
+        sidex = side, sidey = side, sidez = side,
+        cubletsidex = sidex/(Nx+(Nx-1)*dsp), 
+        cubletsidey = sidey/(Ny+(Ny-1)*dsp), 
+        cubletsidez = sidez/(Nz+(Nz-1)*dsp),
         // build cubelets
-        image=[], texture=[], position=[], displacemap=new FILTER.Image(),
+        image = [], texture = [], position = [],
         mat, starmat, materials, cubelet,
+        displacemap = new $F.Image(),
         // filters
-        clr=new FILTER.ColorMatrixFilter().colorize(0xff0000),
-        gray=new FILTER.ColorMatrixFilter().grayscale(),
-        grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1),
-        blur=new FILTER.ConvolutionMatrixFilter().fastGauss(3),
-        twirl=new FILTER.GeometricMapFilter().twirl(Math.PI/2, 120, 50, 50),
-        sobel=new FILTER.ConvolutionMatrixFilter().sobel(3),
-        grs=new FILTER.CompositeFilter([gray, sobel]),
-        emboss=new FILTER.ConvolutionMatrixFilter().emboss(),
-        dF=new FILTER.DisplacementMapFilter()
-        ;
+        clr = new $F.ColorMatrixFilter().colorize(0xff0000),
+        gray = new $F.ColorMatrixFilter().grayscale(),
+        grc = new $F.ColorMatrixFilter().grayscale().contrast(1),
+        blur = new $F.ConvolutionMatrixFilter().fastGauss(3),
+        twirl = new $F.GeometricMapFilter().twirl(Math.PI/2, 120, 0.33, 0.27),
+        sobel = new $F.ConvolutionMatrixFilter().sobel(3),
+        grs = new $F.CompositeFilter([gray, sobel]),
+        emboss = new $F.ConvolutionMatrixFilter().emboss(),
+        dF = new $F.DisplacementMapFilter()
+    ;
     
     var self={
     
         init : function() {
-            container=document.getElementById('container'),
-            aside=document.getElementById('aside'),
-            test=document.getElementById('test'),
-            test.addEventListener('click',dotest,false);
+            container = document.getElementById('container'),
+            aside = document.getElementById('aside'),
+            test = document.getElementById('test'),
+            test.addEventListener('click', dotest, false);
             
-            container.style.width=w+"px";
-            container.style.height=h+"px";
-            container.style.marginTop=0.5*(window.innerHeight-h)+'px';
-            windowHalfX=w2;
-            windowHalfY=h2;
+            container.style.width = w+"px";
+            container.style.height = h+"px";
+            //container.style.marginTop=0.5*(window.innerHeight-h)+'px';
+            windowHalfX = w2;
+            windowHalfY = h2;
             
             scene = new THREE.Scene();
 
@@ -77,6 +90,7 @@
 
             renderer = new THREE.CanvasRenderer();
             renderer.setSize( w, h );
+            THREEx.WindowResize(renderer, camera);
             container.appendChild( renderer.domElement );
 
             cube=new THREE.Object3D();
@@ -84,15 +98,15 @@
 
             for (var i=0; i<8;i++)
             {
-                image[i]=new FILTER.Image();
-                texture[i]=new THREE.Texture(image[i].canvasElement);
+                image[i] = new $F.Image();
+                texture[i] = new THREE.Texture(image[i].canvasElement);
                 // set closure callback
                 image[i].setImage(document.getElementById('Che').src, callback(i));
             }
 
-            mat=new THREE.MeshBasicMaterial( { color: colors.inside } );
-            mat.name='inside';
-            starmat=new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture(document.getElementById('RedStar').src) } );    
+            mat = new THREE.MeshBasicMaterial( { color: colors.inside } );
+            mat.name = 'inside';
+            starmat = new THREE.MeshBasicMaterial( { map:THREE.ImageUtils.loadTexture(document.getElementById('RedStar').src) } );    
             for (zz=0;zz<Nz;zz++)
             {
                 for (xx=0;xx<Nx;xx++)
@@ -177,7 +191,7 @@
                         }
 
                         // new cubelet
-                        cubelet=new THREE.Mesh(  new THREE.CubeGeometry( cubletsidex, cubletsidey, cubletsidez, 3, 3, 3 ), new THREE.MeshFaceMaterial(materials) );
+                        cubelet = new THREE.Mesh(  new THREE.CubeGeometry( cubletsidex, cubletsidey, cubletsidez, 3, 3, 3 ), new THREE.MeshFaceMaterial(materials) );
 
                         // position it centered
                         cubelet.position.x = (cubletsidex+dsp*cubletsidex)*xx -sidex/2 +cubletsidex/2;
@@ -216,7 +230,7 @@
                 displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
                 displacemap.context.fill();
                 //image[7].setPixelData(displacemap.getPixelData());
-                displacemap._refresh();
+                //displacemap._refresh();
             }
         };
     }

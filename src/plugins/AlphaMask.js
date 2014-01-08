@@ -6,10 +6,10 @@
 **/
 (function(FILTER){
 
-    var notSupportClamp=FILTER._notSupportClamp, Min=Math.min;
+    var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
     
     // a plugin to mask an image using the alpha channel of another image
-    FILTER.AlphaMaskFilter=FILTER.Create({
+    FILTER.AlphaMaskFilter = FILTER.Create({
         
         // parameters
         alphaMask : null,
@@ -20,9 +20,9 @@
         
         // constructor
         init : function(alphaMask, centerX, centerY) {
-            this.alphaMask=alphaMask||null;
-            this.centerX=centerX||0;
-            this.centerY=centerY||0;
+            this.alphaMask = alphaMask||null;
+            this.centerX = centerX||0;
+            this.centerY = centerY||0;
         },
         
         // this is the filter actual apply method routine
@@ -34,33 +34,37 @@
             
             if (!this.alphaMask) return im;
             
-            var 
-                alpha=this.alphaMask.getData(),
-                i, l=im.length, l2=alpha.length, 
-                w2=this.alphaMask.width, h2=this.alphaMask.height,
+            var alpha = this.alphaMask.getData(),
+                w2 = this.alphaMask.width, h2 = this.alphaMask.height,
+                i, l = im.length, l2 = alpha.length, 
                 x, x2, y, y2, off, xc, yc, 
-                wm=Min(w,w2), hm=Min(h, h2),  cX, cY, 
-                dw=(w-w2)>>1, dh=(h-h2)>>1
-                ;
+                wm = Min(w, w2), hm = Min(h, h2),  
+                cX = this.centerX||0, cY = this.centerY||0, 
+                cX2 = (w2>>1), cY2 = (h2>>1)
+            ;
             
             
-            cX=this.centerX + dw; cY=this.centerY + dh;
-            i=0; x=0; y=0; /*x2=0; y2=0;*/
-            while (i<l)
+            // make center relative
+            cX = Floor(cX*(w-1)) - cX2;
+            cY = Floor(cY*(h-1)) - cY2;
+            
+            x=0; y=0;
+            for (i=0; i<l; i+=4, x++)
             {
-                xc=x - cX; yc=y - cY;
+                if (x>=w) { x=0; y++; }
+                
+                xc = x - cX; yc = y - cY;
                 if (xc>=0 && xc<wm && yc>=0 && yc<hm)
                 {
                     // copy alpha channel
-                    off=(xc + yc*w2)<<2;
-                    im[i+3]=alpha[off+3];
+                    off = (xc + yc*w2)<<2;
+                    im[i+3] = alpha[off+3];
                 }
                 else
                 {
                     // better to remove the alpha channel if mask dimensions are different??
-                    im[i+3]=0;
+                    im[i+3] = 0;
                 }
-                i+=4;  x++; if (x>=w) { x=0; y++; }  //x2++; if (x2>=w2) { x2=0; y2++; }
             }
             
             // return the new image data

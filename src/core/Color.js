@@ -10,7 +10,7 @@
     
     // static Color Methods and Transforms
     // http://en.wikipedia.org/wiki/Color_space
-    FILTER.Color={
+    FILTER.Color = {
         
         name : "ColorTransforms",
         

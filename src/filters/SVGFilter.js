@@ -4,18 +4,17 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     // http://www.w3.org/TR/SVG/filters.html
     
     //
     //
     // Generic SVG-based Filter
-    var SVGFilter = FILTER.SVGFilter = FILTER.Extends( FILTER.Filter,
-    {
+    var SVGFilter = FILTER.SVGFilter = Class( FILTER.Filter, {
         constructor : function(svgXml) { 
             // todo
         }
     });
     
-})(FILTER);
+})(Class, FILTER);

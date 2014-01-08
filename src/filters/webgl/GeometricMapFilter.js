@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     var twirlShaders= [
         {
@@ -332,8 +332,7 @@
     //
     //
     // GeometricMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = FILTER.Extends( FILTER.WebGLFilter,
-    {
+    var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = Class( FILTER.WebGLFilter, {
         
         name : "WebGLGeometricMapFilter",
         
@@ -379,4 +378,4 @@
         }
     });
     
-})(FILTER);
+})(Class, FILTER);

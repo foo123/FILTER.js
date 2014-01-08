@@ -11,7 +11,7 @@
         ;
     
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-    FILTER.HistogramEqualizeFilter=FILTER.Create({
+    FILTER.HistogramEqualizeFilter = FILTER.Create({
         
         name : "HistogramEqualizeFilter",
         
@@ -21,58 +21,71 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            var 
-                r,g,b, rangeI,
-                maxI=0, minI=255,
-                pdfI=new A32F(256),
-                cdfI=new A32F(256), accum=0, t0, t1, t2,
-                i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, ycbcrA=new Array(l2), rgba
-                ;
+            var r,g,b, rangeI,  maxI = 0, minI = 255,
+                cdfI, accum = 0, t0, t1, t2,
+                i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, rgba
+            ;
             
             // initialize the arrays
-            i=0; while (i<256) { pdfI[i]=0; cdfI[i]=0; i++; }
+            cdfI = new A32F(256);
+            for (i=0; i<256; i+=4)
+            { 
+                // partial loop unrolling
+                cdfI[i]=0; 
+                cdfI[i+1]=0; 
+                cdfI[i+2]=0; 
+                cdfI[i+3]=0; 
+            }
             
             // compute pdf and maxima/minima
-            i=0; y=0;
-            while (i<l)
+            for (i=0; i<l; i+=4)
             {
-                r=im[i]; g=im[i+1]; b=im[i+2];
-                ycbcr=RGB2YCbCr({r:r, g:g, b:b});
-                pdfI[ycbcr.y]+=n;
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                ycbcr = RGB2YCbCr({r:r, g:g, b:b});
+                r = im[i] = ~~ycbcr.cr; g = im[i+1] = ~~ycbcr.y; b = im[i+2] = ~~ycbcr.cb;
+                cdfI[ g ] += n;
                 
-                if (ycbcr.y>maxI) maxI=ycbcr.y;
-                if (ycbcr.y<minI) minI=ycbcr.y;
-                
-                ycbcrA[y]=ycbcr;
-                i+=4; y++;
+                if ( g>maxI ) maxI=g;
+                else if ( g<minI ) minI=g;
             }
             
             // compute cdf
-            accum=0; i=0; 
-            while (i<256) { accum+=pdfI[i]; cdfI[i]=accum; i++; }
-            pdfI=null;  // free the space
+            accum = 0;
+            for (i=0; i<256; i+=4)
+            { 
+                // partial loop unrolling
+                accum += cdfI[i]; cdfI[i] = accum;
+                accum += cdfI[i+1]; cdfI[i+1] = accum;
+                accum += cdfI[i+2]; cdfI[i+2] = accum;
+                accum += cdfI[i+3]; cdfI[i+3] = accum;
+            }
             
             // equalize only the intesity channel
-            rangeI=maxI-minI;
-            i=0; y=0;
-            while (i<l) 
-            { 
-                ycbcr=ycbcrA[y];
-                ycbcr.y=cdfI[ycbcr.y]*rangeI+minI;
-                rgba=YCbCr2RGB(ycbcr);
-                t0=~~rgba.r; t1=~~rgba.g; t2=~~rgba.b; 
-                if (notSupportClamp)
-                {   
+            rangeI = maxI-minI;
+            if (notSupportClamp)
+            {   
+                for (i=0; i<l; i+=4)
+                { 
+                    ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
+                    ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                    rgba = YCbCr2RGB(ycbcr);
+                    t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; 
                     // clamp them manually
-                    if (t0<0) t0=0;
-                    else if (t0>255) t0=255;
-                    if (t1<0) t1=0;
-                    else if (t1>255) t1=255;
-                    if (t2<0) t2=0;
-                    else if (t2>255) t2=255;
+                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
+                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
+                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
                 }
-                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; 
-                i+=4; y++; 
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                { 
+                    ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
+                    ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                    rgba = YCbCr2RGB(ycbcr);
+                    im[i] = ~~rgba.r; im[i+1] = ~~rgba.g; im[i+2] = ~~rgba.b; 
+                }
             }
             
             // return the new image data

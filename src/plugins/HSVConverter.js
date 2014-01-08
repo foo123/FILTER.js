@@ -11,7 +11,7 @@
         ;
     
     // a plugin to convert an RGB Image to an HSV Image
-    FILTER.HSVConverterFilter=FILTER.Create({
+    FILTER.HSVConverterFilter = FILTER.Create({
         
         name : "HSVConverterFilter",
         
@@ -22,19 +22,15 @@
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            var 
-                r,g,b, i, l=im.length, hsv, h, s, v, t0, t1, t2
-                ;
+            var r,g,b, i, l=im.length, hsv, t0, t1, t2;
             
-            i=0;
-            while (i<l)
-            {
-                r=im[i]; g=im[i+1]; b=im[i+2];
-                hsv=RGB2HSV({r:r, g:g, b:b});
-                h=hsv.h*toCol; s=hsv.s*255; v=hsv.v;
-                t0=h; t1=v; t2=s;
-                if (notSupportClamp)
-                {   
+            if (notSupportClamp)
+            {   
+                for (i=0; i<l; i+=4)
+                {
+                    r = im[i]; g = im[i+1]; b = im[i+2];
+                    hsv = RGB2HSV({r:r, g:g, b:b});
+                    t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
                     // clamp them manually
                     if (t0<0) t0=0;
                     else if (t0>255) t0=255;
@@ -42,11 +38,19 @@
                     else if (t1>255) t1=255;
                     if (t2<0) t2=0;
                     else if (t2>255) t2=255;
+                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
                 }
-                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; 
-                i+=4;
             }
-            
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    r = im[i]; g = im[i+1]; b = im[i+2];
+                    hsv = RGB2HSV({r:r, g:g, b:b});
+                    t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
+                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                }
+            }
             // return the new image data
             return im;
         }

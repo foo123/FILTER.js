@@ -1,0 +1,59 @@
+###################################################
+#
+#   The buildtools repository is at:
+#   https://github.com/foo123/scripts/buildtools
+#
+###################################################
+
+# A '#' represents a comment and everything after it is skipped
+# Lines starting with # or blank lines are skipped
+# Lines starting with @ are blocks/directives and describe how the build is going to be processed
+# One line for each setting, no multiple settings on same line, line indentation does not matter
+# Blocks with =[] define LISTS (arrays)
+# Blocks with ={} define MAPS (hashmaps)
+# Blocks with =[{}] define ORDEREDMAPS (array of hashmaps)
+# Blocks with = or nothing define VALUES (single value)
+# A key and/or value can be quoted (with ", ' or `, quotes) or unquoted
+# Lines with one or multiple '@'s define the end of that many previous blocks
+
+@SRC =[]
+
+    ./build/filter.js
+
+@ # end block
+
+
+# extract documentation from the source (map)
+#@DOC ={}
+#
+#    "STARTDOC" = "/**[DOC_MARKDOWN]"
+#    "ENDDOC" = "[/DOC_MARKDOWN]**/"
+#    "TRIMX" = "\\s*\\*[ ]?"
+#    "OUTPUT" = "./filter-reference.md"
+#    
+#@ # end block
+
+
+# Minify the Package (map of lists)
+@MINIFY ={}
+
+    # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
+    "UGLIFY" =[]
+        -m -c
+    @ # end block
+
+    # Options for Java Closure Compiler (if used)
+    "CLOSURE" =[]
+        --language_in=ECMASCRIPT5_STRICT
+    @ # end block
+
+    # Options for Java YUI Compressor Compiler (if used)
+    "YUI" =[]
+        --preserve-semi
+    @ # end block
+
+@ # end block
+
+
+@OUT = 
+./build/filter.min.js

@@ -8,19 +8,17 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
     
     //
     //
     //  Custom Filter 
     //  used as a placeholder for constructing filters inline with an anonymous function
-    var CustomFilter = FILTER.CustomFilter = FILTER.Extends( FILTER.Filter,
-    {
-        
+    var CustomFilter = FILTER.CustomFilter = Class( FILTER.Filter, {
         name : "CustomFilter",
         
         constructor : function(handler) {
-            this._handler = handler;
+            this._handler = handler || null;
         },
         
         _handler : null,
@@ -32,9 +30,12 @@
         
         apply : function(image) {
             if ( this._isOn && this._handler )
-                return image.setData(this._handler.call(this, image.getData(), image.width, image.height, image));
+            {
+                var im = image.getSelectedData();
+                return image.setSelectedData(this._handler.call(this, im[0], im[1], im[2], image));
+            }
             return image;
         }
     });
     
-})(FILTER);
+})(Class, FILTER);

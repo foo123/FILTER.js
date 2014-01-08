@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     var dmShaders= [
         {
@@ -124,7 +124,7 @@
     //
     //
     // DisplacementMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = FILTER.Extends( FILTER.WebGLFilter,
+    var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = Class( FILTER.WebGLFilter,
     {
         
         name : "WebGLDisplacementMapFilter",
@@ -151,4 +151,4 @@
         }
     });
     
-})(FILTER);
+})(Class, FILTER);

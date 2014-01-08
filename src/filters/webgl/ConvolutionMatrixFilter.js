@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     var MAX_KERNEL_SIZE=121,
     
@@ -136,8 +136,7 @@
     //
     //
     // ConvolutionMatrix WebGL Filter (IN PROGRESS!!)
-    var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = FILTER.Extends( FILTER.WebGLFilter,
-    {
+    var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = Class( FILTER.WebGLFilter, {
         
         name : "WebGLConvolutionMatrixFilter",
         
@@ -166,4 +165,4 @@
     // export an instance
     FILTER.WebGLConvolutionMatrixFilterInstance=new WebGLConvolutionMatrixFilter();
     
-})(FILTER);
+})(Class, FILTER);

@@ -11,7 +11,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
     
     // color table
     var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
@@ -40,16 +40,14 @@
     //
     //
     // TableLookupFilter
-    var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Extends( FILTER.Filter,
-    {
-        
+    var TableLookupFilter = FILTER.TableLookupFilter = Class( FILTER.Filter, {
         name : "TableLookupFilter",
         
         constructor : function(tR, tG, tB, tA) {
-            this._tableR=tR || null;
-            this._tableG=tG || this._tableR;
-            this._tableB=tB || this._tableG;
-            this._tableA=tA || null;
+            this._tableR = tR || null;
+            this._tableG = tG || this._tableR;
+            this._tableB = tB || this._tableG;
+            this._tableA = tA || null;
         },
         
         // parameters
@@ -66,11 +64,7 @@
             if (!thresholdsR.length) thresholdsR=[thresholdsR];
             if (!thresholdsG) thresholdsG=thresholdsR;
             if (!thresholdsB) thresholdsB=thresholdsG;
-            /*
-            // sort them into ascending order
-            thresholds.sort();
-            thresholds.shift(0);
-            */
+
             var tLR=thresholdsR.length, numLevelsR=tLR+1, 
                 tLG=thresholdsG.length, numLevelsG=tLG+1, 
                 tLB=thresholdsB.length, numLevelsB=tLB+1, 
@@ -88,10 +82,7 @@
             i=0; while (i<numLevelsB) { qB[i] = ~~(nLB * i); i++; }
             thresholdsB[0]=~~(255*thresholdsB[0]);
             i=1; while (i<tLB) { thresholdsB[i]=thresholdsB[i-1] + ~~(255*thresholdsB[i]); i++; }
-            /*q[0]=0;
-            i=1; while (i<numLevels-1) { thresholds[i-1]=~~(255*thresholds[i-1]); q[i] = q[i-1] + thresholds[i-1]; i++; }
-            q[numLevels-1]=255;*/
-            //i=0; while (i<numLevels) { q[i] = ~~(255*thresholds[i]); i++; }
+
             i=0; 
             while (i<256) 
             { 
@@ -117,9 +108,7 @@
         quantize : function(numLevels) {
             if ( numLevels === undef ) numLevels=64;
             if (numLevels<2) numLevels=2;
-            /*var n=~~(255/numLevels), qL=0, t=new CT(256), i=0;
-            while (i<256) { if (0==i%n) qL+=n; t[i]=qL; i++; }
-            return this.set(t, t, t);*/
+
             var t=new CT(256), q=new CT(numLevels), i, nL=255/(numLevels-1), nR=numLevels/256;
             i=0; while (i<numLevels) { q[i] = ~~(nL * i); i++; }
             i=0; while (i<256) { t[i] = clamp(q[ ~~(nR * i) ]); i++; }
@@ -133,7 +122,6 @@
         // adapted from http://www.jhlabs.com/ip/filters/
         solarize : function(threshold) {
             if ( threshold === undef ) threshold=0.5;
-            //threshold=threshold*256; 
             
             var i=0, t=new CT(256)
                 ,q, c, n=2/255
@@ -145,8 +133,6 @@
                 q = n*i; 
                 c = (q>threshold) ? (255-255*q) : (255*q-255); 
                 t[i] = ~~(clamp( c ));
-                //t[i] = clamp( (i>threshold) ? 255-(i<<1) : (i<<1)-255 ); 
-                //t[i] = clamp( (i>threshold) ? 255-i : i-255 ); 
                 i++; 
             }
             return this.set(t);
@@ -154,7 +140,6 @@
         
         solarize2 : function(threshold) {
             if ( threshold === undef ) threshold=0.5;
-            //threshold=threshold*256; 
             threshold=1-threshold;
             var i=0, t=new CT(256)
                 ,q, c, n=2/255
@@ -166,8 +151,6 @@
                 q = n*i; 
                 c = (q<threshold) ? (255-255*q) : (255*q-255); 
                 t[i] = ~~(clamp( c ));
-                //t[i] = clamp( (i>threshold) ? 255-(i<<1) : (i<<1)-255 ); 
-                //t[i] = clamp( (i>threshold) ? 255-i : i-255 ); 
                 i++; 
             }
             return this.set(t);
@@ -188,8 +171,6 @@
         },
         
         invert : function() {
-            /*var i=0, t=new CT(256);
-            i=0; while (i<256) { t[i]=255-i; i++; }*/
             return this.set(inverce);
         },
         
@@ -324,7 +305,7 @@
         },
         
         reset : function() {
-            this._tableR=null; this._tableG=null; this._tableB=null; this._tableA=null; 
+            this._tableR = this._tableG = this._tableB = this._tableA = null; 
             return this;
         },
         
@@ -333,7 +314,7 @@
         },
         
         getTable : function (channel) {
-            channel=channel||FILTER.CHANNEL.RED;
+            channel = channel || FILTER.CHANNEL.RED;
             switch (channel)
             {
                 case FILTER.CHANNEL.ALPHA: return this._tableA;
@@ -345,7 +326,7 @@
         },
         
         setTable : function (table, channel) {
-            channel=channel||FILTER.CHANNEL.RED;
+            channel = channel || FILTER.CHANNEL.RED;
             switch (channel)
             {
                 case FILTER.CHANNEL.ALPHA: this._tableA=table; return this;
@@ -358,28 +339,66 @@
         
         // used for internal purposes
         _apply : function(im, w, h/*, image*/) {
+            
             if ( !this._isOn || !this._tableR ) return im;
             
-            var l=im.length, i=0, r, g, b, a,
+            var l=im.length, rem = (l>>2)%4,
+                i, r, g, b, a,
                 tR=this._tableR, tG=this._tableG, tB=this._tableB, tA=this._tableA;
             
             // apply filter (algorithm implemented directly based on filter definition)
             if (tA)
             {
-                while (i<l)
+                // array linearization
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<l; i+=16)
                 {
-                    r=im[i]; g=im[i+1]; b=im[i+2]; a=im[i+3];
-                    im[i]=tR[r]; im[i+1]=tG[g]; im[i+2]=tB[b]; im[i+3]=tA[a];
-                    i+=4;
+                    r = im[i]; g = im[i+1]; b = im[i+2]; a = im[i+3];
+                    im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b]; im[i+3] = tA[a];
+                    r = im[i+4]; g = im[i+5]; b = im[i+6]; a = im[i+7];
+                    im[i+4] = tR[r]; im[i+5] = tG[g]; im[i+6] = tB[b]; im[i+7] = tA[a];
+                    r = im[i+8]; g = im[i+9]; b = im[i+10]; a = im[i+11];
+                    im[i+8] = tR[r]; im[i+9] = tG[g]; im[i+10] = tB[b]; im[i+11] = tA[a];
+                    r = im[i+12]; g = im[i+13]; b = im[i+14]; a = im[i+15];
+                    im[i+12] = tR[r]; im[i+13] = tG[g]; im[i+14] = tB[b]; im[i+15] = tA[a];
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=l-rem; i<l; i+=4)
+                    {
+                        r = im[i]; g = im[i+1]; b = im[i+2]; a = im[i+3];
+                        im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b]; im[i+3] = tA[a];
+                    }
                 }
             }
             else
             {
-                while (i<l)
+                // array linearization
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<l; i+=16)
                 {
-                    r=im[i]; g=im[i+1]; b=im[i+2];
-                    im[i]=tR[r]; im[i+1]=tG[g]; im[i+2]=tB[b];
-                    i+=4;
+                    r = im[i]; g = im[i+1]; b = im[i+2];
+                    im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b];
+                    r = im[i+4]; g = im[i+5]; b = im[i+6];
+                    im[i+4] = tR[r]; im[i+5] = tG[g]; im[i+6] = tB[b];
+                    r = im[i+8]; g = im[i+9]; b = im[i+10];
+                    im[i+8] = tR[r]; im[i+9] = tG[g]; im[i+10] = tB[b];
+                    r = im[i+12]; g = im[i+13]; b = im[i+14];
+                    im[i+12] = tR[r]; im[i+13] = tG[g]; im[i+14] = tB[b];
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=l-rem; i<l; i+=4)
+                    {
+                        r = im[i]; g = im[i+1]; b = im[i+2];
+                        im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b];
+                    }
                 }
             }
             return im;
@@ -387,11 +406,14 @@
         
         apply : function(image) {
             if ( this._isOn && this._tableR )
-                return image.setData(this._apply(image.getData(), image.width, image.height, image));
+            {
+                var im = image.getSelectedData();
+                return image.setSelectedData(this._apply(im[0], im[1], im[2], image));
+            }
             return image;
         },
     });
     // aliases
     TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;
     
-})(FILTER);
+})(Class, FILTER);

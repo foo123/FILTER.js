@@ -11,7 +11,7 @@
         ;
     
     // a plugin to apply a general threshold filtering to an image
-    FILTER.ThresholdFilter=FILTER.Create({
+    FILTER.ThresholdFilter = FILTER.Create({
         
         // filter parameters
         thresholds : null,
@@ -37,38 +37,23 @@
             if (!this.thresholds || !this.thresholds.length) return im;
             else if (!this.quantizedColors || !this.quantizedColors.length) return im;
             
-            var 
-                t0, t1, t2, t3, color, rgba,
+            var t0, t1, t2, t3, color, rgba,
                 i, j, l=im.length,
                 thresholds=this.thresholds, tl=thresholds.length, colors=this.quantizedColors, cl=colors.length
                 ;
             
-            i=0;
-            while (i<l)
+            for (i=0; i<l; i+=4)
             {
-                color=RGBA2Color({r:im[i], g:im[i+1], b:im[i+2], a:im[i+3]});
+                color = RGBA2Color({r:im[i], g:im[i+1], b:im[i+2], a:im[i+3]});
                 
                 // maybe use sth faster here ??
                 j=0; while (j<tl && color>thresholds[j]) j++;
-                color= (j<cl) ? colors[j] : color=255;
+                color = (j<cl) ? colors[j] : 255;
                 
-                rgba=Color2RGBA(color);
-                t0=rgba.r; t1=rgba.g; t2=rgba.b; t3=rgba.a;
+                rgba = Color2RGBA(color);
+                t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; t3 = rgba.a;
                 
-                /*if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    if (t0<0) t0=0;
-                    else if (t0>255) t0=255;
-                    if (t1<0) t1=0;
-                    else if (t1>255) t1=255;
-                    if (t2<0) t2=0;
-                    else if (t2>255) t2=255;
-                    if (t3<0) t3=0;
-                    else if (t3>255) t3=255;
-                }*/
-                im[i]=t0; im[i+1]=t1; im[i+2]=t2; im[i+3]=t3;
-                i+=4;
+                im[i] = t0; im[i+1] = t1; im[i+2] = t2; im[i+3] = t3;
             }
             
             // return the new image data

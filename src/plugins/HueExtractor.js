@@ -12,7 +12,7 @@
         ;
     
     // a plugin to extract regions based on a HUE range
-    FILTER.HueExtractorFilter=FILTER.Create({
+    FILTER.HueExtractorFilter = FILTER.Create({
         
         // filter parameters
         range : null,
@@ -36,42 +36,26 @@
             
             if (!this.range || !this.range.length) return im;
             
-            var 
-                r, g, b, br, bg, bb, ba,
-                //t0, t1, t2, t3,
+            var r, g, b, br, bg, bb, ba,
                 i, l=im.length, background, hue,
                 hMin=this.range[0], hMax=this.range[this.range.length-1]
                 ;
             
-            background=Color2RGBA(this.background||0);
-            br=~~clamp(background.r); 
-            bg=~~clamp(background.g); 
-            bb=~~clamp(background.b); 
-            ba=~~clamp(background.a);
+            background = Color2RGBA(this.background||0);
+            br = ~~clamp(background.r); 
+            bg = ~~clamp(background.g); 
+            bb = ~~clamp(background.b); 
+            ba = ~~clamp(background.a);
             
-            i=0;
-            while (i<l)
+            for (i=0; i<l; i+=4)
             {
-                r=im[i]; g=im[i+1]; b=im[i+2];
-                hue=RGB2HSV({r:r, g:g, b:b}).h;
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                hue = RGB2HSV({r:r, g:g, b:b}).h;
                 
-                if (hue<hMin || hue>hMax) {  im[i]=br; im[i+1]=bg; im[i+2]=bb; im[i+3]=ba; }
-                /*if (hue>=hMin && hue<=hMax) {  t0 = im[i]; t1=im[i+1]; t2=im[i+2]; t3=im[i+3]; }
-                else { t0=br; t1=bg; t2=bb; t3=ba; }
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    if (t0<0) t0=0;
-                    else if (t0>255) t0=255;
-                    if (t1<0) t1=0;
-                    else if (t1>255) t1=255;
-                    if (t2<0) t2=0;
-                    else if (t2>255) t2=255;
-                    if (t3<0) t3=0;
-                    else if (t3>255) t3=255;
+                if (hue<hMin || hue>hMax) 
+                {  
+                    im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
                 }
-                im[i]=~~t0; im[i+1]=~~t1; im[i+2]=~~t2; im[i+3]=~~t3;*/
-                i+=4;
             }
             
             // return the new image data

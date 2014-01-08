@@ -12,7 +12,7 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+(function(Class, FILTER, undef){
 
     var Sin=Math.sin, Cos=Math.cos,
         // Color Matrix
@@ -21,97 +21,10 @@
         notSupportClamp=FILTER._notSupportClamp
     ;
     
-     function eye()
-     {
-        return new CM([
-                1,0,0,0,0,
-                0,1,0,0,0,
-                0,0,1,0,0,
-                0,0,0,1,0
-            ]);
-     }
-     
-     // concatenate 2 Color Matrices (kind of Color Matrix multiplication)
-     function CMconcat(tm, mat) 
-     {
-        var t=new CM(20), m0, m1, m2, m3, m4;
-        
-        // unroll the loop completely
-        // i=0
-        m0=mat[0]; m1=mat[1]; m2=mat[2]; m3=mat[3]; m4=mat[4];
-        t[ 0 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-        t[ 1 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-        t[ 2 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-        t[ 3 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-        t[ 4 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-
-        // i=5
-        m0=mat[5]; m1=mat[6]; m2=mat[7]; m3=mat[8]; m4=mat[9];
-        t[ 5 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-        t[ 6 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-        t[ 7 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-        t[ 8 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-        t[ 9 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-        
-        // i=10
-        m0=mat[10]; m1=mat[11]; m2=mat[12]; m3=mat[13]; m4=mat[14];
-        t[ 10 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-        t[ 11 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-        t[ 12 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-        t[ 13 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-        t[ 14 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-        
-        // i=15
-        m0=mat[15]; m1=mat[16]; m2=mat[17]; m3=mat[18]; m4=mat[19];
-        t[ 15 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-        t[ 16 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-        t[ 17 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-        t[ 18 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-        t[ 19 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-        
-        return t;
-    }
-   
-    function CMblend(m1, m2, amount)
-    {
-        var inv_amount = (1 - amount), i = 0, m=new CM(20);
-        
-        // unroll the loop completely
-        m[ 0 ] = (inv_amount * m1[0]) + (amount * m2[0]);
-        m[ 1 ] = (inv_amount * m1[1]) + (amount * m2[1]);
-        m[ 2 ] = (inv_amount * m1[2]) + (amount * m2[2]);
-        m[ 3 ] = (inv_amount * m1[3]) + (amount * m2[3]);
-        m[ 4 ] = (inv_amount * m1[4]) + (amount * m2[4]);
-
-        m[ 5 ] = (inv_amount * m1[5]) + (amount * m2[5]);
-        m[ 6 ] = (inv_amount * m1[6]) + (amount * m2[6]);
-        m[ 7 ] = (inv_amount * m1[7]) + (amount * m2[7]);
-        m[ 8 ] = (inv_amount * m1[8]) + (amount * m2[8]);
-        m[ 9 ] = (inv_amount * m1[9]) + (amount * m2[9]);
-        
-        m[ 10 ] = (inv_amount * m1[10]) + (amount * m2[10]);
-        m[ 11 ] = (inv_amount * m1[11]) + (amount * m2[11]);
-        m[ 12 ] = (inv_amount * m1[12]) + (amount * m2[12]);
-        m[ 13 ] = (inv_amount * m1[13]) + (amount * m2[13]);
-        m[ 14 ] = (inv_amount * m1[14]) + (amount * m2[14]);
-        
-        m[ 15 ] = (inv_amount * m1[15]) + (amount * m2[15]);
-        m[ 16 ] = (inv_amount * m1[16]) + (amount * m2[16]);
-        m[ 17 ] = (inv_amount * m1[17]) + (amount * m2[17]);
-        m[ 18 ] = (inv_amount * m1[18]) + (amount * m2[18]);
-        m[ 19 ] = (inv_amount * m1[19]) + (amount * m2[19]);
-        
-        //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-        
-        return m;
-    }
-    
     //
     //
     // ColorMatrixFilter
-    var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Extends( FILTER.Filter,
-    {
-        
+    var ColorMatrixFilter = FILTER.ColorMatrixFilter = Class( FILTER.Filter, {
         name : "ColorMatrixFilter",
         
         constructor: function(matrix) {
@@ -528,7 +441,7 @@
             ]);
         },
         
-        quickSepia : function(amount) {
+        sepia2 : function(amount) {
             if ( amount === undef ) amount = 10;
             if ( amount > 100 ) amount = 100;
             amount *= 2.55;
@@ -539,32 +452,6 @@
                 0, 0, 0, 1, 0
             ]);
         },
-        
-        /*quickSepia2 : function(r, g, b) {
-            if (typeof r == 'undefined') r=1;
-            if (typeof g == 'undefined') g=r;
-            if (typeof b == 'undefined') b=r;
-            
-            return this.set([
-                r*0.5, 0.5, 0.5, 0, 0, 
-                0.33, g*0.33, 0.33, 0, 0, 
-                0.25, 0.25, b*0.25, 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
-        },*/
-        
-        /*quickSepia2 : function(r, g, b) {
-            if (typeof r == 'undefined') r=1;
-            if (typeof g == 'undefined') g=r;
-            if (typeof b == 'undefined') b=r;
-            
-            return this.set([
-                r*0.3930000066757202, 0.7689999938011169, 0.1889999955892563, 0, 0, 
-                0.3490000069141388, g*0.6859999895095825, 0.1679999977350235, 0, 0, 
-                0.2720000147819519, 0.5339999794960022, b*0.1309999972581863, 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
-        },*/
         
         // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
         threshold : function(threshold, factor) {
@@ -653,33 +540,146 @@
         
         // used for internal purposes
         _apply : function(p, w, h/*, image*/) {
+            
             if ( this._isOn && this._matrix )
             {
-                var pl=p.length, m=this._matrix, i=0, t0, t1, t2, t3, p0, p1, p2, p3;
+                var pl = p.length, m = this._matrix,
+                    i, rem = (pl>>2)%4,
+                    p0, p1, p2, p3, 
+                    p4, p5, p6, p7, 
+                    p8, p9, p10, p11,
+                    p12, p13, p14, p15,
+                    t0, t1, t2, t3
+                ;
                 
                 // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-                while (i<pl)
-                {
-                    t0=p[i]; t1=p[i+1]; t2=p[i+2]; t3=p[i+3];
-                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                    
-                    if (notSupportClamp)
-                    {   
+                if (notSupportClamp)
+                {   
+                    // linearize array
+                    // partial loop unrolling (quarter iterations)
+                    for (i=0; i<pl; i+=16)
+                    {
+                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
                         // clamp them manually
-                        if (p0<0) p0=0;
-                        else if (p0>255) p0=255;
-                        if (p1<0) p1=0;
-                        else if (p1>255) p1=255;
-                        if (p2<0) p2=0;
-                        else if (p2>255) p2=255;
-                        if (p3<0) p3=0;
-                        else if (p3>255) p3=255;
+                        p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                        p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                        p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                        p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                        p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
+                        p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
+                        p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
+                        p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
+                        p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
+                        p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
+                        p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
+                        p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
+                        p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
+                        p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
+                        p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
+                        p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
+                        
+                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
                     }
-                    p[i]=~~p0; p[i+1]=~~p1; p[i+2]=~~p2; p[i+3]=~~p3;
-                    i+=4;
+                    
+                    // loop unrolling remainder
+                    if (rem)
+                    {
+                        rem <<= 2;
+                        for (i=pl-rem; i<pl; i+=4)
+                        {
+                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                            
+                            // clamp them manually
+                            p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                            p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                            p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                            p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                            
+                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                        }
+                    }
+                }
+                else
+                {
+                    // linearize array
+                    // partial loop unrolling (quarter iterations)
+                    for (i=0; i<pl; i+=16)
+                    {
+                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+                    }
+                    
+                    // loop unrolling remainder
+                    if (rem)
+                    {
+                        rem <<= 2;
+                        for (i=pl-rem; i<pl; i+=4)
+                        {
+                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                            
+                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                        }
+                    }
                 }
             }
             return p;
@@ -702,7 +702,8 @@
             }
             else
             {*/
-                return image.setData(this._apply(image.getData(), image.width, image.height, image));
+                var im = image.getSelectedData();
+                return image.setSelectedData(this._apply(im[0], im[1], im[2], image));
             /*}*/
             }
             return image;
@@ -714,5 +715,92 @@
     ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
     ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
         
+    //
+    //
+    // private methods
+    function eye()
+    {
+        return new CM([
+            1,0,0,0,0,
+            0,1,0,0,0,
+            0,0,1,0,0,
+            0,0,0,1,0
+        ]);
+    }
+     
+     // concatenate 2 Color Matrices (kind of Color Matrix multiplication)
+     function CMconcat(tm, mat) 
+     {
+        var t=new CM(20), m0, m1, m2, m3, m4;
+        
+        // unroll the loop completely
+        // i=0
+        m0=mat[0]; m1=mat[1]; m2=mat[2]; m3=mat[3]; m4=mat[4];
+        t[ 0 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
+        t[ 1 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
+        t[ 2 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
+        t[ 3 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
+        t[ 4 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
+
+        // i=5
+        m0=mat[5]; m1=mat[6]; m2=mat[7]; m3=mat[8]; m4=mat[9];
+        t[ 5 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
+        t[ 6 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
+        t[ 7 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
+        t[ 8 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
+        t[ 9 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
+        
+        // i=10
+        m0=mat[10]; m1=mat[11]; m2=mat[12]; m3=mat[13]; m4=mat[14];
+        t[ 10 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
+        t[ 11 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
+        t[ 12 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
+        t[ 13 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
+        t[ 14 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
+        
+        // i=15
+        m0=mat[15]; m1=mat[16]; m2=mat[17]; m3=mat[18]; m4=mat[19];
+        t[ 15 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
+        t[ 16 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
+        t[ 17 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
+        t[ 18 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
+        t[ 19 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
+        
+        return t;
+    }
+   
+    function CMblend(m1, m2, amount)
+    {
+        var inv_amount = (1 - amount), i = 0, m=new CM(20);
+        
+        // unroll the loop completely
+        m[ 0 ] = (inv_amount * m1[0]) + (amount * m2[0]);
+        m[ 1 ] = (inv_amount * m1[1]) + (amount * m2[1]);
+        m[ 2 ] = (inv_amount * m1[2]) + (amount * m2[2]);
+        m[ 3 ] = (inv_amount * m1[3]) + (amount * m2[3]);
+        m[ 4 ] = (inv_amount * m1[4]) + (amount * m2[4]);
+
+        m[ 5 ] = (inv_amount * m1[5]) + (amount * m2[5]);
+        m[ 6 ] = (inv_amount * m1[6]) + (amount * m2[6]);
+        m[ 7 ] = (inv_amount * m1[7]) + (amount * m2[7]);
+        m[ 8 ] = (inv_amount * m1[8]) + (amount * m2[8]);
+        m[ 9 ] = (inv_amount * m1[9]) + (amount * m2[9]);
+        
+        m[ 10 ] = (inv_amount * m1[10]) + (amount * m2[10]);
+        m[ 11 ] = (inv_amount * m1[11]) + (amount * m2[11]);
+        m[ 12 ] = (inv_amount * m1[12]) + (amount * m2[12]);
+        m[ 13 ] = (inv_amount * m1[13]) + (amount * m2[13]);
+        m[ 14 ] = (inv_amount * m1[14]) + (amount * m2[14]);
+        
+        m[ 15 ] = (inv_amount * m1[15]) + (amount * m2[15]);
+        m[ 16 ] = (inv_amount * m1[16]) + (amount * m2[16]);
+        m[ 17 ] = (inv_amount * m1[17]) + (amount * m2[17]);
+        m[ 18 ] = (inv_amount * m1[18]) + (amount * m2[18]);
+        m[ 19 ] = (inv_amount * m1[19]) + (amount * m2[19]);
+        
+        //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+        
+        return m;
+    }
     
-})(FILTER);
+})(Class, FILTER);

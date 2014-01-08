@@ -5,40 +5,63 @@
 #
 ###################################################
 
-@DEPENDENCIES
+# A '#' represents a comment and everything after it is skipped
+# Lines starting with # or blank lines are skipped
+# Lines starting with @ are blocks/directives and describe how the build is going to be processed
+# One line for each setting, no multiple settings on same line, line indentation does not matter
+# Blocks with =[] define LISTS (arrays)
+# Blocks with ={} define MAPS (hashmaps)
+# Blocks with =[{}] define ORDEREDMAPS (array of hashmaps)
+# Blocks with = or nothing define VALUES (single value)
+# A key and/or value can be quoted (with ", ' or `, quotes) or unquoted
+# Lines with one or multiple '@'s define the end of that many previous blocks
 
-# sample Plugins
-./src/plugins/Plugin.js
-./src/plugins/Noise.js
-./src/plugins/Equalize.js
-./src/plugins/RGBEqualize.js
-./src/plugins/Pixelate.js
-./src/plugins/HSVConverter.js
-./src/plugins/HueExtractor.js
-./src/plugins/AlphaMask.js
-./src/plugins/Threshold.js
-./src/plugins/YCbCrConverter.js
-./src/plugins/Bokeh.js
+@SRC =[]
 
-# TODO, allow some pre-process to take place
-#@PREPROCESS
+    # sample FILTER Plugins
+    !tpl:umd-header.tpl.js  # include a umd-header template
+    
+    ./src/plugins/Plugin.js
+    ./src/plugins/Noise.js
+    ./src/plugins/Equalize.js
+    ./src/plugins/GrayscaleEqualize.js
+    ./src/plugins/RGBEqualize.js
+    ./src/plugins/Pixelate.js
+    ./src/plugins/TriangularPixelate.js
+    # (TODO)
+    #./src/plugins/HexagonalPixelate.js
+    ./src/plugins/HSVConverter.js
+    #./src/plugins/YCbCrConverter.js
+    ./src/plugins/HueExtractor.js
+    ./src/plugins/ChannelCopy.js
+    ./src/plugins/AlphaMask.js
+    ./src/plugins/Blend.js
+    ./src/plugins/Threshold.js
+    ./src/plugins/Bokeh.js
+    
+    !tpl:umd-footer.tpl.js  # include a umd-footer template
 
-@MINIFY
-# Minify the Package
-@UGLIFY
-# Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
--m -c
-@CLOSURE
-# Options for Java Closure Compiler (if used)
---language_in=ECMASCRIPT5_STRICT
-@YUI
-# Options for Java YUI Compressor Compiler (if used)
---preserve-semi
+@ # end block
 
-@ # dummy separator between blocks, it can be useful
 
-# TODO, allow some post-process to take place
-#@POSTPROCESS
 
-@OUT
-./build/filter.plugins.min.js
+# Text replacements
+@REPLACE =[{}]
+    
+    "@@VERSION@@" = "0.6.8"
+    
+    "@@MODULE_NAME@@" = "FILTER_PLUGINS"
+    
+    "@@MODULE_DESC@@" = "JavaScript Image Processing Library (Plugins)"
+    
+    "@@REPO_URL@@" = "https://github.com/foo123/FILTER.js"
+    
+    "@@MODULE_DEPENDENCIES@@" = "[ ['FILTER', './filter'] ]"
+    
+    "@@MODULE_ARGUMENTS@@"  = "FILTER"
+    
+@ # end block
+
+
+@OUT = 
+./build/filter.plugins.js
