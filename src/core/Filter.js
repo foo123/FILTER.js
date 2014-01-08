@@ -32,7 +32,7 @@
         isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
         isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
         // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
-        isIE                    : isBrowser && /MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent),
+        isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
 
         // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
         isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
@@ -69,7 +69,6 @@
     
     var notSupportClamp = FILTER._notSupportClamp = (typeof Uint8ClampedArray === "undefined");
     FILTER.ImArray = (notSupportClamp) ? FILTER.Array8U : Uint8ClampedArray;
-    
     // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
     // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
     FILTER.ImArrayCopy = (Browser.isOpera) ? FILTER.Array8U : FILTER.ImArray;
@@ -119,8 +118,7 @@
     //
     //
     // Extending/Subclassing Framework
-    var Merge = Classy.Merge;
-    var hasOwn = Object.prototype.hasOwnProperty,        
+    var Merge = Classy.Merge, hasOwn = Object.prototype.hasOwnProperty,        
         hasProperty = Object.prototype.hasOwnProperty, propertyIsEnum = Object.prototype.propertyIsEnumerable,
         slice = Array.prototype.slice, splice = Array.prototype.splice, concat = Array.prototype.concat
     ;

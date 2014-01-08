@@ -298,12 +298,10 @@ var FILTER_PLUGINS = FILTER;
                 { 
                     c = im[i]; // grayscale image has same value in all channels
                     g = cdfI[c]*rangeI + minI;
-                    t0 = ~~g; t1 = ~~g; t2 = ~~g; 
                     // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                    g = (g<0) ? 0 : ((g>255) ? 255 : g);
+                    g = ~~g;
+                    im[i] = g; im[i+1] = g; im[i+2] = g; 
                 }
             }
             else
@@ -311,9 +309,8 @@ var FILTER_PLUGINS = FILTER;
                 for (i=0; i<l; i+=4)
                 { 
                     c = im[i]; // grayscale image has same value in all channels
-                    g = cdfI[c]*rangeI + minI;
-                    t0 = ~~g; t1 = ~~g; t2 = ~~g; 
-                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                    g = ~~( cdfI[c]*rangeI + minI );
+                    im[i] = g; im[i+1] = g; im[i+2] = g; 
                 }
             }
             
