@@ -1,13 +1,12 @@
 /**
 *
-*   FILTER_PLUGINS
+*   FILTER.js Plugins
 *   @version: 0.6.8
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
-**/
-!function ( root, name, deps, factory ) {
+**/!function ( root, name, deps, factory ) {
 
     //
     // export the module in a umd-style generic way
@@ -59,13 +58,13 @@
         
         /* main code starts here */
 
-/** 
+/**
 *
-* FILTER.js Plugins
-* @version 0.6.8
+*   FILTER.js Plugins
+*   @version: 0.6.8
 *
-* JavaScript Image Processing Library
-* http://github.com/foo123/FILTER.js
+*   JavaScript Image Processing Library (Plugins)
+*   https://github.com/foo123/FILTER.js
 *
 **/
 var FILTER_PLUGINS = FILTER;

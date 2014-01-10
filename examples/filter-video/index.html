@@ -20,14 +20,16 @@
                 height:100%;
                 min-height:900px; 
                 overflow:scroll;
+                border: none;
             }
             .panel {
                 cursor:arrow;
                 margin-left:20px;
+                padding-left:10px;
                 border-left:2px solid #aaa;
             }
             strong {
-                font-size:20px;
+                font-size:14px;
             }
             #statsContainer {
                 margin-bottom:20px;
@@ -77,14 +79,20 @@
                 top:1px;
             }
             .button {
-                width:120px;
+                font-size:12px;
+                width:100px;
                 height:40px;
                 line-height:40px;
                 cursor:pointer;
                 position:relative;
             }
+            .img-area-select {
+                border: 1px dashed #79b900;
+                background: rgba(128, 128, 128, 0.4);
+            }
         </style>
         <script src="../common/js/stats.min.js"></script>
+        <script src="../common/js/areaselect.min.js"></script>
         <script src="../common/js/filter.bundle.js"></script>
         <script>    
          //<![CDATA[
@@ -151,6 +159,12 @@
         
         <div class="col-1-1">
         
+            <div class="panel">
+                <strong>You can select part of video to apply filters to (use your mouse)</strong>&nbsp;&nbsp;
+                <input id="select" type="button" class="button" value="Select" />
+                <input id="deselect" type="button" class="button" value="DeSelect" />
+            </div>
+            
             <div class="panel">
                 <strong>Apply Post-Process Filter to Video :</strong><br /><br />
                 <select id="filterSelect" style="font-size:20px;">
@@ -263,6 +277,8 @@
                 video = getEl('video'), 
                 container = getEl('container'), 
                 filters = getEl('filters'),
+                selectBt = getEl('select'),
+                deselectBt = getEl('deselect'),
                 
                 // images
                 displacemap = new $F.Image().fill("rgb(128,128,128)", 0, 0, 320, 240),
@@ -385,7 +401,9 @@
                 ],
                 currentOrientation = 0, currentBlendMode = "normal",
                 currentFilterIndex = 0,  currentFilter = videoFilters[currentFilterIndex],
-                renderInterval = 60,  rnd = Math.random, Max = Math.max, dx, dy, dx2, dy2, dtheta, dr, vw, vh
+                renderInterval = 60,  rnd = Math.random, Max = Math.max, dx, dy, dx2, dy2, dtheta, dr, vw, vh,
+                currentSelection = null, areaSelect, doSelect = false, doDeselect = false,
+                cX1 = null, cX2 = null, cY1 = null, cY2 = null
             ;
             
             function init()
@@ -399,6 +417,8 @@
                 else
                     icon.setImage("../common/assets/firefox.png");
                 blendSelect.style.display = "none";
+                selectBt.style.display = 'inline';
+                deselectBt.style.display = 'none';
                 
                 var grd;
                 // create a displace map image
@@ -433,6 +453,7 @@
                 dr = Max(2*rnd()+1, 1);
                 
                 add(filters, postVideo.domElement);
+                areaSelect = new AreaSelect(postVideo.domElement);
                 
                 stats = new Stats();
                 stats.setMode( 1 );
@@ -463,6 +484,50 @@
                     currentBlendMode = blendSelect.options[blendSelect.selectedIndex || 0].value;
                 });
                 
+                addEvent(selectBt, 'click', function(){
+                    var sel = areaSelect.getSelection();
+                    if (sel)
+                    {
+                        var w = postVideo.width;
+                        var h = postVideo.height;
+                        currentSelection = [ Math.min(sel.x1/w, 1), Math.min(sel.y1/h, 1), Math.min(sel.x2/w, 1), Math.min(sel.y2/h, 1) ];
+                        areaSelect.hide();
+                        doSelect = true;
+                        
+                        cX1 = sel.x1;
+                        cY1 = sel.y1;
+                        cX2 = sel.x2;
+                        cY2 = sel.y2;
+
+                        setTimeout(function(){
+                            selectBt.style.display = 'none';
+                            deselectBt.style.display = 'inline';
+                        }, 40);
+                    }
+                    else
+                    {
+                        currentSelection = null;
+                    }
+                    return false;
+                });
+                
+                addEvent(deselectBt, 'click', function(){
+                    currentSelection = null;
+                    areaSelect.hide();
+                    doDeselect = true;
+                    
+                    cX1 = 0;
+                    cY1 = 0;
+                    cX2 = postVideo.width;
+                    cY2 = postVideo.height;
+
+                    setTimeout(function(){
+                        selectBt.style.display = 'inline';
+                        deselectBt.style.display = 'none';
+                    }, 40);
+                    return false;
+                });
+                
                 // start process when the video is playing
                 addEvent(video, "play", processVideo);
             }
@@ -477,6 +542,20 @@
                 
                 // down-scale
                 //downscaleVideo.setImage(video);
+                if (doSelect && currentSelection)
+                {
+                    postVideo.select(currentSelection[0], currentSelection[1], currentSelection[2], currentSelection[3]);
+                    blend.startX = cX1+1; 
+                    blend.startY = cY1+1;
+                    doSelect = false;
+                }
+                else if (doDeselect)
+                {
+                    postVideo.deselect();
+                    blend.startX = 1; 
+                    blend.startY = 1;
+                    doDeselect = false;
+                }
                 postVideo.setImage(video);
                 
                 if (1==currentOrientation)   postVideo.flipHorizontal();
@@ -533,12 +612,20 @@
                 }
                 else if (blend===currentFilter)
                 {
+                    if ( null === cX1 )
+                    {
+                        cX1 = 0;
+                        cY1 = 0;
+                        cX2 = vw;
+                        cY2 = vh;
+                    }
+                    
                     // animate the blend filter
                     blend.mode(currentBlendMode);
                     blend.startX += dx; 
                     blend.startY += dy;
-                    if (blend.startX<0 || blend.startX>postVideo.width) dx2 = -dx;
-                    if (blend.startY<0 || blend.startY>postVideo.height) dy2 = -dy;
+                    if (blend.startX<=cX1 || blend.startX>=cX2) dx = -dx;
+                    if (blend.startY<=cY1 || blend.startY>=cY2) dy = -dy;
                 }
                 
                 if (currentFilter) currentFilter.apply(postVideo);

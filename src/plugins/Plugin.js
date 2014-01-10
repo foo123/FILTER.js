@@ -1,10 +1,10 @@
-/** 
+/**
 *
-* FILTER.js Plugins
-* @version @@VERSION@@
+*   FILTER.js Plugins
+*   @version: @@VERSION@@
 *
-* JavaScript Image Processing Library
-* http://github.com/foo123/FILTER.js
+*   JavaScript Image Processing Library (Plugins)
+*   https://github.com/foo123/FILTER.js
 *
 **/
 var FILTER_PLUGINS = FILTER;

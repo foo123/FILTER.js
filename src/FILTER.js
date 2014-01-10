@@ -1,10 +1,10 @@
-/** 
+/**
 *
-* FILTER.js
-* @version @@VERSION@@
+*   FILTER.js
+*   @version: @@VERSION@@
 *
-* JavaScript Image Processing Library
-* http://github.com/foo123/FILTER.js
+*   JavaScript Image Processing Library
+*   https://github.com/foo123/FILTER.js
 *
 **/
 var Class = Classy.Class;

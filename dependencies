@@ -52,7 +52,9 @@
 
 @ # end block
 
-
+# extract header from this file
+@HEADER = 
+./src/FILTER.js
 
 # Text replacements
 @REPLACE =[{}]
@@ -60,10 +62,6 @@
     "@@VERSION@@" = "0.6.8"
     
     "@@MODULE_NAME@@" = "FILTER"
-    
-    "@@MODULE_DESC@@" = "JavaScript Image Processing Library"
-    
-    "@@REPO_URL@@" = "https://github.com/foo123/FILTER.js"
     
     "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'] ]"
     
