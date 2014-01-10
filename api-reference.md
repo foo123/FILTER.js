@@ -31,7 +31,7 @@ __Methods:__
 * _setSelectedData()_ sets the image pixel data for the current selection
 * _getSelectedData()_ gets a copy of the pixel data of current image selection region
 * _integral()_  Computes (and caches) the image integral (not used at this time)
-* _histogram()_  Computes (and caches) the image histogram
+* _histogram()_  Computes (and caches) the image histogram (not used at this time)
 
 ###ScaledImage Class
 
@@ -444,17 +444,17 @@ new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 
 __Included Plugins__ (see examples for how to use)
 
-* Noise: generate uniform noise
-* Equalize Histogram: apply histogram equalization
-* GrayscaleEqualize: apply a faster histogram equalization only for grayscale images
-* RGBEqualize: apply histogram equalization per separate color channel
-* Pixelate: fast pixelate the image to the given scale
-* TriangularPixelate: fast triangular pixelate the image to the given scale
-* HSVConverter: convert the image to HSV color space
-* YCbCrConverter: convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
-* Hue Extractor: extract a range of hues from the image
-* AlphaMask: apply another image as an alpha mask to the target image
-* Blend: apply photoshop-like image blending as a filter (similar method exists also in __Image__ class)
-* ChannelCopy: copy a channel from an image to another channel on target image
-* Threshold: apply general (full 32bit thresholds) thresholding to an image
-* Bokeh: apply a fast Bokeh (Depth-of-Field) effect to an image
+* __Noise__ : generate uniform noise
+* __Equalize__ : apply histogram equalization
+* __GrayscaleEqualize__ : apply a faster histogram equalization only for grayscale images
+* __RGBEqualize__ : apply histogram equalization per separate color channel
+* __Pixelate__ : fast pixelate the image to the given scale
+* __TriangularPixelate__ : fast triangular pixelate the image to the given scale
+* __HSVConverter__ : convert the image to HSV color space
+* __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
+* __HueExtractor__ : extract a range of hues from the image
+* __AlphaMask__ : apply another image as an alpha mask to the target image
+* __Blend__ : apply photoshop-like image blending as a filter (similar method exists also in __Image__ class)
+* __ChannelCopy__ : copy a channel from an image to another channel on target image
+* __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
+* __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
