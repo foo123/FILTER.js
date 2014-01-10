@@ -7,4 +7,5 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER_PLUGINS = FILTER;
+// not export just add plugins to FILTER
+var FILTER_PLUGINS = null;

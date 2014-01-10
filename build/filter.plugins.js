@@ -12,7 +12,7 @@
     // export the module in a umd-style generic way
     deps = ( deps ) ? [].concat(deps) : [];
     var A = Array, AP = A.prototype;
-    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), mods = new A( dl );
+    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), mods = new A( dl ), _module_;
     
     for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; }
     
@@ -22,7 +22,9 @@
         if ( undef === module.exports[name] )
         {
             for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( paths[i] )[ ids[i] ];
-            module.exports[ name ] = factory.apply(root, mods );
+            _module_ = factory.apply(root, mods );
+            // allow factory just to add to existing modules without returning a new module
+            module.exports[ name ] = _module_ || 1;
         }
     }
     
@@ -34,7 +36,9 @@
             {
                 var args = AP.slice.call( arguments, 1 ), dl = args.length;
                 for (var i=0; i<dl; i++)   mods[i] = exports[ ids[i] ] || args[ i ];
-                exports[name] = factory.apply(root, mods );
+                _module_ = factory.apply(root, mods );
+                // allow factory just to add to existing modules without returning a new module
+                exports[name] = _module_ || 1;
             }
         });
     }
@@ -45,7 +49,9 @@
         if ( undef === root[name] )
         {
             for (i=0; i<dl; i++)  mods[i] = root[ ids[i] ];
-            root[name] = factory.apply(root, mods );
+            _module_ = factory.apply(root, mods );
+            // allow factory just to add to existing modules without returning a new module
+            root[name] = _module_ || 1;
         }
     }
 
@@ -66,7 +72,8 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER_PLUGINS = FILTER;
+// not export just add plugins to FILTER
+var FILTER_PLUGINS = null;
 /**
 *
 * Noise Plugin
