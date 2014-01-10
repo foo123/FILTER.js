@@ -6,21 +6,22 @@
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
-**/!function ( root, name, deps, factory ) {
+**/!function ( root, name, deps, factory, undef ) {
 
     //
     // export the module in a umd-style generic way
     deps = ( deps ) ? [].concat(deps) : [];
-    var i, dl = deps.length, ids = new Array( dl ), paths = new Array( dl ), mods = new Array( dl );
+    var A = Array, AP = A.prototype;
+    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), mods = new A( dl );
+    
     for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; }
     
     // node, commonjs, etc..
     if ( 'object' == typeof( module ) && module.exports ) 
     {
-        if ( 'undefined' == typeof(module.exports[name]) )
+        if ( undef === module.exports[name] )
         {
-            for (i=0; i<dl; i++)
-                mods[i] = module.exports[ ids[i] ] || require( paths[i] )[ ids[i] ];
+            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( paths[i] )[ ids[i] ];
             module.exports[ name ] = factory.apply(root, mods );
         }
     }
@@ -29,11 +30,10 @@
     else if ( 'function' == typeof( define ) && define.amd ) 
     {
         define( ['exports'].concat( paths ), function( exports ) {
-            if ( 'undefined' == typeof(exports[name]) )
+            if ( undef === exports[name] )
             {
-                var args = Array.prototype.slice.call( arguments, 1 );
-                for (var i=0, dl=args.length; i<dl; i++)
-                    mods[i] = exports[ ids[i] ];
+                var args = AP.slice.call( arguments, 1 ), dl = args.length;
+                for (var i=0; i<dl; i++)   mods[i] = exports[ ids[i] ] || args[ i ];
                 exports[name] = factory.apply(root, mods );
             }
         });
@@ -42,10 +42,9 @@
     // browsers, other loaders, etc..
     else 
     {
-        if ( 'undefined' == typeof(root[name]) )
+        if ( undef === root[name] )
         {
-            for (i=0; i<dl; i++)
-                mods[i] = root[ ids[i] ];
+            for (i=0; i<dl; i++)  mods[i] = root[ ids[i] ];
             root[name] = factory.apply(root, mods );
         }
     }
