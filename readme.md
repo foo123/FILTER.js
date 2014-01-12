@@ -69,6 +69,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 ###Todo
 * add WebGL support for various pre-built and custom Filters
+* add support for Parallel Processing using Web Workers and/or Async Processing (or make easy(ier) to be added by user)
 * add SVG Filters interface support for various pre-built and custom Filters
 * add CSS Filters interface support for various pre-built and custom Filters
 * make convolutions/statistics faster [DONE partially]
