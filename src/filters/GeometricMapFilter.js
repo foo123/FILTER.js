@@ -250,7 +250,7 @@
             return this._map( im, w, h, image );
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._map )
             {
                 var im = image.getSelectedData( );
@@ -261,16 +261,18 @@
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._map( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;

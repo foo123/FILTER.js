@@ -348,10 +348,10 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         
         root.console = {
             log: function(s){
-                postMessage({cmd: 'console.log', data: {output: s||''}});
+                postMessage({event: 'console.log', data: {output: s||''}});
             },
             error: function(s){
-                postMessage({cmd: 'console.error', data: {output: s||''}});
+                postMessage({event: 'console.error', data: {output: s||''}});
             },
         };
         
@@ -370,6 +370,12 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                         throw new Error('Filter "' + data.filter + '" could not be created');
                     }
                     break;
+                case 'import':
+                    if ( data && data["import"] && data["import"].length )
+                    {
+                        importScripts( data["import"].join(',') );
+                    }
+                    break;
                 case 'params':
                     if ( filter )
                     {
@@ -381,6 +387,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                     {
                         if ( data && data.im )
                         {
+                            if ( data.params ) filter.unserialize( data.params );
                             filter.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
                         }
                         else
@@ -471,15 +478,19 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
     //
     //
     // Worker Interface Filter
+    var URL = FILTER.URL = root.webkitURL || root.URL,
+        blobURL = function( src ) {
+            return URL.createObjectURL( new Blob( [ src || '' ], { type: "text/javascript" }) );
+        }
+    ;
+        
     var FilterWorkerInterface = FILTER.FilterWorkerInterface = FILTER.Class({
         
-        //_async: null,
         _worker: null
         ,_workerListeners: null
         
         ,disposeWorker: function( ) {
             var self = this;
-            //self._async = null;
             if ( self._worker )
             {
                 self.send( 'dispose' );
@@ -501,6 +512,36 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         
         // @override
         ,unserialize: function( json ) {
+            return this;
+        }
+        
+        ,sources: function( ) {
+            var sources = slice( arguments );
+            if ( sources.length )
+            {
+                var blobs = [ ], i;
+                for (i=0; i<sources.length; i++)
+                {
+                    if ( 'function' === typeof( sources[ i ] ) )
+                    {
+                        blobs.push( blobURL( sources[ i ].toString( ) ) );
+                    }
+                    else
+                    {
+                        blobs.push( blobURL( sources[ i ] ) );
+                    }
+                }
+                this.send('import', {'import': blobs});
+            }
+            return this;
+        }
+        
+        ,scripts: function( ) {
+            var scripts = slice( arguments );
+            if ( scripts.length )
+            {
+                this.send('import', {'import': scripts});
+            }
             return this;
         }
         
@@ -530,7 +571,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 
                 self._workerListeners = { };
                 
-                worker = self._worker = new Worker( FILTER.Path.file );
+                worker = self._worker = new Worker( this.Path.file );
                 
                 worker.onmessage = function( evt ) {
                     if ( evt.data.event )
@@ -603,6 +644,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
     var Filter = FILTER.Filter = FILTER.Class( FilterWorkerInterface, {
         name: "Filter"
         
+        ,Path: { file: FILTER.Path.file, path: FILTER.Path.path}
+        
         // dummy
         ,constructor: function() {
         }
@@ -654,7 +697,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         }
         
         // generic apply method, maybe overwritten
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( image && this._isOn )
             {
                 var im = image.getSelectedData( );
@@ -665,16 +708,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -851,7 +896,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         }
         
         // make it so other composite filters can be  used as simple filter components in the stack
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( image && this._isOn && this._stack.length )
             {
                 var im = image.getSelectedData( );
@@ -862,16 +907,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -2539,7 +2586,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return p;
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._matrix )
             {
                 /*if (this._webglInstance)
@@ -2561,17 +2608,19 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( )} )
+                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     var im = image.getSelectedData( );
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -3120,7 +3169,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return im;
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._tableR )
             {
                 var im = image.getSelectedData( );
@@ -3131,16 +3180,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -3383,7 +3434,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return im;
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && (this._map || this.map) )
             {
                 var im = image.getSelectedData( );
@@ -3394,16 +3445,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -3662,7 +3715,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return this._map( im, w, h, image );
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._map )
             {
                 var im = image.getSelectedData( );
@@ -3673,16 +3726,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._map( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -4783,7 +4838,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return dst;
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._matrix )
             {
                 /*if (this._webglInstance)
@@ -4812,17 +4867,19 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( )} )
+                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     var im = image.getSelectedData( );
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -5501,7 +5558,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return this._filter( im, w, h );
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._dim && this._filter )
             {
                 var im = image.getSelectedData();
@@ -5512,16 +5569,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._filter( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -5902,7 +5961,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return this._filter( im, w, h );
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._dim )
             {
                 var im = image.getSelectedData( );
@@ -5913,16 +5972,18 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._filter( im[0], im[1], im[2], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;

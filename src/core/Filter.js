@@ -132,10 +132,10 @@
         
         root.console = {
             log: function(s){
-                postMessage({cmd: 'console.log', data: {output: s||''}});
+                postMessage({event: 'console.log', data: {output: s||''}});
             },
             error: function(s){
-                postMessage({cmd: 'console.error', data: {output: s||''}});
+                postMessage({event: 'console.error', data: {output: s||''}});
             },
         };
         
@@ -154,6 +154,12 @@
                         throw new Error('Filter "' + data.filter + '" could not be created');
                     }
                     break;
+                case 'import':
+                    if ( data && data["import"] && data["import"].length )
+                    {
+                        importScripts( data["import"].join(',') );
+                    }
+                    break;
                 case 'params':
                     if ( filter )
                     {
@@ -165,6 +171,7 @@
                     {
                         if ( data && data.im )
                         {
+                            if ( data.params ) filter.unserialize( data.params );
                             filter.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
                         }
                         else
@@ -255,15 +262,19 @@
     //
     //
     // Worker Interface Filter
+    var URL = FILTER.URL = root.webkitURL || root.URL,
+        blobURL = function( src ) {
+            return URL.createObjectURL( new Blob( [ src || '' ], { type: "text/javascript" }) );
+        }
+    ;
+        
     var FilterWorkerInterface = FILTER.FilterWorkerInterface = FILTER.Class({
         
-        //_async: null,
         _worker: null
         ,_workerListeners: null
         
         ,disposeWorker: function( ) {
             var self = this;
-            //self._async = null;
             if ( self._worker )
             {
                 self.send( 'dispose' );
@@ -285,6 +296,36 @@
         
         // @override
         ,unserialize: function( json ) {
+            return this;
+        }
+        
+        ,sources: function( ) {
+            var sources = slice( arguments );
+            if ( sources.length )
+            {
+                var blobs = [ ], i;
+                for (i=0; i<sources.length; i++)
+                {
+                    if ( 'function' === typeof( sources[ i ] ) )
+                    {
+                        blobs.push( blobURL( sources[ i ].toString( ) ) );
+                    }
+                    else
+                    {
+                        blobs.push( blobURL( sources[ i ] ) );
+                    }
+                }
+                this.send('import', {'import': blobs});
+            }
+            return this;
+        }
+        
+        ,scripts: function( ) {
+            var scripts = slice( arguments );
+            if ( scripts.length )
+            {
+                this.send('import', {'import': scripts});
+            }
             return this;
         }
         
@@ -314,7 +355,7 @@
                 
                 self._workerListeners = { };
                 
-                worker = self._worker = new Worker( FILTER.Path.file );
+                worker = self._worker = new Worker( this.Path.file );
                 
                 worker.onmessage = function( evt ) {
                     if ( evt.data.event )
@@ -387,6 +428,8 @@
     var Filter = FILTER.Filter = FILTER.Class( FilterWorkerInterface, {
         name: "Filter"
         
+        ,Path: { file: FILTER.Path.file, path: FILTER.Path.path}
+        
         // dummy
         ,constructor: function() {
         }
@@ -438,7 +481,7 @@
         }
         
         // generic apply method, maybe overwritten
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( image && this._isOn )
             {
                 var im = image.getSelectedData( );
@@ -449,16 +492,18 @@
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
@@ -635,7 +680,7 @@
         }
         
         // make it so other composite filters can be  used as simple filter components in the stack
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( image && this._isOn && this._stack.length )
             {
                 var im = image.getSelectedData( );
@@ -646,16 +691,18 @@
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: im} )
+                        .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;

@@ -719,7 +719,7 @@
             return p;
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._matrix )
             {
                 /*if (this._webglInstance)
@@ -741,17 +741,19 @@
                             this.unbind( 'apply' );
                             if ( data && data.im )
                                 image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
                         })
                         // send filter params to worker
-                        .send( 'params', this.serialize( ) )
+                        //.send( 'params', this.serialize( ) )
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( )} )
+                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;
                 }
                 else
                 {
                     var im = image.getSelectedData( );
                     image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
                 }
             }
             return image;
