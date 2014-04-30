@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+!function(FILTER, undef){
 
+    @@USE_STRICT@@
+    
     var Min = Math.min, Max = Math.max, 
         Round = Math.round, Floor=Math.floor, Abs = Math.abs,
         notSupportClamp = FILTER._notSupportClamp,
@@ -16,55 +18,103 @@
     //
     // a photoshop-like Blend Filter Plugin
     FILTER.BlendFilter = FILTER.Create({
+        name: "BlendFilter"
         
         // parameters
-        _blendMode : null,
-        blendImage : null,
-        startX : 0,
-        startY : 0,
-        amount : 1,
-        
-        name : "BlendFilter",
+        ,_blendModeName: null
+        ,_blendMode: null
+        ,_blendImage: null
+        ,blendImage: null
+        ,startX: 0
+        ,startY: 0
+        ,amount: 1
         
         // constructor
-        init : function(blendImage, blendMode, amount) { 
+        ,init: function( blendImage, blendMode, amount ) { 
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
-            this.blendImage = blendImage || null;
+            this._blendImage = null;
+            this.blendImage = null;
+            this._blendModeName = null;
             this._blendMode = null;
-            if (blendMode) this.mode(blendMode, amount);
-        },
+            if ( blendImage ) this.image( blendImage );
+            if ( blendMode ) this.mode( blendMode, amount );
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _blendImage: self._blendImage
+                    ,_blendModeName: self._blendModeName
+                    ,startX: self.startX
+                    ,startY: self.startY
+                    ,amount: self.amount
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._blendImage = params._blendImage;
+                self.startX = params.startX;
+                self.startY = params.startY;
+                self.mode( params._blendModeName, params.amount );
+            }
+            return self;
+        }
         
         // set blend image auxiliary method
-        image : function(blendImage) {
-            this.blendImage = blendImage || null;
+        ,image: function( blendImage ) {
+            if ( blendImage )
+            {
+                this.blendImage = blendImage;
+                this._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+            }
             return this;
-        },
+        }
         
         // set blend mode auxiliary method
-        mode : function(blendMode, amount) {
-            this._blendMode = blendModes[(''+blendMode).toLowerCase()] || null;
-            this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+        ,mode: function( blendMode, amount ) {
+            if ( blendMode )
+            {
+                this._blendModeName = (''+blendMode).toLowerCase();
+                this._blendMode = blendModes[this._blendModeName] || null;
+                this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+            }
+            else
+            {
+                this._blendModeName = null;
+                this._blendMode = null;
+            }
             return this;
-        },
+        }
         
-        reset : function() {
+        ,reset: function( ) {
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
+            this._blendModeName = null;
             this._blendMode = null;
             return this;
-        },
+        }
         
         // main apply routine
-        apply : function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             
-            if (!this._blendMode || !this.blendImage) return im;
+            if ( !this._blendMode || !this._blendImage ) return im;
             
             var startX = this.startX||0, startY = this.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
-                im2, w2, h2, image2 = this.blendImage,
+                im2, w2, h2, image2 = this._blendImage,
                 amount = this.amount||1
             ;
             
@@ -82,7 +132,7 @@
             
             if (W <= 0 || H <= 0) return im;
             
-            im2 = image2.getData();
+            im2 = image2.data;
             
             return this._blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
@@ -1317,4 +1367,4 @@
     blendModes.lineardodge = blendModes.add;
     blendModes.linearburn = blendModes.subtract;
 
-})(FILTER);
+}(FILTER);

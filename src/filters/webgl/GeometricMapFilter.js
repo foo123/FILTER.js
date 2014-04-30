@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
 
+    @@USE_STRICT@@
+    
     var twirlShaders= [
         {
             type: "vertex",
@@ -332,12 +334,12 @@
     //
     //
     // GeometricMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = Class( FILTER.WebGLFilter, {
+    var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = FILTER.Class( FILTER.WebGLFilter, {
         
         name : "WebGLGeometricMapFilter",
         
         constructor : function(type) { 
-            this.id='WGLGM8'; //FILTER.getId();
+            this.id='WGLGM8'; //FILTER.uuid();
         },
         
         filterParams : null, 
@@ -378,4 +380,4 @@
         }
     });
     
-})(Class, FILTER);
+}(FILTER);

@@ -11,7 +11,9 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
+    
+    @@USE_STRICT@@
     
     // color table
     var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
@@ -40,23 +42,64 @@
     //
     //
     // TableLookupFilter
-    var TableLookupFilter = FILTER.TableLookupFilter = Class( FILTER.Filter, {
-        name : "TableLookupFilter",
+    var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, {
+        name: "TableLookupFilter"
         
-        constructor : function(tR, tG, tB, tA) {
+        ,constructor: function( tR, tG, tB, tA ) {
             this._tableR = tR || null;
             this._tableG = tG || this._tableR;
             this._tableB = tB || this._tableG;
             this._tableA = tA || null;
-        },
+        }
         
         // parameters
-        _tableR : null,
-        _tableG : null,
-        _tableB : null,
-        _tableA : null,
+        ,_tableR: null
+        ,_tableG: null
+        ,_tableB: null
+        ,_tableA: null
         
-        thresholds : function(thresholdsR, thresholdsG, thresholdsB) {
+        ,dispose: function( ) {
+            var self = this;
+            
+            self.disposeWorker( );
+            
+            self._tableR = null;
+            self._tableG = null;
+            self._tableB = null;
+            self._tableA = null;
+            
+            return self;
+        }
+        
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _tableR: self._tableR
+                    ,_tableG: self._tableG
+                    ,_tableB: self._tableB
+                    ,_tableA: self._tableA
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._tableR = params._tableR;
+                self._tableG = params._tableG;
+                self._tableB = params._tableB;
+                self._tableA = params._tableA;
+            }
+            return self;
+        }
+        
+        ,thresholds: function( thresholdsR, thresholdsG, thresholdsB ) {
             // assume thresholds are given in pointwise scheme as pointcuts
             // not in cumulative scheme
             // [ 0.5 ] => [0, 1]
@@ -96,16 +139,16 @@
                 i++; 
             }
             return this.set(tR, tG, tB);
-        },
+        }
         
-        threshold : function(thresholdR, thresholdG, thresholdB) {
+        ,threshold: function( thresholdR, thresholdG, thresholdB ) {
             thresholdR=thresholdR || 0.5;
             thresholdG=thresholdG || thresholdR;
             thresholdB=thresholdB || thresholdG;
             return this.thresholds([thresholdR], [thresholdG], [thresholdB]);
-        },
+        }
         
-        quantize : function(numLevels) {
+        ,quantize: function( numLevels ) {
             if ( numLevels === undef ) numLevels=64;
             if (numLevels<2) numLevels=2;
 
@@ -113,14 +156,14 @@
             i=0; while (i<numLevels) { q[i] = ~~(nL * i); i++; }
             i=0; while (i<256) { t[i] = clamp(q[ ~~(nR * i) ]); i++; }
             return this.set(t);
-        },
+        }
         
-        binarize : function() {
+        ,binarize: function( ) {
             return this.quantize(2);
-        },
+        }
         
         // adapted from http://www.jhlabs.com/ip/filters/
-        solarize : function(threshold) {
+        ,solarize: function( threshold ) {
             if ( threshold === undef ) threshold=0.5;
             
             var i=0, t=new CT(256)
@@ -136,9 +179,9 @@
                 i++; 
             }
             return this.set(t);
-        },
+        }
         
-        solarize2 : function(threshold) {
+        ,solarize2: function( threshold ) {
             if ( threshold === undef ) threshold=0.5;
             threshold=1-threshold;
             var i=0, t=new CT(256)
@@ -154,9 +197,9 @@
                 i++; 
             }
             return this.set(t);
-        },
+        }
         
-        solarizeInverse : function(threshold) {
+        ,solarizeInverse: function( threshold ) {
             if ( threshold === undef ) threshold=0.5;
             threshold*=256; 
             
@@ -168,14 +211,14 @@
                 i++; 
             }
             return this.set(t);
-        },
+        }
         
-        invert : function() {
+        ,invert: function( ) {
             return this.set(inverce);
-        },
+        }
         
         // apply a binary mask to the image color channels
-        mask : function(mask) {
+        ,mask: function( mask ) {
             var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
                 tR=new CT(256), tG=new CT(256), tB=new CT(256)
                 ;
@@ -187,10 +230,10 @@
                 i++; 
             }
             return this.set(tR, tG, tB);
-        },
+        }
         
         // replace a color with another
-        replace : function(color, replacecolor) {
+        ,replace: function( color, replacecolor ) {
             if (color==replacecolor) return this;
             var  
                 c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
@@ -199,10 +242,10 @@
                 ;
                 tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
             return this.set(tR, tG, tB);
-        },
+        }
         
         // extract a range of color values from a specific color channel and set the rest to background color
-        extract : function(channel, range, background) {
+        ,extract: function( channel, range, background ) {
             if (!range || !range.length) return this;
             
             background=background||0;
@@ -231,10 +274,10 @@
                 
             }
             return this.set(tR, tG, tB);
-        },
+        }
         
         // adapted from http://www.jhlabs.com/ip/filters/
-        gammaCorrection : function(gammaR, gammaG, gammaB) {
+        ,gammaCorrection: function( gammaR, gammaG, gammaB ) {
             gammaR=gammaR || 1;
             gammaG=gammaG || gammaR;
             gammaB=gammaB || gammaG;
@@ -251,10 +294,10 @@
                 i++; 
             }
             return this.set(tR, tG, tB);
-        },
+        }
         
         // adapted from http://www.jhlabs.com/ip/filters/
-        exposure : function(exposure) {
+        ,exposure: function( exposure ) {
             if ( exposure === undef ) exposure=1;
             var i=0, t=new CT(256);
             i=0; while (i<256) 
@@ -263,9 +306,9 @@
                 i++; 
             }
             return this.set(t);
-        },
+        }
         
-        set : function(_tR, _tG, _tB, _tA) {
+        ,set: function( _tR, _tG, _tB, _tA ) {
             if (!_tR) return this;
             
             _tG=_tG || _tR; _tB=_tB || _tG;
@@ -302,18 +345,18 @@
             }
             
             return this;
-        },
+        }
         
-        reset : function() {
+        ,reset: function( ) {
             this._tableR = this._tableG = this._tableB = this._tableA = null; 
             return this;
-        },
+        }
         
-        combineWith : function(filt) {
+        ,combineWith: function( filt ) {
             return this.set(filt.getTable(0), filt.getTable(1), filt.getTable(2));
-        },
+        }
         
-        getTable : function (channel) {
+        ,getTable: function ( channel ) {
             channel = channel || FILTER.CHANNEL.RED;
             switch (channel)
             {
@@ -323,9 +366,9 @@
                 case FILTER.CHANNEL.RED: 
                 default: return this._tableR;
             }
-        },
+        }
         
-        setTable : function (table, channel) {
+        ,setTable: function ( table, channel ) {
             channel = channel || FILTER.CHANNEL.RED;
             switch (channel)
             {
@@ -335,10 +378,10 @@
                 case FILTER.CHANNEL.RED: 
                 default: this._tableR=table; return this;
             }
-        },
+        }
         
         // used for internal purposes
-        _apply : function(im, w, h/*, image*/) {
+        ,_apply: function(im, w, h/*, image*/) {
             
             if ( !this._isOn || !this._tableR ) return im;
             
@@ -347,11 +390,11 @@
                 tR=this._tableR, tG=this._tableG, tB=this._tableB, tA=this._tableA;
             
             // apply filter (algorithm implemented directly based on filter definition)
-            if (tA)
+            if ( tA )
             {
                 // array linearization
                 // partial loop unrolling (quarter iterations)
-                for (i=0; i<l; i+=16)
+                for ( i=0; i<l; i+=16 )
                 {
                     r = im[i]; g = im[i+1]; b = im[i+2]; a = im[i+3];
                     im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b]; im[i+3] = tA[a];
@@ -364,7 +407,7 @@
                 }
                 
                 // loop unrolling remainder
-                if (rem)
+                if ( rem )
                 {
                     rem <<= 2;
                     for (i=l-rem; i<l; i+=4)
@@ -391,7 +434,7 @@
                 }
                 
                 // loop unrolling remainder
-                if (rem)
+                if ( rem )
                 {
                     rem <<= 2;
                     for (i=l-rem; i<l; i+=4)
@@ -402,13 +445,30 @@
                 }
             }
             return im;
-        },
+        }
         
-        apply : function(image) {
+        ,apply: function( image ) {
             if ( this._isOn && this._tableR )
             {
-                var im = image.getSelectedData();
-                return image.setSelectedData(this._apply(im[0], im[1], im[2], image));
+                var im = image.getSelectedData( );
+                if ( this._worker )
+                {
+                    this
+                        .bind( 'apply', function( data ) { 
+                            this.unbind( 'apply' );
+                            if ( data && data.im )
+                                image.setSelectedData( data.im );
+                        })
+                        // send filter params to worker
+                        .send( 'params', this.serialize( ) )
+                        // process request
+                        .send( 'apply', {im: im} )
+                    ;
+                }
+                else
+                {
+                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                }
             }
             return image;
         },
@@ -416,4 +476,4 @@
     // aliases
     TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;
     
-})(Class, FILTER);
+}(FILTER);

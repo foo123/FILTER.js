@@ -4,31 +4,57 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp,
         RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
         ;
     
     // a plugin to apply a general threshold filtering to an image
     FILTER.ThresholdFilter = FILTER.Create({
+        name: "ThresholdFilter"
         
         // filter parameters
-        thresholds : null,
+        ,thresholds: null
         // NOTE: quantizedColors should contain 1 more element than thresholds
-        quantizedColors : null,
-        
-        name : "ThresholdFilter",
+        ,quantizedColors: null
         
         // constructor
-        init : function(thresholds, quantizedColors) {
-            this.thresholds=thresholds;
-            this.quantizedColors=quantizedColors||null;
-        },
+        ,init: function( thresholds, quantizedColors ) {
+            this.thresholds = thresholds;
+            this.quantizedColors = quantizedColors || null;
+        }
         
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    thresholds: self.thresholds
+                    ,quantizedColors: self.quantizedColors
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.thresholds = params.thresholds;
+                self.quantizedColors = params.quantizedColors;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -61,4 +87,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

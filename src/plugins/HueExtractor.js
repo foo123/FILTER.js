@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp,
         IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
         RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
@@ -13,22 +15,45 @@
     
     // a plugin to extract regions based on a HUE range
     FILTER.HueExtractorFilter = FILTER.Create({
+        name: "HueExtractorFilter"
         
         // filter parameters
-        range : null,
-        background : 0,
-        
-        name : "HueExtractorFilter",
+        ,range : null
+        ,background : 0
         
         // constructor
-        init : function(range, background) {
-            this.range=range;
-            this.background=background||0;
-        },
+        ,init : function( range, background ) {
+            this.range = range;
+            this.background = background || 0;
+        }
         
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    range: self.range
+                    ,background: self.background
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.range = params.range;
+                self.background = params.background;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -63,4 +88,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

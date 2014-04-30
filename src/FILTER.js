@@ -2,11 +2,11 @@
 *
 *   FILTER.js
 *   @version: @@VERSION@@
+*   @@DEPENDENCIES@@
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var Class = Classy.Class;
-var FILTER = FILTER || { VERSION: "@@VERSION@@" };
+var FILTER = FILTER || { VERSION: "@@VERSION@@", Class: Classy.Class, Merge: Classy.Merge };
     

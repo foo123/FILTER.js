@@ -4,19 +4,20 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
         RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
         ;
     
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter = FILTER.Create({
-        
-        name : "HistogramEqualizeFilter",
+        name : "HistogramEqualizeFilter"
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -93,4 +94,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

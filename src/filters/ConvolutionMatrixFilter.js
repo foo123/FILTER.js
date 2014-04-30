@@ -9,7 +9,9 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
+    
+    @@USE_STRICT@@
     
     var 
         sqrt2=FILTER.CONSTANTS.SQRT2, toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
@@ -38,10 +40,10 @@
     //
     //
     //  Convolution Matrix Filter
-    var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = Class( FILTER.Filter, {
-        name : "ConvolutionMatrixFilter",
+    var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
+        name: "ConvolutionMatrixFilter"
         
-        constructor: function(weights, factor, bias) {
+        ,constructor: function( weights, factor, bias ) {
             this._coeff = new CM([1.0, 0.0]);
             
             if ( weights && weights.length)
@@ -55,85 +57,157 @@
             this._matrix2 = null;  this._dim2 = 0;
             this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
             
-            if ( FILTER.useWebGL )  this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance;
-        },
+            if ( FILTER.useWebGL )  
+                this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
+        }
         
-        _dim: 0,
-        _dim2: 0,
-        _matrix: null,
-        _matrix2: null,
-        _mat : null,
-        _mat2 : null,
-        _coeff: null,
-        _isGrad: false,
-        _doIntegral: 0,
-        _doSeparable: false,
-        _indices: null,
-        _indices2: null,
-        _indicesf: null,
-        _indicesf2: null,
+        ,_dim: 0
+        ,_dim2: 0
+        ,_matrix: null
+        ,_matrix2: null
+        ,_mat: null
+        ,_mat2: null
+        ,_coeff: null
+        ,_isGrad: false
+        ,_doIntegral: 0
+        ,_doSeparable: false
+        ,_indices: null
+        ,_indices2: null
+        ,_indicesf: null
+        ,_indicesf2: null
+        ,_webglInstance: null
         
-        _webglInstance: null,
+        ,dispose: function( ) {
+            var self = this;
+            
+            self.disposeWorker( );
+            
+            self._webglInstance = null;
+            self._dim = null;
+            self._dim2 = null;
+            self._matrix = null;
+            self._matrix2 = null;
+            self._mat = null;
+            self._mat2 = null;
+            self._coeff = null;
+            self._isGrad = null;
+            self._doIntegral = null;
+            self._doSeparable = null;
+            self._indices = null;
+            self._indices2 = null;
+            self._indicesf = null;
+            self._indicesf2 = null;
+            
+            return self;
+        }
+        
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _dim: self._dim
+                    ,_dim2: self._dim2
+                    ,_matrix: self._matrix
+                    ,_matrix2: self._matrix2
+                    ,_mat: self._mat
+                    ,_mat2: self._mat2
+                    ,_coeff: self._coeff
+                    ,_isGrad: self._isGrad
+                    ,_doIntegral: self._doIntegral
+                    ,_doSeparable: self._doSeparable
+                    ,_indices: self._indices
+                    ,_indices2: self._indices2
+                    ,_indicesf: self._indicesf
+                    ,_indicesf2: self._indicesf2
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._dim = params._dim;
+                self._dim2 = params._dim2;
+                self._matrix = params._matrix;
+                self._matrix2 = params._matrix2;
+                self._mat = params._mat;
+                self._mat2 = params._mat2;
+                self._coeff = params._coeff;
+                self._isGrad = params._isGrad;
+                self._doIntegral = params._doIntegral;
+                self._doSeparable = params._doSeparable;
+                self._indices = params._indices;
+                self._indices2 = params._indices2;
+                self._indicesf = params._indicesf;
+                self._indicesf2 = params._indicesf2;
+            }
+            return self;
+        }
         
         // generic low-pass filter
-        lowPass : function(d) {
+        ,lowPass: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             this.set(ones(d), d, 1/(d*d), 0.0);
             this._doIntegral = 1; return this;
-        },
+        }
 
         // generic high-pass filter (I-LP)
-        highPass : function(d, f) {
+        ,highPass: function( d, f ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             f = ( f === undef ) ? 1 : f;
             // HighPass Filter = I - (respective)LowPass Filter
             var size=d*d, fact=-f/size, w=ones(d, fact, 1+fact);
             this.set(w, d, 1.0, 0.0);
             this._doIntegral = 1; return this;
-        },
+        }
 
-        glow : function(f, d) { 
+        ,glow: function( f, d ) { 
             f = ( f === undef ) ? 0.5 : f;  
             return this.highPass(d, -f); 
-        },
+        }
         
-        sharpen : function(f, d) { 
+        ,sharpen: function( f, d ) { 
             f = ( f === undef ) ? 0.5 : f;  
             return this.highPass(d, f); 
-        },
+        }
         
-        verticalBlur : function(d) {
+        ,verticalBlur: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             this.set(average1DKernel(d), 1, 1/d, 0.0); 
             this._dim2 = d; this._doIntegral = 1; return this;
-        },
+        }
         
-        horizontalBlur : function(d) {
+        ,horizontalBlur: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             this.set(average1DKernel(d), d, 1/d, 0.0); 
             this._dim2 = 1; this._doIntegral = 1; return this;
-        },
+        }
         
         // supports only vertical, horizontal, diagonal
-        directionalBlur : function(theta, d) {
+        ,directionalBlur: function( theta, d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             theta *= toRad;
             var c = Cos(theta), s = -Sin(theta), filt = twos2(d, c, s, 1/d);
             return this.set(filt, d, 1.0, 0.0);
-        },
+        }
         
         // fast gauss filter
-        fastGauss : function(quality, d) {
+        ,fastGauss: function( quality, d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             quality = ~~(quality||1);
             if ( quality < 1 ) quality = 1;
             else if ( quality > 3 ) quality = 3;
             this.set(ones(d), d, 1/(d*d), 0.0);
             this._doIntegral = quality; return this;
-        },
+        }
         
         // generic binomial(quasi-gaussian) low-pass filter
-        binomialLowPass : function(d) {
+        ,binomialLowPass: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             /*var filt=gaussKernel(d);
             return this.set(filt.kernel, d, 1/filt.sum); */
@@ -143,42 +217,42 @@
             var tmp = this._computeIndices(this._matrix2, this._dim2);
             this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
             this._doSeparable = true; return this;
-        },
+        }
 
         // generic binomial(quasi-gaussian) high-pass filter
-        binomialHighPass : function(d) {
+        ,binomialHighPass: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt = gaussKernel(d);
             // HighPass Filter = I - (respective)LowPass Filter
             return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
-        },
+        }
         
         // X-gradient, partial X-derivative (Prewitt)
-        prewittX : function(d) {
+        ,prewittX: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt = prewittKernel(d, 0);
             // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
-        },
+        }
         
         // Y-gradient, partial Y-derivative (Prewitt)
-        prewittY : function(d) {
+        ,prewittY: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt = prewittKernel(d, 1);
             // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
-        },
+        }
         
         // directional gradient (Prewitt)
-        prewittDirectional : function(theta, d) {
+        ,prewittDirectional: function( theta, d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
             var c = Cos(theta), s = Sin(theta), gradx = prewittKernel(d, 0), grady = prewittKernel(d, 1);
             return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
-        },
+        }
         
         // gradient magnitude (Prewitt)
-        prewitt : function(d) {
+        ,prewitt: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var gradx = prewittKernel(d, 0), grady = prewittKernel(d, 1);
             this.set(gradx.kernel, d, 1.0, 0.0);
@@ -187,34 +261,34 @@
             var tmp = this._computeIndices(this._matrix2, this._dim2);
             this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
             return this;
-        },
+        }
         
         // partial X-derivative (Sobel)
-        sobelX : function(d) {
+        ,sobelX: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt = sobelKernel(d, 0);
             // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
-        },
+        }
         
         // partial Y-derivative (Sobel)
-        sobelY : function(d) {
+        ,sobelY: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var filt = sobelKernel(d, 1);
             // this can be separable
             return this.set(filt.kernel, d, 1.0, 0.0);
-        },
+        }
         
         // directional gradient (Sobel)
-        sobelDirectional : function(theta, d) {
+        ,sobelDirectional: function( theta, d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             theta*=toRad;
             var c = Cos(theta), s = Sin(theta), gradx = sobelKernel(d, 0), grady = sobelKernel(d, 1);
             return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
-        },
+        }
         
         // gradient magnitude (Sobel)
-        sobel : function(d) {
+        ,sobel: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var gradx = sobelKernel(d, 0), grady = sobelKernel(d, 1);
             this.set(gradx.kernel, d, 1.0, 0.0);
@@ -223,42 +297,42 @@
             this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
             this._isGrad = true;
             return this;
-        },
+        }
         
-        laplace : function(d) {
+        ,laplace: function( d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             var size = d*d, laplacian = ones(d, -1, size-1);
             this.set(laplacian, d, 1.0, 0.0);
             this._doIntegral = 1; return this;
-        },
+        }
         
-        emboss : function(angle, amount, d) {
+        ,emboss: function( angle, amount, d ) {
             d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
             angle = ( angle === undef ) ? (-0.25*Math.PI) : (angle*toRad);
             amount = amount||1;
             var dx = amount*Cos(angle), dy = -amount*Sin(angle), filt = twos(d, dx, dy, 1);
             return this.set(filt, d, 1.0, 0.0);
-        },
+        }
         
-        edges : function(m) {
+        ,edges: function( m ) {
             m = m||1;
             return this.set([
                     0,   m,   0,
                     m,  -4*m, m,
                     0,   m,   0
                  ], 3, 1.0, 0.0);
-        },
+        }
         
-        set : function(m, d, f, b) {
+        ,set: function( m, d, f, b ) {
             this._matrix2 = null; this._dim2 = 0; this._indices2 = this._indicesf2 = null; this._mat2 = null;
             this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
             this._matrix = new CM(m); this._dim = d; this._coeff[0] = f||1; this._coeff[1] = b||0;
             var tmp  = this._computeIndices(this._matrix, this._dim);
             this._indices = tmp[0]; this._indicesf = tmp[1]; this._mat = tmp[2];
             return this;
-        },
+        }
         
-        _computeIndices : function(m, d) {
+        ,_computeIndices: function( m, d ) {
             // pre-compute indices, 
             // reduce redundant computations inside the main convolution loop (faster)
             var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = (matRadius>>1);
@@ -276,45 +350,45 @@
                 k++; x++; if (x>=matRadius) { x=0; y++; }
             }
             return [new A16I(indices), new A16I(indices2), new CM(mat)];
-        },
+        }
         
-        reset : function() {
+        ,reset: function( ) {
             this._matrix = this._matrix2 = null; 
             this._mat = this._mat2 = null; 
             this._dim = this._dim2 = 0;
             this._indices = this._indices2 = this._indicesf = this._indicesf2 = null;
             this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
             return this;
-        },
+        }
         
-        combineWith : function(filt) {
+        ,combineWith: function( filt ) {
             // matrices/kernels need to be convolved -> larger kernel->tensor in order to be actually combined
             // todo??
             return this;
-        },
+        }
         
-        getMatrix : function() {
+        ,getMatrix: function( ) {
             return this._matrix;
-        },
+        }
         
-        setMatrix : function(m, d) {
+        ,setMatrix: function( m, d ) {
             return this.set(m, d);
-        },
+        }
         
         // used for internal purposes
-        _apply : function(im, w, h/*, image*/) {
+        ,_apply: function(im, w, h/*, image*/) {
             
             if ( !this._isOn || !this._matrix ) return im;
             
             // do a faster convolution routine if possible
-            if (this._doIntegral) 
+            if ( this._doIntegral ) 
             {
                 if (this._matrix2)
                     return integralConvolution(im, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doIntegral);
                 else
                     return integralConvolution(im, w, h, this._matrix, null, this._dim, this._dim, this._coeff[0], this._coeff[1], this._doIntegral);
             }
-            else if (this._doSeparable)
+            else if ( this._doSeparable )
             {
                 return separableConvolution(im, w, h, this._mat, this._mat2, this._indices, this._indices2, this._coeff[0], this._coeff[1]);
             }
@@ -440,35 +514,49 @@
                 }
             }
             return dst;
-        },
+        }
         
-        apply : function(image) {
+        ,apply: function( image ) {
             if ( this._isOn && this._matrix )
             {
-            /*if (this._webglInstance)
-            {
-                var w=image.width, h=image.height;
-                this._webglInstance.filterParams=[
-                    new CM([w, h]),
-                    1.0,
-                    new CM([w, h]),
-                    this._coeff, 
-                    (this._matrix2) ? 1 : 0,
-                    (this._isGrad) ? 1 : 0,
-                    this._dim>>1,
-                    this._dim2>>1,
-                    this._matrix.length,
-                    this._matrix,
-                    (this._matrix2) ? this._matrix2 : new CM([0])
-                ];
-                this._webglInstance._apply(image.webgl, w, h);
-                return image;
-            }
-            else
-            {*/
-                var im = image.getSelectedData();
-                return image.setSelectedData(this._apply(im[0], im[1], im[2], image));
-            /*}*/
+                /*if (this._webglInstance)
+                {
+                    var w=image.width, h=image.height;
+                    this._webglInstance.filterParams=[
+                        new CM([w, h]),
+                        1.0,
+                        new CM([w, h]),
+                        this._coeff, 
+                        (this._matrix2) ? 1 : 0,
+                        (this._isGrad) ? 1 : 0,
+                        this._dim>>1,
+                        this._dim2>>1,
+                        this._matrix.length,
+                        this._matrix,
+                        (this._matrix2) ? this._matrix2 : new CM([0])
+                    ];
+                    this._webglInstance._apply(image.webgl, w, h);
+                    return image;
+                }*/
+                if ( this._worker )
+                {
+                    this
+                        .bind( 'apply', function( data ) { 
+                            this.unbind( 'apply' );
+                            if ( data && data.im )
+                                image.setSelectedData( data.im );
+                        })
+                        // send filter params to worker
+                        .send( 'params', this.serialize( ) )
+                        // process request
+                        .send( 'apply', {im: image.getSelectedData( )} )
+                    ;
+                }
+                else
+                {
+                    var im = image.getSelectedData( );
+                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image) );
+                }
             }
             return image;
         }
@@ -980,4 +1068,4 @@
         return im;
     }
     */
-})(Class, FILTER);
+}(FILTER);

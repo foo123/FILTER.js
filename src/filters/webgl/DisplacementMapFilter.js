@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
 
+    @@USE_STRICT@@
+    
     var dmShaders= [
         {
             type: "vertex",
@@ -124,13 +126,13 @@
     //
     //
     // DisplacementMap WebGL Filter  (IN PROGRESS!!)
-    var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = Class( FILTER.WebGLFilter,
+    var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = FILTER.Class( FILTER.WebGLFilter,
     {
         
         name : "WebGLDisplacementMapFilter",
         
         constructor : function() { 
-            this.id='WGLDM4'; //FILTER.getId();
+            this.id='WGLDM4'; //FILTER.uuid();
         },
         
         filterParams : null, 
@@ -151,4 +153,4 @@
         }
     });
     
-})(Class, FILTER);
+}(FILTER);

@@ -4,26 +4,51 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var Sqrt=Math.sqrt,
         notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     
     // a sample fast pixelate filter
     FILTER.PixelateFilter = FILTER.Create({
-        // parameters
-        scale: 1,
+        name: "PixelateFilter"
         
-        name : "PixelateFilter",
+        // parameters
+        ,scale: 1
         
         // this is the filter constructor
-        init: function(scale) {
+        ,init: function( scale ) {
             this.scale = scale || 1;
-        },
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    scale: self.scale
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.scale = params.scale;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -161,4 +186,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

@@ -8,7 +8,9 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
+    
+    @@USE_STRICT@@
     
     var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
         A16I = FILTER.Array16I,
@@ -18,60 +20,128 @@
     //
     //
     // DisplacementMapFilter
-    var DisplacementMapFilter = FILTER.DisplacementMapFilter = Class( FILTER.Filter, {
-        name : "DisplacementMapFilter",
+    var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.Filter, {
+        name: "DisplacementMapFilter"
         
-        constructor : function(displacemap) {
-            if (displacemap) this.setMap(displacemap);
-        },
+        ,constructor: function( displacemap ) {
+            if ( displacemap ) this.setMap( displacemap );
+        }
         
-        map : null,
+        ,map: null
+        ,_map: null
         // parameters
-        scaleX : 1,
-        scaleY : 1,
-        startX: 0,
-        startY: 0,
-        componentX : 0,
-        componentY : 0,
-        color : 0,
-        red : 0,
-        green : 0,
-        blue : 0,
-        alpha : 0,
-        mode : FILTER.MODE.CLAMP,
+        ,scaleX: 1
+        ,scaleY: 1
+        ,startX: 0
+        ,startY: 0
+        ,componentX: 0
+        ,componentY: 0
+        ,color: 0
+        ,red: 0
+        ,green: 0
+        ,blue: 0
+        ,alpha: 0
+        ,mode: FILTER.MODE.CLAMP
         
-        combineWith : function(filt) {
-            // todo ??
-            return this;
-        },
+        ,dispose: function( ) {
+            var self = this;
+            
+            self.disposeWorker( );
+            
+            self.map = null;
+            self._map = null;
+            self.scaleX = null;
+            self.scaleY = null;
+            self.startX = null;
+            self.startY = null;
+            self.componentX = null;
+            self.componentY = null;
+            self.color = null;
+            self.red = null;
+            self.green = null;
+            self.blue = null;
+            self.alpha = null;
+            self.mode = null;
+            
+            return self;
+        }
         
-        reset : function() {
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _map: self.map ? { data: self.map.getData( ), width: self.map.width, height: self.map.height } : null
+                    ,scaleX: self.scaleX
+                    ,scaleY: self.scaleY
+                    ,startX: self.startX
+                    ,startY: self.startY
+                    ,componentX: self.componentX
+                    ,componentY: self.componentY
+                    ,color: self.color
+                    ,red: self.red
+                    ,green: self.green
+                    ,blue: self.blue
+                    ,alpha: self.alpha
+                    ,mode: self.mode
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.map = null;
+                self._map = params._map;
+                self.scaleX = params.scaleX;
+                self.scaleY = params.scaleY;
+                self.startX = params.startX;
+                self.startY = params.startY;
+                self.componentX = params.componentX;
+                self.componentY = params.componentY;
+                self.color = params.color;
+                self.red = params.red;
+                self.green = params.green;
+                self.blue = params.blue;
+                self.alpha = params.alpha;
+                self.mode = params.mode;
+            }
+            return self;
+        }
+        
+        ,reset: function( ) {
             this.map = null; 
+            this._map = null; 
             return this;
-        },
+        }
         
-        getMap : function() {
+        ,getMap: function( ) {
             return this.map;
-        },
+        }
         
-        setMap : function(m) {
+        ,setMap: function( m)  {
+            this._map = null; 
             this.map = m; 
             return this;
-        },
+        }
         
-        setColor : function(c) {
+        ,setColor: function( c ) {
             this.color = c;
             this.alpha = (c >> 24) & 255; 
             this.red = (c >> 16) & 255; 
             this.green = (c >> 8) & 255; 
             this.blue = c & 255;
             return this;
-        },
+        }
         
         // used for internal purposes
-        _apply : function(im, w, h/*, image*/) {
+        ,_apply: function( im, w, h/*, image*/ ) {
             
-            if ( !this._isOn || !this.map ) return im;
+            if ( !this._isOn || (!this.map && !this._map) ) return im;
             
             var map, mapW, mapH, mapArea, displace, ww, hh,
                 sx = this.scaleX*0.00390625, sy = this.scaleY*0.00390625, 
@@ -79,13 +149,13 @@
                 alpha = this.alpha, red = this.red, 
                 green = this.green, blue = this.blue, mode = this.mode,
                 sty, stx, styw, bx0, by0, bx, by,
-                i, j, k, x, y, ty, yy, xx, mapOff, dstOff, srcOff,
-                applyArea, imArea, imLen, imcopy,
+                i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
+                applyArea, imArea, imLen, imcopy, srcx, srcy,
                 _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
             ;
             
-            map = this.map.getData();
-            mapW = this.map.width; mapH = this.map.height; 
+            map = this._map ? this._map.data : this.map.getData( );
+            mapW = this._map ? this._map.width : this.map.width; mapH = this._map ? this._map.height : this.map.height; 
             mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
             imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
             
@@ -160,16 +230,33 @@
                 im[dstOff+2] = imcopy[srcOff+2];  im[dstOff+3] = imcopy[srcOff+3];
             }
             return im;
-        },
+        }
         
-        apply : function(image) {
-            if ( this._isOn && this.map )
+        ,apply: function( image ) {
+            if ( this._isOn && (this._map || this.map) )
             {
-                var im = image.getSelectedData();
-                return image.setSelectedData(this._apply(im[0], im[1], im[2], image));
+                var im = image.getSelectedData( );
+                if ( this._worker )
+                {
+                    this
+                        .bind( 'apply', function( data ) { 
+                            this.unbind( 'apply' );
+                            if ( data && data.im )
+                                image.setSelectedData( data.im );
+                        })
+                        // send filter params to worker
+                        .send( 'params', this.serialize( ) )
+                        // process request
+                        .send( 'apply', {im: im} )
+                    ;
+                }
+                else
+                {
+                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                }
             }
             return image;
         }
     });
     
-})(Class, FILTER);
+}(FILTER);

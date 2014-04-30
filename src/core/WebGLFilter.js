@@ -4,7 +4,9 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
+    
+    @@USE_STRICT@@
     
     // IN PROGRESS, TODO
     
@@ -29,7 +31,7 @@
     //
     //
     // Generic WebGL Program Class
-    var WebGLProgram = FILTER.WebGLProgram = Class({
+    var WebGLProgram = FILTER.WebGLProgram = FILTER.Class({
     
         constructor : function(webgl, id, program, attributes, uniforms, textures)  {
             this.id=id || 0;
@@ -291,7 +293,7 @@
     //
     //
     // Generic WebGL Class
-    var WebGL = FILTER.WebGL = Class({
+    var WebGL = FILTER.WebGL = FILTER.Class({
         
         constructor: function(canvas, options)  {
             canvas = canvas || createCanvas();
@@ -898,7 +900,7 @@
     //
     //
     // Generic WebGL Filter
-    var WebGLFilter = FILTER.WebGLFilter = Class( FILTER.Filter, {
+    var WebGLFilter = FILTER.WebGLFilter = FILTER.Class( FILTER.Filter, {
         
         name : "GenericWebGLFilter",
         
@@ -1035,4 +1037,4 @@
             FILTER.warning('WebGL Shared Resources are NOT supported, fallback to non-shared resources');
     };
     
-})(Class, FILTER);
+}(FILTER);

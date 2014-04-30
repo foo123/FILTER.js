@@ -4,32 +4,63 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, 
         Abs=Math.abs, Floor=Math.floor,
         notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a simple bokeh (depth-of-field) filter
     FILTER.BokehFilter = FILTER.Create({
-        // parameters
-        centerX: 0,
-        centerY: 0,
-        radius: 10,
-        amount: 10,
+        name: "BokehFilter"
         
-        name : "BokehFilter",
+        // parameters
+        ,centerX: 0
+        ,centerY: 0
+        ,radius: 10
+        ,amount: 10
         
         // this is the filter constructor
-        init: function(centerX, centerY, radius, amount) {
-            this.centerX = centerX||0;
-            this.centerY = centerY||0;
-            this.radius = radius||10;
-            this.amount = amount||10;
-        },
+        ,init: function( centerX, centerY, radius, amount ) {
+            this.centerX = centerX || 0;
+            this.centerY = centerY || 0;
+            this.radius = radius || 10;
+            this.amount = amount || 10;
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    centerX: self.centerX
+                    ,centerY: self.centerY
+                    ,radius: self.radius
+                    ,amount: self.amount
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.centerX = params.centerX;
+                self.centerY = params.centerY;
+                self.radius = params.radius;
+                self.amount = params.amount;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -141,4 +172,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

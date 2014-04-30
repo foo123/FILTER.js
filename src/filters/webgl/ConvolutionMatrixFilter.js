@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
 
+    @@USE_STRICT@@
+    
     var MAX_KERNEL_SIZE=121,
     
         convolutionShaders= [
@@ -136,12 +138,12 @@
     //
     //
     // ConvolutionMatrix WebGL Filter (IN PROGRESS!!)
-    var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = Class( FILTER.WebGLFilter, {
+    var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = FILTER.Class( FILTER.WebGLFilter, {
         
         name : "WebGLConvolutionMatrixFilter",
         
         constructor : function() { 
-            this.id='WGLCM2'; //FILTER.getId();
+            this.id='WGLCM2'; //FILTER.uuid();
         },
         
         filterParams: null, 
@@ -165,4 +167,4 @@
     // export an instance
     FILTER.WebGLConvolutionMatrixFilterInstance=new WebGLConvolutionMatrixFilter();
     
-})(Class, FILTER);
+}(FILTER);

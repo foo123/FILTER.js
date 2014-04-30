@@ -1,6 +1,9 @@
 ##API Reference
 
-__NOTE:__  You can create your custom build of the library with the filters/plugins you choose. 
+The library has a dependency on [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
+
+
+**TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
 Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included. 
 Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
 
@@ -50,21 +53,30 @@ __Methods:__
 
 Each filter (and plugin) is an extension of the generic abstract filter, which provides some common methods.
 
+__Properties:__
+
+* _name_   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
+
+
 __Methods:__
 
-* _turnOff()_  allow the filter to be turned OFF, without losing its settings (eg in a filter chain)
-* _turnOn()_  turn ON the filter
-* _toggle()_  toggle the filter ON/OFF
-* _isOn()_   check if filter is ON or OFF
-* _apply(image)_   apply the flter to an Image instance (the image will be changed after the filter application)
-* _reset()_   reset the filter to identity (trivial)
+* _reset( )_   reset the filter to identity (trivial)
+* _dispose( )_   dispose the filter (disposes associated filter worker also if needed)
+* _turnOn( bool )_  turn the filter ON/OFF 
+* _toggle( )_  toggle the filter's ON/OFF status
+* _isOn( )_   check if filter is ON or OFF
+* _combineWith( similarFilterInstance )_   for any filter that supports combination of a similar filter with itself, else does nothing
+* _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
+* _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
+* _worker( bool )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
+* _apply( image )_   apply the flter to an Image instance (the image will be changed after the filter application)
 
 
 
 ###Color Matrix Filter
 
 ````javascript
-new FILTER.ColorMatrixFilter(weights);
+new FILTER.ColorMatrixFilter( weights );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -103,13 +115,24 @@ Color Matrix Filters can be combined very easily since they operate only on a si
 In order to use both a grayscale and a contrast filter use the following chaining:
 
 ````javascript
-var grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1);
+
+var grc = new FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+grc.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+grc.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-grc.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+grc.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -148,13 +171,24 @@ Lookup Table Filters can be combined very easily since they operate only on a si
 In order to use both an invert and a posterize filter use the following chaining:
 
 ````javascript
-var invertPosterize=new FILTER.TableLookupFilter().invert().posterize(4);
+
+var invertPosterize = new FILTER.TableLookupFilter( ).invert( ).posterize( 4 );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+invertPosterize.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+invertPosterize.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-invertPosterize.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+invertPosterize.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -163,7 +197,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###Convolution Matrix Filter
 
 ````javascript
-new FILTER.ConvolutionMatrixFilter(weights, factor);
+new FILTER.ConvolutionMatrixFilter( weights, factor );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -212,13 +246,24 @@ filters can be combined into a filter stack which apply one at a time (see below
 In order to use an emboss filter do the following:
 
 ````javascript
-var emboss=new FILTER.ConvolutionMatrixFilter().emboss();
+
+var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+emboss.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+emboss.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-emboss.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+emboss.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -227,7 +272,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###Displacement Map Filter
 
 ````javascript
-new FILTER.DisplacementMapFilter(displaceMap);
+new FILTER.DisplacementMapFilter( displaceMap );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -241,12 +286,9 @@ Displacement Map  Filters cannot be combined very easily. Use a composite filter
 In order to use an displace filter do the following:
 
 ````javascript
-var dF=new FILTER.DisplacementMapFilter(displaceMap);
-````
 
-To apply the filter to an image do (as of 0.3+ version)
+var dF = new FILTER.DisplacementMapFilter( displaceMap );
 
-````javascript
 // set any filter parameters if needed
 dF.scaleX=100;  // amount of scaling in the x-direction
 dF.scaleY=100;  // amount of scaling in the y-direction
@@ -254,7 +296,22 @@ df.startX=0; // x coordinate of filter application point
 df.startY=0; // y coordinate of filter application point
 df.componentX=FILTER.CHANNEL.GREEN; // use the map green channel for the x displacement
 dF.mode=FILTER.MODE.WRAP; // any values outside image should be wrapped around
-dF.apply(image);   // image is a FILTER.Image instance, see examples
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+dF.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+dF.worker( false );
+
+````
+
+To apply the filter to an image do (as of 0.3+ version)
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+dF.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -263,7 +320,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###Geometric Map Filter
 
 ````javascript
-new FILTER.GeomatricMapFilter(geometricMapFunction);
+new FILTER.GeomatricMapFilter( geometricMapFunction );
 ````
 
 The filter scans an image and changes the current pixel by distorting it according to the geometric map function
@@ -271,31 +328,42 @@ The optional geometricMap parameter is a function that implements a geometric ma
 
 The class has some pre-defined filters to use.
 
-* _flipX()_  Flip the target image wrt to X axis
-* _flipY()_  Flip the target image wrt to Y axis
-* _flipXY()_  Flip the target image wrt to both X and Y axis
-* _rotateCW()_  Rotate target image clockwise 90 degrees
-* _rotateCCW()_  Rotate target image counter-clockwise 90 degrees
-* _generic()_ Apply a a user-defined generic geometric mapping to the image
-* _affine()_ Apply an affine transformation (using an affine transform matrix) to the target image
-* _twirl()_  Apply a twirling map
-* _sphere()_  Apply a spherical map
-* _ripple()_  Apply a wave ripple map
-* _polar()_  Transform image to polar coords (TODO)
-* _cartesian()_  Inverse of polar (TODO)
+* _flipX( )_  Flip the target image wrt to X axis
+* _flipY( )_  Flip the target image wrt to Y axis
+* _flipXY( )_  Flip the target image wrt to both X and Y axis
+* _rotateCW( )_  Rotate target image clockwise 90 degrees
+* _rotateCCW( )_  Rotate target image counter-clockwise 90 degrees
+* _generic( )_ Apply a a user-defined generic geometric mapping to the image
+* _affine( )_ Apply an affine transformation (using an affine transform matrix) to the target image
+* _twirl( )_  Apply a twirling map
+* _sphere( )_  Apply a spherical map
+* _ripple( )_  Apply a wave ripple map
+* _polar( )_  Transform image to polar coords (TODO)
+* _cartesian( )_  Inverse of polar (TODO)
 
 Geometric Map  Filters cannot be combined very easily. Use a composite filter (see below)
 
 In order to use a geometric filter do the following:
 
 ````javascript
-var gF=new FILTER.GeometricMapFilter().flipX();
+
+var gF = new FILTER.GeometricMapFilter( ).flipX( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+gF.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+gF.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-gF.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+gF.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -304,34 +372,45 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###Morphological Filter
 
 ````javascript
-new FILTER.MorphologicalFilter();
+new FILTER.MorphologicalFilter( );
 ````
 
 This filter implements basic morphological processing like erode and dilate filters with arbitrary structure elements (given as matrix array)
 
 The class has some pre-defined filters to use.
 
-* _erode()_ Apply erode operation
-* _dilate()_ Apply dilate operation
-* _opening()_ Apply opening operation
-* _closing()_ Apply closing operation
+* _erode( )_ Apply erode operation
+* _dilate( )_ Apply dilate operation
+* _opening( )_ Apply opening operation
+* _closing( )_ Apply closing operation
 
 Morphological Filters cannot be combined very easily since they operate on multiple pixels at a time with non-linear processing. Use a composite filter (see below)
 
 In order to use a dilate filter do the following:
 
 ````javascript
-var dilate=new FILTER.MorphologicalFilter().dilate([
+
+var dilate = new FILTER.MorphologicalFilter( ).dilate([
         0, 0, 1,
         0, 1, 0,
         1, 1, 0
 ]);  // dilate with a 3x3 diagonal structure element
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+dilate.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+dilate.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-dilate.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+dilate.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -340,7 +419,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 ###Statistical Filter
 
 ````javascript
-new FILTER.StatisticalFilter();
+new FILTER.StatisticalFilter( );
 ````
 
 __NOTE:__  *This was in previous versions called NonLinearFilter*
@@ -349,22 +428,33 @@ This filter implements some statistical processing like median filters and erode
 
 The class has some pre-defined filters to use.
 
-* _median()_  Apply median (ie. lowpass/remove noise) filter
-* _minimum()/erode()_ Apply minimum (erode) filter
-* _maximum()/dilate()_ Apply maximum (dilate) filter
+* _median( )_  Apply median (ie. lowpass/remove noise) filter
+* _minimum( )/erode( )_ Apply minimum (erode) filter
+* _maximum( )/dilate( )_ Apply maximum (dilate) filter
 
 Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
 In order to use a median filter do the following:
 
 ````javascript
-var median=new FILTER.StatisticalFilter().median(3);  // 3x3 median
+
+var median = new FILTER.StatisticalFilter( ).median( 3 );  // 3x3 median
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+median.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+median.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-median.apply(image);   // image is a FILTER.Image instance, see examples
+
+// this is same even if filter uses a parallel worker filter
+median.apply( image );   // image is a FILTER.Image instance, see examples
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -375,7 +465,7 @@ NOTE: The filter apply method will actually change the image to which it is appl
 
 
 ````javascript
-new FILTER.CompositeFilter([filter1, filter2, filter3, etc..]);
+new FILTER.CompositeFilter([ filter1, filter2, filter3/*, etc..*/ ]);
 ````
 
 This filter implements a filter stack which enables multiple filters (even other composite filters) to be applied
@@ -383,34 +473,48 @@ more easily (and slightly faster) to an image, than to apply them one-by-one man
 
 The class implements these methods:
 
-* _push()/concat()_  add filter(s) to the end of stack
-* _pop()_ remove a filter from the end of stack
-* _shift()_  remove a filter from the start of stack
-* _unshift()_ add filter(s) to the start of stack
-* _remove()_ remove a filter by instance 
-* _insertAt()_ insert filter(s) at specified location/order
-* _removeAt()_ remove the filter at specified location/order
-* _getAt()_ get the filter at this location
-* _setAt()_ replace the filter at this location
-* _filters()_ set all the filters stack at once
-* _reset()/empty()_ reset the filter to identity
+* _push( )/concat( )_  add filter(s) to the end of stack
+* _pop( )_ remove a filter from the end of stack
+* _shift( )_  remove a filter from the start of stack
+* _unshift( )_ add filter(s) to the start of stack
+* _remove( )_ remove a filter by instance 
+* _insertAt( )_ insert filter(s) at specified location/order
+* _removeAt( )_ remove the filter at specified location/order
+* _getAt( )_ get the filter at this location
+* _setAt( )_ replace the filter at this location
+* _filters( )_ set all the filters stack at once
+* _reset( )/empty( )_ reset the filter to identity
 
 
 In order to use a composite filter do the following:
 
 ````javascript
-var grc=new FILTER.ColorMatrixFilter().grayscale().contrast(1);
-var emboss=new FILTER.ConvolutionMatrixFilter().emboss();
-var combo=new FILTER.CompositeFilter([grc, emboss]);
+
+var grc = new FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
+var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
+var combo = new FILTER.CompositeFilter([ grc, emboss ]);
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+// NOTE: a composite filter uses its own worker and all constituting filters will be accordingly transfered
+// each constituting filter can also use its own worker for other tasks
+// but is not needed for the composite worker
+combo.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+combo.worker( false );
+
 ````
 
 To apply the filter to an image do (as of 0.3+ version)
 
 ````javascript
-combo.apply(image);   // image is a FILTER.Image instance, see examples
-combo.remove(emboss);  // remove the emboss filter from the chain
+
+// this is same even if filter uses a parallel worker filter
+combo.apply( image );   // image is a FILTER.Image instance, see examples
+combo.remove( emboss );  // remove the emboss filter from the chain
 // or also
-emboss.turnOff();    // turn off the emboss filter while on the chain without losing its settings
+emboss.turnOn( false );    // turn off the emboss filter while on the chain without losing its settings
+
 ````
 
 NOTE: The filter apply method will actually change the image to which it is applied
@@ -420,13 +524,17 @@ NOTE: The filter apply method will actually change the image to which it is appl
 The library can be extended by custom plugins which add new filters.
 A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at /src/plugins/Noise.js etc..)
 
+**NOTE** Included Plugins **DO SUPPORT** parallel worker filters (see code and examples)
+
 For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
+
+**NOTE2** Custom Filters **DO NOT SUPPORT** parallel filter workers (at least not yet, since a complete function needs to be transfered)
 
 Example:
 
 ````javascript
 
-var inlinefilter=new FILTER.CustomFilter(function(im, w, h){
+var inlinefilter = new FILTER.CustomFilter(function(im, w, h){
     // this is the inline filter apply method
     // do your stuff here..
     // im is (a copy of) the image pixel data,
@@ -436,7 +544,7 @@ var inlinefilter=new FILTER.CustomFilter(function(im, w, h){
 });
 
 // use it alone
-inlinefilter.apply(image);
+inlinefilter.apply( image );
 // or use it with any composite filter
 new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
 

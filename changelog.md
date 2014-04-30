@@ -1,5 +1,14 @@
 ##ChangeLog
 
+__0.6.9__
+
+* support parallel filtering/procesing with filter workers transparently
+* new filters polar/cartesian/directionalBlur/zoomBlur (**in progress**)
+* code refactor, optimisations, edits
+* update [classy.js](https://github.com/foo123/classy.js) OO framework
+* update live examples / docs
+
+
 __0.6.7, 0.6.8__
 
 * code refactor, various optimisations, edits, tidy up

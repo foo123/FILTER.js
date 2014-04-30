@@ -5,7 +5,9 @@
 *
 * NOTE: it won't work locally (at least with Firefox), only with server
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
+    
+    @@USE_STRICT@@
     
     var devicePixelRatio = FILTER.devicePixelRatio,
         IMG = FILTER.ImArray, A32F = FILTER.Array32F,
@@ -80,10 +82,10 @@
     //
     //
     // Image (Proxy) Class
-    var FImage = FILTER.Image = Class({
-        name : "ImageProxy",
+    var FImage = FILTER.Image = FILTER.Class({
+        name: "Image"
         
-        constructor : function(img, callback) {
+        ,constructor: function( img, callback ) {
             this.width = 0;   
             this.height = 0;
             this.context = null;
@@ -98,25 +100,25 @@
             this._integral = null;
             // lazy
             this._needsRefresh = 0;
-            if (img) this.setImage(img, callback);
-        },
+            if ( img ) this.setImage( img, callback );
+        }
         
         // properties
-        width : 0,
-        height : 0,
-        canvasElement : null,
-        domElement : null,
-        context: null,
-        selection : null,
-        imageData : null,
-        imageDataSel : null,
-        webgl: null,
-        _histogram : null,
-        _integral : null,
-        _needsRefresh : 0,
-        _tmpCanvas : null,
+        ,width: 0
+        ,height: 0
+        ,canvasElement: null
+        ,domElement: null
+        ,context: null
+        ,selection: null
+        ,imageData: null
+        ,imageDataSel: null
+        ,webgl: null
+        ,_histogram: null
+        ,_integral: null
+        ,_needsRefresh: 0
+        ,_tmpCanvas: null
         
-        select : function(x1, y1, x2, y2) {
+        ,select: function( x1, y1, x2, y2 ) {
             this.selection = [
                 (undef===x1) ? 0 : x1,
                 (undef===y1) ? 0 : y1,
@@ -125,37 +127,37 @@
             ];
             this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        deselect : function() {
+        ,deselect: function( ) {
             this.selection = null;
             this.imageDataSel = null;
             this._needsRefresh &= ~SEL;
             return this;
-        },
+        }
         
-        setWidth : function(w) {
+        ,setWidth:  function( w ) {
             this._setWidth(w);
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        setHeight : function(h) {
+        ,setHeight: function( h ) {
             this._setHeight(h);
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        setDimensions : function(w, h) {
+        ,setDimensions: function( w, h ) {
             this._setDimensions(w, h);
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        setImage : function(img, callback) {
+        ,setImage: function( img, callback ) {
             if (!img) return this;
             
             var self = this, image, ctx, w, h;
@@ -188,9 +190,9 @@
             }
             image.crossOrigin = '';
             return this;
-        },
+        }
         
-        getPixel : function(x, y) {
+        ,getPixel: function( x, y ) {
             if (this._needsRefresh & DATA) this._refreshData();
             var off = ~~(y*this.width+x+0.5), im = this.imageData.data;
             return {
@@ -199,25 +201,25 @@
                 b: im[off+2], 
                 a: im[off+3]
             };
-        },
+        }
         
-        setPixel : function(x, y, r, g, b, a) {
+        ,setPixel: function( x, y, r, g, b, a ) {
             var t = new IMG([r&255, g&255, b&255, a&255]);
             this.context.putImageData(t, x, y); 
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
         // get direct data array
-        getData : function() {
+        ,getData: function( ) {
             if (this._needsRefresh & DATA) this._refreshData();
             // clone it
             return new IMG( this.imageData.data );
-        },
+        }
         
         // get direct data array of selected part
-        getSelectedData : function() {
+        ,getSelectedData: function( ) {
             var sel;
             
             if (this.selection)  
@@ -233,20 +235,20 @@
             
             // clone it
             return [new IMG( sel.data ), sel.width, sel.height];
-        },
+        }
         
         // set direct data array
-        setData : function(a/*, w, h*/) {
+        ,setData: function(a/*, w, h*/) {
             if (this._needsRefresh & DATA) this._refreshData();
             this.imageData.data.set(a); // not supported in Opera, IE, Safari
             this.context.putImageData(this.imageData, 0, 0); 
             this._needsRefresh |= HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
         // set direct data array of selected part
-        setSelectedData : function(a/*, w, h*/) {
+        ,setSelectedData: function(a/*, w, h*/) {
             if (this.selection /*this.imageDataSel*/)
             {
                 var sel = this.selection, ow = this.width-1, oh = this.height-1,
@@ -265,41 +267,41 @@
             }
             this._needsRefresh |= HIST | SAT;
             return this;
-        },
+        }
         
         // get the imageData object
-        getPixelData : function() {
+        ,getPixelData: function( ) {
             if (this._needsRefresh & DATA) this._refreshData();
             return this.imageData;
-        },
+        }
         
         // set the imageData object
-        setPixelData : function(data) {
+        ,setPixelData: function( data ) {
             this.context.putImageData(data, 0, 0); 
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        createImageData : function(w, h) {
+        ,createImageData: function( w, h ) {
             this.context = this._setDimensions(w, h).canvasElement.getContext('2d');
             this.context.createImageData(w, h);
             this._needsRefresh |= DATA;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
         // fast copy another FILTER.Image
-        copy : function(image) {
+        ,copy: function( image ) {
             this.setData(image.getData());
             return this;
-        },
+        }
         
-        clone : function() {
+        ,clone: function( ) {
             return new FImage(this.canvasElement);
-        },
+        }
         
-        scale : function(sx, sy) {
+        ,scale: function( sx, sy ) {
             sx = sx||1; sy = sy||sx;
             if (1==sx && 1==sy) return this;
             // lazy
@@ -321,9 +323,9 @@
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        flipHorizontal : function() {
+        ,flipHorizontal: function( ) {
             // lazy
             this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
             var ctx = this._tmpCanvas.getContext('2d');
@@ -334,9 +336,9 @@
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        flipVertical : function() {
+        ,flipVertical: function( ) {
             // lazy
             this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
             var ctx = this._tmpCanvas.getContext('2d');
@@ -347,10 +349,10 @@
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
         // clear the image contents
-        clear: function() {
+        ,clear: function( ) {
             if (this.width && this.height)
             {
                 var ctx = this.context;
@@ -359,10 +361,10 @@
                 if (this.selection) this._needsRefresh |= SEL;
             }
             return this;
-        },
+        }
         
         // fill image region contents with a specific background color
-        fill: function(color, x, y, w, h) {
+        ,fill: function( color, x, y, w, h ) {
             if (!w && this.width && !h && this.height) return this;
             else if (w && !this.width && h && !this.height)
             {
@@ -381,15 +383,15 @@
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        draw : function(drawable, x, y, blendMode) {
+        ,draw: function( drawable, x, y, blendMode ) {
             // todo
             return this;
-        },
+        }
         
         // blend with another image using various blend modes
-        blend : function(image, mode, amount, startX, startY) {
+        ,blend: function( image, mode, amount, startX, startY ) {
             if (typeof mode == 'undefined') mode='normal';
             if (typeof amount == 'undefined') amount=1;
             if (amount>1) amount=1; else if (amount<0) amount=0;
@@ -433,31 +435,31 @@
             this._needsRefresh |= DATA | HIST | SAT;
             if (this.selection) this._needsRefresh |= SEL;
             return this;
-        },
+        }
         
-        integral : function() {
+        ,integral: function( ) {
             if (this._needsRefresh & SAT) this._computeIntegral();
             return this._integral;
-        },
+        }
         
-        histogram : function() {
+        ,histogram: function( ) {
             if (this._needsRefresh & HIST) this._computeHistogram();
             return this._histogram;
-        },
+        }
         
-        toString : function() {
+        ,toString: function( ) {
             return "[" + "FILTER Image: " + this.name + "]";
-        },
+        }
         
         // auxilliary methods
-        _getTmpCanvas : function() {
+        ,_getTmpCanvas: function( ) {
             var cnv = createCanvas(this.width, this.height);
             cnv.width = this.width;
             cnv.height = this.height;
             return cnv;
-        },
+        }
         
-        _setDimensions : function(w, h) {
+        ,_setDimensions: function( w, h ) {
             this.canvasElement.style.width = w + 'px';
             this.canvasElement.width = this.width = w * devicePixelRatio;
             this.canvasElement.style.height = h + 'px';
@@ -470,9 +472,9 @@
                 this._tmpCanvas.height = this.canvasElement.height;
             }
             return this;
-        },
+        }
         
-        _setWidth : function(w) {
+        ,_setWidth: function( w ) {
             this.canvasElement.style.width = w + 'px';
             this.canvasElement.width = this.width = w * devicePixelRatio;
             if (this._tmpCanvas)
@@ -481,9 +483,9 @@
                 this._tmpCanvas.width = this.canvasElement.width;
             }
             return this;
-        },
+        }
         
-        _setHeight : function(h) {
+        ,_setHeight: function( h ) {
             this.canvasElement.style.height = h + 'px';
             this.canvasElement.height = this.height = h * devicePixelRatio;
             if (this._tmpCanvas)
@@ -492,11 +494,10 @@
                 this._tmpCanvas.height = this.canvasElement.height;
             }
             return this;
-        },
+        }
         
         // compute integral image (sum of columns)
-        _computeIntegral : function() 
-        {
+        ,_computeIntegral: function( ) {
             var w = this.width, h = this.height, rowLen = w<<2,
                 integralR, integralG, integralB, colR, colG, colB,
                 im = this.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
@@ -521,9 +522,9 @@
             this._integral = [integralR, integralG, integralB];
             this._needsRefresh &= ~SAT;
             return this;
-        },
+        }
         
-        _computeHistogram : function() {
+        ,_computeHistogram: function( ) {
             var im = this.getPixelData().data, l = im.length,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
                 cdfR, cdfG, cdfB, r,g,b,
@@ -578,15 +579,15 @@
             this._histogram = [cdfR, cdfG, cdfB];
             this._needsRefresh &= ~HIST;
             return this;
-        },
+        }
         
-        _refreshData : function() {
+        ,_refreshData: function( ) {
             this.imageData = this.context.getImageData(0, 0, this.width, this.height);
             this._needsRefresh &= ~DATA;
             return this;
-        },
+        }
         
-        _refreshDataSel : function() {
+        ,_refreshDataSel: function( ) {
             if (this.selection)
             {
                 var sel = this.selection, ow = this.width-1, oh = this.height-1,
@@ -603,30 +604,30 @@
     //
     //
     // Scaled Image (Proxy) Class
-    var FSImage = FILTER.ScaledImage = Class( FImage, {
-        name : "ScaledImageProxy",
+    var FSImage = FILTER.ScaledImage = FILTER.Class( FImage, {
+        name: "ScaledImage"
         
-        constructor : function(scalex, scaley, img, callback) {
+        ,constructor: function( scalex, scaley, img, callback ) {
             this.scaleX = scalex || 1;
             this.scaleY = scaley || this.scaleX;
             this.$super('constructor', img, callback);
-        },
+        }
         
-        scaleX : 1,
-        scaleY : 1,
+        ,scaleX: 1
+        ,scaleY: 1
         
-        clone : function() {
+        ,clone: function( ) {
             return new FSImage(this.scaleX, this.scaleY, this.canvasElement);
-        },
+        }
         
-        setScale : function(sx, sy) {
+        ,setScale: function( sx, sy ) {
             if (undef!==sx && null!==sx) this.scaleX = sx;
             if (undef===sy && undef!==sx && null!==sx) this.scaleY = sx;
             else if (null!==sy) this.scaleY = sy;
             return this;
-        },
+        }
         
-        setImage : function(img, callback) {
+        ,setImage: function( img, callback ) {
             if (!img) return this;
             
             var self = this, image, ctx, w, h, sw, sh, sx = this.scaleX, sy = this.scaleY;
@@ -666,4 +667,4 @@
         }
     });
     
-})(Class, FILTER);
+}(FILTER);

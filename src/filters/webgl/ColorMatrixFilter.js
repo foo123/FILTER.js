@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(Class, FILTER, undef){
+!function(FILTER, undef){
 
+    @@USE_STRICT@@
+    
     var cmShaders= [
         {
             type: "vertex",
@@ -78,12 +80,12 @@
     //
     //
     // ColorMatrix WebGL Filter  (IN PROGRESS!!)
-    var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = Class( FILTER.WebGLFilter, {
+    var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = FILTER.Class( FILTER.WebGLFilter, {
         
         name : "WebGLColorMatrixFilter",
         
         constructor : function() { 
-            this.id='WGLDM1'; //FILTER.getId();
+            this.id='WGLDM1'; //FILTER.uuid();
         },
         
         filterParams: null, 
@@ -107,4 +109,4 @@
     // export an instance
     FILTER.WebGLColorMatrixFilterInstance=new WebGLColorMatrixFilter();
     
-})(Class, FILTER);
+}(FILTER);

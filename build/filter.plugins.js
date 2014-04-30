@@ -1,27 +1,96 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.8
+*   @version: 0.6.9
+*   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
 **/!function ( root, name, deps, factory, undef ) {
 
+    var isNode = ("undefined" !== typeof global && "[object global]" === {}.toString.call(global)),
+        isBrowser = (!isNode && "undefined" !== typeof navigator ), 
+        isWorker = ("function" === typeof importScripts && navigator instanceof WorkerNavigator),
+        A = Array, AP = A.prototype
+    ;
+    // Get current filename/path
+    var getCurrentPath = function() {
+            var file = null;
+            if ( isNode ) 
+            {
+                // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+                // this should hold the current file in node
+                file = __filename;
+                return { path: __dirname, file: __filename };
+            }
+            else if ( isWorker )
+            {
+                // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+                // this should hold the current url in a web worker
+                file = self.location.href;
+            }
+            else if ( isBrowser )
+            {
+                // get last script (should be the current one) in browser
+                var scripts;
+                if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
+                    file  = scripts[scripts.length - 1].src;
+            }
+            
+            if ( file )
+                return { path: file.split('/').slice(0, -1).join('/'), file: file };
+            return { path: null, file: null };
+        },
+        thisPath = getCurrentPath(),
+        makePath = function(base, dep) {
+            if ( isNode )
+            {
+                //return require('path').join(base, dep);
+                return dep;
+            }
+            if ( "." == dep.charAt(0) ) 
+            {
+                base = base.split('/');
+                dep = dep.split('/'); 
+                var index = 0, index2 = 0, i, l = dep.length, l2 = base.length;
+                
+                for (i=0; i<l; i++)
+                {
+                    if ( /^\.\./.test( dep[i] ) )
+                    {
+                        index++;
+                        index2++;
+                    }
+                    else if ( /^\./.test( dep[i] ) )
+                    {
+                        index2++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                index = ( index >= l2 ) ? 0 : l2-index;
+                dep = base.slice(0, index).concat( dep.slice( index2 ) ).join('/');
+            }
+            return dep;
+        }
+    ;
+    
     //
     // export the module in a umd-style generic way
     deps = ( deps ) ? [].concat(deps) : [];
-    var A = Array, AP = A.prototype;
-    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), mods = new A( dl ), _module_;
-    
-    for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; }
+    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), fpaths = new A( dl ), mods = new A( dl ), _module_, head;
+        
+    for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; fpaths[i] = /\.js$/i.test(paths[i]) ? makePath(thisPath.path, paths[i]) : makePath(thisPath.path, paths[i]+'.js'); }
     
     // node, commonjs, etc..
-    if ( 'object' == typeof( module ) && module.exports ) 
+    if ( "object" === typeof( module ) && module.exports ) 
     {
         if ( undef === module.exports[name] )
         {
-            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( paths[i] )[ ids[i] ];
+            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( fpaths[i] )[ ids[i] ];
             _module_ = factory.apply(root, mods );
             // allow factory just to add to existing modules without returning a new module
             module.exports[ name ] = _module_ || 1;
@@ -29,7 +98,7 @@
     }
     
     // amd, etc..
-    else if ( 'function' == typeof( define ) && define.amd ) 
+    else if ( "function" === typeof( define ) && define.amd ) 
     {
         define( ['exports'].concat( paths ), function( exports ) {
             if ( undef === exports[name] )
@@ -38,20 +107,90 @@
                 for (var i=0; i<dl; i++)   mods[i] = exports[ ids[i] ] || args[ i ];
                 _module_ = factory.apply(root, mods );
                 // allow factory just to add to existing modules without returning a new module
-                exports[name] = _module_ || 1;
+                exports[ name ] = _module_ || 1;
             }
         });
     }
     
+    // web worker
+    else if ( isWorker ) 
+    {
+        for (i=0; i<dl; i++)  
+        {
+            if ( !self[ ids[i] ] ) importScripts( fpaths[i] );
+            mods[i] = self[ ids[i] ];
+        }
+        _module_ = factory.apply(root, mods );
+        // allow factory just to add to existing modules without returning a new module
+        self[ name ] = _module_ || 1;
+    }
+    
     // browsers, other loaders, etc..
-    else 
+    else
     {
         if ( undef === root[name] )
         {
+            /*
             for (i=0; i<dl; i++)  mods[i] = root[ ids[i] ];
             _module_ = factory.apply(root, mods );
             // allow factory just to add to existing modules without returning a new module
             root[name] = _module_ || 1;
+            */
+            
+            // load javascript async using <script> tags in browser
+            var loadJs = function(url, callback) {
+                head = head || document.getElementsByTagName("head")[0];
+                var done = 0, script = document.createElement('script');
+                
+                script.type = 'text/javascript';
+                script.language = 'javascript';
+                script.onload = script.onreadystatechange = function( ) {
+                    if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
+                    {
+                        done = 1;
+                        script.onload = script.onreadystatechange = null;
+                        head.removeChild( script );
+                        script = null;
+                        if ( callback )  callback();
+                    }
+                }
+                // load it
+                script.src = url;
+                head.appendChild( script );
+            };
+
+            var loadNext = function(id, url, callback) { 
+                    if ( !root[ id ] ) 
+                        loadJs( url, callback ); 
+                    else
+                        callback();
+                },
+                continueLoad = function( i ) {
+                    return function() {
+                        if ( i < dl )  mods[ i ] = root[ ids[ i ] ];
+                        if ( ++i < dl )
+                        {
+                            loadNext( ids[ i ], fpaths[ i ], continueLoad( i ) );
+                        }
+                        else
+                        {
+                            _module_ = factory.apply(root, mods );
+                            // allow factory just to add to existing modules without returning a new module
+                            root[ name ] = _module_ || 1;
+                        }
+                    };
+                }
+            ;
+            if ( dl ) 
+            {
+                loadNext( ids[ 0 ], fpaths[ 0 ], continueLoad( 0 ) );
+            }
+            else
+            {
+                _module_ = factory.apply(root, mods );
+                // allow factory just to add to existing modules without returning a new module
+                root[ name ] = _module_ || 1;
+            }
         }
     }
 
@@ -66,7 +205,8 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.8
+*   @version: 0.6.9
+*   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
@@ -80,27 +220,54 @@ var FILTER_PLUGINS = null;
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, rand=Math.random;
     
     // a sample noise filter
     // used for illustration purposes on how to create a plugin filter
     FILTER.NoiseFilter = FILTER.Create({
-        // parameters
-        min: -127,
-        max: 127,
+        name: "NoiseFilter"
         
-        name : "NoiseFilter",
+        // parameters
+        ,min: -127
+        ,max: 127
         
         // this is the filter constructor
-        init: function(min, max) {
-            this.min=min||-127;
-            this.max=max||127;
-        },
+        ,init: function( min, max ) {
+            this.min = min||-127;
+            this.max = max||127;
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    min: self.min
+                    ,max: self.max
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.min = params.min;
+                self.max = params.max;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -142,25 +309,26 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Histogram Equalize Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
         RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
         ;
     
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter = FILTER.Create({
-        
-        name : "HistogramEqualizeFilter",
+        name : "HistogramEqualizeFilter"
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -237,23 +405,24 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Histogram Equalize for grayscale images Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.GrayscaleHistogramEqualizeFilter = FILTER.Create({
-        
-        name : "GrayscaleHistogramEqualizeFilter",
+        name: "GrayscaleHistogramEqualizeFilter"
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -324,25 +493,26 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * RGB Histogram Equalize Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     // not the best implementation
     // used for illustration purposes on how to create a plugin filter
     FILTER.RGBHistogramEqualizeFilter = FILTER.Create({
-        
-        name : "RGBHistogramEqualizeFilter",
+        name: "RGBHistogramEqualizeFilter"
         
         // this is the filter actual apply method routine
-        apply : function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -428,32 +598,57 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Pixelate Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var Sqrt=Math.sqrt,
         notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     
     // a sample fast pixelate filter
     FILTER.PixelateFilter = FILTER.Create({
-        // parameters
-        scale: 1,
+        name: "PixelateFilter"
         
-        name : "PixelateFilter",
+        // parameters
+        ,scale: 1
         
         // this is the filter constructor
-        init: function(scale) {
+        ,init: function( scale ) {
             this.scale = scale || 1;
-        },
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    scale: self.scale
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.scale = params.scale;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -591,36 +786,61 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Triangular Pixelate Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var Sqrt = Math.sqrt, sqrt2 = Math.SQRT2, Min = Math.min,
         notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
     
     // a simple fast Triangular Pixelate filter
     FILTER.TriangularPixelateFilter = FILTER.Create({
-        // parameters
-        scale: 1,
+        name: "TriangularPixelateFilter"
         
-        name : "TriangularPixelateFilter",
+        // parameters
+        ,scale: 1
         
         // this is the filter constructor
-        init: function(scale) {
+        ,init: function( scale ) {
             this.scale = scale || 1;
-        },
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    scale: self.scale
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.scale = params.scale;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
-            if (this.scale<=1) return im;
-            if (this.scale>100) this.scale=100;
+            if ( this.scale <= 1 ) return im;
+            if ( this.scale > 100 ) this.scale = 100;
             
             var imLen = im.length, imArea = (imLen>>2), 
                 step, step_2, step_1, stepw, hstep, wstep, hstepw, wRem, hRem,
@@ -829,25 +1049,26 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * HSV Converter Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
-        toCol=0.70833333333333333333333333333333 // 255/360
-        ;
+        toCol = 0.70833333333333333333333333333333 // 255/360
+    ;
     
     // a plugin to convert an RGB Image to an HSV Image
     FILTER.HSVConverterFilter = FILTER.Create({
-        
-        name : "HSVConverterFilter",
+        name: "HSVConverterFilter"
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -855,7 +1076,7 @@ var FILTER_PLUGINS = null;
             
             var r,g,b, i, l=im.length, hsv, t0, t1, t2;
             
-            if (notSupportClamp)
+            if ( notSupportClamp )
             {   
                 for (i=0; i<l; i+=4)
                 {
@@ -887,14 +1108,16 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Hue Extractor Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp,
         IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
         RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
@@ -902,22 +1125,45 @@ var FILTER_PLUGINS = null;
     
     // a plugin to extract regions based on a HUE range
     FILTER.HueExtractorFilter = FILTER.Create({
+        name: "HueExtractorFilter"
         
         // filter parameters
-        range : null,
-        background : 0,
-        
-        name : "HueExtractorFilter",
+        ,range : null
+        ,background : 0
         
         // constructor
-        init : function(range, background) {
-            this.range=range;
-            this.background=background||0;
-        },
+        ,init : function( range, background ) {
+            this.range = range;
+            this.background = background || 0;
+        }
         
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    range: self.range
+                    ,background: self.background
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.range = params.range;
+                self.background = params.background;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -952,50 +1198,95 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Channel Copy Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
         R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
     
     // a plugin to copy a channel of an image to a channel of another image
     FILTER.ChannelCopyFilter = FILTER.Create({
+        name: "ChannelCopyFilter"
         
         // parameters
-        srcImg : null,
-        centerX : 0,
-        centerY : 0,
-        srcChannel : 0,
-        dstChannel : 0,
-        
-        name : "ChannelCopyFilter",
+        ,srcImg: null
+        ,_srcImg: null
+        ,centerX: 0
+        ,centerY: 0
+        ,srcChannel: 0
+        ,dstChannel: 0
         
         // constructor
-        init : function(srcImg, srcChannel, dstChannel, centerX, centerY) {
-            this.srcImg = srcImg || null;
+        ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
+            this._srcImg = null;
+            this.srcImg = null;
             this.srcChannel = srcChannel || R;
             this.dstChannel = dstChannel || R;
             this.centerX = centerX || 0;
             this.centerY = centerY || 0;
-        },
+            if ( srcImg ) this.setSrc( srcImg );
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _srcImg: self._srcImg
+                    ,centerX: self.centerX
+                    ,centerY: self.centerY
+                    ,srcChannel: self.srcChannel
+                    ,dstChannel: self.dstChannel
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._srcImg = params._srcImg;
+                self.centerX = params.centerX;
+                self.centerY = params.centerY;
+                self.srcChannel = params.srcChannel;
+                self.dstChannel = params.dstChannel;
+            }
+            return self;
+        }
+        
+        ,setSrc: function( srcImg ) {
+            if ( srcImg )
+            {
+                this.srcImg = srcImg;
+                this._srcImg = { data: srcImg.getData(), width: srcImg.width, height: srcImg.height };
+            }
+            return this;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            if (!this.srcImg) return im;
+            if ( !this._srcImg ) return im;
             
-            var src = this.srcImg.getData(),
+            var src = this._srcImg.data,
                 i, l = im.length, l2 = src.length, 
-                w2 = this.srcImg.width, h2 = this.srcImg.height,
+                w2 = this._srcImg.width, 
+                h2 = this._srcImg.height,
                 sC = this.srcChannel, tC = this.dstChannel,
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w,w2), hm = Min(h, h2),  
@@ -1027,44 +1318,84 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Alpha Mask Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
     
     // a plugin to mask an image using the alpha channel of another image
     FILTER.AlphaMaskFilter = FILTER.Create({
+        name: "AlphaMaskFilter"
         
         // parameters
-        alphaMask : null,
-        centerX : 0,
-        centerY : 0,
-        
-        name : "AlphaMaskFilter",
+        ,_alphaMask: null
+        ,alphaMask: null
+        ,centerX: 0
+        ,centerY: 0
         
         // constructor
-        init : function(alphaMask, centerX, centerY) {
-            this.alphaMask = alphaMask||null;
+        ,init: function( alphaMask, centerX, centerY ) {
             this.centerX = centerX||0;
             this.centerY = centerY||0;
-        },
+            this._alphaMask = null;
+            this.alphaMask = null;
+            if ( alphaMask ) this.setMask( alphaMask );
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _alphaMask: self._alphaMask
+                    ,centerX: self.centerX
+                    ,centerY: self.centerY
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._alphaMask = params._alphaMask;
+                self.centerX = params.centerX;
+                self.centerY = params.centerY;
+            }
+            return self;
+        }
+        
+        ,setMask: function( alphaMask ) {
+            if ( alphaMask )
+            {
+                this.alphaMask = alphaMask;
+                this._alphaMask = { data: alphaMask.getData(), width: alphaMask.width, height: alphaMask.height };
+            }
+            return this;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            if (!this.alphaMask) return im;
+            if ( !this._alphaMask ) return im;
             
-            var alpha = this.alphaMask.getData(),
-                w2 = this.alphaMask.width, h2 = this.alphaMask.height,
+            var alpha = this._alphaMask.data,
+                w2 = this._alphaMask.width, h2 = this._alphaMask.height,
                 i, l = im.length, l2 = alpha.length, 
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w, w2), hm = Min(h, h2),  
@@ -1101,14 +1432,16 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Image Blend Filter Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER, undef){
+!function(FILTER, undef){
 
+    "use strict";
+    
     var Min = Math.min, Max = Math.max, 
         Round = Math.round, Floor=Math.floor, Abs = Math.abs,
         notSupportClamp = FILTER._notSupportClamp,
@@ -1119,55 +1452,103 @@ var FILTER_PLUGINS = null;
     //
     // a photoshop-like Blend Filter Plugin
     FILTER.BlendFilter = FILTER.Create({
+        name: "BlendFilter"
         
         // parameters
-        _blendMode : null,
-        blendImage : null,
-        startX : 0,
-        startY : 0,
-        amount : 1,
-        
-        name : "BlendFilter",
+        ,_blendModeName: null
+        ,_blendMode: null
+        ,_blendImage: null
+        ,blendImage: null
+        ,startX: 0
+        ,startY: 0
+        ,amount: 1
         
         // constructor
-        init : function(blendImage, blendMode, amount) { 
+        ,init: function( blendImage, blendMode, amount ) { 
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
-            this.blendImage = blendImage || null;
+            this._blendImage = null;
+            this.blendImage = null;
+            this._blendModeName = null;
             this._blendMode = null;
-            if (blendMode) this.mode(blendMode, amount);
-        },
+            if ( blendImage ) this.image( blendImage );
+            if ( blendMode ) this.mode( blendMode, amount );
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _blendImage: self._blendImage
+                    ,_blendModeName: self._blendModeName
+                    ,startX: self.startX
+                    ,startY: self.startY
+                    ,amount: self.amount
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._blendImage = params._blendImage;
+                self.startX = params.startX;
+                self.startY = params.startY;
+                self.mode( params._blendModeName, params.amount );
+            }
+            return self;
+        }
         
         // set blend image auxiliary method
-        image : function(blendImage) {
-            this.blendImage = blendImage || null;
+        ,image: function( blendImage ) {
+            if ( blendImage )
+            {
+                this.blendImage = blendImage;
+                this._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+            }
             return this;
-        },
+        }
         
         // set blend mode auxiliary method
-        mode : function(blendMode, amount) {
-            this._blendMode = blendModes[(''+blendMode).toLowerCase()] || null;
-            this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+        ,mode: function( blendMode, amount ) {
+            if ( blendMode )
+            {
+                this._blendModeName = (''+blendMode).toLowerCase();
+                this._blendMode = blendModes[this._blendModeName] || null;
+                this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+            }
+            else
+            {
+                this._blendModeName = null;
+                this._blendMode = null;
+            }
             return this;
-        },
+        }
         
-        reset : function() {
+        ,reset: function( ) {
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
+            this._blendModeName = null;
             this._blendMode = null;
             return this;
-        },
+        }
         
         // main apply routine
-        apply : function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             
-            if (!this._blendMode || !this.blendImage) return im;
+            if ( !this._blendMode || !this._blendImage ) return im;
             
             var startX = this.startX||0, startY = this.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
-                im2, w2, h2, image2 = this.blendImage,
+                im2, w2, h2, image2 = this._blendImage,
                 amount = this.amount||1
             ;
             
@@ -1185,7 +1566,7 @@ var FILTER_PLUGINS = null;
             
             if (W <= 0 || H <= 0) return im;
             
-            im2 = image2.getData();
+            im2 = image2.data;
             
             return this._blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
@@ -2420,37 +2801,63 @@ var FILTER_PLUGINS = null;
     blendModes.lineardodge = blendModes.add;
     blendModes.linearburn = blendModes.subtract;
 
-})(FILTER);/**
+}(FILTER);/**
 *
 * Threshold Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var notSupportClamp=FILTER._notSupportClamp,
         RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
         ;
     
     // a plugin to apply a general threshold filtering to an image
     FILTER.ThresholdFilter = FILTER.Create({
+        name: "ThresholdFilter"
         
         // filter parameters
-        thresholds : null,
+        ,thresholds: null
         // NOTE: quantizedColors should contain 1 more element than thresholds
-        quantizedColors : null,
-        
-        name : "ThresholdFilter",
+        ,quantizedColors: null
         
         // constructor
-        init : function(thresholds, quantizedColors) {
-            this.thresholds=thresholds;
-            this.quantizedColors=quantizedColors||null;
-        },
+        ,init: function( thresholds, quantizedColors ) {
+            this.thresholds = thresholds;
+            this.quantizedColors = quantizedColors || null;
+        }
         
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    thresholds: self.thresholds
+                    ,quantizedColors: self.quantizedColors
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.thresholds = params.thresholds;
+                self.quantizedColors = params.quantizedColors;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -2483,38 +2890,69 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);/**
+}(FILTER);/**
 *
 * Bokeh (Depth-of-Field) Plugin
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    "use strict";
+    
     var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, 
         Abs=Math.abs, Floor=Math.floor,
         notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
     
     // a simple bokeh (depth-of-field) filter
     FILTER.BokehFilter = FILTER.Create({
-        // parameters
-        centerX: 0,
-        centerY: 0,
-        radius: 10,
-        amount: 10,
+        name: "BokehFilter"
         
-        name : "BokehFilter",
+        // parameters
+        ,centerX: 0
+        ,centerY: 0
+        ,radius: 10
+        ,amount: 10
         
         // this is the filter constructor
-        init: function(centerX, centerY, radius, amount) {
-            this.centerX = centerX||0;
-            this.centerY = centerY||0;
-            this.radius = radius||10;
-            this.amount = amount||10;
-        },
+        ,init: function( centerX, centerY, radius, amount ) {
+            this.centerX = centerX || 0;
+            this.centerY = centerY || 0;
+            this.radius = radius || 10;
+            this.amount = amount || 10;
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    centerX: self.centerX
+                    ,centerY: self.centerY
+                    ,radius: self.radius
+                    ,amount: self.amount
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.centerX = params.centerX;
+                self.centerY = params.centerY;
+                self.radius = params.radius;
+                self.amount = params.amount;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -2626,7 +3064,7 @@ var FILTER_PLUGINS = null;
         }
     });
     
-})(FILTER);
+}(FILTER);
 
     /* main code ends here */
     

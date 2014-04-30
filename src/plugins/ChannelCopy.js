@@ -4,44 +4,89 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
         R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
     
     // a plugin to copy a channel of an image to a channel of another image
     FILTER.ChannelCopyFilter = FILTER.Create({
+        name: "ChannelCopyFilter"
         
         // parameters
-        srcImg : null,
-        centerX : 0,
-        centerY : 0,
-        srcChannel : 0,
-        dstChannel : 0,
-        
-        name : "ChannelCopyFilter",
+        ,srcImg: null
+        ,_srcImg: null
+        ,centerX: 0
+        ,centerY: 0
+        ,srcChannel: 0
+        ,dstChannel: 0
         
         // constructor
-        init : function(srcImg, srcChannel, dstChannel, centerX, centerY) {
-            this.srcImg = srcImg || null;
+        ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
+            this._srcImg = null;
+            this.srcImg = null;
             this.srcChannel = srcChannel || R;
             this.dstChannel = dstChannel || R;
             this.centerX = centerX || 0;
             this.centerY = centerY || 0;
-        },
+            if ( srcImg ) this.setSrc( srcImg );
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    _srcImg: self._srcImg
+                    ,centerX: self.centerX
+                    ,centerY: self.centerY
+                    ,srcChannel: self.srcChannel
+                    ,dstChannel: self.dstChannel
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self._srcImg = params._srcImg;
+                self.centerX = params.centerX;
+                self.centerY = params.centerY;
+                self.srcChannel = params.srcChannel;
+                self.dstChannel = params.dstChannel;
+            }
+            return self;
+        }
+        
+        ,setSrc: function( srcImg ) {
+            if ( srcImg )
+            {
+                this.srcImg = srcImg;
+                this._srcImg = { data: srcImg.getData(), width: srcImg.width, height: srcImg.height };
+            }
+            return this;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            if (!this.srcImg) return im;
+            if ( !this._srcImg ) return im;
             
-            var src = this.srcImg.getData(),
+            var src = this._srcImg.data,
                 i, l = im.length, l2 = src.length, 
-                w2 = this.srcImg.width, h2 = this.srcImg.height,
+                w2 = this._srcImg.width, 
+                h2 = this._srcImg.height,
                 sC = this.srcChannel, tC = this.dstChannel,
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w,w2), hm = Min(h, h2),  
@@ -73,4 +118,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

@@ -4,27 +4,54 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp, rand=Math.random;
     
     // a sample noise filter
     // used for illustration purposes on how to create a plugin filter
     FILTER.NoiseFilter = FILTER.Create({
-        // parameters
-        min: -127,
-        max: 127,
+        name: "NoiseFilter"
         
-        name : "NoiseFilter",
+        // parameters
+        ,min: -127
+        ,max: 127
         
         // this is the filter constructor
-        init: function(min, max) {
-            this.min=min||-127;
-            this.max=max||127;
-        },
+        ,init: function( min, max ) {
+            this.min = min||-127;
+            this.max = max||127;
+        }
+        
+        // support worker serialize/unserialize interface
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                
+                ,params: {
+                    min: self.min
+                    ,max: self.max
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                params = json.params;
+                
+                self.min = params.min;
+                self.max = params.max;
+            }
+            return self;
+        }
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -66,4 +93,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);

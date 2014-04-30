@@ -4,8 +4,10 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var Sqrt=Math.sqrt, Min=Math.min, Max=Math.max;
     
     // static Color Methods and Transforms
@@ -178,4 +180,4 @@
         }
     };
     
-})(FILTER);
+}(FILTER);

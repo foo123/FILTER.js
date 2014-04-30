@@ -4,19 +4,20 @@
 * @package FILTER.js
 *
 **/
-(function(FILTER){
+!function(FILTER){
 
+    @@USE_STRICT@@
+    
     var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
-        toCol=0.70833333333333333333333333333333 // 255/360
-        ;
+        toCol = 0.70833333333333333333333333333333 // 255/360
+    ;
     
     // a plugin to convert an RGB Image to an HSV Image
     FILTER.HSVConverterFilter = FILTER.Create({
-        
-        name : "HSVConverterFilter",
+        name: "HSVConverterFilter"
         
         // this is the filter actual apply method routine
-        apply: function(im, w, h/*, image*/) {
+        ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
@@ -24,7 +25,7 @@
             
             var r,g,b, i, l=im.length, hsv, t0, t1, t2;
             
-            if (notSupportClamp)
+            if ( notSupportClamp )
             {   
                 for (i=0; i<l; i+=4)
                 {
@@ -56,4 +57,4 @@
         }
     });
     
-})(FILTER);
+}(FILTER);
