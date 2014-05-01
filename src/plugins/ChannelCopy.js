@@ -16,8 +16,8 @@
         name: "ChannelCopyFilter"
         
         // parameters
-        ,srcImg: null
         ,_srcImg: null
+        ,srcImg: null
         ,centerX: 0
         ,centerY: 0
         ,srcChannel: 0
@@ -35,6 +35,8 @@
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -69,7 +71,7 @@
             if ( srcImg )
             {
                 this.srcImg = srcImg;
-                this._srcImg = { data: srcImg.getData(), width: srcImg.width, height: srcImg.height };
+                this._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
             }
             return this;
         }

@@ -15,8 +15,10 @@
     //
     //
     // Generic CSS-based Filter
-    var CSSFilter = FILTER.CSSFilter = FILTER.Class( FILTER.Filter, {
-        constructor : function(cssFilterString) { 
+    FILTER.CSSFilter = FILTER.Class( FILTER.Filter, {
+        name: "CSSFilter"
+        
+        ,constructor: function( cssFilterString ) { 
             // todo
             this.$super('constructor');
         }

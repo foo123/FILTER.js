@@ -27,8 +27,9 @@
             this.quantizedColors = quantizedColors || null;
         }
         
-        
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {

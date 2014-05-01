@@ -21,9 +21,9 @@
         name: "BlendFilter"
         
         // parameters
-        ,_blendModeName: null
         ,_blendMode: null
         ,_blendImage: null
+        ,blendMode: null
         ,blendImage: null
         ,startX: 0
         ,startY: 0
@@ -36,13 +36,15 @@
             this.amount = 1;
             this._blendImage = null;
             this.blendImage = null;
-            this._blendModeName = null;
             this._blendMode = null;
-            if ( blendImage ) this.image( blendImage );
-            if ( blendMode ) this.mode( blendMode, amount );
+            this.blendMode = null;
+            if ( blendImage ) this.setImage( blendImage );
+            if ( blendMode ) this.setMode( blendMode, amount );
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -50,7 +52,7 @@
                 
                 ,params: {
                     _blendImage: self._blendImage
-                    ,_blendModeName: self._blendModeName
+                    ,_blendMode: self._blendMode
                     ,startX: self.startX
                     ,startY: self.startY
                     ,amount: self.amount
@@ -67,13 +69,13 @@
                 self._blendImage = params._blendImage;
                 self.startX = params.startX;
                 self.startY = params.startY;
-                self.mode( params._blendModeName, params.amount );
+                self.setMode( params._blendMode, params.amount );
             }
             return self;
         }
         
         // set blend image auxiliary method
-        ,image: function( blendImage ) {
+        ,setImage: function( blendImage ) {
             if ( blendImage )
             {
                 this.blendImage = blendImage;
@@ -83,17 +85,17 @@
         }
         
         // set blend mode auxiliary method
-        ,mode: function( blendMode, amount ) {
+        ,setMode: function( blendMode, amount ) {
             if ( blendMode )
             {
-                this._blendModeName = (''+blendMode).toLowerCase();
-                this._blendMode = blendModes[this._blendModeName] || null;
+                this._blendMode = (''+blendMode).toLowerCase();
+                this.blendMode = blendModes[this._blendMode] || null;
                 this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
             }
             else
             {
-                this._blendModeName = null;
                 this._blendMode = null;
+                this.blendMode = null;
             }
             return this;
         }
@@ -102,15 +104,15 @@
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
-            this._blendModeName = null;
             this._blendMode = null;
+            this.blendMode = null;
             return this;
         }
         
         // main apply routine
         ,apply: function(im, w, h/*, image*/) {
             
-            if ( !this._blendMode || !this._blendImage ) return im;
+            if ( !this.blendMode || !this._blendImage ) return im;
             
             var startX = this.startX||0, startY = this.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
@@ -134,7 +136,7 @@
             
             im2 = image2.data;
             
-            return this._blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
+            return this.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
     });
     

@@ -39,7 +39,7 @@
             return this;
         }
         
-        ,_apply: function(im, w, h, image) {
+        ,_apply: function( im, w, h, image ) {
             if ( !this._isOn || !this._handler ) return im;
             return this._handler( im, w, h, image );
         }

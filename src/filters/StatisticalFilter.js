@@ -137,8 +137,6 @@
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;

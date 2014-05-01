@@ -1,5 +1,10 @@
 ##ChangeLog
 
+__0.6.10__
+
+* more parallel options, external script path options
+* typos/edits
+
 __0.6.9__
 
 * support parallel filtering/procesing with filter workers transparently

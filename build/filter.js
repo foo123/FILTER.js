@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.9
+*   @version: 0.6.10
 *   @dependencies: Classy.js
 *
 *   JavaScript Image Processing Library
@@ -205,14 +205,14 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.9
+*   @version: 0.6.10
 *   @dependencies: Classy.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Merge };
+var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.Merge };
     
 /**
 *
@@ -226,57 +226,121 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
     
     // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
     
-    //
-    //
-    // Some browser detection hacks
-    var isNode = "undefined" !== typeof(global) && '[object global]' === {}.toString.call(global),
-        isBrowser = !isNode && "undefined" !== typeof(navigator), 
-        isWorker = "function" === typeof(importScripts) && navigator instanceof WorkerNavigator,
-        supportsWorker = "function" === typeof(Worker),
-        userAgent = navigator ? navigator.userAgent : "",
-        Browser = FILTER.Browser = {
-            // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-            isNode                  : isNode,
-            isBrowser               : isBrowser,
-            isWorker                : isWorker,
-            supportsWorker          : supportsWorker,
-            isPhantom               : /PhantomJS/.test(userAgent),
-            
-            // http://www.quirksmode.org/js/detect.html
-            // http://my.opera.com/community/openweb/idopera/
-            // http://stackoverflow.com/questions/1998293/how-to-determine-the-opera-browser-using-javascript
-            isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
-            isFirefox               : isBrowser && /Firefox\//.test(userAgent),
-            isChrome                : isBrowser && /Chrome\//.test(userAgent),
-            isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
-            isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
-            // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
-            isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
-
-            // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
-            isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
-            isWebkit                : isBrowser && /WebKit\//.test(userAgent),
-            isMac_geLion            : isBrowser && /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(userAgent),
-            isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent),
-
-            isMobile                : false,
-            isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
-            isWin                   : /windows/i.test(navigator.platform),
-            isMac                   : false,
-            isIE_lt8                : false,
-            isIE_lt9                : false,
-            isQtWebkit              : false
-        },
-
-        Merge = FILTER.Merge, FP = Function.prototype, AP = Array.prototype,
-        slice = FP.call.bind( AP.slice ), splice = AP.splice, concat = AP.concat,
-        log
+    var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
+        ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
+        ,splice = AP.splice, concat = AP.concat
+        
+        ,Merge = FILTER.Merge, log
+        
+        ,isNode = "undefined" !== typeof( global ) && '[object global]' === toString( global )
+        ,isBrowser = !isNode && "undefined" !== typeof( navigator )
+        ,isWorker = "function" === typeof( importScripts ) && navigator instanceof WorkerNavigator
+        ,supportsWorker = "function" === typeof( Worker )
+        
+        ,userAgent = navigator ? navigator.userAgent : ""
     ;
+    
+    //
+    //
+    // Browser support
+    var Browser = FILTER.Browser = {
+        // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
+        isNode                  : isNode,
+        isBrowser               : isBrowser,
+        isWorker                : isWorker,
+        supportsWorker          : supportsWorker,
+        isPhantom               : /PhantomJS/.test(userAgent),
+        
+        // http://www.quirksmode.org/js/detect.html
+        // http://my.opera.com/community/openweb/idopera/
+        // http://stackoverflow.com/questions/1998293/how-to-determine-the-opera-browser-using-javascript
+        isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
+        isFirefox               : isBrowser && /Firefox\//.test(userAgent),
+        isChrome                : isBrowser && /Chrome\//.test(userAgent),
+        isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
+        isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
+        // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
+        isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
+
+        // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
+        isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
+        isWebkit                : isBrowser && /WebKit\//.test(userAgent),
+        isMac_geLion            : isBrowser && /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(userAgent),
+        isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent),
+
+        isMobile                : false,
+        isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
+        isWin                   : /windows/i.test(navigator.platform),
+        isMac                   : false,
+        isIE_lt8                : false,
+        isIE_lt9                : false,
+        isQtWebkit              : false
+    };
     Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
     Browser.isMac = Browser.isIOS || /Mac/.test(navigator.platform);
     Browser.isIE_lt8 = Browser.isIE  && !isWorker && (null == document.documentMode || document.documentMode < 8);
     Browser.isIE_lt9 = Browser.isIE && !isWorker && (null == document.documentMode || document.documentMode < 9);
     Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
+    
+    // Get current filename/path
+    FILTER.getPath = function( ) {
+        var file = null, scripts;
+        
+        if ( isNode ) 
+        {
+            // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+            // this should hold the current file in node
+            return { path: __dirname, file: __filename };
+        }
+        else if ( isWorker )
+        {
+            // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+            // this should hold the current url in a web worker
+            file = self.location.href;
+        }
+        else if ( isBrowser && (scripts = document.getElementsByTagName('script')) && scripts.length )
+        {
+            // get last script (should be the current one) in browser
+            file  = scripts[ scripts.length - 1 ].src;
+        }
+        
+        return file 
+                ? { path: file.split('/').slice(0, -1).join('/'), file: ''+file }
+                : { path: null, file: null }
+        ;
+    };
+    var devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1;
+    FILTER.getCanvas = FILTER.createCanvas = function( w, h ) {
+        var canvas = document.createElement( 'canvas' );
+        w = w || 0; h = h || 0;
+        
+        // set the display size of the canvas.
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+         
+        // set the size of the drawingBuffer
+        canvas.width = w * devicePixelRatio;
+        canvas.height = h * devicePixelRatio;
+        
+        return canvas;
+    };
+    var _uuid = 0;
+    FILTER.uuid = function( namespace ) { 
+        return [namespace||'fuuid', new Date().getTime(), ++_uuid].join('_'); 
+    };
+    var URL = FILTER.URL = root.webkitURL || root.URL,
+        blobURL = function( src ) {
+            return URL.createObjectURL( new Blob( [ src || '' ], { type: "text/javascript" }) );
+        }
+    ;
+    
+    //
+    //
+    // webgl support
+    FILTER.useWebGL = false;
+    FILTER.useWebGLSharedResources = false;
+    FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
+    FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
     
     //
     //
@@ -407,86 +471,19 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             }
         };        
     }
-         
     log = FILTER.log = (console && console.log) ? console.log : function( s ) { /* do nothing*/ };
     FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
     FILTER.error = function( s ) { log( 'ERROR: ' + s ); };
     
     //
     //
-    // webgl support
-    FILTER.useWebGL = false;
-    FILTER.useWebGLSharedResources = false;
-    FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-    FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
-    
-    //
-    //
-    // for WebGL Support
-    var devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1;
-    
-    FILTER.getCanvas = FILTER.createCanvas = function( w, h ) {
-        var canvas = document.createElement( 'canvas' );
-        w = w || 0; h = h || 0;
-        
-        // set the display size of the canvas.
-        canvas.style.width = w + "px";
-        canvas.style.height = h + "px";
-         
-        // set the size of the drawingBuffer
-        canvas.width = w * devicePixelRatio;
-        canvas.height = h * devicePixelRatio;
-        
-        return canvas;
-    };
-    
-    var _uuid = 0;
-    FILTER.uuid = function( namespace ) { return [namespace||'fuuid', new Date().getTime(), ++_uuid].join('_'); };
-    
-    // Get current filename/path
-    function getCurrentPath( ) 
-    {
-        var file = null;
-        if ( isNode ) 
-        {
-            // http://nodejs.org/docs/latest/api/globals.html#globals_filename
-            // this should hold the current file in node
-            file = __filename;
-            return { path: __dirname, file: __filename };
-        }
-        else if ( isWorker )
-        {
-            // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
-            // this should hold the current url in a web worker
-            file = self.location.href;
-        }
-        else if ( isBrowser )
-        {
-            // get last script (should be the current one) in browser
-            var scripts;
-            if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
-                file  = scripts[scripts.length - 1].src;
-        }
-        
-        if ( file )
-            return { path: file.split('/').slice(0, -1).join('/'), file: file };
-        return { path: null, file: null };
-    }
-        
-    FILTER.Path = getCurrentPath( );
-    
-    //
-    //
     // Worker Interface Filter
-    var URL = FILTER.URL = root.webkitURL || root.URL,
-        blobURL = function( src ) {
-            return URL.createObjectURL( new Blob( [ src || '' ], { type: "text/javascript" }) );
-        }
-    ;
-        
     var FilterWorkerInterface = FILTER.FilterWorkerInterface = FILTER.Class({
         
-        _worker: null
+        path: FILTER.getPath( )
+        ,name: null
+        
+        ,_worker: null
         ,_workerListeners: null
         
         ,disposeWorker: function( ) {
@@ -498,10 +495,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 self._worker = null;
                 self._workerListeners = null;
             }
-            /*if ( isWorker )
-            {
-                close( );
-            }*/
             return self;
         }
         
@@ -549,7 +542,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         ,worker: function( bool ) {
             var self = this, worker;
             
-            if ( undef === bool ) bool = true;
+            if ( !arguments.length ) bool = true;
             bool = !!bool;
             
             // de-activate worker (if was activated before)
@@ -558,8 +551,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 if ( self._worker ) self.disposeWorker( );
                 return self;
             }
-            
-            //if ( self._worker ) self.disposeWorker( );
             
             if ( !self._worker )
             {
@@ -571,7 +562,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 
                 self._workerListeners = { };
                 
-                worker = self._worker = new Worker( this.Path.file );
+                worker = self._worker = new Worker( this.path.file );
                 
                 worker.onmessage = function( evt ) {
                     if ( evt.data.event )
@@ -644,10 +635,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
     var Filter = FILTER.Filter = FILTER.Class( FilterWorkerInterface, {
         name: "Filter"
         
-        ,Path: { file: FILTER.Path.file, path: FILTER.Path.path}
-        
         // dummy
-        ,constructor: function() {
+        ,constructor: function( ) {
         }
         
         // filters can have id's
@@ -668,7 +657,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         
         // allow filters to be turned ON/OFF
         ,turnOn: function( bool ) {
-            if ( undef === bool ) bool = true;
+            if ( !arguments.length ) bool = true;
             this._isOn = !!bool;
             return this;
         }
@@ -710,8 +699,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -725,8 +712,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return image;
         }
         
-        ,toString: function() {
-            return "[" + "FILTER: " + this.name + "]";
+        ,toString: function( ) {
+            return "[FILTER: " + this.name + "]";
         }
     });
     
@@ -909,8 +896,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -926,7 +911,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         
         ,toString: function( ) {
             return [
-                 "[" + "FILTER: " + this.name + "]"
+                 "[FILTER: " + this.name + "]"
                  ,"["
                  ,"    " + this._stack.join("\n    ")
                  ,"]"
@@ -938,13 +923,12 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
     CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
     CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
     
-    var toStringPlugin = function( ) { return "[" + "FILTER Plugin: " + this.name + "]"; };
+    var toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; };
         
     //
     //
     // plugin creation framework
     FILTER.Create = function( methods ) {
-        
         methods = Merge({
                 init: function( ) { }
                 ,name: "PluginFilter"
@@ -955,7 +939,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         methods._apply = methods.apply;
         delete methods.init;
         delete methods.apply;
-        return FILTER.Class(Filter, methods);
+        return FILTER.Class( Filter, methods );
     };
     
 }(this, FILTER);/**
@@ -1850,7 +1834,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return this;
         }
         
-        ,_apply: function(im, w, h, image) {
+        ,_apply: function( im, w, h, image ) {
             if ( !this._isOn || !this._handler ) return im;
             return this._handler( im, w, h, image );
         }
@@ -1907,8 +1891,10 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 this._matrix = null;
             }
             
-            if ( FILTER.useWebGL ) 
+            if ( FILTER.useWebGL )
+            {
                 this._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
+            }
         }
         
         ,_matrix: null
@@ -2610,8 +2596,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;
@@ -3182,8 +3166,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -3229,8 +3211,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             if ( displacemap ) this.setMap( displacemap );
         }
         
-        ,map: null
         ,_map: null
+        ,map: null
         // parameters
         ,scaleX: 1
         ,scaleY: 1
@@ -3250,8 +3232,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             
             self.disposeWorker( );
             
-            self.map = null;
             self._map = null;
+            self.map = null;
             self.scaleX = null;
             self.scaleY = null;
             self.startX = null;
@@ -3274,7 +3256,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 filter: self.name
                 
                 ,params: {
-                    _map: self.map ? { data: self.map.getData( ), width: self.map.width, height: self.map.height } : null
+                    _map: self._map
                     ,scaleX: self.scaleX
                     ,scaleY: self.scaleY
                     ,startX: self.startX
@@ -3316,8 +3298,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         }
         
         ,reset: function( ) {
-            this.map = null; 
             this._map = null; 
+            this.map = null; 
             return this;
         }
         
@@ -3325,9 +3307,12 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             return this.map;
         }
         
-        ,setMap: function( m)  {
-            this._map = null; 
-            this.map = m; 
+        ,setMap: function( map )  {
+            if ( map )
+            {
+                this.map = map; 
+                this._map = { data: map.getData( ), width: map.width, height: map.height }; 
+            }
             return this;
         }
         
@@ -3343,7 +3328,7 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
         // used for internal purposes
         ,_apply: function( im, w, h/*, image*/ ) {
             
-            if ( !this._isOn || (!this.map && !this._map) ) return im;
+            if ( !this._isOn || !this._map ) return im;
             
             var map, mapW, mapH, mapArea, displace, ww, hh,
                 sx = this.scaleX*0.00390625, sy = this.scaleY*0.00390625, 
@@ -3356,8 +3341,8 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                 _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
             ;
             
-            map = this._map ? this._map.data : this.map.getData( );
-            mapW = this._map ? this._map.width : this.map.width; mapH = this._map ? this._map.height : this.map.height; 
+            map = this._map.data;
+            mapW = this._map.width; mapH = this._map.height; 
             mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
             imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
             
@@ -3447,8 +3432,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -3728,8 +3711,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -4379,8 +4360,10 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
             this._matrix2 = null;  this._dim2 = 0;
             this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
             
-            if ( FILTER.useWebGL )  
+            if ( FILTER.useWebGL ) 
+            {
                 this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
+            }
         }
         
         ,_dim: 0
@@ -4869,8 +4852,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;
@@ -5571,8 +5552,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;
@@ -5974,8 +5953,6 @@ var FILTER = FILTER || { VERSION: "0.6.9", Class: Classy.Class, Merge: Classy.Me
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;

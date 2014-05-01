@@ -242,6 +242,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -326,6 +328,8 @@ var FILTER_PLUGINS = null;
     // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
     FILTER.HistogramEqualizeFilter = FILTER.Create({
         name : "HistogramEqualizeFilter"
+        
+        ,path: FILTER.getPath( )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -421,6 +425,8 @@ var FILTER_PLUGINS = null;
     FILTER.GrayscaleHistogramEqualizeFilter = FILTER.Create({
         name: "GrayscaleHistogramEqualizeFilter"
         
+        ,path: FILTER.getPath( )
+        
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
@@ -510,6 +516,8 @@ var FILTER_PLUGINS = null;
     // used for illustration purposes on how to create a plugin filter
     FILTER.RGBHistogramEqualizeFilter = FILTER.Create({
         name: "RGBHistogramEqualizeFilter"
+        
+        ,path: FILTER.getPath( )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -625,6 +633,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -812,6 +822,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -1067,6 +1079,8 @@ var FILTER_PLUGINS = null;
     FILTER.HSVConverterFilter = FILTER.Create({
         name: "HSVConverterFilter"
         
+        ,path: FILTER.getPath( )
+        
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array
@@ -1138,6 +1152,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -1216,8 +1232,8 @@ var FILTER_PLUGINS = null;
         name: "ChannelCopyFilter"
         
         // parameters
-        ,srcImg: null
         ,_srcImg: null
+        ,srcImg: null
         ,centerX: 0
         ,centerY: 0
         ,srcChannel: 0
@@ -1235,6 +1251,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -1269,7 +1287,7 @@ var FILTER_PLUGINS = null;
             if ( srcImg )
             {
                 this.srcImg = srcImg;
-                this._srcImg = { data: srcImg.getData(), width: srcImg.width, height: srcImg.height };
+                this._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
             }
             return this;
         }
@@ -1350,6 +1368,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -1380,7 +1400,7 @@ var FILTER_PLUGINS = null;
             if ( alphaMask )
             {
                 this.alphaMask = alphaMask;
-                this._alphaMask = { data: alphaMask.getData(), width: alphaMask.width, height: alphaMask.height };
+                this._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
             }
             return this;
         }
@@ -1455,9 +1475,9 @@ var FILTER_PLUGINS = null;
         name: "BlendFilter"
         
         // parameters
-        ,_blendModeName: null
         ,_blendMode: null
         ,_blendImage: null
+        ,blendMode: null
         ,blendImage: null
         ,startX: 0
         ,startY: 0
@@ -1470,13 +1490,15 @@ var FILTER_PLUGINS = null;
             this.amount = 1;
             this._blendImage = null;
             this.blendImage = null;
-            this._blendModeName = null;
             this._blendMode = null;
-            if ( blendImage ) this.image( blendImage );
-            if ( blendMode ) this.mode( blendMode, amount );
+            this.blendMode = null;
+            if ( blendImage ) this.setImage( blendImage );
+            if ( blendMode ) this.setMode( blendMode, amount );
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -1484,7 +1506,7 @@ var FILTER_PLUGINS = null;
                 
                 ,params: {
                     _blendImage: self._blendImage
-                    ,_blendModeName: self._blendModeName
+                    ,_blendMode: self._blendMode
                     ,startX: self.startX
                     ,startY: self.startY
                     ,amount: self.amount
@@ -1501,13 +1523,13 @@ var FILTER_PLUGINS = null;
                 self._blendImage = params._blendImage;
                 self.startX = params.startX;
                 self.startY = params.startY;
-                self.mode( params._blendModeName, params.amount );
+                self.setMode( params._blendMode, params.amount );
             }
             return self;
         }
         
         // set blend image auxiliary method
-        ,image: function( blendImage ) {
+        ,setImage: function( blendImage ) {
             if ( blendImage )
             {
                 this.blendImage = blendImage;
@@ -1517,17 +1539,17 @@ var FILTER_PLUGINS = null;
         }
         
         // set blend mode auxiliary method
-        ,mode: function( blendMode, amount ) {
+        ,setMode: function( blendMode, amount ) {
             if ( blendMode )
             {
-                this._blendModeName = (''+blendMode).toLowerCase();
-                this._blendMode = blendModes[this._blendModeName] || null;
+                this._blendMode = (''+blendMode).toLowerCase();
+                this.blendMode = blendModes[this._blendMode] || null;
                 this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
             }
             else
             {
-                this._blendModeName = null;
                 this._blendMode = null;
+                this.blendMode = null;
             }
             return this;
         }
@@ -1536,15 +1558,15 @@ var FILTER_PLUGINS = null;
             this.startX = 0;
             this.startY = 0;
             this.amount = 1;
-            this._blendModeName = null;
             this._blendMode = null;
+            this.blendMode = null;
             return this;
         }
         
         // main apply routine
         ,apply: function(im, w, h/*, image*/) {
             
-            if ( !this._blendMode || !this._blendImage ) return im;
+            if ( !this.blendMode || !this._blendImage ) return im;
             
             var startX = this.startX||0, startY = this.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
@@ -1568,7 +1590,7 @@ var FILTER_PLUGINS = null;
             
             im2 = image2.data;
             
-            return this._blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
+            return this.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
     });
     
@@ -2830,8 +2852,9 @@ var FILTER_PLUGINS = null;
             this.quantizedColors = quantizedColors || null;
         }
         
-        
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -2923,6 +2946,8 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {

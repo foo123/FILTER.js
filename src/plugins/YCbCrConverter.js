@@ -14,6 +14,8 @@
     FILTER.YCbCrConverterFilter = FILTER.Create({
         name: "YCbCrConverterFilter"
         
+        ,path: FILTER.getPath( )
+        
         // this is the filter actual apply method routine
         ,apply: function(im, w, h) {
             // im is a copy of the image data as an image array

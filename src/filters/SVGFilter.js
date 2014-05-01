@@ -13,8 +13,10 @@
     //
     //
     // Generic SVG-based Filter
-    var SVGFilter = FILTER.SVGFilter = FILTER.Class( FILTER.Filter, {
-        constructor : function(svgXml) { 
+    FILTER.SVGFilter = FILTER.Class( FILTER.Filter, {
+        name: "SVGFilter"
+        
+        ,constructor: function( svgXml ) { 
             // todo
             this.$super('constructor');
         }

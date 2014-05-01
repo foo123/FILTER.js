@@ -27,8 +27,8 @@
             if ( displacemap ) this.setMap( displacemap );
         }
         
-        ,map: null
         ,_map: null
+        ,map: null
         // parameters
         ,scaleX: 1
         ,scaleY: 1
@@ -48,8 +48,8 @@
             
             self.disposeWorker( );
             
-            self.map = null;
             self._map = null;
+            self.map = null;
             self.scaleX = null;
             self.scaleY = null;
             self.startX = null;
@@ -72,7 +72,7 @@
                 filter: self.name
                 
                 ,params: {
-                    _map: self.map ? { data: self.map.getData( ), width: self.map.width, height: self.map.height } : null
+                    _map: self._map
                     ,scaleX: self.scaleX
                     ,scaleY: self.scaleY
                     ,startX: self.startX
@@ -114,8 +114,8 @@
         }
         
         ,reset: function( ) {
-            this.map = null; 
             this._map = null; 
+            this.map = null; 
             return this;
         }
         
@@ -123,9 +123,12 @@
             return this.map;
         }
         
-        ,setMap: function( m)  {
-            this._map = null; 
-            this.map = m; 
+        ,setMap: function( map )  {
+            if ( map )
+            {
+                this.map = map; 
+                this._map = { data: map.getData( ), width: map.width, height: map.height }; 
+            }
             return this;
         }
         
@@ -141,7 +144,7 @@
         // used for internal purposes
         ,_apply: function( im, w, h/*, image*/ ) {
             
-            if ( !this._isOn || (!this.map && !this._map) ) return im;
+            if ( !this._isOn || !this._map ) return im;
             
             var map, mapW, mapH, mapArea, displace, ww, hh,
                 sx = this.scaleX*0.00390625, sy = this.scaleY*0.00390625, 
@@ -154,8 +157,8 @@
                 _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
             ;
             
-            map = this._map ? this._map.data : this.map.getData( );
-            mapW = this._map ? this._map.width : this.map.width; mapH = this._map ? this._map.height : this.map.height; 
+            map = this._map.data;
+            mapW = this._map.width; mapH = this._map.height; 
             mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
             imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
             
@@ -245,8 +248,6 @@
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: im, params: this.serialize( )} )
                     ;

@@ -40,8 +40,10 @@
                 this._matrix = null;
             }
             
-            if ( FILTER.useWebGL ) 
+            if ( FILTER.useWebGL )
+            {
                 this._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
+            }
         }
         
         ,_matrix: null
@@ -743,8 +745,6 @@
                                 image.setSelectedData( data.im );
                             if ( cb ) cb.call( this );
                         })
-                        // send filter params to worker
-                        //.send( 'params', this.serialize( ) )
                         // process request
                         .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
                     ;

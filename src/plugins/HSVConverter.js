@@ -16,6 +16,8 @@
     FILTER.HSVConverterFilter = FILTER.Create({
         name: "HSVConverterFilter"
         
+        ,path: FILTER.getPath( )
+        
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
             // im is a copy of the image data as an image array

@@ -30,6 +30,8 @@
         }
         
         // support worker serialize/unserialize interface
+        ,path: FILTER.getPath( )
+        
         ,serialize: function( ) {
             var self = this;
             return {
@@ -60,7 +62,7 @@
             if ( alphaMask )
             {
                 this.alphaMask = alphaMask;
-                this._alphaMask = { data: alphaMask.getData(), width: alphaMask.width, height: alphaMask.height };
+                this._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
             }
             return this;
         }
