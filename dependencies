@@ -22,12 +22,11 @@ SRC =[]
     # core Classes
     ./src/FILTER.js
     ./src/core/Filter.js
-    # (TODO)
-    #./src/core/WebGLFilter.js
     ./src/core/Color.js
     ./src/core/Image.js
 
     # generic Filters
+    ./src/filters/CompositeFilter.js
     ./src/filters/CustomFilter.js
     ./src/filters/ColorMatrixFilter.js
     ./src/filters/TableLookupFilter.js
@@ -36,12 +35,11 @@ SRC =[]
     ./src/filters/ConvolutionMatrixFilter.js
     ./src/filters/MorphologicalFilter.js
     ./src/filters/StatisticalFilter.js
-
     # svg and css based generic Filters (TODO)
     #./src/filters/SVGFilter.js
     #./src/filters/CSSFilter.js
-
     # webgl generic Filters (TODO)
+    #./src/filters/WebGLFilter.js
     #./src/filters/webgl/ColorMatrixFilter.js
     #./src/filters/webgl/DisplacementMapFilter.js
     #./src/filters/webgl/GeometricMapFilter.js
