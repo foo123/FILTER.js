@@ -34,6 +34,7 @@
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     thresholds: self.thresholds
@@ -46,6 +47,8 @@
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.thresholds = params.thresholds;

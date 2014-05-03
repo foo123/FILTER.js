@@ -86,10 +86,11 @@
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _mapName: self._mapName
-                    
+                    ,inverseTransform: self.inverseTransform ? self.inverseTransform.toString( ) : null
                     ,matrix: self.matrix
                     ,centerX: self.centerX
                     ,centerY: self.centerY
@@ -111,6 +112,8 @@
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.inverseTransform = null;
@@ -128,6 +131,12 @@
                 self.xWavelength = params.xWavelength;
                 self.yWavelength = params.yWavelength;
                 self.mode = params.mode;
+                
+                if ( params.inverseTransform )
+                {
+                    // using bind makes the code become [native code] and thus unserializable
+                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();')/*.bind( self )*/;
+                }
                 
                 self._mapName = params._mapName;
                 self._map = null;

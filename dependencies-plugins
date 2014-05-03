@@ -27,7 +27,6 @@ SRC =[]
     ./src/plugins/RGBEqualize.js
     ./src/plugins/Pixelate.js
     ./src/plugins/TriangularPixelate.js
-    # (TODO)
     #./src/plugins/HexagonalPixelate.js
     ./src/plugins/HSVConverter.js
     #./src/plugins/YCbCrConverter.js
@@ -49,7 +48,7 @@ HEADER =
 # Text replacements
 REPLACE =[{}]
     
-    "@@VERSION@@" = "0.6.9"
+    "@@VERSION@@" = "0.6.11"
     
     "@@DEPENDENCIES@@" = "@dependencies: Filter.js"
     

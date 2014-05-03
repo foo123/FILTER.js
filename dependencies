@@ -58,7 +58,7 @@ HEADER =
 # Text replacements
 REPLACE =[{}]
     
-    "@@VERSION@@" = "0.6.10"
+    "@@VERSION@@" = "0.6.11"
     
     "@@DEPENDENCIES@@" = "@dependencies: Classy.js"
     

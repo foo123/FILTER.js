@@ -284,7 +284,7 @@
         
         // @override
         ,serialize: function( ) {
-            return { filter: this.name || null };
+            return {};
         }
         
         // @override
@@ -434,6 +434,20 @@
             return this;
         }
         
+        // @override
+        ,serialize: function( ) {
+            return { filter: this.name, _isOn: !!this._isOn };
+        }
+        
+        // @override
+        ,unserialize: function( json ) {
+            if ( json && this.name === json.filter )
+            {
+                this._isOn = !!json._isOn;
+            }
+            return this;
+        }
+        
         // whether filter is ON
         ,isOn: function( ) {
             return this._isOn;
@@ -512,6 +526,7 @@
         }
         
         ,_stack: null
+        ,_stable: true
         
         ,dispose: function( withFilters ) {
             var i, stack = this._stack;
@@ -532,7 +547,7 @@
         }
         
         ,serialize: function( ) {
-            var json = { filter: this.name, filters: [ ] }, i, stack = this._stack;
+            var json = { filter: this.name, _isOn: !!this._isOn, _stable: !!this._stable, filters: [ ] }, i, stack = this._stack;
             for (i=0; i<stack.length; i++)
             {
                 json.filters.push( stack[ i ].serialize( ) );
@@ -541,36 +556,55 @@
         }
         
         ,unserialize: function( json ) {
-            if ( json && this.name === json.filter )
+            var self = this, i, l, ls, filters, filter, stack = self._stack;
+            if ( json && self.name === json.filter )
             {
-                var i, filters = json.filters || [ ], stack = [ ], filter;
+                self._isOn = !!json._isOn;
+                self._stable = !!json._stable;
                 
-                for (i=0; i<filters.length; i++)
+                filters = json.filters || [ ];
+                l = filters.length;
+                ls = stack.length;
+                if ( l !== ls || !self._stable )
                 {
-                    filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
-                    if ( filter )
+                    // dispose any prev filters
+                    for (i=0; i<ls; i++)
                     {
-                        stack.push( new filter( ).unserialize( filters[ i ] ) );
+                        stack[ i ] && stack[ i ].dispose( true );
+                        stack[ i ] = null;
                     }
-                    else
+                    stack = [ ];
+                    
+                    for (i=0; i<l; i++)
                     {
-                        throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
-                        return;
+                        filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
+                        if ( filter )
+                        {
+                            stack.push( new filter( ).unserialize( filters[ i ] ) );
+                        }
+                        else
+                        {
+                            throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    for (i=0; i<l; i++)
+                    {
+                        stack[ i ] = stack[ i ].unserialize( filters[ i ] );
                     }
                 }
                 
-                // dispose any prev filters
-                if ( this._stack )
-                {
-                    for (i=0; i<this._stack.length; i++)
-                    {
-                        this._stack[ i ] && this._stack[ i ].dispose( true );
-                        this._stack[ i ] = null;
-                    }
-                }
-                
-                this._stack = stack;
+                self._stack = stack;
             }
+            return self;
+        }
+        
+        ,stable: function( bool ) {
+            if ( !arguments.length ) bool = true;
+            this._stable = !!bool;
             return this;
         }
         

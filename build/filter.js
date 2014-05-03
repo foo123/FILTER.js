@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.10
+*   @version: 0.6.11
 *   @dependencies: Classy.js
 *
 *   JavaScript Image Processing Library
@@ -205,14 +205,14 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.10
+*   @version: 0.6.11
 *   @dependencies: Classy.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.Merge };
+var FILTER = FILTER || { VERSION: "0.6.11", Class: Classy.Class, Merge: Classy.Merge };
     
 /**
 *
@@ -500,7 +500,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
         
         // @override
         ,serialize: function( ) {
-            return { filter: this.name || null };
+            return {};
         }
         
         // @override
@@ -650,6 +650,20 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             return this;
         }
         
+        // @override
+        ,serialize: function( ) {
+            return { filter: this.name, _isOn: !!this._isOn };
+        }
+        
+        // @override
+        ,unserialize: function( json ) {
+            if ( json && this.name === json.filter )
+            {
+                this._isOn = !!json._isOn;
+            }
+            return this;
+        }
+        
         // whether filter is ON
         ,isOn: function( ) {
             return this._isOn;
@@ -728,6 +742,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
         }
         
         ,_stack: null
+        ,_stable: true
         
         ,dispose: function( withFilters ) {
             var i, stack = this._stack;
@@ -748,7 +763,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
         }
         
         ,serialize: function( ) {
-            var json = { filter: this.name, filters: [ ] }, i, stack = this._stack;
+            var json = { filter: this.name, _isOn: !!this._isOn, _stable: !!this._stable, filters: [ ] }, i, stack = this._stack;
             for (i=0; i<stack.length; i++)
             {
                 json.filters.push( stack[ i ].serialize( ) );
@@ -757,36 +772,55 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
         }
         
         ,unserialize: function( json ) {
-            if ( json && this.name === json.filter )
+            var self = this, i, l, ls, filters, filter, stack = self._stack;
+            if ( json && self.name === json.filter )
             {
-                var i, filters = json.filters || [ ], stack = [ ], filter;
+                self._isOn = !!json._isOn;
+                self._stable = !!json._stable;
                 
-                for (i=0; i<filters.length; i++)
+                filters = json.filters || [ ];
+                l = filters.length;
+                ls = stack.length;
+                if ( l !== ls || !self._stable )
                 {
-                    filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
-                    if ( filter )
+                    // dispose any prev filters
+                    for (i=0; i<ls; i++)
                     {
-                        stack.push( new filter( ).unserialize( filters[ i ] ) );
+                        stack[ i ] && stack[ i ].dispose( true );
+                        stack[ i ] = null;
                     }
-                    else
+                    stack = [ ];
+                    
+                    for (i=0; i<l; i++)
                     {
-                        throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
-                        return;
+                        filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
+                        if ( filter )
+                        {
+                            stack.push( new filter( ).unserialize( filters[ i ] ) );
+                        }
+                        else
+                        {
+                            throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    for (i=0; i<l; i++)
+                    {
+                        stack[ i ] = stack[ i ].unserialize( filters[ i ] );
                     }
                 }
                 
-                // dispose any prev filters
-                if ( this._stack )
-                {
-                    for (i=0; i<this._stack.length; i++)
-                    {
-                        this._stack[ i ] && this._stack[ i ].dispose( true );
-                        this._stack[ i ] = null;
-                    }
-                }
-                
-                this._stack = stack;
+                self._stack = stack;
             }
+            return self;
+        }
+        
+        ,stable: function( bool ) {
+            if ( !arguments.length ) bool = true;
+            this._stable = !!bool;
             return this;
         }
         
@@ -1815,35 +1849,75 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
         name: "CustomFilter"
         
         ,constructor: function( handler ) {
-            this._handler = handler ? handler.bind( this ) : null;
+            // using bind makes the code become [native code] and thus unserializable
+            this._handler = handler && 'function' === typeof(handler) ? handler/*.bind( this )*/ : null;
         }
         
         ,_handler: null
         
         ,dispose: function( ) {
-            this._worker = null;
-            this._workerListeners = null;
+            this.disposeWorker( );
             this._handler = null;
             return this;
         }
         
-        ,worker: function( bool ) {
-            // no worker support for custom filters (yet??)
-            this._worker = null;
-            this._workerListeners = null;
-            return this;
+        ,serialize: function( ) {
+            var self = this;
+            return {
+                filter: self.name
+                ,_isOn: !!self._isOn
+                
+                ,params: {
+                    _handler: self._handler ? self._handler.toString( ) : null
+                }
+            };
+        }
+        
+        ,unserialize: function( json ) {
+            var self = this, params;
+            if ( json && self.name === json.filter )
+            {
+                self._isOn = !!json._isOn;
+                
+                params = json.params;
+                
+                self._handler = null;
+                if ( params._handler )
+                {
+                    // using bind makes the code become [native code] and thus unserializable
+                    self._handler = eval( '(function(){ "use strict"; return ' + params._handler + '})();')/*.bind( self )*/;
+                }
+            }
+            return self;
         }
         
         ,_apply: function( im, w, h, image ) {
             if ( !this._isOn || !this._handler ) return im;
-            return this._handler( im, w, h, image );
+            return this._handler.call( this, im, w, h, image );
         }
         
-        ,apply: function( image ) {
+        ,apply: function( image, cb ) {
             if ( this._isOn && this._handler )
             {
                 var im = image.getSelectedData( );
-                image.setSelectedData( this._handler( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                if ( this._worker )
+                {
+                    this
+                        .bind( 'apply', function( data ) { 
+                            this.unbind( 'apply' );
+                            if ( data && data.im )
+                                image.setSelectedData( data.im );
+                            if ( cb ) cb.call( this );
+                        })
+                        // process request
+                        .send( 'apply', {im: im, params: this.serialize( )} )
+                    ;
+                }
+                else
+                {
+                    image.setSelectedData( this._handler.call( this, im[ 0 ], im[ 1 ], im[ 2 ], image ) );
+                    if ( cb ) cb.call( this );
+                }
             }
             return image;
         }
@@ -1915,6 +1989,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _matrix: self._matrix
@@ -1926,6 +2001,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._matrix = params._matrix;
@@ -2781,6 +2858,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _tableR: self._tableR
@@ -2795,6 +2873,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._tableR = params._tableR;
@@ -3254,6 +3334,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _map: self._map
@@ -3277,6 +3358,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.map = null;
@@ -3534,10 +3617,11 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _mapName: self._mapName
-                    
+                    ,inverseTransform: self.inverseTransform ? self.inverseTransform.toString( ) : null
                     ,matrix: self.matrix
                     ,centerX: self.centerX
                     ,centerY: self.centerY
@@ -3559,6 +3643,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.inverseTransform = null;
@@ -3576,6 +3662,12 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
                 self.xWavelength = params.xWavelength;
                 self.yWavelength = params.yWavelength;
                 self.mode = params.mode;
+                
+                if ( params.inverseTransform )
+                {
+                    // using bind makes the code become [native code] and thus unserializable
+                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();')/*.bind( self )*/;
+                }
                 
                 self._mapName = params._mapName;
                 self._map = null;
@@ -4410,6 +4502,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _dim: self._dim
@@ -4434,6 +4527,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._dim = params._dim;
@@ -5440,6 +5535,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _filterName: self._filterName
@@ -5454,6 +5550,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._dim = params._dim;
@@ -5866,6 +5964,7 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _filterName: self._filterName
@@ -5879,6 +5978,8 @@ var FILTER = FILTER || { VERSION: "0.6.10", Class: Classy.Class, Merge: Classy.M
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._dim = params._dim;

@@ -36,6 +36,7 @@
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _alphaMask: self._alphaMask
@@ -49,6 +50,8 @@
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._alphaMask = params._alphaMask;

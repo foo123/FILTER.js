@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.9
+*   @version: 0.6.11
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -205,7 +205,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.9
+*   @version: 0.6.11
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -248,6 +248,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     min: self.min
@@ -260,6 +261,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.min = params.min;
@@ -639,6 +642,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     scale: self.scale
@@ -650,6 +654,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.scale = params.scale;
@@ -828,6 +834,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     scale: self.scale
@@ -839,6 +846,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.scale = params.scale;
@@ -1158,6 +1167,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     range: self.range
@@ -1170,6 +1180,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.range = params.range;
@@ -1257,6 +1269,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _srcImg: self._srcImg
@@ -1272,6 +1285,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._srcImg = params._srcImg;
@@ -1374,6 +1389,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _alphaMask: self._alphaMask
@@ -1387,6 +1403,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._alphaMask = params._alphaMask;
@@ -1503,6 +1521,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _blendImage: self._blendImage
@@ -1518,6 +1537,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._blendImage = params._blendImage;
@@ -2859,6 +2880,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     thresholds: self.thresholds
@@ -2871,6 +2893,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.thresholds = params.thresholds;
@@ -2952,6 +2976,7 @@ var FILTER_PLUGINS = null;
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     centerX: self.centerX
@@ -2966,6 +2991,8 @@ var FILTER_PLUGINS = null;
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self.centerX = params.centerX;

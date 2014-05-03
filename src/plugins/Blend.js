@@ -49,6 +49,7 @@
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _blendImage: self._blendImage
@@ -64,6 +65,8 @@
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._blendImage = params._blendImage;

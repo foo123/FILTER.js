@@ -64,6 +64,7 @@
             var self = this;
             return {
                 filter: self.name
+                ,_isOn: !!self._isOn
                 
                 ,params: {
                     _matrix: self._matrix
@@ -75,6 +76,8 @@
             var self = this, params;
             if ( json && self.name === json.filter )
             {
+                self._isOn = !!json._isOn;
+                
                 params = json.params;
                 
                 self._matrix = params._matrix;

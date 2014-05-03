@@ -483,6 +483,7 @@ The class implements these methods:
 * _getAt( )_ get the filter at this location
 * _setAt( )_ replace the filter at this location
 * _filters( )_ set all the filters stack at once
+* _stable( [bool] )_ whether the filter is stable (meaning no filters will be added or removed), this makes serialization faster
 * _reset( )/empty( )_ reset the filter to identity
 
 
@@ -528,7 +529,7 @@ A comprehensive framework is provided for creating plugins that function the sam
 
 For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
 
-**NOTE2** Custom Filters **DO NOT SUPPORT** parallel filter workers (at least not yet, since a complete function needs to be transfered)
+**NOTE2** Custom Filters **DO SUPPORT** parallel filter workers (make sure the custom function does not reference external data so it can be serialized correctly)
 
 Example:
 

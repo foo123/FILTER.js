@@ -1,5 +1,11 @@
 ##ChangeLog
 
+__0.6.11__
+
+* serialization changes (more options, transparently)
+* enable customFilters to be used in parallel (see api-reference)
+* edits/optimizations
+
 __0.6.10__
 
 * more parallel options, external script path options
