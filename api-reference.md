@@ -11,7 +11,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ###Image Class
 
 ````javascript
-new FILTER.Image(imageOrURLOrCanvasOrVideo);
+new FILTER.Image(uRLOrImageOrCanvasOrVideo);
 ````
 
 This is a placeholder for an image, along with basic methods to access the image data
@@ -19,11 +19,12 @@ and alter them.
 
 __Methods:__
 
-* _setImage()_  Sets/Alters the underlying image
+* _setImage(uRLOrImageOrCanvasOrVideo [, callback])_  Sets/Alters the underlying image
 * _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
 * _deselect()_  remove previous selection (selected part becomes whole image)
-* _clone()_ gets a clone of the image as a new image
-* _copy(image)_ fast copy of the data of another Image instance
+* _apply(filter [, callback])_ shorthand to apply method of a FILTER.Filter instance, image will change after application
+* _clone()_ gets a clone of the image as a new FILTER.Image instance
+* _copy(image)_ fast copy of the data of another FILTER.Image instance
 * _clear()_  clear the image data
 * _fill()_  fill the image area with a specific color
 * _scale(sx, sy)_  scale the image in x/y directions
@@ -69,7 +70,7 @@ __Methods:__
 * _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
 * _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
 * _worker( bool )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
-* _apply( image )_   apply the flter to an Image instance (the image will be changed after the filter application)
+* _apply( image [, callback] )_   apply the filter to a FILTER.Image instance (the image will be changed after the filter application)
 
 
 

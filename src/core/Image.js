@@ -136,6 +136,15 @@
             return this;
         }
         
+        // apply a filter (uses filter's own apply method)
+        ,apply: function( filter, cb ) {
+            if ( filter /*&& filter instanceof FILTER.Filter*/ )
+            {
+                filter.apply( this, cb );
+            }
+            return this;
+        }
+        
         ,setWidth:  function( w ) {
             this._setWidth(w);
             this._needsRefresh |= DATA | HIST | SAT;

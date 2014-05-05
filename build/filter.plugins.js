@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.11
+*   @version: 0.6.12
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -205,7 +205,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.11
+*   @version: 0.6.12
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)

@@ -1,5 +1,10 @@
 ##ChangeLog
 
+__0.6.12__
+
+* use Color Class from (https://github.com/foo123/css-color) to enhance FILTER.Color
+* (re-)add *apply* method to Image Class (shorthand to Filter.apply method)
+
 __0.6.11__
 
 * serialization changes (more options, transparently)
