@@ -31,15 +31,16 @@
         
         // constructor
         ,init: function( blendImage, blendMode, amount ) { 
-            this.startX = 0;
-            this.startY = 0;
-            this.amount = 1;
-            this._blendImage = null;
-            this.blendImage = null;
-            this._blendMode = null;
-            this.blendMode = null;
-            if ( blendImage ) this.setImage( blendImage );
-            if ( blendMode ) this.setMode( blendMode, amount );
+            var self = this;
+            self.startX = 0;
+            self.startY = 0;
+            self.amount = 1;
+            self._blendImage = null;
+            self.blendImage = null;
+            self._blendMode = null;
+            self.blendMode = null;
+            if ( blendImage ) self.setImage( blendImage );
+            if ( blendMode ) self.setMode( blendMode, amount );
         }
         
         // support worker serialize/unserialize interface
@@ -79,48 +80,51 @@
         
         // set blend image auxiliary method
         ,setImage: function( blendImage ) {
+            var self = this;
             if ( blendImage )
             {
-                this.blendImage = blendImage;
-                this._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+                self.blendImage = blendImage;
+                self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
             }
-            return this;
+            return self;
         }
         
         // set blend mode auxiliary method
         ,setMode: function( blendMode, amount ) {
+            var self = this;
             if ( blendMode )
             {
-                this._blendMode = (''+blendMode).toLowerCase();
-                this.blendMode = blendModes[this._blendMode] || null;
-                this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+                self._blendMode = (''+blendMode).toLowerCase();
+                self.blendMode = blendModes[self._blendMode] || null;
+                self.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
             }
             else
             {
-                this._blendMode = null;
-                this.blendMode = null;
+                self._blendMode = null;
+                self.blendMode = null;
             }
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this.startX = 0;
-            this.startY = 0;
-            this.amount = 1;
-            this._blendMode = null;
-            this.blendMode = null;
-            return this;
+            var self = this;
+            self.startX = 0;
+            self.startY = 0;
+            self.amount = 1;
+            self._blendMode = null;
+            self.blendMode = null;
+            return self;
         }
         
         // main apply routine
         ,apply: function(im, w, h/*, image*/) {
+            var self = this;
+            if ( !self._isOn || !self.blendMode || !self._blendImage ) return im;
             
-            if ( !this.blendMode || !this._blendImage ) return im;
-            
-            var startX = this.startX||0, startY = this.startY||0, 
+            var startX = self.startX||0, startY = self.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
-                im2, w2, h2, image2 = this._blendImage,
-                amount = this.amount||1
+                im2, w2, h2, image2 = self._blendImage,
+                amount = self.amount||1
             ;
             
             w2 = image2.width; h2 = image2.height;
@@ -139,7 +143,7 @@
             
             im2 = image2.data;
             
-            return this.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
+            return self.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
     });
     

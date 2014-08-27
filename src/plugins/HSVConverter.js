@@ -24,7 +24,8 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, i, l=im.length, hsv, t0, t1, t2;
             
             if ( notSupportClamp )

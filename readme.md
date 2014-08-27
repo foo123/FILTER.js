@@ -42,7 +42,11 @@ Some filters code has been adapted from open source libraries (mostly flash and 
 
 ###Features
 
-The library has a dependency on [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
+The library dependencies are:
+
+* [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
+* [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
+* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) flexible implementation.
 
 The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
 

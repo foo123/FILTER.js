@@ -1,5 +1,11 @@
 ##ChangeLog
 
+__0.6.13__
+
+* use Asynchronous.js for parallel/async filter tasks
+* use PublishSubscribe for implementing generic filter/image events
+* heavy refactor/optimise
+
 __0.6.12__
 
 * use Color Class from (https://github.com/foo123/css-color) to enhance FILTER.Color

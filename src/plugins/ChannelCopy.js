@@ -25,13 +25,14 @@
         
         // constructor
         ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
-            this._srcImg = null;
-            this.srcImg = null;
-            this.srcChannel = srcChannel || R;
-            this.dstChannel = dstChannel || R;
-            this.centerX = centerX || 0;
-            this.centerY = centerY || 0;
-            if ( srcImg ) this.setSrc( srcImg );
+            var self = this;
+            self._srcImg = null;
+            self.srcImg = null;
+            self.srcChannel = srcChannel || R;
+            self.dstChannel = dstChannel || R;
+            self.centerX = centerX || 0;
+            self.centerY = centerY || 0;
+            if ( srcImg ) self.setSrc( srcImg );
         }
         
         // support worker serialize/unserialize interface
@@ -71,12 +72,13 @@
         }
         
         ,setSrc: function( srcImg ) {
+            var self = this;
             if ( srcImg )
             {
-                this.srcImg = srcImg;
-                this._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
+                self.srcImg = srcImg;
+                self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
             }
-            return this;
+            return self;
         }
         
         // this is the filter actual apply method routine
@@ -85,17 +87,17 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn || !self._srcImg ) return im;
             
-            if ( !this._srcImg ) return im;
-            
-            var src = this._srcImg.data,
+            var src = self._srcImg.data,
                 i, l = im.length, l2 = src.length, 
-                w2 = this._srcImg.width, 
-                h2 = this._srcImg.height,
-                sC = this.srcChannel, tC = this.dstChannel,
+                w2 = self._srcImg.width, 
+                h2 = self._srcImg.height,
+                sC = self.srcChannel, tC = self.dstChannel,
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w,w2), hm = Min(h, h2),  
-                cX = this.centerX||0, cY = this.centerY||0, 
+                cX = self.centerX||0, cY = self.centerY||0, 
                 cX2 = (w2>>1), cY2 = (h2>>1)
             ;
             

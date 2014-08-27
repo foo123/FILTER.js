@@ -24,10 +24,11 @@
         
         // this is the filter constructor
         ,init: function( centerX, centerY, radius, amount ) {
-            this.centerX = centerX || 0;
-            this.centerY = centerY || 0;
-            this.radius = radius || 10;
-            this.amount = amount || 10;
+            var self = this;
+            self.centerX = centerX || 0;
+            self.centerY = centerY || 0;
+            self.radius = radius || 10;
+            self.amount = amount || 10;
         }
         
         // support worker serialize/unserialize interface
@@ -69,11 +70,13 @@
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
+            var self = this;
+            if ( !self._isOn ) return im;
             var imLen = im.length, imArea, 
                 integral, integralLen, colR, colG, colB,
                 rowLen, i, j, x , y, ty, 
-                cX = this.centerX||0, cY = this.centerY||0, 
-                r = this.radius, m = this.amount,
+                cX = self.centerX||0, cY = self.centerY||0, 
+                r = self.radius, m = self.amount,
                 d, dx, dy, blur, blurw, wt,
                 xOff1, yOff1, xOff2, yOff2,
                 p1, p2, p3, p4, t0, t1, t2,

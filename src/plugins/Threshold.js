@@ -23,8 +23,9 @@
         
         // constructor
         ,init: function( thresholds, quantizedColors ) {
-            this.thresholds = thresholds;
-            this.quantizedColors = quantizedColors || null;
+            var self = this;
+            self.thresholds = thresholds;
+            self.quantizedColors = quantizedColors || null;
         }
         
         // support worker serialize/unserialize interface
@@ -63,13 +64,13 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
-            if (!this.thresholds || !this.thresholds.length) return im;
-            else if (!this.quantizedColors || !this.quantizedColors.length) return im;
+            var self = this;
+            if (!self._isOn || !self.thresholds || !self.thresholds.length || 
+                !self.quantizedColors || !self.quantizedColors.length) return im;
             
             var t0, t1, t2, t3, color, rgba,
                 i, j, l=im.length,
-                thresholds=this.thresholds, tl=thresholds.length, colors=this.quantizedColors, cl=colors.length
+                thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
                 ;
             
             for (i=0; i<l; i+=4)

@@ -44,22 +44,24 @@
         name: "ConvolutionMatrixFilter"
         
         ,constructor: function( weights, factor, bias ) {
-            this._coeff = new CM([1.0, 0.0]);
+            var self = this;
+            self.$super('constructor');
+            self._coeff = new CM([1.0, 0.0]);
             
             if ( weights && weights.length)
             {
-                this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
+                self.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
             }
             else 
             {
-                this._matrix = null; this._dim = 0;
+                self._matrix = null; self._dim = 0;
             }
-            this._matrix2 = null;  this._dim2 = 0;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
+            self._matrix2 = null;  self._dim2 = 0;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
             
             if ( FILTER.useWebGL ) 
             {
-                this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
+                self._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
             }
         }
         
@@ -82,7 +84,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._dim = null;
@@ -329,12 +331,13 @@
         }
         
         ,set: function( m, d, f, b ) {
-            this._matrix2 = null; this._dim2 = 0; this._indices2 = this._indicesf2 = null; this._mat2 = null;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
-            this._matrix = new CM(m); this._dim = d; this._coeff[0] = f||1; this._coeff[1] = b||0;
-            var tmp  = this._computeIndices(this._matrix, this._dim);
-            this._indices = tmp[0]; this._indicesf = tmp[1]; this._mat = tmp[2];
-            return this;
+            var self = this;
+            self._matrix2 = null; self._dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+            self._matrix = new CM(m); self._dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
+            var tmp  = self._computeIndices(self._matrix, self._dim);
+            self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
+            return self;
         }
         
         ,_computeIndices: function( m, d ) {
@@ -358,12 +361,13 @@
         }
         
         ,reset: function( ) {
-            this._matrix = this._matrix2 = null; 
-            this._mat = this._mat2 = null; 
-            this._dim = this._dim2 = 0;
-            this._indices = this._indices2 = this._indicesf = this._indicesf2 = null;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
-            return this;
+            var self = this;
+            self._matrix = self._matrix2 = null; 
+            self._mat = self._mat2 = null; 
+            self._dim = self._dim2 = 0;
+            self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+            return self;
         }
         
         ,combineWith: function( filt ) {
@@ -382,20 +386,20 @@
         
         // used for internal purposes
         ,_apply: function(im, w, h/*, image*/) {
-            
-            if ( !this._isOn || !this._matrix ) return im;
+            var self = this;
+            if ( !self._isOn || !self._matrix ) return im;
             
             // do a faster convolution routine if possible
-            if ( this._doIntegral ) 
+            if ( self._doIntegral ) 
             {
-                if (this._matrix2)
-                    return integralConvolution(im, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doIntegral);
+                if (self._matrix2)
+                    return integralConvolution(im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral);
                 else
-                    return integralConvolution(im, w, h, this._matrix, null, this._dim, this._dim, this._coeff[0], this._coeff[1], this._doIntegral);
+                    return integralConvolution(im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
             }
-            else if ( this._doSeparable )
+            else if ( self._doSeparable )
             {
-                return separableConvolution(im, w, h, this._mat, this._mat2, this._indices, this._indices2, this._coeff[0], this._coeff[1]);
+                return separableConvolution(im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
             }
             // handle some common cases fast
             /*else if (3==this._dim)
@@ -410,8 +414,8 @@
                 xOff, yOff, srcOff, 
                 r, g, b, r2, g2, b2,
                 bx = w-1, by = imArea-w,
-                coeff1 = this._coeff[0], coeff2 = this._coeff[1],
-                mat = this._matrix, mat2 = this._matrix2, wt, wt2, _isGrad = this._isGrad,                
+                coeff1 = self._coeff[0], coeff2 = self._coeff[1],
+                mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
                 mArea, matArea, imageIndices
                 ;
             
@@ -420,8 +424,8 @@
             {
                 // pre-compute indices, 
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = this._indicesf.length; 
-                imageIndices = new A16I(this._indicesf);
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
                 for (k=0; k<mArea; k+=2)
                 { 
                     imageIndices[k+1] *= w;
@@ -475,13 +479,13 @@
             {
                 // pre-compute indices, 
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = this._indices.length; 
-                imageIndices = new A16I(this._indices);
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2)
                 { 
                     imageIndices[k+1] *= w;
                 }
-                mat = this._mat;
+                mat = self._mat;
                 matArea = mat.length;
                 
                 // do direct convolution
@@ -521,8 +525,9 @@
             return dst;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._matrix )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._matrix )
             {
                 /*if (this._webglInstance)
                 {
@@ -543,27 +548,27 @@
                     this._webglInstance._apply(image.webgl, w, h);
                     return image;
                 }*/
-                if ( this._worker )
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
+                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    var im = image.getSelectedData( );
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image) );
-                    if ( cb ) cb.call( this );
+                    im = src.getSelectedData( );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliases

@@ -24,6 +24,8 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, rangeR, rangeG, rangeB,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
                 cdfR, cdfG, cdfB,

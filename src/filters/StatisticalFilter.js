@@ -22,10 +22,12 @@
         name: "StatisticalFilter"
         
         ,constructor: function( ) {
-            this._dim = 0;
-            this._indices = null;
-            this._filterName = null;
-            this._filter = null;
+            var self = this;
+            self.$super('constructor');
+            self._dim = 0;
+            self._indices = null;
+            self._filterName = null;
+            self._filter = null;
         }
         
         ,_dim: 0
@@ -36,7 +38,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._dim = null;
             self._indices = null;
@@ -72,7 +74,7 @@
                 self._indices = params._indices;
                 self._filterName = params._filterName;
                 if ( self._filterName && Filters[ self._filterName ] )
-                    self._filter = Filters[ self._filterName ].bind( self );
+                    self._filter = Filters[ self._filterName ];
             }
             return self;
         }
@@ -94,9 +96,10 @@
         }
         
         ,set: function( d, filt ) {
-            this._filterName = filt; 
-            this._filter = Filters[ filt ].bind( this ); 
-            this._dim = d; 
+            var self = this;
+            self._filterName = filt; 
+            self._filter = Filters[ filt ]; 
+            self._dim = d; 
             // pre-compute indices, 
             // reduce redundant computations inside the main convolution loop (faster)
             var Indices=[], k, x, y,
@@ -108,49 +111,52 @@
                 Indices.push(y-matHalfSide);
                 k++; x++; if (x>=matRadius) { x=0; y++; }
             }
-            this._indices = new A32I(Indices);
+            self._indices = new A32I(Indices);
             
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this._filterName = null; 
-            this._filter = null; 
-            this._dim = 0; 
-            this._indices = null;
-            return this;
+            var self = this;
+            self._filterName = null; 
+            self._filter = null; 
+            self._dim = 0; 
+            self._indices = null;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function(im, w, h) {
-            if ( !this._isOn || !this._dim )  return im;
-            return this._filter( im, w, h );
+            var self = this;
+            if ( !self._isOn || !self._dim )  return im;
+            return self._filter( self, im, w, h );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._dim )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._dim )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._filter( im[0], im[1], im[2], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._filter( self, im[0], im[1], im[2], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliiases
@@ -162,10 +168,10 @@
     //
     // private methods
     Filters = {
-        "median": function( im, w, h ) {
+        "median": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, j2, x, ty, xOff, yOff, srcOff, 
                 rM, gM, bM, r, g, b,
@@ -224,10 +230,10 @@
             return dst;
         }
         
-        ,"maximum": function( im, w, h ) {
+        ,"maximum": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 matArea2=matArea<<1, bx=w-1, by=imArea-w
@@ -270,10 +276,10 @@
             return dst;
         }
         
-        ,"minimum": function( im, w, h ) {
+        ,"minimum": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 matArea2=matArea<<1, bx=w-1, by=imArea-w

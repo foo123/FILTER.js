@@ -23,8 +23,9 @@
         
         // constructor
         ,init : function( range, background ) {
-            this.range = range;
-            this.background = background || 0;
+            var self = this;
+            self.range = range;
+            self.background = background || 0;
         }
         
         // support worker serialize/unserialize interface
@@ -63,15 +64,15 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
-            if (!this.range || !this.range.length) return im;
+            var self = this;
+            if (!self._isOn || !self.range || !self.range.length) return im;
             
             var r, g, b, br, bg, bb, ba,
                 i, l=im.length, background, hue,
-                hMin=this.range[0], hMax=this.range[this.range.length-1]
+                hMin=self.range[0], hMax=self.range[self.range.length-1]
                 ;
             
-            background = Color2RGBA(this.background||0);
+            background = Color2RGBA(self.background||0);
             br = ~~clamp(background.r); 
             bg = ~~clamp(background.g); 
             bb = ~~clamp(background.b); 

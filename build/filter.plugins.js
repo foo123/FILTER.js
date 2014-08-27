@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.12
+*   @version: 0.6.13
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -9,6 +9,7 @@
 *
 **/!function ( root, name, deps, factory, undef ) {
 
+    "use strict";
     var isNode = ("undefined" !== typeof global && "[object global]" === {}.toString.call(global)),
         isBrowser = (!isNode && "undefined" !== typeof navigator ), 
         isWorker = ("function" === typeof importScripts && navigator instanceof WorkerNavigator),
@@ -205,7 +206,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.12
+*   @version: 0.6.13
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -237,8 +238,9 @@ var FILTER_PLUGINS = null;
         
         // this is the filter constructor
         ,init: function( min, max ) {
-            this.min = min||-127;
-            this.max = max||127;
+            var self = this;
+            self.min = min||-127;
+            self.max = max||127;
         }
         
         // support worker serialize/unserialize interface
@@ -277,7 +279,9 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            var range=this.max-this.min, m=this.min,
+            var self = this;
+            if ( !self._isOn ) return im;
+            var range=self.max-self.min, m=self.min,
                 i, l=im.length, n, r, g, b, t0, t1, t2;
             
             // add noise
@@ -528,6 +532,8 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, rangeR, rangeG, rangeB,
                 maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
                 cdfR, cdfG, cdfB,
@@ -632,7 +638,8 @@ var FILTER_PLUGINS = null;
         
         // this is the filter constructor
         ,init: function( scale ) {
-            this.scale = scale || 1;
+            var self = this;
+            self.scale = scale || 1;
         }
         
         // support worker serialize/unserialize interface
@@ -668,8 +675,9 @@ var FILTER_PLUGINS = null;
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
-            if (this.scale<=1) return im;
-            if (this.scale>100) this.scale=100;
+            var self = this;
+            if (!self._isOn || self.scale<=1) return im;
+            if (self.scale>100) self.scale=100;
             
             var imLen = im.length, imArea = (imLen>>2),
                 step, stepw, hstep, wstep, hstepw, wRem, hRem,
@@ -683,7 +691,7 @@ var FILTER_PLUGINS = null;
                 p1, p2, p3, p4, r, g, b
             ;
             
-            step = ~~(Sqrt(imArea)*this.scale*0.01);
+            step = ~~(Sqrt(imArea)*self.scale*0.01);
             stepw = w*step; hstep = (h%step); wstep = (w%step); hstepw = (hstep-1)*w;
             inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
             inv_sizes = inv_size1; inv_sizew = inv_size1w; inv_sizeh = inv_size1h; inv_sizewh = inv_size1hw;
@@ -824,7 +832,8 @@ var FILTER_PLUGINS = null;
         
         // this is the filter constructor
         ,init: function( scale ) {
-            this.scale = scale || 1;
+            var self = this;
+            self.scale = scale || 1;
         }
         
         // support worker serialize/unserialize interface
@@ -860,8 +869,9 @@ var FILTER_PLUGINS = null;
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
-            if ( this.scale <= 1 ) return im;
-            if ( this.scale > 100 ) this.scale = 100;
+            var self = this;
+            if ( !self._isOn || self.scale <= 1 ) return im;
+            if ( self.scale > 100 ) self.scale = 100;
             
             var imLen = im.length, imArea = (imLen>>2), 
                 step, step_2, step_1, stepw, hstep, wstep, hstepw, wRem, hRem,
@@ -877,7 +887,7 @@ var FILTER_PLUGINS = null;
             ;
             
         
-            step = ~~(Sqrt(imArea)*this.scale*0.01);
+            step = ~~(Sqrt(imArea)*self.scale*0.01);
             step_2 = step>>1; step_1 = step-1;
             stepw = w*step; hstep = (h%step); wstep = (w%step); hstepw = (hstep-1)*w;
             inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
@@ -1096,7 +1106,8 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, i, l=im.length, hsv, t0, t1, t2;
             
             if ( notSupportClamp )
@@ -1156,8 +1167,9 @@ var FILTER_PLUGINS = null;
         
         // constructor
         ,init : function( range, background ) {
-            this.range = range;
-            this.background = background || 0;
+            var self = this;
+            self.range = range;
+            self.background = background || 0;
         }
         
         // support worker serialize/unserialize interface
@@ -1196,15 +1208,15 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
-            if (!this.range || !this.range.length) return im;
+            var self = this;
+            if (!self._isOn || !self.range || !self.range.length) return im;
             
             var r, g, b, br, bg, bb, ba,
                 i, l=im.length, background, hue,
-                hMin=this.range[0], hMax=this.range[this.range.length-1]
+                hMin=self.range[0], hMax=self.range[self.range.length-1]
                 ;
             
-            background = Color2RGBA(this.background||0);
+            background = Color2RGBA(self.background||0);
             br = ~~clamp(background.r); 
             bg = ~~clamp(background.g); 
             bb = ~~clamp(background.b); 
@@ -1253,13 +1265,14 @@ var FILTER_PLUGINS = null;
         
         // constructor
         ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
-            this._srcImg = null;
-            this.srcImg = null;
-            this.srcChannel = srcChannel || R;
-            this.dstChannel = dstChannel || R;
-            this.centerX = centerX || 0;
-            this.centerY = centerY || 0;
-            if ( srcImg ) this.setSrc( srcImg );
+            var self = this;
+            self._srcImg = null;
+            self.srcImg = null;
+            self.srcChannel = srcChannel || R;
+            self.dstChannel = dstChannel || R;
+            self.centerX = centerX || 0;
+            self.centerY = centerY || 0;
+            if ( srcImg ) self.setSrc( srcImg );
         }
         
         // support worker serialize/unserialize interface
@@ -1299,12 +1312,13 @@ var FILTER_PLUGINS = null;
         }
         
         ,setSrc: function( srcImg ) {
+            var self = this;
             if ( srcImg )
             {
-                this.srcImg = srcImg;
-                this._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
+                self.srcImg = srcImg;
+                self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
             }
-            return this;
+            return self;
         }
         
         // this is the filter actual apply method routine
@@ -1313,17 +1327,17 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn || !self._srcImg ) return im;
             
-            if ( !this._srcImg ) return im;
-            
-            var src = this._srcImg.data,
+            var src = self._srcImg.data,
                 i, l = im.length, l2 = src.length, 
-                w2 = this._srcImg.width, 
-                h2 = this._srcImg.height,
-                sC = this.srcChannel, tC = this.dstChannel,
+                w2 = self._srcImg.width, 
+                h2 = self._srcImg.height,
+                sC = self.srcChannel, tC = self.dstChannel,
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w,w2), hm = Min(h, h2),  
-                cX = this.centerX||0, cY = this.centerY||0, 
+                cX = self.centerX||0, cY = self.centerY||0, 
                 cX2 = (w2>>1), cY2 = (h2>>1)
             ;
             
@@ -1375,11 +1389,12 @@ var FILTER_PLUGINS = null;
         
         // constructor
         ,init: function( alphaMask, centerX, centerY ) {
-            this.centerX = centerX||0;
-            this.centerY = centerY||0;
-            this._alphaMask = null;
-            this.alphaMask = null;
-            if ( alphaMask ) this.setMask( alphaMask );
+            var self = this;
+            self.centerX = centerX||0;
+            self.centerY = centerY||0;
+            self._alphaMask = null;
+            self.alphaMask = null;
+            if ( alphaMask ) self.setMask( alphaMask );
         }
         
         // support worker serialize/unserialize interface
@@ -1415,12 +1430,13 @@ var FILTER_PLUGINS = null;
         }
         
         ,setMask: function( alphaMask ) {
+            var self = this;
             if ( alphaMask )
             {
-                this.alphaMask = alphaMask;
-                this._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
+                self.alphaMask = alphaMask;
+                self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
             }
-            return this;
+            return self;
         }
         
         // this is the filter actual apply method routine
@@ -1430,14 +1446,15 @@ var FILTER_PLUGINS = null;
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            if ( !this._alphaMask ) return im;
+            var self = this;
+            if ( !self._isOn || !self._alphaMask ) return im;
             
-            var alpha = this._alphaMask.data,
-                w2 = this._alphaMask.width, h2 = this._alphaMask.height,
+            var alpha = self._alphaMask.data,
+                w2 = self._alphaMask.width, h2 = self._alphaMask.height,
                 i, l = im.length, l2 = alpha.length, 
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w, w2), hm = Min(h, h2),  
-                cX = this.centerX||0, cY = this.centerY||0, 
+                cX = self.centerX||0, cY = self.centerY||0, 
                 cX2 = (w2>>1), cY2 = (h2>>1)
             ;
             
@@ -1503,15 +1520,16 @@ var FILTER_PLUGINS = null;
         
         // constructor
         ,init: function( blendImage, blendMode, amount ) { 
-            this.startX = 0;
-            this.startY = 0;
-            this.amount = 1;
-            this._blendImage = null;
-            this.blendImage = null;
-            this._blendMode = null;
-            this.blendMode = null;
-            if ( blendImage ) this.setImage( blendImage );
-            if ( blendMode ) this.setMode( blendMode, amount );
+            var self = this;
+            self.startX = 0;
+            self.startY = 0;
+            self.amount = 1;
+            self._blendImage = null;
+            self.blendImage = null;
+            self._blendMode = null;
+            self.blendMode = null;
+            if ( blendImage ) self.setImage( blendImage );
+            if ( blendMode ) self.setMode( blendMode, amount );
         }
         
         // support worker serialize/unserialize interface
@@ -1551,48 +1569,51 @@ var FILTER_PLUGINS = null;
         
         // set blend image auxiliary method
         ,setImage: function( blendImage ) {
+            var self = this;
             if ( blendImage )
             {
-                this.blendImage = blendImage;
-                this._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+                self.blendImage = blendImage;
+                self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
             }
-            return this;
+            return self;
         }
         
         // set blend mode auxiliary method
         ,setMode: function( blendMode, amount ) {
+            var self = this;
             if ( blendMode )
             {
-                this._blendMode = (''+blendMode).toLowerCase();
-                this.blendMode = blendModes[this._blendMode] || null;
-                this.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+                self._blendMode = (''+blendMode).toLowerCase();
+                self.blendMode = blendModes[self._blendMode] || null;
+                self.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
             }
             else
             {
-                this._blendMode = null;
-                this.blendMode = null;
+                self._blendMode = null;
+                self.blendMode = null;
             }
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this.startX = 0;
-            this.startY = 0;
-            this.amount = 1;
-            this._blendMode = null;
-            this.blendMode = null;
-            return this;
+            var self = this;
+            self.startX = 0;
+            self.startY = 0;
+            self.amount = 1;
+            self._blendMode = null;
+            self.blendMode = null;
+            return self;
         }
         
         // main apply routine
         ,apply: function(im, w, h/*, image*/) {
+            var self = this;
+            if ( !self._isOn || !self.blendMode || !self._blendImage ) return im;
             
-            if ( !this.blendMode || !this._blendImage ) return im;
-            
-            var startX = this.startX||0, startY = this.startY||0, 
+            var startX = self.startX||0, startY = self.startY||0, 
                 startX2 = 0, startY2 = 0, W, H, 
-                im2, w2, h2, image2 = this._blendImage,
-                amount = this.amount||1
+                im2, w2, h2, image2 = self._blendImage,
+                amount = self.amount||1
             ;
             
             w2 = image2.width; h2 = image2.height;
@@ -1611,7 +1632,7 @@ var FILTER_PLUGINS = null;
             
             im2 = image2.data;
             
-            return this.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
+            return self.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
         }
     });
     
@@ -2869,8 +2890,9 @@ var FILTER_PLUGINS = null;
         
         // constructor
         ,init: function( thresholds, quantizedColors ) {
-            this.thresholds = thresholds;
-            this.quantizedColors = quantizedColors || null;
+            var self = this;
+            self.thresholds = thresholds;
+            self.quantizedColors = quantizedColors || null;
         }
         
         // support worker serialize/unserialize interface
@@ -2909,13 +2931,13 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            
-            if (!this.thresholds || !this.thresholds.length) return im;
-            else if (!this.quantizedColors || !this.quantizedColors.length) return im;
+            var self = this;
+            if (!self._isOn || !self.thresholds || !self.thresholds.length || 
+                !self.quantizedColors || !self.quantizedColors.length) return im;
             
             var t0, t1, t2, t3, color, rgba,
                 i, j, l=im.length,
-                thresholds=this.thresholds, tl=thresholds.length, colors=this.quantizedColors, cl=colors.length
+                thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
                 ;
             
             for (i=0; i<l; i+=4)
@@ -2963,10 +2985,11 @@ var FILTER_PLUGINS = null;
         
         // this is the filter constructor
         ,init: function( centerX, centerY, radius, amount ) {
-            this.centerX = centerX || 0;
-            this.centerY = centerY || 0;
-            this.radius = radius || 10;
-            this.amount = amount || 10;
+            var self = this;
+            self.centerX = centerX || 0;
+            self.centerY = centerY || 0;
+            self.radius = radius || 10;
+            self.amount = amount || 10;
         }
         
         // support worker serialize/unserialize interface
@@ -3008,11 +3031,13 @@ var FILTER_PLUGINS = null;
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
+            var self = this;
+            if ( !self._isOn ) return im;
             var imLen = im.length, imArea, 
                 integral, integralLen, colR, colG, colB,
                 rowLen, i, j, x , y, ty, 
-                cX = this.centerX||0, cY = this.centerY||0, 
-                r = this.radius, m = this.amount,
+                cX = self.centerX||0, cY = self.centerY||0, 
+                r = self.radius, m = self.amount,
                 d, dx, dy, blur, blurw, wt,
                 xOff1, yOff1, xOff2, yOff2,
                 p1, p2, p3, p4, t0, t1, t2,

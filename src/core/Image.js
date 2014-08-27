@@ -79,28 +79,187 @@
     
     var DATA = 1, SEL = 2, HIST = 4, SAT = 8;
     
+    // auxilliary (private) methods
+    function _getTmpCanvas( scope ) 
+    {
+        var cnv = createCanvas(scope.width, scope.height);
+        cnv.width = scope.width;
+        cnv.height = scope.height;
+        return cnv;
+    }
+    
+    function _setDimensions( scope, w, h ) 
+    {
+        scope.canvasElement.style.width = w + 'px';
+        scope.canvasElement.width = scope.width = w * devicePixelRatio;
+        scope.canvasElement.style.height = h + 'px';
+        scope.canvasElement.height = scope.height = h * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
+            scope._tmpCanvas.width = scope.canvasElement.width;
+            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
+            scope._tmpCanvas.height = scope.canvasElement.height;
+        }
+        return scope;
+    }
+    
+    function _setWidth( scope, w ) 
+    {
+        scope.canvasElement.style.width = w + 'px';
+        scope.canvasElement.width = scope.width = w * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
+            scope._tmpCanvas.width = scope.canvasElement.width;
+        }
+        return scope;
+    }
+    
+    function _setHeight( scope, h ) 
+    {
+        scope.canvasElement.style.height = h + 'px';
+        scope.canvasElement.height = scope.height = h * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
+            scope._tmpCanvas.height = scope.canvasElement.height;
+        }
+        return scope;
+    }
+    
+    // compute integral image (sum of columns)
+    function _computeIntegral( scope ) 
+    {
+        var w = scope.width, h = scope.height, rowLen = w<<2,
+            integralR, integralG, integralB, colR, colG, colB,
+            im = scope.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
+        ;
+        // compute integral of image in one pass
+        integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
+        // first row
+        j=0; i=0; colR=colG=colB=0;
+        for (x=0; x<w; x++, i+=4, j++)
+        {
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+        }
+        // other rows
+        i=rowLen; x=0; j=0; colR=colG=colB=0;
+        for (i=rowLen; i<imLen; i+=4, j++, x++)
+        {
+            if (x>=w) { x=0; colR=colG=colB=0; }
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        }
+        scope._integral = [integralR, integralG, integralB];
+        scope._needsRefresh &= ~SAT;
+        return scope;
+    }
+    
+    function _computeHistogram( scope ) 
+    {
+        var im = scope.getPixelData().data, l = im.length,
+            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+            cdfR, cdfG, cdfB, r,g,b,
+            accumR, accumG, accumB,
+            i, n=1.0/(l>>2)
+        ;
+        
+        // initialize the arrays
+        cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
+            cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
+            cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
+            cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
+        }
+        
+        // compute pdf and maxima/minima
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i]; g = im[i+1]; b = im[i+2];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            
+            if (r>maxR) maxR=r;
+            else if (r<minR) minR=r;
+            if (g>maxG) maxG=g;
+            else if (g<minG) minG=g;
+            if (b>maxB) maxB=b;
+            else if (b<minB) minB=b;
+        }
+        
+        // compute cdf
+        accumR=accumG=accumB=0;
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            accumR += cdfR[i]; cdfR[i] = accumR;
+            accumG += cdfG[i]; cdfG[i] = accumG;
+            accumB += cdfB[i]; cdfB[i] = accumB;
+            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        }
+        
+        scope._histogram = [cdfR, cdfG, cdfB];
+        scope._needsRefresh &= ~HIST;
+        return scope;
+    }
+    
+    function _refreshData( scope ) 
+    {
+        scope.imageData = scope.context.getImageData(0, 0, scope.width, scope.height);
+        scope._needsRefresh &= ~DATA;
+        return scope;
+    }
+    
+    function _refreshDataSel( scope ) 
+    {
+        if (scope.selection)
+        {
+            var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
+                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
+                ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
+            ;
+            scope.imageDataSel = scope.context.getImageData(xs, ys, ws, hs);
+        }
+        scope._needsRefresh &= ~SEL;
+        return scope;
+    }
+        
     //
     //
     // Image (Proxy) Class
-    var FImage = FILTER.Image = FILTER.Class({
+    var FImage = FILTER.Image = FILTER.Class({extends: Object, implements: FILTER.PublishSubscribe}, {
         name: "Image"
         
         ,constructor: function( img, callback ) {
-            this.width = 0;   
-            this.height = 0;
-            this.context = null;
-            this.selection = null;
-            this.imageData = null;
-            this.imageDataSel = null;
-            this.domElement = this.canvasElement = createCanvas(this.width, this.height);
-            this.context = this.canvasElement.getContext('2d');
-            this._tmpCanvas = null;
-            this.webgl = null;
-            this._histogram = null;
-            this._integral = null;
+            var self = this;
+            self.width = 0;   
+            self.height = 0;
+            self.context = null;
+            self.selection = null;
+            self.imageData = null;
+            self.imageDataSel = null;
+            self.domElement = self.canvasElement = createCanvas(self.width, self.height);
+            self.context = self.canvasElement.getContext('2d');
+            self._tmpCanvas = null;
+            self.webgl = null;
+            self._histogram = null;
+            self._integral = null;
             // lazy
-            this._needsRefresh = 0;
-            if ( img ) this.setImage( img, callback );
+            self._needsRefresh = 0;
+            self.initPubSub( );
+            if ( img ) self.setImage( img, callback );
         }
         
         // properties
@@ -118,92 +277,148 @@
         ,_needsRefresh: 0
         ,_tmpCanvas: null
         
+        ,dispose: function( ) {
+            var self = this;
+            self.width = null;   
+            self.height = null;
+            self.context = null;
+            self.selection = null;
+            self.imageData = null;
+            self.imageDataSel = null;
+            self.domElement = null;
+            self.canvasElement = null;
+            self.context = null;
+            self._tmpCanvas = null;
+            self.webgl = null;
+            self._histogram = null;
+            self._integral = null;
+            self._needsRefresh = null;
+            self.disposePubSub( );
+            return self;
+        }
+        
         ,select: function( x1, y1, x2, y2 ) {
-            this.selection = [
-                (undef===x1) ? 0 : x1,
-                (undef===y1) ? 0 : y1,
-                (undef===x2) ? 1 : x2,
-                (undef===y2) ? 1 : y2
-            ];
-            this._needsRefresh |= SEL;
-            return this;
+            var self = this, argslen = arguments.length;
+            // default
+            if ( argslen < 1 ) x1 = 0;
+            if ( argslen < 2 ) y1 = 0;
+            if ( argslen < 3 ) x2 = 1;
+            if ( argslen < 4 ) y2 = 1;
+            // clamp
+            /*x1 = parseFloat(x1, 10);
+            y1 = parseFloat(y1, 10);
+            x2 = parseFloat(x2, 10);
+            y2 = parseFloat(y2, 10);*/
+            x1 = 0 > x1 ? 0 : (1 < x1 ? 1 : x1);
+            y1 = 0 > y1 ? 0 : (1 < y1 ? 1 : y1);
+            x2 = 0 > x2 ? 0 : (1 < x2 ? 1 : x2);
+            y2 = 0 > y2 ? 0 : (1 < y2 ? 1 : y2);
+            // select
+            self.selection = [ x1, y1, x2, y2 ];
+            self._needsRefresh |= SEL;
+            return self;
         }
         
         ,deselect: function( ) {
-            this.selection = null;
-            this.imageDataSel = null;
-            this._needsRefresh &= ~SEL;
-            return this;
+            var self = this;
+            self.selection = null;
+            self.imageDataSel = null;
+            self._needsRefresh &= ~SEL;
+            return self;
         }
         
         // apply a filter (uses filter's own apply method)
         ,apply: function( filter, cb ) {
             if ( filter /*&& filter instanceof FILTER.Filter*/ )
             {
-                filter.apply( this, cb );
+                //filter.apply( this, cb||null );
+                filter.apply2( this, this, cb||null );
+            }
+            return this;
+        }
+        
+        // apply2 a filter using another image as destination
+        ,apply2: function( filter, image, cb ) {
+            if ( filter && image /*&& filter instanceof FILTER.Filter*/ )
+            {
+                filter.apply2( this, image, cb||null );
             }
             return this;
         }
         
         ,setWidth:  function( w ) {
-            this._setWidth(w);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setWidth(self, w);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setHeight: function( h ) {
-            this._setHeight(h);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setHeight(self, h);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setDimensions: function( w, h ) {
-            this._setDimensions(w, h);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setDimensions(self, w, h);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setImage: function( img, callback ) {
-            if (!img) return this;
+            if ( !img ) return this;
             
-            var self = this, image, ctx, w, h;
+            var self = this, image, ctx, w, h, 
+                isVideo = img instanceof HTMLVideoElement,
+                isCanvas = img instanceof HTMLCanvasElement,
+                isImage = img instanceof Image
+            ;
             
-            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            if ( isImage || isCanvas || isVideo )
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = (image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
-                h = (image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
-                ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
+                w = isVideo ? image.videoWidth : image.width;
+                h = isVideo ? image.videoHeight : image.height;
+                ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
                 self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                self.trigger( 'load', self );
             }
             else // url string
             {
-                image = new Image();
-                image.onload = function(){
-                    w = image.width;
-                    h = image.height;
-                    ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
-                    ctx.drawImage(image, 0, 0);
-                    self._needsRefresh |= DATA | HIST | SAT;
-                    if (self.selection) self._needsRefresh |= SEL;
-                    self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    if (typeof callback != 'undefined') callback.call(self);
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
+                image = new Image( );
+                image.onerror = image.onload = function( ) {
+                    if ( image.width && image.height )
+                    {
+                        w = image.width;
+                        h = image.height;
+                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                        ctx.drawImage(image, 0, 0);
+                        self._needsRefresh |= DATA | HIST | SAT;
+                        if (self.selection) self._needsRefresh |= SEL;
+                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                    }
+                    self.trigger( 'load', self );
                 };
+                image.crossOrigin = '';
                 image.src = img; // load it
             }
-            image.crossOrigin = '';
-            return this;
+            return self;
         }
         
         ,getPixel: function( x, y ) {
-            if (this._needsRefresh & DATA) this._refreshData();
-            var off = ~~(y*this.width+x+0.5), im = this.imageData.data;
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
+            var off = ~~(y*self.width+x+0.5), im = self.imageData.data;
             return {
                 r: im[off], 
                 g: im[off+1], 
@@ -213,33 +428,34 @@
         }
         
         ,setPixel: function( x, y, r, g, b, a ) {
-            var t = new IMG([r&255, g&255, b&255, a&255]);
-            this.context.putImageData(t, x, y); 
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this, t = new IMG([r&255, g&255, b&255, a&255]);
+            self.context.putImageData(t, x, y); 
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // get direct data array
         ,getData: function( ) {
-            if (this._needsRefresh & DATA) this._refreshData();
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
             // clone it
-            return new IMG( this.imageData.data );
+            return new IMG( self.imageData.data );
         }
         
         // get direct data array of selected part
         ,getSelectedData: function( ) {
-            var sel;
+            var self = this, sel;
             
-            if (this.selection)  
+            if (self.selection)  
             {
-                if (this._needsRefresh & SEL) this._refreshDataSel();
-                sel = this.imageDataSel;
+                if (self._needsRefresh & SEL) _refreshDataSel( self );
+                sel = self.imageDataSel;
             }
             else
             {
-                if (this._needsRefresh & DATA) this._refreshData();
-                sel = this.imageData;
+                if (self._needsRefresh & DATA) _refreshData( self );
+                sel = self.imageData;
             }
             
             // clone it
@@ -248,56 +464,60 @@
         
         // set direct data array
         ,setData: function(a/*, w, h*/) {
-            if (this._needsRefresh & DATA) this._refreshData();
-            this.imageData.data.set(a); // not supported in Opera, IE, Safari
-            this.context.putImageData(this.imageData, 0, 0); 
-            this._needsRefresh |= HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
+            self.imageData.data.set(a); // not supported in Opera, IE, Safari
+            self.context.putImageData(self.imageData, 0, 0); 
+            self._needsRefresh |= HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // set direct data array of selected part
         ,setSelectedData: function(a/*, w, h*/) {
-            if (this.selection /*this.imageDataSel*/)
+            var self = this;
+            if (self.selection /*this.imageDataSel*/)
             {
-                var sel = this.selection, ow = this.width-1, oh = this.height-1,
+                var sel = self.selection, ow = self.width-1, oh = self.height-1,
                     xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
-                if (this._needsRefresh & SEL) this._refreshDataSel();
-                this.imageDataSel.data.set(a); // not supported in Opera, IE, Safari
-                this.context.putImageData(this.imageDataSel, xs, ys); 
-                this._needsRefresh |= DATA;
+                if (self._needsRefresh & SEL) _refreshDataSel( self );
+                self.imageDataSel.data.set(a); // not supported in Opera, IE, Safari
+                self.context.putImageData(self.imageDataSel, xs, ys); 
+                self._needsRefresh |= DATA;
             }
             else
             {
-                if (this._needsRefresh & DATA) this._refreshData();
-                this.imageData.data.set(a); // not supported in Opera, IE, Safari
-                this.context.putImageData(this.imageData, 0, 0); 
-                if (this.selection) this._needsRefresh |= SEL;
+                if (self._needsRefresh & DATA) _refreshData( self );
+                self.imageData.data.set(a); // not supported in Opera, IE, Safari
+                self.context.putImageData(self.imageData, 0, 0); 
+                if (self.selection) self._needsRefresh |= SEL;
             }
-            this._needsRefresh |= HIST | SAT;
-            return this;
+            self._needsRefresh |= HIST | SAT;
+            return self;
         }
         
         // get the imageData object
         ,getPixelData: function( ) {
-            if (this._needsRefresh & DATA) this._refreshData();
+            if (this._needsRefresh & DATA) _refreshData( this );
             return this.imageData;
         }
         
         // set the imageData object
         ,setPixelData: function( data ) {
-            this.context.putImageData(data, 0, 0); 
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            self.context.putImageData(data, 0, 0); 
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,createImageData: function( w, h ) {
-            this.context = this._setDimensions(w, h).canvasElement.getContext('2d');
-            this.context.createImageData(w, h);
-            this._needsRefresh |= DATA;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+            self.context.createImageData(w, h);
+            self._needsRefresh |= DATA;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // fast copy another FILTER.Image
@@ -311,87 +531,92 @@
         }
         
         ,scale: function( sx, sy ) {
+            var self = this;
             sx = sx||1; sy = sy||sx;
-            if (1==sx && 1==sy) return this;
+            if (1==sx && 1==sy) return self;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
             //ctx.save();
             ctx.scale(sx, sy);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.width = ~~(sx*this.width+0.5);
-            this.height = ~~(sy*this.height+0.5);
-            this.canvasElement.style.width = this.width + 'px';
-            this.canvasElement.style.height = this.height + 'px';
-            this.canvasElement.width = this.width * devicePixelRatio;
-            this.canvasElement.height = this.height * devicePixelRatio;
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._tmpCanvas.width = this.width;
-            this._tmpCanvas.height = this.height;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.width = ~~(sx*self.width+0.5);
+            self.height = ~~(sy*self.height+0.5);
+            self.canvasElement.style.width = self.width + 'px';
+            self.canvasElement.style.height = self.height + 'px';
+            self.canvasElement.width = self.width * devicePixelRatio;
+            self.canvasElement.height = self.height * devicePixelRatio;
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._tmpCanvas.width = self.width;
+            self._tmpCanvas.height = self.height;
             //ctx.restore();
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,flipHorizontal: function( ) {
+            var self = this;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
-            ctx.translate(this.width, 0); 
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
+            ctx.translate(self.width, 0); 
             ctx.scale(-1, 1);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,flipVertical: function( ) {
+            var self = this;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
-            ctx.translate(0, this.height); 
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
+            ctx.translate(0, self.height); 
             ctx.scale(1, -1);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // clear the image contents
         ,clear: function( ) {
-            if (this.width && this.height)
+            var self = this;
+            if (self.width && self.height)
             {
-                var ctx = this.context;
-                ctx.clearRect(0, 0, this.width, this.height);  
-                this._needsRefresh |= DATA | HIST | SAT;
-                if (this.selection) this._needsRefresh |= SEL;
+                var ctx = self.context;
+                ctx.clearRect(0, 0, self.width, self.height);  
+                self._needsRefresh |= DATA | HIST | SAT;
+                if (self.selection) self._needsRefresh |= SEL;
             }
-            return this;
+            return self;
         }
         
         // fill image region contents with a specific background color
         ,fill: function( color, x, y, w, h ) {
-            if (!w && this.width && !h && this.height) return this;
-            else if (w && !this.width && h && !this.height)
+            var self = this;
+            if (!w && self.width && !h && self.height) return self;
+            else if (w && !self.width && h && !self.height)
             {
                 // create the image data if needed
-                this.context = this._setDimensions(w, h).canvasElement.getContext('2d');
-                this.context.createImageData(w, h);
+                self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                self.context.createImageData(w, h);
             }
             color = color||0; 
             x = x||0; y = y||0; 
-            w = w||this.width; h = h||this.height;
-            var ctx = this.context;
+            w = w||self.width; h = h||self.height;
+            var ctx = self.context;
             //ctx.save();
             ctx.fillStyle = color;  
             ctx.fillRect(x, y, w, h);
             //ctx.restore();
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,draw: function( drawable, x, y, blendMode ) {
@@ -401,25 +626,26 @@
         
         // blend with another image using various blend modes
         ,blend: function( image, mode, amount, startX, startY ) {
+            var self = this;
             if (typeof mode == 'undefined') mode='normal';
             if (typeof amount == 'undefined') amount=1;
             if (amount>1) amount=1; else if (amount<0) amount=0;
             if (typeof startX == 'undefined')  startX=0;
             if (typeof startY == 'undefined')  startY=0;
             
-            var sx=0,sy=0, ctx=this.context;
+            var sx=0,sy=0, ctx=self.context;
             
             if (startX<0) {  sx=-startX;  startX=0;  }
             if (startY<0)  { sy=-startY;  startY=0;  }
             
-            if (startX>=this.width || startY>=this.height)   return this;
+            if (startX>=self.width || startY>=self.height) return self;
             
             var blendingMode = blendModes[mode] || null;
-            if (!blendingMode) return this;
+            if (!blendingMode) return self;
             
             var 
-                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
-                imageData1 = this.context.getImageData(startX, startY, width, height),
+                width = Min(self.width, image.width-sx), height = Min(self.height, image.height-sy),
+                imageData1 = self.context.getImageData(startX, startY, width, height),
                 imageData2 = image.context.getImageData(sx, sy, width, height),
                 /** @type Array */
                 pixels1 = imageData1.data,
@@ -441,172 +667,23 @@
                 pixels1[i] = r * amount + oR * invamount;  pixels1[i + 1] = g * amount + oG * invamount;  pixels1[i + 2] = b * amount + oB * invamount;
             }
             ctx.putImageData(imageData1, startX, startY);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,integral: function( ) {
-            if (this._needsRefresh & SAT) this._computeIntegral();
+            if (this._needsRefresh & SAT) _computeIntegral( this );
             return this._integral;
         }
         
         ,histogram: function( ) {
-            if (this._needsRefresh & HIST) this._computeHistogram();
+            if (this._needsRefresh & HIST) _computeHistogram( this );
             return this._histogram;
         }
         
         ,toString: function( ) {
             return "[" + "FILTER Image: " + this.name + "]";
-        }
-        
-        // auxilliary methods
-        ,_getTmpCanvas: function( ) {
-            var cnv = createCanvas(this.width, this.height);
-            cnv.width = this.width;
-            cnv.height = this.height;
-            return cnv;
-        }
-        
-        ,_setDimensions: function( w, h ) {
-            this.canvasElement.style.width = w + 'px';
-            this.canvasElement.width = this.width = w * devicePixelRatio;
-            this.canvasElement.style.height = h + 'px';
-            this.canvasElement.height = this.height = h * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.width = this.canvasElement.style.width;
-                this._tmpCanvas.width = this.canvasElement.width;
-                this._tmpCanvas.style.height = this.canvasElement.style.height;
-                this._tmpCanvas.height = this.canvasElement.height;
-            }
-            return this;
-        }
-        
-        ,_setWidth: function( w ) {
-            this.canvasElement.style.width = w + 'px';
-            this.canvasElement.width = this.width = w * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.width = this.canvasElement.style.width;
-                this._tmpCanvas.width = this.canvasElement.width;
-            }
-            return this;
-        }
-        
-        ,_setHeight: function( h ) {
-            this.canvasElement.style.height = h + 'px';
-            this.canvasElement.height = this.height = h * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.height = this.canvasElement.style.height;
-                this._tmpCanvas.height = this.canvasElement.height;
-            }
-            return this;
-        }
-        
-        // compute integral image (sum of columns)
-        ,_computeIntegral: function( ) {
-            var w = this.width, h = this.height, rowLen = w<<2,
-                integralR, integralG, integralB, colR, colG, colB,
-                im = this.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
-            ;
-            // compute integral of image in one pass
-            integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
-            // first row
-            j=0; i=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j++)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
-            }
-            // other rows
-            i=rowLen; x=0; j=0; colR=colG=colB=0;
-            for (i=rowLen; i<imLen; i+=4, j++, x++)
-            {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-            }
-            this._integral = [integralR, integralG, integralB];
-            this._needsRefresh &= ~SAT;
-            return this;
-        }
-        
-        ,_computeHistogram: function( ) {
-            var im = this.getPixelData().data, l = im.length,
-                maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-                cdfR, cdfG, cdfB, r,g,b,
-                accumR, accumG, accumB,
-                i, n=1.0/(l>>2)
-            ;
-            
-            // initialize the arrays
-            cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-            for (i=0; i<256; i+=4) 
-            { 
-                // partial loop unrolling
-                cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
-                cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
-                cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
-                cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
-            }
-            
-            // compute pdf and maxima/minima
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
-                
-                if (r>maxR) maxR=r;
-                else if (r<minR) minR=r;
-                if (g>maxG) maxG=g;
-                else if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                else if (b<minB) minB=b;
-            }
-            
-            // compute cdf
-            accumR=accumG=accumB=0;
-            for (i=0; i<256; i+=4) 
-            { 
-                // partial loop unrolling
-                accumR += cdfR[i]; cdfR[i] = accumR;
-                accumG += cdfG[i]; cdfG[i] = accumG;
-                accumB += cdfB[i]; cdfB[i] = accumB;
-                accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-                accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-                accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            }
-            
-            this._histogram = [cdfR, cdfG, cdfB];
-            this._needsRefresh &= ~HIST;
-            return this;
-        }
-        
-        ,_refreshData: function( ) {
-            this.imageData = this.context.getImageData(0, 0, this.width, this.height);
-            this._needsRefresh &= ~DATA;
-            return this;
-        }
-        
-        ,_refreshDataSel: function( ) {
-            if (this.selection)
-            {
-                var sel = this.selection, ow = this.width-1, oh = this.height-1,
-                    xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
-                    ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
-                ;
-                this.imageDataSel = this.context.getImageData(xs, ys, ws, hs);
-            }
-            this._needsRefresh &= ~SEL;
-            return this;
         }
     });
 
@@ -617,9 +694,10 @@
         name: "ScaledImage"
         
         ,constructor: function( scalex, scaley, img, callback ) {
-            this.scaleX = scalex || 1;
-            this.scaleY = scaley || this.scaleX;
-            this.$super('constructor', img, callback);
+            var self = this;
+            self.scaleX = scalex || 1;
+            self.scaleY = scaley || self.scaleX;
+            self.$super('constructor', img, callback);
         }
         
         ,scaleX: 1
@@ -630,49 +708,65 @@
         }
         
         ,setScale: function( sx, sy ) {
-            if (undef!==sx && null!==sx) this.scaleX = sx;
-            if (undef===sy && undef!==sx && null!==sx) this.scaleY = sx;
-            else if (null!==sy) this.scaleY = sy;
-            return this;
+            var self = this, argslen = arguments.length;
+            if (argslen > 0 && null != sx) 
+            {
+                self.scaleX = sx;
+                self.scaleY = sx;
+            }
+            if (argslen > 1 && null != sy) 
+                self.scaleY = sy;
+            return self;
         }
         
         ,setImage: function( img, callback ) {
-            if (!img) return this;
+            if ( !img ) return this;
             
-            var self = this, image, ctx, w, h, sw, sh, sx = this.scaleX, sy = this.scaleY;
+            var self = this, image, ctx, w, h, 
+                sw, sh, sx = self.scaleX, sy = self.scaleY,
+                isVideo = img instanceof HTMLVideoElement,
+                isCanvas = img instanceof HTMLCanvasElement,
+                isImage = img instanceof Image
+            ;
             
-            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            if ( isImage || isCanvas || isVideo )
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = (image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
-                h = (image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
+                w = isVideo ? image.videoWidth : image.width;
+                h = isVideo ? image.videoHeight : image.height;
                 sw = ~~(sx*w + 0.5);
                 sh = ~~(sy*h + 0.5);
-                ctx = self.context = self._setDimensions(sw, sh).canvasElement.getContext('2d');
+                ctx = self.context = _setDimensions(self, sw, sh).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
                 self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                self.trigger('load', self);
             }
             else // url string
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image();
-                image.onload = function(){
-                    w = image.width;
-                    h = image.height;
-                    sw = ~~(sx*w + 0.5);
-                    sh = ~~(sy*h + 0.5);
-                    ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
-                    ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
-                    self._needsRefresh |= DATA | HIST | SAT;
-                    if (self.selection) self._needsRefresh |= SEL;
-                    self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    if (typeof callback != 'undefined') callback.call(self);
+                image.onerror = image.onload = function( ) {
+                    if ( image.width && image.height )
+                    {
+                        w = image.width;
+                        h = image.height;
+                        sw = ~~(sx*w + 0.5);
+                        sh = ~~(sy*h + 0.5);
+                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                        ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
+                        self._needsRefresh |= DATA | HIST | SAT;
+                        if (self.selection) self._needsRefresh |= SEL;
+                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                    }
+                    self.trigger('load', self);
                 };
+                image.crossOrigin = '';
                 image.src = img; // load it
             }
-            image.crossOrigin = '';
-            return this;
+            return self;
         }
     });
     

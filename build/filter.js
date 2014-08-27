@@ -1,14 +1,15 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.12
-*   @dependencies: Classy.js
+*   @version: 0.6.13
+*   @dependencies: Classy.js, Asynchronous.js, PublishSubscribe
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/!function ( root, name, deps, factory, undef ) {
 
+    "use strict";
     var isNode = ("undefined" !== typeof global && "[object global]" === {}.toString.call(global)),
         isBrowser = (!isNode && "undefined" !== typeof navigator ), 
         isWorker = ("function" === typeof importScripts && navigator instanceof WorkerNavigator),
@@ -197,22 +198,33 @@
 
 }(  /* current root */          this, 
     /* module name */           "FILTER",
-    /* module dependencies */   [ ['Classy', './classy'] ], 
-    /* module factory */        function( Classy ) {
+    /* module dependencies */   [ ['Classy', './classy'], ['Asynchronous', './asynchronous'], ['PublishSubscribe', './publishsubscribe'] ], 
+    /* module factory */        function( Classy, Asynchronous, PublishSubscribe ) {
         
         /* main code starts here */
 
 /**
 *
 *   FILTER.js
-*   @version: 0.6.12
-*   @dependencies: Classy.js
+*   @version: 0.6.13
+*   @dependencies: Classy.js, Asynchronous.js, PublishSubscribe
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.Merge };
+var FILTER = this.FILTER || { 
+    VERSION: "0.6.13", 
+    Class: Classy.Class, 
+    Merge: Classy.Merge, 
+    PublishSubscribe: PublishSubscribe, 
+    Asynchronous: Asynchronous, 
+    getPath: Asynchronous.currentPath, 
+    isNode: Asynchronous.isPlatform( Asynchronous.Platform.NODE ),
+    isBrowser: Asynchronous.isPlatform( Asynchronous.Platform.BROWSER ),
+    supportsWorker: Asynchronous.supportsMultiThreading( ),
+    isWorker: Asynchronous.isThread( )
+};
     
 /**
 *
@@ -232,11 +244,8 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         ,Merge = FILTER.Merge, log
         
-        ,isNode = "undefined" !== typeof( global ) && '[object global]' === toString( global )
-        ,isBrowser = !isNode && "undefined" !== typeof( navigator )
-        ,isWorker = "function" === typeof( importScripts ) && navigator instanceof WorkerNavigator
-        ,supportsWorker = "function" === typeof( Worker )
-        
+        ,isNode = FILTER.isNode, isBrowser = FILTER.isBrowser
+        ,supportsWorker = FILTER.supportsWorker, isWorker = FILTER.isWorker
         ,userAgent = navigator ? navigator.userAgent : ""
     ;
     
@@ -282,33 +291,6 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     Browser.isIE_lt9 = Browser.isIE && !isWorker && (null == document.documentMode || document.documentMode < 9);
     Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
     
-    // Get current filename/path
-    FILTER.getPath = function( ) {
-        var file = null, scripts;
-        
-        if ( isNode ) 
-        {
-            // http://nodejs.org/docs/latest/api/globals.html#globals_filename
-            // this should hold the current file in node
-            return { path: __dirname, file: __filename };
-        }
-        else if ( isWorker )
-        {
-            // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
-            // this should hold the current url in a web worker
-            file = self.location.href;
-        }
-        else if ( isBrowser && (scripts = document.getElementsByTagName('script')) && scripts.length )
-        {
-            // get last script (should be the current one) in browser
-            file  = scripts[ scripts.length - 1 ].src;
-        }
-        
-        return file 
-                ? { path: file.split('/').slice(0, -1).join('/'), file: ''+file }
-                : { path: null, file: null }
-        ;
-    };
     var devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1;
     FILTER.getCanvas = FILTER.createCanvas = function( w, h ) {
         var canvas = document.createElement( 'canvas' );
@@ -364,10 +346,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
     if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray.prototype.set )
     {
-        var _set = function( a, ind ) {
+        var _set = function( a, offset ) {
                 var i = a.length;
-                ind = parseInt( ind, 10 ) || 0;
-                while ( --i >= 0 ) this[ i + ind ] = a[ i ];
+                offset = offset || 0;
+                while ( --i >= 0 ) this[ i + offset ] = a[ i ];
                 return this;
         };
         // add the missing method to the array
@@ -378,24 +360,24 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     //
     // Constants
     FILTER.CONSTANTS = {
-        PI : Math.PI,
-        PI2 : 2*Math.PI,
-        PI_2 : 0.5*Math.PI,
-        SQRT2 : Math.SQRT2,
-        toRad : Math.PI/180, 
-        toDeg : 180/Math.PI
+        PI: Math.PI,
+        PI2: 2*Math.PI,
+        PI_2: 0.5*Math.PI,
+        SQRT2: Math.SQRT2,
+        toRad: Math.PI/180, 
+        toDeg: 180/Math.PI
     };
     FILTER.CHANNEL = {
-        RED : 0,
-        GREEN : 1,
-        BLUE : 2,
-        ALPHA : 3
+        RED: 0,
+        GREEN: 1,
+        BLUE: 2,
+        ALPHA: 3
     };
     FILTER.MODE = {
-        IGNORE : 0,
-        WRAP : 1,
-        CLAMP : 2,
-        COLOR : 4
+        IGNORE: 0,
+        WRAP: 1,
+        CLAMP: 2,
+        COLOR: 4
     };
     FILTER.LUMA = new FILTER.Array32F([ 
         0.212671, 
@@ -406,71 +388,6 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     //
     //
     // logging
-    if ( isWorker )
-    {
-        var filter = null;
-        
-        root.console = {
-            log: function(s){
-                postMessage({event: 'console.log', data: {output: s||''}});
-            },
-            error: function(s){
-                postMessage({event: 'console.error', data: {output: s||''}});
-            },
-        };
-        
-        onmessage = function( evt ) {
-            var event = evt.data.event, data = evt.data.data || null;
-            switch( event )
-            {
-                case 'init':
-                    if ( data && data.filter && FILTER[ data.filter ] )
-                    {
-                        if ( filter ) filter.dispose( true );
-                        filter = new FILTER[ data.filter ]( );
-                    }
-                    else
-                    {
-                        throw new Error('Filter "' + data.filter + '" could not be created');
-                    }
-                    break;
-                case 'import':
-                    if ( data && data["import"] && data["import"].length )
-                    {
-                        importScripts( data["import"].join(',') );
-                    }
-                    break;
-                case 'params':
-                    if ( filter )
-                    {
-                        filter.unserialize( data );
-                    }
-                    break;
-                case 'apply':
-                    if ( filter )
-                    {
-                        if ( data && data.im )
-                        {
-                            if ( data.params ) filter.unserialize( data.params );
-                            filter.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
-                        }
-                        else
-                        {
-                            filter.send( 'apply', {im: null} );
-                        }
-                    }
-                    break;
-                case 'dispose':
-                default:
-                    if ( filter )
-                    {
-                        filter.dispose( true );
-                    }
-                    close( );
-                    break;
-            }
-        };        
-    }
     log = FILTER.log = (console && console.log) ? console.log : function( s ) { /* do nothing*/ };
     FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
     FILTER.error = function( s ) { log( 'ERROR: ' + s ); };
@@ -478,34 +395,78 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     //
     //
     // Worker Interface Filter
-    var FilterWorkerInterface = FILTER.FilterWorkerInterface = FILTER.Class({
+    var FilterWorker = FILTER.FilterThread = FILTER.Class( FILTER.Asynchronous, {
         
         path: FILTER.getPath( )
         ,name: null
         
-        ,_worker: null
-        ,_workerListeners: null
-        
-        ,disposeWorker: function( ) {
-            var self = this;
-            if ( self._worker )
+        ,constructor: function( ) {
+            var self = this, filter = null;
+            if ( isWorker )
             {
-                self.send( 'dispose' );
-                //self._worker.terminate( );
-                self._worker = null;
-                self._workerListeners = null;
+                self.initThread( )
+                    .listen('load', function( data ) {
+                        if ( data && data.filter )
+                        {
+                            if ( filter ) 
+                            {
+                                filter.dispose( true );
+                                filter = null;
+                            }
+                            filter = FILTER.Asynchronous.load('FILTER.' + data.filter);
+                        }
+                    })
+                    .listen('import', function( data ) {
+                        if ( data && data["import"] && data["import"].length )
+                        {
+                            importScripts( data["import"]/*.join(',')*/ );
+                        }
+                    })
+                    .listen('params', function( data ) {
+                        if ( filter ) filter.unserialize( data );
+                    })
+                    .listen('apply', function( data ) {
+                        if ( filter && data && data.im )
+                        {
+                            if ( data.params ) filter.unserialize( data.params );
+                            self.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
+                        }
+                        else
+                        {
+                            self.send( 'apply', {im: null} );
+                        }
+                    })
+                    .listen('dispose', function( data ) {
+                        if ( filter ) 
+                        {
+                            filter.dispose( true );
+                            filter = null;
+                        }
+                        self.dispose( true );
+                        close( );
+                    })
+                ;
             }
             return self;
         }
         
-        // @override
-        ,serialize: function( ) {
-            return {};
-        }
-        
-        // @override
-        ,unserialize: function( json ) {
-            return this;
+        // activate or de-activate worker filter
+        ,worker: function( enable ) {
+            var self = this;
+            if ( !arguments.length ) enable = true;
+            enable = !!enable;
+            // activate worker
+            if ( true === enable ) 
+            {
+                self.fork('FILTER.FilterThread', self.path.file);
+                self.send('load', {filter: self.name});
+            }
+            // de-activate worker (if was activated before)
+            else 
+            {
+                self.unfork( );
+            }
+            return self;
         }
         
         ,sources: function( ) {
@@ -516,152 +477,59 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 for (i=0; i<sources.length; i++)
                 {
                     if ( 'function' === typeof( sources[ i ] ) )
-                    {
                         blobs.push( blobURL( sources[ i ].toString( ) ) );
-                    }
                     else
-                    {
                         blobs.push( blobURL( sources[ i ] ) );
-                    }
                 }
-                this.send('import', {'import': blobs});
+                this.send('import', {'import': blobs.join( ',' )});
             }
             return this;
         }
         
         ,scripts: function( ) {
             var scripts = slice( arguments );
-            if ( scripts.length )
-            {
-                this.send('import', {'import': scripts});
-            }
-            return this;
-        }
-        
-        // get or de-activate a worker filter
-        ,worker: function( bool ) {
-            var self = this, worker;
-            
-            if ( !arguments.length ) bool = true;
-            bool = !!bool;
-            
-            // de-activate worker (if was activated before)
-            if ( false === bool )
-            {
-                if ( self._worker ) self.disposeWorker( );
-                return self;
-            }
-            
-            if ( !self._worker )
-            {
-                if ( !supportsWorker )
-                {
-                    throw new Error('Worker is not supported');
-                    return;
-                }
-                
-                self._workerListeners = { };
-                
-                worker = self._worker = new Worker( this.path.file );
-                
-                worker.onmessage = function( evt ) {
-                    if ( evt.data.event )
-                    {
-                        var event = evt.data.event, data = evt.data.data || null;
-                        if ( self._workerListeners && self._workerListeners[ event ] ) 
-                        {
-                            self._workerListeners[ event ]( data );
-                        }
-                        
-                        if ( "console.log" === event || "console.error" === event )
-                        {
-                            log( 'Worker: ' + data.output );
-                        }
-                    }
-                };
-                
-                worker.onerror = function( evt ) {
-                    if ( self._workerListeners && self._workerListeners.error )
-                    {
-                        self._workerListeners.error( evt );
-                    }
-                    else
-                    {
-                        throw new Error( 'Worker Error: ' + evt.message + ' file: ' + evt.filename + ' line: ' + evt.lineno );
-                    }
-                };
-                
-                self.send( 'init', { filter: self.name } );
-            }
-            
-            return self;
-        }
-        
-        ,bind: function( event, handler ) {
-            if ( event && handler && this._workerListeners )
-            {
-                this._workerListeners[ event ] = handler.bind( this );
-            }
-            return this;
-        }
-        
-        ,unbind: function( event ) {
-            if ( event && this._workerListeners && this._workerListeners[ event ] )
-            {
-                delete this._workerListeners[ event ];
-            }
-            return this;
-        }
-        
-        ,send: function( event, data ) {
-            if ( event )
-            {
-                if ( isWorker )
-                {
-                    postMessage({event: event, data: data || null});
-                }
-                else if ( this._worker )
-                {
-                    this._worker.postMessage({event: event, data: data || null});
-                }
-            }
-            return this;
-        }
-    });
-   
-    //
-    //
-    // Abstract Generic Filter
-    var Filter = FILTER.Filter = FILTER.Class( FilterWorkerInterface, {
-        name: "Filter"
-        
-        // dummy
-        ,constructor: function( ) {
-        }
-        
-        // filters can have id's
-        ,id: null
-        
-        ,_isOn: true
-        
-        // @override
-        ,dispose: function( ) {
-            this.disposeWorker( );
+            if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }
         
         // @override
         ,serialize: function( ) {
-            return { filter: this.name, _isOn: !!this._isOn };
+            var self = this;
+            return { filter: self.name, _isOn: !!self._isOn, params: {} };
         }
         
         // @override
         ,unserialize: function( json ) {
-            if ( json && this.name === json.filter )
+            var self = this;
+            if ( json && self.name === json.filter )
             {
-                this._isOn = !!json._isOn;
+                self._isOn = !!json._isOn;
             }
-            return this;
+            return self;
+        }
+    });
+   
+    //
+    //
+    // Abstract Generic Filter (implements Async Worker Interface transparently)
+    var Filter = FILTER.Filter = FILTER.Class( {extends: FilterWorker, implements: FILTER.PublishSubscribe}, {
+        name: "Filter"
+        
+        ,constructor: function( ) {
+            var self = this;
+            //self.$super('constructor', 100);
+            self.initPubSub( );
+        }
+        
+        // filters can have id's
+        ,id: null
+        ,_isOn: true
+        
+        ,dispose: function( ) {
+            var self = this;
+            self.$super('dispose');
+            self.disposePubSub( );
+            return self;
         }
         
         // whether filter is ON
@@ -699,30 +567,38 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return im;
         }
         
-        // generic apply method, maybe overwritten
-        ,apply: function( image, cb ) {
-            if ( image && this._isOn )
+        // generic apply2 method, maybe overwritten
+        // apply a filter from an image to another image
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
+            return src;
+        }
+        
+        // generic apply method, maybe overwritten
+        ,apply: function( image, cb ) {
+            if ( image && this._isOn ) this.apply2( image, image, cb );
             return image;
         }
         
@@ -743,8 +619,12 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 ,toString: toStringPlugin
                 ,apply: function( im, w, h, image ){ return im; }
         }, methods);
-        methods.constructor = methods.init;
+        var init = methods.init;
         methods._apply = methods.apply;
+        methods.constructor = /*methods.init;*/ function( ) {
+            this.$super('constructor');
+            init.apply( this, slice(arguments) );
+        };
         delete methods.init;
         delete methods.apply;
         return FILTER.Class( Filter, methods );
@@ -1863,28 +1743,187 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     
     var DATA = 1, SEL = 2, HIST = 4, SAT = 8;
     
+    // auxilliary (private) methods
+    function _getTmpCanvas( scope ) 
+    {
+        var cnv = createCanvas(scope.width, scope.height);
+        cnv.width = scope.width;
+        cnv.height = scope.height;
+        return cnv;
+    }
+    
+    function _setDimensions( scope, w, h ) 
+    {
+        scope.canvasElement.style.width = w + 'px';
+        scope.canvasElement.width = scope.width = w * devicePixelRatio;
+        scope.canvasElement.style.height = h + 'px';
+        scope.canvasElement.height = scope.height = h * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
+            scope._tmpCanvas.width = scope.canvasElement.width;
+            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
+            scope._tmpCanvas.height = scope.canvasElement.height;
+        }
+        return scope;
+    }
+    
+    function _setWidth( scope, w ) 
+    {
+        scope.canvasElement.style.width = w + 'px';
+        scope.canvasElement.width = scope.width = w * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
+            scope._tmpCanvas.width = scope.canvasElement.width;
+        }
+        return scope;
+    }
+    
+    function _setHeight( scope, h ) 
+    {
+        scope.canvasElement.style.height = h + 'px';
+        scope.canvasElement.height = scope.height = h * devicePixelRatio;
+        if (scope._tmpCanvas)
+        {
+            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
+            scope._tmpCanvas.height = scope.canvasElement.height;
+        }
+        return scope;
+    }
+    
+    // compute integral image (sum of columns)
+    function _computeIntegral( scope ) 
+    {
+        var w = scope.width, h = scope.height, rowLen = w<<2,
+            integralR, integralG, integralB, colR, colG, colB,
+            im = scope.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
+        ;
+        // compute integral of image in one pass
+        integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
+        // first row
+        j=0; i=0; colR=colG=colB=0;
+        for (x=0; x<w; x++, i+=4, j++)
+        {
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+        }
+        // other rows
+        i=rowLen; x=0; j=0; colR=colG=colB=0;
+        for (i=rowLen; i<imLen; i+=4, j++, x++)
+        {
+            if (x>=w) { x=0; colR=colG=colB=0; }
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        }
+        scope._integral = [integralR, integralG, integralB];
+        scope._needsRefresh &= ~SAT;
+        return scope;
+    }
+    
+    function _computeHistogram( scope ) 
+    {
+        var im = scope.getPixelData().data, l = im.length,
+            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+            cdfR, cdfG, cdfB, r,g,b,
+            accumR, accumG, accumB,
+            i, n=1.0/(l>>2)
+        ;
+        
+        // initialize the arrays
+        cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
+            cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
+            cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
+            cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
+        }
+        
+        // compute pdf and maxima/minima
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i]; g = im[i+1]; b = im[i+2];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            
+            if (r>maxR) maxR=r;
+            else if (r<minR) minR=r;
+            if (g>maxG) maxG=g;
+            else if (g<minG) minG=g;
+            if (b>maxB) maxB=b;
+            else if (b<minB) minB=b;
+        }
+        
+        // compute cdf
+        accumR=accumG=accumB=0;
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            accumR += cdfR[i]; cdfR[i] = accumR;
+            accumG += cdfG[i]; cdfG[i] = accumG;
+            accumB += cdfB[i]; cdfB[i] = accumB;
+            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        }
+        
+        scope._histogram = [cdfR, cdfG, cdfB];
+        scope._needsRefresh &= ~HIST;
+        return scope;
+    }
+    
+    function _refreshData( scope ) 
+    {
+        scope.imageData = scope.context.getImageData(0, 0, scope.width, scope.height);
+        scope._needsRefresh &= ~DATA;
+        return scope;
+    }
+    
+    function _refreshDataSel( scope ) 
+    {
+        if (scope.selection)
+        {
+            var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
+                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
+                ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
+            ;
+            scope.imageDataSel = scope.context.getImageData(xs, ys, ws, hs);
+        }
+        scope._needsRefresh &= ~SEL;
+        return scope;
+    }
+        
     //
     //
     // Image (Proxy) Class
-    var FImage = FILTER.Image = FILTER.Class({
+    var FImage = FILTER.Image = FILTER.Class({extends: Object, implements: FILTER.PublishSubscribe}, {
         name: "Image"
         
         ,constructor: function( img, callback ) {
-            this.width = 0;   
-            this.height = 0;
-            this.context = null;
-            this.selection = null;
-            this.imageData = null;
-            this.imageDataSel = null;
-            this.domElement = this.canvasElement = createCanvas(this.width, this.height);
-            this.context = this.canvasElement.getContext('2d');
-            this._tmpCanvas = null;
-            this.webgl = null;
-            this._histogram = null;
-            this._integral = null;
+            var self = this;
+            self.width = 0;   
+            self.height = 0;
+            self.context = null;
+            self.selection = null;
+            self.imageData = null;
+            self.imageDataSel = null;
+            self.domElement = self.canvasElement = createCanvas(self.width, self.height);
+            self.context = self.canvasElement.getContext('2d');
+            self._tmpCanvas = null;
+            self.webgl = null;
+            self._histogram = null;
+            self._integral = null;
             // lazy
-            this._needsRefresh = 0;
-            if ( img ) this.setImage( img, callback );
+            self._needsRefresh = 0;
+            self.initPubSub( );
+            if ( img ) self.setImage( img, callback );
         }
         
         // properties
@@ -1902,92 +1941,148 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,_needsRefresh: 0
         ,_tmpCanvas: null
         
+        ,dispose: function( ) {
+            var self = this;
+            self.width = null;   
+            self.height = null;
+            self.context = null;
+            self.selection = null;
+            self.imageData = null;
+            self.imageDataSel = null;
+            self.domElement = null;
+            self.canvasElement = null;
+            self.context = null;
+            self._tmpCanvas = null;
+            self.webgl = null;
+            self._histogram = null;
+            self._integral = null;
+            self._needsRefresh = null;
+            self.disposePubSub( );
+            return self;
+        }
+        
         ,select: function( x1, y1, x2, y2 ) {
-            this.selection = [
-                (undef===x1) ? 0 : x1,
-                (undef===y1) ? 0 : y1,
-                (undef===x2) ? 1 : x2,
-                (undef===y2) ? 1 : y2
-            ];
-            this._needsRefresh |= SEL;
-            return this;
+            var self = this, argslen = arguments.length;
+            // default
+            if ( argslen < 1 ) x1 = 0;
+            if ( argslen < 2 ) y1 = 0;
+            if ( argslen < 3 ) x2 = 1;
+            if ( argslen < 4 ) y2 = 1;
+            // clamp
+            /*x1 = parseFloat(x1, 10);
+            y1 = parseFloat(y1, 10);
+            x2 = parseFloat(x2, 10);
+            y2 = parseFloat(y2, 10);*/
+            x1 = 0 > x1 ? 0 : (1 < x1 ? 1 : x1);
+            y1 = 0 > y1 ? 0 : (1 < y1 ? 1 : y1);
+            x2 = 0 > x2 ? 0 : (1 < x2 ? 1 : x2);
+            y2 = 0 > y2 ? 0 : (1 < y2 ? 1 : y2);
+            // select
+            self.selection = [ x1, y1, x2, y2 ];
+            self._needsRefresh |= SEL;
+            return self;
         }
         
         ,deselect: function( ) {
-            this.selection = null;
-            this.imageDataSel = null;
-            this._needsRefresh &= ~SEL;
-            return this;
+            var self = this;
+            self.selection = null;
+            self.imageDataSel = null;
+            self._needsRefresh &= ~SEL;
+            return self;
         }
         
         // apply a filter (uses filter's own apply method)
         ,apply: function( filter, cb ) {
             if ( filter /*&& filter instanceof FILTER.Filter*/ )
             {
-                filter.apply( this, cb );
+                //filter.apply( this, cb||null );
+                filter.apply2( this, this, cb||null );
+            }
+            return this;
+        }
+        
+        // apply2 a filter using another image as destination
+        ,apply2: function( filter, image, cb ) {
+            if ( filter && image /*&& filter instanceof FILTER.Filter*/ )
+            {
+                filter.apply2( this, image, cb||null );
             }
             return this;
         }
         
         ,setWidth:  function( w ) {
-            this._setWidth(w);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setWidth(self, w);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setHeight: function( h ) {
-            this._setHeight(h);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setHeight(self, h);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setDimensions: function( w, h ) {
-            this._setDimensions(w, h);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            _setDimensions(self, w, h);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,setImage: function( img, callback ) {
-            if (!img) return this;
+            if ( !img ) return this;
             
-            var self = this, image, ctx, w, h;
+            var self = this, image, ctx, w, h, 
+                isVideo = img instanceof HTMLVideoElement,
+                isCanvas = img instanceof HTMLCanvasElement,
+                isImage = img instanceof Image
+            ;
             
-            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            if ( isImage || isCanvas || isVideo )
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = (image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
-                h = (image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
-                ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
+                w = isVideo ? image.videoWidth : image.width;
+                h = isVideo ? image.videoHeight : image.height;
+                ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
                 self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                self.trigger( 'load', self );
             }
             else // url string
             {
-                image = new Image();
-                image.onload = function(){
-                    w = image.width;
-                    h = image.height;
-                    ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
-                    ctx.drawImage(image, 0, 0);
-                    self._needsRefresh |= DATA | HIST | SAT;
-                    if (self.selection) self._needsRefresh |= SEL;
-                    self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    if (typeof callback != 'undefined') callback.call(self);
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
+                image = new Image( );
+                image.onerror = image.onload = function( ) {
+                    if ( image.width && image.height )
+                    {
+                        w = image.width;
+                        h = image.height;
+                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                        ctx.drawImage(image, 0, 0);
+                        self._needsRefresh |= DATA | HIST | SAT;
+                        if (self.selection) self._needsRefresh |= SEL;
+                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                    }
+                    self.trigger( 'load', self );
                 };
+                image.crossOrigin = '';
                 image.src = img; // load it
             }
-            image.crossOrigin = '';
-            return this;
+            return self;
         }
         
         ,getPixel: function( x, y ) {
-            if (this._needsRefresh & DATA) this._refreshData();
-            var off = ~~(y*this.width+x+0.5), im = this.imageData.data;
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
+            var off = ~~(y*self.width+x+0.5), im = self.imageData.data;
             return {
                 r: im[off], 
                 g: im[off+1], 
@@ -1997,33 +2092,34 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,setPixel: function( x, y, r, g, b, a ) {
-            var t = new IMG([r&255, g&255, b&255, a&255]);
-            this.context.putImageData(t, x, y); 
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this, t = new IMG([r&255, g&255, b&255, a&255]);
+            self.context.putImageData(t, x, y); 
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // get direct data array
         ,getData: function( ) {
-            if (this._needsRefresh & DATA) this._refreshData();
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
             // clone it
-            return new IMG( this.imageData.data );
+            return new IMG( self.imageData.data );
         }
         
         // get direct data array of selected part
         ,getSelectedData: function( ) {
-            var sel;
+            var self = this, sel;
             
-            if (this.selection)  
+            if (self.selection)  
             {
-                if (this._needsRefresh & SEL) this._refreshDataSel();
-                sel = this.imageDataSel;
+                if (self._needsRefresh & SEL) _refreshDataSel( self );
+                sel = self.imageDataSel;
             }
             else
             {
-                if (this._needsRefresh & DATA) this._refreshData();
-                sel = this.imageData;
+                if (self._needsRefresh & DATA) _refreshData( self );
+                sel = self.imageData;
             }
             
             // clone it
@@ -2032,56 +2128,60 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // set direct data array
         ,setData: function(a/*, w, h*/) {
-            if (this._needsRefresh & DATA) this._refreshData();
-            this.imageData.data.set(a); // not supported in Opera, IE, Safari
-            this.context.putImageData(this.imageData, 0, 0); 
-            this._needsRefresh |= HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            if (self._needsRefresh & DATA) _refreshData( self );
+            self.imageData.data.set(a); // not supported in Opera, IE, Safari
+            self.context.putImageData(self.imageData, 0, 0); 
+            self._needsRefresh |= HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // set direct data array of selected part
         ,setSelectedData: function(a/*, w, h*/) {
-            if (this.selection /*this.imageDataSel*/)
+            var self = this;
+            if (self.selection /*this.imageDataSel*/)
             {
-                var sel = this.selection, ow = this.width-1, oh = this.height-1,
+                var sel = self.selection, ow = self.width-1, oh = self.height-1,
                     xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
-                if (this._needsRefresh & SEL) this._refreshDataSel();
-                this.imageDataSel.data.set(a); // not supported in Opera, IE, Safari
-                this.context.putImageData(this.imageDataSel, xs, ys); 
-                this._needsRefresh |= DATA;
+                if (self._needsRefresh & SEL) _refreshDataSel( self );
+                self.imageDataSel.data.set(a); // not supported in Opera, IE, Safari
+                self.context.putImageData(self.imageDataSel, xs, ys); 
+                self._needsRefresh |= DATA;
             }
             else
             {
-                if (this._needsRefresh & DATA) this._refreshData();
-                this.imageData.data.set(a); // not supported in Opera, IE, Safari
-                this.context.putImageData(this.imageData, 0, 0); 
-                if (this.selection) this._needsRefresh |= SEL;
+                if (self._needsRefresh & DATA) _refreshData( self );
+                self.imageData.data.set(a); // not supported in Opera, IE, Safari
+                self.context.putImageData(self.imageData, 0, 0); 
+                if (self.selection) self._needsRefresh |= SEL;
             }
-            this._needsRefresh |= HIST | SAT;
-            return this;
+            self._needsRefresh |= HIST | SAT;
+            return self;
         }
         
         // get the imageData object
         ,getPixelData: function( ) {
-            if (this._needsRefresh & DATA) this._refreshData();
+            if (this._needsRefresh & DATA) _refreshData( this );
             return this.imageData;
         }
         
         // set the imageData object
         ,setPixelData: function( data ) {
-            this.context.putImageData(data, 0, 0); 
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            self.context.putImageData(data, 0, 0); 
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,createImageData: function( w, h ) {
-            this.context = this._setDimensions(w, h).canvasElement.getContext('2d');
-            this.context.createImageData(w, h);
-            this._needsRefresh |= DATA;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            var self = this;
+            self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+            self.context.createImageData(w, h);
+            self._needsRefresh |= DATA;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // fast copy another FILTER.Image
@@ -2095,87 +2195,92 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,scale: function( sx, sy ) {
+            var self = this;
             sx = sx||1; sy = sy||sx;
-            if (1==sx && 1==sy) return this;
+            if (1==sx && 1==sy) return self;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
             //ctx.save();
             ctx.scale(sx, sy);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.width = ~~(sx*this.width+0.5);
-            this.height = ~~(sy*this.height+0.5);
-            this.canvasElement.style.width = this.width + 'px';
-            this.canvasElement.style.height = this.height + 'px';
-            this.canvasElement.width = this.width * devicePixelRatio;
-            this.canvasElement.height = this.height * devicePixelRatio;
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._tmpCanvas.width = this.width;
-            this._tmpCanvas.height = this.height;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.width = ~~(sx*self.width+0.5);
+            self.height = ~~(sy*self.height+0.5);
+            self.canvasElement.style.width = self.width + 'px';
+            self.canvasElement.style.height = self.height + 'px';
+            self.canvasElement.width = self.width * devicePixelRatio;
+            self.canvasElement.height = self.height * devicePixelRatio;
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._tmpCanvas.width = self.width;
+            self._tmpCanvas.height = self.height;
             //ctx.restore();
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,flipHorizontal: function( ) {
+            var self = this;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
-            ctx.translate(this.width, 0); 
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
+            ctx.translate(self.width, 0); 
             ctx.scale(-1, 1);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,flipVertical: function( ) {
+            var self = this;
             // lazy
-            this._tmpCanvas = this._tmpCanvas || this._getTmpCanvas();
-            var ctx = this._tmpCanvas.getContext('2d');
-            ctx.translate(0, this.height); 
+            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
+            var ctx = self._tmpCanvas.getContext('2d');
+            ctx.translate(0, self.height); 
             ctx.scale(1, -1);
-            ctx.drawImage(this.canvasElement, 0, 0);
-            this.context.drawImage(this._tmpCanvas, 0, 0);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            ctx.drawImage(self.canvasElement, 0, 0);
+            self.context.drawImage(self._tmpCanvas, 0, 0);
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         // clear the image contents
         ,clear: function( ) {
-            if (this.width && this.height)
+            var self = this;
+            if (self.width && self.height)
             {
-                var ctx = this.context;
-                ctx.clearRect(0, 0, this.width, this.height);  
-                this._needsRefresh |= DATA | HIST | SAT;
-                if (this.selection) this._needsRefresh |= SEL;
+                var ctx = self.context;
+                ctx.clearRect(0, 0, self.width, self.height);  
+                self._needsRefresh |= DATA | HIST | SAT;
+                if (self.selection) self._needsRefresh |= SEL;
             }
-            return this;
+            return self;
         }
         
         // fill image region contents with a specific background color
         ,fill: function( color, x, y, w, h ) {
-            if (!w && this.width && !h && this.height) return this;
-            else if (w && !this.width && h && !this.height)
+            var self = this;
+            if (!w && self.width && !h && self.height) return self;
+            else if (w && !self.width && h && !self.height)
             {
                 // create the image data if needed
-                this.context = this._setDimensions(w, h).canvasElement.getContext('2d');
-                this.context.createImageData(w, h);
+                self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                self.context.createImageData(w, h);
             }
             color = color||0; 
             x = x||0; y = y||0; 
-            w = w||this.width; h = h||this.height;
-            var ctx = this.context;
+            w = w||self.width; h = h||self.height;
+            var ctx = self.context;
             //ctx.save();
             ctx.fillStyle = color;  
             ctx.fillRect(x, y, w, h);
             //ctx.restore();
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,draw: function( drawable, x, y, blendMode ) {
@@ -2185,25 +2290,26 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // blend with another image using various blend modes
         ,blend: function( image, mode, amount, startX, startY ) {
+            var self = this;
             if (typeof mode == 'undefined') mode='normal';
             if (typeof amount == 'undefined') amount=1;
             if (amount>1) amount=1; else if (amount<0) amount=0;
             if (typeof startX == 'undefined')  startX=0;
             if (typeof startY == 'undefined')  startY=0;
             
-            var sx=0,sy=0, ctx=this.context;
+            var sx=0,sy=0, ctx=self.context;
             
             if (startX<0) {  sx=-startX;  startX=0;  }
             if (startY<0)  { sy=-startY;  startY=0;  }
             
-            if (startX>=this.width || startY>=this.height)   return this;
+            if (startX>=self.width || startY>=self.height) return self;
             
             var blendingMode = blendModes[mode] || null;
-            if (!blendingMode) return this;
+            if (!blendingMode) return self;
             
             var 
-                width = Min(this.width, image.width-sx), height = Min(this.height, image.height-sy),
-                imageData1 = this.context.getImageData(startX, startY, width, height),
+                width = Min(self.width, image.width-sx), height = Min(self.height, image.height-sy),
+                imageData1 = self.context.getImageData(startX, startY, width, height),
                 imageData2 = image.context.getImageData(sx, sy, width, height),
                 /** @type Array */
                 pixels1 = imageData1.data,
@@ -2225,172 +2331,23 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 pixels1[i] = r * amount + oR * invamount;  pixels1[i + 1] = g * amount + oG * invamount;  pixels1[i + 2] = b * amount + oB * invamount;
             }
             ctx.putImageData(imageData1, startX, startY);
-            this._needsRefresh |= DATA | HIST | SAT;
-            if (this.selection) this._needsRefresh |= SEL;
-            return this;
+            self._needsRefresh |= DATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
         }
         
         ,integral: function( ) {
-            if (this._needsRefresh & SAT) this._computeIntegral();
+            if (this._needsRefresh & SAT) _computeIntegral( this );
             return this._integral;
         }
         
         ,histogram: function( ) {
-            if (this._needsRefresh & HIST) this._computeHistogram();
+            if (this._needsRefresh & HIST) _computeHistogram( this );
             return this._histogram;
         }
         
         ,toString: function( ) {
             return "[" + "FILTER Image: " + this.name + "]";
-        }
-        
-        // auxilliary methods
-        ,_getTmpCanvas: function( ) {
-            var cnv = createCanvas(this.width, this.height);
-            cnv.width = this.width;
-            cnv.height = this.height;
-            return cnv;
-        }
-        
-        ,_setDimensions: function( w, h ) {
-            this.canvasElement.style.width = w + 'px';
-            this.canvasElement.width = this.width = w * devicePixelRatio;
-            this.canvasElement.style.height = h + 'px';
-            this.canvasElement.height = this.height = h * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.width = this.canvasElement.style.width;
-                this._tmpCanvas.width = this.canvasElement.width;
-                this._tmpCanvas.style.height = this.canvasElement.style.height;
-                this._tmpCanvas.height = this.canvasElement.height;
-            }
-            return this;
-        }
-        
-        ,_setWidth: function( w ) {
-            this.canvasElement.style.width = w + 'px';
-            this.canvasElement.width = this.width = w * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.width = this.canvasElement.style.width;
-                this._tmpCanvas.width = this.canvasElement.width;
-            }
-            return this;
-        }
-        
-        ,_setHeight: function( h ) {
-            this.canvasElement.style.height = h + 'px';
-            this.canvasElement.height = this.height = h * devicePixelRatio;
-            if (this._tmpCanvas)
-            {
-                this._tmpCanvas.style.height = this.canvasElement.style.height;
-                this._tmpCanvas.height = this.canvasElement.height;
-            }
-            return this;
-        }
-        
-        // compute integral image (sum of columns)
-        ,_computeIntegral: function( ) {
-            var w = this.width, h = this.height, rowLen = w<<2,
-                integralR, integralG, integralB, colR, colG, colB,
-                im = this.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
-            ;
-            // compute integral of image in one pass
-            integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
-            // first row
-            j=0; i=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j++)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
-            }
-            // other rows
-            i=rowLen; x=0; j=0; colR=colG=colB=0;
-            for (i=rowLen; i<imLen; i+=4, j++, x++)
-            {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-            }
-            this._integral = [integralR, integralG, integralB];
-            this._needsRefresh &= ~SAT;
-            return this;
-        }
-        
-        ,_computeHistogram: function( ) {
-            var im = this.getPixelData().data, l = im.length,
-                maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-                cdfR, cdfG, cdfB, r,g,b,
-                accumR, accumG, accumB,
-                i, n=1.0/(l>>2)
-            ;
-            
-            // initialize the arrays
-            cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-            for (i=0; i<256; i+=4) 
-            { 
-                // partial loop unrolling
-                cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
-                cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
-                cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
-                cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
-            }
-            
-            // compute pdf and maxima/minima
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
-                
-                if (r>maxR) maxR=r;
-                else if (r<minR) minR=r;
-                if (g>maxG) maxG=g;
-                else if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                else if (b<minB) minB=b;
-            }
-            
-            // compute cdf
-            accumR=accumG=accumB=0;
-            for (i=0; i<256; i+=4) 
-            { 
-                // partial loop unrolling
-                accumR += cdfR[i]; cdfR[i] = accumR;
-                accumG += cdfG[i]; cdfG[i] = accumG;
-                accumB += cdfB[i]; cdfB[i] = accumB;
-                accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-                accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-                accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            }
-            
-            this._histogram = [cdfR, cdfG, cdfB];
-            this._needsRefresh &= ~HIST;
-            return this;
-        }
-        
-        ,_refreshData: function( ) {
-            this.imageData = this.context.getImageData(0, 0, this.width, this.height);
-            this._needsRefresh &= ~DATA;
-            return this;
-        }
-        
-        ,_refreshDataSel: function( ) {
-            if (this.selection)
-            {
-                var sel = this.selection, ow = this.width-1, oh = this.height-1,
-                    xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
-                    ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
-                ;
-                this.imageDataSel = this.context.getImageData(xs, ys, ws, hs);
-            }
-            this._needsRefresh &= ~SEL;
-            return this;
         }
     });
 
@@ -2401,9 +2358,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "ScaledImage"
         
         ,constructor: function( scalex, scaley, img, callback ) {
-            this.scaleX = scalex || 1;
-            this.scaleY = scaley || this.scaleX;
-            this.$super('constructor', img, callback);
+            var self = this;
+            self.scaleX = scalex || 1;
+            self.scaleY = scaley || self.scaleX;
+            self.$super('constructor', img, callback);
         }
         
         ,scaleX: 1
@@ -2414,49 +2372,65 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,setScale: function( sx, sy ) {
-            if (undef!==sx && null!==sx) this.scaleX = sx;
-            if (undef===sy && undef!==sx && null!==sx) this.scaleY = sx;
-            else if (null!==sy) this.scaleY = sy;
-            return this;
+            var self = this, argslen = arguments.length;
+            if (argslen > 0 && null != sx) 
+            {
+                self.scaleX = sx;
+                self.scaleY = sx;
+            }
+            if (argslen > 1 && null != sy) 
+                self.scaleY = sy;
+            return self;
         }
         
         ,setImage: function( img, callback ) {
-            if (!img) return this;
+            if ( !img ) return this;
             
-            var self = this, image, ctx, w, h, sw, sh, sx = this.scaleX, sy = this.scaleY;
+            var self = this, image, ctx, w, h, 
+                sw, sh, sx = self.scaleX, sy = self.scaleY,
+                isVideo = img instanceof HTMLVideoElement,
+                isCanvas = img instanceof HTMLCanvasElement,
+                isImage = img instanceof Image
+            ;
             
-            if (img instanceof Image || img instanceof HTMLCanvasElement || img instanceof HTMLVideoElement)
+            if ( isImage || isCanvas || isVideo )
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = (image instanceof HTMLVideoElement) ? image.videoWidth : image.width;
-                h = (image instanceof HTMLVideoElement) ? image.videoHeight : image.height;
+                w = isVideo ? image.videoWidth : image.width;
+                h = isVideo ? image.videoHeight : image.height;
                 sw = ~~(sx*w + 0.5);
                 sh = ~~(sy*h + 0.5);
-                ctx = self.context = self._setDimensions(sw, sh).canvasElement.getContext('2d');
+                ctx = self.context = _setDimensions(self, sw, sh).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
                 self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                self.trigger('load', self);
             }
             else // url string
             {
+                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image();
-                image.onload = function(){
-                    w = image.width;
-                    h = image.height;
-                    sw = ~~(sx*w + 0.5);
-                    sh = ~~(sy*h + 0.5);
-                    ctx = self.context = self._setDimensions(w, h).canvasElement.getContext('2d');
-                    ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
-                    self._needsRefresh |= DATA | HIST | SAT;
-                    if (self.selection) self._needsRefresh |= SEL;
-                    self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    if (typeof callback != 'undefined') callback.call(self);
+                image.onerror = image.onload = function( ) {
+                    if ( image.width && image.height )
+                    {
+                        w = image.width;
+                        h = image.height;
+                        sw = ~~(sx*w + 0.5);
+                        sh = ~~(sy*h + 0.5);
+                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
+                        ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
+                        self._needsRefresh |= DATA | HIST | SAT;
+                        if (self.selection) self._needsRefresh |= SEL;
+                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
+                    }
+                    self.trigger('load', self);
                 };
+                image.crossOrigin = '';
                 image.src = img; // load it
             }
-            image.crossOrigin = '';
-            return this;
+            return self;
         }
     });
     
@@ -2482,16 +2456,18 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "CompositeFilter"
         
         ,constructor: function( filters ) { 
-            this._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
+            var self = this;
+            self.$super('constructor');
+            self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
         }
         
         ,_stack: null
         ,_stable: true
         
         ,dispose: function( withFilters ) {
-            var i, stack = this._stack;
+            var self = this, i, stack = self._stack;
             
-            this.disposeWorker( );
+            self.$super('dispose');
             
             if ( true === withFilters )
             {
@@ -2501,13 +2477,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                     stack[ i ] = null;
                 }
             }
-            this._stack = null;
+            self._stack = null;
             
-            return this;
+            return self;
         }
         
         ,serialize: function( ) {
-            var json = { filter: this.name, _isOn: !!this._isOn, _stable: !!this._stable, filters: [ ] }, i, stack = this._stack;
+            var self = this, json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, filters: [ ] }, i, stack = self._stack;
             for (i=0; i<stack.length; i++)
             {
                 json.filters.push( stack[ i ].serialize( ) );
@@ -2645,10 +2621,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // used for internal purposes
         ,_apply: function( im, w, h, image ) {
-            
-            if ( this._isOn && this._stack.length )
+            var self = this;
+            if ( self._isOn && self._stack.length )
             {
-                var _filterstack = this._stack, _stacklength = _filterstack.length, 
+                var _filterstack = self._stack, _stacklength = _filterstack.length, 
                     fi, filter;
                     
                 for ( fi=0; fi<_stacklength; fi++ )
@@ -2661,30 +2637,31 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // make it so other composite filters can be  used as simple filter components in the stack
-        ,apply: function( image, cb ) {
-            if ( image && this._isOn && this._stack.length )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._stack.length )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
         
         ,toString: function( ) {
@@ -2723,16 +2700,19 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "CustomFilter"
         
         ,constructor: function( handler ) {
+            var self = this;
+            self.$super('constructor');
             // using bind makes the code become [native code] and thus unserializable
-            this._handler = handler && 'function' === typeof(handler) ? handler/*.bind( this )*/ : null;
+            self._handler = handler && 'function' === typeof(handler) ? handler : null;
         }
         
         ,_handler: null
         
         ,dispose: function( ) {
-            this.disposeWorker( );
-            this._handler = null;
-            return this;
+            var self = this;
+            self.$super('dispose');
+            self._handler = null;
+            return self;
         }
         
         ,serialize: function( ) {
@@ -2759,41 +2739,43 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 if ( params._handler )
                 {
                     // using bind makes the code become [native code] and thus unserializable
-                    self._handler = eval( '(function(){ "use strict"; return ' + params._handler + '})();')/*.bind( self )*/;
+                    self._handler = eval( '(function(){ "use strict"; return ' + params._handler + '})();');
                 }
             }
             return self;
         }
         
         ,_apply: function( im, w, h, image ) {
-            if ( !this._isOn || !this._handler ) return im;
-            return this._handler.call( this, im, w, h, image );
+            var self = this;
+            if ( !self._isOn || !self._handler ) return im;
+            return self._handler( self, im, w, h, image );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._handler )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._handler )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._handler.call( this, im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._handler( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     
@@ -2829,19 +2811,21 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "ColorMatrixFilter"
         
         ,constructor: function( matrix ) {
+            var self = this;
+            self.$super('constructor');
             if ( matrix && matrix.length )
             {
-                this._matrix = new CM(matrix);
+                self._matrix = new CM(matrix);
             }    
             else
             {
                 // identity matrix
-                this._matrix = null;
+                self._matrix = null;
             }
             
             if ( FILTER.useWebGL )
             {
-                this._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
+                self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
             }
         }
         
@@ -2851,7 +2835,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._matrix = null;
@@ -3379,9 +3363,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // used for internal purposes
         ,_apply: function(p, w, h/*, image*/) {
-            if ( this._isOn && this._matrix )
+            var self = this;
+            if ( self._isOn && self._matrix )
             {
-                var pl = p.length, m = this._matrix,
+                var pl = p.length, m = self._matrix,
                     i, rem = (pl>>2)%4,
                     p0, p1, p2, p3, 
                     p4, p5, p6, p7, 
@@ -3391,87 +3376,45 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 ;
                 
                 // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-                if (notSupportClamp)
-                {   
-                    // linearize array
-                    // partial loop unrolling (quarter iterations)
-                    for (i=0; i<pl; i+=16)
-                    {
-                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        // clamp them manually
-                        p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                        p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                        p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                        p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                        p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
-                        p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
-                        p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
-                        p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
-                        p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
-                        p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
-                        p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
-                        p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
-                        p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
-                        p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
-                        p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
-                        p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
-                        
-                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-                    }
-                    
-                    // loop unrolling remainder
-                    if (rem)
-                    {
-                        rem <<= 2;
-                        for (i=pl-rem; i<pl; i+=4)
-                        {
-                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                            
-                            // clamp them manually
-                            p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                            p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                            p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                            p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                            
-                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        }
-                    }
-                }
-                else
+                // linearize array
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<pl; i+=16)
                 {
-                    // linearize array
-                    // partial loop unrolling (quarter iterations)
-                    for (i=0; i<pl; i+=16)
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                    p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                    p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                    p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                    p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                    p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=pl-rem; i<pl; i+=4)
                     {
                         t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
                         p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
@@ -3479,52 +3422,16 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                         p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
                         p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
                         
-                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
                         p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-                    }
-                    
-                    // loop unrolling remainder
-                    if (rem)
-                    {
-                        rem <<= 2;
-                        for (i=pl-rem; i<pl; i+=4)
-                        {
-                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                            
-                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        }
                     }
                 }
             }
             return p;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._matrix )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._matrix )
             {
                 /*if (this._webglInstance)
                 {
@@ -3538,27 +3445,27 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                     this._webglInstance._apply(image.webgl, w, h);
                     return image;
                 }*/
-                if ( this._worker )
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
+                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    var im = image.getSelectedData( );
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    im = src.getSelectedData( );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliases
@@ -3566,7 +3473,100 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
     ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
     ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
-        
+    if (notSupportClamp)
+    {   
+        ColorMatrixFilter.prototype._apply = function(p, w, h/*, image*/) {
+            var self = this;
+            if ( self._isOn && self._matrix )
+            {
+                var pl = p.length, m = self._matrix,
+                    i, rem = (pl>>2)%4,
+                    p0, p1, p2, p3, 
+                    p4, p5, p6, p7, 
+                    p8, p9, p10, p11,
+                    p12, p13, p14, p15,
+                    t0, t1, t2, t3
+                ;
+                
+                // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+                // linearize array
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<pl; i+=16)
+                {
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                    p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                    p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                    p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    // clamp them manually
+                    p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                    p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                    p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                    p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                    p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
+                    p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
+                    p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
+                    p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
+                    p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
+                    p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
+                    p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
+                    p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
+                    p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
+                    p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
+                    p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
+                    p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                    p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                    p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=pl-rem; i<pl; i+=4)
+                    {
+                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        // clamp them manually
+                        p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                        p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                        p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                        p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                        
+                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    }
+                }
+            }
+            return p;
+        };
+    }
+    
     //
     //
     // private methods
@@ -3703,10 +3703,12 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "TableLookupFilter"
         
         ,constructor: function( tR, tG, tB, tA ) {
-            this._tableR = tR || null;
-            this._tableG = tG || this._tableR;
-            this._tableB = tB || this._tableG;
-            this._tableA = tA || null;
+            var self = this;
+            self.$super('constructor');
+            self._tableR = tR || null;
+            self._tableG = tG || self._tableR;
+            self._tableB = tB || self._tableG;
+            self._tableA = tA || null;
         }
         
         // parameters
@@ -3718,7 +3720,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._tableR = null;
             self._tableG = null;
@@ -4042,12 +4044,12 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // used for internal purposes
         ,_apply: function(im, w, h/*, image*/) {
-            
-            if ( !this._isOn || !this._tableR ) return im;
+            var self = this;
+            if ( !self._isOn || !self._tableR ) return im;
             
             var l=im.length, rem = (l>>2)%4,
                 i, r, g, b, a,
-                tR=this._tableR, tG=this._tableG, tB=this._tableB, tA=this._tableA;
+                tR=self._tableR, tG=self._tableG, tB=self._tableB, tA=self._tableA;
             
             // apply filter (algorithm implemented directly based on filter definition)
             if ( tA )
@@ -4107,31 +4109,32 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return im;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._tableR )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._tableR )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
-        },
+            return src;
+        }
     });
     // aliases
     TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;
@@ -4162,7 +4165,9 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "DisplacementMapFilter"
         
         ,constructor: function( displacemap ) {
-            if ( displacemap ) this.setMap( displacemap );
+            var self = this;
+            self.$super('constructor');
+            if ( displacemap ) self.setMap( displacemap );
         }
         
         ,_map: null
@@ -4184,7 +4189,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._map = null;
             self.map = null;
@@ -4255,9 +4260,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,reset: function( ) {
-            this._map = null; 
-            this.map = null; 
-            return this;
+            var self = this;
+            self._map = null; 
+            self.map = null; 
+            return self;
         }
         
         ,getMap: function( ) {
@@ -4265,47 +4271,49 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,setMap: function( map )  {
+            var self = this;
             if ( map )
             {
-                this.map = map; 
-                this._map = { data: map.getData( ), width: map.width, height: map.height }; 
+                self.map = map; 
+                self._map = { data: map.getData( ), width: map.width, height: map.height }; 
             }
-            return this;
+            return self;
         }
         
         ,setColor: function( c ) {
-            this.color = c;
-            this.alpha = (c >> 24) & 255; 
-            this.red = (c >> 16) & 255; 
-            this.green = (c >> 8) & 255; 
-            this.blue = c & 255;
-            return this;
+            var self = this;
+            self.color = c;
+            self.alpha = (c >> 24) & 255; 
+            self.red = (c >> 16) & 255; 
+            self.green = (c >> 8) & 255; 
+            self.blue = c & 255;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h/*, image*/ ) {
-            
-            if ( !this._isOn || !this._map ) return im;
+            var self = this;
+            if ( !self._isOn || !self._map ) return im;
             
             var map, mapW, mapH, mapArea, displace, ww, hh,
-                sx = this.scaleX*0.00390625, sy = this.scaleY*0.00390625, 
-                comx = this.componentX, comy = this.componentY, 
-                alpha = this.alpha, red = this.red, 
-                green = this.green, blue = this.blue, mode = this.mode,
+                sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
+                comx = self.componentX, comy = self.componentY, 
+                alpha = self.alpha, red = self.red, 
+                green = self.green, blue = self.blue, mode = self.mode,
                 sty, stx, styw, bx0, by0, bx, by,
                 i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
                 applyArea, imArea, imLen, imcopy, srcx, srcy,
                 _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
             ;
             
-            map = this._map.data;
-            mapW = this._map.width; mapH = this._map.height; 
+            map = self._map.data;
+            mapW = self._map.width; mapH = self._map.height; 
             mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
             imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
             
             // make start relative
-            stx = Floor(this.startX*(w-1));
-            sty = Floor(this.startY*(h-1));
+            stx = Floor(self.startX*(w-1));
+            sty = Floor(self.startY*(h-1));
             styw = sty*w;
             bx0 = -stx; by0 = -sty; bx = w-stx-1; by = h-sty-1;
             
@@ -4376,30 +4384,31 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return im;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && (this._map || this.map) )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && (self._map || self.map) )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     
@@ -4438,8 +4447,9 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "GeometricMapFilter"
         
         ,constructor: function( inverseTransform ) {
-            if ( inverseTransform )
-                this.generic( inverseTransform );
+            var self = this;
+            self.$super('constructor');
+            if ( inverseTransform ) self.generic( inverseTransform );
         }
         
         // parameters
@@ -4464,7 +4474,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._map = null;
             self._mapName = null;
@@ -4540,112 +4550,125 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 if ( params.inverseTransform )
                 {
                     // using bind makes the code become [native code] and thus unserializable
-                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();')/*.bind( self )*/;
+                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();');
                 }
                 
                 self._mapName = params._mapName;
                 self._map = null;
                 if ( self._mapName && Maps[ self._mapName ] )
-                    self._map = Maps[ self._mapName ].bind( self );
+                    self._map = Maps[ self._mapName ];
             }
             return self;
         }
         
         ,generic: function( inverseTransform ) {
+            var self = this;
             if ( inverseTransform )
             {
-                this.inverseTransform = inverseTransform;
-                this._mapName = "generic"; 
-                this._map = Maps.generic.bind( this ); 
+                self.inverseTransform = inverseTransform;
+                self._mapName = "generic"; 
+                self._map = Maps.generic; 
             }
-            return this;
+            return self;
         }
         
         ,affine: function( matrix ) {
+            var self = this;
             if ( matrix )
             {
-                this.matrix = matrix; 
-                this._mapName = "affine";  
-                this._map = Maps.affine.bind( this ); 
+                self.matrix = matrix; 
+                self._mapName = "affine";  
+                self._map = Maps.affine; 
             }
-            return this;
+            return self;
         }
         
         ,flipX: function( ) {
-            this._mapName = "flipX";  
-            this._map = Maps.flipX.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipX";  
+            self._map = Maps.flipX; 
+            return self;
         }
         
         ,flipY: function( ) {
-            this._mapName = "flipY";  
-            this._map = Maps.flipY.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipY";  
+            self._map = Maps.flipY; 
+            return self;
         }
         
         ,flipXY: function( ) {
-            this._mapName = "flipXY";  
-            this._map = Maps.flipXY.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipXY";  
+            self._map = Maps.flipXY; 
+            return self;
         }
         
         ,rotateCW: function( ) {
-            this._mapName = "rotateCW";  
-            this._map = Maps.rotateCW.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "rotateCW";  
+            self._map = Maps.rotateCW; 
+            return self;
         }
         
         ,rotateCCW: function( ) {
-            this._mapName = "rotateCCW";  
-            this._map = Maps.rotateCCW.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "rotateCCW";  
+            self._map = Maps.rotateCCW; 
+            return self;
         }
         
         ,polar: function( centerX, centerY ) {
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "polar";  
-            this._map = Maps.polar.bind( this ); 
-            return this;
+            var self = this;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "polar";  
+            self._map = Maps.polar; 
+            return self;
         }
         
         ,cartesian: function( centerX, centerY ) {
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "cartesian";  
-            this._map = Maps.cartesian.bind( this ); 
-            return this;
+            var self = this;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "cartesian";  
+            self._map = Maps.cartesian; 
+            return self;
         }
         
         ,twirl: function( angle, radius, centerX, centerY ) {
-            this.angle = angle||0; this.radius = radius||0;
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "twirl";  
-            this._map = Maps.twirl.bind( this ); 
-            return this;
+            var self = this;
+            self.angle = angle||0; self.radius = radius||0;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "twirl";  
+            self._map = Maps.twirl; 
+            return self;
         }
         
         ,sphere: function( radius, centerX, centerY ) {
-            this.radius = radius||0; this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "sphere";  
-            this._map = Maps.sphere.bind( this ); 
-            return this;
+            var self = this;
+            self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "sphere";  
+            self._map = Maps.sphere; 
+            return self;
         }
         
         ,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
-            this.radius = (radius!==undef) ? radius : 50; 
-            this.centerX = centerX||0; 
-            this.centerY = centerY||0;
-            this.wavelength = (wavelength!==undef) ? wavelength : 16; 
-            this.amplitude = (amplitude!==undef) ? amplitude : 10; 
-            this.phase = phase||0;
-            this._mapName = "ripple";  
-            this._map = Maps.ripple.bind( this ); 
-            return this;
+            var self = this;
+            self.radius = (radius!==undef) ? radius : 50; 
+            self.centerX = centerX||0; 
+            self.centerY = centerY||0;
+            self.wavelength = (wavelength!==undef) ? wavelength : 16; 
+            self.amplitude = (amplitude!==undef) ? amplitude : 10; 
+            self.phase = phase||0;
+            self._mapName = "ripple";  
+            self._map = Maps.ripple; 
+            return self;
         }
         
         ,reset: function( ) {
-            this._mapName = null; 
-            this._map = null; 
-            return this;
+            var self = this;
+            self._mapName = null; 
+            self._map = null; 
+            return self;
         }
         
         ,getMap: function( ) {
@@ -4653,41 +4676,44 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,setMap: function( map ) {
-            this._mapName = null; 
-            this._map = map; 
-            return this;
+            var self = this;
+            self._mapName = null; 
+            self._map = map; 
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h, image ) {
-            if ( !this._isOn || !this._map ) return im;
-            return this._map( im, w, h, image );
+            var self = this;
+            if ( !self._isOn || !self._map ) return im;
+            return self._map( self, im, w, h, image );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._map )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._map )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._map( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._map( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     
@@ -4698,9 +4724,9 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     
     /*function trivialMap(im, w, h) { return im; },*/
     Maps = {
-        "generic": function( im, w, h )  {
+        "generic": function( self, im, w, h )  {
             var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
-                invTransform=this.inverseTransform, mode=this.mode,
+                invTransform=self.inverseTransform, mode=self.mode,
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 t, tx, ty
             ;
@@ -4738,10 +4764,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
     
-        ,"affine": function( im, w, h ) {
+        ,"affine": function( self, im, w, h ) {
             var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-                mat=this.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
-                tyw, cw, dw, mode=this.mode,
+                mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
+                tyw, cw, dw, mode=self.mode,
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 nx, ny, bx=w-1, by=imArea-w
             ;
@@ -4779,7 +4805,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
     
-        ,"flipX": function( im, w, h ) {
+        ,"flipX": function( self, im, w, h ) {
             var x, y, yw, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw=0;
@@ -4794,7 +4820,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"flipY": function flipYMap( im, w, h ) {
+        ,"flipY": function flipYMap( self, im, w, h ) {
             var x, y, yw2, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw2=(h-1)*w;
@@ -4809,7 +4835,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"flipXY": function( im, w, h )  {
+        ,"flipXY": function( self, im, w, h )  {
             var x, y, yw, yw2, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw2=(h-1)*w;
@@ -4824,7 +4850,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"rotateCW": function( im, w, h )  {
+        ,"rotateCW": function( self, im, w, h )  {
             var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
                 hw=(l>>2);
             
@@ -4840,7 +4866,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"rotateCCW": function( im, w, h ) {
+        ,"rotateCCW": function( self, im, w, h ) {
             var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
                 hw=(l>>2);
             
@@ -4857,11 +4883,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // adapted from http://je2050.de/imageprocessing/ TwirlMap
-        ,"twirl": function( im, w, h )  {
-            if ( 0 >= this.radius ) return im;
+        ,"twirl": function( self, im, w, h )  {
+            if ( 0 >= self.radius ) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im), // in Opera this is by-reference, hence the previous discrepancies
-                cX=this.centerX, cY=this.centerY, angle=this.angle, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, angle=self.angle, radius=self.radius, mode=self.mode, 
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, theta, fact=angle/radius,
                 bx=w-1, by=h-1
@@ -4913,11 +4939,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // adapted from http://je2050.de/imageprocessing/ SphereMap
-        ,"sphere": function( im, w, h )  {
-            if (0>=this.radius) return im;
+        ,"sphere": function( self, im, w, h )  {
+            if (0>=self.radius) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-                cX=this.centerX, cY=this.centerY, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, theta, radius2=radius*radius,
                 refraction = 0.555556, invrefraction=1-refraction,
@@ -4972,19 +4998,19 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // adapted from https://github.com/JoelBesada/JSManipulate
-        ,"ripple": function( im, w, h ) {
-            if (0>=this.radius) return im;
+        ,"ripple": function( self, im, w, h ) {
+            if (0>=self.radius) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, amount, 
                 r2, d2, ds, tx2, ty2,
                 bx=w-1, by=h-1,
-                cX=this.centerX, cY=this.centerY, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
                 radius2=radius*radius,
-                wavelength = this.wavelength,
-                amplitude = this.amplitude,
-                phase = this.phase
+                wavelength = self.wavelength,
+                amplitude = self.amplitude,
+                phase = self.phase
             ;
             
             // make center relative
@@ -5037,7 +5063,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // adapted from http://www.jhlabs.com/ip/filters/
         /*
-        ,"circle": function( im, w, h ) {
+        ,"circle": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 tx, ty, ix, iy, ip, d2,
@@ -5091,13 +5117,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return im;
         }
         */
-        ,"polar": function( im, w, h ) {
+        ,"polar": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 tx, ty, ix, iy, ip,
                 bx = w-1, by = h-1, 
                 theta, r=0, radius, cX, cY, 
-                mode = this.mode
+                mode = self.mode
             ;
             
             cX = ~~(0.5*w + 0.5);
@@ -5183,13 +5209,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // adapted from http://www.jhlabs.com/ip/filters/
-        ,"cartesian": function( im, w, h ) {
+        ,"cartesian": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 ix, iy, ip, nx, ny,
                 bx = w-1, by = h-1, 
                 theta, theta2, r=0, radius, cX, cY, 
-                mode = this.mode
+                mode = self.mode
             ;
             
             cX = ~~(0.5*w + 0.5);
@@ -5313,22 +5339,24 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "ConvolutionMatrixFilter"
         
         ,constructor: function( weights, factor, bias ) {
-            this._coeff = new CM([1.0, 0.0]);
+            var self = this;
+            self.$super('constructor');
+            self._coeff = new CM([1.0, 0.0]);
             
             if ( weights && weights.length)
             {
-                this.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
+                self.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
             }
             else 
             {
-                this._matrix = null; this._dim = 0;
+                self._matrix = null; self._dim = 0;
             }
-            this._matrix2 = null;  this._dim2 = 0;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
+            self._matrix2 = null;  self._dim2 = 0;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
             
             if ( FILTER.useWebGL ) 
             {
-                this._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
+                self._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
             }
         }
         
@@ -5351,7 +5379,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._dim = null;
@@ -5598,12 +5626,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,set: function( m, d, f, b ) {
-            this._matrix2 = null; this._dim2 = 0; this._indices2 = this._indicesf2 = null; this._mat2 = null;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
-            this._matrix = new CM(m); this._dim = d; this._coeff[0] = f||1; this._coeff[1] = b||0;
-            var tmp  = this._computeIndices(this._matrix, this._dim);
-            this._indices = tmp[0]; this._indicesf = tmp[1]; this._mat = tmp[2];
-            return this;
+            var self = this;
+            self._matrix2 = null; self._dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+            self._matrix = new CM(m); self._dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
+            var tmp  = self._computeIndices(self._matrix, self._dim);
+            self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
+            return self;
         }
         
         ,_computeIndices: function( m, d ) {
@@ -5627,12 +5656,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,reset: function( ) {
-            this._matrix = this._matrix2 = null; 
-            this._mat = this._mat2 = null; 
-            this._dim = this._dim2 = 0;
-            this._indices = this._indices2 = this._indicesf = this._indicesf2 = null;
-            this._isGrad = false; this._doIntegral = 0; this._doSeparable = false;
-            return this;
+            var self = this;
+            self._matrix = self._matrix2 = null; 
+            self._mat = self._mat2 = null; 
+            self._dim = self._dim2 = 0;
+            self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
+            self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+            return self;
         }
         
         ,combineWith: function( filt ) {
@@ -5651,20 +5681,20 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         
         // used for internal purposes
         ,_apply: function(im, w, h/*, image*/) {
-            
-            if ( !this._isOn || !this._matrix ) return im;
+            var self = this;
+            if ( !self._isOn || !self._matrix ) return im;
             
             // do a faster convolution routine if possible
-            if ( this._doIntegral ) 
+            if ( self._doIntegral ) 
             {
-                if (this._matrix2)
-                    return integralConvolution(im, w, h, this._matrix, this._matrix2, this._dim, this._dim2, this._coeff[0], this._coeff[1], this._doIntegral);
+                if (self._matrix2)
+                    return integralConvolution(im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral);
                 else
-                    return integralConvolution(im, w, h, this._matrix, null, this._dim, this._dim, this._coeff[0], this._coeff[1], this._doIntegral);
+                    return integralConvolution(im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
             }
-            else if ( this._doSeparable )
+            else if ( self._doSeparable )
             {
-                return separableConvolution(im, w, h, this._mat, this._mat2, this._indices, this._indices2, this._coeff[0], this._coeff[1]);
+                return separableConvolution(im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
             }
             // handle some common cases fast
             /*else if (3==this._dim)
@@ -5679,8 +5709,8 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 xOff, yOff, srcOff, 
                 r, g, b, r2, g2, b2,
                 bx = w-1, by = imArea-w,
-                coeff1 = this._coeff[0], coeff2 = this._coeff[1],
-                mat = this._matrix, mat2 = this._matrix2, wt, wt2, _isGrad = this._isGrad,                
+                coeff1 = self._coeff[0], coeff2 = self._coeff[1],
+                mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
                 mArea, matArea, imageIndices
                 ;
             
@@ -5689,8 +5719,8 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             {
                 // pre-compute indices, 
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = this._indicesf.length; 
-                imageIndices = new A16I(this._indicesf);
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
                 for (k=0; k<mArea; k+=2)
                 { 
                     imageIndices[k+1] *= w;
@@ -5744,13 +5774,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             {
                 // pre-compute indices, 
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = this._indices.length; 
-                imageIndices = new A16I(this._indices);
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2)
                 { 
                     imageIndices[k+1] *= w;
                 }
-                mat = this._mat;
+                mat = self._mat;
                 matArea = mat.length;
                 
                 // do direct convolution
@@ -5790,8 +5820,9 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._matrix )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._matrix )
             {
                 /*if (this._webglInstance)
                 {
@@ -5812,27 +5843,27 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                     this._webglInstance._apply(image.webgl, w, h);
                     return image;
                 }*/
-                if ( this._worker )
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
+                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    var im = image.getSelectedData( );
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image) );
-                    if ( cb ) cb.call( this );
+                    im = src.getSelectedData( );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliases
@@ -6378,11 +6409,13 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "MorphologicalFilter"
         
         ,constructor: function( ) {
-            this._filterName = null;
-            this._filter = null;
-            this._dim = 0;
-            this._structureElement = null;
-            this._indices = null;
+            var self = this;
+            self.$super('constructor');
+            self._filterName = null;
+            self._filter = null;
+            self._dim = 0;
+            self._structureElement = null;
+            self._indices = null;
         }
         
         ,_filterName: null
@@ -6394,7 +6427,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._filterName = null;
             self._filter = null;
@@ -6433,7 +6466,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 self._indices = params._indices;
                 self._filterName = params._filterName;
                 if ( self._filterName && Filters[ self._filterName ] )
-                    self._filter = Filters[ self._filterName ].bind( self );
+                    self._filter = Filters[ self._filterName ];
             }
             return self;
         }
@@ -6455,31 +6488,32 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,set: function( structureElement, filtName ) {
-            this._filterName = filtName;
-            this._filter = Filters[ filtName ].bind( this );
+            var self = this;
+            self._filterName = filtName;
+            self._filter = Filters[ filtName ];
             if ( structureElement && structureElement.length )
             {
                 // structure Element given
-                this._structureElement = new STRUCT( structureElement );
-                this._dim = ~~(Sqrt(this._structureElement.length)+0.5);
+                self._structureElement = new STRUCT( structureElement );
+                self._dim = ~~(Sqrt(self._structureElement.length)+0.5);
             }
             else if (structureElement && structureElement===(structureElement-0))
             {
                 // dimension given
-                this._structureElement = box(structureElement);
-                this._dim = structureElement;
+                self._structureElement = box(structureElement);
+                self._dim = structureElement;
             }
             else
             {
                 // default
-                this._structureElement = box3;
-                this._dim = 3;
+                self._structureElement = box3;
+                self._dim = 3;
             }
             // pre-compute indices, 
             // reduce redundant computations inside the main convolution loop (faster)
             var Indices=[], k, x, y,
-                structureElement=this._structureElement, 
-                matArea=structureElement.length, matRadius=this._dim, matHalfSide=(matRadius>>1);
+                structureElement=self._structureElement, 
+                matArea=structureElement.length, matRadius=self._dim, matHalfSide=(matRadius>>1);
             x=0; y=0; k=0;
             while (k<matArea)
             { 
@@ -6491,50 +6525,53 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 }
                 k++; x++; if (x>=matRadius) { x=0; y++; }
             }
-            this._indices = new A32I(Indices);
+            self._indices = new A32I(Indices);
             
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this._filterName = null; 
-            this._filter = null; 
-            this._dim = 0; 
-            this._structureElement = null; 
-            this._indices = null;
-            return this;
+            var self = this;
+            self._filterName = null; 
+            self._filter = null; 
+            self._dim = 0; 
+            self._structureElement = null; 
+            self._indices = null;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h ) {
-            if ( !this._isOn || !this._dim || !this._filter )  return im;
-            return this._filter( im, w, h );
+            var self = this;
+            if ( !self._isOn || !self._dim || !self._filter )  return im;
+            return self._filter( self, im, w, h );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._dim && this._filter )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._dim && self._filter )
             {
-                var im = image.getSelectedData();
-                if ( this._worker )
+                im = src.getSelectedData();
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._filter( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._filter( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
 
@@ -6543,11 +6580,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     // private methods
     
     Filters = {
-        "dilate": function( im, w, h ) {
+        "dilate": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -6589,11 +6626,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"erode": function( im, w, h ) {
+        ,"erode": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -6636,11 +6673,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // dilation of erotion
-        ,"open": function( im, w, h ) {
+        ,"open": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -6711,11 +6748,11 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         // erotion of dilation
-        ,"close": function( im, w, h ) {
+        ,"close": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -6810,10 +6847,12 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         name: "StatisticalFilter"
         
         ,constructor: function( ) {
-            this._dim = 0;
-            this._indices = null;
-            this._filterName = null;
-            this._filter = null;
+            var self = this;
+            self.$super('constructor');
+            self._dim = 0;
+            self._indices = null;
+            self._filterName = null;
+            self._filter = null;
         }
         
         ,_dim: 0
@@ -6824,7 +6863,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._dim = null;
             self._indices = null;
@@ -6860,7 +6899,7 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 self._indices = params._indices;
                 self._filterName = params._filterName;
                 if ( self._filterName && Filters[ self._filterName ] )
-                    self._filter = Filters[ self._filterName ].bind( self );
+                    self._filter = Filters[ self._filterName ];
             }
             return self;
         }
@@ -6882,9 +6921,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
         }
         
         ,set: function( d, filt ) {
-            this._filterName = filt; 
-            this._filter = Filters[ filt ].bind( this ); 
-            this._dim = d; 
+            var self = this;
+            self._filterName = filt; 
+            self._filter = Filters[ filt ]; 
+            self._dim = d; 
             // pre-compute indices, 
             // reduce redundant computations inside the main convolution loop (faster)
             var Indices=[], k, x, y,
@@ -6896,49 +6936,52 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
                 Indices.push(y-matHalfSide);
                 k++; x++; if (x>=matRadius) { x=0; y++; }
             }
-            this._indices = new A32I(Indices);
+            self._indices = new A32I(Indices);
             
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this._filterName = null; 
-            this._filter = null; 
-            this._dim = 0; 
-            this._indices = null;
-            return this;
+            var self = this;
+            self._filterName = null; 
+            self._filter = null; 
+            self._dim = 0; 
+            self._indices = null;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function(im, w, h) {
-            if ( !this._isOn || !this._dim )  return im;
-            return this._filter( im, w, h );
+            var self = this;
+            if ( !self._isOn || !self._dim )  return im;
+            return self._filter( self, im, w, h );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._dim )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._dim )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._filter( im[0], im[1], im[2], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._filter( self, im[0], im[1], im[2], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliiases
@@ -6950,10 +6993,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
     //
     // private methods
     Filters = {
-        "median": function( im, w, h ) {
+        "median": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, j2, x, ty, xOff, yOff, srcOff, 
                 rM, gM, bM, r, g, b,
@@ -7012,10 +7055,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"maximum": function( im, w, h ) {
+        ,"maximum": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 matArea2=matArea<<1, bx=w-1, by=imArea-w
@@ -7058,10 +7101,10 @@ var FILTER = FILTER || { VERSION: "0.6.12", Class: Classy.Class, Merge: Classy.M
             return dst;
         }
         
-        ,"minimum": function( im, w, h ) {
+        ,"minimum": function( self, im, w, h ) {
             var 
-                matRadius=this._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
-                imageIndices=new A32I(this._indices),
+                matRadius=self._dim, matHalfSide=matRadius>>1, matArea=matRadius*matRadius, 
+                imageIndices=new A32I(self._indices),
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 matArea2=matArea<<1, bx=w-1, by=imArea-w

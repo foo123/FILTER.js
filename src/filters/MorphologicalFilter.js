@@ -34,11 +34,13 @@
         name: "MorphologicalFilter"
         
         ,constructor: function( ) {
-            this._filterName = null;
-            this._filter = null;
-            this._dim = 0;
-            this._structureElement = null;
-            this._indices = null;
+            var self = this;
+            self.$super('constructor');
+            self._filterName = null;
+            self._filter = null;
+            self._dim = 0;
+            self._structureElement = null;
+            self._indices = null;
         }
         
         ,_filterName: null
@@ -50,7 +52,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._filterName = null;
             self._filter = null;
@@ -89,7 +91,7 @@
                 self._indices = params._indices;
                 self._filterName = params._filterName;
                 if ( self._filterName && Filters[ self._filterName ] )
-                    self._filter = Filters[ self._filterName ].bind( self );
+                    self._filter = Filters[ self._filterName ];
             }
             return self;
         }
@@ -111,31 +113,32 @@
         }
         
         ,set: function( structureElement, filtName ) {
-            this._filterName = filtName;
-            this._filter = Filters[ filtName ].bind( this );
+            var self = this;
+            self._filterName = filtName;
+            self._filter = Filters[ filtName ];
             if ( structureElement && structureElement.length )
             {
                 // structure Element given
-                this._structureElement = new STRUCT( structureElement );
-                this._dim = ~~(Sqrt(this._structureElement.length)+0.5);
+                self._structureElement = new STRUCT( structureElement );
+                self._dim = ~~(Sqrt(self._structureElement.length)+0.5);
             }
             else if (structureElement && structureElement===(structureElement-0))
             {
                 // dimension given
-                this._structureElement = box(structureElement);
-                this._dim = structureElement;
+                self._structureElement = box(structureElement);
+                self._dim = structureElement;
             }
             else
             {
                 // default
-                this._structureElement = box3;
-                this._dim = 3;
+                self._structureElement = box3;
+                self._dim = 3;
             }
             // pre-compute indices, 
             // reduce redundant computations inside the main convolution loop (faster)
             var Indices=[], k, x, y,
-                structureElement=this._structureElement, 
-                matArea=structureElement.length, matRadius=this._dim, matHalfSide=(matRadius>>1);
+                structureElement=self._structureElement, 
+                matArea=structureElement.length, matRadius=self._dim, matHalfSide=(matRadius>>1);
             x=0; y=0; k=0;
             while (k<matArea)
             { 
@@ -147,50 +150,53 @@
                 }
                 k++; x++; if (x>=matRadius) { x=0; y++; }
             }
-            this._indices = new A32I(Indices);
+            self._indices = new A32I(Indices);
             
-            return this;
+            return self;
         }
         
         ,reset: function( ) {
-            this._filterName = null; 
-            this._filter = null; 
-            this._dim = 0; 
-            this._structureElement = null; 
-            this._indices = null;
-            return this;
+            var self = this;
+            self._filterName = null; 
+            self._filter = null; 
+            self._dim = 0; 
+            self._structureElement = null; 
+            self._indices = null;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h ) {
-            if ( !this._isOn || !this._dim || !this._filter )  return im;
-            return this._filter( im, w, h );
+            var self = this;
+            if ( !self._isOn || !self._dim || !self._filter )  return im;
+            return self._filter( self, im, w, h );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._dim && this._filter )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._dim && self._filter )
             {
-                var im = image.getSelectedData();
-                if ( this._worker )
+                im = src.getSelectedData();
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._filter( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._filter( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
 
@@ -199,11 +205,11 @@
     // private methods
     
     Filters = {
-        "dilate": function( im, w, h ) {
+        "dilate": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -245,11 +251,11 @@
             return dst;
         }
         
-        ,"erode": function( im, w, h ) {
+        ,"erode": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -292,11 +298,11 @@
         }
         
         // dilation of erotion
-        ,"open": function( im, w, h ) {
+        ,"open": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
@@ -367,11 +373,11 @@
         }
         
         // erotion of dilation
-        ,"close": function( im, w, h ) {
+        ,"close": function( self, im, w, h ) {
             var 
-                structureElement=this._structureElement,
+                structureElement=self._structureElement,
                 matArea=structureElement.length, //matRadius*matRadius,
-                matRadius=this._dim, imageIndices=new A32I(this._indices), 
+                matRadius=self._dim, imageIndices=new A32I(self._indices), 
                 imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
                 i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
                 coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 

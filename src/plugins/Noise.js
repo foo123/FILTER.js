@@ -21,8 +21,9 @@
         
         // this is the filter constructor
         ,init: function( min, max ) {
-            this.min = min||-127;
-            this.max = max||127;
+            var self = this;
+            self.min = min||-127;
+            self.max = max||127;
         }
         
         // support worker serialize/unserialize interface
@@ -61,7 +62,9 @@
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
-            var range=this.max-this.min, m=this.min,
+            var self = this;
+            if ( !self._isOn ) return im;
+            var range=self.max-self.min, m=self.min,
                 i, l=im.length, n, r, g, b, t0, t1, t2;
             
             // add noise

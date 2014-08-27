@@ -21,7 +21,8 @@
         
         // this is the filter constructor
         ,init: function( scale ) {
-            this.scale = scale || 1;
+            var self = this;
+            self.scale = scale || 1;
         }
         
         // support worker serialize/unserialize interface
@@ -57,8 +58,9 @@
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
-            if (this.scale<=1) return im;
-            if (this.scale>100) this.scale=100;
+            var self = this;
+            if (!self._isOn || self.scale<=1) return im;
+            if (self.scale>100) self.scale=100;
             
             var imLen = im.length, imArea = (imLen>>2),
                 step, stepw, hstep, wstep, hstepw, wRem, hRem,
@@ -72,7 +74,7 @@
                 p1, p2, p3, p4, r, g, b
             ;
             
-            step = ~~(Sqrt(imArea)*this.scale*0.01);
+            step = ~~(Sqrt(imArea)*self.scale*0.01);
             stepw = w*step; hstep = (h%step); wstep = (w%step); hstepw = (hstep-1)*w;
             inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
             inv_sizes = inv_size1; inv_sizew = inv_size1w; inv_sizeh = inv_size1h; inv_sizewh = inv_size1hw;

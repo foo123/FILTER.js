@@ -22,11 +22,12 @@
         
         // constructor
         ,init: function( alphaMask, centerX, centerY ) {
-            this.centerX = centerX||0;
-            this.centerY = centerY||0;
-            this._alphaMask = null;
-            this.alphaMask = null;
-            if ( alphaMask ) this.setMask( alphaMask );
+            var self = this;
+            self.centerX = centerX||0;
+            self.centerY = centerY||0;
+            self._alphaMask = null;
+            self.alphaMask = null;
+            if ( alphaMask ) self.setMask( alphaMask );
         }
         
         // support worker serialize/unserialize interface
@@ -62,12 +63,13 @@
         }
         
         ,setMask: function( alphaMask ) {
+            var self = this;
             if ( alphaMask )
             {
-                this.alphaMask = alphaMask;
-                this._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
+                self.alphaMask = alphaMask;
+                self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
             }
-            return this;
+            return self;
         }
         
         // this is the filter actual apply method routine
@@ -77,14 +79,15 @@
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
             
-            if ( !this._alphaMask ) return im;
+            var self = this;
+            if ( !self._isOn || !self._alphaMask ) return im;
             
-            var alpha = this._alphaMask.data,
-                w2 = this._alphaMask.width, h2 = this._alphaMask.height,
+            var alpha = self._alphaMask.data,
+                w2 = self._alphaMask.width, h2 = self._alphaMask.height,
                 i, l = im.length, l2 = alpha.length, 
                 x, x2, y, y2, off, xc, yc, 
                 wm = Min(w, w2), hm = Min(h, h2),  
-                cX = this.centerX||0, cY = this.centerY||0, 
+                cX = self.centerX||0, cY = self.centerY||0, 
                 cX2 = (w2>>1), cY2 = (h2>>1)
             ;
             

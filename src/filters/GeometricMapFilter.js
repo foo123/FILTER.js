@@ -33,8 +33,9 @@
         name: "GeometricMapFilter"
         
         ,constructor: function( inverseTransform ) {
-            if ( inverseTransform )
-                this.generic( inverseTransform );
+            var self = this;
+            self.$super('constructor');
+            if ( inverseTransform ) self.generic( inverseTransform );
         }
         
         // parameters
@@ -59,7 +60,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._map = null;
             self._mapName = null;
@@ -135,112 +136,125 @@
                 if ( params.inverseTransform )
                 {
                     // using bind makes the code become [native code] and thus unserializable
-                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();')/*.bind( self )*/;
+                    self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();');
                 }
                 
                 self._mapName = params._mapName;
                 self._map = null;
                 if ( self._mapName && Maps[ self._mapName ] )
-                    self._map = Maps[ self._mapName ].bind( self );
+                    self._map = Maps[ self._mapName ];
             }
             return self;
         }
         
         ,generic: function( inverseTransform ) {
+            var self = this;
             if ( inverseTransform )
             {
-                this.inverseTransform = inverseTransform;
-                this._mapName = "generic"; 
-                this._map = Maps.generic.bind( this ); 
+                self.inverseTransform = inverseTransform;
+                self._mapName = "generic"; 
+                self._map = Maps.generic; 
             }
-            return this;
+            return self;
         }
         
         ,affine: function( matrix ) {
+            var self = this;
             if ( matrix )
             {
-                this.matrix = matrix; 
-                this._mapName = "affine";  
-                this._map = Maps.affine.bind( this ); 
+                self.matrix = matrix; 
+                self._mapName = "affine";  
+                self._map = Maps.affine; 
             }
-            return this;
+            return self;
         }
         
         ,flipX: function( ) {
-            this._mapName = "flipX";  
-            this._map = Maps.flipX.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipX";  
+            self._map = Maps.flipX; 
+            return self;
         }
         
         ,flipY: function( ) {
-            this._mapName = "flipY";  
-            this._map = Maps.flipY.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipY";  
+            self._map = Maps.flipY; 
+            return self;
         }
         
         ,flipXY: function( ) {
-            this._mapName = "flipXY";  
-            this._map = Maps.flipXY.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "flipXY";  
+            self._map = Maps.flipXY; 
+            return self;
         }
         
         ,rotateCW: function( ) {
-            this._mapName = "rotateCW";  
-            this._map = Maps.rotateCW.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "rotateCW";  
+            self._map = Maps.rotateCW; 
+            return self;
         }
         
         ,rotateCCW: function( ) {
-            this._mapName = "rotateCCW";  
-            this._map = Maps.rotateCCW.bind( this ); 
-            return this;
+            var self = this;
+            self._mapName = "rotateCCW";  
+            self._map = Maps.rotateCCW; 
+            return self;
         }
         
         ,polar: function( centerX, centerY ) {
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "polar";  
-            this._map = Maps.polar.bind( this ); 
-            return this;
+            var self = this;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "polar";  
+            self._map = Maps.polar; 
+            return self;
         }
         
         ,cartesian: function( centerX, centerY ) {
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "cartesian";  
-            this._map = Maps.cartesian.bind( this ); 
-            return this;
+            var self = this;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "cartesian";  
+            self._map = Maps.cartesian; 
+            return self;
         }
         
         ,twirl: function( angle, radius, centerX, centerY ) {
-            this.angle = angle||0; this.radius = radius||0;
-            this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "twirl";  
-            this._map = Maps.twirl.bind( this ); 
-            return this;
+            var self = this;
+            self.angle = angle||0; self.radius = radius||0;
+            self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "twirl";  
+            self._map = Maps.twirl; 
+            return self;
         }
         
         ,sphere: function( radius, centerX, centerY ) {
-            this.radius = radius||0; this.centerX = centerX||0; this.centerY = centerY||0;
-            this._mapName = "sphere";  
-            this._map = Maps.sphere.bind( this ); 
-            return this;
+            var self = this;
+            self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
+            self._mapName = "sphere";  
+            self._map = Maps.sphere; 
+            return self;
         }
         
         ,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
-            this.radius = (radius!==undef) ? radius : 50; 
-            this.centerX = centerX||0; 
-            this.centerY = centerY||0;
-            this.wavelength = (wavelength!==undef) ? wavelength : 16; 
-            this.amplitude = (amplitude!==undef) ? amplitude : 10; 
-            this.phase = phase||0;
-            this._mapName = "ripple";  
-            this._map = Maps.ripple.bind( this ); 
-            return this;
+            var self = this;
+            self.radius = (radius!==undef) ? radius : 50; 
+            self.centerX = centerX||0; 
+            self.centerY = centerY||0;
+            self.wavelength = (wavelength!==undef) ? wavelength : 16; 
+            self.amplitude = (amplitude!==undef) ? amplitude : 10; 
+            self.phase = phase||0;
+            self._mapName = "ripple";  
+            self._map = Maps.ripple; 
+            return self;
         }
         
         ,reset: function( ) {
-            this._mapName = null; 
-            this._map = null; 
-            return this;
+            var self = this;
+            self._mapName = null; 
+            self._map = null; 
+            return self;
         }
         
         ,getMap: function( ) {
@@ -248,41 +262,44 @@
         }
         
         ,setMap: function( map ) {
-            this._mapName = null; 
-            this._map = map; 
-            return this;
+            var self = this;
+            self._mapName = null; 
+            self._map = map; 
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h, image ) {
-            if ( !this._isOn || !this._map ) return im;
-            return this._map( im, w, h, image );
+            var self = this;
+            if ( !self._isOn || !self._map ) return im;
+            return self._map( self, im, w, h, image );
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._map )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._map )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._map( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._map( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     
@@ -293,9 +310,9 @@
     
     /*function trivialMap(im, w, h) { return im; },*/
     Maps = {
-        "generic": function( im, w, h )  {
+        "generic": function( self, im, w, h )  {
             var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
-                invTransform=this.inverseTransform, mode=this.mode,
+                invTransform=self.inverseTransform, mode=self.mode,
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 t, tx, ty
             ;
@@ -333,10 +350,10 @@
             return dst;
         }
     
-        ,"affine": function( im, w, h ) {
+        ,"affine": function( self, im, w, h ) {
             var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-                mat=this.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
-                tyw, cw, dw, mode=this.mode,
+                mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
+                tyw, cw, dw, mode=self.mode,
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 nx, ny, bx=w-1, by=imArea-w
             ;
@@ -374,7 +391,7 @@
             return dst;
         }
     
-        ,"flipX": function( im, w, h ) {
+        ,"flipX": function( self, im, w, h ) {
             var x, y, yw, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw=0;
@@ -389,7 +406,7 @@
             return dst;
         }
         
-        ,"flipY": function flipYMap( im, w, h ) {
+        ,"flipY": function flipYMap( self, im, w, h ) {
             var x, y, yw2, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw2=(h-1)*w;
@@ -404,7 +421,7 @@
             return dst;
         }
         
-        ,"flipXY": function( im, w, h )  {
+        ,"flipXY": function( self, im, w, h )  {
             var x, y, yw, yw2, i, j, l=im.length, dst=new IMG(l);
             
             x=0; y=0; yw2=(h-1)*w;
@@ -419,7 +436,7 @@
             return dst;
         }
         
-        ,"rotateCW": function( im, w, h )  {
+        ,"rotateCW": function( self, im, w, h )  {
             var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
                 hw=(l>>2);
             
@@ -435,7 +452,7 @@
             return dst;
         }
         
-        ,"rotateCCW": function( im, w, h ) {
+        ,"rotateCCW": function( self, im, w, h ) {
             var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
                 hw=(l>>2);
             
@@ -452,11 +469,11 @@
         }
         
         // adapted from http://je2050.de/imageprocessing/ TwirlMap
-        ,"twirl": function( im, w, h )  {
-            if ( 0 >= this.radius ) return im;
+        ,"twirl": function( self, im, w, h )  {
+            if ( 0 >= self.radius ) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im), // in Opera this is by-reference, hence the previous discrepancies
-                cX=this.centerX, cY=this.centerY, angle=this.angle, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, angle=self.angle, radius=self.radius, mode=self.mode, 
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, theta, fact=angle/radius,
                 bx=w-1, by=h-1
@@ -508,11 +525,11 @@
         }
         
         // adapted from http://je2050.de/imageprocessing/ SphereMap
-        ,"sphere": function( im, w, h )  {
-            if (0>=this.radius) return im;
+        ,"sphere": function( self, im, w, h )  {
+            if (0>=self.radius) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-                cX=this.centerX, cY=this.centerY, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, theta, radius2=radius*radius,
                 refraction = 0.555556, invrefraction=1-refraction,
@@ -567,19 +584,19 @@
         }
         
         // adapted from https://github.com/JoelBesada/JSManipulate
-        ,"ripple": function( im, w, h ) {
-            if (0>=this.radius) return im;
+        ,"ripple": function( self, im, w, h ) {
+            if (0>=self.radius) return im;
             
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 d, tx, ty, amount, 
                 r2, d2, ds, tx2, ty2,
                 bx=w-1, by=h-1,
-                cX=this.centerX, cY=this.centerY, radius=this.radius, mode=this.mode, 
+                cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
                 radius2=radius*radius,
-                wavelength = this.wavelength,
-                amplitude = this.amplitude,
-                phase = this.phase
+                wavelength = self.wavelength,
+                amplitude = self.amplitude,
+                phase = self.phase
             ;
             
             // make center relative
@@ -632,7 +649,7 @@
         
         // adapted from http://www.jhlabs.com/ip/filters/
         /*
-        ,"circle": function( im, w, h ) {
+        ,"circle": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 tx, ty, ix, iy, ip, d2,
@@ -686,13 +703,13 @@
             return im;
         }
         */
-        ,"polar": function( im, w, h ) {
+        ,"polar": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 tx, ty, ix, iy, ip,
                 bx = w-1, by = h-1, 
                 theta, r=0, radius, cX, cY, 
-                mode = this.mode
+                mode = self.mode
             ;
             
             cX = ~~(0.5*w + 0.5);
@@ -778,13 +795,13 @@
         }
         
         // adapted from http://www.jhlabs.com/ip/filters/
-        ,"cartesian": function( im, w, h ) {
+        ,"cartesian": function( self, im, w, h ) {
             var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
                 _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
                 ix, iy, ip, nx, ny,
                 bx = w-1, by = h-1, 
                 theta, theta2, r=0, radius, cX, cY, 
-                mode = this.mode
+                mode = self.mode
             ;
             
             cX = ~~(0.5*w + 0.5);

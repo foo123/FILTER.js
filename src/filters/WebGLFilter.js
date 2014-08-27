@@ -34,15 +34,16 @@
     var WebGLProgram = FILTER.WebGLProgram = FILTER.Class({
     
         constructor : function(webgl, id, program, attributes, uniforms, textures)  {
-            this.id=id || 0;
-            this._attributes = [];
-            this._uniforms = [];
-            this._textures = [];
-            this.setContainer(webgl);
-            this.setProgram(program);
-            if (attributes)  this.setAttributes(attributes);
-            if (uniforms)  this.setUniforms(uniforms);
-            if (textures) this.setTextures(textures);
+            var self = this;
+            self.id=id || 0;
+            self._attributes = [];
+            self._uniforms = [];
+            self._textures = [];
+            self.setContainer(webgl);
+            self.setProgram(program);
+            if (attributes)  self.setAttributes(attributes);
+            if (uniforms)  self.setUniforms(uniforms);
+            if (textures) self.setTextures(textures);
         },
         
         glContainer : null,
@@ -58,74 +59,80 @@
         _uniformsNeedUpdate: false,
         _texturesNeedUpdate: false,
         
-        use : function() {
+        dispose: function() {
+            var self = this;
+            self._gl.deleteProgram(self.program);
+            self.program=null;
+            self._attributes=null;
+            self._uniforms=null;
+            self._textures=null;
+            self._attributesNeedUpdate=false;
+            self._uniformsNeedUpdate=false;
+            self._texturesNeedUpdate=false;
+            return self;
+        },
+        
+        use: function() {
             this._gl.useProgram(this.program);
             return this;
         },
         
-        dispose: function() {
-            this._gl.deleteProgram(this.program);
-            this.program=null;
-            this._attributes=null;
-            this._uniforms=null;
-            this._textures=null;
-            this._attributesNeedUpdate=false;
-            this._uniformsNeedUpdate=false;
-            this._texturesNeedUpdate=false;
-            return this;
-        },
-        
         setContainer: function(webgl) {
+            var self = this;
             if (webgl)
             {
-                this.glContainer=webgl;
-                this._gl=webgl._gl;
-                this._attributesNeedUpdate=true;
-                this._uniformsNeedUpdate=true;
-                this._texturesNeedUpdate=true;
+                self.glContainer=webgl;
+                self._gl=webgl._gl;
+                self._attributesNeedUpdate=true;
+                self._uniformsNeedUpdate=true;
+                self._texturesNeedUpdate=true;
             }
-            return this;
+            return self;
         },
         
         setProgram: function(program) {
+            var self = this;
             if (program)
             {
-                this.program=program;
-                this._attributesNeedUpdate=true;
-                this._uniformsNeedUpdate=true;
-                this._texturesNeedUpdate=true;
+                self.program=program;
+                self._attributesNeedUpdate=true;
+                self._uniformsNeedUpdate=true;
+                self._texturesNeedUpdate=true;
             }
-            return this;
+            return self;
         },
         
         setAttributes: function(attributes) {
+            var self = this;
             if (attributes)
             {
-                this._attributes=attributes;
-                this.updateAttributeLocations();
-                this._attributesNeedUpdate=false;
+                self._attributes=attributes;
+                self.updateAttributeLocations();
+                self._attributesNeedUpdate=false;
             }
-            return this;
+            return self;
         },
         
         setUniforms: function(uniforms) {
+            var self = this;
             if (uniforms)
             {
-                this._uniforms=uniforms;
-                this.updateUniformLocations();
-                this._uniformsNeedUpdate=false;
+                self._uniforms=uniforms;
+                self.updateUniformLocations();
+                self._uniformsNeedUpdate=false;
             }
-            return this;
+            return self;
         },
         
         setTextures: function(textures) {
+            var self = this;
             if (textures)
             {
-                this._textures=textures;
-                this.updateTextureLocations();
-                this._texturesNeedUpdate=false;
+                self._textures=textures;
+                self.updateTextureLocations();
+                self._texturesNeedUpdate=false;
             }
-            return this;
+            return self;
         },
         
         enableAttributes: function(buffers) {
@@ -905,11 +912,13 @@
         name : "GenericWebGLFilter",
         
         constructor: function(shaders, attributes, uniforms, textures) { 
-            this.shaders=shaders || null; 
-            this.attributes=attributes || null; 
-            this.uniforms=uniforms || null; 
-            this.textures=textures || null; 
-            this.id=FILTER.getId();
+            var self = this;
+            self.$super('constructor');
+            self.shaders=shaders || null; 
+            self.attributes=attributes || null; 
+            self.uniforms=uniforms || null; 
+            self.textures=textures || null; 
+            self.id=FILTER.getId();
         },
         
         filterParams: null,

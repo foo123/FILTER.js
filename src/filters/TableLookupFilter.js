@@ -46,10 +46,12 @@
         name: "TableLookupFilter"
         
         ,constructor: function( tR, tG, tB, tA ) {
-            this._tableR = tR || null;
-            this._tableG = tG || this._tableR;
-            this._tableB = tB || this._tableG;
-            this._tableA = tA || null;
+            var self = this;
+            self.$super('constructor');
+            self._tableR = tR || null;
+            self._tableG = tG || self._tableR;
+            self._tableB = tB || self._tableG;
+            self._tableA = tA || null;
         }
         
         // parameters
@@ -61,7 +63,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._tableR = null;
             self._tableG = null;
@@ -385,12 +387,12 @@
         
         // used for internal purposes
         ,_apply: function(im, w, h/*, image*/) {
-            
-            if ( !this._isOn || !this._tableR ) return im;
+            var self = this;
+            if ( !self._isOn || !self._tableR ) return im;
             
             var l=im.length, rem = (l>>2)%4,
                 i, r, g, b, a,
-                tR=this._tableR, tG=this._tableG, tB=this._tableB, tA=this._tableA;
+                tR=self._tableR, tG=self._tableG, tB=self._tableB, tA=self._tableA;
             
             // apply filter (algorithm implemented directly based on filter definition)
             if ( tA )
@@ -450,31 +452,32 @@
             return im;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._tableR )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._tableR )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
-        },
+            return src;
+        }
     });
     // aliases
     TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;

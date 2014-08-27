@@ -24,7 +24,9 @@
         name: "DisplacementMapFilter"
         
         ,constructor: function( displacemap ) {
-            if ( displacemap ) this.setMap( displacemap );
+            var self = this;
+            self.$super('constructor');
+            if ( displacemap ) self.setMap( displacemap );
         }
         
         ,_map: null
@@ -46,7 +48,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._map = null;
             self.map = null;
@@ -117,9 +119,10 @@
         }
         
         ,reset: function( ) {
-            this._map = null; 
-            this.map = null; 
-            return this;
+            var self = this;
+            self._map = null; 
+            self.map = null; 
+            return self;
         }
         
         ,getMap: function( ) {
@@ -127,47 +130,49 @@
         }
         
         ,setMap: function( map )  {
+            var self = this;
             if ( map )
             {
-                this.map = map; 
-                this._map = { data: map.getData( ), width: map.width, height: map.height }; 
+                self.map = map; 
+                self._map = { data: map.getData( ), width: map.width, height: map.height }; 
             }
-            return this;
+            return self;
         }
         
         ,setColor: function( c ) {
-            this.color = c;
-            this.alpha = (c >> 24) & 255; 
-            this.red = (c >> 16) & 255; 
-            this.green = (c >> 8) & 255; 
-            this.blue = c & 255;
-            return this;
+            var self = this;
+            self.color = c;
+            self.alpha = (c >> 24) & 255; 
+            self.red = (c >> 16) & 255; 
+            self.green = (c >> 8) & 255; 
+            self.blue = c & 255;
+            return self;
         }
         
         // used for internal purposes
         ,_apply: function( im, w, h/*, image*/ ) {
-            
-            if ( !this._isOn || !this._map ) return im;
+            var self = this;
+            if ( !self._isOn || !self._map ) return im;
             
             var map, mapW, mapH, mapArea, displace, ww, hh,
-                sx = this.scaleX*0.00390625, sy = this.scaleY*0.00390625, 
-                comx = this.componentX, comy = this.componentY, 
-                alpha = this.alpha, red = this.red, 
-                green = this.green, blue = this.blue, mode = this.mode,
+                sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
+                comx = self.componentX, comy = self.componentY, 
+                alpha = self.alpha, red = self.red, 
+                green = self.green, blue = self.blue, mode = self.mode,
                 sty, stx, styw, bx0, by0, bx, by,
                 i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
                 applyArea, imArea, imLen, imcopy, srcx, srcy,
                 _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
             ;
             
-            map = this._map.data;
-            mapW = this._map.width; mapH = this._map.height; 
+            map = self._map.data;
+            mapW = self._map.width; mapH = self._map.height; 
             mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
             imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
             
             // make start relative
-            stx = Floor(this.startX*(w-1));
-            sty = Floor(this.startY*(h-1));
+            stx = Floor(self.startX*(w-1));
+            sty = Floor(self.startY*(h-1));
             styw = sty*w;
             bx0 = -stx; by0 = -sty; bx = w-stx-1; by = h-sty-1;
             
@@ -238,30 +243,31 @@
             return im;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && (this._map || this.map) )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && (self._map || self.map) )
             {
-                var im = image.getSelectedData( );
-                if ( this._worker )
+                im = src.getSelectedData( );
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: this.serialize( )} )
+                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     

@@ -30,19 +30,21 @@
         name: "ColorMatrixFilter"
         
         ,constructor: function( matrix ) {
+            var self = this;
+            self.$super('constructor');
             if ( matrix && matrix.length )
             {
-                this._matrix = new CM(matrix);
+                self._matrix = new CM(matrix);
             }    
             else
             {
                 // identity matrix
-                this._matrix = null;
+                self._matrix = null;
             }
             
             if ( FILTER.useWebGL )
             {
-                this._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
+                self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
             }
         }
         
@@ -52,7 +54,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.disposeWorker( );
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._matrix = null;
@@ -580,9 +582,10 @@
         
         // used for internal purposes
         ,_apply: function(p, w, h/*, image*/) {
-            if ( this._isOn && this._matrix )
+            var self = this;
+            if ( self._isOn && self._matrix )
             {
-                var pl = p.length, m = this._matrix,
+                var pl = p.length, m = self._matrix,
                     i, rem = (pl>>2)%4,
                     p0, p1, p2, p3, 
                     p4, p5, p6, p7, 
@@ -592,87 +595,45 @@
                 ;
                 
                 // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-                if (notSupportClamp)
-                {   
-                    // linearize array
-                    // partial loop unrolling (quarter iterations)
-                    for (i=0; i<pl; i+=16)
-                    {
-                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        // clamp them manually
-                        p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                        p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                        p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                        p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                        p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
-                        p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
-                        p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
-                        p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
-                        p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
-                        p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
-                        p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
-                        p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
-                        p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
-                        p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
-                        p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
-                        p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
-                        
-                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-                    }
-                    
-                    // loop unrolling remainder
-                    if (rem)
-                    {
-                        rem <<= 2;
-                        for (i=pl-rem; i<pl; i+=4)
-                        {
-                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                            
-                            // clamp them manually
-                            p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                            p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                            p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                            p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                            
-                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        }
-                    }
-                }
-                else
+                // linearize array
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<pl; i+=16)
                 {
-                    // linearize array
-                    // partial loop unrolling (quarter iterations)
-                    for (i=0; i<pl; i+=16)
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                    p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                    p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                    p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                    p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                    p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=pl-rem; i<pl; i+=4)
                     {
                         t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
                         p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
@@ -680,52 +641,16 @@
                         p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
                         p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
                         
-                        t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                        p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                        p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
-                        t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                        p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                        p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                        p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                        p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                        
                         p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                        p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                        p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-                    }
-                    
-                    // loop unrolling remainder
-                    if (rem)
-                    {
-                        rem <<= 2;
-                        for (i=pl-rem; i<pl; i+=4)
-                        {
-                            t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                            p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                            p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                            p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                            p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                            
-                            p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                        }
                     }
                 }
             }
             return p;
         }
         
-        ,apply: function( image, cb ) {
-            if ( this._isOn && this._matrix )
+        ,apply2: function( src, dest, cb ) {
+            var self = this, im;
+            if ( src && dest && self._isOn && self._matrix )
             {
                 /*if (this._webglInstance)
                 {
@@ -739,27 +664,27 @@
                     this._webglInstance._apply(image.webgl, w, h);
                     return image;
                 }*/
-                if ( this._worker )
+                if ( self.$thread )
                 {
-                    this
-                        .bind( 'apply', function( data ) { 
-                            this.unbind( 'apply' );
+                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
+                    self
+                        .listen( 'apply', function( data ) { 
+                            self.unlisten( 'apply' );
                             if ( data && data.im )
-                                image.setSelectedData( data.im );
-                            if ( cb ) cb.call( this );
+                                dest.setSelectedData( data.im );
+                            self.trigger( 'apply', self );
                         })
                         // process request
-                        .send( 'apply', {im: image.getSelectedData( ), params: this.serialize( )} )
+                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
                     ;
                 }
                 else
                 {
-                    var im = image.getSelectedData( );
-                    image.setSelectedData( this._apply( im[ 0 ], im[ 1 ], im[ 2 ], image ) );
-                    if ( cb ) cb.call( this );
+                    im = src.getSelectedData( );
+                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
                 }
             }
-            return image;
+            return src;
         }
     });
     // aliases
@@ -767,7 +692,100 @@
     ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
     ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
     ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
-        
+    if (notSupportClamp)
+    {   
+        ColorMatrixFilter.prototype._apply = function(p, w, h/*, image*/) {
+            var self = this;
+            if ( self._isOn && self._matrix )
+            {
+                var pl = p.length, m = self._matrix,
+                    i, rem = (pl>>2)%4,
+                    p0, p1, p2, p3, 
+                    p4, p5, p6, p7, 
+                    p8, p9, p10, p11,
+                    p12, p13, p14, p15,
+                    t0, t1, t2, t3
+                ;
+                
+                // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+                // linearize array
+                // partial loop unrolling (quarter iterations)
+                for (i=0; i<pl; i+=16)
+                {
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                    p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                    p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                    p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    // clamp them manually
+                    p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                    p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                    p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                    p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                    p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
+                    p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
+                    p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
+                    p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
+                    p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
+                    p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
+                    p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
+                    p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
+                    p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
+                    p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
+                    p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
+                    p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
+                    p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                    p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+                }
+                
+                // loop unrolling remainder
+                if (rem)
+                {
+                    rem <<= 2;
+                    for (i=pl-rem; i<pl; i+=4)
+                    {
+                        t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                        p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                        p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                        p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                        p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                        
+                        // clamp them manually
+                        p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
+                        p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
+                        p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
+                        p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
+                        
+                        p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                    }
+                }
+            }
+            return p;
+        };
+    }
+    
     //
     //
     // private methods

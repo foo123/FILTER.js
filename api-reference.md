@@ -1,6 +1,10 @@
 ##API Reference
 
-The library has a dependency on [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
+The library dependencies are:
+
+* [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
+* [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
+* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) flexible implementation.
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
@@ -23,6 +27,7 @@ __Methods:__
 * _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
 * _deselect()_  remove previous selection (selected part becomes whole image)
 * _apply(filter [, callback])_ shorthand to apply method of a FILTER.Filter instance, image will change after application
+* _apply2(filter, destImage [, callback])_ shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
 * _clone()_ gets a clone of the image as a new FILTER.Image instance
 * _copy(image)_ fast copy of the data of another FILTER.Image instance
 * _clear()_  clear the image data
@@ -63,15 +68,21 @@ __Methods:__
 
 * _reset( )_   reset the filter to identity (trivial)
 * _dispose( )_   dispose the filter (disposes associated filter worker also if needed)
-* _turnOn( bool )_  turn the filter ON/OFF 
+* _turnOn( [bool=true] )_  turn the filter ON/OFF 
 * _toggle( )_  toggle the filter's ON/OFF status
 * _isOn( )_   check if filter is ON or OFF
 * _combineWith( similarFilterInstance )_   for any filter that supports combination of a similar filter with itself, else does nothing
 * _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
 * _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
-* _worker( bool )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
+* _worker( [enable=true] )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
+* _apply2( src, dest [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage will be changed after the filter application)
 * _apply( image [, callback] )_   apply the filter to a FILTER.Image instance (the image will be changed after the filter application)
 
+__Publish/Subscribe Methods:__
+* _on( event, callback )_  add a callback to handle filter event "event"
+* _one( event, callback )_  add a callback once (will be removed after 1st call) to handle filter event "event"
+* _off( event, callback )_  remove callback for filter event "event"
+* _trigger( event, data )_  trigger filter event "event" (with optional data)
 
 
 ###Color Matrix Filter
@@ -107,7 +118,6 @@ The class has various pre-defined filters which can be combined in any order.
 * *threshold_rgb()*  applies a threshod to the image only to the RGB channels
 * *threshold_alpha()*  applies a threshod to the image only to the Alpha channel
 * _blend()_  blend this filter with another color matrix filter
-* _reset()_  reset the filter matrix to identity
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
@@ -127,16 +137,18 @@ grc.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 grc.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( grc );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Table Lookup Filter
@@ -163,7 +175,6 @@ The class has various pre-defined filters which can be combined in any order.
 * _binarize()_  Quantize uniformly the image colors in 2 levels
 * _thresholds()_  Quantize non-uniformly the image colors according to given thresholds
 * _threshold()_  Quantize non-uniformly the image colors in 2 levels according to given threshold
-* _reset()_  reset the filter matrix to identity
 
 These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
 
@@ -183,16 +194,18 @@ invertPosterize.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 invertPosterize.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( invertPosterize );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Convolution Matrix Filter
@@ -237,7 +250,6 @@ The class has various pre-defined filters to use.
 * _emboss()_   Apply emboss effect to the image
 * _edges()_  Apply an edge filter to the image
 * _motionblur()_  __deprecated__  (use directionalBlur)
-* _reset()_  reset the filter matrix to identity
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
@@ -258,16 +270,18 @@ emboss.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 emboss.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( emboss );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Displacement Map Filter
@@ -306,16 +320,18 @@ dF.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 dF.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( dF );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Geometric Map Filter
@@ -358,16 +374,18 @@ gF.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 gF.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( gF );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Morphological Filter
@@ -405,16 +423,18 @@ dilate.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 dilate.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( dilate );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 ###Statistical Filter
@@ -449,16 +469,18 @@ median.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 median.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( median );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 
 
@@ -507,19 +529,22 @@ combo.worker( false );
 
 ````
 
-To apply the filter to an image do (as of 0.3+ version)
+To apply the filter to an image do:
 
 ````javascript
 
 // this is same even if filter uses a parallel worker filter
 combo.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( combo );   // image is a FILTER.Image instance, see examples
+
 combo.remove( emboss );  // remove the emboss filter from the chain
 // or also
 emboss.turnOn( false );    // turn off the emboss filter while on the chain without losing its settings
 
 ````
 
-NOTE: The filter apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image to which it is applied
 
 ###Plugins and Inline Filters
 
@@ -536,11 +561,13 @@ Example:
 
 ````javascript
 
-var inlinefilter = new FILTER.CustomFilter(function(im, w, h){
+var inlinefilter = new FILTER.CustomFilter(function( inst, im, w, h ){
     // this is the inline filter apply method
     // do your stuff here..
-    // im is (a copy of) the image pixel data,
-    // w is the image width, h is the image height
+    // "inst"   is the (custom) filter instance
+    // "im"     is (a copy of) the image pixel data,
+    // "w"      is the image width, 
+    // "h"      is the image height
     // make sure to return the data back
     return im;
 });
@@ -549,6 +576,9 @@ var inlinefilter = new FILTER.CustomFilter(function(im, w, h){
 inlinefilter.apply( image );
 // or use it with any composite filter
 new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
+// this will also work:
+image.apply( inlinefilter );   // image is a FILTER.Image instance, see examples
+image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
 
 ````
 
