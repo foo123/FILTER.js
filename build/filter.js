@@ -456,13 +456,13 @@ var FILTER = this.FILTER || {
             if ( !arguments.length ) enable = true;
             enable = !!enable;
             // activate worker
-            if ( true === enable ) 
+            if ( true === enable && !self.$thread ) 
             {
                 self.fork('FILTER.FilterThread', self.path.file);
                 self.send('load', {filter: self.name});
             }
             // de-activate worker (if was activated before)
-            else 
+            else if ( !enable && self.$thread )
             {
                 self.unfork( );
             }
