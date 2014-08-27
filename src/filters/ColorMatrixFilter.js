@@ -647,44 +647,9 @@
             }
             return p;
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._matrix )
-            {
-                /*if (this._webglInstance)
-                {
-                    var w=image.width, h=image.height;
-                    this._webglInstance.filterParams=[
-                        new CM([w, h]),
-                        1.0,
-                        new CM([w, h]),
-                        this._matrix
-                    ];
-                    this._webglInstance._apply(image.webgl, w, h);
-                    return image;
-                }*/
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    im = src.getSelectedData( );
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._matrix;
         }
     });
     // aliases

@@ -56,17 +56,17 @@ HEADER =
 # Text replacements
 REPLACE =[{}]
     
-    "@@VERSION@@" = "0.6.13"
+    "@@VERSION@@" = "0.6.14"
     
-    "@@DEPENDENCIES@@" = "@dependencies: Classy.js, Asynchronous.js, PublishSubscribe"
+    "@@DEPENDENCIES@@" = "@dependencies: Classy.js, Asynchronous.js"
     
     "@@USE_STRICT@@" = '"use strict";'
     
     "@@MODULE_NAME@@" = "FILTER"
     
-    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'], ['Asynchronous', './asynchronous'], ['PublishSubscribe', './publishsubscribe'] ]"
+    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'], ['Asynchronous', './asynchronous'] ]"
     
-    "@@MODULE_ARGUMENTS@@"  = "Classy, Asynchronous, PublishSubscribe"
+    "@@MODULE_ARGUMENTS@@"  = "Classy, Asynchronous"
     
 @ # end block
 

@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.13
+*   @version: 0.6.14
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -206,7 +206,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.13
+*   @version: 0.6.14
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -344,6 +344,8 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, rangeI,  maxI = 0, minI = 255,
                 cdfI, accum = 0, t0, t1, t2,
                 i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, rgba
@@ -440,6 +442,8 @@ var FILTER_PLUGINS = null;
             // w is image width, h is image height
             // image is the original image instance reference, generally not needed
             // for this filter, no need to clone the image data, operate in-place
+            var self = this;
+            if ( !self._isOn ) return im;
             var c, g, rangeI, maxI=0, minI=255,
                 cdfI, accum=0, t0, t1, t2,
                 i, l=im.length, l2=l>>2, n=1.0/(l2)

@@ -4,7 +4,6 @@ The library dependencies are:
 
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
-* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) flexible implementation.
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
@@ -75,14 +74,7 @@ __Methods:__
 * _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
 * _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
 * _worker( [enable=true] )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
-* _apply2( src, dest [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage will be changed after the filter application)
-* _apply( image [, callback] )_   apply the filter to a FILTER.Image instance (the image will be changed after the filter application)
-
-__Publish/Subscribe Methods:__
-* _on( event, callback )_  add a callback to handle filter event "event"
-* _one( event, callback )_  add a callback once (will be removed after 1st call) to handle filter event "event"
-* _off( event, callback )_  remove callback for filter event "event"
-* _trigger( event, data )_  trigger filter event "event" (with optional data)
+* _apply( srcImg [, destImg=srcImg] [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage will be changed after the filter application)
 
 
 ###Color Matrix Filter

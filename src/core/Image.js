@@ -10,7 +10,7 @@
     @@USE_STRICT@@
     
     var devicePixelRatio = FILTER.devicePixelRatio,
-        IMG = FILTER.ImArray, A32F = FILTER.Array32F,
+        IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
         createCanvas = FILTER.createCanvas,
         notSupportTyped = FILTER._notSupportTypedArrays,
         Min = Math.min, Floor = Math.floor
@@ -239,11 +239,14 @@
     //
     //
     // Image (Proxy) Class
-    var FImage = FILTER.Image = FILTER.Class({extends: Object, implements: FILTER.PublishSubscribe}, {
+    var FilterImage = FILTER.Image = FILTER.Class({
         name: "Image"
         
         ,constructor: function( img, callback ) {
             var self = this;
+            // factory-constructor pattern
+            if ( img instanceof FilterImage ) return img;
+            if ( !(self instanceof FilterImage) ) return new FilterImage(img, callback);
             self.width = 0;   
             self.height = 0;
             self.context = null;
@@ -258,7 +261,6 @@
             self._integral = null;
             // lazy
             self._needsRefresh = 0;
-            self.initPubSub( );
             if ( img ) self.setImage( img, callback );
         }
         
@@ -293,7 +295,6 @@
             self._histogram = null;
             self._integral = null;
             self._needsRefresh = null;
-            self.disposePubSub( );
             return self;
         }
         
@@ -329,20 +330,13 @@
         
         // apply a filter (uses filter's own apply method)
         ,apply: function( filter, cb ) {
-            if ( filter /*&& filter instanceof FILTER.Filter*/ )
-            {
-                //filter.apply( this, cb||null );
-                filter.apply2( this, this, cb||null );
-            }
+            filter.apply( this, this, cb || null );
             return this;
         }
         
         // apply2 a filter using another image as destination
-        ,apply2: function( filter, image, cb ) {
-            if ( filter && image /*&& filter instanceof FILTER.Filter*/ )
-            {
-                filter.apply2( this, image, cb||null );
-            }
+        ,apply2: function( filter, destImg, cb ) {
+            filter.apply( this, destImg, cb || null );
             return this;
         }
         
@@ -376,25 +370,32 @@
             var self = this, image, ctx, w, h, 
                 isVideo = img instanceof HTMLVideoElement,
                 isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image
+                isImage = img instanceof Image,
+                isString = "string" === typeof(img) || img instanceof String
             ;
             
             if ( isImage || isCanvas || isVideo )
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = isVideo ? image.videoWidth : image.width;
-                h = isVideo ? image.videoHeight : image.height;
+                if ( isVideo )
+                {
+                    w = image.videoWidth;
+                    h = image.videoHeight;
+                }
+                else
+                {
+                    w = image.width;
+                    h = image.height;
+                }
                 ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                self.trigger( 'load', self );
+                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
+                if ( callback ) callback.call( self );
             }
-            else // url string
+            else if ( isString ) // url string
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image( );
                 image.onerror = image.onload = function( ) {
                     if ( image.width && image.height )
@@ -407,7 +408,7 @@
                         if (self.selection) self._needsRefresh |= SEL;
                         self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
                     }
-                    self.trigger( 'load', self );
+                    if ( callback ) callback.call( self );
                 };
                 image.crossOrigin = '';
                 image.src = img; // load it
@@ -440,7 +441,7 @@
             var self = this;
             if (self._needsRefresh & DATA) _refreshData( self );
             // clone it
-            return new IMG( self.imageData.data );
+            return new IMGcpy( self.imageData.data );
         }
         
         // get direct data array of selected part
@@ -459,7 +460,7 @@
             }
             
             // clone it
-            return [new IMG( sel.data ), sel.width, sel.height];
+            return [new IMGcpy( sel.data ), sel.width, sel.height];
         }
         
         // set direct data array
@@ -527,7 +528,7 @@
         }
         
         ,clone: function( ) {
-            return new FImage(this.canvasElement);
+            return new FilterImage(this.canvasElement);
         }
         
         ,scale: function( sx, sy ) {
@@ -690,11 +691,14 @@
     //
     //
     // Scaled Image (Proxy) Class
-    var FSImage = FILTER.ScaledImage = FILTER.Class( FImage, {
+    var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         name: "ScaledImage"
         
         ,constructor: function( scalex, scaley, img, callback ) {
             var self = this;
+            // factory-constructor pattern
+            if ( img instanceof FilterImage ) return img;
+            if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img, callback);
             self.scaleX = scalex || 1;
             self.scaleY = scaley || self.scaleX;
             self.$super('constructor', img, callback);
@@ -703,8 +707,16 @@
         ,scaleX: 1
         ,scaleY: 1
         
+        ,dispose: function( ) {
+            var self = this;
+            self.scaleX = null;
+            self.scaleY = null;
+            self.$super('dispose');
+            return self;
+        }
+        
         ,clone: function( ) {
-            return new FSImage(this.scaleX, this.scaleY, this.canvasElement);
+            return new FilterScaledImage(this.scaleX, this.scaleY, this.canvasElement);
         }
         
         ,setScale: function( sx, sy ) {
@@ -726,27 +738,34 @@
                 sw, sh, sx = self.scaleX, sy = self.scaleY,
                 isVideo = img instanceof HTMLVideoElement,
                 isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image
+                isImage = img instanceof Image,
+                isString = "string" === typeof(img) || img instanceof String
             ;
             
             if ( isImage || isCanvas || isVideo )
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = isVideo ? image.videoWidth : image.width;
-                h = isVideo ? image.videoHeight : image.height;
+                if ( isVideo )
+                {
+                    w = image.videoWidth;
+                    h = image.videoHeight;
+                }
+                else
+                {
+                    w = image.width;
+                    h = image.height;
+                }
                 sw = ~~(sx*w + 0.5);
                 sh = ~~(sy*h + 0.5);
                 ctx = self.context = _setDimensions(self, sw, sh).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                self.trigger('load', self);
+                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
+                if ( callback ) callback.call( self );
             }
-            else // url string
+            else if ( isString ) // url string
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image();
                 image.onerror = image.onload = function( ) {
                     if ( image.width && image.height )
@@ -761,7 +780,7 @@
                         if (self.selection) self._needsRefresh |= SEL;
                         self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
                     }
-                    self.trigger('load', self);
+                    if ( callback ) callback.call( self );
                 };
                 image.crossOrigin = '';
                 image.src = img; // load it

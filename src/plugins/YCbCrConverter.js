@@ -21,7 +21,8 @@
             // im is a copy of the image data as an image array
             // w is image width, h is image height
             // for this filter, no need to clone the image data, operate in-place
-            
+            var self = this;
+            if ( !self._isOn ) return im;
             var r,g,b, i, l=im.length, ycbcr;
             
             for (i=0; i<l; i+=4)

@@ -274,32 +274,9 @@
             if ( !self._isOn || !self._map ) return im;
             return self._map( self, im, w, h, image );
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._map )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._map( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._map;
         }
     });
     

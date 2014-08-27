@@ -1,5 +1,11 @@
 ##ChangeLog
 
+__0.6.14__
+
+* remove PublishSubscribe for implementing generic filter/image events
+* heavy refactor/optimise/miniimise
+
+
 __0.6.13__
 
 * use Asynchronous.js for parallel/async filter tasks

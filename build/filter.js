@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.13
-*   @dependencies: Classy.js, Asynchronous.js, PublishSubscribe
+*   @version: 0.6.14
+*   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
@@ -198,32 +198,25 @@
 
 }(  /* current root */          this, 
     /* module name */           "FILTER",
-    /* module dependencies */   [ ['Classy', './classy'], ['Asynchronous', './asynchronous'], ['PublishSubscribe', './publishsubscribe'] ], 
-    /* module factory */        function( Classy, Asynchronous, PublishSubscribe ) {
+    /* module dependencies */   [ ['Classy', './classy'], ['Asynchronous', './asynchronous'] ], 
+    /* module factory */        function( Classy, Asynchronous ) {
         
         /* main code starts here */
 
 /**
 *
 *   FILTER.js
-*   @version: 0.6.13
-*   @dependencies: Classy.js, Asynchronous.js, PublishSubscribe
+*   @version: 0.6.14
+*   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
 var FILTER = this.FILTER || { 
-    VERSION: "0.6.13", 
-    Class: Classy.Class, 
-    Merge: Classy.Merge, 
-    PublishSubscribe: PublishSubscribe, 
-    Asynchronous: Asynchronous, 
-    getPath: Asynchronous.currentPath, 
-    isNode: Asynchronous.isPlatform( Asynchronous.Platform.NODE ),
-    isBrowser: Asynchronous.isPlatform( Asynchronous.Platform.BROWSER ),
-    supportsWorker: Asynchronous.supportsMultiThreading( ),
-    isWorker: Asynchronous.isThread( )
+    VERSION: "0.6.14", 
+    Class: Classy.Class, Merge: Classy.Merge, 
+    Asynchronous: Asynchronous, Path: Asynchronous.path( )
 };
     
 /**
@@ -240,24 +233,42 @@ var FILTER = this.FILTER || {
     
     var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
         ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
-        ,splice = AP.splice, concat = AP.concat
+        ,splice = AP.splice, concat = AP.concat, log
         
-        ,Merge = FILTER.Merge, log
+        ,FILTERPath = FILTER.Path
         
-        ,isNode = FILTER.isNode, isBrowser = FILTER.isBrowser
-        ,supportsWorker = FILTER.supportsWorker, isWorker = FILTER.isWorker
+        ,Merge = FILTER.Merge, Async = FILTER.Asynchronous
+        
+        ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
+        ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
         ,userAgent = navigator ? navigator.userAgent : ""
+        
+        ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
+        
+        ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
+        
+        ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
+        ,applyPlugin = function( im, w, h, image ){ return im; }
+        ,initPlugin = function( ) { }
+        ,constructorPlugin = function( init ) {
+            return function( ) {
+                this.$super('constructor');
+                init.apply( this, slice(arguments) );
+            };
+        }
+        
+        ,_uuid = 0
     ;
     
     //
     //
-    // Browser support
+    // Browser Sniffing support
     var Browser = FILTER.Browser = {
         // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
         isNode                  : isNode,
         isBrowser               : isBrowser,
-        isWorker                : isWorker,
-        supportsWorker          : supportsWorker,
+        isWorker                : isThread,
+        supportsWorker          : supportsThread,
         isPhantom               : /PhantomJS/.test(userAgent),
         
         // http://www.quirksmode.org/js/detect.html
@@ -287,11 +298,12 @@ var FILTER = this.FILTER || {
     };
     Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
     Browser.isMac = Browser.isIOS || /Mac/.test(navigator.platform);
-    Browser.isIE_lt8 = Browser.isIE  && !isWorker && (null == document.documentMode || document.documentMode < 8);
-    Browser.isIE_lt9 = Browser.isIE && !isWorker && (null == document.documentMode || document.documentMode < 9);
+    Browser.isIE_lt8 = Browser.isIE  && !isThread && (null == document.documentMode || document.documentMode < 8);
+    Browser.isIE_lt9 = Browser.isIE && !isThread && (null == document.documentMode || document.documentMode < 9);
     Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
     
-    var devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1;
+    FILTER.getPath = Async.path;
+    
     FILTER.getCanvas = FILTER.createCanvas = function( w, h ) {
         var canvas = document.createElement( 'canvas' );
         w = w || 0; h = h || 0;
@@ -306,15 +318,10 @@ var FILTER = this.FILTER || {
         
         return canvas;
     };
-    var _uuid = 0;
+    
     FILTER.uuid = function( namespace ) { 
-        return [namespace||'fuuid', new Date().getTime(), ++_uuid].join('_'); 
+        return [namespace||'filter', new Date( ).getTime( ), ++_uuid].join('_'); 
     };
-    var URL = FILTER.URL = root.webkitURL || root.URL,
-        blobURL = function( src ) {
-            return URL.createObjectURL( new Blob( [ src || '' ], { type: "text/javascript" }) );
-        }
-    ;
     
     //
     //
@@ -337,7 +344,6 @@ var FILTER = this.FILTER || {
     FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
     FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
     
-    var notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray);
     FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
     // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
     // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
@@ -355,6 +361,7 @@ var FILTER = this.FILTER || {
         // add the missing method to the array
         CanvasPixelArray.prototype.set = _set;
     }
+    notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
     
     //
     //
@@ -392,241 +399,257 @@ var FILTER = this.FILTER || {
     FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
     FILTER.error = function( s ) { log( 'ERROR: ' + s ); };
     
-    //
-    //
-    // Worker Interface Filter
-    var FilterWorker = FILTER.FilterThread = FILTER.Class( FILTER.Asynchronous, {
-        
-        path: FILTER.getPath( )
-        ,name: null
-        
-        ,constructor: function( ) {
-            var self = this, filter = null;
-            if ( isWorker )
-            {
-                self.initThread( )
-                    .listen('load', function( data ) {
-                        if ( data && data.filter )
-                        {
+    var 
+        //
+        //
+        // Thread Filter Interface (internal)
+        FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
+            
+            path: FILTER.getPath( )
+            ,name: null
+            
+            ,constructor: function( ) {
+                var self = this, filter = null;
+                if ( isThread )
+                {
+                    self.initThread( )
+                        .listen('load', function( data ) {
+                            if ( data && data.filter )
+                            {
+                                if ( filter ) 
+                                {
+                                    filter.dispose( true );
+                                    filter = null;
+                                }
+                                filter = Async.load( 'FILTER.' + data.filter );
+                            }
+                        })
+                        .listen('import', function( data ) {
+                            if ( data && data["import"] && data["import"].length )
+                            {
+                                importScripts( data["import"]/*.join(',')*/ );
+                            }
+                        })
+                        .listen('params', function( data ) {
+                            if ( filter ) filter.unserialize( data );
+                        })
+                        .listen('apply', function( data ) {
+                            if ( filter && data && data.im )
+                            {
+                                if ( data.params ) filter.unserialize( data.params );
+                                self.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
+                            }
+                            else
+                            {
+                                self.send( 'apply', {im: null} );
+                            }
+                        })
+                        .listen('dispose', function( data ) {
                             if ( filter ) 
                             {
                                 filter.dispose( true );
                                 filter = null;
                             }
-                            filter = FILTER.Asynchronous.load('FILTER.' + data.filter);
-                        }
-                    })
-                    .listen('import', function( data ) {
-                        if ( data && data["import"] && data["import"].length )
-                        {
-                            importScripts( data["import"]/*.join(',')*/ );
-                        }
-                    })
-                    .listen('params', function( data ) {
-                        if ( filter ) filter.unserialize( data );
-                    })
-                    .listen('apply', function( data ) {
-                        if ( filter && data && data.im )
-                        {
-                            if ( data.params ) filter.unserialize( data.params );
-                            self.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
-                        }
-                        else
-                        {
-                            self.send( 'apply', {im: null} );
-                        }
-                    })
-                    .listen('dispose', function( data ) {
-                        if ( filter ) 
-                        {
-                            filter.dispose( true );
-                            filter = null;
-                        }
-                        self.dispose( true );
-                        close( );
-                    })
-                ;
-            }
-            return self;
-        }
-        
-        // activate or de-activate worker filter
-        ,worker: function( enable ) {
-            var self = this;
-            if ( !arguments.length ) enable = true;
-            enable = !!enable;
-            // activate worker
-            if ( true === enable && !self.$thread ) 
-            {
-                self.fork('FILTER.FilterThread', self.path.file);
-                self.send('load', {filter: self.name});
-            }
-            // de-activate worker (if was activated before)
-            else if ( !enable && self.$thread )
-            {
-                self.unfork( );
-            }
-            return self;
-        }
-        
-        ,sources: function( ) {
-            var sources = slice( arguments );
-            if ( sources.length )
-            {
-                var blobs = [ ], i;
-                for (i=0; i<sources.length; i++)
-                {
-                    if ( 'function' === typeof( sources[ i ] ) )
-                        blobs.push( blobURL( sources[ i ].toString( ) ) );
-                    else
-                        blobs.push( blobURL( sources[ i ] ) );
-                }
-                this.send('import', {'import': blobs.join( ',' )});
-            }
-            return this;
-        }
-        
-        ,scripts: function( ) {
-            var scripts = slice( arguments );
-            if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
-            return this;
-        }
-        
-        // @override
-        ,serialize: function( ) {
-            var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, params: {} };
-        }
-        
-        // @override
-        ,unserialize: function( json ) {
-            var self = this;
-            if ( json && self.name === json.filter )
-            {
-                self._isOn = !!json._isOn;
-            }
-            return self;
-        }
-    });
-   
-    //
-    //
-    // Abstract Generic Filter (implements Async Worker Interface transparently)
-    var Filter = FILTER.Filter = FILTER.Class( {extends: FilterWorker, implements: FILTER.PublishSubscribe}, {
-        name: "Filter"
-        
-        ,constructor: function( ) {
-            var self = this;
-            //self.$super('constructor', 100);
-            self.initPubSub( );
-        }
-        
-        // filters can have id's
-        ,id: null
-        ,_isOn: true
-        
-        ,dispose: function( ) {
-            var self = this;
-            self.$super('dispose');
-            self.disposePubSub( );
-            return self;
-        }
-        
-        // whether filter is ON
-        ,isOn: function( ) {
-            return this._isOn;
-        }
-        
-        // allow filters to be turned ON/OFF
-        ,turnOn: function( bool ) {
-            if ( !arguments.length ) bool = true;
-            this._isOn = !!bool;
-            return this;
-        }
-        
-        // toggle ON/OFF state
-        ,toggle: function( ) {
-            this._isOn = !this._isOn;
-            return this;
-        }
-        
-        // @override
-        ,reset: function( ) {
-            return this;
-        }
-        
-        // @override
-        ,combineWith: function( filter ) {
-            return this;
-        }
-        
-        // @override
-        // for internal use, each filter overrides this
-        ,_apply: function( im, w, h, image ) { 
-            /* do nothing here, override */
-            return im;
-        }
-        
-        // generic apply2 method, maybe overwritten
-        // apply a filter from an image to another image
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
+                            self.dispose( true );
+                            close( );
                         })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
                     ;
                 }
-                else
-                {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
             }
-            return src;
-        }
-        
-        // generic apply method, maybe overwritten
-        ,apply: function( image, cb ) {
-            if ( image && this._isOn ) this.apply2( image, image, cb );
-            return image;
-        }
-        
-        ,toString: function( ) {
-            return "[FILTER: " + this.name + "]";
-        }
-    });
+            
+            // activate or de-activate thread/worker filter
+            ,thread: function( enable ) {
+                var self = this;
+                if ( !arguments.length ) enable = true;
+                enable = !!enable;
+                // activate worker
+                if ( enable && !self.$thread ) 
+                {
+                    self.fork( 'FILTER.FilterThread', (FILTERPath.file !== self.path.file) ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                    self.send('load', {filter: self.name});
+                }
+                // de-activate worker (if was activated before)
+                else if ( !enable && self.$thread )
+                {
+                    self.unfork( );
+                }
+                return self;
+            }
+            
+            ,sources: function( ) {
+                var sources = slice( arguments );
+                if ( sources.length )
+                {
+                    var blobs = [ ], i;
+                    for (i=0; i<sources.length; i++)
+                    {
+                        if ( 'function' === typeof( sources[ i ] ) )
+                            blobs.push( Async.blob( sources[ i ].toString( ) ) );
+                        else
+                            blobs.push( Async.blob( sources[ i ] ) );
+                    }
+                    this.send('import', {'import': blobs.join( ',' )});
+                }
+                return this;
+            }
+            
+            ,scripts: function( ) {
+                var scripts = slice( arguments );
+                if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
+                return this;
+            }
+            
+            // @override
+            ,serialize: function( ) {
+                var self = this;
+                return { filter: self.name, _isOn: !!self._isOn, params: {} };
+            }
+            
+            // @override
+            ,unserialize: function( json ) {
+                var self = this;
+                if ( json && self.name === json.filter )
+                {
+                    self._isOn = !!json._isOn;
+                }
+                return self;
+            }
+        }),
+       
+        //
+        //
+        // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
+        Filter = FILTER.Filter = FILTER.Class( FilterThread, {
+            name: "Filter"
+            
+            ,constructor: function( ) {
+                var self = this;
+                //self.$super('constructor', 100, false);
+            }
+            
+            // filters can have id's
+            ,id: null
+            ,_isOn: true
+            
+            ,dispose: function( ) {
+                var self = this;
+                self.$super('dispose');
+                return self;
+            }
+            
+            // alias of thread method
+            ,worker: FilterThread.prototype.thread
+            
+            // whether filter is ON
+            ,isOn: function( ) {
+                return this._isOn;
+            }
+            
+            // allow filters to be turned ON/OFF
+            ,turnOn: function( bool ) {
+                if ( !arguments.length ) bool = true;
+                this._isOn = !!bool;
+                return this;
+            }
+            
+            // toggle ON/OFF state
+            ,toggle: function( ) {
+                this._isOn = !this._isOn;
+                return this;
+            }
+            
+            // @override
+            ,reset: function( ) {
+                return this;
+            }
+            
+            // @override
+            ,canRun: function( ) {
+                return this._isOn;
+            }
+            
+            // @override
+            ,combineWith: function( filter ) {
+                return this;
+            }
+            
+            // @override
+            // for internal use, each filter overrides this
+            ,_apply: function( im, w, h, image ) { 
+                /* do nothing here, override */
+                return im;
+            }
+            
+            // generic apply a filter from an image (src) to another image (dest)
+            // with optional callback (cb)
+            ,apply: function( src, dest, cb ) {
+                var self = this, im;
+                
+                if ( !self.canRun( ) ) return src;
+                
+                if ( arguments.length < 3 )
+                {
+                    if ( dest && dest.setSelectedData ) 
+                    {
+                        // dest is an image and no callback
+                        cb = null;
+                    }
+                    else if ( 'function' === typeof(dest) )
+                    {
+                        // dest is callback, dest is same as src
+                        cb = dest;
+                        dest = src;
+                    }
+                    else
+                    {
+                        dest = src;
+                        cb = null;
+                    }
+                }
+                
+                if ( src && dest )
+                {
+                    im = src.getSelectedData( );
+                    if ( self.$thread )
+                    {
+                        self
+                            .listen( 'apply', function( data ) { 
+                                self.unlisten( 'apply' );
+                                if ( data && data.im ) dest.setSelectedData( data.im );
+                                if ( cb ) cb.call( self );
+                            })
+                            // process request
+                            .send( 'apply', {im: im, params: self.serialize( )} )
+                        ;
+                    }
+                    else
+                    {
+                        dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
+                        if ( cb ) cb.call( self );
+                    }
+                }
+                return src;
+            }
+            
+            ,toString: function( ) {
+                return "[FILTER: " + this.name + "]";
+            }
+        })
+    ;
     
-    var toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; };
-        
     //
     //
-    // plugin creation framework
+    // filter plugin creation micro-framework
     FILTER.Create = function( methods ) {
         methods = Merge({
-                init: function( ) { }
+                init: initPlugin
                 ,name: "PluginFilter"
                 ,toString: toStringPlugin
-                ,apply: function( im, w, h, image ){ return im; }
+                ,apply: applyPlugin
         }, methods);
-        var init = methods.init;
+        methods.constructor = constructorPlugin( methods.init );
         methods._apply = methods.apply;
-        methods.constructor = /*methods.init;*/ function( ) {
-            this.$super('constructor');
-            init.apply( this, slice(arguments) );
-        };
-        delete methods.init;
-        delete methods.apply;
+        delete methods.init; delete methods.apply;
         return FILTER.Class( Filter, methods );
     };
     
@@ -1674,7 +1697,7 @@ var FILTER = this.FILTER || {
     "use strict";
     
     var devicePixelRatio = FILTER.devicePixelRatio,
-        IMG = FILTER.ImArray, A32F = FILTER.Array32F,
+        IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
         createCanvas = FILTER.createCanvas,
         notSupportTyped = FILTER._notSupportTypedArrays,
         Min = Math.min, Floor = Math.floor
@@ -1903,11 +1926,14 @@ var FILTER = this.FILTER || {
     //
     //
     // Image (Proxy) Class
-    var FImage = FILTER.Image = FILTER.Class({extends: Object, implements: FILTER.PublishSubscribe}, {
+    var FilterImage = FILTER.Image = FILTER.Class({
         name: "Image"
         
         ,constructor: function( img, callback ) {
             var self = this;
+            // factory-constructor pattern
+            if ( img instanceof FilterImage ) return img;
+            if ( !(self instanceof FilterImage) ) return new FilterImage(img, callback);
             self.width = 0;   
             self.height = 0;
             self.context = null;
@@ -1922,7 +1948,6 @@ var FILTER = this.FILTER || {
             self._integral = null;
             // lazy
             self._needsRefresh = 0;
-            self.initPubSub( );
             if ( img ) self.setImage( img, callback );
         }
         
@@ -1957,7 +1982,6 @@ var FILTER = this.FILTER || {
             self._histogram = null;
             self._integral = null;
             self._needsRefresh = null;
-            self.disposePubSub( );
             return self;
         }
         
@@ -1993,20 +2017,13 @@ var FILTER = this.FILTER || {
         
         // apply a filter (uses filter's own apply method)
         ,apply: function( filter, cb ) {
-            if ( filter /*&& filter instanceof FILTER.Filter*/ )
-            {
-                //filter.apply( this, cb||null );
-                filter.apply2( this, this, cb||null );
-            }
+            filter.apply( this, this, cb || null );
             return this;
         }
         
         // apply2 a filter using another image as destination
-        ,apply2: function( filter, image, cb ) {
-            if ( filter && image /*&& filter instanceof FILTER.Filter*/ )
-            {
-                filter.apply2( this, image, cb||null );
-            }
+        ,apply2: function( filter, destImg, cb ) {
+            filter.apply( this, destImg, cb || null );
             return this;
         }
         
@@ -2040,25 +2057,32 @@ var FILTER = this.FILTER || {
             var self = this, image, ctx, w, h, 
                 isVideo = img instanceof HTMLVideoElement,
                 isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image
+                isImage = img instanceof Image,
+                isString = "string" === typeof(img) || img instanceof String
             ;
             
             if ( isImage || isCanvas || isVideo )
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = isVideo ? image.videoWidth : image.width;
-                h = isVideo ? image.videoHeight : image.height;
+                if ( isVideo )
+                {
+                    w = image.videoWidth;
+                    h = image.videoHeight;
+                }
+                else
+                {
+                    w = image.width;
+                    h = image.height;
+                }
                 ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                self.trigger( 'load', self );
+                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
+                if ( callback ) callback.call( self );
             }
-            else // url string
+            else if ( isString ) // url string
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image( );
                 image.onerror = image.onload = function( ) {
                     if ( image.width && image.height )
@@ -2071,7 +2095,7 @@ var FILTER = this.FILTER || {
                         if (self.selection) self._needsRefresh |= SEL;
                         self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
                     }
-                    self.trigger( 'load', self );
+                    if ( callback ) callback.call( self );
                 };
                 image.crossOrigin = '';
                 image.src = img; // load it
@@ -2104,7 +2128,7 @@ var FILTER = this.FILTER || {
             var self = this;
             if (self._needsRefresh & DATA) _refreshData( self );
             // clone it
-            return new IMG( self.imageData.data );
+            return new IMGcpy( self.imageData.data );
         }
         
         // get direct data array of selected part
@@ -2123,7 +2147,7 @@ var FILTER = this.FILTER || {
             }
             
             // clone it
-            return [new IMG( sel.data ), sel.width, sel.height];
+            return [new IMGcpy( sel.data ), sel.width, sel.height];
         }
         
         // set direct data array
@@ -2191,7 +2215,7 @@ var FILTER = this.FILTER || {
         }
         
         ,clone: function( ) {
-            return new FImage(this.canvasElement);
+            return new FilterImage(this.canvasElement);
         }
         
         ,scale: function( sx, sy ) {
@@ -2354,11 +2378,14 @@ var FILTER = this.FILTER || {
     //
     //
     // Scaled Image (Proxy) Class
-    var FSImage = FILTER.ScaledImage = FILTER.Class( FImage, {
+    var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         name: "ScaledImage"
         
         ,constructor: function( scalex, scaley, img, callback ) {
             var self = this;
+            // factory-constructor pattern
+            if ( img instanceof FilterImage ) return img;
+            if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img, callback);
             self.scaleX = scalex || 1;
             self.scaleY = scaley || self.scaleX;
             self.$super('constructor', img, callback);
@@ -2367,8 +2394,16 @@ var FILTER = this.FILTER || {
         ,scaleX: 1
         ,scaleY: 1
         
+        ,dispose: function( ) {
+            var self = this;
+            self.scaleX = null;
+            self.scaleY = null;
+            self.$super('dispose');
+            return self;
+        }
+        
         ,clone: function( ) {
-            return new FSImage(this.scaleX, this.scaleY, this.canvasElement);
+            return new FilterScaledImage(this.scaleX, this.scaleY, this.canvasElement);
         }
         
         ,setScale: function( sx, sy ) {
@@ -2390,27 +2425,34 @@ var FILTER = this.FILTER || {
                 sw, sh, sx = self.scaleX, sy = self.scaleY,
                 isVideo = img instanceof HTMLVideoElement,
                 isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image
+                isImage = img instanceof Image,
+                isString = "string" === typeof(img) || img instanceof String
             ;
             
             if ( isImage || isCanvas || isVideo )
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = img;
-                w = isVideo ? image.videoWidth : image.width;
-                h = isVideo ? image.videoHeight : image.height;
+                if ( isVideo )
+                {
+                    w = image.videoWidth;
+                    h = image.videoHeight;
+                }
+                else
+                {
+                    w = image.width;
+                    h = image.height;
+                }
                 sw = ~~(sx*w + 0.5);
                 sh = ~~(sy*h + 0.5);
                 ctx = self.context = _setDimensions(self, sw, sh).canvasElement.getContext('2d');
                 ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                self.trigger('load', self);
+                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
+                if ( callback ) callback.call( self );
             }
-            else // url string
+            else if ( isString ) // url string
             {
-                if ( callback ) self.one('load', function( ){ callback.call( self ); });
                 image = new Image();
                 image.onerror = image.onload = function( ) {
                     if ( image.width && image.height )
@@ -2425,7 +2467,7 @@ var FILTER = this.FILTER || {
                         if (self.selection) self._needsRefresh |= SEL;
                         self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
                     }
-                    self.trigger('load', self);
+                    if ( callback ) callback.call( self );
                 };
                 image.crossOrigin = '';
                 image.src = img; // load it
@@ -2635,33 +2677,9 @@ var FILTER = this.FILTER || {
             }
             return im;
         }
-        
-        // make it so other composite filters can be  used as simple filter components in the stack
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._stack.length )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._stack.length;
         }
         
         ,toString: function( ) {
@@ -2750,32 +2768,9 @@ var FILTER = this.FILTER || {
             if ( !self._isOn || !self._handler ) return im;
             return self._handler( self, im, w, h, image );
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._handler )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._handler( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._handler;
         }
     });
     
@@ -3428,44 +3423,9 @@ var FILTER = this.FILTER || {
             }
             return p;
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._matrix )
-            {
-                /*if (this._webglInstance)
-                {
-                    var w=image.width, h=image.height;
-                    this._webglInstance.filterParams=[
-                        new CM([w, h]),
-                        1.0,
-                        new CM([w, h]),
-                        this._matrix
-                    ];
-                    this._webglInstance._apply(image.webgl, w, h);
-                    return image;
-                }*/
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    im = src.getSelectedData( );
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._matrix;
         }
     });
     // aliases
@@ -4108,32 +4068,9 @@ var FILTER = this.FILTER || {
             }
             return im;
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._tableR )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._tableR;
         }
     });
     // aliases
@@ -4383,32 +4320,9 @@ var FILTER = this.FILTER || {
             }
             return im;
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && (self._map || self.map) )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && (this._map || this.map);
         }
     });
     
@@ -4688,32 +4602,9 @@ var FILTER = this.FILTER || {
             if ( !self._isOn || !self._map ) return im;
             return self._map( self, im, w, h, image );
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._map )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._map( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._map;
         }
     });
     
@@ -5819,51 +5710,9 @@ var FILTER = this.FILTER || {
             }
             return dst;
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._matrix )
-            {
-                /*if (this._webglInstance)
-                {
-                    var w=image.width, h=image.height;
-                    this._webglInstance.filterParams=[
-                        new CM([w, h]),
-                        1.0,
-                        new CM([w, h]),
-                        this._coeff, 
-                        (this._matrix2) ? 1 : 0,
-                        (this._isGrad) ? 1 : 0,
-                        this._dim>>1,
-                        this._dim2>>1,
-                        this._matrix.length,
-                        this._matrix,
-                        (this._matrix2) ? this._matrix2 : new CM([0])
-                    ];
-                    this._webglInstance._apply(image.webgl, w, h);
-                    return image;
-                }*/
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: src.getSelectedData( ), params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    im = src.getSelectedData( );
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._matrix;
         }
     });
     // aliases
@@ -6546,32 +6395,9 @@ var FILTER = this.FILTER || {
             if ( !self._isOn || !self._dim || !self._filter )  return im;
             return self._filter( self, im, w, h );
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._dim && self._filter )
-            {
-                im = src.getSelectedData();
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._filter( self, im[ 0 ], im[ 1 ], im[ 2 ], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._dim && this._filter;
         }
     });
 
@@ -6956,32 +6782,9 @@ var FILTER = this.FILTER || {
             if ( !self._isOn || !self._dim )  return im;
             return self._filter( self, im, w, h );
         }
-        
-        ,apply2: function( src, dest, cb ) {
-            var self = this, im;
-            if ( src && dest && self._isOn && self._dim )
-            {
-                im = src.getSelectedData( );
-                if ( self.$thread )
-                {
-                    if ( cb ) self.one('apply', function( ){ cb( self ); } );
-                    self
-                        .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im )
-                                dest.setSelectedData( data.im );
-                            self.trigger( 'apply', self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
-                    ;
-                }
-                else
-                {
-                    dest.setSelectedData( self._filter( self, im[0], im[1], im[2], src ) );
-                }
-            }
-            return src;
+            
+        ,canRun: function( ) {
+            return this._isOn && this._dim;
         }
     });
     // aliiases

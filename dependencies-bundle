@@ -19,7 +19,6 @@ BUNDLE =[]
 
     ./build/classy.js
     ./build/asynchronous.js
-    ./build/publishsubscribe.js
     ./build/filter.min.js
     ./build/filter.plugins.min.js
 

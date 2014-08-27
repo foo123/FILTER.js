@@ -281,11 +281,11 @@
                 deselectBt = getEl('deselect'),
                 
                 // images
-                displacemap = new $F.Image().fill("rgb(128,128,128)", 0, 0, 320, 240),
-                alphamask = new $F.Image().fill("rgb(0,0,0)", 0, 0, 200, 200),
-                //downscaleVideo = new $F.ScaledImage(0.5, 0.5),
-                //upscaleVideo = new $F.ScaledImage(2, 2),
-                postVideo = new $F.Image(),
+                displacemap = $F.Image().fill("rgb(128,128,128)", 0, 0, 320, 240),
+                alphamask = $F.Image().fill("rgb(0,0,0)", 0, 0, 200, 200),
+                //downscaleVideo = $F.ScaledImage(0.5, 0.5),
+                //upscaleVideo = $F.ScaledImage(2, 2),
+                postVideo = $F.Image(),
                  
                  // filters
                 flipX = new $F.GeometricMapFilter().flipX(),
