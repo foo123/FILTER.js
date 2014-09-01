@@ -3,7 +3,17 @@
 
 __A JavaScript Library for Image/Video Processing and Filtering using HTML5 APIs__
 
+
 This is a library for filtering images/video in JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress).  
+
+
+* [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js)
+* [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
+* [filter.plugins.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.js)
+* [filter.plugins.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.min.js)
+* [filter.bundle.js, filter+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
+
+
 
 ###Contents
 
