@@ -196,7 +196,7 @@
     }
 
 
-}(  /* current root */          this, 
+}(  /* current root */          this.self || this, 
     /* module name */           "FILTER",
     /* module dependencies */   [ ['Classy', './classy'], ['Asynchronous', './asynchronous'] ], 
     /* module factory */        function( Classy, Asynchronous ) {

@@ -196,7 +196,7 @@
     }
 
 
-}(  /* current root */          this, 
+}(  /* current root */          this.self || this, 
     /* module name */           "FILTER_PLUGINS",
     /* module dependencies */   [ ['FILTER', './filter'] ], 
     /* module factory */        function( FILTER ) {
