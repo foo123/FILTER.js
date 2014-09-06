@@ -31,7 +31,7 @@
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;

@@ -8,9 +8,8 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = this.FILTER || { 
+var FILTER = exports.FILTER = { 
     VERSION: "@@VERSION@@", 
     Class: Classy.Class, Merge: Classy.Merge, 
-    Asynchronous: Asynchronous, Path: Asynchronous.path( )
+    Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
 };
-    

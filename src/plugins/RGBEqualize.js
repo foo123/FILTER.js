@@ -16,7 +16,7 @@
     FILTER.RGBHistogramEqualizeFilter = FILTER.Create({
         name: "RGBHistogramEqualizeFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {

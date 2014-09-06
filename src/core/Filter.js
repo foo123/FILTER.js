@@ -184,7 +184,7 @@
         // Thread Filter Interface (internal)
         FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
             
-            path: FILTER.getPath( )
+            path: FILTER.getPath( exports.AMD )
             ,name: null
             
             ,constructor: function( ) {

@@ -1,220 +1,151 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.14
+*   @version: 0.6.15
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
-**/!function ( root, name, deps, factory, undef ) {
-
+**/!function ( root, name, deps, factory ) {
     "use strict";
-    var isNode = ("undefined" !== typeof global && "[object global]" === {}.toString.call(global)),
-        isBrowser = (!isNode && "undefined" !== typeof navigator ), 
-        isWorker = ("function" === typeof importScripts && navigator instanceof WorkerNavigator),
-        A = Array, AP = A.prototype
-    ;
-    // Get current filename/path
-    var getCurrentPath = function() {
-            var file = null;
-            if ( isNode ) 
-            {
-                // http://nodejs.org/docs/latest/api/globals.html#globals_filename
-                // this should hold the current file in node
-                file = __filename;
-                return { path: __dirname, file: __filename };
-            }
-            else if ( isWorker )
-            {
-                // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
-                // this should hold the current url in a web worker
-                file = self.location.href;
-            }
-            else if ( isBrowser )
-            {
-                // get last script (should be the current one) in browser
-                var scripts;
-                if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
-                    file  = scripts[scripts.length - 1].src;
-            }
-            
-            if ( file )
-                return { path: file.split('/').slice(0, -1).join('/'), file: file };
-            return { path: null, file: null };
-        },
-        thisPath = getCurrentPath(),
-        makePath = function(base, dep) {
-            if ( isNode )
-            {
-                //return require('path').join(base, dep);
-                return dep;
-            }
-            if ( "." == dep.charAt(0) ) 
-            {
-                base = base.split('/');
-                dep = dep.split('/'); 
-                var index = 0, index2 = 0, i, l = dep.length, l2 = base.length;
-                
-                for (i=0; i<l; i++)
-                {
-                    if ( /^\.\./.test( dep[i] ) )
-                    {
-                        index++;
-                        index2++;
-                    }
-                    else if ( /^\./.test( dep[i] ) )
-                    {
-                        index2++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                index = ( index >= l2 ) ? 0 : l2-index;
-                dep = base.slice(0, index).concat( dep.slice( index2 ) ).join('/');
-            }
-            return dep;
-        }
-    ;
     
     //
-    // export the module in a umd-style generic way
-    deps = ( deps ) ? [].concat(deps) : [];
-    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), fpaths = new A( dl ), mods = new A( dl ), _module_, head;
-        
-    for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; fpaths[i] = /\.js$/i.test(paths[i]) ? makePath(thisPath.path, paths[i]) : makePath(thisPath.path, paths[i]+'.js'); }
+    // export the module umd-style (with deps bundled-in or external)
     
-    // node, commonjs, etc..
-    if ( "object" === typeof( module ) && module.exports ) 
+    // Get current filename/path
+    function getPath( isNode, isWebWorker, isAMD, isBrowser, amdMod ) 
     {
-        if ( undef === module.exports[name] )
+        var f;
+        if (isNode) return {file:__filename, path:__dirname};
+        else if (isWebWorker) return {file:(f=self.location.href), path:f.split('/').slice(0, -1).join('/')};
+        else if (isAMD&&amdMod&&amdMod.uri)  return {file:(f=amdMod.uri), path:f.split('/').slice(0, -1).join('/')};
+        else if (isBrowser&&(f=document.getElementsByTagName('script'))&&f.length) return {file:(f=f[f.length - 1].src), path:f.split('/').slice(0, -1).join('/')};
+        return {file:null,  path:null};
+    }
+    function getDeps( names, paths, deps, depsType, require/*offset*/ )
+    {
+        //offset = offset || 0;
+        var i, dl = names.length, mods = new Array( dl );
+        for (i=0; i<dl; i++) 
+            mods[ i ] = (1 === depsType)
+                    ? /* node */ (deps[ names[ i ] ] || require( paths[ i ] )) 
+                    : (2 === depsType ? /* amd args */ /*(deps[ i + offset ])*/ (require( names[ i ] )) : /* globals */ (deps[ names[ i ] ]))
+                ;
+        return mods;
+    }
+    // load javascript(s) (a)sync using <script> tags if browser, or importScripts if worker
+    function loadScripts( scope, base, names, paths, callback, imported )
+    {
+        var dl = names.length, i, rel, t, load, next, head, link;
+        if ( imported )
         {
-            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( fpaths[i] )[ ids[i] ];
-            _module_ = factory.apply(root, mods );
-            // allow factory just to add to existing modules without returning a new module
-            module.exports[ name ] = _module_ || 1;
+            for (i=0; i<dl; i++) if ( !(names[ i ] in scope) ) importScripts( base + paths[ i ] );
+            return callback( );
         }
-    }
-    
-    // amd, etc..
-    else if ( "function" === typeof( define ) && define.amd ) 
-    {
-        define( ['exports'].concat( paths ), function( exports ) {
-            if ( undef === exports[name] )
-            {
-                var args = AP.slice.call( arguments, 1 ), dl = args.length;
-                for (var i=0; i<dl; i++)   mods[i] = exports[ ids[i] ] || args[ i ];
-                _module_ = factory.apply(root, mods );
-                // allow factory just to add to existing modules without returning a new module
-                exports[ name ] = _module_ || 1;
-            }
-        });
-    }
-    
-    // web worker
-    else if ( isWorker ) 
-    {
-        for (i=0; i<dl; i++)  
-        {
-            if ( !self[ ids[i] ] ) importScripts( fpaths[i] );
-            mods[i] = self[ ids[i] ];
-        }
-        _module_ = factory.apply(root, mods );
-        // allow factory just to add to existing modules without returning a new module
-        self[ name ] = _module_ || 1;
-    }
-    
-    // browsers, other loaders, etc..
-    else
-    {
-        if ( undef === root[name] )
-        {
-            /*
-            for (i=0; i<dl; i++)  mods[i] = root[ ids[i] ];
-            _module_ = factory.apply(root, mods );
-            // allow factory just to add to existing modules without returning a new module
-            root[name] = _module_ || 1;
-            */
-            
-            // load javascript async using <script> tags in browser
-            var loadJs = function(url, callback) {
-                head = head || document.getElementsByTagName("head")[0];
-                var done = 0, script = document.createElement('script');
-                
-                script.type = 'text/javascript';
-                script.language = 'javascript';
-                script.onload = script.onreadystatechange = function( ) {
-                    if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
-                    {
-                        done = 1;
-                        script.onload = script.onreadystatechange = null;
-                        head.removeChild( script );
-                        script = null;
-                        if ( callback )  callback();
-                    }
+        head = document.getElementsByTagName("head")[ 0 ]; link = document.createElement( 'a' );
+        rel = /^\./; t = 0; i = 0;
+        load = function( url, cb ) {
+            var done = 0, script = document.createElement('script');
+            script.type = 'text/javascript'; script.language = 'javascript';
+            script.onload = script.onreadystatechange = function( ) {
+                if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
+                {
+                    done = 1; script.onload = script.onreadystatechange = null;
+                    cb( );
+                    head.removeChild( script ); script = null;
                 }
-                // load it
-                script.src = url;
-                head.appendChild( script );
-            };
-
-            var loadNext = function(id, url, callback) { 
-                    if ( !root[ id ] ) 
-                        loadJs( url, callback ); 
-                    else
-                        callback();
-                },
-                continueLoad = function( i ) {
-                    return function() {
-                        if ( i < dl )  mods[ i ] = root[ ids[ i ] ];
-                        if ( ++i < dl )
-                        {
-                            loadNext( ids[ i ], fpaths[ i ], continueLoad( i ) );
-                        }
-                        else
-                        {
-                            _module_ = factory.apply(root, mods );
-                            // allow factory just to add to existing modules without returning a new module
-                            root[ name ] = _module_ || 1;
-                        }
-                    };
-                }
-            ;
-            if ( dl ) 
-            {
-                loadNext( ids[ 0 ], fpaths[ 0 ], continueLoad( 0 ) );
             }
-            else
+            if ( rel.test( url ) ) 
             {
-                _module_ = factory.apply(root, mods );
-                // allow factory just to add to existing modules without returning a new module
-                root[ name ] = _module_ || 1;
+                // http://stackoverflow.com/a/14781678/3591273
+                // let the browser generate abs path
+                link.href = base + url;
+                url = link.protocol + "//" + link.host + link.pathname + link.search + link.hash;
             }
+            // load it
+            script.src = url; head.appendChild( script );
+        };
+        next = function( ) {
+            if ( names[ i ] in scope )
+            {
+                if ( ++i >= dl ) callback( );
+                else if ( names[ i ] in scope ) next( ); 
+                else load( paths[ i ], next );
+            }
+            else if ( ++t < 30 ) { setTimeout( next, 30 ); }
+            else { t = 0; i++; next( ); }
+        };
+        while ( i < dl && (names[ i ] in scope) ) i++;
+        if ( i < dl ) load( paths[ i ], next );
+        else callback( );
+    }
+    
+    deps = deps || [[],[]];
+    
+    var isNode = ("undefined" !== typeof global) && ("[object global]" === {}.toString.call(global)),
+        isBrowser = !isNode && ("undefined" !== typeof navigator), 
+        isWebWorker = !isNode && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator),
+        isAMD = ("function" === typeof define) && define.amd,
+        isCommonJS = isNode && ("object" === typeof module) && module.exports,
+        currentGlobal = isWebWorker ? self : root, currentPath = getPath( isNode, isWebWorker, isAMD, isBrowser ), m,
+        names = [].concat(deps[0]), paths = [].concat(deps[1]), dl = names.length, i, requireJSPath, ext_js = /\.js$/i
+    ;
+    
+    // commonjs, node, etc..
+    if ( isCommonJS ) 
+    {
+        module.$deps = module.$deps || {};
+        module.exports = module.$deps[ name ] = factory.apply( root, [{NODE:module}].concat(getDeps( names, paths, module.$deps, 1, require )) ) || 1;
+    }
+    
+    // amd, requirejs, etc..
+    else if ( isAMD && ("function" === typeof require) && ("function" === typeof require.specified) &&
+        require.specified(name) ) 
+    {
+        if ( !require.defined(name) )
+        {
+            requireJSPath = { };
+            for (i=0; i<dl; i++) 
+                require.specified( names[ i ] ) || (requireJSPath[ names[ i ] ] = paths[ i ].replace(ext_js, ''));
+            //requireJSPath[ name ] = currentPath.file.replace(ext_js, '');
+            require.config({ paths: requireJSPath });
+            // named modules, require the module by name given
+            define( name, ["require", "exports", "module"].concat( names ), function( require, exports, module ) {
+                return factory.apply( root, [{AMD:module}].concat(getDeps( names, paths, arguments, 2, require )) );
+            });
         }
+    }
+    
+    // browser, web worker, other loaders, etc.. + AMD optional
+    else if ( !(name in currentGlobal) )
+    {
+        loadScripts( currentGlobal, currentPath.path + '/', names, paths, function( ){ 
+            currentGlobal[ name ] = m = factory.apply( root, [{}].concat(getDeps( names, paths, currentGlobal )) ) || 1; 
+            isAMD && define( name, ["require"], function( ){ return m; } );
+        }, isWebWorker);
     }
 
 
-}(  /* current root */          this.self || this, 
+}(  /* current root */          this, 
     /* module name */           "FILTER_PLUGINS",
-    /* module dependencies */   [ ['FILTER', './filter'] ], 
-    /* module factory */        function( FILTER ) {
+    /* module dependencies */   [ ['FILTER'], ['./filter.js'] ], 
+    /* module factory */        function( exports, FILTER ) {
         
-        /* main code starts here */
+    /* main code starts here */
 
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.6.14
+*   @version: 0.6.15
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
 **/
-// not export just add plugins to FILTER
-var FILTER_PLUGINS = null;
+exports.FILTER_PLUGINS = FILTER;
+
 /**
 *
 * Noise Plugin
@@ -244,7 +175,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -336,7 +267,7 @@ var FILTER_PLUGINS = null;
     FILTER.HistogramEqualizeFilter = FILTER.Create({
         name : "HistogramEqualizeFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -434,7 +365,7 @@ var FILTER_PLUGINS = null;
     FILTER.GrayscaleHistogramEqualizeFilter = FILTER.Create({
         name: "GrayscaleHistogramEqualizeFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -528,7 +459,7 @@ var FILTER_PLUGINS = null;
     FILTER.RGBHistogramEqualizeFilter = FILTER.Create({
         name: "RGBHistogramEqualizeFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -647,7 +578,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -841,7 +772,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -1102,7 +1033,7 @@ var FILTER_PLUGINS = null;
     FILTER.HSVConverterFilter = FILTER.Create({
         name: "HSVConverterFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
@@ -1177,7 +1108,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -1280,7 +1211,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -1402,7 +1333,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -1537,7 +1468,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -2900,7 +2831,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -2997,7 +2928,7 @@ var FILTER_PLUGINS = null;
         }
         
         // support worker serialize/unserialize interface
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         ,serialize: function( ) {
             var self = this;
@@ -3145,10 +3076,8 @@ var FILTER_PLUGINS = null;
         }
     });
     
-}(FILTER);
-
+}(FILTER);    
     /* main code ends here */
-    
-    /* export the module "FILTER_PLUGINS" */
-    return FILTER_PLUGINS;
+    /* export the module */
+    return exports["FILTER_PLUGINS"];
 });

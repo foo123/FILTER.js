@@ -48,18 +48,13 @@ HEADER =
 # Text replacements
 REPLACE =[{}]
     
-    "@@ROOT@@" = "this.self || this"
-    
-    "@@VERSION@@" = "0.6.14"
-    
+    "@@ROOT@@" = "this"
+    "@@EXPORTS@@" = "exports"
+    "@@VERSION@@" = "0.6.15"
     "@@DEPENDENCIES@@" = "@dependencies: Filter.js"
-    
     "@@USE_STRICT@@" = '"use strict";'
-    
     "@@MODULE_NAME@@" = "FILTER_PLUGINS"
-    
-    "@@MODULE_DEPENDENCIES@@" = "[ ['FILTER', './filter'] ]"
-    
+    "@@MODULE_DEPENDENCIES@@" = "[ ['FILTER'], ['./filter.js'] ]"
     "@@MODULE_ARGUMENTS@@"  = "FILTER"
     
 @ # end block

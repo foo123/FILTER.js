@@ -8,5 +8,5 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-// not export just add plugins to FILTER
-var FILTER_PLUGINS = null;
+exports.FILTER_PLUGINS = FILTER;
+

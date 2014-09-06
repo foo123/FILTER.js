@@ -14,7 +14,7 @@
     FILTER.YCbCrConverterFilter = FILTER.Create({
         name: "YCbCrConverterFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h) {

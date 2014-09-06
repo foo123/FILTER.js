@@ -92,41 +92,8 @@
             }
             #forkongithub a{background:#c83022;color:#fff;}
         </style>
-        <script src="../common/js/stats.min.js"></script>
-        <script src="../common/js/areaselect.min.js"></script>
-        <script src="../common/js/filter.bundle.js"></script>
-        <script>//<![CDATA[
-            
-           /**
-             * Provides requestAnimationFrame in a cross browser way.
-             * http://paulirish.com/2011/requestanimationframe-for-smart-animating/
-             */
-
-            if ( !window.requestAnimationFrame ) {
-
-                window.requestAnimationFrame = ( function() {
-
-                    return window.webkitRequestAnimationFrame ||
-                    window.mozRequestAnimationFrame ||
-                    window.oRequestAnimationFrame ||
-                    window.msRequestAnimationFrame ||
-                    function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element ) {
-
-                        window.setTimeout( callback, 1000 / 60 );
-
-                    };
-
-                } )();
-
-            }
-            
-            // utils
-            function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
-            function getEl(id) { return document.getElementById(id); }
-            function add(el, child) { el.appendChild(child); }
-            function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
-            
-        //]]></script>
+        <script src="../common/js/require.js"></script>
+        <script src="../common/js/require-config.js"></script>
     </head>
     <body>
         <span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
@@ -267,10 +234,47 @@
         </div>
         
         <script>//<![CDATA[
-        (function(window){
+       /**
+         * Provides requestAnimationFrame in a cross browser way.
+         * http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+         */
+
+        if ( !window.requestAnimationFrame ) {
+
+            window.requestAnimationFrame = ( function() {
+
+                return window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function( /* function FrameRequestCallback */ callback, /* DOMElement Element */ element ) {
+
+                    window.setTimeout( callback, 1000 / 60 );
+
+                };
+
+            } )();
+
+        }
         
+        // utils
+        function addEvent(el, ev, handler) { el.addEventListener(ev, handler, false); }
+        function getEl(id) { return document.getElementById(id); }
+        function add(el, child) { el.appendChild(child); }
+        function addAll(el, childs) { var l=childs.length, i=0; while (i<l) { el.appendChild(childs[i]); i++; } }
+        
+        require.config({
+            paths: {
+                FilterBundle: "filter.bundle"
+            },
+            bundles: {
+                FilterBundle: ["Classy", "Asynchronous", "FILTER", "FILTER_PLUGINS"]
+            }
+        });
+        require(['Classy', 'Asynchronous', 'FILTER', 'FILTER_PLUGINS', 'AreaSelect', 'Stats'/*, 'domReady!'*/], 
+            function( $_1, $_2, $_3, $F, AreaSelect, Stats ) {
             var 
-                $F = FILTER, icon = new $F.Image(),
+                icon = new $F.Image(),
                 filterSelect = getEl('filterSelect'), 
                 flipSelect = getEl('flipSelect'), 
                 blendSelect = getEl('blendSelect'), 
@@ -654,7 +658,7 @@
             // play
             init( );
             
-        })(window);
+        });
         //]]></script>
     </body>
 </html>

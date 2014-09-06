@@ -16,7 +16,7 @@
     FILTER.HSVConverterFilter = FILTER.Create({
         name: "HSVConverterFilter"
         
-        ,path: FILTER.getPath( )
+        ,path: FILTER.getPath( exports.AMD )
         
         // this is the filter actual apply method routine
         ,apply: function(im, w, h/*, image*/) {
