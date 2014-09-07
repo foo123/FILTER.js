@@ -144,7 +144,7 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = exports.FILTER = { 
+var FILTER = exports['FILTER'] = { 
     VERSION: "0.6.15", 
     Class: Classy.Class, Merge: Classy.Merge, 
     Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )

@@ -8,7 +8,7 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = exports.FILTER = { 
+var FILTER = exports['@@MODULE_NAME@@'] = { 
     VERSION: "@@VERSION@@", 
     Class: Classy.Class, Merge: Classy.Merge, 
     Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )

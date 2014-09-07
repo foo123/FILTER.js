@@ -144,7 +144,7 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-exports.FILTER_PLUGINS = FILTER;
+exports['FILTER_PLUGINS'] = FILTER;
 
 /**
 *
