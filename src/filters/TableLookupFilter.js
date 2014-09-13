@@ -47,7 +47,7 @@
         
         ,constructor: function( tR, tG, tB, tA ) {
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             self._tableR = tR || null;
             self._tableG = tG || self._tableR;
             self._tableB = tB || self._tableG;
@@ -63,7 +63,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$super('dispose');
+            self.$superv('dispose');
             
             self._tableR = null;
             self._tableG = null;

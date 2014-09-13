@@ -45,7 +45,7 @@
         
         ,constructor: function( weights, factor, bias ) {
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             self._coeff = new CM([1.0, 0.0]);
             
             if ( weights && weights.length)
@@ -84,7 +84,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$super('dispose');
+            self.$superv('dispose');
             
             self._webglInstance = null;
             self._dim = null;

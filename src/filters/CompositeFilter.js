@@ -21,7 +21,7 @@
         
         ,constructor: function( filters ) { 
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
         }
         
@@ -31,7 +31,7 @@
         ,dispose: function( withFilters ) {
             var self = this, i, stack = self._stack;
             
-            self.$super('dispose');
+            self.$superv('dispose');
             
             if ( true === withFilters )
             {

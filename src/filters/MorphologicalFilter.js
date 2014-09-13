@@ -35,7 +35,7 @@
         
         ,constructor: function( ) {
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             self._filterName = null;
             self._filter = null;
             self._dim = 0;
@@ -52,7 +52,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$super('dispose');
+            self.$superv('dispose');
             
             self._filterName = null;
             self._filter = null;

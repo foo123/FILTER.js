@@ -1,5 +1,10 @@
 ##ChangeLog
 
+__0.6.15__ , __0.6.16__
+
+* update buildtools/dependencies
+* remove *FILTER.Image.blend method* (there is filter plugin for this), add *FILTER.Image.toImage method*
+
 __0.6.14__
 
 * remove PublishSubscribe for implementing generic filter/image events

@@ -35,9 +35,11 @@ SRC =[]
     ./src/filters/ConvolutionMatrixFilter.js
     ./src/filters/MorphologicalFilter.js
     ./src/filters/StatisticalFilter.js
+    
     # svg and css based generic Filters (TODO)
     #./src/filters/SVGFilter.js
     #./src/filters/CSSFilter.js
+    
     # webgl generic Filters (TODO)
     #./src/filters/WebGLFilter.js
     #./src/filters/webgl/ColorMatrixFilter.js
@@ -58,7 +60,7 @@ REPLACE =[{}]
     
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
-    "@@VERSION@@" = "0.6.15"
+    "@@VERSION@@" = "0.6.16"
     "@@DEPENDENCIES@@" = "@dependencies: Classy.js, Asynchronous.js"
     "@@USE_STRICT@@" = '"use strict";'
     "@@MODULE_NAME@@" = "FILTER"

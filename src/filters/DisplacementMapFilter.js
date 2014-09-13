@@ -25,7 +25,7 @@
         
         ,constructor: function( displacemap ) {
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             if ( displacemap ) self.setMap( displacemap );
         }
         
@@ -48,7 +48,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$super('dispose');
+            self.$superv('dispose');
             
             self._map = null;
             self.map = null;

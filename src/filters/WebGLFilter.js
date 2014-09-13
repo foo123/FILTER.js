@@ -913,7 +913,7 @@
         
         constructor: function(shaders, attributes, uniforms, textures) { 
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             self.shaders=shaders || null; 
             self.attributes=attributes || null; 
             self.uniforms=uniforms || null; 

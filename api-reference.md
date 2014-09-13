@@ -40,6 +40,7 @@ __Methods:__
 * _getSelectedData()_ gets a copy of the pixel data of current image selection region
 * _integral()_  Computes (and caches) the image integral (not used at this time)
 * _histogram()_  Computes (and caches) the image histogram (not used at this time)
+* _toImage()_  return an HTMLImage object of the current image
 
 ###ScaledImage Class
 
@@ -586,7 +587,7 @@ __Included Plugins__ (see examples for how to use)
 * __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
 * __HueExtractor__ : extract a range of hues from the image
 * __AlphaMask__ : apply another image as an alpha mask to the target image
-* __Blend__ : apply photoshop-like image blending as a filter (similar method exists also in __Image__ class)
+* __Blend__ : apply photoshop-like image blending as a filter <del>(similar method exists also in __Image__ class)</del>
 * __ChannelCopy__ : copy a channel from an image to another channel on target image
 * __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image

@@ -31,7 +31,7 @@
         ,initPlugin = function( ) { }
         ,constructorPlugin = function( init ) {
             return function( ) {
-                this.$super('constructor');
+                this.$superv('constructor');
                 init.apply( this, slice(arguments) );
             };
         }
@@ -176,7 +176,7 @@
     // logging
     log = FILTER.log = (console && console.log) ? console.log : function( s ) { /* do nothing*/ };
     FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
-    FILTER.error = function( s ) { log( 'ERROR: ' + s ); };
+    FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
     
     var 
         //
@@ -294,7 +294,7 @@
                 return self;
             }
         }),
-       
+        
         //
         //
         // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
@@ -303,21 +303,28 @@
             
             ,constructor: function( ) {
                 var self = this;
-                //self.$super('constructor', 100, false);
+                //self.$superv('constructor', [100, false]);
             }
             
             // filters can have id's
             ,id: null
             ,_isOn: true
+            , _onComplete: null
             
             ,dispose: function( ) {
                 var self = this;
-                self.$super('dispose');
+                self.$superv('dispose');
+                self._onComplete = null;
                 return self;
             }
             
             // alias of thread method
             ,worker: FilterThread.prototype.thread
+            
+            ,complete: function( f ) {
+                this._onComplete = f || null;
+                return this;
+            }
             
             // whether filter is ON
             ,isOn: function( ) {
@@ -388,6 +395,7 @@
                 
                 if ( src && dest )
                 {
+                    cb = cb || self._onComplete;
                     im = src.getSelectedData( );
                     if ( self.$thread )
                     {

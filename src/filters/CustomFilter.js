@@ -21,7 +21,7 @@
         
         ,constructor: function( handler ) {
             var self = this;
-            self.$super('constructor');
+            self.$superv('constructor');
             // using bind makes the code become [native code] and thus unserializable
             self._handler = handler && 'function' === typeof(handler) ? handler : null;
         }
@@ -30,7 +30,7 @@
         
         ,dispose: function( ) {
             var self = this;
-            self.$super('dispose');
+            self.$superv('dispose');
             self._handler = null;
             return self;
         }
