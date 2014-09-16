@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.16
+*   @version: 0.6.17
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -137,7 +137,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.16
+*   @version: 0.6.17
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -145,7 +145,7 @@
 *
 **/
 var FILTER = exports['FILTER'] = { 
-    VERSION: "0.6.16", 
+    VERSION: "0.6.17", 
     Class: Classy.Class, Merge: Classy.Merge, 
     Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
 };
