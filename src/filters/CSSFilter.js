@@ -20,7 +20,7 @@
         
         ,constructor: function( cssFilterString ) { 
             // todo
-            this.$superv('constructor');
+            this.$super('constructor');
         }
     });
     

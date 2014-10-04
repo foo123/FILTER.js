@@ -31,8 +31,8 @@
         ,initPlugin = function( ) { }
         ,constructorPlugin = function( init ) {
             return function( ) {
-                this.$superv('constructor');
-                init.apply( this, slice(arguments) );
+                this.$super('constructor');
+                init.apply( this, arguments );
             };
         }
         
@@ -313,7 +313,7 @@
             
             ,dispose: function( ) {
                 var self = this;
-                self.$superv('dispose');
+                self.$super('dispose');
                 self._onComplete = null;
                 return self;
             }

@@ -34,7 +34,7 @@
         
         ,constructor: function( inverseTransform ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             if ( inverseTransform ) self.generic( inverseTransform );
         }
         
@@ -60,7 +60,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._map = null;
             self._mapName = null;

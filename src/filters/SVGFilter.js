@@ -18,7 +18,7 @@
         
         ,constructor: function( svgXml ) { 
             // todo
-            this.$superv('constructor');
+            this.$super('constructor');
         }
     });
     

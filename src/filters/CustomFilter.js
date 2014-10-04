@@ -21,7 +21,7 @@
         
         ,constructor: function( handler ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             // using bind makes the code become [native code] and thus unserializable
             self._handler = handler && 'function' === typeof(handler) ? handler : null;
         }
@@ -30,7 +30,7 @@
         
         ,dispose: function( ) {
             var self = this;
-            self.$superv('dispose');
+            self.$super('dispose');
             self._handler = null;
             return self;
         }
@@ -59,7 +59,7 @@
                 if ( params._handler )
                 {
                     // using bind makes the code become [native code] and thus unserializable
-                    self._handler = eval( '(function(){ "use strict"; return ' + params._handler + '})();');
+                    self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
                 }
             }
             return self;

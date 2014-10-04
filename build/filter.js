@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.17
+*   @version: 0.6.18
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -137,7 +137,7 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.6.17
+*   @version: 0.6.18
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -145,7 +145,7 @@
 *
 **/
 var FILTER = exports['FILTER'] = { 
-    VERSION: "0.6.17", 
+    VERSION: "0.6.18", 
     Class: Classy.Class, Merge: Classy.Merge, 
     Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
 };
@@ -182,8 +182,8 @@ var FILTER = exports['FILTER'] = {
         ,initPlugin = function( ) { }
         ,constructorPlugin = function( init ) {
             return function( ) {
-                this.$superv('constructor');
-                init.apply( this, slice(arguments) );
+                this.$super('constructor');
+                init.apply( this, arguments );
             };
         }
         
@@ -464,7 +464,7 @@ var FILTER = exports['FILTER'] = {
             
             ,dispose: function( ) {
                 var self = this;
-                self.$superv('dispose');
+                self.$super('dispose');
                 self._onComplete = null;
                 return self;
             }
@@ -2228,7 +2228,7 @@ var FILTER = exports['FILTER'] = {
             if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img, callback);
             self.scaleX = scalex || 1;
             self.scaleY = scaley || self.scaleX;
-            self.$superv('constructor', [img, callback]);
+            self.$super('constructor', img, callback);
         }
         
         ,scaleX: 1
@@ -2238,7 +2238,7 @@ var FILTER = exports['FILTER'] = {
             var self = this;
             self.scaleX = null;
             self.scaleY = null;
-            self.$superv('dispose');
+            self.$super('dispose');
             return self;
         }
         
@@ -2339,7 +2339,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( filters ) { 
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
         }
         
@@ -2349,7 +2349,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( withFilters ) {
             var self = this, i, stack = self._stack;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             if ( true === withFilters )
             {
@@ -2559,7 +2559,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( handler ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             // using bind makes the code become [native code] and thus unserializable
             self._handler = handler && 'function' === typeof(handler) ? handler : null;
         }
@@ -2568,7 +2568,7 @@ var FILTER = exports['FILTER'] = {
         
         ,dispose: function( ) {
             var self = this;
-            self.$superv('dispose');
+            self.$super('dispose');
             self._handler = null;
             return self;
         }
@@ -2597,7 +2597,7 @@ var FILTER = exports['FILTER'] = {
                 if ( params._handler )
                 {
                     // using bind makes the code become [native code] and thus unserializable
-                    self._handler = eval( '(function(){ "use strict"; return ' + params._handler + '})();');
+                    self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
                 }
             }
             return self;
@@ -2647,7 +2647,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( matrix ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             if ( matrix && matrix.length )
             {
                 self._matrix = new CM(matrix);
@@ -2670,7 +2670,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._matrix = null;
@@ -3504,7 +3504,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( tR, tG, tB, tA ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             self._tableR = tR || null;
             self._tableG = tG || self._tableR;
             self._tableB = tB || self._tableG;
@@ -3520,7 +3520,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._tableR = null;
             self._tableG = null;
@@ -3943,7 +3943,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( displacemap ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             if ( displacemap ) self.setMap( displacemap );
         }
         
@@ -3966,7 +3966,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._map = null;
             self.map = null;
@@ -4202,7 +4202,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( inverseTransform ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             if ( inverseTransform ) self.generic( inverseTransform );
         }
         
@@ -4228,7 +4228,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._map = null;
             self._mapName = null;
@@ -5071,7 +5071,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( weights, factor, bias ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             self._coeff = new CM([1.0, 0.0]);
             
             if ( weights && weights.length)
@@ -5110,7 +5110,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._dim = null;
@@ -6099,7 +6099,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             self._filterName = null;
             self._filter = null;
             self._dim = 0;
@@ -6116,7 +6116,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._filterName = null;
             self._filter = null;
@@ -6514,7 +6514,7 @@ var FILTER = exports['FILTER'] = {
         
         ,constructor: function( ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             self._dim = 0;
             self._indices = null;
             self._filterName = null;
@@ -6529,7 +6529,7 @@ var FILTER = exports['FILTER'] = {
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._dim = null;
             self._indices = null;

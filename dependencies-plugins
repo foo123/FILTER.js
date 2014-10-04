@@ -50,7 +50,7 @@ REPLACE =[{}]
     
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
-    "@@VERSION@@" = "0.6.17"
+    "@@VERSION@@" = "0.6.18"
     "@@DEPENDENCIES@@" = "@dependencies: Filter.js"
     "@@USE_STRICT@@" = '"use strict";'
     "@@MODULE_NAME@@" = "FILTER_PLUGINS"

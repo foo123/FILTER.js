@@ -1,122 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        
-        <title>Filter.js and Three.js</title>
-        
-        <link rel="stylesheet" type="text/css" href="../common/css/common.min.css" />
-        <style type="text/css">
-            body {
-                position:relative;
-                background-color: #121212;
-                font-family: Helvetica, sans-serif;
-                font-size:12px;
-                color:#aaa;
-                margin: 0px;
-                padding: 0px;
-                height:100%;
-                min-height:900px; 
-                overflow:scroll;
-            }
-            
-            #container {
-                position:absolute; 
-                top:0;
-                left:0;
-                margin:0;
-                padding:0;
-                cursor:pointer;
-                width:100%;
-                height:100%;
-            }
-            
-            .button {
-                -moz-box-shadow:inset 0px 1px 0px 0px #f5978e;
-                -webkit-box-shadow:inset 0px 1px 0px 0px #f5978e;
-                box-shadow:inset 0px 1px 0px 0px #f5978e;
-                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #f24537), color-stop(1, #c62d1f) );
-                background:-moz-linear-gradient( center top, #f24537 5%, #c62d1f 100% );
-                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f24537', endColorstr='#c62d1f');
-                background-color:#f24537;
-                -webkit-border-top-left-radius:20px;
-                -moz-border-radius-topleft:20px;
-                border-top-left-radius:20px;
-                -webkit-border-top-right-radius:20px;
-                -moz-border-radius-topright:20px;
-                border-top-right-radius:20px;
-                -webkit-border-bottom-right-radius:20px;
-                -moz-border-radius-bottomright:20px;
-                border-bottom-right-radius:20px;
-                -webkit-border-bottom-left-radius:20px;
-                -moz-border-radius-bottomleft:20px;
-                border-bottom-left-radius:20px;
-                text-indent:0;
-                border:1px solid #d02718;
-                display:inline-block;
-                color:#ffffff;
-                font-family:Arial;
-                font-size:15px;
-                font-weight:bold;
-                font-style:normal;
-                height:50px;
-                line-height:50px;
-                width:2000px;
-                text-decoration:none;
-                text-align:center;
-                text-shadow:1px 1px 0px #810e05;
-            }
-            .button:hover {
-                background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #c62d1f), color-stop(1, #f24537) );
-                background:-moz-linear-gradient( center top, #c62d1f 5%, #f24537 100% );
-                filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#c62d1f', endColorstr='#f24537');
-                background-color:#c62d1f;
-            }.button:active {
-                position:relative;
-                top:1px;
-            }
-            .button {
-                width:120px;
-                height:40px;
-                line-height:40px;
-                cursor:pointer;
-                position:relative;
-            }
-            #forkongithub a{background:#c83022;color:#fff;}
-        </style>
-        <script src="../common/js/filter.bundle.js"></script>
-        <script src="../common/js/three.min.js"></script>
-        <script src='../common/js/THREEx.WindowResize.js'></script>
-        <script src="./Filter3Application.js"></script>
-    </head>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     
-    <body>
-        <div style="display:none">
-            <!-- load images here -->
-            <img src="../common/assets/che.jpg" id="Che" />
-            <img src="../common/assets/RedStar.jpg" id="RedStar" />
-        </div>
+    <title>Filter.js and Three.js</title>
+    
+    <link rel="stylesheet" type="text/css" href="../common/css/common.min.css" />
+    <style type="text/css">
+        body {
+            position:relative;
+            background-color: #121212;
+            font-family: Helvetica, sans-serif;
+            font-size:12px;
+            color:#aaa;
+            margin: 0px;
+            padding: 0px;
+            height:100%;
+            min-height:900px; 
+            overflow:scroll;
+        }
         
-        <span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+        #container {
+            position:absolute; 
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+            cursor:pointer;
+            width:100%;
+            height:100%;
+        }
         
-        <header id="header">
-            <h1>Filter.js with Three.js</h1>
-        </header>
-        
-        <div class="fluid col-1-1 text-left" style="margin-bottom:10px; padding-left: 20px;"><a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=DP8WED9XW9TAE" class="donate">donate</a> or <a href="http://nikos-web-development.netai.net" class="donate">hire me for a job</a></div>
-        
-        <input id="test" class="button" style="position:relative;z-index:100;" type="button" value="Apply Filters" />
-        
-        <div id="container" class="fluid col-1-1"><br /></div>
-        
-        <script>
-        /*<![CDATA[ */
-                
-            Filter3Application.init();
+        .button {
+            -moz-box-shadow:inset 0px 1px 0px 0px #f5978e;
+            -webkit-box-shadow:inset 0px 1px 0px 0px #f5978e;
+            box-shadow:inset 0px 1px 0px 0px #f5978e;
+            background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #f24537), color-stop(1, #c62d1f) );
+            background:-moz-linear-gradient( center top, #f24537 5%, #c62d1f 100% );
+            filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f24537', endColorstr='#c62d1f');
+            background-color:#f24537;
+            -webkit-border-top-left-radius:20px;
+            -moz-border-radius-topleft:20px;
+            border-top-left-radius:20px;
+            -webkit-border-top-right-radius:20px;
+            -moz-border-radius-topright:20px;
+            border-top-right-radius:20px;
+            -webkit-border-bottom-right-radius:20px;
+            -moz-border-radius-bottomright:20px;
+            border-bottom-right-radius:20px;
+            -webkit-border-bottom-left-radius:20px;
+            -moz-border-radius-bottomleft:20px;
+            border-bottom-left-radius:20px;
+            text-indent:0;
+            border:1px solid #d02718;
+            display:inline-block;
+            color:#ffffff;
+            font-family:Arial;
+            font-size:15px;
+            font-weight:bold;
+            font-style:normal;
+            height:50px;
+            line-height:50px;
+            width:2000px;
+            text-decoration:none;
+            text-align:center;
+            text-shadow:1px 1px 0px #810e05;
+        }
+        .button:hover {
+            background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #c62d1f), color-stop(1, #f24537) );
+            background:-moz-linear-gradient( center top, #c62d1f 5%, #f24537 100% );
+            filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#c62d1f', endColorstr='#f24537');
+            background-color:#c62d1f;
+        }.button:active {
+            position:relative;
+            top:1px;
+        }
+        .button {
+            width:120px;
+            height:40px;
+            line-height:40px;
+            cursor:pointer;
+            position:relative;
+        }
+        #forkongithub a{background:#c83022;color:#fff;}
+    </style>
+    <script src="../common/js/filter.bundle.js"></script>
+    <script src="../common/js/three.min.js"></script>
+    <script src='../common/js/THREEx.WindowResize.js'></script>
+    <script src="./Filter3Application.js"></script>
+</head>
+
+<body>
+    <div style="display:none">
+        <!-- load images here -->
+        <img src="../common/assets/che.jpg" id="Che" />
+        <img src="../common/assets/RedStar.jpg" id="RedStar" />
+    </div>
+    
+    <span id="forkongithub"><a href="https://github.com/foo123/FILTER.js">Fork me on GitHub</a></span>
+    
+    <header id="header">
+        <h1>Filter.js with Three.js</h1>
+    </header>
+    
+    <div class="fluid col-1-1 text-left" style="margin-bottom:10px; padding-left: 20px;"><a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=DP8WED9XW9TAE" class="donate">donate</a> or <a href="http://nikos-web-development.netai.net" class="donate">hire me for a job</a></div>
+    
+    <input id="test" class="button" style="position:relative;z-index:100;" type="button" value="Apply Filters" />
+    
+    <div id="container" class="fluid col-1-1"><br /></div>
+    
+    <script>
+    /*<![CDATA[ */
             
-        /*]]>*/
-        </script>
-    </body>
+        Filter3Application.init();
+        
+    /*]]>*/
+    </script>
+</body>
 </html>

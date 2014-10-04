@@ -1,5 +1,10 @@
 ##ChangeLog
 
+__0.6.17__ , __0.6.18__
+
+* update buildtools/dependencies
+* minor changes
+
 __0.6.15__ , __0.6.16__
 
 * update buildtools/dependencies

@@ -31,7 +31,7 @@
         
         ,constructor: function( matrix ) {
             var self = this;
-            self.$superv('constructor');
+            self.$super('constructor');
             if ( matrix && matrix.length )
             {
                 self._matrix = new CM(matrix);
@@ -54,7 +54,7 @@
         ,dispose: function( ) {
             var self = this;
             
-            self.$superv('dispose');
+            self.$super('dispose');
             
             self._webglInstance = null;
             self._matrix = null;

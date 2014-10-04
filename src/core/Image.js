@@ -603,7 +603,7 @@
             if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img, callback);
             self.scaleX = scalex || 1;
             self.scaleY = scaley || self.scaleX;
-            self.$superv('constructor', [img, callback]);
+            self.$super('constructor', img, callback);
         }
         
         ,scaleX: 1
@@ -613,7 +613,7 @@
             var self = this;
             self.scaleX = null;
             self.scaleY = null;
-            self.$superv('dispose');
+            self.$super('dispose');
             return self;
         }
         
