@@ -1,20 +1,17 @@
 @echo off
 
-rem ###################################################
-rem #
-rem #   The buildtools repository is at:
-rem #   https://github.com/foo123/scripts/buildtools
-rem #
-rem ###################################################
+REM ###################################################
+REM #
+REM #   The buildtools repository is at:
+REM #   https://github.com/foo123/Beeld
+REM #
+REM ###################################################
 
-rem to use the python build tool do:
-rem call python %BUILDTOOLS%\build.py --deps ".\dependencies"
-rem call python %BUILDTOOLS%\build.py --deps ".\dependencies-plugins"
+REM to use the python build tool do:
+REM python %BUILDTOOLS%\Beeld.py --config ".\config.custom" --tasks build,build_plugins
 
-rem to use the php build tool do:
-rem call php -f %BUILDTOOLS%\build.php -- --deps=".\dependencies"
-rem call php -f %BUILDTOOLS%\build.php -- --deps=".\dependencies-plugins"
+REM to use the php build tool do:
+REM php -f %BUILDTOOLS%\Beeld.php --  --config=".\config.custom" --tasks=build,build_plugins
 
-rem to use the node build tool do:
-call node %BUILDTOOLS%\build.js --deps ".\dependencies"
-call node %BUILDTOOLS%\build.js --deps ".\dependencies-plugins"
+REM to use the node build tool do:
+node %BUILDTOOLS%\Beeld.js  --config ".\config.custom" --tasks build,build_plugins

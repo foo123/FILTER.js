@@ -1,0 +1,225 @@
+###################################################
+#
+#   The buildtools repository is at:
+#   https://github.com/foo123/Beeld
+#
+###################################################
+
+tasks =[{}]
+    
+    build ={}
+        
+        src =[]
+
+            !tpl:umd-header.tpl.js  # include a umd-header template
+            
+            # core Classes
+            ./src/FILTER.js
+            ./src/core/Filter.js
+            ./src/core/Color.js
+            ./src/core/Image.js
+
+            # generic Filters
+            ./src/filters/CompositeFilter.js
+            ./src/filters/CustomFilter.js
+            ./src/filters/ColorMatrixFilter.js
+            ./src/filters/TableLookupFilter.js
+            ./src/filters/DisplacementMapFilter.js
+            ./src/filters/GeometricMapFilter.js
+            ./src/filters/ConvolutionMatrixFilter.js
+            ./src/filters/MorphologicalFilter.js
+            ./src/filters/StatisticalFilter.js
+            
+            # svg and css based generic Filters (TODO)
+            #./src/filters/SVGFilter.js
+            #./src/filters/CSSFilter.js
+            
+            # webgl generic Filters (TODO)
+            #./src/filters/WebGLFilter.js
+            #./src/filters/webgl/ColorMatrixFilter.js
+            #./src/filters/webgl/DisplacementMapFilter.js
+            #./src/filters/webgl/GeometricMapFilter.js
+            #./src/filters/webgl/ConvolutionMatrixFilter.js
+            
+            !tpl:umd-footer.tpl.js  # include a umd-footer template
+
+        @ # end block
+
+        # extract header from this file
+        header = ./src/FILTER.js
+
+        # Text replacements
+        replace =[{}]
+            
+            "@@ROOT@@" = "this"
+            "@@EXPORTS@@" = "exports"
+            "@@VERSION@@" = "0.7"
+            "@@DEPENDENCIES@@" = "@dependencies: Classy.js, Asynchronous.js"
+            "@@USE_STRICT@@" = '"use strict";'
+            "@@MODULE_NAME@@" = "FILTER"
+            "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', 'Asynchronous'], ['./classy.js', './asynchronous.js'] ]"
+            "@@MODULE_ARGUMENTS@@"  = "Classy, Asynchronous"
+            
+        @ # end block
+
+
+        out = ./build/filter.js
+        
+    @ # end block
+    
+    build_plugins ={}
+        
+        src =[]
+
+            # sample FILTER Plugins
+            !tpl:umd-header.tpl.js  # include a umd-header template
+            
+            ./src/plugins/Plugin.js
+            ./src/plugins/Noise.js
+            ./src/plugins/Equalize.js
+            ./src/plugins/GrayscaleEqualize.js
+            ./src/plugins/RGBEqualize.js
+            ./src/plugins/Pixelate.js
+            ./src/plugins/TriangularPixelate.js
+            #./src/plugins/HexagonalPixelate.js
+            ./src/plugins/HSVConverter.js
+            #./src/plugins/YCbCrConverter.js
+            ./src/plugins/HueExtractor.js
+            ./src/plugins/ChannelCopy.js
+            ./src/plugins/AlphaMask.js
+            ./src/plugins/Blend.js
+            ./src/plugins/Threshold.js
+            ./src/plugins/Bokeh.js
+            
+            !tpl:umd-footer.tpl.js  # include a umd-footer template
+
+        @ # end block
+
+        # extract header from this file
+        header = ./src/plugins/Plugin.js
+
+        # Text replacements
+        replace =[{}]
+            
+            "@@ROOT@@" = "this"
+            "@@EXPORTS@@" = "exports"
+            "@@VERSION@@" = "0.6.18"
+            "@@DEPENDENCIES@@" = "@dependencies: Filter.js"
+            "@@USE_STRICT@@" = '"use strict";'
+            "@@MODULE_NAME@@" = "FILTER_PLUGINS"
+            "@@MODULE_DEPENDENCIES@@" = "[ ['FILTER'], ['./filter.js'] ]"
+            "@@MODULE_ARGUMENTS@@"  = "FILTER"
+            
+        @ # end block
+
+
+        out = ./build/filter.plugins.js
+        
+    @ # end block
+    
+    minify ={}
+        
+        src =[]
+
+            ./build/filter.js
+
+        @ # end block
+
+
+        # extract documentation from the source (map)
+        #doc ={}
+        #
+        #    "startdoc" = "/**[DOC_MARKDOWN]"
+        #    "enddoc" = "[/DOC_MARKDOWN]**/"
+        #    "trimx" = "\\s*\\*[ ]?"
+        #    "output" = "./filter-reference.md"
+        #    
+        #@ # end block
+
+
+        # Minify the Package (map of lists)
+        minify ={}
+
+            # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
+            uglifyjs =[]
+                -m -c
+            @ # end block
+
+            # Options for Java Closure Compiler (if used)
+            closure =[]
+                "--language_in=ECMASCRIPT5_STRICT"
+            @ # end block
+
+            # Options for Java YUI Compressor Compiler (if used)
+            yui =[]
+                --preserve-semi
+            @ # end block
+
+        @ # end block
+
+        out = ./build/filter.min.js
+    
+    @ # end block
+    
+    minify_plugins ={}
+        
+        src =[]
+
+            ./build/filter.plugins.js
+
+        @ # end block
+
+
+        # extract documentation from the source (map)
+        #doc ={}
+        #
+        #    "startdoc" = "/**[DOC_MARKDOWN]"
+        #    "enddoc" = "[/DOC_MARKDOWN]**/"
+        #    "trimx" = "\\s*\\*[ ]?"
+        #    "output" = "./plugin-reference.md"
+        #
+        #@ # end block
+
+
+        # Minify the Package (map of lists)
+        minify ={}
+
+            # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
+            uglifyjs =[]
+                -m -c
+            @ # end block
+
+            # Options for Java Closure Compiler (if used)
+            closure =[]
+                "--language_in=ECMASCRIPT5_STRICT"
+            @ # end block
+
+            # Options for Java YUI Compressor Compiler (if used)
+            yui =[]
+                --preserve-semi
+            @ # end block
+
+        @ # end block
+
+
+        out = ./build/filter.plugins.min.js
+    
+    @ # end block
+    
+    bundle ={}
+        
+        bundle =[]
+
+            ./build/classy.js
+            ./build/asynchronous.js
+            ./build/filter.min.js
+            ./build/filter.plugins.min.js
+
+        @ # end block
+
+
+        out = ./build/filter.bundle.js
+    
+    @ # end block
+
+@ # end block
