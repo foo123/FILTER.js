@@ -5,9 +5,14 @@
 #
 ###################################################
 
+plugins =[{}]
+    # include 'doc' plugin from plugins folder
+    "doc" = "!plg:doc"
+@
+
 tasks =[{}]
     
-    build ={}
+    build =[{}]
         
         src =[]
 
@@ -43,7 +48,7 @@ tasks =[{}]
             
             !tpl:umd-footer.tpl.js  # include a umd-footer template
 
-        @ # end block
+        @
 
         # extract header from this file
         header = ./src/FILTER.js
@@ -60,14 +65,14 @@ tasks =[{}]
             "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', 'Asynchronous'], ['./classy.js', './asynchronous.js'] ]"
             "@@MODULE_ARGUMENTS@@"  = "Classy, Asynchronous"
             
-        @ # end block
+        @
 
 
         out = ./build/filter.js
         
-    @ # end block
+    @
     
-    build_plugins ={}
+    build_plugins =[{}]
         
         src =[]
 
@@ -93,7 +98,7 @@ tasks =[{}]
             
             !tpl:umd-footer.tpl.js  # include a umd-footer template
 
-        @ # end block
+        @
 
         # extract header from this file
         header = ./src/plugins/Plugin.js
@@ -110,20 +115,20 @@ tasks =[{}]
             "@@MODULE_DEPENDENCIES@@" = "[ ['FILTER'], ['./filter.js'] ]"
             "@@MODULE_ARGUMENTS@@"  = "FILTER"
             
-        @ # end block
+        @
 
 
         out = ./build/filter.plugins.js
         
-    @ # end block
+    @
     
-    minify ={}
+    minify =[{}]
         
         src =[]
 
             ./build/filter.js
 
-        @ # end block
+        @
 
 
         # extract documentation from the source (map)
@@ -134,7 +139,7 @@ tasks =[{}]
         #    "trimx" = "\\s*\\*[ ]?"
         #    "output" = "./filter-reference.md"
         #    
-        #@ # end block
+        #@
 
 
         # Minify the Package (map of lists)
@@ -143,31 +148,31 @@ tasks =[{}]
             # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
             uglifyjs =[]
                 -m -c
-            @ # end block
+            @
 
             # Options for Java Closure Compiler (if used)
             closure =[]
                 "--language_in=ECMASCRIPT5_STRICT"
-            @ # end block
+            @
 
             # Options for Java YUI Compressor Compiler (if used)
             yui =[]
                 --preserve-semi
-            @ # end block
+            @
 
-        @ # end block
+        @
 
         out = ./build/filter.min.js
     
-    @ # end block
+    @
     
-    minify_plugins ={}
+    minify_plugins =[{}]
         
         src =[]
 
             ./build/filter.plugins.js
 
-        @ # end block
+        @
 
 
         # extract documentation from the source (map)
@@ -178,7 +183,7 @@ tasks =[{}]
         #    "trimx" = "\\s*\\*[ ]?"
         #    "output" = "./plugin-reference.md"
         #
-        #@ # end block
+        #@
 
 
         # Minify the Package (map of lists)
@@ -187,26 +192,26 @@ tasks =[{}]
             # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
             uglifyjs =[]
                 -m -c
-            @ # end block
+            @
 
             # Options for Java Closure Compiler (if used)
             closure =[]
                 "--language_in=ECMASCRIPT5_STRICT"
-            @ # end block
+            @
 
             # Options for Java YUI Compressor Compiler (if used)
             yui =[]
                 --preserve-semi
-            @ # end block
+            @
 
-        @ # end block
+        @
 
 
         out = ./build/filter.plugins.min.js
     
-    @ # end block
+    @
     
-    bundle ={}
+    bundle =[{}]
         
         bundle =[]
 
@@ -215,11 +220,11 @@ tasks =[{}]
             ./build/filter.min.js
             ./build/filter.plugins.min.js
 
-        @ # end block
+        @
 
 
         out = ./build/filter.bundle.js
     
-    @ # end block
+    @
 
-@ # end block
+@
