@@ -22,13 +22,15 @@ and alter them.
 
 __Methods:__
 
-* _setImage(uRLOrImageOrCanvasOrVideo [, callback])_  Sets/Alters the underlying image
+* _setImage(ImageOrCanvasOrVideoorFilterImageInstance)_  Sets/Alters the underlying image
 * _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
 * _deselect()_  remove previous selection (selected part becomes whole image)
+* _store()_  store the current filtered/processed image as the original image
+* _restore()_ restore the original image, remove any filters applied to this image
+* _restorable( Boolean )_ whether the image is restorable (it can be faster if not)
 * _apply(filter [, callback])_ shorthand to apply method of a FILTER.Filter instance, image will change after application
 * _apply2(filter, destImage [, callback])_ shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
 * _clone()_ gets a clone of the image as a new FILTER.Image instance
-* _copy(image)_ fast copy of the data of another FILTER.Image instance
 * _clear()_  clear the image data
 * _fill()_  fill the image area with a specific color
 * _scale(sx, sy)_  scale the image in x/y directions
@@ -36,16 +38,18 @@ __Methods:__
 * _flipVertical()_  flip image vertically
 * _setData()_ sets the image pixel data
 * _getData()_ gets a copy of image pixel data
+* _getProcessedData()_ gets a copy of image processed/filtered data
 * _setSelectedData()_ sets the image pixel data for the current selection
 * _getSelectedData()_ gets a copy of the pixel data of current image selection region
+* _getProcessedSelectedData()_ gets a copy of the processed/filtered data of current image selection region
 * _integral()_  Computes (and caches) the image integral (not used at this time)
 * _histogram()_  Computes (and caches) the image histogram (not used at this time)
-* _toImage()_  return an HTMLImage object of the current image
+* _toImage(format)_  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
 
 ````javascript
-new FILTER.ScaledImage(scaleX, scaleY, imageOrURLOrCanvasOrVideo);
+new FILTER.ScaledImage(scaleX, scaleY, ImageOrCanvasOrVideoorFilterImageInstance);
 ````
 
 This is a placeholder for an image, which is automatically up/down scaled (for faster processing). It is a subclass of FILTER.Image and shares the same common methods.
@@ -53,6 +57,22 @@ This is a placeholder for an image, which is automatically up/down scaled (for f
 __Methods:__
 
 * _setScale(sx, sy)_  Sets/Alters the scaling ratios
+
+
+
+###Loader / ImageLoader Classes
+
+````javascript
+filterImageInstance = new FILTER.ImageLoader().load(imageUrl [, onLoad, onProgres, onError]);
+````
+
+Loads an image url into a FILTER.Image instance. 
+
+The same functionality to load a url into a FILTER.Image has been **removed from the FILTER.Image Class**
+
+Use the FILTER.ImageLoader instead.
+
+
 
 
 ###Generic Abstract Filter

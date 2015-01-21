@@ -5,7 +5,6 @@
 *
 **/
 !function(FILTER){
-
     @@USE_STRICT@@
     
     var // utils

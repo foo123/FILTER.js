@@ -5,10 +5,10 @@
 #
 ###################################################
 
-plugins =[{}]
-    # include 'doc' plugin from plugins folder
-    "doc" = "!plg:doc"
-@
+#plugins =[{}]
+#    # include 'doc' plugin from plugins folder
+#    "doc" = "!plg:doc"
+#@
 
 tasks =[{}]
     
@@ -22,8 +22,12 @@ tasks =[{}]
             ./src/FILTER.js
             ./src/core/Filter.js
             ./src/core/Color.js
+            ./src/core/Loader.js
             ./src/core/Image.js
 
+            # image Loaders
+            ./src/loaders/ImageLoader.js
+            
             # generic Filters
             ./src/filters/CompositeFilter.js
             ./src/filters/CustomFilter.js
@@ -58,7 +62,7 @@ tasks =[{}]
             
             "@@ROOT@@" = "this"
             "@@EXPORTS@@" = "exports"
-            "@@VERSION@@" = "0.7"
+            "@@VERSION@@" = "0.7-alpha"
             "@@DEPENDENCIES@@" = "@dependencies: Classy.js, Asynchronous.js"
             "@@USE_STRICT@@" = '"use strict";'
             "@@MODULE_NAME@@" = "FILTER"
@@ -108,7 +112,7 @@ tasks =[{}]
             
             "@@ROOT@@" = "this"
             "@@EXPORTS@@" = "exports"
-            "@@VERSION@@" = "0.6.18"
+            "@@VERSION@@" = "0.7-alpha"
             "@@DEPENDENCIES@@" = "@dependencies: Filter.js"
             "@@USE_STRICT@@" = '"use strict";'
             "@@MODULE_NAME@@" = "FILTER_PLUGINS"
@@ -149,17 +153,6 @@ tasks =[{}]
             uglifyjs =[]
                 -m -c
             @
-
-            # Options for Java Closure Compiler (if used)
-            closure =[]
-                "--language_in=ECMASCRIPT5_STRICT"
-            @
-
-            # Options for Java YUI Compressor Compiler (if used)
-            yui =[]
-                --preserve-semi
-            @
-
         @
 
         out = ./build/filter.min.js
@@ -193,17 +186,6 @@ tasks =[{}]
             uglifyjs =[]
                 -m -c
             @
-
-            # Options for Java Closure Compiler (if used)
-            closure =[]
-                "--language_in=ECMASCRIPT5_STRICT"
-            @
-
-            # Options for Java YUI Compressor Compiler (if used)
-            yui =[]
-                --preserve-semi
-            @
-
         @
 
 

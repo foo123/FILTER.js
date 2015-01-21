@@ -110,7 +110,8 @@
     
         <div id="container" class="fluid col-2-5 panel">
             <strong>Original Video <a href="http://www.youtube.com/watch?v=alQ7KCaGBec" target="_blnak">on YouTube</a></strong><br /><br />
-            <video id="video" autoplay loop>
+            <!-- autoplay -->
+            <video id="video" loop="true" controls="true">
                 <source src="../common/assets/Waddys_Takeoff-The_Aftermath.mp4" type="video/mp4">
                 <source src="../common/assets/Waddys_Takeoff-The_Aftermath.webm" type="video/webm">
                 Video is not supported
@@ -274,7 +275,7 @@
     require(['Classy', 'Asynchronous', 'FILTER', 'FILTER_PLUGINS', 'AreaSelect', 'Stats'/*, 'domReady!'*/], 
         function( $_1, $_2, $_3, $F, AreaSelect, Stats ) {
         var 
-            icon = new $F.Image(),
+            icon,
             filterSelect = getEl('filterSelect'), 
             flipSelect = getEl('flipSelect'), 
             blendSelect = getEl('blendSelect'), 
@@ -285,12 +286,12 @@
             deselectBt = getEl('deselect'),
             
             // images
-            displacemap = $F.Image().fill("rgb(128,128,128)", 0, 0, 320, 240),
-            alphamask = $F.Image().fill("rgb(0,0,0)", 0, 0, 200, 200),
+            displacemap = $F.Image().restorable(false).fill("rgb(128,128,128)", 0, 0, 320, 240),
+            alphamask = $F.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, 200, 200),
             //downscaleVideo = $F.ScaledImage(0.5, 0.5),
             //upscaleVideo = $F.ScaledImage(2, 2),
-            postVideo = $F.Image(),
-             
+            postVideo = $F.Image().restorable(false),
+            
              // filters
             flipX = new $F.GeometricMapFilter().flipX(),
             flipY = new $F.GeometricMapFilter().flipY(),
@@ -327,11 +328,13 @@
             minimum = new $F.StatisticalFilter().minimum(3),
             maximum = new $F.StatisticalFilter().maximum(3),
             mdilate = new $F.MorphologicalFilter().dilate([
-                0, 0, 0, 0, 1,
-                0, 0, 0, 1, 0,
-                0, 0, 1, 0, 0,
-                0, 1, 0, 0, 0,
-                1, 0, 0, 0, 0
+                0, 0, 0, 0, 0, 0, 1,
+                0, 0, 0, 0, 0, 1, 0,
+                0, 0, 0, 0, 1, 0, 0,
+                0, 0, 0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0, 0, 0,
+                1, 0, 0, 0, 0, 0, 0
             ]),
             open = new $F.MorphologicalFilter().opening(3),
             noise = new $F.NoiseFilter(10, 70),
@@ -413,21 +416,21 @@
         function init()
         {
             if ($F.Browser.isChrome)
-                icon.setImage("../common/assets/chrome.png", function(){
+                icon = $F.ImageLoader().load("../common/assets/chrome.png", function(){
                     blend.setImage( icon );
-                });
+                }).restorable(false);
             else if ($F.Browser.isOpera)
-                icon.setImage("../common/assets/opera.png", function(){
+                icon = $F.ImageLoader().load("../common/assets/opera.png", function(){
                     blend.setImage( icon );
-                });
+                }).restorable(false);
             else if ($F.Browser.isIE)
-                icon.setImage("../common/assets/ie.png", function(){
+                icon = $F.ImageLoader().load("../common/assets/ie.png", function(){
                     blend.setImage( icon );
-                });
+                }).restorable(false);
             else
-                icon.setImage("../common/assets/firefox.png", function(){
+                icon = $F.ImageLoader().load("../common/assets/firefox.png", function(){
                     blend.setImage( icon );
-                });
+                }).restorable(false);
             blendSelect.style.display = "none";
             selectBt.style.display = 'inline';
             deselectBt.style.display = 'none';
@@ -435,14 +438,14 @@
             var grd;
             // create a displace map image
             // create radial gradient
-            grd = displacemap.context.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
+            grd = displacemap.octx.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
             grd.addColorStop(1, "#808080"); // neutral
             grd.addColorStop(0, "#ffffff"); // white
-            displacemap.context.fillStyle = grd;
-            displacemap.context.beginPath();
-            displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
-            displacemap.context.fill();
-            //displacemap._refresh();
+            displacemap.octx.fillStyle = grd;
+            displacemap.octx.beginPath();
+            displacemap.octx.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
+            displacemap.octx.fill();
+            displacemap.store();
             displaceFilter.setMap( displacemap );
             displaceFilter.startX=0; displaceFilter.startY=0;
             displaceFilter.scaleX=120; displaceFilter.scaleY=120; 
@@ -450,14 +453,14 @@
             
             // create alpha mask image
             // create radial gradient
-            grd = alphamask.context.createRadialGradient(alphamask.width/2, alphamask.height/2, 0, alphamask.width/2, alphamask.height/2, alphamask.width/2);
+            grd = alphamask.octx.createRadialGradient(alphamask.width/2, alphamask.height/2, 0, alphamask.width/2, alphamask.height/2, alphamask.width/2);
             grd.addColorStop(1, "#000000"); // black
             grd.addColorStop(0, "#ffffff"); // white
-            alphamask.context.fillStyle = grd;
-            alphamask.context.beginPath();
-            alphamask.context.arc(alphamask.width/2, alphamask.height/2, alphamask.width/2, 0, Math.PI*2, true);
-            alphamask.context.fill();
-            //alphamask._refresh();
+            alphamask.octx.fillStyle = grd;
+            alphamask.octx.beginPath();
+            alphamask.octx.arc(alphamask.width/2, alphamask.height/2, alphamask.width/2, 0, Math.PI*2, true);
+            alphamask.octx.fill();
+            alphamask.store();
             swapChannel.apply( alphamask );
             
             alphaMask.setMask( alphamask );
@@ -549,7 +552,7 @@
         function processVideo(event)
         {
             if (video.paused || video.ended)  return;
-            
+
             var vw, vh, brad;
             
             stats.begin( );

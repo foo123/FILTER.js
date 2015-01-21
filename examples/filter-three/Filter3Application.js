@@ -72,7 +72,10 @@ var self={
         container = document.getElementById('container'),
         aside = document.getElementById('aside'),
         test = document.getElementById('test'),
+        restore = document.getElementById('restore');
+        
         test.addEventListener('click', dotest, false);
+        restore.addEventListener('click', dorestore, false);
         
         container.style.width = w+"px";
         container.style.height = h+"px";
@@ -98,10 +101,9 @@ var self={
 
         for (var i=0; i<8;i++)
         {
-            image[i] = new $F.Image();
-            texture[i] = new THREE.Texture(image[i].canvasElement);
             // set closure callback
-            image[i].setImage(document.getElementById('Che').src, callback(i));
+            image[i] = $F.ImageLoader().load(document.getElementById('Che').src, callback(i));
+            texture[i] = new THREE.Texture(image[i].domElement);
         }
 
         mat = new THREE.MeshBasicMaterial( { color: colors.inside } );
@@ -219,18 +221,18 @@ function callback(ind)
         if (ind==7)
         {
             displacemap.createImageData(image[7].width,image[7].height);
-            displacemap.context.fillStyle="rgb(128,128,128)";
-            displacemap.context.fillRect(0,0,displacemap.width,displacemap.height);
+            displacemap.ictx.fillStyle="rgb(128,128,128)";
+            displacemap.ictx.fillRect(0,0,displacemap.width,displacemap.height);
             // create radial gradient
-            var grd = displacemap.context.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
+            var grd = displacemap.ictx.createRadialGradient(displacemap.width/2, displacemap.height/2, 0, displacemap.width/2, displacemap.height/2, displacemap.width/2);
             grd.addColorStop(1, "#808080"); // neutral
             grd.addColorStop(0, "#ffffff"); // white
-            displacemap.context.fillStyle = grd;
-            displacemap.context.beginPath();
-            displacemap.context.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
-            displacemap.context.fill();
+            displacemap.ictx.fillStyle = grd;
+            displacemap.ictx.beginPath();
+            displacemap.ictx.arc(displacemap.width/2,displacemap.height/2,displacemap.width/2,0,Math.PI*2,true);
+            displacemap.ictx.fill();
+            displacemap.store();
             //image[7].setPixelData(displacemap.getPixelData());
-            //displacemap._refresh();
         }
     };
 }
@@ -247,8 +249,16 @@ function dotest(event)
     dF.scaleX=100;
     dF.scaleY=100;
     dF.apply(image[7]);
-    for (var i=0;i<8;i++)
+    for (var i=1;i<8;i++)
         texture[i].needsUpdate=true;
+}
+function dorestore(event)
+{
+    for (var i=1;i<8;i++)
+    {
+        image[i].restore();
+        texture[i].needsUpdate=true;
+    }
 }
 
 function onDocumentMouseDown( event ) {

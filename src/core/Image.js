@@ -6,63 +6,68 @@
 * NOTE: it won't work locally (at least with Firefox), only with server
 **/
 !function(FILTER, undef){
-    
     @@USE_STRICT@@
     
     var devicePixelRatio = FILTER.devicePixelRatio,
         IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
         createCanvas = FILTER.createCanvas,
         notSupportTyped = FILTER._notSupportTypedArrays,
-        Min = Math.min, Floor = Math.floor
+        Min = Math.min, Floor = Math.floor,
+        FORMAT = FILTER.FORMAT,
+        MIME = FILTER.MIME
     ;
     
-    var DATA = 1, SEL = 2, HIST = 4, SAT = 8;
+    var IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32,
+        WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
+        SEL = ISEL|OSEL, DATA = IDATA|ODATA,
+        CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL,
+        CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT
+    ;
     
     // auxilliary (private) methods
     function _getTmpCanvas( scope ) 
     {
-        var cnv = createCanvas(scope.width, scope.height);
-        cnv.width = scope.width;
-        cnv.height = scope.height;
+        var w = scope.width, h = scope.height,
+            cnv = createCanvas(w, h);
+        cnv.width = w * devicePixelRatio;
+        cnv.height = h * devicePixelRatio;
         return cnv;
     }
     
-    function _setDimensions( scope, w, h ) 
+    function _setDimensions( scope, w, h, what ) 
     {
-        scope.canvasElement.style.width = w + 'px';
-        scope.canvasElement.width = scope.width = w * devicePixelRatio;
-        scope.canvasElement.style.height = h + 'px';
-        scope.canvasElement.height = scope.height = h * devicePixelRatio;
-        if (scope._tmpCanvas)
+        what = what || WIDTH_AND_HEIGHT;
+        if ( what & WIDTH )
         {
-            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
-            scope._tmpCanvas.width = scope.canvasElement.width;
-            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
-            scope._tmpCanvas.height = scope.canvasElement.height;
+            scope.width = w;
+            scope.oCanvas.style.width = w + 'px';
+            scope.oCanvas.width = w * devicePixelRatio;
+            if ( scope._restorable ) 
+            {
+            scope.iCanvas.style.width = scope.oCanvas.style.width;
+            scope.iCanvas.width = scope.oCanvas.width;
+            }
+            if ( scope.tmpCanvas )
+            {
+                scope.tmpCanvas.style.width = scope.oCanvas.style.width;
+                scope.tmpCanvas.width = scope.oCanvas.width;
+            }
         }
-        return scope;
-    }
-    
-    function _setWidth( scope, w ) 
-    {
-        scope.canvasElement.style.width = w + 'px';
-        scope.canvasElement.width = scope.width = w * devicePixelRatio;
-        if (scope._tmpCanvas)
+        if ( what & HEIGHT )
         {
-            scope._tmpCanvas.style.width = scope.canvasElement.style.width;
-            scope._tmpCanvas.width = scope.canvasElement.width;
-        }
-        return scope;
-    }
-    
-    function _setHeight( scope, h ) 
-    {
-        scope.canvasElement.style.height = h + 'px';
-        scope.canvasElement.height = scope.height = h * devicePixelRatio;
-        if (scope._tmpCanvas)
-        {
-            scope._tmpCanvas.style.height = scope.canvasElement.style.height;
-            scope._tmpCanvas.height = scope.canvasElement.height;
+            scope.height = h;
+            scope.oCanvas.style.height = h + 'px';
+            scope.oCanvas.height = h * devicePixelRatio;
+            if ( scope._restorable ) 
+            {
+            scope.iCanvas.style.height = scope.oCanvas.style.height;
+            scope.iCanvas.height = scope.oCanvas.height;
+            }
+            if ( scope.tmpCanvas )
+            {
+                scope.tmpCanvas.style.height = scope.oCanvas.style.height;
+                scope.tmpCanvas.height = scope.oCanvas.height;
+            }
         }
         return scope;
     }
@@ -92,7 +97,7 @@
             integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
         }
         scope._integral = [integralR, integralG, integralB];
-        scope._needsRefresh &= ~SAT;
+        scope._needsRefresh &= CLEAR_SAT;
         return scope;
     }
     
@@ -150,28 +155,49 @@
         }
         
         scope._histogram = [cdfR, cdfG, cdfB];
-        scope._needsRefresh &= ~HIST;
+        scope._needsRefresh &= CLEAR_HIST;
         return scope;
     }
     
-    function _refreshData( scope ) 
+    function _refreshData( scope, what ) 
     {
-        scope.imageData = scope.context.getImageData(0, 0, scope.width, scope.height);
-        scope._needsRefresh &= ~DATA;
+        var w = scope.width, h = scope.height;
+        what = what || 255;
+        if ( scope._restorable && (what & IDATA) && (scope._needsRefresh & IDATA) )
+        {
+            scope.iData = scope.ictx.getImageData(0, 0, w, h);
+            scope._needsRefresh &= ~IDATA;
+        }
+        if ( (what & ODATA) && (scope._needsRefresh & ODATA) )
+        {
+            scope.oData = scope.octx.getImageData(0, 0, w, h);
+            scope._needsRefresh &= ~ODATA;
+        }
+        //scope._needsRefresh &= CLEAR_DATA;
         return scope;
     }
     
-    function _refreshDataSel( scope ) 
+    function _refreshSelectedData( scope, what ) 
     {
-        if (scope.selection)
+        if ( scope.selection )
         {
             var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
                 ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
             ;
-            scope.imageDataSel = scope.context.getImageData(xs, ys, ws, hs);
+            what = what || 255;
+            if ( scope._restorable && (what & ISEL) && (scope._needsRefresh & ISEL) )
+            {
+                scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
+                scope._needsRefresh &= ~ISEL;
+            }
+            if ( (what & OSEL) && (scope._needsRefresh & OSEL) )
+            {
+                scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
+                scope._needsRefresh &= ~OSEL;
+            }
         }
-        scope._needsRefresh &= ~SEL;
+        //scope._needsRefresh &= CLEAR_SEL;
         return scope;
     }
         
@@ -181,89 +207,76 @@
     var FilterImage = FILTER.Image = FILTER.Class({
         name: "Image"
         
-        ,constructor: function( img, callback ) {
-            var self = this;
+        ,constructor: function( img ) {
+            var self = this, w = 0, h = 0;
             // factory-constructor pattern
-            if ( img instanceof FilterImage ) return img;
-            if ( !(self instanceof FilterImage) ) return new FilterImage(img, callback);
-            self.width = 0;   
-            self.height = 0;
-            self.context = null;
-            self.selection = null;
-            self.imageData = null;
-            self.imageDataSel = null;
-            self.domElement = self.canvasElement = createCanvas(self.width, self.height);
-            self.context = self.canvasElement.getContext('2d');
-            self._tmpCanvas = null;
+            if ( !(self instanceof FilterImage) ) return new FilterImage(img);
+            self.width = w; self.height = h;
+            self.iData = null; self.iDataSel = null;
+            self.oData = null; self.oDataSel = null;
+            self.iCanvas = createCanvas(w, h);
+            self.oCanvas = createCanvas(w, h);
+            self.tmpCanvas = null;
+            self.domElement = self.oCanvas;
+            self.ictx = self.iCanvas.getContext('2d');
+            self.octx = self.oCanvas.getContext('2d');
             self.webgl = null;
             self._histogram = null;
             self._integral = null;
             // lazy
+            self.selection = null;
             self._needsRefresh = 0;
-            if ( img ) self.setImage( img, callback );
+            self._restorable = true;
+            if ( img ) self.setImage( img );
         }
         
         // properties
         ,width: 0
         ,height: 0
-        ,canvasElement: null
-        ,domElement: null
-        ,context: null
         ,selection: null
-        ,imageData: null
-        ,imageDataSel: null
+        ,iCanvas: null
+        ,oCanvas: null
+        ,tmpCanvas: null
+        ,ictx: null
+        ,octx: null
+        ,iData: null
+        ,iDataSel: null
+        ,oData: null
+        ,oDataSel: null
+        ,domElement: null
         ,webgl: null
         ,_histogram: null
         ,_integral: null
         ,_needsRefresh: 0
-        ,_tmpCanvas: null
+        ,_restorable: true
         
         ,dispose: function( ) {
             var self = this;
-            self.width = null;   
+            self.width = null;
             self.height = null;
-            self.context = null;
             self.selection = null;
-            self.imageData = null;
-            self.imageDataSel = null;
+            self.ictx = null;
+            self.octx = null;
+            self.iData = null;
+            self.iDataSel = null;
+            self.oData = null;
+            self.oDataSel = null;
+            self.iCanvas = null;
+            self.oCanvas = null;
+            self.tmpCanvas = null;
             self.domElement = null;
-            self.canvasElement = null;
-            self.context = null;
-            self._tmpCanvas = null;
             self.webgl = null;
             self._histogram = null;
             self._integral = null;
             self._needsRefresh = null;
+            self._restorable = null;
             return self;
         }
         
-        ,select: function( x1, y1, x2, y2 ) {
-            var self = this, argslen = arguments.length;
-            // default
-            if ( argslen < 1 ) x1 = 0;
-            if ( argslen < 2 ) y1 = 0;
-            if ( argslen < 3 ) x2 = 1;
-            if ( argslen < 4 ) y2 = 1;
-            // clamp
-            /*x1 = parseFloat(x1, 10);
-            y1 = parseFloat(y1, 10);
-            x2 = parseFloat(x2, 10);
-            y2 = parseFloat(y2, 10);*/
-            x1 = 0 > x1 ? 0 : (1 < x1 ? 1 : x1);
-            y1 = 0 > y1 ? 0 : (1 < y1 ? 1 : y1);
-            x2 = 0 > x2 ? 0 : (1 < x2 ? 1 : x2);
-            y2 = 0 > y2 ? 0 : (1 < y2 ? 1 : y2);
-            // select
-            self.selection = [ x1, y1, x2, y2 ];
-            self._needsRefresh |= SEL;
-            return self;
-        }
-        
-        ,deselect: function( ) {
+        ,restorable: function( enabled ) {
             var self = this;
-            self.selection = null;
-            self.imageDataSel = null;
-            self._needsRefresh &= ~SEL;
+            if ( !arguments.length ) enabled = true;
+            self._restorable = !!enabled;
             return self;
         }
         
@@ -279,17 +292,96 @@
             return this;
         }
         
-        ,setWidth:  function( w ) {
-            var self = this;
-            _setWidth(self, w);
-            self._needsRefresh |= DATA | HIST | SAT;
-            if (self.selection) self._needsRefresh |= SEL;
+        ,select: function( x1, y1, x2, y2 ) {
+            var self = this, argslen = arguments.length;
+            // default
+            if ( argslen < 1 ) x1 = 0;
+            if ( argslen < 2 ) y1 = 0;
+            if ( argslen < 3 ) x2 = 1;
+            if ( argslen < 4 ) y2 = 1;
+            // select
+            self.selection = [ 
+                // clamp
+                0 > x1 ? 0 : (1 < x1 ? 1 : x1),
+                0 > y1 ? 0 : (1 < y1 ? 1 : y1),
+                0 > x2 ? 0 : (1 < x2 ? 1 : x2),
+                0 > y2 ? 0 : (1 < y2 ? 1 : y2)
+            ];
+            self._needsRefresh |= SEL;
             return self;
         }
         
-        ,setHeight: function( h ) {
+        ,deselect: function( ) {
             var self = this;
-            _setHeight(self, h);
+            self.selection = null;
+            self.iDataSel = null;
+            self.oDataSel = null;
+            self._needsRefresh &= CLEAR_SEL;
+            return self;
+        }
+        
+        // store the processed/filtered image as the original image
+        // make the processed image the original image
+        ,store: function( ) {
+            var self = this;
+            if ( self._restorable )
+            {
+                self.ictx.drawImage(self.oCanvas, 0, 0); 
+                self._needsRefresh |= IDATA;
+                if (self.selection) self._needsRefresh |= ISEL;
+            }
+            return self;
+        }
+        
+        // restore the original image
+        // remove any filters applied to original image
+        ,restore: function( ) {
+            var self = this;
+            if ( self._restorable )
+            {
+                self.octx.drawImage(self.iCanvas, 0, 0); 
+                self._needsRefresh |= ODATA | HIST | SAT;
+                if (self.selection) self._needsRefresh |= OSEL;
+            }
+            return self;
+        }
+        
+        // clear the image contents
+        ,clear: function( ) {
+            var self = this, w = self.width, h = self.height;
+            if ( w && h )
+            {
+                if ( self._restorable ) self.ictx.clearRect(0, 0, w, h);
+                self.octx.clearRect(0, 0, w, h);
+                self._needsRefresh |= DATA | HIST | SAT;
+                if (self.selection) self._needsRefresh |= SEL;
+            }
+            return self;
+        }
+        
+        // fill image region contents with a specific background color
+        ,fill: function( color, x, y, w, h ) {
+            var self = this, W = self.width, H = self.height;
+            
+            if (!w && W && !h && H) return self;
+            
+            // create the image data if needed
+            if (w && !W && h && !H) self.createImageData(w, h);
+            
+            var ictx = self.ictx, octx = self.octx;
+            color = color||0; 
+            x = x||0; y = y||0; 
+            w = w||W; h = h||H;
+            
+            if ( self._restorable )
+            {
+            ictx.fillStyle = color;  
+            ictx.fillRect(x, y, w, h);
+            }
+            
+            octx.fillStyle = color;  
+            octx.fillRect(x, y, w, h);
+            
             self._needsRefresh |= DATA | HIST | SAT;
             if (self.selection) self._needsRefresh |= SEL;
             return self;
@@ -297,68 +389,204 @@
         
         ,setDimensions: function( w, h ) {
             var self = this;
-            _setDimensions(self, w, h);
+            _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
             self._needsRefresh |= DATA | HIST | SAT;
             if (self.selection) self._needsRefresh |= SEL;
             return self;
         }
         
-        ,setImage: function( img, callback ) {
-            if ( !img ) return this;
-            
-            var self = this, image, ctx, w, h, 
-                isVideo = img instanceof HTMLVideoElement,
-                isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image,
-                isString = "string" === typeof(img) || img instanceof String
-            ;
-            
-            if ( isImage || isCanvas || isVideo )
+        // get direct data array
+        ,getData: function( ) {
+            var self = this, Data;
+            if ( self._restorable )
             {
-                image = img;
-                if ( isVideo )
+            if (self._needsRefresh & IDATA) _refreshData( self, IDATA );
+            Data = self.iData;
+            }
+            else
+            {
+            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            Data = self.oData;
+            }
+            // clone it
+            return new IMGcpy( Data.data );
+        }
+        
+        // get direct data array of selected part
+        ,getSelectedData: function( ) {
+            var self = this, sel;
+            
+            if (self.selection)  
+            {
+                if ( self._restorable )
                 {
-                    w = image.videoWidth;
-                    h = image.videoHeight;
+                if (self._needsRefresh & ISEL) _refreshSelectedData( self, ISEL );
+                sel = self.iDataSel;
                 }
                 else
                 {
-                    w = image.width;
-                    h = image.height;
+                if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+                sel = self.oDataSel;
                 }
-                ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
-                ctx.drawImage(image, 0, 0);
-                self._needsRefresh |= DATA | HIST | SAT;
-                if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
-                if ( callback ) callback.call( self );
             }
-            else if ( isString ) // url string
+            else
             {
-                image = new Image( );
-                image.onerror = image.onload = function( ) {
-                    if ( image.width && image.height )
-                    {
-                        w = image.width;
-                        h = image.height;
-                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
-                        ctx.drawImage(image, 0, 0);
-                        self._needsRefresh |= DATA | HIST | SAT;
-                        if (self.selection) self._needsRefresh |= SEL;
-                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    }
-                    if ( callback ) callback.call( self );
-                };
-                image.crossOrigin = '';
-                image.src = img; // load it
+                if ( self._restorable )
+                {
+                if (self._needsRefresh & IDATA) _refreshData( self, IDATA );
+                sel = self.iData;
+                }
+                else
+                {
+                if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+                sel = self.oData;
+                }
             }
+            // clone it
+            return [new IMGcpy( sel.data ), sel.width, sel.height];
+        }
+        
+        // get processed data array
+        ,getProcessedData: function( ) {
+            var self = this;
+            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            // clone it
+            return new IMGcpy( self.oData.data );
+        }
+        
+        // get processed data array of selected part
+        ,getProcessedSelectedData: function( ) {
+            var self = this, sel;
+            
+            if (self.selection)  
+            {
+                if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+                sel = self.oDataSel;
+            }
+            else
+            {
+                if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+                sel = self.oData;
+            }
+            // clone it
+            return [new IMGcpy( sel.data ), sel.width, sel.height];
+        }
+        
+        // set direct data array
+        ,setData: function(a) {
+            var self = this;
+            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            self.oData.data.set( a ); // not supported in Opera, IE, Safari
+            self.octx.putImageData(self.oData, 0, 0); 
+            self._needsRefresh |= HIST | SAT;
+            if (self.selection) self._needsRefresh |= OSEL;
+            return self;
+        }
+        
+        // set direct data array of selected part
+        ,setSelectedData: function(a) {
+            var self = this;
+            if (self.selection)
+            {
+                var sel = self.selection, ow = self.width-1, oh = self.height-1,
+                    xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+                if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+                self.oDataSel.data.set(a); // not supported in Opera, IE, Safari
+                self.octx.putImageData(self.oDataSel, xs, ys); 
+                self._needsRefresh |= ODATA;
+            }
+            else
+            {
+                if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+                self.oData.data.set( a ); // not supported in Opera, IE, Safari
+                self.octx.putImageData(self.oData, 0, 0); 
+            }
+            self._needsRefresh |= HIST | SAT;
+            return self;
+        }
+        
+        ,createImageData: function( w, h ) {
+            var self = this, ictx, octx;
+            _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+            if ( self._restorable ) 
+            {
+            ictx = self.ictx = self.iCanvas.getContext('2d');
+            ictx.createImageData(w, h);
+            }
+            octx = self.octx = self.oCanvas.getContext('2d');
+            octx.createImageData(w, h);
+            self._needsRefresh |= DATA;
+            if (self.selection) self._needsRefresh |= SEL;
+            return self;
+        }
+        
+        ,setImage: function( img ) {
+            if ( !img ) return this;
+            
+            var self = this, ictx, octx, w, h, 
+                isFilterImage, isVideo, isCanvas, isImage//, isImageData
+            ;
+            
+            isFilterImage = img instanceof FilterImage;
+            if ( isFilterImage ) img = img.oCanvas;
+            isVideo = img instanceof HTMLVideoElement;
+            isCanvas = img instanceof HTMLCanvasElement;
+            isImage = img instanceof Image;
+            //isImageData = img instanceof Object || "object" === typeof img;
+            
+            if ( isVideo )
+            {
+                w = img.videoWidth;
+                h = img.videoHeight;
+            }
+            else
+            {
+                w = img.width;
+                h = img.height;
+            }
+            
+            if ( isImage || isCanvas || isVideo ) 
+            {
+                _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+                if ( self._restorable ) 
+                {
+                ictx = self.ictx = self.iCanvas.getContext('2d');
+                ictx.drawImage(img, 0, 0);
+                }
+                octx = self.octx = self.oCanvas.getContext('2d');
+                octx.drawImage(img, 0, 0);
+                self._needsRefresh |= DATA;
+            }
+            else
+            {
+                if ( !self.oData ) 
+                {
+                    self.createImageData(w, h);
+                    _refreshData(self, DATA);
+                }
+                
+                if ( self._restorable )
+                {
+                ictx = self.ictx = self.iCanvas.getContext('2d');
+                self.iData.data.set(img.data); // not supported in Opera, IE, Safari
+                ictx.putImageData(self.iData, 0, 0); 
+                }
+                
+                octx = self.octx = self.oCanvas.getContext('2d');
+                self.oData.data.set(img.data); // not supported in Opera, IE, Safari
+                octx.putImageData(self.oData, 0, 0); 
+                //self._needsRefresh &= CLEAR_DATA;
+            }
+            //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
+            self._needsRefresh |= HIST | SAT;
+            if (self.selection) self._needsRefresh |= SEL;
             return self;
         }
         
         ,getPixel: function( x, y ) {
             var self = this;
-            if (self._needsRefresh & DATA) _refreshData( self );
-            var off = ~~(y*self.width+x+0.5), im = self.imageData.data;
+            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            var off = ~~(y*self.width+x+0.5), im = self.oData.data;
             return {
                 r: im[off], 
                 g: im[off+1], 
@@ -369,127 +597,67 @@
         
         ,setPixel: function( x, y, r, g, b, a ) {
             var self = this, t = new IMG([r&255, g&255, b&255, a&255]);
-            self.context.putImageData(t, x, y); 
-            self._needsRefresh |= DATA | HIST | SAT;
-            if (self.selection) self._needsRefresh |= SEL;
-            return self;
-        }
-        
-        // get direct data array
-        ,getData: function( ) {
-            var self = this;
-            if (self._needsRefresh & DATA) _refreshData( self );
-            // clone it
-            return new IMGcpy( self.imageData.data );
-        }
-        
-        // get direct data array of selected part
-        ,getSelectedData: function( ) {
-            var self = this, sel;
-            
-            if (self.selection)  
-            {
-                if (self._needsRefresh & SEL) _refreshDataSel( self );
-                sel = self.imageDataSel;
-            }
-            else
-            {
-                if (self._needsRefresh & DATA) _refreshData( self );
-                sel = self.imageData;
-            }
-            
-            // clone it
-            return [new IMGcpy( sel.data ), sel.width, sel.height];
-        }
-        
-        // set direct data array
-        ,setData: function(a/*, w, h*/) {
-            var self = this;
-            if (self._needsRefresh & DATA) _refreshData( self );
-            self.imageData.data.set(a); // not supported in Opera, IE, Safari
-            self.context.putImageData(self.imageData, 0, 0); 
-            self._needsRefresh |= HIST | SAT;
-            if (self.selection) self._needsRefresh |= SEL;
-            return self;
-        }
-        
-        // set direct data array of selected part
-        ,setSelectedData: function(a/*, w, h*/) {
-            var self = this;
-            if (self.selection /*this.imageDataSel*/)
-            {
-                var sel = self.selection, ow = self.width-1, oh = self.height-1,
-                    xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
-                if (self._needsRefresh & SEL) _refreshDataSel( self );
-                self.imageDataSel.data.set(a); // not supported in Opera, IE, Safari
-                self.context.putImageData(self.imageDataSel, xs, ys); 
-                self._needsRefresh |= DATA;
-            }
-            else
-            {
-                if (self._needsRefresh & DATA) _refreshData( self );
-                self.imageData.data.set(a); // not supported in Opera, IE, Safari
-                self.context.putImageData(self.imageData, 0, 0); 
-                if (self.selection) self._needsRefresh |= SEL;
-            }
-            self._needsRefresh |= HIST | SAT;
+            self.octx.putImageData(t, x, y); 
+            self._needsRefresh |= ODATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= OSEL;
             return self;
         }
         
         // get the imageData object
         ,getPixelData: function( ) {
-            if (this._needsRefresh & DATA) _refreshData( this );
-            return this.imageData;
+            if (this._needsRefresh & ODATA) _refreshData( this, ODATA );
+            return this.oData;
         }
         
         // set the imageData object
         ,setPixelData: function( data ) {
             var self = this;
-            self.context.putImageData(data, 0, 0); 
-            self._needsRefresh |= DATA | HIST | SAT;
-            if (self.selection) self._needsRefresh |= SEL;
+            self.octx.putImageData(data, 0, 0); 
+            self._needsRefresh |= ODATA | HIST | SAT;
+            if (self.selection) self._needsRefresh |= OSEL;
             return self;
         }
         
-        ,createImageData: function( w, h ) {
-            var self = this;
-            self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
-            self.context.createImageData(w, h);
-            self._needsRefresh |= DATA;
-            if (self.selection) self._needsRefresh |= SEL;
-            return self;
-        }
-        
-        // fast copy another FILTER.Image
-        ,copy: function( image ) {
-            this.setData(image.getData());
-            return this;
-        }
-        
-        ,clone: function( ) {
-            return new FilterImage(this.canvasElement);
+        ,clone: function( original ) {
+            return new FilterImage(true === original ? this.iCanvas : this.oCanvas);
         }
         
         ,scale: function( sx, sy ) {
             var self = this;
             sx = sx||1; sy = sy||sx;
-            if (1==sx && 1==sy) return self;
+            if ( 1==sx && 1==sy ) return self;
+            
             // lazy
-            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
-            var ctx = self._tmpCanvas.getContext('2d');
+            self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+            var ctx = self.tmpCanvas.getContext('2d'),
+                w = self.width, h = self.height;
+            
             //ctx.save();
             ctx.scale(sx, sy);
-            ctx.drawImage(self.canvasElement, 0, 0);
-            self.width = ~~(sx*self.width+0.5);
-            self.height = ~~(sy*self.height+0.5);
-            self.canvasElement.style.width = self.width + 'px';
-            self.canvasElement.style.height = self.height + 'px';
-            self.canvasElement.width = self.width * devicePixelRatio;
-            self.canvasElement.height = self.height * devicePixelRatio;
-            self.context.drawImage(self._tmpCanvas, 0, 0);
-            self._tmpCanvas.width = self.width;
-            self._tmpCanvas.height = self.height;
+            w = self.width = ~~(sx*w+0.5);
+            h = self.height = ~~(sy*h+0.5);
+            
+            ctx.drawImage(self.oCanvas, 0, 0);
+            self.oCanvas.style.width = w + 'px';
+            self.oCanvas.style.height = h + 'px';
+            self.oCanvas.width = w * devicePixelRatio;
+            self.oCanvas.height = h * devicePixelRatio;
+            self.octx.drawImage(self.tmpCanvas, 0, 0);
+            
+            if ( self._restorable )
+            {
+            ctx.drawImage(self.iCanvas, 0, 0);
+            self.iCanvas.style.width = self.oCanvas.style.width;
+            self.iCanvas.style.height = self.oCanvas.style.height;
+            self.iCanvas.width = self.oCanvas.width;
+            self.iCanvas.height = self.oCanvas.height;
+            self.ictx.drawImage(self.tmpCanvas, 0, 0);
+            }
+            
+            self.tmpCanvas.width = self.oCanvas.width;
+            self.tmpCanvas.height = self.oCanvas.height;
             //ctx.restore();
+            
             self._needsRefresh |= DATA | HIST | SAT;
             if (self.selection) self._needsRefresh |= SEL;
             return self;
@@ -498,12 +666,21 @@
         ,flipHorizontal: function( ) {
             var self = this;
             // lazy
-            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
-            var ctx = self._tmpCanvas.getContext('2d');
+            self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+            var ctx = self.tmpCanvas.getContext('2d');
+            
             ctx.translate(self.width, 0); 
             ctx.scale(-1, 1);
-            ctx.drawImage(self.canvasElement, 0, 0);
-            self.context.drawImage(self._tmpCanvas, 0, 0);
+            
+            ctx.drawImage(self.oCanvas, 0, 0);
+            self.octx.drawImage(self.tmpCanvas, 0, 0);
+            
+            if ( self._restorable )
+            {
+            ctx.drawImage(self.iCanvas, 0, 0);
+            self.ictx.drawImage(self.tmpCanvas, 0, 0);
+            }
+            
             self._needsRefresh |= DATA | HIST | SAT;
             if (self.selection) self._needsRefresh |= SEL;
             return self;
@@ -512,48 +689,21 @@
         ,flipVertical: function( ) {
             var self = this;
             // lazy
-            self._tmpCanvas = self._tmpCanvas || _getTmpCanvas( self );
-            var ctx = self._tmpCanvas.getContext('2d');
+            self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+            var ctx = self.tmpCanvas.getContext('2d');
+            
             ctx.translate(0, self.height); 
             ctx.scale(1, -1);
-            ctx.drawImage(self.canvasElement, 0, 0);
-            self.context.drawImage(self._tmpCanvas, 0, 0);
-            self._needsRefresh |= DATA | HIST | SAT;
-            if (self.selection) self._needsRefresh |= SEL;
-            return self;
-        }
-        
-        // clear the image contents
-        ,clear: function( ) {
-            var self = this;
-            if (self.width && self.height)
+            
+            ctx.drawImage(self.oCanvas, 0, 0);
+            self.octx.drawImage(self.tmpCanvas, 0, 0);
+            
+            if ( self._restorable )
             {
-                var ctx = self.context;
-                ctx.clearRect(0, 0, self.width, self.height);  
-                self._needsRefresh |= DATA | HIST | SAT;
-                if (self.selection) self._needsRefresh |= SEL;
+            ctx.drawImage(self.iCanvas, 0, 0);
+            self.ictx.drawImage(self.tmpCanvas, 0, 0);
             }
-            return self;
-        }
-        
-        // fill image region contents with a specific background color
-        ,fill: function( color, x, y, w, h ) {
-            var self = this;
-            if (!w && self.width && !h && self.height) return self;
-            else if (w && !self.width && h && !self.height)
-            {
-                // create the image data if needed
-                self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
-                self.context.createImageData(w, h);
-            }
-            color = color||0; 
-            x = x||0; y = y||0; 
-            w = w||self.width; h = h||self.height;
-            var ctx = self.context;
-            //ctx.save();
-            ctx.fillStyle = color;  
-            ctx.fillRect(x, y, w, h);
-            //ctx.restore();
+            
             self._needsRefresh |= DATA | HIST | SAT;
             if (self.selection) self._needsRefresh |= SEL;
             return self;
@@ -574,9 +724,21 @@
             return this._histogram;
         }
         
-        ,toImage: function( asImage ) {
-            var uri = this.canvasElement.toDataURL( );
-            if ( false !== asImage )
+        ,toImage: function( format ) {
+            var canvas = this.oCanvas, uri, quality = 1.0;
+            if ( format & FORMAT.JPG )
+            {
+                uri = canvas.toDataURL( MIME.JPG, quality );
+            }
+            else if ( format & FORMAT.GIF )
+            {
+                uri = canvas.toDataURL( MIME.GIF, quality );
+            }
+            else/* if( format & FORMAT.PNG )*/
+            {
+                uri = canvas.toDataURL( MIME.PNG, quality );
+            }
+            if ( format & FORMAT.IMAGE )
             {
                 var img = new Image( );
                 img.src = uri;
@@ -589,21 +751,20 @@
             return "[" + "FILTER Image: " + this.name + "]";
         }
     });
-
+    
     //
     //
     // Scaled Image (Proxy) Class
     var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         name: "ScaledImage"
         
-        ,constructor: function( scalex, scaley, img, callback ) {
+        ,constructor: function( scalex, scaley, img ) {
             var self = this;
             // factory-constructor pattern
-            if ( img instanceof FilterImage ) return img;
-            if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img, callback);
+            if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img);
             self.scaleX = scalex || 1;
             self.scaleY = scaley || self.scaleX;
-            self.$super('constructor', img, callback);
+            self.$super('constructor', img);
         }
         
         ,scaleX: 1
@@ -617,8 +778,8 @@
             return self;
         }
         
-        ,clone: function( ) {
-            return new FilterScaledImage(this.scaleX, this.scaleY, this.canvasElement);
+        ,clone: function( original ) {
+            return new FilterScaledImage(this.scaleX, this.scaleY, true === original ? this.iCanvas : this.oCanvas);
         }
         
         ,setScale: function( sx, sy ) {
@@ -633,60 +794,48 @@
             return self;
         }
         
-        ,setImage: function( img, callback ) {
+        ,setImage: function( img ) {
             if ( !img ) return this;
             
-            var self = this, image, ctx, w, h, 
+            var self = this, ictx, octx, w, h, 
                 sw, sh, sx = self.scaleX, sy = self.scaleY,
-                isVideo = img instanceof HTMLVideoElement,
-                isCanvas = img instanceof HTMLCanvasElement,
-                isImage = img instanceof Image,
-                isString = "string" === typeof(img) || img instanceof String
+                isFilterImage, isVideo, isCanvas, isImage//, isImageData
             ;
             
-            if ( isImage || isCanvas || isVideo )
+            isFilterImage = img instanceof FilterImage;
+            if ( isFilterImage ) img = img.oCanvas;
+            isVideo = img instanceof HTMLVideoElement;
+            isCanvas = img instanceof HTMLCanvasElement;
+            isImage = img instanceof Image;
+            //isImageData = img instanceof Object || "object" === typeof img;
+            
+            if ( isVideo )
             {
-                image = img;
-                if ( isVideo )
-                {
-                    w = image.videoWidth;
-                    h = image.videoHeight;
-                }
-                else
-                {
-                    w = image.width;
-                    h = image.height;
-                }
+                w = img.videoWidth;
+                h = img.videoHeight;
+            }
+            else
+            {
+                w = img.width;
+                h = img.height;
+            }
+            
+            if ( isImage || isCanvas || isVideo ) 
+            {
                 sw = ~~(sx*w + 0.5);
                 sh = ~~(sy*h + 0.5);
-                ctx = self.context = _setDimensions(self, sw, sh).canvasElement.getContext('2d');
-                ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
+                _setDimensions(self, sw, sh, WIDTH_AND_HEIGHT);
+                if ( self._restorable ) 
+                {
+                ictx = self.ictx = self.iCanvas.getContext('2d');
+                ictx.drawImage(img, 0, 0, w, h, 0, 0, sw, sh);
+                }
+                octx = self.octx = self.oCanvas.getContext('2d');
+                octx.drawImage(img, 0, 0, w, h, 0, 0, sw, sh);
                 self._needsRefresh |= DATA | HIST | SAT;
                 if (self.selection) self._needsRefresh |= SEL;
-                self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.canvasElement) : null;
-                if ( callback ) callback.call( self );
             }
-            else if ( isString ) // url string
-            {
-                image = new Image();
-                image.onerror = image.onload = function( ) {
-                    if ( image.width && image.height )
-                    {
-                        w = image.width;
-                        h = image.height;
-                        sw = ~~(sx*w + 0.5);
-                        sh = ~~(sy*h + 0.5);
-                        ctx = self.context = _setDimensions(self, w, h).canvasElement.getContext('2d');
-                        ctx.drawImage(image, 0, 0, w, h, 0, 0, sw, sh);
-                        self._needsRefresh |= DATA | HIST | SAT;
-                        if (self.selection) self._needsRefresh |= SEL;
-                        self.webgl = (FILTER.useWebGL) ? new FILTER.WebGL(self.canvasElement) : null;
-                    }
-                    if ( callback ) callback.call( self );
-                };
-                image.crossOrigin = '';
-                image.src = img; // load it
-            }
+            //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
             return self;
         }
     });

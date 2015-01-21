@@ -7,11 +7,15 @@ __A JavaScript Library for Image/Video Processing and Filtering using HTML5 APIs
 This is a library for filtering images/video in JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress).  
 
 
+**version 0.7-alpha**
+
+
 * [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js)
 * [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
 * [filter.plugins.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.js)
 * [filter.plugins.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.min.js)
 * [filter.bundle.js, filter+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
+
 
 **see also:**  
 
@@ -69,7 +73,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class, [Image Loader classes](/api-reference.md#loader-imageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
@@ -101,6 +105,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
+* add support for other image formats, e.g .TGA, .HDR/.RGBE, .BMP etc.. (todo)
 * add WebGL support for various pre-built and custom Filters (in progress)
 * add SVG Filters interface support for various pre-built and custom Filters (in progress)
 * add CSS Filters interface support for various pre-built and custom Filters (in progress)

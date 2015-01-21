@@ -5,12 +5,11 @@
 *
 **/
 !function(root, FILTER, undef){
-
     @@USE_STRICT@@
     
     // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
     
-    var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
+    var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
         ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
         ,splice = AP.splice, concat = AP.concat, log
         
@@ -129,7 +128,7 @@
     FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
         
     // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-    if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray.prototype.set )
+    if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
     {
         var _set = function( a, offset ) {
                 var i = a.length;
@@ -138,7 +137,7 @@
                 return this;
         };
         // add the missing method to the array
-        CanvasPixelArray.prototype.set = _set;
+        CanvasPixelArray[PROTO].set = _set;
     }
     notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
     
@@ -170,6 +169,20 @@
         0.71516, 
         0.072169 
     ]);
+    FILTER.FORMAT = {
+         IMAGE:     1
+        ,DATA:      4
+        ,PNG:       8
+        ,JPG:       16
+        ,GIF:       32
+    };
+    FILTER.MIME = {
+         PNG:       "image/png"
+        ,JPG:       "image/jpeg"
+        ,GIF:       "image/gif"
+    };
+    FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
+    FILTER.MIME.JPEG = FILTER.MIME.JPG;
     
     //
     //
@@ -319,7 +332,7 @@
             }
             
             // alias of thread method
-            ,worker: FilterThread.prototype.thread
+            ,worker: FilterThread[PROTO].thread
             
             ,complete: function( f ) {
                 this._onComplete = f || null;
