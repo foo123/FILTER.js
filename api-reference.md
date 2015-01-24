@@ -14,7 +14,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ###Image Class
 
 ````javascript
-new FILTER.Image(uRLOrImageOrCanvasOrVideo);
+new FILTER.Image([ImageOrCanvasOrVideoOrFilterImageInstance]);
 ````
 
 This is a placeholder for an image, along with basic methods to access the image data
@@ -22,7 +22,7 @@ and alter them.
 
 __Methods:__
 
-* _setImage(ImageOrCanvasOrVideoorFilterImageInstance)_  Sets/Alters the underlying image
+* _setImage(ImageOrCanvasOrVideoOrFilterImageInstance)_  Sets/Alters the underlying image
 * _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
 * _deselect()_  remove previous selection (selected part becomes whole image)
 * _store()_  store the current filtered/processed image as the original image
@@ -49,7 +49,7 @@ __Methods:__
 ###ScaledImage Class
 
 ````javascript
-new FILTER.ScaledImage(scaleX, scaleY, ImageOrCanvasOrVideoorFilterImageInstance);
+new FILTER.ScaledImage(scaleX, scaleY [, ImageOrCanvasOrVideoOrFilterImageInstance]);
 ````
 
 This is a placeholder for an image, which is automatically up/down scaled (for faster processing). It is a subclass of FILTER.Image and shares the same common methods.
@@ -63,7 +63,7 @@ __Methods:__
 ###Loader / ImageLoader Classes
 
 ````javascript
-filterImageInstance = new FILTER.ImageLoader().load(imageUrl [, onLoad, onProgres, onError]);
+filterImageInstance = new FILTER.ImageLoader().load(imageUrl [, onLoad, onProgress, onError]);
 ````
 
 Loads an image url into a FILTER.Image instance. 
