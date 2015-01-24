@@ -94,8 +94,8 @@ __Methods:__
 * _combineWith( similarFilterInstance )_   for any filter that supports combination of a similar filter with itself, else does nothing
 * _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
 * _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
-* _worker( [enable=true] )_   enable/disable parallel filter worker for this filter (each filter can have its own worker filter transparently)
-* _apply( srcImg [, destImg=srcImg] [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage will be changed after the filter application)
+* _worker/thread( [enabled=true] )_   enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
+* _apply( srcImg [, destImg=srcImg] [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
 
 
 ###Color Matrix Filter
@@ -161,7 +161,7 @@ image.apply( grc );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Table Lookup Filter
@@ -218,7 +218,7 @@ image.apply( invertPosterize );   // image is a FILTER.Image instance, see examp
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Convolution Matrix Filter
@@ -294,7 +294,7 @@ image.apply( emboss );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Displacement Map Filter
@@ -344,7 +344,7 @@ image.apply( dF );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Geometric Map Filter
@@ -398,7 +398,7 @@ image.apply( gF );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Morphological Filter
@@ -447,7 +447,7 @@ image.apply( dilate );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 ###Statistical Filter
@@ -493,7 +493,7 @@ image.apply( median );   // image is a FILTER.Image instance, see examples
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
 
@@ -557,18 +557,18 @@ emboss.turnOn( false );    // turn off the emboss filter while on the chain with
 
 ````
 
-NOTE: The (filter) apply method will actually change the image to which it is applied
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 ###Plugins and Inline Filters
 
 The library can be extended by custom plugins which add new filters.
 A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at /src/plugins/Noise.js etc..)
 
-**NOTE** Included Plugins **DO SUPPORT** parallel worker filters (see code and examples)
+**NOTE** Included Plugins **DO SUPPORT** parallel thread/worker filters (see code and examples)
 
 For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
 
-**NOTE2** Custom Filters **DO SUPPORT** parallel filter workers (make sure the custom function does not reference external data so it can be serialized correctly)
+**NOTE2** Custom Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
 
 Example:
 
@@ -603,6 +603,7 @@ __Included Plugins__ (see examples for how to use)
 * __RGBEqualize__ : apply histogram equalization per separate color channel
 * __Pixelate__ : fast pixelate the image to the given scale
 * __TriangularPixelate__ : fast triangular pixelate the image to the given scale
+* __HexagonalPixelate__ : fast hexagonal pixelate the image to the given scale (TODO)
 * __HSVConverter__ : convert the image to HSV color space
 * __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
 * __HueExtractor__ : extract a range of hues from the image

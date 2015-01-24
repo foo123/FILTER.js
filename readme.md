@@ -65,6 +65,25 @@ This is a library for filtering images/video in JavaScript using HTML5 features 
 Some filters code has been adapted from open source libraries (mostly flash and java, plus a couple from javascript libraries), see the comments in the code for details.
 
 
+* **Image Processing Library in Java** (http://www.jhlabs.com/ip/filters/)
+* **AS3 Image Processing Library** (http://je2050.de/imageprocessing/)
+* **AS3 ColorMatrix by GSkinner** (http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html)
+* **JSManipulate** (https://github.com/JoelBesada/JSManipulate)
+* **glfx.js** (https://github.com/evanw/glfx.js)
+
+
+
+Some image processing theory, basics and tutorials:
+
+
+* [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
+* [image processing basics](http://www.csd.uwo.ca/courses/CS4487a/Lectures/lec03_image_proc.pdf)
+* [fundamentals of image processing]( http://www.tnw.tudelft.nl/fileadmin/Faculteit/TNW/Over_de_faculteit/Afdelingen/Imaging_Science_and_Technology/Research/Research_Groups/Quantitative_Imaging/Education/doc/FIP2_3.pdf)
+* [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
+* [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
+
+
+
 
 ###Features
 
