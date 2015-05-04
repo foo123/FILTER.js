@@ -60,17 +60,21 @@ __Methods:__
 
 
 
-###Loader / ImageLoader Classes
+###Loader / HTMLImageLoader Classes
 
 ````javascript
-filterImageInstance = new FILTER.ImageLoader().load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = FILTER.HTMLImageLoader.load(imageUrl [, onLoad, onProgress, onError]);
+
+// this is similar to:
+
+filterImageInstance = new FILTER.HTMLImageLoader().load(imageUrl [, onLoad, onProgress, onError]);
 ````
 
 Loads an image url into a FILTER.Image instance. 
 
 The same functionality to load a url into a FILTER.Image has been **removed from the FILTER.Image Class**
 
-Use the FILTER.ImageLoader instead.
+Use the FILTER.HTMLImageLoader instead.
 
 
 
@@ -612,3 +616,4 @@ __Included Plugins__ (see examples for how to use)
 * __ChannelCopy__ : copy a channel from an image to another channel on target image
 * __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
+* __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image

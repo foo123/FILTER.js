@@ -1,5 +1,14 @@
 ##ChangeLog
 
+__0.7-alpha__
+
+* images can be restorable
+* add image loaders, remove image loading from FILTER.Image class
+* new plugin, fast FloodFillFilter (using scanline algorithm)
+* update dependencies (e.g classy.js)
+* refactoring, optimisations
+
+
 __0.6.17__ , __0.6.18__
 
 * update buildtools/dependencies

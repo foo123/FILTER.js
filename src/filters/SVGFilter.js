@@ -5,21 +5,20 @@
 *
 **/
 !function(FILTER, undef){
+@@USE_STRICT@@
 
-    @@USE_STRICT@@
+// http://www.w3.org/TR/SVG/filters.html
+
+//
+//
+// Generic SVG-based Filter
+FILTER.SVGFilter = FILTER.Class( FILTER.Filter, {
+    name: "SVGFilter"
     
-    // http://www.w3.org/TR/SVG/filters.html
-    
-    //
-    //
-    // Generic SVG-based Filter
-    FILTER.SVGFilter = FILTER.Class( FILTER.Filter, {
-        name: "SVGFilter"
-        
-        ,constructor: function( svgXml ) { 
-            // todo
-            this.$super('constructor');
-        }
-    });
-    
+    ,constructor: function( svgXml ) { 
+        // todo
+        this.$super('constructor');
+    }
+});
+
 }(FILTER);
