@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7-alpha2
-*   @built on 2015-05-04 18:34:51
+*   @built on 2015-05-06 00:06:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7-alpha2
-*   @built on 2015-05-04 18:34:51
+*   @built on 2015-05-06 00:06:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -4536,6 +4536,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,matrix: null
     ,centerX: 0
     ,centerY: 0
+    ,dx: 0
+    ,dy: 0
     ,angle: 0
     ,radius: 0
     ,wavelength: 0
@@ -4559,6 +4561,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         self.matrix = null;
         self.centerX = null;
         self.centerY = null;
+        self.dx = null;
+        self.dy = null;
         self.angle = null;
         self.radius = null;
         self.wavelength = null;
@@ -4585,6 +4589,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
                 ,matrix: self.matrix
                 ,centerX: self.centerX
                 ,centerY: self.centerY
+                ,dx: self.dx
+                ,dy: self.dy
                 ,angle: self.angle
                 ,radius: self.radius
                 ,wavelength: self.wavelength
@@ -4612,6 +4618,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             self.matrix = params.matrix;
             self.centerX = params.centerX;
             self.centerY = params.centerY;
+            self.dx = params.dx;
+            self.dy = params.dy;
             self.angle = params.angle;
             self.radius = params.radius;
             self.wavelength = params.wavelength;
@@ -4740,6 +4748,15 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         return self;
     }
     
+    ,shift: function( dx, dy ) {
+        var self = this;
+        self.dx = (dx!==undef) ? dx : 0; 
+        self.dy = (dy!==undef) ? dy : self.dx; 
+        self._mapName = "shift";  
+        self._map = Maps.shift; 
+        return self;
+    }
+    
     ,reset: function( ) {
         var self = this;
         self._mapName = null; 
@@ -4769,7 +4786,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         return this._isOn && this._map;
     }
 });
-
+// aliases
+GeometricMapFilter.prototype.translate = GeometricMapFilter.prototype.shift;
 
 //
 //
@@ -4858,6 +4876,25 @@ Maps = {
         return dst;
     }
 
+    ,"shift": function( self, im, w, h ) {
+        var x, y, yw, i, j, l=im.length, dst=new IMG(l),
+            dx = -self.dx, dy = -self.dy;
+        
+        if ( dx < 0 ) dx += w;
+        if ( dy < 0 ) dy += h;
+        
+        x=0; y=0; yw=0;
+        for (i=0; i<l; i+=4, x++)
+        {
+            if (x>=w) { x=0; y++; yw+=w; }
+            
+            j = ((x+dx)%w + ((y+dy)%h)*w)<<2;
+            dst[i] = im[j];   dst[i+1] = im[j+1];
+            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+        }
+        return dst;
+    }
+    
     ,"flipX": function( self, im, w, h ) {
         var x, y, yw, i, j, l=im.length, dst=new IMG(l);
         

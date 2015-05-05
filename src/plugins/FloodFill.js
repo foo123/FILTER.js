@@ -7,7 +7,9 @@
 !function(FILTER){
 @@USE_STRICT@@
 
-// a fast flood fill filter  http://en.wikipedia.org/wiki/Flood_fill
+// a fast flood fill filter using scanline algorithm
+// adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
+// http://en.wikipedia.org/wiki/Flood_fill
 // http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
 // http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
 FILTER.Create({
@@ -15,7 +17,7 @@ FILTER.Create({
     ,x: 0
     ,y: 0
     ,color: null
-    ,tolerance: 0
+    ,tolerance: 0.0
     
     ,path: FILTER.getPath( exports.AMD )
     
@@ -24,7 +26,7 @@ FILTER.Create({
         self.x = x || 0;
         self.y = y || 0;
         self.color = color || [0,0,0];
-        self.tolerance = tolerance || 0;
+        self.tolerance = tolerance || 0.0;
     }
     
     ,serialize: function( ) {
@@ -66,11 +68,13 @@ FILTER.Create({
          * from "Graphics Gems", Academic Press, 1990
          *
          */
-        var self = this, tol = self.tolerance,
+        var self = this, 
+            /* seems to have issues when tol is exactly 1.0*/
+            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
             OC, NC = self.color, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length, 
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, x, x1, x2, yw, stack, segment, notdone
+            l, i, x, x1, x2, yw, stack, segment, notdone, abs = Math.abs
         /*
          * Filled horizontal segment of scanline y for xl<=x<=xr.
          * Parent segment was on line y-dy.  dy=1 or -1
@@ -97,11 +101,12 @@ FILTER.Create({
              */
             for (x=x1; x>=xmin; x-=4)
             {
-                if ( OC[0] === im[x+yw] && OC[1] === im[x+yw+1] && OC[2] === im[x+yw+2] )
+                i = x+yw;
+                if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[x+yw] = NC[0];
-                    im[x+yw+1] = NC[1];
-                    im[x+yw+2] = NC[2];
+                    im[i] = NC[0];
+                    im[i+1] = NC[1];
+                    im[i+2] = NC[2];
                 }
                 else
                 {
@@ -111,7 +116,8 @@ FILTER.Create({
             if ( x >= x1 ) 
             {
                 // goto skip:
-                while ( x<=x2 && !(OC[0] === im[x+yw] && OC[1] === im[x+yw+1] && OC[2] === im[x+yw+2]) ) x+=4;
+                while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                    x+=4;
                 l = x;
                 notdone = (x <= x2);
             }
@@ -128,19 +134,21 @@ FILTER.Create({
             
             while ( notdone ) 
             {
-                while ( x<=xmax && (OC[0] === im[x+yw] && OC[1] === im[x+yw+1] && OC[2] === im[x+yw+2]) )
+                i = x+yw;
+                while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[x+yw] = NC[0];
-                    im[x+yw+1] = NC[1];
-                    im[x+yw+2] = NC[2];
-                    x+=4;
+                    im[i] = NC[0];
+                    im[i+1] = NC[1];
+                    im[i+2] = NC[2];
+                    x+=4; i = x+yw;
                 }
                 if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, l, x-4, dy]);
                 if ( x > x2+4 ) 
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	/* leak on right? */
                 }
-    /*skip:*/   while ( x<=x2 && !(OC[0] === im[x+yw] && OC[1] === im[x+yw+1] && OC[2] === im[x+yw+2]) ) x+=4;
+    /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                    x+=4;
                 l = x;
                 notdone = (x <= x2);
             }

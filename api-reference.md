@@ -372,6 +372,7 @@ The class has some pre-defined filters to use.
 * _twirl( )_  Apply a twirling map
 * _sphere( )_  Apply a spherical map
 * _ripple( )_  Apply a wave ripple map
+* _shift( )/translate( )_  Apply (circular) translation / shifting of target image by specified **dx** / **dy** offsets
 * _polar( )_  Transform image to polar coords (TODO)
 * _cartesian( )_  Inverse of polar (TODO)
 
@@ -616,4 +617,6 @@ __Included Plugins__ (see examples for how to use)
 * __ChannelCopy__ : copy a channel from an image to another channel on target image
 * __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
-* __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image
+* __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
+* __CannyEdges__ : an efficient Canny Edges Detector/Extractor
+* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise**

@@ -1,11 +1,14 @@
 ##ChangeLog
 
-__0.7-alpha__
+__0.7-alpha__, __0.7-alpha2__
 
 * images can be restorable
 * add image loaders, remove image loading from FILTER.Image class
-* new plugin, fast FloodFillFilter (using scanline algorithm)
-* update dependencies (e.g classy.js)
+* new plugin, fast FloodFillFilter (using scanline algorithm with tolerance factor)
+* new plugin, efficient CannyEdgesFilter (Canny Edges Detector)
+* new plugin, efficient PerlinNoiseFilter (Perlin Noise and Simplex Noise implementatios)
+* new geometric filter, GeometricMapFilter.shift (fast circular shift/translation of image)
+* update dependencies (e.g classy.js), update examples
 * refactoring, optimisations
 
 

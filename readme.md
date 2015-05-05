@@ -93,7 +93,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class, [Image Loader classes](/api-reference.md#loader-htmlimageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
@@ -130,12 +130,12 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add CSS Filters interface support for various pre-built and custom Filters (in progress)
 * add support for other image formats, e.g .TGA, .HDR/.RGBE, .BMP etc.. (todo)
 * add 2d-fft routines, frequency-domain filtering (todo)
+* add full support for Node.js (todo)
 * add support for Parallel Processing using Web Workers and/or Asynchronous Processing [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 * add caching of filter parameters where applicable [DONE partially]
 * add more filters (eg split/combine/adaptive/nonlinear etc..) [DONE partially]
-* allow to work in Node
 * increase support/performance for Opera, IE  [DONE partially]
 
 
