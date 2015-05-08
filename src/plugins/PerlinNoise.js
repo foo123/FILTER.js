@@ -501,7 +501,7 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
     return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
 }
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-var PI2 = 2*Math.PI;
+var PI2 = FILTER.CONSTANTS.PI2;
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
     var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
@@ -541,7 +541,7 @@ function octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, 
 }*/
 
 
-// an efficient perlin noise and simplex plugin
+// an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
 FILTER.Create({
     name: "PerlinNoiseFilter"
@@ -549,44 +549,64 @@ FILTER.Create({
     // parameters
     ,baseX: 1
     ,baseY: 1
-    ,octaves: 1
-    ,seed: 0
+    ,numOctaves: 1
     ,offsets: null
     ,colors: null
-    ,stitch: false
-    ,fractal: true
-    ,perlin: false
+    ,_seed: 0
+    ,_stitch: false
+    ,_fractal: true
+    ,_perlin: false
     
     // constructor
-    ,init: function( baseX, baseY, octaves, seed, stitch, fractal, offsets, colors, is_perlin ) {
+    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
         var self = this;
         self.baseX = baseX || 1;
         self.baseY = baseY || 1;
-        self.setOctaves( octaves||1, offsets );
-        self.seed = seed || 0;
-        self.stitch = !!stitch;
-        self.fractal = false !== fractal;
+        self.octaves( octaves||1, offsets );
         self.colors = colors || null;
-        self.perlin = !!is_perlin;
+        self._seed = seed || 0;
+        self._stitch = !!stitch;
+        self._fractal = false !== fractal;
+        self._perlin = !!perlin;
     }
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
     
-    ,setSeed: function( randSeed ) {
+    ,seed: function( randSeed ) {
         var self = this;
-        self.seed = randSeed || 0;
-        seed(self.seed);
+        seed( self._seed = randSeed || 0 );
         return self;
     }
     
-    ,setOctaves: function( numOctaves, offsets ) {
+    ,octaves: function( numOctaves, offsets ) {
         var self = this;
-        self.octaves = numOctaves || 1;
+        self.numOctaves = numOctaves || 1;
         self.offsets = !offsets ? [] : offsets.slice(0);
-        while (self.offsets.length < self.octaves)
-            self.offsets.push([0,0]);
+        while (self.offsets.length < self.numOctaves) self.offsets.push([0,0]);
         return self;
+    }
+    
+    ,seamless: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._stitch = !!enabled;
+        return this;
+    }
+    
+    ,turbulence: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._fractal = !enabled;
+        return this;
+    }
+    
+    ,simplex: function( ) {
+        this._perlin = false;
+        return this;
+    }
+    
+    ,perlin: function( ) {
+        this._perlin = true;
+        return this;
     }
     
     ,serialize: function( ) {
@@ -598,13 +618,13 @@ FILTER.Create({
             ,params: {
                  baseX: self.baseX
                 ,baseY: self.baseY
-                ,octaves: self.octaves
+                ,numOctaves: self.numOctaves
                 ,offsets: self.offsets
-                ,seed: self.seed
                 ,colors: self.colors
-                ,stitch: self.stitch
-                ,fractal: self.fractal
-                ,perlin: self.perlin
+                ,_seed: self._seed
+                ,_stitch: self._stitch
+                ,_fractal: self._fractal
+                ,_perlin: self._perlin
             }
         };
     }
@@ -619,13 +639,13 @@ FILTER.Create({
             
             self.baseX = params.baseX;
             self.baseY = params.baseY;
-            self.octaves = params.octaves;
+            self.numOctaves = params.numOctaves;
             self.offsets = params.offsets;
-            self.seed = params.seed;
             self.colors = params.colors;
-            self.stitch = params.stitch;
-            self.fractal = params.fractal;
-            self.perlin = params.perlin;
+            self._seed = params._seed;
+            self._stitch = params._stitch;
+            self._fractal = params._fractal;
+            self._perlin = params._perlin;
         }
         return self;
     }
@@ -637,16 +657,15 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this, baseX = self.baseX, baseY = self.baseY,
-            octaves = self.octaves, offsets = self.offsets,
-            colors = self.colors, floor = Math.floor,
-            is_grayscale = !colors || !colors.length,
-            is_perlin = self.perlin, seamless = self.stitch, is_turbulence = !self.fractal,
+            octaves = self.numOctaves, offsets = self.offsets,
+            colors = self.colors, is_grayscale = !colors || !colors.length,
+            is_perlin = self._perlin, is_turbulence = !self._fractal, is_seamless = self._stitch, 
             i, l = im.length, x, y, n, c, noise
         ;
         
-        noise = is_perlin ? (seamless?seamless_perlin2:basic_perlin2) : (seamless?seamless_simplex2:basic_simplex2);
+        noise = is_perlin ? (is_seamless?seamless_perlin2:basic_perlin2) : (is_seamless?seamless_simplex2:basic_simplex2);
         // avoid unnecesary re-seeding ??
-        if ( self.seed ) seed( self.seed );
+        //if ( self._seed ) seed( self._seed );
         
         x=0; y=0;
         for (i=0; i<l; i+=4, x++)
@@ -659,7 +678,7 @@ FILTER.Create({
             }
             else
             {
-                c = colors[floor(n*(colors.length-1))];
+                c = colors[FLOOR(n*(colors.length-1))];
                 im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
             }
         }

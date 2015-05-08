@@ -106,7 +106,7 @@ filterImageInstance = new FILTER.RGBELoader().load(imageUrl [, onLoad, onProgres
 
 Loads an image url in GIF format into a FILTER.Image instance. 
 
-**Note** animated GIGs are not handled at this moment
+**Note** animated GIFs are not handled at this moment
 
 ````javascript
 filterImageInstance = FILTER.GIFLoader.load(imageUrl [, onLoad, onProgress, onError]);

@@ -12,6 +12,7 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
     MAGNITUDE_SCALE = 100,
     MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
+    PI2 = FILTER.CONSTANTS.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -22,8 +23,8 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
 hypot = Math.hypot 
         ? Math.hypot 
         : /*function( x, y ){
-            var absx = Math.abs(x), 
-                absy = Math.abs(y),
+            var absx = abs(x), 
+                absy = abs(y),
                 r, max;
             // avoid overflows
             if ( absx > absy )
@@ -40,12 +41,12 @@ hypot = Math.hypot
             }
             return max*Math.sqrt(1.0 + r*r);
         }*/
-        function(x, y){ return Math.abs(x)+Math.abs(y); };
+        function(x, y){ return abs(x)+abs(y); };
         
-function gaussian(x, sigma2) 
+/*function gaussian(x, sigma2) 
 {
-    return Math.exp(-(x * x) / (2 * sigma2/*sigma * sigma*/));
-}
+    return exp(-(x * x) / (2 * sigma2)); //sigma * sigma
+}*/
 
 function computeGradients(data, width, height, magnitude, kernelRadius, kernelWidth) 
 {
@@ -58,15 +59,15 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         yGradient = new Float32(picsize),
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
-        sigma2 = kernelRadius*kernelRadius,
-        factor = (2 *  Math.PI * /*kernelRadius * kernelRadius*/sigma2),
-        kwidth, g1, g2, g3;
+        sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
+        factor = (FILTER.CONSTANTS.PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
-        g1 = gaussian(kwidth, sigma2);
+        g1 = exp(-(kwidth * kwidth) / sigma22); // gaussian
         if ( g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2 ) break;
-        g2 = gaussian(kwidth - 0.5, sigma2);
-        g3 = gaussian(kwidth + 0.5, sigma2);
+        g2 = exp(-((x=kwidth - 0.5) * x) / sigma22); // gaussian
+        g3 = exp(-((x=kwidth + 0.5) * x) / sigma22); // gaussian
         kernel[kwidth] = (g1 + g2 + g3) / 3 / factor;
         diffKernel[kwidth] = g3 - g2;
     }
@@ -202,16 +203,16 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
              * 
              */
             if (xGrad * yGrad <= 0 /*(1)*/
-                ? Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                        && tmp > Math.abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                    : (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                        && tmp > Math.abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-                : Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                        && tmp > Math.abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                    : (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                        && tmp > Math.abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+                ? abs(xGrad) >= abs(yGrad) /*(2)*/
+                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
+                        && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
+                    : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
+                        && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
+                : abs(xGrad) >= Math.abs(yGrad) /*(2)*/
+                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
+                        && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
+                    : (tmp =abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
+                        && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
             ) 
             {
                 magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
@@ -275,6 +276,43 @@ function follow(data, width, height, magnitude, x1, y1, i1, threshold)
     }
 }
 
+/*function luminance(r, g, b) 
+{
+    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+}*/
+
+function readLuminance(im, data) 
+{
+    var i, di, r, g, b, size = im.length, 
+        LR = FILTER.LUMA[0], LG = FILTER.LUMA[1], LB = FILTER.LUMA[2];
+    for (i=0,di=0; i<size; i+=4,di++) 
+    {
+        r = im[i]; g = im[i+1]; b = im[i+2];
+        data[di] = ~~(LR * r + LG * g + LB * b + 0.5);//luminance(r, g, b);
+    }
+}
+
+function normalizeContrast(data) 
+{
+    var histogram = new Int32(256),
+        remap = new Int32(256),
+        i, size = data.length, 
+        sum, j, k, target;
+    
+    for (i=0; i<size; i++) histogram[data[i]]++;
+    
+    sum = 0; j = 0;
+    for (i = 0; i<256; i++) 
+    {
+        sum += histogram[i];
+        target = sum*255/size;
+        for (k = j+1; k <=target; k++) remap[k] = i;
+        j = target;
+    }
+    
+    for (i=0; i<size; i++) data[i] = remap[data[i]];
+}
+
 function thresholdEdges(im, data) 
 {
     var i, di, size = im.length, v;
@@ -286,70 +324,41 @@ function thresholdEdges(im, data)
     }
 }
 
-/*function luminance(r, g, b) 
-{
-    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-}*/
-
-function readLuminance(im, data) 
-{
-    var i, di, r, g, b, size = im.length;
-    for (i=0,di=0; i<size; i+=4,di++) 
-    {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        data[di] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);//luminance(r, g, b);
-    }
-}
-
-function normalizeContrast(data) 
-{
-    var histogram = new Int32(256),
-        i, size = data.length, remap,
-        sum, j, k, target;
-    for (i=0; i<size; i++) 
-    {
-        histogram[data[i]]++;
-    }
-    remap = new Int32(256);
-    sum = 0; j = 0;
-    for (i = 0; i<256; i++) 
-    {
-        sum += histogram[i];
-        target = sum*255/size;
-        for (k = j+1; k <=target; k++) 
-        {
-            remap[k] = i;
-        }
-        j = target;
-    }
-    
-    for (i=0; i<size; i++) 
-    {
-        data[i] = remap[data[i]];
-    }
-}
-
 // an efficient Canny Edges Detector
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
 FILTER.Create({
     name : "CannyEdgesFilter"
     
-    ,lowThreshold: 2.5
-    ,highThreshold: 7.5
-    ,gaussianKernelRadius: 2
-    ,gaussianKernelWidth: 16
+    ,low: 2.5
+    ,high: 7.5
+    ,gaussRadius: 2
+    ,gaussWidth: 16
     ,contrastNormalized: false
     
     ,path: FILTER.getPath( exports.AMD )
     
     ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
         var self = this;
-		self.lowThreshold = arguments.length < 1 ? 2.5 : lowThreshold;
-		self.highThreshold = arguments.length < 2 ? 7.5 : highThreshold;
-		self.gaussianKernelRadius = arguments.length < 3 ? 2 : gaussianKernelRadius;
-		self.gaussianKernelWidth = arguments.length < 4 ? 16 : gaussianKernelWidth;
+		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
+		self.high = arguments.length < 2 ? 7.5 : highThreshold;
+		self.gaussRadius = arguments.length < 3 ? 2 : gaussianKernelRadius;
+		self.gaussWidth = arguments.length < 4 ? 16 : gaussianKernelWidth;
         self.contrastNormalized = !!contrastNormalized;
+    }
+    
+    ,thresholds: function( low, high ) {
+        var self = this;
+        self.low = low;
+        self.high = high;
+        return self;
+    }
+    
+    ,kernel: function( radius, width ) {
+        var self = this;
+        self.gaussRadius = radius;
+        self.gaussWidth = width;
+        return self;
     }
     
     ,serialize: function( ) {
@@ -359,10 +368,10 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 lowThreshold: self.lowThreshold
-                ,highThreshold: self.highThreshold
-                ,gaussianKernelRadius: self.gaussianKernelRadius
-                ,gaussianKernelWidth: self.gaussianKernelWidth
+                 low: self.low
+                ,high: self.high
+                ,gaussRadius: self.gaussRadius
+                ,gaussWidth: self.gaussWidth
                 ,contrastNormalized: self.contrastNormalized
             }
         };
@@ -376,10 +385,10 @@ FILTER.Create({
             
             params = json.params;
             
-            self.lowThreshold = params.lowThreshold;
-            self.highThreshold = params.highThreshold;
-            self.gaussianKernelRadius = params.gaussianKernelRadius;
-            self.gaussianKernelWidth = params.gaussianKernelWidth;
+            self.low = params.low;
+            self.high = params.high;
+            self.gaussRadius = params.gaussRadius;
+            self.gaussWidth = params.gaussWidth;
             self.contrastNormalized = params.contrastNormalized;
         }
         return self;
@@ -393,8 +402,8 @@ FILTER.Create({
         // init arrays
         data = new Int32(picsize);
         magnitude = new Int32(picsize);
-        low = Math.round( self.lowThreshold * MAGNITUDE_SCALE );
-        high = Math.round( self.highThreshold * MAGNITUDE_SCALE );
+        low = Math.round( self.low * MAGNITUDE_SCALE );
+        high = Math.round( self.high * MAGNITUDE_SCALE );
         
         readLuminance( im, data );
         
@@ -402,7 +411,7 @@ FILTER.Create({
         
         computeGradients( 
             data, w, h, magnitude, 
-            self.gaussianKernelRadius, self.gaussianKernelWidth 
+            self.gaussRadius, self.gaussWidth 
         );
         
         performHysteresis( data, w, h, magnitude, low, high );

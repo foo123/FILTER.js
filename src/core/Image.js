@@ -767,7 +767,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 });
 // static
-FilterImage.scaleData = function( data, w, h, nw, nh ) {
+/*FilterImage.scale = FilterImage.resize = function( data, w, h, nw, nh ) {
     var canvas = createCanvas(w, h),
         scaledCanvas = createCanvas(nw, nh),
         ctx1 = canvas.getContext('2d'),
@@ -780,7 +780,8 @@ FilterImage.scaleData = function( data, w, h, nw, nh ) {
     ctx1.putImageData(imdata,0,0);
     ctx2.drawImage(canvas,0,0,w,h,0,0,nw,nh); // scale
     return new IMGcpy( ctx2.getImageData(0, 0, nw, nh).data );
-};
+};*/
+FilterImage.scale = FilterImage.resize = FILTER.Math.bilinear/*bicubic*/;
 
 //
 //

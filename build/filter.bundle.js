@@ -21,7 +21,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-08 06:04:37
+*   @built on 2015-05-09 00:23:19
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -158,7 +158,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-08 06:04:37
+*   @built on 2015-05-09 00:23:19
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -622,10 +622,17 @@ FILTER.Create = function( methods ) {
 !function(FILTER, undef){
 "use strict";
 
+var FMath = FILTER.Math = { };
+
+Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
+
+var sliceTyped = 'function' === typeof FILTER.Array64F.prototype.slice ? 'slice' : 'subarray';
+
 //
 //
 // Constants
-var PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI;
+var PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI, 
+sin = Math.sin, cos = Math.cos;
 FILTER.CONSTANTS = {
      PI:    PI
     ,PI2:   PI2
@@ -634,17 +641,202 @@ FILTER.CONSTANTS = {
     ,toRad: PI/180
     ,toDeg: 180/PI
 };
-Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
-function closest_power_of_two(x){ return Math.pow(2, Math.ceil(Math.log2(x)));}
-var FMath = FILTER.Math = {};
+function clamp(v, m, M) { return v > M ? M : (v < m ? m : v); }
+
+function closest_power_of_two(x){ return Math.pow(2, Math.ceil(Math.log2(x))); }
+
+function precompute_trigonometric_tables(sine, cosn, N, dir)
+{
+    // allocate and initialize trigonometric tables 
+    var k, phi;
+    for (k=0; k<N; k++)
+    {
+        phi = PI2 * k/N;
+        sine[ k ] = dir * sin( phi );
+        cosn[ k ] = cos( phi );
+    }
+}
+
+var IMG = FILTER.ImArray;
+
+FMath.clamp = clamp;
+FMath.closestPower2 = closest_power_of_two;
+
+// http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
+FMath.nearest = function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        x, y, pixel, index,
+        x_ratio = (w-1)/nw, y_ratio = (h-1)/nh, 
+        x_int, y_int, yw, x_off, y_off,
+        i, j, w4 = w<<2
+    ;
+    i=0; j=0; y = 0; y_int = 0; yw = 0; y_off = 0;
+    for (index=0; index<size; index+=4,j++) 
+    {
+        if ( j >= nw ) { j=0; i++; y = y_ratio * i; y_int = ~~y; yw = y_int*w; y_off = y - y_int<0.5 ? 0 : w4; }
+        
+        x = x_ratio * j; x_int = ~~x; x_off = x - x_int<0.5 ? 0 : 4;
+        
+        pixel = ((yw + x_int)<<2) + x_off + y_off;
+
+        interpolated[index]      = im[pixel];
+        interpolated[index+1]    = im[pixel+1];
+        interpolated[index+2]    = im[pixel+2];
+        interpolated[index+3]    = im[pixel+3];
+    }
+    return interpolated;
+};
+
+// http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
+// http://tech-algorithm.com/articles/bilinear-image-scaling/
+FMath.bilinear = function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        A, B, C, D, a, b, c, d, 
+        x, y, pixel, index,
+        x_ratio = (w-1)/nw, y_ratio = (h-1)/nh, 
+        x_int, y_int, yw, x_diff, y_diff, 
+        i, j, w4 = w<<2
+    ;
+    i=0; j=0; y = 0; y_int = 0; yw = 0; y_diff = 0;
+    for (index=0; index<size; index+=4,j++) 
+    {
+        if ( j >= nw ) { j=0; i++; y = y_ratio * i; y_int = ~~y; y_diff = y - y_int; yw = y_int*w; }
+        
+        x = x_ratio * j; x_int = ~~x; x_diff = x - x_int;
+        
+        // Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
+        a = (1-x_diff)*(1-y_diff); b = (x_diff)*(1-y_diff);
+        c = (y_diff)*(1-x_diff); d = (x_diff*y_diff);
+        
+        pixel = (yw + x_int)<<2;
+
+        A = im[pixel]; B = im[pixel+4];
+        C = im[pixel+w4]; D = im[pixel+w4+4];
+        interpolated[index] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
+        
+        A = im[pixel+1]; B = im[pixel+5];
+        C = im[pixel+w4+1]; D = im[pixel+w4+5];
+        interpolated[index+1] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
+
+        A = im[pixel+2]; B = im[pixel+6];
+        C = im[pixel+w4+2]; D = im[pixel+w4+6];
+        interpolated[index+2] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
+
+        A = im[pixel+3]; B = im[pixel+7];
+        C = im[pixel+w4+3]; D = im[pixel+w4+7];
+        interpolated[index+3] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
+    }
+    return interpolated;
+};
+
+/*function interpolate_value(v0, v1, v2, v3, t)
+{
+	var p = (v3 - v2) - (v0 - v1),
+        q = (v0 - v1) - p,
+        r = v2 - v0,
+        s = v1,
+        tSqrd = t * t;
+	return (p * (tSqrd * t)) + (q * tSqrd) + (r * t) + s;
+	//return (p * (tSqrd * t) + 0.5f) + (q * tSqrd + 0.5f) + (r * t + 0.5f) + s; // Use this one for nicer interpolation, it rounds instead of truncates.
+}*/
+function interpolate_pixel(n, p0, p1, p2, p3, t)
+{
+	var p, q, r, s, t2 = t*t, t3 = t2 * t, v;
+    
+	p = (p3[0] - p2[0]) - (p0[0] - p1[0]);
+    q = (p0[0] - p1[0]) - p;
+    r = p2[0] - p0[0];
+    s = p1[0];
+    n[0] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+	p = (p3[1] - p2[1]) - (p0[1] - p1[1]);
+    q = (p0[1] - p1[1]) - p;
+    r = p2[1] - p0[1];
+    s = p1[1];
+    n[1] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+	p = (p3[2] - p2[2]) - (p0[2] - p1[2]);
+    q = (p0[2] - p1[2]) - p;
+    r = p2[2] - p0[2];
+    s = p1[2];
+    n[2] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+	p = (p3[3] - p2[3]) - (p0[3] - p1[3]);
+    q = (p0[3] - p1[3]) - p;
+    r = p2[3] - p0[3];
+    s = p1[3];
+    n[3] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+}
+// http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
+FMath.bicubic = function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        x, y, pixel, index,
+        rgba = new IMG(4), rgba0 = new IMG(4), rgba1 = new IMG(4), 
+        rgba2 = new IMG(4), rgba3 = new IMG(4),
+        x_ratio = (w-1)/nw, y_ratio = (h-1)/nh, 
+        x_int, y_int, yw, x_diff, y_diff, 
+        i, j, w4 = w<<2,
+        B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR
+    ;
+    i=0; j=0; y = 0; y_int = 0; yw = 0; y_diff = 0;
+    for (index=0; index<size; index+=4,j++) 
+    {
+        if ( j >= nw ) { j=0; i++; y = y_ratio * i; y_int = ~~y; y_diff = y - y_int; yw = y_int*w; }
+        
+        x = x_ratio * j; x_int = ~~x; x_diff = x - x_int;
+        
+        pixel = (yw + x_int)<<2;
+        
+        // handle edge cases
+        C = im.subarray(pixel, pixel+4);
+        L = (0===x) ? C : im.subarray(pixel-4, pixel);
+        R = (w-1===x) ? C : im.subarray(pixel+4, pixel+8);
+        RR = (w-1===x) ? C : im.subarray(pixel+8, pixel+12);
+        B = (h-1===y) ? C : im.subarray(pixel+w4, pixel+w4+4);
+        BB = (h-1===y) ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
+        BL = (h-1===y||0===x) ? C : im.subarray(pixel+w4-4, pixel+w4);
+        BR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+4, pixel+w4+8);
+        BRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+8, pixel+w4+12);
+        BBL = (h-1===y||0===x) ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
+        BBR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
+        BBRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
+        T = (0===y) ? C : im.subarray(pixel-w4, pixel-w4+4);
+        TL = (0===y||0===x) ? C : im.subarray(pixel-w4-4, pixel-w4);
+        TR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+4, pixel-w4+8);
+        TRR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+8, pixel-w4+12);
+        
+        interpolate_pixel(rgba0, TL, T, TR, TRR, x_diff);
+        interpolate_pixel(rgba1, L, C, R, RR, x_diff);
+        interpolate_pixel(rgba2, BL, B, BR, BRR, x_diff);
+        interpolate_pixel(rgba3, BBL, BB, BBR, BBRR, x_diff);
+        // Then we interpolate those 4 pixels to get a single pixel that is a composite of 4 * 4 pixels, 16 pixels
+        interpolate_pixel(rgba, rgba0, rgba1, rgba2, rgba3, y_diff);
+        
+        interpolated[index]      = rgba[0];
+        interpolated[index+1]    = rgba[1];
+        interpolated[index+2]    = rgba[2];
+        interpolated[index+3]    = rgba[3];
+    }
+    return interpolated;
+};
+
+// https://code.google.com/a/eclipselabs.org/p/bicubic-interpolation-image-processing/source/browse/trunk/libimage.c
+/*FMath.biquadric = function( im, w, h, nw, nh ){
+};*/
+
+// http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
+// TODO
+/*FMath.lanczos = function( im, w, h, nw, nh ){
+};*/
+
 
 // fft1d and fft2d
 // adapted from: http://www.ltrr.arizona.edu/~mmunro/tclsadiedoc/html/fft2d_8c-source.html
 // http://en.wikipedia.org/wiki/Fourier_transform#Signal_processing
 // http://en.wikipedia.org/wiki/Fast_Fourier_transform
-function fft(array, N, dir, sine, cosn)
+function fft_butterfly(array, N, dir, sine, cosn)
 {
-    var n, m, l, k, j, i, jc, kc, i2, j2;
+    var n, m, l, k, j, i, jc, kc, i2, j2, N_2 = N >>> 1;
     var temp, e_real, e_imag, o_real, o_imag;
 
     /* scramble the array */
@@ -660,7 +852,7 @@ function fft(array, N, dir, sine, cosn)
             array[i2 + 1] = array[j2 + 1];
             array[j2 + 1] = temp;
         }
-        for (k = N >>> 1; 1 <= k && k <= i; i -= k, k >>>= 1);
+        for (k = N_2; 1 <= k && k <= i; i -= k, k >>>= 1);
     }
 
     /* compute Fourier coefficients */
@@ -685,55 +877,51 @@ function fft(array, N, dir, sine, cosn)
         }
     }
     if ( -1 === dir /*== INVERSE*/) for (i = 0,jc = N << 1; i < jc; array[i++] *= N);
-    return array;
 }
 
-function fft1d(array, N, dir)
-{
+FMath.fft1d = function fft1d(in_array, N, dir) {
     if ( !dir ) dir = 1;
-    var N2 = closest_power_of_two(N),
-        sine, cosn, fourier,
-        k, i, sin = Math.sin, cos = Math.cos, phi;
+    var Array64F = FILTER.Array64F,
+        Npow2 = closest_power_of_two(N), Npow2_complex = Npow2 << 1,
+        sine, cosn, transform, out_array,
+        k, i;
     
-    sine = new FILTER.Array64F(N2); 
-    cosn = new FILTER.Array64F(N2);
-    for (k=0; k<N2; i++)
-    {
-        phi = PI2 * k/N2;
-        sine[ k ] = dir * sin( phi );
-        cosn[ k ] = cos( phi );
-    }
+    transform = new Array64F(Npow2_complex);
+    
+    // allocate and initialize trigonometric tables 
+    precompute_trigonometric_tables(sine=new Array64F(Npow2), cosn=new Array64F(Npow2), Npow2, dir);
     
     // from real to complex, zero-pad if needed
     if ( 1 === dir )
     {
-        fourier = new FILTER.Array64F(N2<<1);
-        for (k=0; k<N2; k+=2) 
+        for (k=0; k<Npow2_complex; k+=2) 
         {
             i = k >>> 1;
-            fourier[k] = i < N ? array[i] : 0;
-            fourier[k+1] = 0;
+            transform[k] = i < N ? in_array[i] : 0; // zero-pad if needed
+            transform[k+1] = 0; // complex part
         }
     }
     else
     {
-        fourier = new FILTER.Array64F(N2);
+        transform.set(in_array);
     }
     
-    fourier = fft(fourier, N2, dir, sine, cosn);
+    // compute fft butterfly
+    fft_butterfly(transform, Npow2, dir, sine, cosn);
     
     // from complex to real
     if ( -1 === dir )
     {
-        var array2 = new FILTER.Array64F(N2);
-        for (k=0; k<N2; k+=2) 
-        {
-            array2[k >>> 1] = fourier[k];
-        }
-        return array2;
+        for (k=0; k<Npow2_complex; k+=2) transform[k >>> 1] = transform[k]; /* in-place */
+        out_array = transform[sliceTyped](0, N);
     }
-    return fourier;
-}
+    else
+    {
+        out_array = transform;
+    }
+    
+    return out_array;
+};
 
 /*-Copyright Information------------------------------------------------------*/
 /* Copyright (c) 1988 by the University of Arizona Digital Image Analysis Lab */
@@ -750,130 +938,121 @@ function fft1d(array, N, dir)
 /*   IEEE Spectrum, Vol. 6, No. 7, July 1969                                  */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
-function fft2d(im, w, h, dir, channel) // Number of rows/cols must be a power of two
-{
+FMath.fft2d = function fft2d(im, w, h, dir, channel) {
+    // Number of rows/cols must be a power of two
     /*
     if ( !dir ) dir = 1;
     if ( undef === channel ) channel = FILTER.CHANNEL.RED;
     
-    var i, j, k, nchannels = 3, w2, h2, N2; 
-    var sine, cosn, array, sin = Math.sin, cos = Math.cos, phi;
-    var temp, img, im2;
+    var i, j, k, nchannels = 3, w2, h2, N2, N22; 
+    var sine, cosn, array;
+    var temp, img, im2, Array64F = FILTER.Array64F;
 
     w2 = closest_power_of_two( w );
     h2 = closest_power_of_two( h );
-    N2 = closest_power_of_two( Math.max(w2, h2) );
-
-    // create image of appropriate size 
-    im2 = new FILTER.Array64F(w2*h2*(1 === dir ? 2 : 0.5));
-    img = 1 === dir ? im2 : im;
+    N2 = Math.max(w2, h2);
 
     // allocate and initialize trigonometric tables 
-    for (k = 0; k < N2; k++)
-    {
-        phi = PI2 * k / N2;
-        sine[ k ] = dir * sin( phi );
-        cosn[ k ] = cos( phi );
-    }
-    array = new FILTER.Array64F(2*N2);
+    precompute_trigonometric_tables(sine=new Array64F(N2), cosn=new Array64F(N2), N2, dir);
+    
+    N22 = N2 << 1;
+    array = new FILTER.Array64F(N22);
+
+    // create image of appropriate size 
+    fourier = new Array64F(w2*h2*(1 === dir ? 2 : 0.5));
+    img = 1 === dir ? im2 : im;
 
     // Fourier transform each image channel (bands) 
-    for (i = 0; i < nchannels; i++)
+    //for (i = 0; i < nchannels; i++)
+    // convert from real to "complex" 
+    if ( 1 === dir )
     {
-        // convert from real to "complex" 
-        if ( 1 === dir )
+        for (j = 0; j < h2; j += 1)
         {
-            for (j = 0; j < h2; j += 1)
+            for (k = 0; k < w2; k += 2)
             {
-                for (k = 0; k < w2; k += 2)
-                {
-                    im2[i][j][k] = in->data[i][j][k / 2];
-                    im2data[i][j][k + 1] = (PIXEL) 0;
-                }
+                im2[i][j][k] = im[j*k / 2];
+                im2data[i][j][k + 1] = (PIXEL) 0;
             }
         }
+    }
 
-        // fold 
-        for (j = 0; j < img->nlin / 2; j++)
+    // fold 
+    for (j = 0; j < h / 2; j++)
+    {
+        for (k = 0; k < w / 2; k++)
         {
-            for (k = 0; k < img->npix / 2; k++)
-            {
-                temp = img->data[i][j][k];
-                img->data[i][j][k] = img->data[i][img->nlin / 2 + j][img->npix / 2 + k];
-                img->data[i][img->nlin / 2 + j][img->npix / 2 + k] = temp;
-                temp = img->data[i][img->nlin / 2 + j][k];
-                img->data[i][img->nlin / 2 + j][k] = img->data[i][j][img->npix / 2 + k];
-                img->data[i][j][img->npix / 2 + k] = temp;
-            }
+            temp = img->data[i][j][k];
+            img->data[i][j][k] = img->data[i][img->nlin / 2 + j][img->npix / 2 + k];
+            img->data[i][img->nlin / 2 + j][img->npix / 2 + k] = temp;
+            temp = img->data[i][img->nlin / 2 + j][k];
+            img->data[i][img->nlin / 2 + j][k] = img->data[i][j][img->npix / 2 + k];
+            img->data[i][j][img->npix / 2 + k] = temp;
         }
+    }
 
-        // Fourier transform rows 
-        for (j = 0; j < img->nlin; j++)
+    // Fourier transform rows 
+    for (j = 0; j < h; j++)
+    {
+        for (k = 0; k < w; k++)
         {
-            for (k = 0; k < img->npix; k++)
-            {
-                array[k] = (double) img->data[i][j][k];
-            }
-            
-            fft( array, img->npix / 2, dir, sine, cosn );
-            
-            for (k = 0; k < img->npix; k++)
-            {
-                img->data[i][j][k] = (PIXEL) array[k];
-            }
+            array[k] = img->data[i][j][k];
         }
-
-        // Fourier transform columns 
-        for (k = 0; k < img->npix; k += 2)
+        
+        fft( array, w / 2, dir, sine, cosn );
+        
+        /*for (k = 0; k < w; k++)
         {
-            for (j = 0; j < img->nlin; j += 1)
-            {
-                array[2 * j] = (double) img->data[i][j][k];
-                array[2 * j + 1] = (double) img->data[i][j][k + 1];
-            }
-            
-            fft( array, img->nlin, dir, sine, cosn );
-            
-            for (j = 0; j < img->nlin; j += 1)
-            {
-                img->data[i][j][k] = (PIXEL) array[2 * j];
-                img->data[i][j][k + 1] = (PIXEL) array[2 * j + 1];
-            }
+            img->data[i][j][k] = (PIXEL) array[k];
+        }* /
+        fourier.set(array, j*w);
+    }
+
+    // Fourier transform columns 
+    for (k = 0; k < w; k += 2)
+    {
+        for (j = 0; j < h; j += 1)
+        {
+            array[2 * j] = img->data[i][j][k];
+            array[2 * j + 1] = img->data[i][j][k + 1];
         }
-
-        // unfold 
-        for (j = 0; j < img->nlin / 2; j++)
+        
+        fft( array, h, dir, sine, cosn );
+        
+        for (j = 0; j < h; j += 1)
         {
-            for (k = 0; k < img->npix / 2; k++)
-            {
-                temp = img->data[i][j][k];
-                img->data[i][j][k] =
-                img->data[i][img->nlin / 2 + j][img->npix / 2 + k];
-                img->data[i][img->nlin / 2 + j][img->npix / 2 + k] = temp;
-                temp = img->data[i][img->nlin / 2 + j][k];
-                img->data[i][img->nlin / 2 + j][k] =
-                img->data[i][j][img->npix / 2 + k];
-                img->data[i][j][img->npix / 2 + k] = temp;
-            }
+            img->data[i][j][k] = (PIXEL) array[2 * j];
+            img->data[i][j][k + 1] = (PIXEL) array[2 * j + 1];
         }
+    }
 
-        // convert from "complex" to real 
-        if ( -1 === dir )
+    // unfold 
+    for (j = 0; j < h / 2; j++)
+    {
+        for (k = 0; k < w / 2; k++)
         {
-            for (j = 0; j < in->nlin; j += 1)
+            temp = img->data[i][j][k];
+            img->data[i][j][k] = img->data[i][img->nlin / 2 + j][img->npix / 2 + k];
+            img->data[i][img->nlin / 2 + j][img->npix / 2 + k] = temp;
+            temp = img->data[i][img->nlin / 2 + j][k];
+            img->data[i][img->nlin / 2 + j][k] = img->data[i][j][img->npix / 2 + k];
+            img->data[i][j][img->npix / 2 + k] = temp;
+        }
+    }
+
+    // convert from "complex" to real 
+    if ( -1 === dir )
+    {
+        for (j = 0; j < h; j += 1)
+        {
+            for (k = 0; k < w; k += 2)
             {
-                for (k = 0; k < in->npix; k += 2)
-                {
-                    (*out)->data[i][j][k / 2] = in->data[i][j][k];
-                }
+                (*out)->data[i][j][k / 2] = in->data[i][j][k];
             }
         }
     }
     */
-    return im;
-}
-FMath.fft1d = fft1d;
-FMath.fft2d = fft2d;
+};
 
 }(FILTER);/**
 *
@@ -2675,7 +2854,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 });
 // static
-FilterImage.scaleData = function( data, w, h, nw, nh ) {
+/*FilterImage.scale = FilterImage.resize = function( data, w, h, nw, nh ) {
     var canvas = createCanvas(w, h),
         scaledCanvas = createCanvas(nw, nh),
         ctx1 = canvas.getContext('2d'),
@@ -2688,7 +2867,8 @@ FilterImage.scaleData = function( data, w, h, nw, nh ) {
     ctx1.putImageData(imdata,0,0);
     ctx2.drawImage(canvas,0,0,w,h,0,0,nw,nh); // scale
     return new IMGcpy( ctx2.getImageData(0, 0, nw, nh).data );
-};
+};*/
+FilterImage.scale = FilterImage.resize = FILTER.Math.bilinear/*bicubic*/;
 
 //
 //
@@ -8850,7 +9030,7 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Histogram Equalize Plugin
+* Histogram Equalize Plugin, Histogram Equalize for grayscale images Plugin, RGB Histogram Equalize Plugin
 * @package FILTER.js
 *
 **/
@@ -8946,19 +9126,8 @@ FILTER.Create({
         return im;
     }
 });
-   
-}(FILTER);/**
-*
-* Histogram Equalize for grayscale images Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
-
-// a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
+// a simple grayscale histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
     name: "GrayscaleHistogramEqualizeFilter"
     
@@ -9038,18 +9207,7 @@ FILTER.Create({
     }
 });
 
-}(FILTER);/**
-*
-* RGB Histogram Equalize Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
-
-// a sample histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
+// a sample RGB histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 // not the best implementation
 // used for illustration purposes on how to create a plugin filter
 FILTER.Create({
@@ -12042,6 +12200,7 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
     MAGNITUDE_SCALE = 100,
     MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
+    PI2 = FILTER.CONSTANTS.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -12052,8 +12211,8 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
 hypot = Math.hypot 
         ? Math.hypot 
         : /*function( x, y ){
-            var absx = Math.abs(x), 
-                absy = Math.abs(y),
+            var absx = abs(x), 
+                absy = abs(y),
                 r, max;
             // avoid overflows
             if ( absx > absy )
@@ -12070,12 +12229,12 @@ hypot = Math.hypot
             }
             return max*Math.sqrt(1.0 + r*r);
         }*/
-        function(x, y){ return Math.abs(x)+Math.abs(y); };
+        function(x, y){ return abs(x)+abs(y); };
         
-function gaussian(x, sigma2) 
+/*function gaussian(x, sigma2) 
 {
-    return Math.exp(-(x * x) / (2 * sigma2/*sigma * sigma*/));
-}
+    return exp(-(x * x) / (2 * sigma2)); //sigma * sigma
+}*/
 
 function computeGradients(data, width, height, magnitude, kernelRadius, kernelWidth) 
 {
@@ -12088,15 +12247,15 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         yGradient = new Float32(picsize),
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
-        sigma2 = kernelRadius*kernelRadius,
-        factor = (2 *  Math.PI * /*kernelRadius * kernelRadius*/sigma2),
-        kwidth, g1, g2, g3;
+        sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
+        factor = (FILTER.CONSTANTS.PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
-        g1 = gaussian(kwidth, sigma2);
+        g1 = exp(-(kwidth * kwidth) / sigma22); // gaussian
         if ( g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2 ) break;
-        g2 = gaussian(kwidth - 0.5, sigma2);
-        g3 = gaussian(kwidth + 0.5, sigma2);
+        g2 = exp(-((x=kwidth - 0.5) * x) / sigma22); // gaussian
+        g3 = exp(-((x=kwidth + 0.5) * x) / sigma22); // gaussian
         kernel[kwidth] = (g1 + g2 + g3) / 3 / factor;
         diffKernel[kwidth] = g3 - g2;
     }
@@ -12232,16 +12391,16 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
              * 
              */
             if (xGrad * yGrad <= 0 /*(1)*/
-                ? Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                        && tmp > Math.abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                    : (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                        && tmp > Math.abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-                : Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                        && tmp > Math.abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                    : (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                        && tmp > Math.abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+                ? abs(xGrad) >= abs(yGrad) /*(2)*/
+                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
+                        && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
+                    : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
+                        && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
+                : abs(xGrad) >= Math.abs(yGrad) /*(2)*/
+                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
+                        && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
+                    : (tmp =abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
+                        && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
             ) 
             {
                 magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
@@ -12305,6 +12464,43 @@ function follow(data, width, height, magnitude, x1, y1, i1, threshold)
     }
 }
 
+/*function luminance(r, g, b) 
+{
+    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+}*/
+
+function readLuminance(im, data) 
+{
+    var i, di, r, g, b, size = im.length, 
+        LR = FILTER.LUMA[0], LG = FILTER.LUMA[1], LB = FILTER.LUMA[2];
+    for (i=0,di=0; i<size; i+=4,di++) 
+    {
+        r = im[i]; g = im[i+1]; b = im[i+2];
+        data[di] = ~~(LR * r + LG * g + LB * b + 0.5);//luminance(r, g, b);
+    }
+}
+
+function normalizeContrast(data) 
+{
+    var histogram = new Int32(256),
+        remap = new Int32(256),
+        i, size = data.length, 
+        sum, j, k, target;
+    
+    for (i=0; i<size; i++) histogram[data[i]]++;
+    
+    sum = 0; j = 0;
+    for (i = 0; i<256; i++) 
+    {
+        sum += histogram[i];
+        target = sum*255/size;
+        for (k = j+1; k <=target; k++) remap[k] = i;
+        j = target;
+    }
+    
+    for (i=0; i<size; i++) data[i] = remap[data[i]];
+}
+
 function thresholdEdges(im, data) 
 {
     var i, di, size = im.length, v;
@@ -12316,70 +12512,41 @@ function thresholdEdges(im, data)
     }
 }
 
-/*function luminance(r, g, b) 
-{
-    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-}*/
-
-function readLuminance(im, data) 
-{
-    var i, di, r, g, b, size = im.length;
-    for (i=0,di=0; i<size; i+=4,di++) 
-    {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        data[di] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);//luminance(r, g, b);
-    }
-}
-
-function normalizeContrast(data) 
-{
-    var histogram = new Int32(256),
-        i, size = data.length, remap,
-        sum, j, k, target;
-    for (i=0; i<size; i++) 
-    {
-        histogram[data[i]]++;
-    }
-    remap = new Int32(256);
-    sum = 0; j = 0;
-    for (i = 0; i<256; i++) 
-    {
-        sum += histogram[i];
-        target = sum*255/size;
-        for (k = j+1; k <=target; k++) 
-        {
-            remap[k] = i;
-        }
-        j = target;
-    }
-    
-    for (i=0; i<size; i++) 
-    {
-        data[i] = remap[data[i]];
-    }
-}
-
 // an efficient Canny Edges Detector
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
 FILTER.Create({
     name : "CannyEdgesFilter"
     
-    ,lowThreshold: 2.5
-    ,highThreshold: 7.5
-    ,gaussianKernelRadius: 2
-    ,gaussianKernelWidth: 16
+    ,low: 2.5
+    ,high: 7.5
+    ,gaussRadius: 2
+    ,gaussWidth: 16
     ,contrastNormalized: false
     
     ,path: FILTER.getPath( exports.AMD )
     
     ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
         var self = this;
-		self.lowThreshold = arguments.length < 1 ? 2.5 : lowThreshold;
-		self.highThreshold = arguments.length < 2 ? 7.5 : highThreshold;
-		self.gaussianKernelRadius = arguments.length < 3 ? 2 : gaussianKernelRadius;
-		self.gaussianKernelWidth = arguments.length < 4 ? 16 : gaussianKernelWidth;
+		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
+		self.high = arguments.length < 2 ? 7.5 : highThreshold;
+		self.gaussRadius = arguments.length < 3 ? 2 : gaussianKernelRadius;
+		self.gaussWidth = arguments.length < 4 ? 16 : gaussianKernelWidth;
         self.contrastNormalized = !!contrastNormalized;
+    }
+    
+    ,thresholds: function( low, high ) {
+        var self = this;
+        self.low = low;
+        self.high = high;
+        return self;
+    }
+    
+    ,kernel: function( radius, width ) {
+        var self = this;
+        self.gaussRadius = radius;
+        self.gaussWidth = width;
+        return self;
     }
     
     ,serialize: function( ) {
@@ -12389,10 +12556,10 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 lowThreshold: self.lowThreshold
-                ,highThreshold: self.highThreshold
-                ,gaussianKernelRadius: self.gaussianKernelRadius
-                ,gaussianKernelWidth: self.gaussianKernelWidth
+                 low: self.low
+                ,high: self.high
+                ,gaussRadius: self.gaussRadius
+                ,gaussWidth: self.gaussWidth
                 ,contrastNormalized: self.contrastNormalized
             }
         };
@@ -12406,10 +12573,10 @@ FILTER.Create({
             
             params = json.params;
             
-            self.lowThreshold = params.lowThreshold;
-            self.highThreshold = params.highThreshold;
-            self.gaussianKernelRadius = params.gaussianKernelRadius;
-            self.gaussianKernelWidth = params.gaussianKernelWidth;
+            self.low = params.low;
+            self.high = params.high;
+            self.gaussRadius = params.gaussRadius;
+            self.gaussWidth = params.gaussWidth;
             self.contrastNormalized = params.contrastNormalized;
         }
         return self;
@@ -12423,8 +12590,8 @@ FILTER.Create({
         // init arrays
         data = new Int32(picsize);
         magnitude = new Int32(picsize);
-        low = Math.round( self.lowThreshold * MAGNITUDE_SCALE );
-        high = Math.round( self.highThreshold * MAGNITUDE_SCALE );
+        low = Math.round( self.low * MAGNITUDE_SCALE );
+        high = Math.round( self.high * MAGNITUDE_SCALE );
         
         readLuminance( im, data );
         
@@ -12432,7 +12599,7 @@ FILTER.Create({
         
         computeGradients( 
             data, w, h, magnitude, 
-            self.gaussianKernelRadius, self.gaussianKernelWidth 
+            self.gaussRadius, self.gaussWidth 
         );
         
         performHysteresis( data, w, h, magnitude, low, high );
@@ -12946,7 +13113,7 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
     return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
 }
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-var PI2 = 2*Math.PI;
+var PI2 = FILTER.CONSTANTS.PI2;
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
     var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
@@ -12986,7 +13153,7 @@ function octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, 
 }*/
 
 
-// an efficient perlin noise and simplex plugin
+// an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
 FILTER.Create({
     name: "PerlinNoiseFilter"
@@ -12994,44 +13161,64 @@ FILTER.Create({
     // parameters
     ,baseX: 1
     ,baseY: 1
-    ,octaves: 1
-    ,seed: 0
+    ,numOctaves: 1
     ,offsets: null
     ,colors: null
-    ,stitch: false
-    ,fractal: true
-    ,perlin: false
+    ,_seed: 0
+    ,_stitch: false
+    ,_fractal: true
+    ,_perlin: false
     
     // constructor
-    ,init: function( baseX, baseY, octaves, seed, stitch, fractal, offsets, colors, is_perlin ) {
+    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
         var self = this;
         self.baseX = baseX || 1;
         self.baseY = baseY || 1;
-        self.setOctaves( octaves||1, offsets );
-        self.seed = seed || 0;
-        self.stitch = !!stitch;
-        self.fractal = false !== fractal;
+        self.octaves( octaves||1, offsets );
         self.colors = colors || null;
-        self.perlin = !!is_perlin;
+        self._seed = seed || 0;
+        self._stitch = !!stitch;
+        self._fractal = false !== fractal;
+        self._perlin = !!perlin;
     }
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
     
-    ,setSeed: function( randSeed ) {
+    ,seed: function( randSeed ) {
         var self = this;
-        self.seed = randSeed || 0;
-        seed(self.seed);
+        seed( self._seed = randSeed || 0 );
         return self;
     }
     
-    ,setOctaves: function( numOctaves, offsets ) {
+    ,octaves: function( numOctaves, offsets ) {
         var self = this;
-        self.octaves = numOctaves || 1;
+        self.numOctaves = numOctaves || 1;
         self.offsets = !offsets ? [] : offsets.slice(0);
-        while (self.offsets.length < self.octaves)
-            self.offsets.push([0,0]);
+        while (self.offsets.length < self.numOctaves) self.offsets.push([0,0]);
         return self;
+    }
+    
+    ,seamless: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._stitch = !!enabled;
+        return this;
+    }
+    
+    ,turbulence: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._fractal = !enabled;
+        return this;
+    }
+    
+    ,simplex: function( ) {
+        this._perlin = false;
+        return this;
+    }
+    
+    ,perlin: function( ) {
+        this._perlin = true;
+        return this;
     }
     
     ,serialize: function( ) {
@@ -13043,13 +13230,13 @@ FILTER.Create({
             ,params: {
                  baseX: self.baseX
                 ,baseY: self.baseY
-                ,octaves: self.octaves
+                ,numOctaves: self.numOctaves
                 ,offsets: self.offsets
-                ,seed: self.seed
                 ,colors: self.colors
-                ,stitch: self.stitch
-                ,fractal: self.fractal
-                ,perlin: self.perlin
+                ,_seed: self._seed
+                ,_stitch: self._stitch
+                ,_fractal: self._fractal
+                ,_perlin: self._perlin
             }
         };
     }
@@ -13064,13 +13251,13 @@ FILTER.Create({
             
             self.baseX = params.baseX;
             self.baseY = params.baseY;
-            self.octaves = params.octaves;
+            self.numOctaves = params.numOctaves;
             self.offsets = params.offsets;
-            self.seed = params.seed;
             self.colors = params.colors;
-            self.stitch = params.stitch;
-            self.fractal = params.fractal;
-            self.perlin = params.perlin;
+            self._seed = params._seed;
+            self._stitch = params._stitch;
+            self._fractal = params._fractal;
+            self._perlin = params._perlin;
         }
         return self;
     }
@@ -13082,16 +13269,15 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this, baseX = self.baseX, baseY = self.baseY,
-            octaves = self.octaves, offsets = self.offsets,
-            colors = self.colors, floor = Math.floor,
-            is_grayscale = !colors || !colors.length,
-            is_perlin = self.perlin, seamless = self.stitch, is_turbulence = !self.fractal,
+            octaves = self.numOctaves, offsets = self.offsets,
+            colors = self.colors, is_grayscale = !colors || !colors.length,
+            is_perlin = self._perlin, is_turbulence = !self._fractal, is_seamless = self._stitch, 
             i, l = im.length, x, y, n, c, noise
         ;
         
-        noise = is_perlin ? (seamless?seamless_perlin2:basic_perlin2) : (seamless?seamless_simplex2:basic_simplex2);
+        noise = is_perlin ? (is_seamless?seamless_perlin2:basic_perlin2) : (is_seamless?seamless_simplex2:basic_simplex2);
         // avoid unnecesary re-seeding ??
-        if ( self.seed ) seed( self.seed );
+        //if ( self._seed ) seed( self._seed );
         
         x=0; y=0;
         for (i=0; i<l; i+=4, x++)
@@ -13104,7 +13290,7 @@ FILTER.Create({
             }
             else
             {
-                c = colors[floor(n*(colors.length-1))];
+                c = colors[FLOOR(n*(colors.length-1))];
                 im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
             }
         }
@@ -13177,7 +13363,7 @@ FILTER.Create({
 
         //find largest side of the image
         //and resize the image to become square
-        if ( w !== h ) im = FILTER.Image.scaleData( im, w, h, N = w > h ? w : h, N );
+        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
         else  N = w; 
         N2 = Math.round(N/2);
         size = N*N; imSize = im.length;
@@ -13255,7 +13441,7 @@ FILTER.Create({
 
         //create the new tileable image
         //if it wasn't a square image, resize it back to the original scale
-        if ( w !== h ) tile = FILTER.Image.scaleData( tile, N, N, w, h );
+        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
 
         // return the new image data
         return tile;

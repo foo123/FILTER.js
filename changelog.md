@@ -2,10 +2,12 @@
 
 __0.7__
 
-* TGALoader, RGBELoader, GIFLoader generic/native image parsers/loaders
-* PerlinNoiseFilter plugin enhancement enable fractal noise and turbulence, octave noise and seamless noise
-* new plugin SeamlessTileFilter, create a seamless tileable pattern from an image
+* add FILTER.Math routines and algorithms (interpolation, fourier transforms etc..)
 * add fft1d, fft2d fast fourier transform routines, image spectrum, frequency domain filtering
+* add nearest neighbor, bilinear, bicubic interpolation/resizing routines
+* add TGALoader, RGBELoader, GIFLoader generic/native image parsers/loaders
+* new plugin: **SeamlessTileFilter**, create a seamless tileable pattern from an image
+* PerlinNoiseFilter plugin enhancement enable fractal noise and turbulence, octave noise and seamless noise
 * refactor/optimise
 
 

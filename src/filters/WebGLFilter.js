@@ -908,7 +908,7 @@ WebGL.getExtensionWithKnownPrefixes = function(gl, name)  {
 // Generic WebGL Filter
 var WebGLFilter = FILTER.WebGLFilter = FILTER.Class( FILTER.Filter, {
     
-    name : "GenericWebGLFilter",
+    name : "WebGLFilter",
     
     constructor: function(shaders, attributes, uniforms, textures) { 
         var self = this;

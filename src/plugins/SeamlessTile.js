@@ -61,7 +61,7 @@ FILTER.Create({
 
         //find largest side of the image
         //and resize the image to become square
-        if ( w !== h ) im = FILTER.Image.scaleData( im, w, h, N = w > h ? w : h, N );
+        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
         else  N = w; 
         N2 = Math.round(N/2);
         size = N*N; imSize = im.length;
@@ -139,7 +139,7 @@ FILTER.Create({
 
         //create the new tileable image
         //if it wasn't a square image, resize it back to the original scale
-        if ( w !== h ) tile = FILTER.Image.scaleData( tile, N, N, w, h );
+        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
 
         // return the new image data
         return tile;
