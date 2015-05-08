@@ -19,6 +19,9 @@ FILTER.Create({
     ,centerX: 0
     ,centerY: 0
     
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
     // constructor
     ,init: function( alphaMask, centerX, centerY ) {
         var self = this;
@@ -29,8 +32,28 @@ FILTER.Create({
         if ( alphaMask ) self.setMask( alphaMask );
     }
     
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,dispose: function( ) {
+        var self = this;
+        self.alphaMask = null;
+        self._alphaMask = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    ,setMask: function( alphaMask ) {
+        var self = this;
+        if ( alphaMask )
+        {
+            self.alphaMask = alphaMask;
+            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
+        }
+        else
+        {
+            self.alphaMask = null;
+            self._alphaMask = null;
+        }
+        return self;
+    }
     
     ,serialize: function( ) {
         var self = this;
@@ -57,16 +80,6 @@ FILTER.Create({
             self._alphaMask = params._alphaMask;
             self.centerX = params.centerX;
             self.centerY = params.centerY;
-        }
-        return self;
-    }
-    
-    ,setMask: function( alphaMask ) {
-        var self = this;
-        if ( alphaMask )
-        {
-            self.alphaMask = alphaMask;
-            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
         }
         return self;
     }

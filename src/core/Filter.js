@@ -10,12 +10,8 @@
 // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
 
 var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
-    ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
-    ,splice = AP.splice, concat = AP.concat, log
     
-    ,FILTERPath = FILTER.Path
-    
-    ,Merge = FILTER.Merge, Async = FILTER.Asynchronous
+    ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
@@ -34,7 +30,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
             init.apply( this, arguments );
         };
     }
-    
+    ,log
     ,_uuid = 0
 ;
 
@@ -42,37 +38,37 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
 //
 // Browser Sniffing support
 var Browser = FILTER.Browser = {
-    // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-    isNode                  : isNode,
-    isBrowser               : isBrowser,
-    isWorker                : isThread,
-    supportsWorker          : supportsThread,
-    isPhantom               : /PhantomJS/.test(userAgent),
-    
-    // http://www.quirksmode.org/js/detect.html
-    // http://my.opera.com/community/openweb/idopera/
-    // http://stackoverflow.com/questions/1998293/how-to-determine-the-opera-browser-using-javascript
-    isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
-    isFirefox               : isBrowser && /Firefox\//.test(userAgent),
-    isChrome                : isBrowser && /Chrome\//.test(userAgent),
-    isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
-    isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
-    // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
-    isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
+// http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
+isNode                  : isNode,
+isBrowser               : isBrowser,
+isWorker                : isThread,
+supportsWorker          : supportsThread,
+isPhantom               : /PhantomJS/.test(userAgent),
 
-    // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
-    isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
-    isWebkit                : isBrowser && /WebKit\//.test(userAgent),
-    isMac_geLion            : isBrowser && /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(userAgent),
-    isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent),
+// http://www.quirksmode.org/js/detect.html
+// http://my.opera.com/community/openweb/idopera/
+// http://stackoverflow.com/questions/1998293/how-to-determine-the-opera-browser-using-javascript
+isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
+isFirefox               : isBrowser && /Firefox\//.test(userAgent),
+isChrome                : isBrowser && /Chrome\//.test(userAgent),
+isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
+isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
+// IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
+isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
 
-    isMobile                : false,
-    isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
-    isWin                   : /windows/i.test(navigator.platform),
-    isMac                   : false,
-    isIE_lt8                : false,
-    isIE_lt9                : false,
-    isQtWebkit              : false
+// adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
+isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
+isWebkit                : isBrowser && /WebKit\//.test(userAgent),
+isMac_geLion            : isBrowser && /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(userAgent),
+isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent),
+
+isMobile                : false,
+isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
+isWin                   : /windows/i.test(navigator.platform),
+isMac                   : false,
+isIE_lt8                : false,
+isIE_lt9                : false,
+isQtWebkit              : false
 };
 Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
 Browser.isMac = Browser.isIOS || /Mac/.test(navigator.platform);
@@ -144,30 +140,22 @@ notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 //
 //
 // Constants
-FILTER.CONSTANTS = {
-    PI: Math.PI,
-    PI2: 2*Math.PI,
-    PI_2: 0.5*Math.PI,
-    SQRT2: Math.SQRT2,
-    toRad: Math.PI/180, 
-    toDeg: 180/Math.PI
-};
 FILTER.CHANNEL = {
-    RED: 0,
-    GREEN: 1,
-    BLUE: 2,
-    ALPHA: 3
+     RED:   0
+    ,GREEN: 1
+    ,BLUE:  2
+    ,ALPHA: 3
 };
 FILTER.MODE = {
-    IGNORE: 0,
-    WRAP: 1,
-    CLAMP: 2,
-    COLOR: 4
+     IGNORE:    0
+    ,WRAP:      1
+    ,CLAMP:     2
+    ,COLOR:     4
 };
 FILTER.LUMA = new FILTER.Array32F([ 
-    0.212671, 
-    0.71516, 
-    0.072169 
+     0.212671
+    ,0.71516 
+    ,0.072169 
 ]);
 FILTER.FORMAT = {
      IMAGE:     1
@@ -187,7 +175,7 @@ FILTER.MIME.JPEG = FILTER.MIME.JPG;
 //
 //
 // logging
-log = FILTER.log = (console && console.log) ? console.log : function( s ) { /* do nothing*/ };
+log = FILTER.log = (console && console.log) ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ };
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
@@ -269,7 +257,7 @@ var
         }
         
         ,sources: function( ) {
-            var sources = slice( arguments );
+            var sources = AP.slice.call( arguments );
             if ( sources.length )
             {
                 var blobs = [ ], i;
@@ -286,7 +274,7 @@ var
         }
         
         ,scripts: function( ) {
-            var scripts = slice( arguments );
+            var scripts = AP.slice.call( arguments );
             if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }

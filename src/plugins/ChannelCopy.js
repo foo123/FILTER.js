@@ -22,6 +22,9 @@ FILTER.Create({
     ,srcChannel: 0
     ,dstChannel: 0
     
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
     // constructor
     ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
         var self = this;
@@ -34,8 +37,28 @@ FILTER.Create({
         if ( srcImg ) self.setSrc( srcImg );
     }
     
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,dispose: function( ) {
+        var self = this;
+        self.srcImg = null;
+        self._srcImg = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    ,setSrc: function( srcImg ) {
+        var self = this;
+        if ( srcImg )
+        {
+            self.srcImg = srcImg;
+            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
+        }
+        else
+        {
+            self.srcImg = null;
+            self._srcImg = null;
+        }
+        return self;
+    }
     
     ,serialize: function( ) {
         var self = this;
@@ -66,16 +89,6 @@ FILTER.Create({
             self.centerY = params.centerY;
             self.srcChannel = params.srcChannel;
             self.dstChannel = params.dstChannel;
-        }
-        return self;
-    }
-    
-    ,setSrc: function( srcImg ) {
-        var self = this;
-        if ( srcImg )
-        {
-            self.srcImg = srcImg;
-            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
         }
         return self;
     }

@@ -1,5 +1,14 @@
 ##ChangeLog
 
+__0.7__
+
+* TGALoader, RGBELoader, GIFLoader generic/native image parsers/loaders
+* PerlinNoiseFilter plugin enhancement enable fractal noise and turbulence, octave noise and seamless noise
+* new plugin SeamlessTileFilter, create a seamless tileable pattern from an image
+* add fft1d, fft2d fast fourier transform routines, image spectrum, frequency domain filtering
+* refactor/optimise
+
+
 __0.7-alpha__, __0.7-alpha2__
 
 * images can be restorable

@@ -7,7 +7,7 @@ __A JavaScript Library for Image/Video Processing and Filtering using HTML5 APIs
 This is a library for filtering images/video in JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress).  
 
 
-**version 0.7-alpha2**
+**version 0.7** **IN PROGRESS DO NOT USE**
 
 
 * [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js)
@@ -63,12 +63,13 @@ This is a library for filtering images/video in JavaScript using HTML5 features 
 
 ###Credits
 
-Some filters code has been adapted from open source libraries (mostly flash and java, plus a couple from javascript libraries), see the comments in the code for details.
+Some filters code has been adapted from open source libraries (mostly java and flash, plus a couple from javascript libraries), see the comments in the code for details.
 
 
 * **Image Processing Library in Java** (http://www.jhlabs.com/ip/filters/)
 * **AS3 Image Processing Library** (http://je2050.de/imageprocessing/)
 * **AS3 ColorMatrix by GSkinner** (http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html)
+* **Simplex and Perlin Noise by Stefan Gustavson** (https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c, https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c)
 * **JSManipulate** (https://github.com/JoelBesada/JSManipulate)
 * **glfx.js** (https://github.com/evanw/glfx.js)
 
@@ -82,6 +83,7 @@ Some image processing theory, basics and tutorials:
 * [fundamentals of image processing]( http://www.tnw.tudelft.nl/fileadmin/Faculteit/TNW/Over_de_faculteit/Afdelingen/Imaging_Science_and_Technology/Research/Research_Groups/Quantitative_Imaging/Education/doc/FIP2_3.pdf)
 * [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
 * [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
+* [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
 
 
 
@@ -128,9 +130,9 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add WebGL support for various pre-built and custom Filters (in progress)
 * add SVG Filters interface support for various pre-built and custom Filters (in progress)
 * add CSS Filters interface support for various pre-built and custom Filters (in progress)
-* add support for other image formats, e.g .TGA, .HDR/.RGBE, .BMP etc.. (todo)
-* add 2d-fft routines, frequency-domain filtering (todo)
+* add (generic/native) loader support for other image formats, e.g .TGA, .HDR/.RGBE, .GIF, .BMP, .PNG, .JPG etc.. [DONE partially]
 * add full support for Node.js (todo)
+* add 2d-fft routines, frequency-domain filtering [DONE partially]
 * add support for Parallel Processing using Web Workers and/or Asynchronous Processing [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]

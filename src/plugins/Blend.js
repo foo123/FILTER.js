@@ -28,6 +28,9 @@ FILTER.Create({
     ,startY: 0
     ,amount: 1
     
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
     // constructor
     ,init: function( blendImage, blendMode, amount ) { 
         var self = this;
@@ -42,8 +45,48 @@ FILTER.Create({
         if ( blendMode ) self.setMode( blendMode, amount );
     }
     
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,dispose: function( ) {
+        var self = this;
+        self.blendImage = null;
+        self._blendImage = null;
+        self._blendMode = null;
+        self.blendMode = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    // set blend image auxiliary method
+    ,setImage: function( blendImage ) {
+        var self = this;
+        if ( blendImage )
+        {
+            self.blendImage = blendImage;
+            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+        }
+        else
+        {
+            self.blendImage = null;
+            self._blendImage = null;
+        }
+        return self;
+    }
+    
+    // set blend mode auxiliary method
+    ,setMode: function( blendMode, amount ) {
+        var self = this;
+        if ( blendMode )
+        {
+            self._blendMode = (''+blendMode).toLowerCase();
+            self.blendMode = blendModes[self._blendMode] || null;
+            self.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+        }
+        else
+        {
+            self._blendMode = null;
+            self.blendMode = null;
+        }
+        return self;
+    }
     
     ,serialize: function( ) {
         var self = this;
@@ -73,34 +116,6 @@ FILTER.Create({
             self.startX = params.startX;
             self.startY = params.startY;
             self.setMode( params._blendMode, params.amount );
-        }
-        return self;
-    }
-    
-    // set blend image auxiliary method
-    ,setImage: function( blendImage ) {
-        var self = this;
-        if ( blendImage )
-        {
-            self.blendImage = blendImage;
-            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
-        }
-        return self;
-    }
-    
-    // set blend mode auxiliary method
-    ,setMode: function( blendMode, amount ) {
-        var self = this;
-        if ( blendMode )
-        {
-            self._blendMode = (''+blendMode).toLowerCase();
-            self.blendMode = blendModes[self._blendMode] || null;
-            self.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
-        }
-        else
-        {
-            self._blendMode = null;
-            self.blendMode = null;
         }
         return self;
     }

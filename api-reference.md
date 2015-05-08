@@ -42,8 +42,9 @@ __Methods:__
 * _setSelectedData()_ sets the image pixel data for the current selection
 * _getSelectedData()_ gets a copy of the pixel data of current image selection region
 * _getProcessedSelectedData()_ gets a copy of the processed/filtered data of current image selection region
-* _integral()_  Computes (and caches) the image integral (not used at this time)
-* _histogram()_  Computes (and caches) the image histogram (not used at this time)
+* _integral()_  Computes (and caches) the image integral (SAT image)
+* _histogram()_  Computes (and caches) the image histogram
+* _spectrum()_  Computes (and caches) the image fourier frequency spectrum (TODO)
 * _toImage(format)_  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
@@ -76,6 +77,44 @@ The same functionality to load a url into a FILTER.Image has been **removed from
 
 Use the FILTER.HTMLImageLoader instead.
 
+
+###TGALoader
+
+Loads an image url in TGA format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = FILTER.TGALoader.load(imageUrl [, onLoad, onProgress, onError]);
+
+// this is similar to:
+
+filterImageInstance = new FILTER.TGALoader().load(imageUrl [, onLoad, onProgress, onError]);
+````
+
+###RGBELoader / HDRLoader
+
+Loads an image url in RGBE format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = FILTER.RGBELoader.load(imageUrl [, onLoad, onProgress, onError]);
+
+// this is similar to:
+
+filterImageInstance = new FILTER.RGBELoader().load(imageUrl [, onLoad, onProgress, onError]);
+````
+
+###GIFLoader
+
+Loads an image url in GIF format into a FILTER.Image instance. 
+
+**Note** animated GIGs are not handled at this moment
+
+````javascript
+filterImageInstance = FILTER.GIFLoader.load(imageUrl [, onLoad, onProgress, onError]);
+
+// this is similar to:
+
+filterImageInstance = new FILTER.GIFLoader().load(imageUrl [, onLoad, onProgress, onError]);
+````
 
 
 
@@ -619,4 +658,5 @@ __Included Plugins__ (see examples for how to use)
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
 * __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
 * __CannyEdges__ : an efficient Canny Edges Detector/Extractor
-* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise**
+* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
+* __SeamlessTile__ : create a seamless tileable pattern from target image
