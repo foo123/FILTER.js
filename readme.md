@@ -1,10 +1,10 @@
 #FILTER.js 
 
 
-__A JavaScript Library for Image/Video Processing and Filtering using HTML5 APIs__
+__A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
 
 
-This is a library for filtering images/video in JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress).  
+This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js (todo).  
 
 
 **version 0.7** **IN PROGRESS DO NOT USE**
@@ -128,11 +128,11 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add WebGL support for various pre-built and custom Filters (in progress)
-* add SVG Filters interface support for various pre-built and custom Filters (in progress)
-* add CSS Filters interface support for various pre-built and custom Filters (in progress)
-* add (generic/native) loader support for other image formats, e.g .TGA, .HDR/.RGBE, .GIF, .BMP, .PNG, .JPG etc.. [DONE partially]
 * add full support for Node.js (todo)
+* add WebGL support for various pre-built and custom Filters (todo, in progress)
+* add SVG Filters interface support for various pre-built and custom Filters (todo, in progress)
+* add CSS Filters interface support for various pre-built and custom Filters (todo, in progress)
+* add (generic/native) loader support for other image formats, e.g .TGA, .HDR/.RGBE, .GIF, .BMP, .PNG, .JPG etc.. [DONE partially]
 * add 2d-fft routines, frequency-domain filtering [DONE partially]
 * add support for Parallel Processing using Web Workers and/or Asynchronous Processing [DONE partially]
 * make convolutions/statistics faster [DONE partially]
