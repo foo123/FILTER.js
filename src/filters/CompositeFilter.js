@@ -8,8 +8,7 @@
 @@USE_STRICT@@
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
-    ,splice = AP.splice, concat = AP.concat
+    ,slice = AP.slice, splice = AP.splice, concat = AP.concat
 ;
 
 //
@@ -25,6 +24,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,_stack: null
+    ,_meta: null
     ,_stable: true
     
     ,dispose: function( withFilters ) {
@@ -41,6 +41,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
             }
         }
         self._stack = null;
+        self._meta = null;
         
         return self;
     }
@@ -101,6 +102,19 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         return self;
     }
     
+    ,getMeta: function( ) {
+        return this._meta;
+    }
+    
+    ,setMeta: function( meta ) {
+        var self = this, stack = self._stack, i, l;
+        if ( meta && (l=meta.length) && stack.length )
+        {
+            for (i=0; i<l; i++) stack[meta[i][0]].setMeta(meta[i][1]);
+        }
+        return self;
+    }
+    
     ,stable: function( bool ) {
         if ( !arguments.length ) bool = true;
         this._stable = !!bool;
@@ -118,7 +132,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,push: function(/* variable args here.. */) {
-        var args = slice(arguments), argslen = args.length;
+        var args = slice.call(arguments), argslen = args.length;
         if ( argslen )
         {
             this._stack = concat.apply( this._stack, args );
@@ -135,7 +149,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,unshift: function(/* variable args here.. */) {
-        var args = slice(arguments), argslen = args.length;
+        var args = slice.call(arguments), argslen = args.length;
         if ( argslen )
         {
             splice.apply( this._stack, [0, 0].concat( args ) );
@@ -154,7 +168,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
-        var args = slice(arguments), arglen = args.length;
+        var args = slice.call(arguments), arglen = args.length;
         if ( argslen > 1 )
         {
             args.shift( );
@@ -185,6 +199,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
         var self = this;
+        self.hasMeta = false; self._meta = [];
         if ( self._isOn && self._stack.length )
         {
             var _filterstack = self._stack, _stacklength = _filterstack.length, 
@@ -193,9 +208,14 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
             for ( fi=0; fi<_stacklength; fi++ )
             {
                 filter = _filterstack[fi]; 
-                if ( filter && filter._isOn ) im = filter._apply(im, w, h, image);
+                if ( filter && filter._isOn ) 
+                {
+                    im = filter._apply(im, w, h, image);
+                    if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
+                }
             }
         }
+        self.hasMeta = self._meta.length > 0;
         return im;
     }
         

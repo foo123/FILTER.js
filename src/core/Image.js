@@ -140,6 +140,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._needsRefresh = 0;
         self._restorable = true;
+        self._grayscale = false;
         if ( img ) self.setImage( img );
     }
     
@@ -163,6 +164,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,_spectrum: null
     ,_needsRefresh: 0
     ,_restorable: true
+    ,_grayscale: false
     
     ,dispose: function( ) {
         var self = this;
@@ -185,6 +187,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._spectrum = null;
         self._needsRefresh = null;
         self._restorable = null;
+        self._grayscale = null;
+        return self;
+    }
+    
+    ,grayscale: function( bool ) {
+        var self = this;
+        if ( !arguments.length )  return self._grayscale;
+        self._grayscale = !!bool;
         return self;
     }
     
@@ -276,17 +286,31 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     // fill image region contents with a specific background color
     ,fill: function( color, x, y, w, h ) {
-        var self = this, W = self.width, H = self.height;
-        
-        if (!w && W && !h && H) return self;
+        var self = this, sel = self.selection, 
+            W = self.width, H = self.height, xs, ys, ws, hs
+        ;
+        if (sel)
+        {
+            xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
+            ws = Floor(sel[2]*(W-1))-xs+1; hs = Floor(sel[3]*(H-1))-ys+1;
+        }
+        else
+        {
+            xs = 0; ys = 0;
+            ws = W; hs = H;
+        }
+        if ( undef === x ) x = xs;
+        if ( undef === y ) y = ys;
+        if ( undef === w ) w = ws;
+        if ( undef === h ) h = hs;
         
         // create the image data if needed
         if (w && !W && h && !H) self.createImageData(w, h);
         
         var ictx = self.ictx, octx = self.octx;
         color = color||0; 
-        x = x||0; y = y||0; 
-        w = w||W; h = h||H;
+        /*x = x||0; y = y||0; 
+        w = w||W; h = h||H;*/
         
         if ( self._restorable )
         {
@@ -298,7 +322,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillRect(x, y, w, h);
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
+        if (sel) self._needsRefresh |= SEL;
         return self;
     }
     
@@ -501,7 +525,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,getPixel: function( x, y ) {
         var self = this;
         if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-        var off = ~~(y*self.width+x+0.5), im = self.oData.data;
+        var off = (~~(y*self.width+x+0.5))<<2, im = self.oData.data;
         return {
             r: im[off], 
             g: im[off+1], 
@@ -511,8 +535,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     ,setPixel: function( x, y, r, g, b, a ) {
-        var self = this, t = new IMG([r&255, g&255, b&255, a&255]);
-        self.octx.putImageData(t, x, y); 
+        var self = this;
+        self.octx.putImageData(new IMG([r&255, g&255, b&255, a&255]), x, y); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
@@ -633,7 +657,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._needsRefresh & SAT) 
         {
-            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height);
+            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_SAT;
         }
         return self._integral;
@@ -643,7 +667,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._needsRefresh & HIST) 
         {
-            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height);
+            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_HIST;
         }
         return self._histogram;
@@ -655,7 +679,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         /*
         if (self._needsRefresh & SPECTRUM) 
         {
-            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height);
+            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_SPECTRUM;
         }
         */
@@ -694,61 +718,96 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // resize/scale/interpolate image data
 FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
 // compute integral image (sum of columns)
-FilterImage.integral = function( im, w, h ) {
+FilterImage.integral = function( im, w, h, grayscale ) {
     var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-        imLen = im.length, count = (imLen>>2), i, j, x
+        imLen = im.length, count = (imLen>>2), i, j, x, rgb
     ;
+    grayscale = true === grayscale; rgb = !grayscale;
     // compute integral of image in one pass
-    integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
+    integralR = new A32F(count); 
+    if ( rgb )
+    {
+        integralG = new A32F(count); 
+        integralB = new A32F(count);
+    }
     // first row
     j=0; i=0; colR=colG=colB=0;
     for (x=0; x<w; x++, i+=4, j++)
     {
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+        colR+=im[i]; integralR[j]=colR; 
+        
+        if ( rgb )
+        {
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j]=colG; integralB[j]=colB;
+        }
     }
     // other rows
     i=rowLen; x=0; j=0; colR=colG=colB=0;
     for (i=rowLen; i<imLen; i+=4, j++, x++)
     {
         if (x>=w) { x=0; colR=colG=colB=0; }
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        colR+=im[i]; 
+        integralR[j+w]=integralR[j]+colR; 
+        
+        if ( rgb )
+        {
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        }
     }
-    return [integralR, integralG, integralB];
+    return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
 };
 // compute image histogram
-FilterImage.histogram = function( im, w, h ) {
+FilterImage.histogram = function( im, w, h, grayscale ) {
     var l = im.length,
         maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
         cdfR, cdfG, cdfB, r,g,b,
         accumR, accumG, accumB,
-        i, n=1.0/(l>>2)
+        i, n=1.0/(l>>2), rgb
     ;
     
+    grayscale = true === grayscale; rgb = !grayscale;
     // initialize the arrays
-    cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
+    cdfR=new A32F(256); 
+    if ( rgb )
+    {
+        cdfG=new A32F(256); 
+        cdfB=new A32F(256);
+    }
     for (i=0; i<256; i+=4) 
     { 
         // partial loop unrolling
-        cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
-        cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
-        cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
-        cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
+        cdfR[i]=0;
+        cdfR[i+1]=0;
+        cdfR[i+2]=0;
+        cdfR[i+3]=0;
+        if ( rgb )
+        {
+            cdfG[i]=0; cdfB[i]=0;
+            cdfG[i+1]=0; cdfB[i+1]=0;
+            cdfG[i+2]=0; cdfB[i+2]=0;
+            cdfG[i+3]=0; cdfB[i+3]=0;
+        }
     }
-    
     // compute pdf and maxima/minima
     for (i=0; i<l; i+=4)
     {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+        r = im[i];
+        cdfR[r] += n;
         
         if (r>maxR) maxR=r;
         else if (r<minR) minR=r;
-        if (g>maxG) maxG=g;
-        else if (g<minG) minG=g;
-        if (b>maxB) maxB=b;
-        else if (b<minB) minB=b;
+        
+        if ( rgb )
+        {
+            g = im[i+1]; b = im[i+2];
+            cdfG[g] += n; cdfB[b] += n;
+            if (g>maxG) maxG=g;
+            else if (g<minG) minG=g;
+            if (b>maxB) maxB=b;
+            else if (b<minB) minB=b;
+        }
     }
     
     // compute cdf
@@ -757,23 +816,27 @@ FilterImage.histogram = function( im, w, h ) {
     { 
         // partial loop unrolling
         accumR += cdfR[i]; cdfR[i] = accumR;
-        accumG += cdfG[i]; cdfG[i] = accumG;
-        accumB += cdfB[i]; cdfB[i] = accumB;
         accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-        accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-        accumB += cdfB[i+1]; cdfB[i+1] = accumB;
         accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-        accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-        accumB += cdfB[i+2]; cdfB[i+2] = accumB;
         accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-        accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-        accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        
+        if ( rgb )
+        {
+            accumG += cdfG[i]; cdfG[i] = accumG;
+            accumB += cdfB[i]; cdfB[i] = accumB;
+            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        }
     }
     
-    return [cdfR, cdfG, cdfB];
+    return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
 }
 // compute image spectrum
-FilterImage.spectrum = function( im, w, h ) {
+FilterImage.spectrum = function( im, w, h, grayscale ) {
     // TODO
     return null;
 };

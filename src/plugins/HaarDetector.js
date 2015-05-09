@@ -4,22 +4,21 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER, undef){
 @@USE_STRICT@@
 
-    
 var Array32F = FILTER.Array32F,
     Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
-    slice = Array[proto].slice
+    HAS = 'hasOwnProperty'
 ;
 
 
 // compute grayscale image, integral image (SAT) and squares image (Viola-Jones) and RSAT (Lienhart)
-function integralImage(im, w, h, gray, integral, squares, tilted) 
+function integral_image(im, w, h, gray, integral, squares, tilted) 
 {
-    var imLen=im.length, count=w*h
+    var imLen=im.length//, count=w*h
         , sum, sum2, i, j, k, y, g
         //, gray = new Array8U(count)
         // Viola-Jones
@@ -81,11 +80,11 @@ function integralImage(im, w, h, gray, integral, squares, tilted)
 }
 
 // compute Canny edges on gray-scale image to speed up detection if possible
-function integralCanny(gray, w, h) 
+function integral_canny(gray, w, h, canny) 
 {
     var i, j, k, sum, grad_x, grad_y,
         ind0, ind1, ind2, ind_1, ind_2, count=gray.length, 
-        lowpass = new Array8U(count), canny = new Array32F(count)
+        lowpass = new Array8U(count)//, canny = new Array32F(count)
     ;
     
     // first, second rows, last, second-to-last rows
@@ -240,8 +239,48 @@ function integralCanny(gray, w, h)
     return canny;
 }
 
+function almost_equal(r1, r2)
+{
+    var d1=Max(r2.width, r1.width)*0.2, 
+        d2=Max(r2.height, r1.height)*0.2;
+    //var d1=Max(f.width, this.width)*0.5, d2=Max(f.height, this.height)*0.5;
+    //var d2=d1=Max(f.width, this.width, f.height, this.height)*0.4;
+    return !!( 
+        Abs(r1.x-r2.x) <= d1 && 
+        Abs(r1.y-r2.y) <= d2 && 
+        Abs(r1.width-r2.width) <= d1 && 
+        Abs(r1.height-r2.height) <= d2 
+    ); 
+}
+function add_feat(r1, r2)
+{
+    r1.x += r2.x; 
+    r1.y += r2.y; 
+    r1.width += r2.width; 
+    r1.height += r2.height; 
+}
+function is_inside(r1, r2)
+{
+    return !!( 
+        (r1.x >= r2.x) && 
+        (r1.y >= r2.y) && 
+        (r1.x+r1.width <= r2.x+r2.width) && 
+        (r1.y+r1.height <= r2.y+r2.height)
+    ); 
+}
+function snap_to_grid(r)
+{
+    r.x = ~~(r.x+0.5); 
+    r.y = ~~(r.y+0.5); 
+    r.width = ~~(r.width+0.5); 
+    r.height = ~~(r.height+0.5); 
+}
+function by_area(r1, r2)
+{
+    return r2.area-r1.area;
+}
 // merge the detected features if needed
-function merge(rects, min_neighbors, ratio) 
+function merge_features(rects, min_neighbors) 
 {
     var rlen=rects.length, ref = new Array(rlen), feats=[], 
         nb_classes = 0, neighbors, r, found=false, i, j, n, t, ri;
@@ -254,7 +293,7 @@ function merge(rects, min_neighbors, ratio)
         found = false;
         for (j = 0; j < i; j++)
         {
-            if (rects[j].almostEqual(rects[i]))
+            if ( almost_equal(rects[j],rects[i]) )
             {
                 found = true;
                 ref[i] = ref[j];
@@ -270,24 +309,22 @@ function merge(rects, min_neighbors, ratio)
     
     // merge neighbor classes
     neighbors = new Array(nb_classes);  r = new Array(nb_classes);
-    for (i = 0; i < nb_classes; i++) { neighbors[i] = 0;  r[i] = new Feature(); }
-    for (i = 0; i < rlen; i++) { ri=ref[i]; neighbors[ri]++; r[ri].add(rects[i]); }
+    for (i = 0; i < nb_classes; i++) { neighbors[i] = 0;  r[i] = {x:0, y:0, width:0, height: 0}; }
+    for (i = 0; i < rlen; i++) { ri=ref[i]; neighbors[ri]++; add_feat(r[ri],rects[i]); }
     for (i = 0; i < nb_classes; i++) 
     {
         n = neighbors[i];
         if (n >= min_neighbors) 
         {
             t=1/(n + n);
-            ri = new Feature(
-                t*(r[i].x * 2 + n),  t*(r[i].y * 2 + n),
-                t*(r[i].width * 2 + n),  t*(r[i].height * 2 + n)
-            );
+            ri = {
+                x: t*(r[i].x * 2 + n),  y: t*(r[i].y * 2 + n),
+                width: t*(r[i].width * 2 + n),  height: t*(r[i].height * 2 + n)
+            };
             
             feats.push(ri);
         }
     }
-    
-    if (ratio != 1) { ratio=1.0/ratio; }
     
     // filter inside rectangles
     rlen=feats.length;
@@ -295,273 +332,90 @@ function merge(rects, min_neighbors, ratio)
     {
         for (j=i+1; j<rlen; j++)
         {
-            if (!feats[i].isInside && feats[i].inside(feats[j])) { feats[i].isInside=true; }
-            else if (!feats[j].isInside && feats[j].inside(feats[i])) { feats[j].isInside=true; }
+            if (!feats[i].inside && is_inside(feats[i],feats[j])) { feats[i].inside=true; }
+            else if (!feats[j].inside && is_inside(feats[j],feats[i])) { feats[j].inside=true; }
         }
     }
     i=rlen;
     while (--i >= 0) 
     { 
-        if (feats[i].isInside) 
+        if (feats[i].inside) 
         {
             feats.splice(i, 1); 
         }
         else 
         {
-            // scaled down, scale them back up
-            if (ratio != 1)  feats[i].scale(ratio); 
-            //feats[i].x+=selection.x; feats[i].y+=selection.y;
-            feats[i].round().computeArea(); 
+            snap_to_grid(feats[i]); 
+            feats[i].area = feats[i].width*feats[i].height;
         }
     }
     
     // sort according to size 
     // (a deterministic way to present results under different cases)
-    return feats.sort(byArea);
-}
-
-// area used as compare func for sorting
-function byArea(a, b) { return a.area-b.area; }
-
-// serial index used as compare func for sorting
-function byOrder(a, b) { return a.index-b.index; }
-
-/*
-splice subarray (not used)
-http://stackoverflow.com/questions/1348178/a-better-way-to-splice-an-array-into-an-array-in-javascript
-Array.prototype.splice.apply(d[0], [prev, 0].concat(d[1])); 
-*/
-
-// used for parallel "reduce" computation
-function mergeSteps(d) 
-{ 
-    // concat and sort according to serial ordering
-    if (d[1].length) d[0]=d[0].concat(d[1]).sort(byOrder); 
-    return d[0]; 
-}
-
-// used for parallel, asynchronous and/or synchronous computation
-function detectSingleStep(index, haar, w, h, scale, increment, integral, squares, titled, doCanny, canny, low, high) 
-{
-    var ret = [],
-        imArea=w*h, imArea1=imArea-1,
-        sizex = haar.size1, sizey = haar.size2, xstep, ystep, xsize, ysize,
-        startx = 0, starty = 0, startty,
-        x, y, ty, tyw, tys, sl = haar.stages.length,
-        p0, p1, p2, p3,
-        bx1, bx2, by1, by2,
-        swh, inv_area, total_x, total_x2, vnorm,
-        edges_density, pass, cL = low, cH = high, 
-        
-        stage, threshold, trees, tl,
-        t, cur_node_ind, where, features, feature, rects, nb_rects, thresholdf, 
-        rect_sum, kr, r, x1, y1, x2, y2, x3, y3, x4, y4, rw, rh, yw, yh, sum
-    ;
-    
-    bx1=0; bx2=w-1; by1=0; by2=imArea-w;
-    
-    xsize = ~~(scale * sizex); 
-    xstep = ~~(xsize * increment); 
-    ysize = ~~(scale * sizey); 
-    ystep = ~~(ysize * increment);
-    //ysize = xsize; ystep = xstep;
-    tyw = ysize*w; 
-    tys = ystep*w; 
-    startty = starty*tys; 
-    xl = w-xsize; 
-    yl = h-ysize;
-    swh = xsize*ysize; 
-    inv_area = 1.0/swh;
-    
-    for (y=starty, ty=startty; y<yl; y+=ystep, ty+=tys) 
-    {
-        for (x=startx; x<xl; x+=xstep) 
-        {
-            p0 = x-1 + ty-w;    p1 = p0 + xsize;
-            p2 = p0 + tyw;    p3 = p2 + xsize;
-            
-            // clamp
-            p0 = (p0<0) ? 0 : (p0>imArea1) ? imArea1 : p0;
-            p1 = (p1<0) ? 0 : (p1>imArea1) ? imArea1 : p1;
-            p2 = (p2<0) ? 0 : (p2>imArea1) ? imArea1 : p2;
-            p3 = (p3<0) ? 0 : (p3>imArea1) ? imArea1 : p3;
-            
-            if (doCanny) 
-            {
-                // avoid overflow
-                edges_density = inv_area * (canny[p3] - canny[p2] - canny[p1] + canny[p0]);
-                if (edges_density < cL || edges_density > cH) continue;
-            }
-            
-            // pre-compute some values for speed
-            
-            // avoid overflow
-            total_x = inv_area * (integral[p3] - integral[p2] - integral[p1] + integral[p0]);
-            // avoid overflow
-            total_x2 = inv_area * (squares[p3] - squares[p2] - squares[p1] + squares[p0]);
-            
-            vnorm = total_x2 - total_x * total_x;
-            vnorm = (vnorm > 1) ? Sqrt(vnorm) : /*vnorm*/  1 ;  
-            
-            pass = true;
-            for (s = 0; s < sl; s++) 
-            {
-                // Viola-Jones HAAR-Stage evaluator
-                stage = haar.stages[s];
-                threshold = stage.thres;
-                trees = stage.trees; tl = trees.length;
-                sum=0;
-                
-                for (t = 0; t < tl; t++) 
-                { 
-                    //
-                    // inline the tree and leaf evaluators to avoid function calls per-loop (faster)
-                    //
-                    
-                    // Viola-Jones HAAR-Tree evaluator
-                    features = trees[t].feats; 
-                    cur_node_ind = 0;
-                    while (true) 
-                    {
-                        feature = features[cur_node_ind]; 
-                        
-                        // Viola-Jones HAAR-Leaf evaluator
-                        rects = feature.rects; 
-                        nb_rects = rects.length; 
-                        thresholdf = feature.thres; 
-                        rect_sum = 0;
-                        
-                        if (feature.tilt)
-                        {
-                            // tilted rectangle feature, Lienhart et al. extension
-                            for (kr = 0; kr < nb_rects; kr++) 
-                            {
-                                r = rects[kr];
-                                
-                                // this produces better/larger features, possible rounding effects??
-                                x1 = x + ~~(scale * r[0]);
-                                y1 = (y-1 + ~~(scale * r[1])) * w;
-                                x2 = x + ~~(scale * (r[0] + r[2]));
-                                y2 = (y-1 + ~~(scale * (r[1] + r[2]))) * w;
-                                x3 = x + ~~(scale * (r[0] - r[3]));
-                                y3 = (y-1 + ~~(scale * (r[1] + r[3]))) * w;
-                                x4 = x + ~~(scale * (r[0] + r[2] - r[3]));
-                                y4 = (y-1 + ~~(scale * (r[1] + r[2] + r[3]))) * w;
-                                
-                                // clamp
-                                x1 = (x1<bx1) ? bx1 : (x1>bx2) ? bx2 : x1;
-                                x2 = (x2<bx1) ? bx1 : (x2>bx2) ? bx2 : x2;
-                                x3 = (x3<bx1) ? bx1 : (x3>bx2) ? bx2 : x3;
-                                x4 = (x4<bx1) ? bx1 : (x4>bx2) ? bx2 : x4;
-                                y1 = (y1<by1) ? by1 : (y1>by2) ? by2 : y1;
-                                y2 = (y2<by1) ? by1 : (y2>by2) ? by2 : y2;
-                                y3 = (y3<by1) ? by1 : (y3>by2) ? by2 : y3;
-                                y4 = (y4<by1) ? by1 : (y4>by2) ? by2 : y4;
-                                
-                                // RSAT(x-h+w, y+w+h-1) + RSAT(x, y-1) - RSAT(x-h, y+h-1) - RSAT(x+w, y+w-1)
-                                //        x4     y4            x1  y1          x3   y3            x2   y2
-                                rect_sum+= r[4] * (tilted[x4 + y4] - tilted[x3 + y3] - tilted[x2 + y2] + tilted[x1 + y1]);
-                            }
-                        }
-                        else
-                        {
-                            // orthogonal rectangle feature, Viola-Jones original
-                            for (kr = 0; kr < nb_rects; kr++) 
-                            {
-                                r = rects[kr];
-                                
-                                // this produces better/larger features, possible rounding effects??
-                                x1 = x-1 + ~~(scale * r[0]); 
-                                x2 = x-1 + ~~(scale * (r[0] + r[2]));
-                                y1 = (w) * (y-1 + ~~(scale * r[1])); 
-                                y2 = (w) * (y-1 + ~~(scale * (r[1] + r[3])));
-                                
-                                // clamp
-                                x1 = (x1<bx1) ? bx1 : (x1>bx2) ? bx2 : x1;
-                                x2 = (x2<bx1) ? bx1 : (x2>bx2) ? bx2 : x2;
-                                y1 = (y1<by1) ? by1 : (y1>by2) ? by2 : y1;
-                                y2 = (y2<by1) ? by1 : (y2>by2) ? by2 : y2;
-                                
-                                // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
-                                //      x1   y1         x2      y2          x1   y1            x2    y1
-                                rect_sum+= r[4] * (integral[x2 + y2]  - integral[x1 + y2] - integral[x2 + y1] + integral[x1 + y1]);
-                            }
-                        }
-                        
-                        where = (rect_sum * inv_area < thresholdf * vnorm) ? 0 : 1;
-                        // END Viola-Jones HAAR-Leaf evaluator
-                        
-                        if (where) 
-                        {
-                            if (feature.has_r) { sum += feature.r_val; break; } 
-                            else { cur_node_ind = feature.r_node; }
-                        } 
-                        else 
-                        {
-                            if (feature.has_l) { sum += feature.l_val; break; } 
-                            else { cur_node_ind = feature.l_node; }
-                        }
-                    }
-                    // END Viola-Jones HAAR-Tree evaluator
-                
-                }
-                pass = (sum > threshold) ? true : false;
-                // END Viola-Jones HAAR-Stage evaluator
-                
-                if (!pass) break;
-            }
-            
-            if (pass) 
-            {
-                ret.push({
-                    index: index,
-                    x: x, y: y,
-                    width: xsize,  height: ysize
-                });
-            }
-        }
-    }
-    
-    // return any features found in this step
-    return ret;
-}
-
-// called when detection ends, calls user-defined callback if any
-function detectEnd(self, rects) 
-{
-    for (var i=0, l=rects.length; i<l; i++) rects[i] = new Feature(rects[i]);
-    self.objects = merge(rects, self.min_neighbors, self.Ratio, self.Selection); 
-    self.Ready = true;
-    if (self.onComplete) self.onComplete.call(self);
+    return feats.sort(by_area);
 }
 
 
 // HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
 // adapted from: https://github.com/foo123/HAAR.js
 FILTER.Create({
-    name: "HaarDetector"
+    name: "HaarDetectorFilter"
     
     // parameters
+    ,_update: false // filter by itself does not alter image data, just processes information
+    ,hasMeta: true
     ,haardata: null
     ,objects: null
     ,baseScale: 1.0
-    ,scaleInc: 1.25
-    ,increment: 0.5
+    ,scaleIncrement: 1.25
+    ,stepIncrement: 0.5
     ,minNeighbors: 1
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
     
-    
     // this is the filter constructor
-    ,init: function( haardata ) {
+    ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
         var self = this;
-        self.haardata = haardata || null;
         self.objects = null;
+        self.haardata = haardata || null;
+        self.baseScale = undef === baseScale ? 1.0 : baseScale;
+        self.scaleIncrement = undef === scaleIncrement ? 1.25 : scaleIncrement;
+        self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
+        self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
+        self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
     }
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.objects = null;
+        self.haardata = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    ,haar: function( haardata ) {
+        this.haardata = haardata;
+        return this;
+    }
+    
+    ,params: function( params ) {
+        var self = this;
+        if ( params )
+        {
+        if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
+        if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
+        if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
+        if ( params[HAS]('minNeighbors') ) self.minNeighbors = params.minNeighbors;
+        if ( params[HAS]('doCannyPruning') ) self.doCannyPruning = params.doCannyPruning;
+        if ( params[HAS]('cannyLow') ) self.cannyLow = params.cannyLow;
+        if ( params[HAS]('cannyHigh') ) self.cannyHigh = params.cannyHigh;
+        }
+        return self;
+    }
     
     ,serialize: function( ) {
         var self = this;
@@ -570,15 +424,14 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-    ,haardata: null
-    ,objects: null
-    ,baseScale: 1.0
-    ,scaleInc: 1.25
-    ,increment: 0.5
-    ,minNeighbors: 1
-    ,doCannyPruning: true
-    ,cannyLow: 20
-    ,cannyHigh: 100
+                 haardata: self.haardata
+                ,baseScale: self.baseScale
+                ,scaleIncrement: self.scaleIncrement
+                ,stepIncrement: self.stepIncrement
+                ,minNeighbors: self.minNeighbors
+                ,doCannyPruning: self.doCannyPruning
+                ,cannyLow: self.cannyLow
+                ,cannyHigh: self.cannyHigh
             }
         };
     }
@@ -591,183 +444,241 @@ FILTER.Create({
             
             params = json.params;
             
-    ,haardata: null
-    ,objects: null
-    ,baseScale: 1.0
-    ,scaleInc: 1.25
-    ,increment: 0.5
-    ,minNeighbors: 1
-    ,doCannyPruning: true
-    ,cannyLow: 20
-    ,cannyHigh: 100
+            self.haardata = params.haardata;
+            self.baseScale = params.baseScale;
+            self.scaleIncrement = params.scaleIncrement;
+            self.stepIncrement = params.stepIncrement;
+            self.minNeighbors = params.minNeighbors;
+            self.doCannyPruning = params.doCannyPruning;
+            self.cannyLow = params.cannyLow;
+            self.cannyHigh = params.cannyHigh;
         }
         return self;
+    }
+    
+    // detected objects are passed as filter metadata (if filter is run in parallel thread)
+    ,getMeta: function( ) {
+        return this.objects;
+    }
+    
+    ,setMeta: function( meta ) {
+        this.objects = meta;
+        return this;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        var self = this, scale, maxScale,
-            sizex = self.haardata.size1, sizey = self.haardata.size2;
+        var self = this, imSize = im.length>>>2
+            ,haar = self.haardata, haar_stages = haar.stages
+            ,baseScale = self.baseScale
+            ,scaleIncrement = self.scaleIncrement
+            ,stepIncrement = self.stepIncrement
+            ,minNeighbors = self.minNeighbors
+            ,doCanny = self.doCannyPruning
+            ,cL = self.cannyLow, cH = self.cannyHigh
+            ,sizex = haar.size1, sizey = haar.size2
+            ,scale, maxScale = Min(w/sizex, h/sizey)
+            ,gray, integral, squares, tilted, canny, feats = []
         
-        integralImg = integralImage(imdata.data, imdata.width, imdata.height/*, self.scaledSelection*/);
-        self.integral = integralImg.integral; 
-        self.squares = integralImg.squares; 
-        self.tilted = integralImg.tilted; 
-        self.canny = integralCanny(integralImg.gray, sw, sh/*, self.scaledSelection.width, self.scaledSelection.height*/);
+            ,imArea1=imSize-1,
+            xstep, ystep, xsize, ysize,
+            startx = 0, starty = 0, startty,
+            x, y, ty, tyw, tys, sl = haar_stages.length,
+            p0, p1, p2, p3, xl, yl, s, t,
+            bx1, bx2, by1, by2,
+            swh, inv_area, total_x, total_x2, vnorm,
+            edges_density, pass,
+            
+            stage, threshold, trees, tl,
+            t, cur_node_ind, where, features, feature, rects, nb_rects, thresholdf, 
+            rect_sum, kr, r, x1, y1, x2, y2, x3, y3, x4, y4, rw, rh, yw, yh, sum
+        ;
         
-        baseScale = (typeof baseScale == 'undefined') ? 1.0 : baseScale;
-        scale_inc = (typeof scale_inc == 'undefined') ? 1.25 : scale_inc;
-        increment = (typeof increment == 'undefined') ? 0.5 : increment;
-        min_neighbors = (typeof min_neighbors == 'undefined') ? 1 : min_neighbors;
-        self.doCannyPruning = (typeof doCannyPruning == 'undefined') ? true : doCannyPruning;
+        integral_image(im, w, h, 
+            gray=new Array8U(imSize), 
+            integral=new Array32F(imSize), 
+            squares=new Array32F(imSize), 
+            tilted=new Array32F(imSize)
+        );
+        if ( doCanny ) 
+            integral_canny(gray, w, h, 
+                canny=new Array32F(imSize)
+            );
         
-        maxScale = self.maxScale = Min(self.width/sizex, self.height/sizey); 
-        scale = self.scale = baseScale; 
-        self.min_neighbors = min_neighbors; 
-        self.scale_inc = scale_inc; 
-        self.increment = increment; 
-        self.Ready = false;
-        
-        // detect synchronously
-        var rects = [];
-        // detection loop
+        // synchronous detection loop
+        bx1=0; bx2=w-1; by1=0; by2=imSize-w;
+        scale = baseScale;
         while (scale <= maxScale) 
         {
-            rects = rects.concat( detectSingleStep(self) ); 
+            // Viola-Jones Single Scale Detector
+            xsize = ~~(scale * sizex); 
+            xstep = ~~(xsize * stepIncrement); 
+            ysize = ~~(scale * sizey); 
+            ystep = ~~(ysize * stepIncrement);
+            //ysize = xsize; ystep = xstep;
+            tyw = ysize*w; tys = ystep*w; 
+            startty = starty*tys; 
+            xl = w-xsize; yl = h-ysize;
+            swh = xsize*ysize; inv_area = 1.0/swh;
+            
+            for (y=starty, ty=startty; y<yl; y+=ystep, ty+=tys) 
+            {
+                for (x=startx; x<xl; x+=xstep) 
+                {
+                    p0 = x-1 + ty-w;    p1 = p0 + xsize;
+                    p2 = p0 + tyw;    p3 = p2 + xsize;
+                    
+                    // clamp
+                    p0 = (p0<0) ? 0 : (p0>imArea1) ? imArea1 : p0;
+                    p1 = (p1<0) ? 0 : (p1>imArea1) ? imArea1 : p1;
+                    p2 = (p2<0) ? 0 : (p2>imArea1) ? imArea1 : p2;
+                    p3 = (p3<0) ? 0 : (p3>imArea1) ? imArea1 : p3;
+                    
+                    if (doCanny) 
+                    {
+                        // avoid overflow
+                        edges_density = inv_area * (canny[p3] - canny[p2] - canny[p1] + canny[p0]);
+                        if (edges_density < cL || edges_density > cH) continue;
+                    }
+                    
+                    // pre-compute some values for speed
+                    
+                    // avoid overflow
+                    total_x = inv_area * (integral[p3] - integral[p2] - integral[p1] + integral[p0]);
+                    // avoid overflow
+                    total_x2 = inv_area * (squares[p3] - squares[p2] - squares[p1] + squares[p0]);
+                    
+                    vnorm = total_x2 - total_x * total_x;
+                    vnorm = (vnorm > 1) ? Sqrt(vnorm) : /*vnorm*/  1 ;  
+                    
+                    pass = true;
+                    for (s = 0; s < sl; s++) 
+                    {
+                        // Viola-Jones HAAR-Stage evaluator
+                        stage = haar_stages[s];
+                        threshold = stage.thres;
+                        trees = stage.trees; tl = trees.length;
+                        sum=0;
+                        
+                        for (t = 0; t < tl; t++) 
+                        { 
+                            //
+                            // inline the tree and leaf evaluators to avoid function calls per-loop (faster)
+                            //
+                            
+                            // Viola-Jones HAAR-Tree evaluator
+                            features = trees[t].feats; 
+                            cur_node_ind = 0;
+                            while (true) 
+                            {
+                                feature = features[cur_node_ind]; 
+                                
+                                // Viola-Jones HAAR-Leaf evaluator
+                                rects = feature.rects; 
+                                nb_rects = rects.length; 
+                                thresholdf = feature.thres; 
+                                rect_sum = 0;
+                                
+                                if (feature.tilt)
+                                {
+                                    // tilted rectangle feature, Lienhart et al. extension
+                                    for (kr = 0; kr < nb_rects; kr++) 
+                                    {
+                                        r = rects[kr];
+                                        
+                                        // this produces better/larger features, possible rounding effects??
+                                        x1 = x + ~~(scale * r[0]);
+                                        y1 = (y-1 + ~~(scale * r[1])) * w;
+                                        x2 = x + ~~(scale * (r[0] + r[2]));
+                                        y2 = (y-1 + ~~(scale * (r[1] + r[2]))) * w;
+                                        x3 = x + ~~(scale * (r[0] - r[3]));
+                                        y3 = (y-1 + ~~(scale * (r[1] + r[3]))) * w;
+                                        x4 = x + ~~(scale * (r[0] + r[2] - r[3]));
+                                        y4 = (y-1 + ~~(scale * (r[1] + r[2] + r[3]))) * w;
+                                        
+                                        // clamp
+                                        x1 = (x1<bx1) ? bx1 : (x1>bx2) ? bx2 : x1;
+                                        x2 = (x2<bx1) ? bx1 : (x2>bx2) ? bx2 : x2;
+                                        x3 = (x3<bx1) ? bx1 : (x3>bx2) ? bx2 : x3;
+                                        x4 = (x4<bx1) ? bx1 : (x4>bx2) ? bx2 : x4;
+                                        y1 = (y1<by1) ? by1 : (y1>by2) ? by2 : y1;
+                                        y2 = (y2<by1) ? by1 : (y2>by2) ? by2 : y2;
+                                        y3 = (y3<by1) ? by1 : (y3>by2) ? by2 : y3;
+                                        y4 = (y4<by1) ? by1 : (y4>by2) ? by2 : y4;
+                                        
+                                        // RSAT(x-h+w, y+w+h-1) + RSAT(x, y-1) - RSAT(x-h, y+h-1) - RSAT(x+w, y+w-1)
+                                        //        x4     y4            x1  y1          x3   y3            x2   y2
+                                        rect_sum+= r[4] * (tilted[x4 + y4] - tilted[x3 + y3] - tilted[x2 + y2] + tilted[x1 + y1]);
+                                    }
+                                }
+                                else
+                                {
+                                    // orthogonal rectangle feature, Viola-Jones original
+                                    for (kr = 0; kr < nb_rects; kr++) 
+                                    {
+                                        r = rects[kr];
+                                        
+                                        // this produces better/larger features, possible rounding effects??
+                                        x1 = x-1 + ~~(scale * r[0]); 
+                                        x2 = x-1 + ~~(scale * (r[0] + r[2]));
+                                        y1 = (w) * (y-1 + ~~(scale * r[1])); 
+                                        y2 = (w) * (y-1 + ~~(scale * (r[1] + r[3])));
+                                        
+                                        // clamp
+                                        x1 = (x1<bx1) ? bx1 : (x1>bx2) ? bx2 : x1;
+                                        x2 = (x2<bx1) ? bx1 : (x2>bx2) ? bx2 : x2;
+                                        y1 = (y1<by1) ? by1 : (y1>by2) ? by2 : y1;
+                                        y2 = (y2<by1) ? by1 : (y2>by2) ? by2 : y2;
+                                        
+                                        // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
+                                        //      x1   y1         x2      y2          x1   y1            x2    y1
+                                        rect_sum+= r[4] * (integral[x2 + y2]  - integral[x1 + y2] - integral[x2 + y1] + integral[x1 + y1]);
+                                    }
+                                }
+                                
+                                where = (rect_sum * inv_area < thresholdf * vnorm) ? 0 : 1;
+                                // END Viola-Jones HAAR-Leaf evaluator
+                                
+                                if (where) 
+                                {
+                                    if (feature.has_r) { sum += feature.r_val; break; } 
+                                    else { cur_node_ind = feature.r_node; }
+                                } 
+                                else 
+                                {
+                                    if (feature.has_l) { sum += feature.l_val; break; } 
+                                    else { cur_node_ind = feature.l_node; }
+                                }
+                            }
+                            // END Viola-Jones HAAR-Tree evaluator
+                        
+                        }
+                        pass = sum > threshold;
+                        // END Viola-Jones HAAR-Stage evaluator
+                        
+                        if (!pass) break;
+                    }
+                    
+                    if (pass) 
+                    {
+                        feats.push({
+                            x: x, y: y,
+                            width: xsize,  height: ysize
+                        });
+                    }
+                }
+            }
+                    
             // increase scale
-            self.scale = scale *= scale_inc;
+            scale *= scaleIncrement;
         }
         
-        // merge any features found
-        for (var i=0, l=rects.length; i<l; i++) rects[i] = new Feature(rects[i]);
-        self.objects = merge(rects, self.min_neighbors, self.Ratio, self.Selection); 
-        self.Ready = true;
+        // return results as meta
+        self.objects = merge_features(feats, minNeighbors); 
         
-        // return results
-        return self.objects;
+        // return im back
         return im;
     }
 });
-
-//
-//
-//
-// Feature/Rectangle Class  (arguably better than generic Object)
-Feature = HAAR.Feature = function(x, y, w, h, i) { 
-    this.data(x, y, w, h, i);
-};
-
-Feature[proto] = {
-    
-    constructor: Feature,
-    
-    index: 0,
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    area: 0,
-    
-    isInside: false,
-    
-    data: function(x, y, w, h, i) {
-        var self = this;
-        if (x && (x instanceof Feature)) 
-        {
-            self.copy(x);
-        }
-        else if (x && (x instanceof Object))
-        {
-            self.x = x.x || 0;
-            self.y = x.y || 0;
-            self.width = x.width || 0;
-            self.height = x.height || 0;
-            self.index = x.index || 0;
-            self.area = x.area || 0;
-            self.isInside = x.isInside || false;
-        }
-        else
-        {
-            self.x = x || 0;
-            self.y = y || 0;
-            self.width = w || 0;
-            self.height = h || 0;
-            self.index = i || 0;
-            self.area = 0;
-            self.isInside = false;
-        }
-        
-        return self;
-    },
-    
-    add: function (f) { 
-        var self = this;
-        self.x += f.x; 
-        self.y += f.y; 
-        self.width += f.width; 
-        self.height += f.height; 
-        return self; 
-    },
-    
-    scale: function(s) { 
-        var self = this;
-        self.x *= s; 
-        self.y *= s; 
-        self.width *= s; 
-        self.height *= s; 
-        return self; 
-    },
-    
-    round: function() { 
-        var self = this;
-        self.x = ~~(self.x+0.5); 
-        self.y = ~~(self.y+0.5); 
-        self.width = ~~(self.width+0.5); 
-        self.height = ~~(self.height+0.5); 
-        return self; 
-    },
-    
-    computeArea: function() { 
-        var self = this;
-        self.area = self.width*self.height; 
-        return self.area; 
-    }, 
-    
-    inside: function(f) { 
-        var self = this;
-        return !!( 
-            (self.x >= f.x) && 
-            (self.y >= f.y) && 
-            (self.x+self.width <= f.x+f.width) && 
-            (self.y+self.height <= f.y+f.height)
-        ); 
-    },
-    
-    contains: function(f) { 
-        return f.inside(this); 
-    },
-    
-    equal: function(f) { 
-        var self = this;
-        return !!(
-            (f.x === self.x) && 
-            (f.y === self.y) && 
-            (f.width === self.width) && 
-            (f.height === self.height)
-        ); 
-    },
-    
-    almostEqual: function(f) { 
-        var self = this, d1=Max(f.width, self.width)*0.2, d2=Max(f.height, self.height)*0.2;
-        //var d1=Max(f.width, this.width)*0.5, d2=Max(f.height, this.height)*0.5;
-        //var d2=d1=Max(f.width, this.width, f.height, this.height)*0.4;
-        return !!( 
-            Abs(self.x-f.x) <= d1 && 
-            Abs(self.y-f.y) <= d2 && 
-            Abs(self.width-f.width) <= d1 && 
-            Abs(self.height-f.height) <= d2 
-        ); 
-    }
-};
 
 }(FILTER);

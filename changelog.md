@@ -9,6 +9,7 @@ __0.7__
 * new plugin: **SeamlessTileFilter**, create a seamless tileable pattern from an image
 * new plugin: **HaarDetector**, detect image features using Viola-Jones-Lienhart openCV HAAR cascades algorithm (adapted from [HAAR.js](https://github.com/foo123/HAR.js))
 * PerlinNoiseFilter plugin enhancement enable fractal noise and turbulence, octave noise and seamless noise
+* filters/plugins can transmit metadata (e.g HaarDetector) to pass additional information which is not necessarily an image
 * refactor/optimise
 
 

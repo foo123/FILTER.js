@@ -217,7 +217,10 @@ var
                         if ( filter && data && data.im )
                         {
                             if ( data.params ) filter.unserialize( data.params );
-                            self.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
+                            var ret = {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )};
+                            // pass any filter metadata if needed
+                            if ( filter.hasMeta ) ret.meta = filter.getMeta();/*self.send( 'meta', filter.getMeta() );*/
+                            self.send( 'apply', ret );
                         }
                         else
                         {
@@ -310,12 +313,19 @@ var
         // filters can have id's
         ,id: null
         ,_isOn: true
-        , _onComplete: null
+        ,_update: true
+        ,_onComplete: null
+        ,hasMeta: false
         
         ,dispose: function( ) {
             var self = this;
             self.$super('dispose');
+            self.name = null;
+            self.id = null;
+            self._isOn = null;
+            self._update = null;
             self._onComplete = null;
+            self.hasMeta = null;
             return self;
         }
         
@@ -356,6 +366,15 @@ var
         }
         
         // @override
+        ,getMeta: function( ) {
+        }
+        
+        // @override
+        ,setMeta: function( meta ) {
+            return this;
+        }
+        
+        // @override
         ,combineWith: function( filter ) {
             return this;
         }
@@ -370,7 +389,7 @@ var
         // generic apply a filter from an image (src) to another image (dest)
         // with optional callback (cb)
         ,apply: function( src, dest, cb ) {
-            var self = this, im;
+            var self = this, im, im2;
             
             if ( !self.canRun( ) ) return src;
             
@@ -401,9 +420,19 @@ var
                 if ( self.$thread )
                 {
                     self
+                        // listen for metadata if needed
+                        /*.listen( 'meta', function( data ) { 
+                            self.unlisten( 'meta' );
+                            self.setMeta( data );
+                        })*/
                         .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im ) dest.setSelectedData( data.im );
+                            self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
+                            if ( data && data.im ) 
+                            {
+                                // listen for metadata if needed
+                                if ( data.meta ) self.setMeta( data.meta );
+                                if ( self._update ) dest.setSelectedData( data.im );
+                            }
                             if ( cb ) cb.call( self );
                         })
                         // process request
@@ -412,7 +441,12 @@ var
                 }
                 else
                 {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
+                    im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
+                    // update image only if needed
+                    // some filters do not actually change the image data
+                    // but instead process information from the data,
+                    // no need to update in such a case
+                    if ( self._update ) dest.setSelectedData( im2 );
                     if ( cb ) cb.call( self );
                 }
             }

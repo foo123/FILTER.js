@@ -1,5 +1,6 @@
 ##API Reference
 
+
 The library dependencies are:
 
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
@@ -9,6 +10,23 @@ The library dependencies are:
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
 Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included. 
 Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
+
+
+###Contents
+
+* [Image](#image-class)
+* [Image Loader](#loader--htmlimageloader-classes)
+* [Abstract Filter](#generic-abstract-filter)
+* [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
+* [Table Lookup Filter](#table-lookup-filter) 
+* [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
+* [Displacement Map Filter](#displacement-map-filter) (analogous to ActionScript filter)
+* [Geometric Map Filter](#geometric-map-filter)
+* [Morphological Filter](#morphological-filter)
+* [Statistical Filter](#statistical-filter)  (previously called NonLinearFilter)
+* [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
+* [Plugins / Inline Filters](#plugins-and-inline-filters) 
+
 
 
 ###Image Class

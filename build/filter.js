@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-09 08:56:57
+*   @built on 2015-05-10 02:45:02
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-09 08:56:57
+*   @built on 2015-05-10 02:45:02
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -369,7 +369,10 @@ var
                         if ( filter && data && data.im )
                         {
                             if ( data.params ) filter.unserialize( data.params );
-                            self.send( 'apply', {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )} );
+                            var ret = {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )};
+                            // pass any filter metadata if needed
+                            if ( filter.hasMeta ) ret.meta = filter.getMeta();/*self.send( 'meta', filter.getMeta() );*/
+                            self.send( 'apply', ret );
                         }
                         else
                         {
@@ -462,12 +465,19 @@ var
         // filters can have id's
         ,id: null
         ,_isOn: true
-        , _onComplete: null
+        ,_update: true
+        ,_onComplete: null
+        ,hasMeta: false
         
         ,dispose: function( ) {
             var self = this;
             self.$super('dispose');
+            self.name = null;
+            self.id = null;
+            self._isOn = null;
+            self._update = null;
             self._onComplete = null;
+            self.hasMeta = null;
             return self;
         }
         
@@ -508,6 +518,15 @@ var
         }
         
         // @override
+        ,getMeta: function( ) {
+        }
+        
+        // @override
+        ,setMeta: function( meta ) {
+            return this;
+        }
+        
+        // @override
         ,combineWith: function( filter ) {
             return this;
         }
@@ -522,7 +541,7 @@ var
         // generic apply a filter from an image (src) to another image (dest)
         // with optional callback (cb)
         ,apply: function( src, dest, cb ) {
-            var self = this, im;
+            var self = this, im, im2;
             
             if ( !self.canRun( ) ) return src;
             
@@ -553,9 +572,19 @@ var
                 if ( self.$thread )
                 {
                     self
+                        // listen for metadata if needed
+                        /*.listen( 'meta', function( data ) { 
+                            self.unlisten( 'meta' );
+                            self.setMeta( data );
+                        })*/
                         .listen( 'apply', function( data ) { 
-                            self.unlisten( 'apply' );
-                            if ( data && data.im ) dest.setSelectedData( data.im );
+                            self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
+                            if ( data && data.im ) 
+                            {
+                                // listen for metadata if needed
+                                if ( data.meta ) self.setMeta( data.meta );
+                                if ( self._update ) dest.setSelectedData( data.im );
+                            }
                             if ( cb ) cb.call( self );
                         })
                         // process request
@@ -564,7 +593,12 @@ var
                 }
                 else
                 {
-                    dest.setSelectedData( self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src ) );
+                    im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
+                    // update image only if needed
+                    // some filters do not actually change the image data
+                    // but instead process information from the data,
+                    // no need to update in such a case
+                    if ( self._update ) dest.setSelectedData( im2 );
                     if ( cb ) cb.call( self );
                 }
             }
@@ -2317,6 +2351,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._needsRefresh = 0;
         self._restorable = true;
+        self._grayscale = false;
         if ( img ) self.setImage( img );
     }
     
@@ -2340,6 +2375,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,_spectrum: null
     ,_needsRefresh: 0
     ,_restorable: true
+    ,_grayscale: false
     
     ,dispose: function( ) {
         var self = this;
@@ -2362,6 +2398,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._spectrum = null;
         self._needsRefresh = null;
         self._restorable = null;
+        self._grayscale = null;
+        return self;
+    }
+    
+    ,grayscale: function( bool ) {
+        var self = this;
+        if ( !arguments.length )  return self._grayscale;
+        self._grayscale = !!bool;
         return self;
     }
     
@@ -2453,17 +2497,31 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     // fill image region contents with a specific background color
     ,fill: function( color, x, y, w, h ) {
-        var self = this, W = self.width, H = self.height;
-        
-        if (!w && W && !h && H) return self;
+        var self = this, sel = self.selection, 
+            W = self.width, H = self.height, xs, ys, ws, hs
+        ;
+        if (sel)
+        {
+            xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
+            ws = Floor(sel[2]*(W-1))-xs+1; hs = Floor(sel[3]*(H-1))-ys+1;
+        }
+        else
+        {
+            xs = 0; ys = 0;
+            ws = W; hs = H;
+        }
+        if ( undef === x ) x = xs;
+        if ( undef === y ) y = ys;
+        if ( undef === w ) w = ws;
+        if ( undef === h ) h = hs;
         
         // create the image data if needed
         if (w && !W && h && !H) self.createImageData(w, h);
         
         var ictx = self.ictx, octx = self.octx;
         color = color||0; 
-        x = x||0; y = y||0; 
-        w = w||W; h = h||H;
+        /*x = x||0; y = y||0; 
+        w = w||W; h = h||H;*/
         
         if ( self._restorable )
         {
@@ -2475,7 +2533,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillRect(x, y, w, h);
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
+        if (sel) self._needsRefresh |= SEL;
         return self;
     }
     
@@ -2678,7 +2736,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,getPixel: function( x, y ) {
         var self = this;
         if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-        var off = ~~(y*self.width+x+0.5), im = self.oData.data;
+        var off = (~~(y*self.width+x+0.5))<<2, im = self.oData.data;
         return {
             r: im[off], 
             g: im[off+1], 
@@ -2688,8 +2746,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     ,setPixel: function( x, y, r, g, b, a ) {
-        var self = this, t = new IMG([r&255, g&255, b&255, a&255]);
-        self.octx.putImageData(t, x, y); 
+        var self = this;
+        self.octx.putImageData(new IMG([r&255, g&255, b&255, a&255]), x, y); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
@@ -2810,7 +2868,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._needsRefresh & SAT) 
         {
-            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height);
+            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_SAT;
         }
         return self._integral;
@@ -2820,7 +2878,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._needsRefresh & HIST) 
         {
-            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height);
+            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_HIST;
         }
         return self._histogram;
@@ -2832,7 +2890,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         /*
         if (self._needsRefresh & SPECTRUM) 
         {
-            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height);
+            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height, self._grayscale);
             self._needsRefresh &= CLEAR_SPECTRUM;
         }
         */
@@ -2871,61 +2929,96 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // resize/scale/interpolate image data
 FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
 // compute integral image (sum of columns)
-FilterImage.integral = function( im, w, h ) {
+FilterImage.integral = function( im, w, h, grayscale ) {
     var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-        imLen = im.length, count = (imLen>>2), i, j, x
+        imLen = im.length, count = (imLen>>2), i, j, x, rgb
     ;
+    grayscale = true === grayscale; rgb = !grayscale;
     // compute integral of image in one pass
-    integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
+    integralR = new A32F(count); 
+    if ( rgb )
+    {
+        integralG = new A32F(count); 
+        integralB = new A32F(count);
+    }
     // first row
     j=0; i=0; colR=colG=colB=0;
     for (x=0; x<w; x++, i+=4, j++)
     {
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+        colR+=im[i]; integralR[j]=colR; 
+        
+        if ( rgb )
+        {
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j]=colG; integralB[j]=colB;
+        }
     }
     // other rows
     i=rowLen; x=0; j=0; colR=colG=colB=0;
     for (i=rowLen; i<imLen; i+=4, j++, x++)
     {
         if (x>=w) { x=0; colR=colG=colB=0; }
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        colR+=im[i]; 
+        integralR[j+w]=integralR[j]+colR; 
+        
+        if ( rgb )
+        {
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+        }
     }
-    return [integralR, integralG, integralB];
+    return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
 };
 // compute image histogram
-FilterImage.histogram = function( im, w, h ) {
+FilterImage.histogram = function( im, w, h, grayscale ) {
     var l = im.length,
         maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
         cdfR, cdfG, cdfB, r,g,b,
         accumR, accumG, accumB,
-        i, n=1.0/(l>>2)
+        i, n=1.0/(l>>2), rgb
     ;
     
+    grayscale = true === grayscale; rgb = !grayscale;
     // initialize the arrays
-    cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
+    cdfR=new A32F(256); 
+    if ( rgb )
+    {
+        cdfG=new A32F(256); 
+        cdfB=new A32F(256);
+    }
     for (i=0; i<256; i+=4) 
     { 
         // partial loop unrolling
-        cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
-        cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
-        cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
-        cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
+        cdfR[i]=0;
+        cdfR[i+1]=0;
+        cdfR[i+2]=0;
+        cdfR[i+3]=0;
+        if ( rgb )
+        {
+            cdfG[i]=0; cdfB[i]=0;
+            cdfG[i+1]=0; cdfB[i+1]=0;
+            cdfG[i+2]=0; cdfB[i+2]=0;
+            cdfG[i+3]=0; cdfB[i+3]=0;
+        }
     }
-    
     // compute pdf and maxima/minima
     for (i=0; i<l; i+=4)
     {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+        r = im[i];
+        cdfR[r] += n;
         
         if (r>maxR) maxR=r;
         else if (r<minR) minR=r;
-        if (g>maxG) maxG=g;
-        else if (g<minG) minG=g;
-        if (b>maxB) maxB=b;
-        else if (b<minB) minB=b;
+        
+        if ( rgb )
+        {
+            g = im[i+1]; b = im[i+2];
+            cdfG[g] += n; cdfB[b] += n;
+            if (g>maxG) maxG=g;
+            else if (g<minG) minG=g;
+            if (b>maxB) maxB=b;
+            else if (b<minB) minB=b;
+        }
     }
     
     // compute cdf
@@ -2934,23 +3027,27 @@ FilterImage.histogram = function( im, w, h ) {
     { 
         // partial loop unrolling
         accumR += cdfR[i]; cdfR[i] = accumR;
-        accumG += cdfG[i]; cdfG[i] = accumG;
-        accumB += cdfB[i]; cdfB[i] = accumB;
         accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-        accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-        accumB += cdfB[i+1]; cdfB[i+1] = accumB;
         accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-        accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-        accumB += cdfB[i+2]; cdfB[i+2] = accumB;
         accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-        accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-        accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        
+        if ( rgb )
+        {
+            accumG += cdfG[i]; cdfG[i] = accumG;
+            accumB += cdfB[i]; cdfB[i] = accumB;
+            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+        }
     }
     
-    return [cdfR, cdfG, cdfB];
+    return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
 }
 // compute image spectrum
-FilterImage.spectrum = function( im, w, h ) {
+FilterImage.spectrum = function( im, w, h, grayscale ) {
     // TODO
     return null;
 };
@@ -3206,1153 +3303,6 @@ FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
 });
 }(FILTER);/**
 *
-* Filter TGALoader Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-// adapted from: Three.js
-// adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js
-// extend FILTER.BinaryLoader
-FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
-
-    name: "TGALoader",
-    
-    constructor: function TGALoader() {
-        if ( !(this instanceof TGALoader) )
-            return new TGALoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function ( buffer ) {
-
-        // TGA Constants
-        var TGA_TYPE_NO_DATA = 0,
-        TGA_TYPE_INDEXED = 1,
-        TGA_TYPE_RGB = 2,
-        TGA_TYPE_GREY = 3,
-        TGA_TYPE_RLE_INDEXED = 9,
-        TGA_TYPE_RLE_RGB = 10,
-        TGA_TYPE_RLE_GREY = 11,
-
-        TGA_ORIGIN_MASK = 0x30,
-        TGA_ORIGIN_SHIFT = 0x04,
-        TGA_ORIGIN_BL = 0x00,
-        TGA_ORIGIN_BR = 0x01,
-        TGA_ORIGIN_UL = 0x02,
-        TGA_ORIGIN_UR = 0x03;
-
-
-        if ( buffer.length < 19 )
-            FILTER.error( 'TGALoader.parse: Not enough data to contain header.' );
-
-        var content = new Uint8Array( buffer ),
-            offset = 0,
-            header = {
-                id_length:       content[ offset ++ ],
-                colormap_type:   content[ offset ++ ],
-                image_type:      content[ offset ++ ],
-                colormap_index:  content[ offset ++ ] | content[ offset ++ ] << 8,
-                colormap_length: content[ offset ++ ] | content[ offset ++ ] << 8,
-                colormap_size:   content[ offset ++ ],
-
-                origin: [
-                    content[ offset ++ ] | content[ offset ++ ] << 8,
-                    content[ offset ++ ] | content[ offset ++ ] << 8
-                ],
-                width:      content[ offset ++ ] | content[ offset ++ ] << 8,
-                height:     content[ offset ++ ] | content[ offset ++ ] << 8,
-                pixel_size: content[ offset ++ ],
-                flags:      content[ offset ++ ]
-            };
-
-        function tgaCheckHeader( header ) {
-
-            switch( header.image_type ) {
-
-                // Check indexed type
-                case TGA_TYPE_INDEXED:
-                case TGA_TYPE_RLE_INDEXED:
-                    if ( header.colormap_length > 256 || header.colormap_size !== 24 || header.colormap_type !== 1) {
-                        FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for indexed type');
-                    }
-                    break;
-
-                // Check colormap type
-                case TGA_TYPE_RGB:
-                case TGA_TYPE_GREY:
-                case TGA_TYPE_RLE_RGB:
-                case TGA_TYPE_RLE_GREY:
-                    if (header.colormap_type) {
-                        FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for colormap type');
-                    }
-                    break;
-
-                // What the need of a file without data ?
-                case TGA_TYPE_NO_DATA:
-                    FILTER.error('TGALoader.parse.tgaCheckHeader: No data');
-
-                // Invalid type ?
-                default:
-                    FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type " '+ header.image_type + '"');
-
-            }
-
-            // Check image width and height
-            if ( header.width <= 0 || header.height <=0 ) {
-                FILTER.error( 'TGALoader.parse.tgaCheckHeader: Invalid image size' );
-            }
-
-            // Check image pixel size
-            if (header.pixel_size !== 8  &&
-                header.pixel_size !== 16 &&
-                header.pixel_size !== 24 &&
-                header.pixel_size !== 32) {
-                FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid pixel size "' + header.pixel_size + '"');
-            }
-
-        }
-
-        // Check tga if it is valid format
-        tgaCheckHeader( header );
-
-        if ( header.id_length + offset > buffer.length ) {
-            FILTER.error('TGALoader.parse: No data');
-        }
-
-        // Skip the needn't data
-        offset += header.id_length;
-
-        // Get targa information about RLE compression and palette
-        var use_rle = false,
-            use_pal = false,
-            use_grey = false;
-
-        switch ( header.image_type ) {
-
-            case TGA_TYPE_RLE_INDEXED:
-                use_rle = true;
-                use_pal = true;
-                break;
-
-            case TGA_TYPE_INDEXED:
-                use_pal = true;
-                break;
-
-            case TGA_TYPE_RLE_RGB:
-                use_rle = true;
-                break;
-
-            case TGA_TYPE_RGB:
-                break;
-
-            case TGA_TYPE_RLE_GREY:
-                use_rle = true;
-                use_grey = true;
-                break;
-
-            case TGA_TYPE_GREY:
-                use_grey = true;
-                break;
-
-        }
-
-        // Parse tga image buffer
-        function tgaParse( use_rle, use_pal, header, offset, data ) {
-
-            var pixel_data,
-                pixel_size,
-                pixel_total,
-                palettes;
-
-                pixel_size = header.pixel_size >> 3;
-                pixel_total = header.width * header.height * pixel_size;
-
-             // Read palettes
-             if ( use_pal ) {
-                 palettes = data.subarray( offset, offset += header.colormap_length * ( header.colormap_size >> 3 ) );
-             }
-
-             // Read RLE
-             if ( use_rle ) {
-                 pixel_data = new Uint8Array(pixel_total);
-
-                var c, count, i;
-                var shift = 0;
-                var pixels = new Uint8Array(pixel_size);
-
-                while (shift < pixel_total) {
-                    c     = data[offset++];
-                    count = (c & 0x7f) + 1;
-
-                    // RLE pixels.
-                    if (c & 0x80) {
-                        // Bind pixel tmp array
-                        for (i = 0; i < pixel_size; ++i) {
-                                pixels[i] = data[offset++];
-                        }
-
-                        // Copy pixel array
-                        for (i = 0; i < count; ++i) {
-                                pixel_data.set(pixels, shift + i * pixel_size);
-                        }
-
-                        shift += pixel_size * count;
-
-                    } else {
-                        // Raw pixels.
-                        count *= pixel_size;
-                        for (i = 0; i < count; ++i) {
-                                pixel_data[shift + i] = data[offset++];
-                        }
-                        shift += count;
-                    }
-                }
-             } else {
-                // RAW Pixels
-                pixel_data = data.subarray(
-                     offset, offset += (use_pal ? header.width * header.height : pixel_total)
-                );
-             }
-
-             return {
-                pixel_data: pixel_data,
-                palettes: palettes
-             };
-        }
-
-        function tgaGetImageData8bits(imageData, y_start, y_step, y_end, x_start, x_step, x_end, image, palettes) {
-
-            var colormap = palettes;
-            var color, i = 0, x, y;
-                    var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i++) {
-                    color = image[i];
-                    imageData[(x + width * y) * 4 + 3] = 255;
-                    imageData[(x + width * y) * 4 + 2] = colormap[(color * 3) + 0];
-                    imageData[(x + width * y) * 4 + 1] = colormap[(color * 3) + 1];
-                    imageData[(x + width * y) * 4 + 0] = colormap[(color * 3) + 2];
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function tgaGetImageData16bits(imageData, y_start, y_step, y_end, x_start, x_step, x_end, image) {
-
-            var color, i = 0, x, y;
-            var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i += 2) {
-                    color = image[i + 0] + (image[i + 1] << 8); // Inversed ?
-                    imageData[(x + width * y) * 4 + 0] = (color & 0x7C00) >> 7;
-                    imageData[(x + width * y) * 4 + 1] = (color & 0x03E0) >> 2;
-                    imageData[(x + width * y) * 4 + 2] = (color & 0x001F) >> 3;
-                    imageData[(x + width * y) * 4 + 3] = (color & 0x8000) ? 0 : 255;
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function tgaGetImageData24bits(imageData, y_start, y_step, y_end, x_start, x_step, x_end, image) {
-
-            var i = 0, x, y;
-            var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i += 3) {
-                    imageData[(x + width * y) * 4 + 3] = 255;
-                    imageData[(x + width * y) * 4 + 2] = image[i + 0];
-                    imageData[(x + width * y) * 4 + 1] = image[i + 1];
-                    imageData[(x + width * y) * 4 + 0] = image[i + 2];
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function tgaGetImageData32bits(imageData, y_start, y_step, y_end, x_start, x_step, x_end, image) {
-
-            var i = 0, x, y;
-            var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i += 4) {
-                    imageData[(x + width * y) * 4 + 2] = image[i + 0];
-                    imageData[(x + width * y) * 4 + 1] = image[i + 1];
-                    imageData[(x + width * y) * 4 + 0] = image[i + 2];
-                    imageData[(x + width * y) * 4 + 3] = image[i + 3];
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function tgaGetImageDataGrey8bits( imageData, y_start, y_step, y_end, x_start, x_step, x_end, image ) {
-
-            var color, i = 0, x, y;
-            var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i++) {
-                    color = image[i];
-                    imageData[(x + width * y) * 4 + 0] = color;
-                    imageData[(x + width * y) * 4 + 1] = color;
-                    imageData[(x + width * y) * 4 + 2] = color;
-                    imageData[(x + width * y) * 4 + 3] = 255;
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function tgaGetImageDataGrey16bits(imageData, y_start, y_step, y_end, x_start, x_step, x_end, image) {
-
-            var i = 0, x, y;
-            var width = header.width;
-
-            for (y = y_start; y !== y_end; y += y_step) {
-                for (x = x_start; x !== x_end; x += x_step, i += 2) {
-                    imageData[(x + width * y) * 4 + 0] = image[i + 0];
-                    imageData[(x + width * y) * 4 + 1] = image[i + 0];
-                    imageData[(x + width * y) * 4 + 2] = image[i + 0];
-                    imageData[(x + width * y) * 4 + 3] = image[i + 1];
-                }
-            }
-
-            return imageData;
-
-        };
-
-        function getTgaRGBA( width, height, image, palette ) {
-
-            var x_start,
-                y_start,
-                x_step,
-                y_step,
-                x_end,
-                y_end,
-                data = new Uint8Array(width * height * 4);
-
-            switch( (header.flags & TGA_ORIGIN_MASK) >> TGA_ORIGIN_SHIFT ) {
-                default:
-                case TGA_ORIGIN_UL:
-                    x_start = 0;
-                    x_step = 1;
-                    x_end = width;
-                    y_start = 0;
-                    y_step = 1;
-                    y_end = height;
-                    break;
-
-                case TGA_ORIGIN_BL:
-                    x_start = 0;
-                    x_step = 1;
-                    x_end = width;
-                    y_start = height - 1;
-                    y_step = -1;
-                    y_end = -1;
-                    break;
-
-                case TGA_ORIGIN_UR:
-                    x_start = width - 1;
-                    x_step = -1;
-                    x_end = -1;
-                    y_start = 0;
-                    y_step = 1;
-                    y_end = height;
-                    break;
-
-                case TGA_ORIGIN_BR:
-                    x_start = width - 1;
-                    x_step = -1;
-                    x_end = -1;
-                    y_start = height - 1;
-                    y_step = -1;
-                    y_end = -1;
-                    break;
-
-            }
-
-            if ( use_grey ) {
-
-                switch( header.pixel_size ) {
-                    case 8:
-                        tgaGetImageDataGrey8bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
-                        break;
-                    case 16:
-                        tgaGetImageDataGrey16bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
-                        break;
-                    default:
-                        FILTER.error( 'TGALoader.parse.getTgaRGBA: not support this format' );
-                        break;
-                }
-
-            } else {
-
-                switch( header.pixel_size ) {
-                    case 8:
-                        tgaGetImageData8bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image, palette );
-                        break;
-
-                    case 16:
-                        tgaGetImageData16bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
-                        break;
-
-                    case 24:
-                        tgaGetImageData24bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
-                        break;
-
-                    case 32:
-                        tgaGetImageData32bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
-                        break;
-
-                    default:
-                        FILTER.error( 'TGALoader.parse.getTgaRGBA: not support this format' );
-                        break;
-                }
-
-            }
-
-            // Load image data according to specific method
-            // var func = 'tgaGetImageData' + (use_grey ? 'Grey' : '') + (header.pixel_size) + 'bits';
-            // func(data, y_start, y_step, y_end, x_start, x_step, x_end, width, image, palette );
-            return data;
-
-        }
-
-        var result = tgaParse( use_rle, use_pal, header, offset, content );
-        var rgbaData = getTgaRGBA( header.width, header.height, result.pixel_data, result.palettes );
-
-        return {
-            width: header.width,
-            height: header.height,
-            data: rgbaData
-        };
-
-    }
-});
-}(FILTER);/**
-*
-* Filter RGBELoader Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-// adapted from: Three.hs
-// adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html
-// https://github.com/mrdoob/three.js/issues/5552
-// http://en.wikipedia.org/wiki/RGBE_image_format
-FILTER.HDRLoader = FILTER.RGBELoader = FILTER.Class(FILTER.BinaryLoader, {
-
-    name: "RGBELoader",
-    
-    constructor: function RGBELoader() {
-        if ( !(this instanceof RGBELoader) )
-            return new RGBELoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function( buffer ) {
-
-        var
-            /* return codes for rgbe routines */
-            RGBE_RETURN_SUCCESS =  0,
-            RGBE_RETURN_FAILURE = -1,
-
-            /* default error routine.  change this to change error handling */
-            rgbe_read_error     = 1,
-            rgbe_write_error    = 2,
-            rgbe_format_error   = 3,
-            rgbe_memory_error   = 4,
-            rgbe_error = function(rgbe_error_code, msg) {
-                switch (rgbe_error_code) {
-                    case rgbe_read_error: FILTER.error("RGBELoader Read Error: " + (msg||''));
-                    break;
-                    case rgbe_write_error: FILTER.error("RGBELoader Write Error: " + (msg||''));
-                    break;
-                    case rgbe_format_error:  FILTER.error("RGBELoader Bad File Format: " + (msg||''));
-                    break;
-                    default:
-                    case rgbe_memory_error:  FILTER.error("RGBELoader: Error: " + (msg||''));
-                }
-                return RGBE_RETURN_FAILURE;
-            },
-
-            /* offsets to red, green, and blue components in a data (float) pixel */
-            RGBE_DATA_RED      = 0,
-            RGBE_DATA_GREEN    = 1,
-            RGBE_DATA_BLUE     = 2,
-
-            /* number of floats per pixel, use 4 since stored in rgba image format */
-            RGBE_DATA_SIZE     = 4,
-
-            /* flags indicating which fields in an rgbe_header_info are valid */
-            RGBE_VALID_PROGRAMTYPE      = 1,
-            RGBE_VALID_FORMAT           = 2,
-            RGBE_VALID_DIMENSIONS       = 4,
-
-            NEWLINE = "\n",
-
-            fgets = function( buffer, lineLimit, consume ) {
-                lineLimit = !lineLimit ? 1024 : lineLimit;
-                var p = buffer.pos,
-                    i = -1, len = 0, s = '', chunkSize = 128,
-                    chunk = String.fromCharCode.apply(null, new Uint16Array( buffer.subarray( p, p+chunkSize ) ) )
-                ;
-                while ( (0 > (i=chunk.indexOf( NEWLINE ))) && (len < lineLimit) && (p < buffer.byteLength) ) {
-
-                    s += chunk; len += chunk.length;
-                    p += chunkSize;
-                    chunk += String.fromCharCode.apply(null, new Uint16Array( buffer.subarray( p, p+chunkSize ) ) );
-
-                }
-
-                if ( -1 < i ) {
-
-                    /*for (i=l-1; i>=0; i--) {
-                        byteCode = m.charCodeAt(i);
-                        if (byteCode > 0x7f && byteCode <= 0x7ff) byteLen++;
-                        else if (byteCode > 0x7ff && byteCode <= 0xffff) byteLen += 2;
-                        if (byteCode >= 0xDC00 && byteCode <= 0xDFFF) i--; //trail surrogate
-                    }*/
-                    if ( false !== consume ) buffer.pos += len+i+1;
-                    return s + chunk.slice(0, i);
-
-                }
-                return false;
-            },
-
-            /* minimal header reading.  modify if you want to parse more information */
-            RGBE_ReadHeader = function( buffer ) {
-                var line, match,
-
-                    // regexes to parse header info fields
-                    magic_token_re = /^#\?(\S+)$/,
-                    gamma_re = /^\s*GAMMA\s*=\s*(\d+(\.\d+)?)\s*$/,
-                    exposure_re = /^\s*EXPOSURE\s*=\s*(\d+(\.\d+)?)\s*$/,
-                    format_re = /^\s*FORMAT=(\S+)\s*$/,
-                    dimensions_re = /^\s*\-Y\s+(\d+)\s+\+X\s+(\d+)\s*$/,
-
-                    // RGBE format header struct
-                    header = {
-
-                      valid: 0,                         /* indicate which fields are valid */
-
-                      string: '',                       /* the actual header string */
-
-                      comments: '',                     /* comments found in header */
-
-                      programtype: 'RGBE',              /* listed at beginning of file to identify it
-                                                        * after "#?".  defaults to "RGBE" */
-
-                      format: '',                       /* RGBE format, default 32-bit_rle_rgbe */
-
-                      gamma: 1.0,                       /* image has already been gamma corrected with
-                                                        * given gamma.  defaults to 1.0 (no correction) */
-
-                      exposure: 1.0,                    /* a value of 1.0 in an image corresponds to
-                                                        * <exposure> watts/steradian/m^2.
-                                                        * defaults to 1.0 */
-
-                      width: 0, height: 0               /* image dimensions, width/height */
-
-                    }
-                ;
-
-                if ( buffer.pos >= buffer.byteLength || !( line=fgets( buffer ) ) ) {
-                    return rgbe_error( rgbe_read_error, "no header found" );
-                }
-                /* if you want to require the magic token then uncomment the next line */
-                if ( !(match=line.match(magic_token_re)) ) {
-                    return rgbe_error( rgbe_format_error, "bad initial token" );
-                }
-                header.valid |= RGBE_VALID_PROGRAMTYPE;
-                header.programtype = match[1];
-                header.string += line + "\n";
-
-                while ( true ) {
-
-                    line = fgets( buffer );
-                    if ( false === line ) break;
-                    header.string += line + "\n";
-
-                    if ( '#' === line.charAt(0) ) {
-                        header.comments += line + "\n";
-                        continue; // comment line
-                    }
-
-                    if ( match=line.match(gamma_re) ) {
-                        header.gamma = parseFloat(match[1], 10);
-                    }
-                    if ( match=line.match(exposure_re) ) {
-                        header.exposure = parseFloat(match[1], 10);
-                    }
-                    if ( match=line.match(format_re) ) {
-                        header.valid |= RGBE_VALID_FORMAT;
-                        header.format = match[1];//'32-bit_rle_rgbe';
-                    }
-                    if ( match=line.match(dimensions_re) ) {
-                        header.valid |= RGBE_VALID_DIMENSIONS;
-                        header.height = parseInt(match[1], 10);
-                        header.width = parseInt(match[2], 10);
-                    }
-
-                    if ( (header.valid&RGBE_VALID_FORMAT) && (header.valid&RGBE_VALID_DIMENSIONS) ) break;
-                }
-
-                if ( !(header.valid&RGBE_VALID_FORMAT) ) {
-                    return rgbe_error( rgbe_format_error, "missing format specifier" );
-                }
-                if ( !(header.valid&RGBE_VALID_DIMENSIONS) ) {
-                    return rgbe_error( rgbe_format_error, "missing image size specifier" );
-                }
-
-                return header;
-            },
-
-            RGBE_ReadPixels_RLE = function( buffer, w, h ) {
-                var data_rgba, offset, pos, count, byteValue,
-                    scanline_buffer, ptr, ptr_end, i, l, off, isEncodedRun,
-                    scanline_width = w, num_scanlines = h, rgbeStart
-                ;
-
-                if (
-                    // run length encoding is not allowed so read flat
-                    ((scanline_width < 8) || (scanline_width > 0x7fff)) ||
-                    // this file is not run length encoded
-                    ((2 !== buffer[0]) || (2 !== buffer[1]) || (buffer[2] & 0x80))
-                ) {
-                    // return the flat buffer
-                    return new Uint8Array( buffer );
-                }
-
-                if ( scanline_width !== ((buffer[2]<<8) | buffer[3]) ) {
-                    return rgbe_error(rgbe_format_error, "wrong scanline width");
-                }
-
-                data_rgba = new Uint8Array( 4*w*h );
-
-                if ( !data_rgba || !data_rgba.length ) {
-                    return rgbe_error(rgbe_memory_error, "unable to allocate buffer space");
-                }
-
-                offset = 0; pos = 0; ptr_end = 4*scanline_width;
-                rgbeStart = new Uint8Array( 4 );
-                scanline_buffer = new Uint8Array( ptr_end );
-
-                // read in each successive scanline
-                while( (num_scanlines > 0) && (pos < buffer.byteLength) ) {
-
-                    if ( pos+4 > buffer.byteLength ) {
-
-                        return rgbe_error( rgbe_read_error );
-
-                    }
-
-                    rgbeStart[0] = buffer[pos++];
-                    rgbeStart[1] = buffer[pos++];
-                    rgbeStart[2] = buffer[pos++];
-                    rgbeStart[3] = buffer[pos++];
-
-                    if ( (2 != rgbeStart[0]) || (2 != rgbeStart[1]) || (((rgbeStart[2]<<8) | rgbeStart[3]) != scanline_width) ) {
-
-                        return rgbe_error(rgbe_format_error, "bad rgbe scanline format");
-
-                    }
-
-                    // read each of the four channels for the scanline into the buffer
-                    // first red, then green, then blue, then exponent
-                    ptr = 0;
-                    while ( (ptr < ptr_end) && (pos < buffer.byteLength) ) {
-
-                        count = buffer[ pos++ ];
-                        isEncodedRun = count > 128;
-                        if ( isEncodedRun ) count -= 128;
-
-                        if ( (0 === count) || (ptr+count > ptr_end) ) {
-
-                            return rgbe_error(rgbe_format_error, "bad scanline data");
-
-                        }
-
-                        if ( isEncodedRun ) {
-                            // a (encoded) run of the same value
-                            byteValue = buffer[ pos++ ];
-                            for (i=0; i<count; i++) {
-                                scanline_buffer[ ptr++ ] = byteValue;
-                            }
-                            //ptr += count;
-
-                        } else {
-                            // a literal-run
-                            scanline_buffer.set( buffer.subarray(pos, pos+count), ptr );
-                            ptr += count; pos += count;
-                        }
-                    }
-
-
-                    // now convert data from buffer into rgba
-                    // first red, then green, then blue, then exponent (alpha)
-                    l = scanline_width; //scanline_buffer.byteLength;
-                    for (i=0; i<l; i++) {
-                        off = 0;
-                        data_rgba[offset] = scanline_buffer[i+off];
-                        off += scanline_width; //1;
-                        data_rgba[offset+1] = scanline_buffer[i+off];
-                        off += scanline_width; //1;
-                        data_rgba[offset+2] = scanline_buffer[i+off];
-                        off += scanline_width; //1;
-                        data_rgba[offset+3] = scanline_buffer[i+off];
-                        offset += 4;
-                    }
-
-                    num_scanlines--;
-                }
-
-                return data_rgba;
-            }
-        ;
-
-        var byteArray = new Uint8Array( buffer ),
-            byteLength = byteArray.byteLength;
-        byteArray.pos = 0;
-        var rgbe_header_info = RGBE_ReadHeader( byteArray );
-
-        if ( RGBE_RETURN_FAILURE !== rgbe_header_info ) {
-
-            var w = rgbe_header_info.width,
-                h = rgbe_header_info.height
-                ,image_rgba_data = RGBE_ReadPixels_RLE( byteArray.subarray(byteArray.pos), w, h )
-            ;
-            if ( RGBE_RETURN_FAILURE !== image_rgba_data ) {
-                return {
-                    width: w, height: h,
-                    data: image_rgba_data,
-                    header: rgbe_header_info.string,
-                    gamma: rgbe_header_info.gamma,
-                    exposure: rgbe_header_info.exposure
-                };
-            }
-        }
-        return null;
-    }
-});
-}(FILTER);/**
-*
-* Filter GIFLoader Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-// adapted from: https://github.com/buzzfeed/libgif-js
-// Generic functions
-var bitsToNum = function (ba) {
-    return ba.reduce(function (s, n) {
-        return s * 2 + n;
-    }, 0);
-};
-
-var byteToBitArr = function (bite) {
-    var a = [];
-    for (var i = 7; i >= 0; i--) {
-        a.push( !! (bite & (1 << i)));
-    }
-    return a;
-};
-
-// Stream
-/**
- * @constructor
- */
-// Make compiler happy.
-var Stream = function (data) {
-    this.data = data;
-    this.len = this.data.length;
-    this.pos = 0;
-
-    this.readByte = function () {
-        if (this.pos >= this.data.length) {
-            throw new Error('Attempted to read past end of stream.');
-        }
-        if (data instanceof Uint8Array)
-            return data[this.pos++];
-        else
-            return data.charCodeAt(this.pos++) & 0xFF;
-    };
-
-    this.readBytes = function (n) {
-        var bytes = [];
-        for (var i = 0; i < n; i++) {
-            bytes.push(this.readByte());
-        }
-        return bytes;
-    };
-
-    this.read = function (n) {
-        var s = '';
-        for (var i = 0; i < n; i++) {
-            s += String.fromCharCode(this.readByte());
-        }
-        return s;
-    };
-
-    this.readUnsigned = function () { // Little-endian.
-        var a = this.readBytes(2);
-        return (a[1] << 8) + a[0];
-    };
-};
-
-var lzwDecode = function (minCodeSize, data) {
-    // TODO: Now that the GIF parser is a bit different, maybe this should get an array of bytes instead of a String?
-    var pos = 0; // Maybe this streaming thing should be merged with the Stream?
-    var readCode = function (size) {
-        var code = 0;
-        for (var i = 0; i < size; i++) {
-            if (data.charCodeAt(pos >> 3) & (1 << (pos & 7))) {
-                code |= 1 << i;
-            }
-            pos++;
-        }
-        return code;
-    };
-
-    var output = [];
-
-    var clearCode = 1 << minCodeSize;
-    var eoiCode = clearCode + 1;
-
-    var codeSize = minCodeSize + 1;
-
-    var dict = [];
-
-    var clear = function () {
-        dict = [];
-        codeSize = minCodeSize + 1;
-        for (var i = 0; i < clearCode; i++) {
-            dict[i] = [i];
-        }
-        dict[clearCode] = [];
-        dict[eoiCode] = null;
-
-    };
-
-    var code;
-    var last;
-
-    while (true) {
-        last = code;
-        code = readCode(codeSize);
-
-        if (code === clearCode) {
-            clear();
-            continue;
-        }
-        if (code === eoiCode) break;
-
-        if (code < dict.length) {
-            if (last !== clearCode) {
-                dict.push(dict[last].concat(dict[code][0]));
-            }
-        }
-        else {
-            if (code !== dict.length) throw new Error('Invalid LZW code.');
-            dict.push(dict[last].concat(dict[last][0]));
-        }
-        output.push.apply(output, dict[code]);
-
-        if (dict.length === (1 << codeSize) && codeSize < 12) {
-            // If we're at the last code and codeSize is 12, the next code will be a clearCode, and it'll be 12 bits long.
-            codeSize++;
-        }
-    }
-
-    // I don't know if this is technically an error, but some GIFs do it.
-    //if (Math.ceil(pos / 8) !== data.length) throw new Error('Extraneous LZW bytes.');
-    return output;
-};
-
-
-// The actual parsing; returns an object with properties.
-var parseGIF = function (st, handler) {
-    handler || (handler = {});
-
-    // LZW (GIF-specific)
-    var parseCT = function (entries) { // Each entry is 3 bytes, for RGB.
-        var ct = [];
-        for (var i = 0; i < entries; i++) {
-            ct.push(st.readBytes(3));
-        }
-        return ct;
-    };
-
-    var readSubBlocks = function () {
-        var size, data;
-        data = '';
-        do {
-            size = st.readByte();
-            data += st.read(size);
-        } while (size !== 0);
-        return data;
-    };
-
-    var parseHeader = function () {
-        var hdr = {};
-        hdr.sig = st.read(3);
-        hdr.ver = st.read(3);
-        if (hdr.sig !== 'GIF') throw new Error('Not a GIF file.'); // XXX: This should probably be handled more nicely.
-        hdr.width = st.readUnsigned();
-        hdr.height = st.readUnsigned();
-
-        var bits = byteToBitArr(st.readByte());
-        hdr.gctFlag = bits.shift();
-        hdr.colorRes = bitsToNum(bits.splice(0, 3));
-        hdr.sorted = bits.shift();
-        hdr.gctSize = bitsToNum(bits.splice(0, 3));
-
-        hdr.bgColor = st.readByte();
-        hdr.pixelAspectRatio = st.readByte(); // if not 0, aspectRatio = (pixelAspectRatio + 15) / 64
-        if (hdr.gctFlag) {
-            hdr.gct = parseCT(1 << (hdr.gctSize + 1));
-        }
-        handler.hdr && handler.hdr(hdr);
-    };
-
-    var parseExt = function (block) {
-        var parseGCExt = function (block) {
-            var blockSize = st.readByte(); // Always 4
-            var bits = byteToBitArr(st.readByte());
-            block.reserved = bits.splice(0, 3); // Reserved; should be 000.
-            block.disposalMethod = bitsToNum(bits.splice(0, 3));
-            block.userInput = bits.shift();
-            block.transparencyGiven = bits.shift();
-
-            block.delayTime = st.readUnsigned();
-
-            block.transparencyIndex = st.readByte();
-
-            block.terminator = st.readByte();
-
-            handler.gce && handler.gce(block);
-        };
-
-        var parseComExt = function (block) {
-            block.comment = readSubBlocks();
-            handler.com && handler.com(block);
-        };
-
-        var parsePTExt = function (block) {
-            // No one *ever* uses this. If you use it, deal with parsing it yourself.
-            var blockSize = st.readByte(); // Always 12
-            block.ptHeader = st.readBytes(12);
-            block.ptData = readSubBlocks();
-            handler.pte && handler.pte(block);
-        };
-
-        var parseAppExt = function (block) {
-            var parseNetscapeExt = function (block) {
-                var blockSize = st.readByte(); // Always 3
-                block.unknown = st.readByte(); // ??? Always 1? What is this?
-                block.iterations = st.readUnsigned();
-                block.terminator = st.readByte();
-                handler.app && handler.app.NETSCAPE && handler.app.NETSCAPE(block);
-            };
-
-            var parseUnknownAppExt = function (block) {
-                block.appData = readSubBlocks();
-                // FIXME: This won't work if a handler wants to match on any identifier.
-                handler.app && handler.app[block.identifier] && handler.app[block.identifier](block);
-            };
-
-            var blockSize = st.readByte(); // Always 11
-            block.identifier = st.read(8);
-            block.authCode = st.read(3);
-            switch (block.identifier) {
-                case 'NETSCAPE':
-                    parseNetscapeExt(block);
-                    break;
-                default:
-                    parseUnknownAppExt(block);
-                    break;
-            }
-        };
-
-        var parseUnknownExt = function (block) {
-            block.data = readSubBlocks();
-            handler.unknown && handler.unknown(block);
-        };
-
-        block.label = st.readByte();
-        switch (block.label) {
-            case 0xF9:
-                block.extType = 'gce';
-                parseGCExt(block);
-                break;
-            case 0xFE:
-                block.extType = 'com';
-                parseComExt(block);
-                break;
-            case 0x01:
-                block.extType = 'pte';
-                parsePTExt(block);
-                break;
-            case 0xFF:
-                block.extType = 'app';
-                parseAppExt(block);
-                break;
-            default:
-                block.extType = 'unknown';
-                parseUnknownExt(block);
-                break;
-        }
-    };
-
-    var parseImg = function (img) {
-        var deinterlace = function (pixels, width) {
-            // Of course this defeats the purpose of interlacing. And it's *probably*
-            // the least efficient way it's ever been implemented. But nevertheless...
-            var newPixels = new Array(pixels.length);
-            var rows = pixels.length / width;
-            var cpRow = function (toRow, fromRow) {
-                var fromPixels = pixels.slice(fromRow * width, (fromRow + 1) * width);
-                newPixels.splice.apply(newPixels, [toRow * width, width].concat(fromPixels));
-            };
-
-            // See appendix E.
-            var offsets = [0, 4, 2, 1];
-            var steps = [8, 8, 4, 2];
-
-            var fromRow = 0;
-            for (var pass = 0; pass < 4; pass++) {
-                for (var toRow = offsets[pass]; toRow < rows; toRow += steps[pass]) {
-                    cpRow(toRow, fromRow)
-                    fromRow++;
-                }
-            }
-
-            return newPixels;
-        };
-
-        img.leftPos = st.readUnsigned();
-        img.topPos = st.readUnsigned();
-        img.width = st.readUnsigned();
-        img.height = st.readUnsigned();
-
-        var bits = byteToBitArr(st.readByte());
-        img.lctFlag = bits.shift();
-        img.interlaced = bits.shift();
-        img.sorted = bits.shift();
-        img.reserved = bits.splice(0, 2);
-        img.lctSize = bitsToNum(bits.splice(0, 3));
-
-        if (img.lctFlag) {
-            img.lct = parseCT(1 << (img.lctSize + 1));
-        }
-
-        img.lzwMinCodeSize = st.readByte();
-
-        var lzwData = readSubBlocks();
-
-        img.pixels = lzwDecode(img.lzwMinCodeSize, lzwData);
-
-        if (img.interlaced) { // Move
-            img.pixels = deinterlace(img.pixels, img.width);
-        }
-
-        handler.img && handler.img(img);
-    };
-
-    var parseBlock = function () {
-        var block = {};
-        block.sentinel = st.readByte();
-
-        switch (String.fromCharCode(block.sentinel)) { // For ease of matching
-            case '!':
-                block.type = 'ext';
-                parseExt(block);
-                break;
-            case ',':
-                block.type = 'img';
-                parseImg(block);
-                break;
-            case ';':
-                block.type = 'eof';
-                handler.eof && handler.eof(block);
-                break;
-            default:
-                throw new Error('Unknown block: 0x' + block.sentinel.toString(16)); // TODO: Pad this with a 0.
-        }
-
-        if (block.type !== 'eof') parseBlock();
-    };
-
-    var parse = function () {
-        parseHeader();
-        parseBlock();
-    };
-
-    parse();
-};
-
-// extend FILTER.BinaryLoader
-FILTER.GIFLoader = FILTER.Class(FILTER.BinaryLoader, {
-
-    name: "GIFLoader",
-    
-    constructor: function GIFLoader() {
-        if ( !(this instanceof GIFLoader) )
-            return new GIFLoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function ( buffer ) {
-        var hdr, transparency = null,
-            image = {width: 0, height: 0, data: null}
-        ;
-        // animated GIFs are not handled at this moment, needed??
-        parseGIF(new Stream(new Uint8Array( buffer )), {
-            hdr: function (_hdr) { hdr = _hdr; },
-            gce: function (gce) { transparency = gce.transparencyGiven ? gce.transparencyIndex : null; },
-            img: function (img) {
-                //ct = color table, gct = global color table
-                var ct = img.lctFlag ? img.lct : hdr.gct; // TODO: What if neither exists?
-                var cdd = new FILTER.ImArray(img.width * img.height * 4);
-                //apply color table colors
-                img.pixels.forEach(function (pixel, i) {
-                    // imgData.data === [R,G,B,A,R,G,B,A,...]
-                    if (pixel !== transparency) 
-                    {
-                        cdd[(i << 2) + 0] = ct[pixel][0];
-                        cdd[(i << 2) + 1] = ct[pixel][1];
-                        cdd[(i << 2) + 2] = ct[pixel][2];
-                        cdd[(i << 2) + 3] = 255; // Opaque.
-                    }
-                });
-                image.width = img.width;
-                image.height = img.height;
-                image.data = cdd;
-            }
-        });
-        return image;
-    }
-});
-}(FILTER);/**
-*
 * CompositeFilter Class
 * @package FILTER.js
 *
@@ -4361,8 +3311,7 @@ FILTER.GIFLoader = FILTER.Class(FILTER.BinaryLoader, {
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = FP.call.bind( AP.slice ), toString = FP.call.bind( OP.toString )
-    ,splice = AP.splice, concat = AP.concat
+    ,slice = AP.slice, splice = AP.splice, concat = AP.concat
 ;
 
 //
@@ -4378,6 +3327,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,_stack: null
+    ,_meta: null
     ,_stable: true
     
     ,dispose: function( withFilters ) {
@@ -4394,6 +3344,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
             }
         }
         self._stack = null;
+        self._meta = null;
         
         return self;
     }
@@ -4454,6 +3405,19 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         return self;
     }
     
+    ,getMeta: function( ) {
+        return this._meta;
+    }
+    
+    ,setMeta: function( meta ) {
+        var self = this, stack = self._stack, i, l;
+        if ( meta && (l=meta.length) && stack.length )
+        {
+            for (i=0; i<l; i++) stack[meta[i][0]].setMeta(meta[i][1]);
+        }
+        return self;
+    }
+    
     ,stable: function( bool ) {
         if ( !arguments.length ) bool = true;
         this._stable = !!bool;
@@ -4471,7 +3435,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,push: function(/* variable args here.. */) {
-        var args = slice(arguments), argslen = args.length;
+        var args = slice.call(arguments), argslen = args.length;
         if ( argslen )
         {
             this._stack = concat.apply( this._stack, args );
@@ -4488,7 +3452,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,unshift: function(/* variable args here.. */) {
-        var args = slice(arguments), argslen = args.length;
+        var args = slice.call(arguments), argslen = args.length;
         if ( argslen )
         {
             splice.apply( this._stack, [0, 0].concat( args ) );
@@ -4507,7 +3471,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
-        var args = slice(arguments), arglen = args.length;
+        var args = slice.call(arguments), arglen = args.length;
         if ( argslen > 1 )
         {
             args.shift( );
@@ -4538,6 +3502,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
         var self = this;
+        self.hasMeta = false; self._meta = [];
         if ( self._isOn && self._stack.length )
         {
             var _filterstack = self._stack, _stacklength = _filterstack.length, 
@@ -4546,9 +3511,14 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
             for ( fi=0; fi<_stacklength; fi++ )
             {
                 filter = _filterstack[fi]; 
-                if ( filter && filter._isOn ) im = filter._apply(im, w, h, image);
+                if ( filter && filter._isOn ) 
+                {
+                    im = filter._apply(im, w, h, image);
+                    if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
+                }
             }
         }
+        self.hasMeta = self._meta.length > 0;
         return im;
     }
         
