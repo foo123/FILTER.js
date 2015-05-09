@@ -1,9 +1,8 @@
 /**
 *
-* Image Canvas Class
+* Image Proxy Class
 * @package FILTER.js
 *
-* NOTE: it won't work locally (at least with Firefox), only with server
 **/
 !function(FILTER, undef){
 @@USE_STRICT@@
@@ -72,99 +71,6 @@ function _setDimensions( scope, w, h, what )
     return scope;
 }
 
-// compute integral image (sum of columns)
-function _computeIntegral( scope ) 
-{
-    var w = scope.width, h = scope.height, rowLen = w<<2,
-        integralR, integralG, integralB, colR, colG, colB,
-        im = scope.getPixelData().data, imLen = im.length, count = (imLen>>2), i, j, x
-    ;
-    // compute integral of image in one pass
-    integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
-    // first row
-    j=0; i=0; colR=colG=colB=0;
-    for (x=0; x<w; x++, i+=4, j++)
-    {
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
-    }
-    // other rows
-    i=rowLen; x=0; j=0; colR=colG=colB=0;
-    for (i=rowLen; i<imLen; i+=4, j++, x++)
-    {
-        if (x>=w) { x=0; colR=colG=colB=0; }
-        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-        integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-    }
-    scope._integral = [integralR, integralG, integralB];
-    scope._needsRefresh &= CLEAR_SAT;
-    return scope;
-}
-
-function _computeHistogram( scope ) 
-{
-    var im = scope.getPixelData().data, l = im.length,
-        maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-        cdfR, cdfG, cdfB, r,g,b,
-        accumR, accumG, accumB,
-        i, n=1.0/(l>>2)
-    ;
-    
-    // initialize the arrays
-    cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-    for (i=0; i<256; i+=4) 
-    { 
-        // partial loop unrolling
-        cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
-        cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
-        cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
-        cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
-    }
-    
-    // compute pdf and maxima/minima
-    for (i=0; i<l; i+=4)
-    {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
-        
-        if (r>maxR) maxR=r;
-        else if (r<minR) minR=r;
-        if (g>maxG) maxG=g;
-        else if (g<minG) minG=g;
-        if (b>maxB) maxB=b;
-        else if (b<minB) minB=b;
-    }
-    
-    // compute cdf
-    accumR=accumG=accumB=0;
-    for (i=0; i<256; i+=4) 
-    { 
-        // partial loop unrolling
-        accumR += cdfR[i]; cdfR[i] = accumR;
-        accumG += cdfG[i]; cdfG[i] = accumG;
-        accumB += cdfB[i]; cdfB[i] = accumB;
-        accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-        accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-        accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-        accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-        accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-        accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-        accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-        accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-        accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-    }
-    
-    scope._histogram = [cdfR, cdfG, cdfB];
-    scope._needsRefresh &= CLEAR_HIST;
-    return scope;
-}
-/*
-function _computeSpectrum( scope )
-{
-    scope._needsRefresh &= CLEAR_SPECTRUM;
-    return scope;
-}
-*/
 function _refreshData( scope, what ) 
 {
     var w = scope.width, h = scope.height;
@@ -213,7 +119,7 @@ function _refreshSelectedData( scope, what )
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
     
-    ,constructor: function( img ) {
+    ,constructor: function FilterImage( img ) {
         var self = this, w = 0, h = 0;
         // factory-constructor pattern
         if ( !(self instanceof FilterImage) ) return new FilterImage(img);
@@ -724,19 +630,36 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     ,integral: function( ) {
-        if (this._needsRefresh & SAT) _computeIntegral( this );
-        return this._integral;
+        var self = this;
+        if (self._needsRefresh & SAT) 
+        {
+            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height);
+            self._needsRefresh &= CLEAR_SAT;
+        }
+        return self._integral;
     }
     
     ,histogram: function( ) {
-        if (this._needsRefresh & HIST) _computeHistogram( this );
-        return this._histogram;
+        var self = this;
+        if (self._needsRefresh & HIST) 
+        {
+            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height);
+            self._needsRefresh &= CLEAR_HIST;
+        }
+        return self._histogram;
     }
     
     // TODO
     ,spectrum: function( ) {
-        //if (this._needsRefresh & SPECTRUM) _computeSpectrum( this );
-        return this._spectrum;
+        var self = this;
+        /*
+        if (self._needsRefresh & SPECTRUM) 
+        {
+            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height);
+            self._needsRefresh &= CLEAR_SPECTRUM;
+        }
+        */
+        return self._spectrum;
     }
     
     ,toImage: function( format ) {
@@ -766,22 +689,94 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return "[" + "FILTER Image: " + this.name + "]";
     }
 });
+//
 // static
-/*FilterImage.scale = FilterImage.resize = function( data, w, h, nw, nh ) {
-    var canvas = createCanvas(w, h),
-        scaledCanvas = createCanvas(nw, nh),
-        ctx1 = canvas.getContext('2d'),
-        ctx2 = scaledCanvas.getContext('2d'),
-        imdata
+// resize/scale/interpolate image data
+FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
+// compute integral image (sum of columns)
+FilterImage.integral = function( im, w, h ) {
+    var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
+        imLen = im.length, count = (imLen>>2), i, j, x
     ;
-    ctx1.createImageData(w, h);
-    imdata = ctx1.getImageData(0, 0, w, h);
-    imdata.data.set(data); // not supported in Opera, IE, Safari
-    ctx1.putImageData(imdata,0,0);
-    ctx2.drawImage(canvas,0,0,w,h,0,0,nw,nh); // scale
-    return new IMGcpy( ctx2.getImageData(0, 0, nw, nh).data );
-};*/
-FilterImage.scale = FilterImage.resize = FILTER.Math.bilinear/*bicubic*/;
+    // compute integral of image in one pass
+    integralR = new A32F(count); integralG = new A32F(count); integralB = new A32F(count);
+    // first row
+    j=0; i=0; colR=colG=colB=0;
+    for (x=0; x<w; x++, i+=4, j++)
+    {
+        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+        integralR[j]=colR; integralG[j]=colG; integralB[j]=colB;
+    }
+    // other rows
+    i=rowLen; x=0; j=0; colR=colG=colB=0;
+    for (i=rowLen; i<imLen; i+=4, j++, x++)
+    {
+        if (x>=w) { x=0; colR=colG=colB=0; }
+        colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+        integralR[j+w]=integralR[j]+colR; integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+    }
+    return [integralR, integralG, integralB];
+};
+// compute image histogram
+FilterImage.histogram = function( im, w, h ) {
+    var l = im.length,
+        maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+        cdfR, cdfG, cdfB, r,g,b,
+        accumR, accumG, accumB,
+        i, n=1.0/(l>>2)
+    ;
+    
+    // initialize the arrays
+    cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
+    for (i=0; i<256; i+=4) 
+    { 
+        // partial loop unrolling
+        cdfR[i]=0; cdfG[i]=0; cdfB[i]=0;
+        cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0;
+        cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0;
+        cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0;
+    }
+    
+    // compute pdf and maxima/minima
+    for (i=0; i<l; i+=4)
+    {
+        r = im[i]; g = im[i+1]; b = im[i+2];
+        cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+        
+        if (r>maxR) maxR=r;
+        else if (r<minR) minR=r;
+        if (g>maxG) maxG=g;
+        else if (g<minG) minG=g;
+        if (b>maxB) maxB=b;
+        else if (b<minB) minB=b;
+    }
+    
+    // compute cdf
+    accumR=accumG=accumB=0;
+    for (i=0; i<256; i+=4) 
+    { 
+        // partial loop unrolling
+        accumR += cdfR[i]; cdfR[i] = accumR;
+        accumG += cdfG[i]; cdfG[i] = accumG;
+        accumB += cdfB[i]; cdfB[i] = accumB;
+        accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+        accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+        accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+        accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+        accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+        accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+        accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+        accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+        accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+    }
+    
+    return [cdfR, cdfG, cdfB];
+}
+// compute image spectrum
+FilterImage.spectrum = function( im, w, h ) {
+    // TODO
+    return null;
+};
 
 //
 //
@@ -789,7 +784,7 @@ FilterImage.scale = FilterImage.resize = FILTER.Math.bilinear/*bicubic*/;
 var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
     name: "ScaledImage"
     
-    ,constructor: function( scalex, scaley, img ) {
+    ,constructor: function FilterScaledImage( scalex, scaley, img ) {
         var self = this;
         // factory-constructor pattern
         if ( !(self instanceof FilterScaledImage) ) return new FilterScaledImage(scalex, scaley, img);
@@ -810,7 +805,8 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
     }
     
     ,clone: function( original ) {
-        return new FilterScaledImage(this.scaleX, this.scaleY, true === original ? this.iCanvas : this.oCanvas);
+        var self = this;
+        return new FilterScaledImage(self.scaleX, self.scaleY, true === original ? self.iCanvas : self.oCanvas);
     }
     
     ,setScale: function( sx, sy ) {

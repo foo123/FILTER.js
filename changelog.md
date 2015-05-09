@@ -7,6 +7,7 @@ __0.7__
 * add nearest neighbor, bilinear, bicubic interpolation/resizing routines
 * add TGALoader, RGBELoader, GIFLoader generic/native image parsers/loaders
 * new plugin: **SeamlessTileFilter**, create a seamless tileable pattern from an image
+* new plugin: **HaarDetector**, detect image features using Viola-Jones-Lienhart openCV HAAR cascades algorithm (adapted from [HAAR.js](https://github.com/foo123/HAR.js))
 * PerlinNoiseFilter plugin enhancement enable fractal noise and turbulence, octave noise and seamless noise
 * refactor/optimise
 
@@ -15,10 +16,10 @@ __0.7-alpha__, __0.7-alpha2__
 
 * images can be restorable
 * add image loaders, remove image loading from FILTER.Image class
-* new plugin, fast FloodFillFilter (using scanline algorithm with tolerance factor)
-* new plugin, efficient CannyEdgesFilter (Canny Edges Detector)
-* new plugin, efficient PerlinNoiseFilter (Perlin Noise and Simplex Noise implementatios)
-* new geometric filter, GeometricMapFilter.shift (fast circular shift/translation of image)
+* new plugin: **FloodFillFilter**, fast flood filling using scanline algorithm with tolerance factor
+* new plugin: **CannyEdgesFilter**, efficient Canny Edges Detector
+* new plugin: **PerlinNoiseFilter** efficient Perlin Noise and Simplex Noise implementations
+* new geometric filter: GeometricMapFilter.shift, fast circular shift/translation of image
 * update dependencies (e.g classy.js), update examples
 * refactoring, optimisations
 

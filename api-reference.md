@@ -658,5 +658,6 @@ __Included Plugins__ (see examples for how to use)
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
 * __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
 * __CannyEdges__ : an efficient Canny Edges Detector/Extractor
+* __HaarDetector__ : detect features in image using Viola-Jones-Lienhart openCV algorithm with HAAR cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
 * __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
 * __SeamlessTile__ : create a seamless tileable pattern from target image
