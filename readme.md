@@ -63,15 +63,15 @@ This is a library for filtering images/video in JavaScript using HTML5 features 
 
 ###Credits
 
-Some filters code has been adapted from open source libraries (mostly java and flash, plus a couple from javascript libraries), see the comments in the code for details.
+Some filters code has been adapted from open source libraries (mostly c, java and flash, plus a couple from javascript libraries), see the comments in the code for details.
 
 
-* **Image Processing Library in Java** (http://www.jhlabs.com/ip/filters/)
-* **AS3 Image Processing Library** (http://je2050.de/imageprocessing/)
-* **AS3 ColorMatrix by GSkinner** (http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html)
-* **Simplex and Perlin Noise by Stefan Gustavson** (https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c, https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c)
-* **JSManipulate** (https://github.com/JoelBesada/JSManipulate)
-* **glfx.js** (https://github.com/evanw/glfx.js)
+* [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
+* [**AS3 Image Processing Library**](http://je2050.de/imageprocessing/)
+* [**AS3 ColorMatrix by GSkinner**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html)
+* [**Simplex Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c) and [**Perlin Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c) by **Stefan Gustavson**
+* [**JSManipulate**](https://github.com/JoelBesada/JSManipulate)
+* [**glfx.js**](https://github.com/evanw/glfx.js)
 
 
 
@@ -84,6 +84,7 @@ Some image processing theory, basics and tutorials:
 * [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
 * [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
 * [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
+* [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
 
 
 
