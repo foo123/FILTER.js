@@ -342,6 +342,12 @@ var
             return this._isOn;
         }
         
+        // whether filter updates output image or not
+        ,update: function( bool ) {
+            this._update = !!bool;
+            return this;
+        }
+        
         // allow filters to be turned ON/OFF
         ,turnOn: function( bool ) {
             if ( !arguments.length ) bool = true;

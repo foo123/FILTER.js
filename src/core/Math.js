@@ -10,7 +10,7 @@
 var sliceTyped = 'function' === typeof FILTER.Array64F.prototype.slice ? 'slice' : 'subarray',
     IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI, 
-    sin = Math.sin, cos = Math.cos
+    sin = Math.sin, cos = Math.cos, min = Math.min, max = Math.max
 ;
 Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
@@ -49,12 +49,157 @@ FILTER.Math = {
     closestPower2: closest_power_of_two
 };
 
-
+FILTER.Compute = {
+    
+    // compute integral image (Summed Area Table, SAT)
+    integral: function( im, w, h, grayscale ) {
+        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
+            imLen = im.length, count = (imLen>>2), i, j, x, rgb
+        ;
+        grayscale = true === grayscale; rgb = !grayscale;
+        // compute integral of image in one pass
+        integralR = new A32F(count); 
+        if ( rgb )
+        {
+            integralG = new A32F(count); 
+            integralB = new A32F(count);
+        }
+        // first row
+        j=0; i=0; colR=colG=colB=0;
+        for (x=0; x<w; x++, i+=4, j++)
+        {
+            colR+=im[i]; integralR[j]=colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j]=colG; integralB[j]=colB;
+            }
+        }
+        // other rows
+        i=rowLen; x=0; j=0; colR=colG=colB=0;
+        for (i=rowLen; i<imLen; i+=4, j++, x++)
+        {
+            if (x>=w) { x=0; colR=colG=colB=0; }
+            colR+=im[i]; 
+            integralR[j+w]=integralR[j]+colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+            }
+        }
+        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
+    }
+    
+    // compute image histogram
+    ,histogram: function( im, w, h, grayscale ) {
+        var l = im.length,
+            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+            cdfR, cdfG, cdfB, r,g,b,
+            accumR, accumG, accumB,
+            i, n=1.0/(l>>2), rgb
+        ;
+        
+        grayscale = true === grayscale; rgb = !grayscale;
+        // initialize the arrays
+        cdfR=new A32F(256); 
+        if ( rgb )
+        {
+            cdfG=new A32F(256); 
+            cdfB=new A32F(256);
+        }
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            cdfR[i]=0;
+            cdfR[i+1]=0;
+            cdfR[i+2]=0;
+            cdfR[i+3]=0;
+            if ( rgb )
+            {
+                cdfG[i]=0; cdfB[i]=0;
+                cdfG[i+1]=0; cdfB[i+1]=0;
+                cdfG[i+2]=0; cdfB[i+2]=0;
+                cdfG[i+3]=0; cdfB[i+3]=0;
+            }
+        }
+        // compute pdf and maxima/minima
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i];
+            cdfR[r] += n;
+            
+            if (r>maxR) maxR=r;
+            else if (r<minR) minR=r;
+            
+            if ( rgb )
+            {
+                g = im[i+1]; b = im[i+2];
+                cdfG[g] += n; cdfB[b] += n;
+                if (g>maxG) maxG=g;
+                else if (g<minG) minG=g;
+                if (b>maxB) maxB=b;
+                else if (b<minB) minB=b;
+            }
+        }
+        
+        // compute cdf
+        accumR=accumG=accumB=0;
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            accumR += cdfR[i]; cdfR[i] = accumR;
+            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+            
+            if ( rgb )
+            {
+                accumG += cdfG[i]; cdfG[i] = accumG;
+                accumB += cdfB[i]; cdfB[i] = accumB;
+                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+            }
+        }
+        
+        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
+    }
+    
+    ,spectrum: function( im, w, h, grayscale ) {
+        // TODO
+        return null;
+    }
+};
 
 FILTER.Interpolate = {
     
+     crop: function( im, w, h, x1, y1, x2, y2 ) {
+         x2 = min(x2,w-1); y2 = min(y2,h-1);
+         var nw = x2-x1+1, nh = y2-y1+1, 
+            croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
+            x, y, yw, ynw, pixel, pixel2;
+            
+            x=x1; /*y=y1;*/ yw=y1*w; /*ynw=y1*nw;*/
+            for (pixel=0; pixel<croppedSize; pixel+=4,x++)
+            {
+                if ( x > x2 ) {x=x1; /*y++;*/ yw+=w; /*ynw+=nw;*/}
+                pixel2 = (yw+x)<<2;
+                cropped[pixel] = im[pixel2];
+                cropped[pixel+1] = im[pixel2+1];
+                cropped[pixel+2] = im[pixel2+2];
+                cropped[pixel+3] = im[pixel2+3];
+            }
+         return cropped;
+    }
+    
     // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
-    nearest: function( im, w, h, nw, nh ) {
+    ,nearest: function( im, w, h, nw, nh ) {
         var size = (nw*nh)<<2, interpolated = new IMG(size),
             rx = (w-1)/nw, ry = (h-1)/nh, 
             i, j, x, y, xi, yi, pixel, index,

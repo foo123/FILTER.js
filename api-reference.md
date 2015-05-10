@@ -40,7 +40,7 @@ and alter them.
 
 __Methods:__
 
-* _setImage(ImageOrCanvasOrVideoOrFilterImageInstance)_  Sets/Alters the underlying image
+* _image(ImageOrCanvasOrVideoOrFilterImageInstance)_  Sets/Alters the underlying image
 * _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
 * _deselect()_  remove previous selection (selected part becomes whole image)
 * _store()_  store the current filtered/processed image as the original image
@@ -48,10 +48,12 @@ __Methods:__
 * _restorable( Boolean )_ whether the image is restorable (it can be faster if not)
 * _apply(filter [, callback])_ shorthand to apply method of a FILTER.Filter instance, image will change after application
 * _apply2(filter, destImage [, callback])_ shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
-* _clone()_ gets a clone of the image as a new FILTER.Image instance
+* _clone(original)_ gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
 * _clear()_  clear the image data
-* _fill()_  fill the image area with a specific color
+* _fill(color, x, y, w, h)_  fill the image area with a specific color
+* _crop(x1,y1,x2,y2)_  crop image area
 * _scale(sx, sy)_  scale the image in x/y directions
+* _dimensions(w, h)_  set image dimensions
 * _flipHorizontal()_  flip image horizontally
 * _flipVertical()_  flip image vertically
 * _setData()_ sets the image pixel data

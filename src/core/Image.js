@@ -7,16 +7,15 @@
 !function(FILTER, undef){
 @@USE_STRICT@@
 
-var devicePixelRatio = FILTER.devicePixelRatio,
+var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     createCanvas = FILTER.createCanvas,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
-    MIME = FILTER.MIME
-;
+    MIME = FILTER.MIME,
 
-var IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
+    IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
     SEL = ISEL|OSEL, DATA = IDATA|ODATA,
     CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL,
@@ -141,7 +140,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._needsRefresh = 0;
         self._restorable = true;
         self._grayscale = false;
-        if ( img ) self.setImage( img );
+        if ( img ) self.image( img );
     }
     
     // properties
@@ -189,6 +188,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._restorable = null;
         self._grayscale = null;
         return self;
+    }
+    
+    ,clone: function( original ) {
+        return new FilterImage(true === original ? this.iCanvas : this.oCanvas);
     }
     
     ,grayscale: function( bool ) {
@@ -271,6 +274,106 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
+    ,dimensions: function( w, h ) {
+        var self = this;
+        _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        if (self.selection) self._needsRefresh |= SEL;
+        return self;
+    }
+    
+    ,scale: function( sx, sy ) {
+        var self = this;
+        sx = sx||1; sy = sy||sx;
+        if ( 1==sx && 1==sy ) return self;
+        
+        // lazy
+        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        var ctx = self.tmpCanvas.getContext('2d'),
+            w = self.width, h = self.height;
+        
+        //ctx.save();
+        ctx.scale(sx, sy);
+        w = self.width = ~~(sx*w+0.5);
+        h = self.height = ~~(sy*h+0.5);
+        
+        ctx.drawImage(self.oCanvas, 0, 0);
+        self.oCanvas.style.width = w + 'px';
+        self.oCanvas.style.height = h + 'px';
+        self.oCanvas.width = w * devicePixelRatio;
+        self.oCanvas.height = h * devicePixelRatio;
+        self.octx.drawImage(self.tmpCanvas, 0, 0);
+        
+        if ( self._restorable )
+        {
+        ctx.drawImage(self.iCanvas, 0, 0);
+        self.iCanvas.style.width = self.oCanvas.style.width;
+        self.iCanvas.style.height = self.oCanvas.style.height;
+        self.iCanvas.width = self.oCanvas.width;
+        self.iCanvas.height = self.oCanvas.height;
+        self.ictx.drawImage(self.tmpCanvas, 0, 0);
+        }
+        
+        self.tmpCanvas.width = self.oCanvas.width;
+        self.tmpCanvas.height = self.oCanvas.height;
+        //ctx.restore();
+        
+        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        if (self.selection) self._needsRefresh |= SEL;
+        return self;
+    }
+    
+    ,flipHorizontal: function( ) {
+        var self = this;
+        // lazy
+        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        var ctx = self.tmpCanvas.getContext('2d');
+        
+        ctx.translate(self.width, 0); 
+        ctx.scale(-1, 1);
+        
+        ctx.drawImage(self.oCanvas, 0, 0);
+        self.octx.drawImage(self.tmpCanvas, 0, 0);
+        
+        if ( self._restorable )
+        {
+        ctx.drawImage(self.iCanvas, 0, 0);
+        self.ictx.drawImage(self.tmpCanvas, 0, 0);
+        }
+        
+        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        if (self.selection) self._needsRefresh |= SEL;
+        return self;
+    }
+    
+    ,flipVertical: function( ) {
+        var self = this;
+        // lazy
+        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        var ctx = self.tmpCanvas.getContext('2d');
+        
+        ctx.translate(0, self.height); 
+        ctx.scale(1, -1);
+        
+        ctx.drawImage(self.oCanvas, 0, 0);
+        self.octx.drawImage(self.tmpCanvas, 0, 0);
+        
+        if ( self._restorable )
+        {
+        ctx.drawImage(self.iCanvas, 0, 0);
+        self.ictx.drawImage(self.tmpCanvas, 0, 0);
+        }
+        
+        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        if (self.selection) self._needsRefresh |= SEL;
+        return self;
+    }
+    
+    // TODO
+    ,draw: function( drawable, x, y, blendMode ) {
+        return this;
+    }
+    
     // clear the image contents
     ,clear: function( ) {
         var self = this, w = self.width, h = self.height;
@@ -284,7 +387,64 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    // fill image region contents with a specific background color
+    // crop image region
+    ,crop: function( x1, y1, x2, y2 ) {
+        var self = this, sel = self.selection, 
+            W = self.width, H = self.height, xs, ys, ws, hs,
+            x, y, w, h
+        ;
+        if ( !arguments.length )
+        {
+            if (sel)
+            {
+                xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
+                ws = Floor(sel[2]*(W-1))-xs+1; hs = Floor(sel[3]*(H-1))-ys+1;
+                x = xs; y = ys;
+                w = ws; h = hs;
+                sel[0] = 0; sel[1] = 0;
+                sel[2] = 1; sel[3] = 1;
+            }
+            else
+            {
+                return self;
+            }
+        }
+        else
+        {
+            x = x1; y = y1;
+            w = x2-x1+1; h = y2-y1+1;
+        }
+        
+        // lazy
+        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        var ctx = self.tmpCanvas.getContext('2d');
+        
+        ctx.drawImage(self.oCanvas, 0, 0, W, H, x, y, w, h);
+        self.oCanvas.style.width = w + 'px';
+        self.oCanvas.style.height = h + 'px';
+        self.oCanvas.width = w * devicePixelRatio;
+        self.oCanvas.height = h * devicePixelRatio;
+        self.octx.drawImage(self.tmpCanvas, 0, 0);
+        
+        if ( self._restorable )
+        {
+        ctx.drawImage(self.iCanvas, 0, 0, W, H, x, y, w, h);
+        self.iCanvas.style.width = self.oCanvas.style.width;
+        self.iCanvas.style.height = self.oCanvas.style.height;
+        self.iCanvas.width = self.oCanvas.width;
+        self.iCanvas.height = self.oCanvas.height;
+        self.ictx.drawImage(self.tmpCanvas, 0, 0);
+        }
+        
+        self.tmpCanvas.width = self.oCanvas.width;
+        self.tmpCanvas.height = self.oCanvas.height;
+        
+        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        if (sel) self._needsRefresh |= SEL;
+        return self;
+    }
+        
+    // fill image region with a specific (background) color
     ,fill: function( color, x, y, w, h ) {
         var self = this, sel = self.selection, 
             W = self.width, H = self.height, xs, ys, ws, hs
@@ -323,14 +483,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
         if (sel) self._needsRefresh |= SEL;
-        return self;
-    }
-    
-    ,setDimensions: function( w, h ) {
-        var self = this;
-        _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
     
@@ -459,7 +611,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    ,setImage: function( img ) {
+    ,image: function( img ) {
         if ( !img ) return this;
         
         var self = this, ictx, octx, w, h, 
@@ -557,102 +709,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    ,clone: function( original ) {
-        return new FilterImage(true === original ? this.iCanvas : this.oCanvas);
-    }
-    
-    ,scale: function( sx, sy ) {
-        var self = this;
-        sx = sx||1; sy = sy||sx;
-        if ( 1==sx && 1==sy ) return self;
-        
-        // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
-        var ctx = self.tmpCanvas.getContext('2d'),
-            w = self.width, h = self.height;
-        
-        //ctx.save();
-        ctx.scale(sx, sy);
-        w = self.width = ~~(sx*w+0.5);
-        h = self.height = ~~(sy*h+0.5);
-        
-        ctx.drawImage(self.oCanvas, 0, 0);
-        self.oCanvas.style.width = w + 'px';
-        self.oCanvas.style.height = h + 'px';
-        self.oCanvas.width = w * devicePixelRatio;
-        self.oCanvas.height = h * devicePixelRatio;
-        self.octx.drawImage(self.tmpCanvas, 0, 0);
-        
-        if ( self._restorable )
-        {
-        ctx.drawImage(self.iCanvas, 0, 0);
-        self.iCanvas.style.width = self.oCanvas.style.width;
-        self.iCanvas.style.height = self.oCanvas.style.height;
-        self.iCanvas.width = self.oCanvas.width;
-        self.iCanvas.height = self.oCanvas.height;
-        self.ictx.drawImage(self.tmpCanvas, 0, 0);
-        }
-        
-        self.tmpCanvas.width = self.oCanvas.width;
-        self.tmpCanvas.height = self.oCanvas.height;
-        //ctx.restore();
-        
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
-        return self;
-    }
-    
-    ,flipHorizontal: function( ) {
-        var self = this;
-        // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
-        var ctx = self.tmpCanvas.getContext('2d');
-        
-        ctx.translate(self.width, 0); 
-        ctx.scale(-1, 1);
-        
-        ctx.drawImage(self.oCanvas, 0, 0);
-        self.octx.drawImage(self.tmpCanvas, 0, 0);
-        
-        if ( self._restorable )
-        {
-        ctx.drawImage(self.iCanvas, 0, 0);
-        self.ictx.drawImage(self.tmpCanvas, 0, 0);
-        }
-        
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
-        return self;
-    }
-    
-    ,flipVertical: function( ) {
-        var self = this;
-        // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
-        var ctx = self.tmpCanvas.getContext('2d');
-        
-        ctx.translate(0, self.height); 
-        ctx.scale(1, -1);
-        
-        ctx.drawImage(self.oCanvas, 0, 0);
-        self.octx.drawImage(self.tmpCanvas, 0, 0);
-        
-        if ( self._restorable )
-        {
-        ctx.drawImage(self.iCanvas, 0, 0);
-        self.ictx.drawImage(self.tmpCanvas, 0, 0);
-        }
-        
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        if (self.selection) self._needsRefresh |= SEL;
-        return self;
-    }
-    
-    // TODO
-    ,draw: function( drawable, x, y, blendMode ) {
-        return this;
-    }
-    
     ,integral: function( ) {
         var self = this;
         if (self._needsRefresh & SAT) 
@@ -714,132 +770,26 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 });
 //
+// aliases
+FilterImage[PROTO].setImage = FilterImage[PROTO].image;
+FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
+
+//
 // static
 // resize/scale/interpolate image data
 FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
-// compute integral image (sum of columns)
-FilterImage.integral = function( im, w, h, grayscale ) {
-    var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-        imLen = im.length, count = (imLen>>2), i, j, x, rgb
-    ;
-    grayscale = true === grayscale; rgb = !grayscale;
-    // compute integral of image in one pass
-    integralR = new A32F(count); 
-    if ( rgb )
-    {
-        integralG = new A32F(count); 
-        integralB = new A32F(count);
-    }
-    // first row
-    j=0; i=0; colR=colG=colB=0;
-    for (x=0; x<w; x++, i+=4, j++)
-    {
-        colR+=im[i]; integralR[j]=colR; 
-        
-        if ( rgb )
-        {
-            colG+=im[i+1]; colB+=im[i+2];
-            integralG[j]=colG; integralB[j]=colB;
-        }
-    }
-    // other rows
-    i=rowLen; x=0; j=0; colR=colG=colB=0;
-    for (i=rowLen; i<imLen; i+=4, j++, x++)
-    {
-        if (x>=w) { x=0; colR=colG=colB=0; }
-        colR+=im[i]; 
-        integralR[j+w]=integralR[j]+colR; 
-        
-        if ( rgb )
-        {
-            colG+=im[i+1]; colB+=im[i+2];
-            integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-        }
-    }
-    return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
-};
+
+// crop image data
+FilterImage.crop = FILTER.Interpolate.crop;
+
+// compute integral image (summed area table, SAT)
+FilterImage.integral = FILTER.Compute.integral;
+
 // compute image histogram
-FilterImage.histogram = function( im, w, h, grayscale ) {
-    var l = im.length,
-        maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-        cdfR, cdfG, cdfB, r,g,b,
-        accumR, accumG, accumB,
-        i, n=1.0/(l>>2), rgb
-    ;
-    
-    grayscale = true === grayscale; rgb = !grayscale;
-    // initialize the arrays
-    cdfR=new A32F(256); 
-    if ( rgb )
-    {
-        cdfG=new A32F(256); 
-        cdfB=new A32F(256);
-    }
-    for (i=0; i<256; i+=4) 
-    { 
-        // partial loop unrolling
-        cdfR[i]=0;
-        cdfR[i+1]=0;
-        cdfR[i+2]=0;
-        cdfR[i+3]=0;
-        if ( rgb )
-        {
-            cdfG[i]=0; cdfB[i]=0;
-            cdfG[i+1]=0; cdfB[i+1]=0;
-            cdfG[i+2]=0; cdfB[i+2]=0;
-            cdfG[i+3]=0; cdfB[i+3]=0;
-        }
-    }
-    // compute pdf and maxima/minima
-    for (i=0; i<l; i+=4)
-    {
-        r = im[i];
-        cdfR[r] += n;
-        
-        if (r>maxR) maxR=r;
-        else if (r<minR) minR=r;
-        
-        if ( rgb )
-        {
-            g = im[i+1]; b = im[i+2];
-            cdfG[g] += n; cdfB[b] += n;
-            if (g>maxG) maxG=g;
-            else if (g<minG) minG=g;
-            if (b>maxB) maxB=b;
-            else if (b<minB) minB=b;
-        }
-    }
-    
-    // compute cdf
-    accumR=accumG=accumB=0;
-    for (i=0; i<256; i+=4) 
-    { 
-        // partial loop unrolling
-        accumR += cdfR[i]; cdfR[i] = accumR;
-        accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-        accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-        accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-        
-        if ( rgb )
-        {
-            accumG += cdfG[i]; cdfG[i] = accumG;
-            accumB += cdfB[i]; cdfB[i] = accumB;
-            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-        }
-    }
-    
-    return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
-}
+FilterImage.histogram = FILTER.Compute.histogram;
+
 // compute image spectrum
-FilterImage.spectrum = function( im, w, h, grayscale ) {
-    // TODO
-    return null;
-};
+FilterImage.spectrum = FILTER.Compute.spectrum;
 
 //
 //
@@ -884,7 +834,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         return self;
     }
     
-    ,setImage: function( img ) {
+    ,image: function( img ) {
         if ( !img ) return this;
         
         var self = this, ictx, octx, w, h, 
@@ -929,5 +879,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         return self;
     }
 });
+// aliases
+FilterScaledImage[PROTO].setImage = FilterScaledImage[PROTO].image;
 
 }(FILTER);
