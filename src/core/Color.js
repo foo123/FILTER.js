@@ -193,84 +193,53 @@ var Color = FILTER.Color = FILTER.Class({
         
         clampPixel: function( v ) { return min(255, max(v, 0)); },
         
-        ubyteToFloat: function( ub ) { return ub * 0.0039215686274509803921568627451; /* 1 / 255; */ },
-
-        ubyteColorToFloatColor: function(color) {
-            var ii, cL=color.length, floatColor=new Array(cL);
-            for (i=0; i<cL; i++)  floatColor[i] = color[i] * 0.0039215686274509803921568627451;
-            return floatColor;
-        },
-        
-        hexColorToFloatColor: function(color) {
-            var r, g, b,a;
-            r = (color>>16)&255;
-            g = (color>>8)&255;
-            b = (color)&255;
-            a = (color>>24)&255;
-
-            return [
-                r * 0.0039215686274509803921568627451,
-                g * 0.0039215686274509803921568627451,
-                b * 0.0039215686274509803921568627451,
-                a * 0.0039215686274509803921568627451
-            ];
-        },
-        
-        blend: function(rgb1, rgb2, p) {
-            return {
-                r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
-                g:rgb1.g - ~~((rgb1.g - rgb2.g) * p + 0.5), 
-                b: rgb1.b - ~~((rgb1.b - rgb2.b) * p + 0.5)
-            };
-        },
-        
         toGray: function(r, g, b) {
             var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
         }, 
         
         distance: function(rgb1, rgb2) {
-            var dr=rgb1.r-rgb2.r, dg=rgb1.g-rgb2.g, db=rgb1.b-rgb2.b;
+            var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
         RGB2Color: function(rgb) {
-            return ((rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+            return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
         },
         
-        RGBA2Color: function(rgb) {
-            return ((rgb.a << 24) | (rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+        RGBA2Color: function(rgba) {
+            return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
         },
         
         Color2RGBA: function(c) {
             c=~~c;
-            return {
-                r : (c >>> 16) & 255,
-                g : (c >>> 8) & 255,
-                b : (c & 255),
-                a : (c >>> 24) & 255
-            };
+            return [
+                (c >>> 16) & 255,
+                (c >>> 8) & 255,
+                (c & 255),
+                (c >>> 24) & 255
+            ];
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
         RGB2YCbCr: function(rgb) {
-            var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
+            var y, cb, cr, r=rgb[0], g=rgb[1], b=rgb[2];
             
             // each take full range from 0-255
             y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
             cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
             cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            return {y:y, cb:cb, cr:cr};
+            return [y, cb, cr];
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
         YCbCr2RGB: function(ycbcr) {
-            var r, g, b, y=ycbcr.y, cb=ycbcr.cb, cr=ycbcr.cr;
+            var r, g, b, y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
             
             // each take full range from 0-255
             r = ~~( y                      + 1.402   * (cr-128) );
             g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
             b = ~~( y + 1.772   * (cb-128) );
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -280,7 +249,7 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
 
-            r=rgb.r; g=rgb.g; b=rgb.b;
+            r=rgb[0]; g=rgb[1]; b=rgb[2];
             
             m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
             v = M;                // v
@@ -293,7 +262,7 @@ var Color = FILTER.Color = FILTER.Class({
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
-                return { h:h, s:s, v:v };
+                return [h, s, v];
             }
 
             if( r == M )    h = ( g - b ) / delta;        // between yellow & magenta
@@ -303,7 +272,7 @@ var Color = FILTER.Color = FILTER.Class({
             h *= 60;                // degrees
             if( h < 0 )  h += 360;
             
-            return { h:h, s:s, v:v };
+            return [h, s, v];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -314,13 +283,13 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
             
-            h=hsv.h; s=hsv.s; v=hsv.v;
+            h=hsv[0]; s=hsv[1]; v=hsv[2];
             
             if( s == 0 ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
-                return {r:r, g:g, b:b};
+                return [r, g, b];
             }
 
             h /= 60;            // sector 0 to 5
@@ -345,7 +314,7 @@ var Color = FILTER.Color = FILTER.Class({
                     break;
             }
             
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         toString: function() {

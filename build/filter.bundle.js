@@ -21,7 +21,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-10 18:33:08
+*   @built on 2015-05-11 16:54:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -158,7 +158,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-10 18:33:08
+*   @built on 2015-05-11 16:54:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -188,10 +188,6 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
     ,userAgent = navigator ? navigator.userAgent : ""
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
-    
-    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
-    
     ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
@@ -201,8 +197,19 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
             init.apply( this, arguments );
         };
     }
-    ,log
-    ,_uuid = 0
+    
+    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
+    
+    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
+    ,no_typed_array_set = ('undefined' === typeof Int16Array) || !Int16Array[PROTO].set
+    ,typed_array_set = function( a, offset ) {
+        var i = a.length;
+        offset = offset || 0;
+        while ( --i >= 0 ) this[ i + offset ] = a[ i ];
+    }
+    ,typed_array_subarray = AP.slice
+    
+    ,log, _uuid = 0
 ;
 
 //
@@ -268,15 +275,7 @@ FILTER.uuid = function( namespace ) {
     return [namespace||'filter', new Date( ).getTime( ), ++_uuid].join('_'); 
 };
 
-//
-//
-// webgl support
-FILTER.useWebGL = false;
-FILTER.useWebGLSharedResources = false;
-FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
-//
 //
 // Typed Arrays Substitute(s)
 FILTER.Array = Array;
@@ -289,26 +288,49 @@ FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
 
+if ( !FILTER.Array32F[PROTO].set )
+{
+    FILTER.Array32F[PROTO].set = typed_array_set;
+    FILTER.Array64F[PROTO].set = typed_array_set;
+    FILTER.Array8I[PROTO].set = typed_array_set;
+    FILTER.Array16I[PROTO].set = typed_array_set;
+    FILTER.Array32I[PROTO].set = typed_array_set;
+    FILTER.Array8U[PROTO].set = typed_array_set;
+    FILTER.Array16U[PROTO].set = typed_array_set;
+    FILTER.Array32U[PROTO].set = typed_array_set;
+}
+if ( !FILTER.Array32F[PROTO].subarray )
+{
+    FILTER.Array32F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array64F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32U[PROTO].subarray = typed_array_subarray;
+}
+
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-    
+
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
 {
-    var _set = function( a, offset ) {
-            var i = a.length;
-            offset = offset || 0;
-            while ( --i >= 0 ) this[ i + offset ] = a[ i ];
-            return this;
-    };
     // add the missing method to the array
-    CanvasPixelArray[PROTO].set = _set;
+    CanvasPixelArray[PROTO].set = typed_array_set;
 }
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 //
+// webgl support
+FILTER.useWebGL = false;
+FILTER.useWebGLSharedResources = false;
+FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
+FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
+
 //
 // Constants
 FILTER.CHANNEL = {
@@ -344,14 +366,12 @@ FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
 //
-//
 // logging
 log = FILTER.log = (console && console.log) ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ };
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
 var 
-    //
     //
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
@@ -471,7 +491,6 @@ var
     }),
     
     //
-    //
     // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
@@ -515,6 +534,7 @@ var
         
         // whether filter updates output image or not
         ,update: function( bool ) {
+            if ( !arguments.length ) bool = true;
             this._update = !!bool;
             return this;
         }
@@ -637,7 +657,6 @@ var
 ;
 
 //
-//
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
     methods = Merge({
@@ -704,151 +723,34 @@ FILTER.Math = {
     closestPower2: closest_power_of_two
 };
 
-FILTER.Compute = {
-    
-    // compute integral image (Summed Area Table, SAT)
-    integral: function( im, w, h, grayscale ) {
-        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-            imLen = im.length, count = (imLen>>2), i, j, x, rgb
-        ;
-        grayscale = true === grayscale; rgb = !grayscale;
-        // compute integral of image in one pass
-        integralR = new A32F(count); 
-        if ( rgb )
-        {
-            integralG = new A32F(count); 
-            integralB = new A32F(count);
-        }
-        // first row
-        j=0; i=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j++)
-        {
-            colR+=im[i]; integralR[j]=colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j]=colG; integralB[j]=colB;
-            }
-        }
-        // other rows
-        i=rowLen; x=0; j=0; colR=colG=colB=0;
-        for (i=rowLen; i<imLen; i+=4, j++, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colR+=im[i]; 
-            integralR[j+w]=integralR[j]+colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-            }
-        }
-        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
-    }
-    
-    // compute image histogram
-    ,histogram: function( im, w, h, grayscale ) {
-        var l = im.length,
-            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-            cdfR, cdfG, cdfB, r,g,b,
-            accumR, accumG, accumB,
-            i, n=1.0/(l>>2), rgb
-        ;
-        
-        grayscale = true === grayscale; rgb = !grayscale;
-        // initialize the arrays
-        cdfR=new A32F(256); 
-        if ( rgb )
-        {
-            cdfG=new A32F(256); 
-            cdfB=new A32F(256);
-        }
-        for (i=0; i<256; i+=4) 
-        { 
-            // partial loop unrolling
-            cdfR[i]=0;
-            cdfR[i+1]=0;
-            cdfR[i+2]=0;
-            cdfR[i+3]=0;
-            if ( rgb )
-            {
-                cdfG[i]=0; cdfB[i]=0;
-                cdfG[i+1]=0; cdfB[i+1]=0;
-                cdfG[i+2]=0; cdfB[i+2]=0;
-                cdfG[i+3]=0; cdfB[i+3]=0;
-            }
-        }
-        // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
-        {
-            r = im[i];
-            cdfR[r] += n;
-            
-            if (r>maxR) maxR=r;
-            else if (r<minR) minR=r;
-            
-            if ( rgb )
-            {
-                g = im[i+1]; b = im[i+2];
-                cdfG[g] += n; cdfB[b] += n;
-                if (g>maxG) maxG=g;
-                else if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                else if (b<minB) minB=b;
-            }
-        }
-        
-        // compute cdf
-        accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=4) 
-        { 
-            // partial loop unrolling
-            accumR += cdfR[i]; cdfR[i] = accumR;
-            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-            
-            if ( rgb )
-            {
-                accumG += cdfG[i]; cdfG[i] = accumG;
-                accumB += cdfB[i]; cdfB[i] = accumB;
-                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            }
-        }
-        
-        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
-    }
-    
-    ,spectrum: function( im, w, h, grayscale ) {
-        // TODO
-        return null;
-    }
-};
-
 FILTER.Interpolate = {
     
-     crop: function( im, w, h, x1, y1, x2, y2 ) {
+     pad: function( im, w, h, pad_right, pad_bot, pad_left, pad_top ) {
+         pad_right = pad_right || 0; pad_bot = pad_bot || 0;
+         pad_left = pad_left || 0; pad_top = pad_top || 0;
+         var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
+            paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize), 
+            y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+            offtop = pad_top*nw4, offleft = pad_left<<2;
+            
+            for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
+            {
+                pixel2 = yw<<2;
+                padded.set(im.subarray(pixel2,pixel2+w4),offleft+pixel);
+            }
+         return padded;
+    }
+    
+    ,crop: function( im, w, h, x1, y1, x2, y2 ) {
          x2 = min(x2,w-1); y2 = min(y2,h-1);
          var nw = x2-x1+1, nh = y2-y1+1, 
             croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
-            x, y, yw, ynw, pixel, pixel2;
+            y, yw, nw4 = nw<<2, pixel, pixel2;
             
-            x=x1; /*y=y1;*/ yw=y1*w; /*ynw=y1*nw;*/
-            for (pixel=0; pixel<croppedSize; pixel+=4,x++)
+            for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
             {
-                if ( x > x2 ) {x=x1; /*y++;*/ yw+=w; /*ynw+=nw;*/}
-                pixel2 = (yw+x)<<2;
-                cropped[pixel] = im[pixel2];
-                cropped[pixel+1] = im[pixel2+1];
-                cropped[pixel+2] = im[pixel2+2];
-                cropped[pixel+3] = im[pixel2+3];
+                pixel2 = (yw+x1)<<2;
+                cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
             }
          return cropped;
     }
@@ -894,8 +796,8 @@ FILTER.Interpolate = {
             xi = ~~x; dx = x - xi;
             
             // Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-            a = (1-dx)*(1-dy); b = (dx)*(1-dy);
-            c = (dy)*(1-dx); d = (dx*dy);
+            a = (1-dx)*(1-dy); b = dx*(1-dy);
+            c = dy*(1-dx); d = dx*dy;
             
             pixel = (yw + xi)<<2;
 
@@ -928,34 +830,34 @@ FILTER.Interpolate = {
             rgba2 = new A32F(4), rgba3 = new A32F(4),
             yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
             B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
-            p, q, r, s
+            p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
         ;
-        i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0;
+        i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
         for (index=0; index<size; index+=4,j++,x+=rx) 
         {
-            if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w; }
-            
+            if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
             xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
             
             pixel = (yw + xi)<<2;
+            T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
             
             // handle edge cases
             C = im.subarray(pixel, pixel+4);
-            L = (0===x) ? C : im.subarray(pixel-4, pixel);
-            R = (w-1===x) ? C : im.subarray(pixel+4, pixel+8);
-            RR = (w-1===x) ? C : im.subarray(pixel+8, pixel+12);
-            B = (h-1===y) ? C : im.subarray(pixel+w4, pixel+w4+4);
-            BB = (h-1===y) ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
-            BL = (h-1===y||0===x) ? C : im.subarray(pixel+w4-4, pixel+w4);
-            BR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+4, pixel+w4+8);
-            BRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+8, pixel+w4+12);
-            BBL = (h-1===y||0===x) ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
-            BBR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
-            BBRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
-            T = (0===y) ? C : im.subarray(pixel-w4, pixel-w4+4);
-            TL = (0===y||0===x) ? C : im.subarray(pixel-w4-4, pixel-w4);
-            TR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+4, pixel-w4+8);
-            TRR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+8, pixel-w4+12);
+            L = L_EDGE ? C : im.subarray(pixel-4, pixel);
+            R = R_EDGE ? C : im.subarray(pixel+4, pixel+8);
+            RR = R_EDGE ? C : im.subarray(pixel+8, pixel+12);
+            B = B_EDGE ? C : im.subarray(pixel+w4, pixel+w4+4);
+            BB = B_EDGE ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
+            BL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4-4, pixel+w4);
+            BR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+4, pixel+w4+8);
+            BRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+8, pixel+w4+12);
+            BBL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
+            BBR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
+            BBRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
+            T = T_EDGE ? C : im.subarray(pixel-w4, pixel-w4+4);
+            TL = T_EDGE||L_EDGE ? C : im.subarray(pixel-w4-4, pixel-w4);
+            TR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+4, pixel-w4+8);
+            TRR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+8, pixel-w4+12);
             
             /*function interpolate_pixel(n, p0, p1, p2, p3, t)
             {
@@ -1348,6 +1250,134 @@ FILTER.Transform = {
     }
 };
 
+FILTER.Compute = {
+    
+    // compute integral image (Summed Area Table, SAT)
+    integral: function( im, w, h, grayscale ) {
+        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
+            imLen = im.length, count = (imLen>>2), i, j, x, rgb
+        ;
+        grayscale = true === grayscale; rgb = !grayscale;
+        // compute integral of image in one pass
+        integralR = new A32F(count); 
+        if ( rgb )
+        {
+            integralG = new A32F(count); 
+            integralB = new A32F(count);
+        }
+        // first row
+        j=0; i=0; colR=colG=colB=0;
+        for (x=0; x<w; x++, i+=4, j++)
+        {
+            colR+=im[i]; integralR[j]=colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j]=colG; integralB[j]=colB;
+            }
+        }
+        // other rows
+        i=rowLen; x=0; j=0; colR=colG=colB=0;
+        for (i=rowLen; i<imLen; i+=4, j++, x++)
+        {
+            if (x>=w) { x=0; colR=colG=colB=0; }
+            colR+=im[i]; 
+            integralR[j+w]=integralR[j]+colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+            }
+        }
+        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
+    }
+    
+    // compute image histogram
+    ,histogram: function( im, w, h, grayscale ) {
+        var l = im.length,
+            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+            cdfR, cdfG, cdfB, r,g,b,
+            accumR, accumG, accumB,
+            i, n=1.0/(l>>2), rgb
+        ;
+        
+        grayscale = true === grayscale; rgb = !grayscale;
+        // initialize the arrays
+        cdfR=new A32F(256); 
+        if ( rgb )
+        {
+            cdfG=new A32F(256); 
+            cdfB=new A32F(256);
+        }
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            cdfR[i]=0;
+            cdfR[i+1]=0;
+            cdfR[i+2]=0;
+            cdfR[i+3]=0;
+            if ( rgb )
+            {
+                cdfG[i]=0; cdfB[i]=0;
+                cdfG[i+1]=0; cdfB[i+1]=0;
+                cdfG[i+2]=0; cdfB[i+2]=0;
+                cdfG[i+3]=0; cdfB[i+3]=0;
+            }
+        }
+        // compute pdf and maxima/minima
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i];
+            cdfR[r] += n;
+            
+            if (r>maxR) maxR=r;
+            else if (r<minR) minR=r;
+            
+            if ( rgb )
+            {
+                g = im[i+1]; b = im[i+2];
+                cdfG[g] += n; cdfB[b] += n;
+                if (g>maxG) maxG=g;
+                else if (g<minG) minG=g;
+                if (b>maxB) maxB=b;
+                else if (b<minB) minB=b;
+            }
+        }
+        
+        // compute cdf
+        accumR=accumG=accumB=0;
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            accumR += cdfR[i]; cdfR[i] = accumR;
+            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+            
+            if ( rgb )
+            {
+                accumG += cdfG[i]; cdfG[i] = accumG;
+                accumB += cdfB[i]; cdfB[i] = accumB;
+                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+            }
+        }
+        
+        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
+    }
+    
+    ,spectrum: function( im, w, h, grayscale ) {
+        // TODO
+        return null;
+    }
+};
+
 }(FILTER);/**
 *
 * Color Methods / Transforms
@@ -1543,84 +1573,53 @@ var Color = FILTER.Color = FILTER.Class({
         
         clampPixel: function( v ) { return min(255, max(v, 0)); },
         
-        ubyteToFloat: function( ub ) { return ub * 0.0039215686274509803921568627451; /* 1 / 255; */ },
-
-        ubyteColorToFloatColor: function(color) {
-            var ii, cL=color.length, floatColor=new Array(cL);
-            for (i=0; i<cL; i++)  floatColor[i] = color[i] * 0.0039215686274509803921568627451;
-            return floatColor;
-        },
-        
-        hexColorToFloatColor: function(color) {
-            var r, g, b,a;
-            r = (color>>16)&255;
-            g = (color>>8)&255;
-            b = (color)&255;
-            a = (color>>24)&255;
-
-            return [
-                r * 0.0039215686274509803921568627451,
-                g * 0.0039215686274509803921568627451,
-                b * 0.0039215686274509803921568627451,
-                a * 0.0039215686274509803921568627451
-            ];
-        },
-        
-        blend: function(rgb1, rgb2, p) {
-            return {
-                r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
-                g:rgb1.g - ~~((rgb1.g - rgb2.g) * p + 0.5), 
-                b: rgb1.b - ~~((rgb1.b - rgb2.b) * p + 0.5)
-            };
-        },
-        
         toGray: function(r, g, b) {
             var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
         }, 
         
         distance: function(rgb1, rgb2) {
-            var dr=rgb1.r-rgb2.r, dg=rgb1.g-rgb2.g, db=rgb1.b-rgb2.b;
+            var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
         RGB2Color: function(rgb) {
-            return ((rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+            return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
         },
         
-        RGBA2Color: function(rgb) {
-            return ((rgb.a << 24) | (rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+        RGBA2Color: function(rgba) {
+            return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
         },
         
         Color2RGBA: function(c) {
             c=~~c;
-            return {
-                r : (c >>> 16) & 255,
-                g : (c >>> 8) & 255,
-                b : (c & 255),
-                a : (c >>> 24) & 255
-            };
+            return [
+                (c >>> 16) & 255,
+                (c >>> 8) & 255,
+                (c & 255),
+                (c >>> 24) & 255
+            ];
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
         RGB2YCbCr: function(rgb) {
-            var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
+            var y, cb, cr, r=rgb[0], g=rgb[1], b=rgb[2];
             
             // each take full range from 0-255
             y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
             cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
             cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            return {y:y, cb:cb, cr:cr};
+            return [y, cb, cr];
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
         YCbCr2RGB: function(ycbcr) {
-            var r, g, b, y=ycbcr.y, cb=ycbcr.cb, cr=ycbcr.cr;
+            var r, g, b, y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
             
             // each take full range from 0-255
             r = ~~( y                      + 1.402   * (cr-128) );
             g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
             b = ~~( y + 1.772   * (cb-128) );
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -1630,7 +1629,7 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
 
-            r=rgb.r; g=rgb.g; b=rgb.b;
+            r=rgb[0]; g=rgb[1]; b=rgb[2];
             
             m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
             v = M;                // v
@@ -1643,7 +1642,7 @@ var Color = FILTER.Color = FILTER.Class({
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
-                return { h:h, s:s, v:v };
+                return [h, s, v];
             }
 
             if( r == M )    h = ( g - b ) / delta;        // between yellow & magenta
@@ -1653,7 +1652,7 @@ var Color = FILTER.Color = FILTER.Class({
             h *= 60;                // degrees
             if( h < 0 )  h += 360;
             
-            return { h:h, s:s, v:v };
+            return [h, s, v];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -1664,13 +1663,13 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
             
-            h=hsv.h; s=hsv.s; v=hsv.v;
+            h=hsv[0]; s=hsv[1]; v=hsv[2];
             
             if( s == 0 ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
-                return {r:r, g:g, b:b};
+                return [r, g, b];
             }
 
             h /= 60;            // sector 0 to 5
@@ -1695,7 +1694,7 @@ var Color = FILTER.Color = FILTER.Class({
                     break;
             }
             
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         toString: function() {
@@ -2494,7 +2493,6 @@ function _refreshSelectedData( scope, what )
 }
     
 //
-//
 // Image (Proxy) Class
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
@@ -3155,13 +3153,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
-//
 // static
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
+FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear;
 
 // crop image data
 FilterImage.crop = FILTER.Interpolate.crop;
+
+// pad image data
+FilterImage.pad = FILTER.Interpolate.pad;
 
 // compute integral image (summed area table, SAT)
 FilterImage.integral = FILTER.Compute.integral;
@@ -3172,7 +3172,6 @@ FilterImage.histogram = FILTER.Compute.histogram;
 // compute image spectrum
 FilterImage.spectrum = FILTER.Compute.spectrum;
 
-//
 //
 // Scaled Image (Proxy) Class
 var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
@@ -8079,7 +8078,7 @@ Filters = {
     else if ( !(name in currentGlobal) )
     {
         loadScripts( currentGlobal, currentPath.path + '/', names, paths, function( ){ 
-            currentGlobal[ name ] = m = factory.apply( root, [{}].concat(getDeps( names, paths, currentGlobal )) ) || 1; 
+            m = factory.apply( root, [{}].concat(getDeps( names, paths, currentGlobal )) ); 
             isAMD && define( name, ["require"], function( ){ return m; } );
         }, isWebWorker);
     }
@@ -8252,9 +8251,9 @@ FILTER.Create({
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
         {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            ycbcr = RGB2YCbCr({r:r, g:g, b:b});
-            r = im[i] = ~~ycbcr.cr; g = im[i+1] = ~~ycbcr.y; b = im[i+2] = ~~ycbcr.cb;
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            ycbcr = RGB2YCbCr(im.subarray(i,i+3));
+            r = im[i] = ~~ycbcr[2]; g = im[i+1] = ~~ycbcr[0]; b = im[i+2] = ~~ycbcr[1];
             cdfI[ g ] += n;
             
             if ( g>maxI ) maxI=g;
@@ -8278,10 +8277,10 @@ FILTER.Create({
         {   
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
-                ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                ycbcr = [im[i+1], im[i+2], im[i]];
+                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
                 rgba = YCbCr2RGB(ycbcr);
-                t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; 
+                t0 = rgba[0]; t1 = rgba[1]; t2 = rgba[2]; 
                 // clamp them manually
                 t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
                 t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
@@ -8293,10 +8292,10 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
-                ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                ycbcr = [im[i+1], im[i+2], im[i]];
+                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
                 rgba = YCbCr2RGB(ycbcr);
-                im[i] = ~~rgba.r; im[i+1] = ~~rgba.g; im[i+2] = ~~rgba.b; 
+                im[i] = ~~rgba[0]; im[i+1] = ~~rgba[1]; im[i+2] = ~~rgba[2]; 
             }
         }
         
@@ -8972,15 +8971,15 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var r,g,b, i, l=im.length, hsv, t0, t1, t2;
+        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2;
         
         if ( notSupportClamp )
         {   
             for (i=0; i<l; i+=4)
             {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV({r:r, g:g, b:b});
-                t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
                 // clamp them manually
                 if (t0<0) t0=0;
                 else if (t0>255) t0=255;
@@ -8995,9 +8994,9 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV({r:r, g:g, b:b});
-                t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }
@@ -9074,21 +9073,21 @@ FILTER.Create({
         var self = this;
         if (!self._isOn || !self.range || !self.range.length) return im;
         
-        var r, g, b, br, bg, bb, ba,
+        var /*r, g, b,*/ br, bg, bb, ba,
             i, l=im.length, background, hue,
             hMin=self.range[0], hMax=self.range[self.range.length-1]
             ;
         
         background = Color2RGBA(self.background||0);
-        br = ~~clamp(background.r); 
-        bg = ~~clamp(background.g); 
-        bb = ~~clamp(background.b); 
-        ba = ~~clamp(background.a);
+        br = ~~clamp(background[0]); 
+        bg = ~~clamp(background[1]); 
+        bb = ~~clamp(background[2]); 
+        ba = ~~clamp(background[3]);
         
         for (i=0; i<l; i+=4)
         {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            hue = RGB2HSV({r:r, g:g, b:b}).h;
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            hue = RGB2HSV(im.subarray(i,i+3))[0];
             
             if (hue<hMin || hue>hMax) 
             {  
@@ -9383,11 +9382,799 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var Min = Math.min, Max = Math.max, 
+var HAS = 'hasOwnProperty', Min = Math.min, Max = Math.max, 
     Round = Math.round, Floor=Math.floor, Abs = Math.abs,
     notSupportClamp = FILTER._notSupportClamp,
-    blendModes
+    blend_functions
 ;
+
+// JavaScript implementations of common image blending modes, based on
+// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+blend_functions = {
+    
+    normal: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+        
+        // normal mode
+        rb = r2;  
+        gb = g2;  
+        bb = b2;
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    lighten: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+        
+        // lighten mode
+        rb = (r > r2) ? r : r2; 
+        gb = (g > g2) ? g : g2; 
+        bb = (b > b2) ? b : b2; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    darken: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // darken mode
+        rb = (r > r2) ? r2 : r; 
+        gb = (g > g2) ? g2 : g; 
+        bb = (b > b2) ? b2 : b; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    multiply: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // multiply mode
+        rb = (r * r2 * 0.003921568627451);
+        gb = (g * g2 * 0.003921568627451);
+        bb = (b * b2 * 0.003921568627451);
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    average: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // average mode
+        rb = 0.5*(r + r2); 
+        gb = 0.5*(g + g2); 
+        bb = 0.5*(b + b2); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    add: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // add mode
+        rb = r + r2; 
+        gb = g + g2; 
+        bb = b + b2; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    subtract: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // subtract mode
+        rb = (r + r2 < 255) ? 0 : r + r2 - 255;  
+        gb = (g + g2 < 255) ? 0 : g + g2 - 255;  
+        bb = (b + b2 < 255) ? 0 : b + b2 - 255;  
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    difference: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // difference mode
+        rb = Abs(r2 - r); 
+        gb = Abs(g2 - g); 
+        bb = Abs(b2 - b); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    negation: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // negation mode
+        rb = 255 - Abs(255 - r2 - r);
+        gb = 255 - Abs(255 - g2 - g);
+        bb = 255 - Abs(255 - b2 - b);
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    screen: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // screen mode
+        rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
+        gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
+        bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    exclusion: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // exclusion mode
+        rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
+        gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
+        bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    overlay: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // overlay mode
+        rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
+        rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    softlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // softlight mode
+        rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
+        bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    // reverse of overlay
+    hardlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // hardlight mode, reverse of overlay
+        rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
+        gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
+        bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    colordodge: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // colordodge mode
+        rb = (255 == r) ? r : Min(255, ((r2 << 8 ) / (255 - r))); 
+        gb = (255 == g) ? g : Min(255, ((g2 << 8 ) / (255 - g))); 
+        bb = (255 == b) ? r : Min(255, ((b2 << 8 ) / (255 - b))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    colorburn: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // colorburn mode
+        rb = (0 == r) ? r : Max(0, (255 - ((255 - r2) << 8 ) / r)); 
+        gb = (0 == g) ? g : Max(0, (255 - ((255 - g2) << 8 ) / g)); 
+        bb = (0 == b) ? b : Max(0, (255 - ((255 - b2) << 8 ) / b)); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    linearlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // linearlight mode
+        if (r < 128)
+        {
+            tmp = r*2;
+            rb = (tmp + r2 < 255) ? 0 : tmp + r2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r - 128);
+            rb = tmp + r2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = g*2;
+            gb = (tmp + g2 < 255) ? 0 : tmp + g2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g - 128);
+            gb = tmp + g2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = b*2;
+            bb = (tmp + b2 < 255) ? 0 : tmp + b2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b - 128);
+            bb = tmp + b2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    reflect: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // reflect mode
+        rb = (255 == r) ? r : Min(255, (r2 * r2 / (255 - r))); 
+        gb = (255 == g) ? g : Min(255, (g2 * g2 / (255 - g))); 
+        bb = (255 == b) ? b : Min(255, (b2 * b2 / (255 - b))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    // reverse of reflect
+    glow: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // glow mode, reverse of reflect
+        rb = (255 == r2) ? r2 : Min(255, (r * r / (255 - r2))); 
+        gb = (255 == g2) ? g2 : Min(255, (g * g / (255 - g2))); 
+        bb = (255 == b2) ? b2 : Min(255, (b * b / (255 - b2))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    phoenix: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // phoenix mode
+        rb = Min(r2, r) - Max(r2, r) + 255; 
+        gb = Min(g2, g) - Max(g2, g) + 255; 
+        bb = Min(b2, b) - Max(b2, b) + 255; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    vividlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // vividlight mode
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    pinlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // pinlight mode
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (tmp > r2) ? tmp : r2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (tmp > r2) ? r2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (tmp > g2) ? tmp : g2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            gb = (tmp > g2) ? g2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (tmp > b2) ? tmp : b2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = (tmp > b2) ? b2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    },
+
+    hardmix: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
+        }
+        rb = (rb < 128) ? 0 : 255;
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));
+        }
+        gb = (gb < 128) ? 0 : 255;
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));
+        }
+        bb = (bb < 128) ? 0 : 255;
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+    }
+};
+// aliases
+blend_functions.lineardodge = blend_functions.add;
+blend_functions.linearburn = blend_functions.subtract;
 
 //
 //
@@ -9398,27 +10185,23 @@ FILTER.Create({
     // parameters
     ,_blendMode: null
     ,_blendImage: null
-    ,blendMode: null
     ,blendImage: null
     ,startX: 0
     ,startY: 0
-    ,amount: 1
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
     
     // constructor
-    ,init: function( blendImage, blendMode, amount ) { 
+    ,init: function( blendImage, blendMode ) { 
         var self = this;
         self.startX = 0;
         self.startY = 0;
-        self.amount = 1;
         self._blendImage = null;
         self.blendImage = null;
         self._blendMode = null;
-        self.blendMode = null;
         if ( blendImage ) self.setImage( blendImage );
-        if ( blendMode ) self.setMode( blendMode, amount );
+        if ( blendMode ) self.setMode( blendMode );
     }
     
     ,dispose: function( ) {
@@ -9426,7 +10209,6 @@ FILTER.Create({
         self.blendImage = null;
         self._blendImage = null;
         self._blendMode = null;
-        self.blendMode = null;
         self.$super('dispose');
         return self;
     }
@@ -9448,18 +10230,16 @@ FILTER.Create({
     }
     
     // set blend mode auxiliary method
-    ,setMode: function( blendMode, amount ) {
+    ,setMode: function( blendMode ) {
         var self = this;
         if ( blendMode )
         {
             self._blendMode = (''+blendMode).toLowerCase();
-            self.blendMode = blendModes[self._blendMode] || null;
-            self.amount = Max( 0, Min( 1, (undef===amount) ? 1 : amount ) );
+            if ( !blend_functions[HAS](self._blendMode) ) self._blendMode = null;
         }
         else
         {
             self._blendMode = null;
-            self.blendMode = null;
         }
         return self;
     }
@@ -9475,7 +10255,6 @@ FILTER.Create({
                 ,_blendMode: self._blendMode
                 ,startX: self.startX
                 ,startY: self.startY
-                ,amount: self.amount
             }
         };
     }
@@ -9488,10 +10267,10 @@ FILTER.Create({
             
             params = json.params;
             
-            self._blendImage = params._blendImage;
             self.startX = params.startX;
             self.startY = params.startY;
-            self.setMode( params._blendMode, params.amount );
+            self._blendImage = params._blendImage;
+            self.setMode( params._blendMode );
         }
         return self;
     }
@@ -9500,1271 +10279,59 @@ FILTER.Create({
         var self = this;
         self.startX = 0;
         self.startY = 0;
-        self.amount = 1;
         self._blendMode = null;
-        self.blendMode = null;
         return self;
     }
     
     // main apply routine
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
-        if ( !self._isOn || !self.blendMode || !self._blendImage ) return im;
+        if ( !self._isOn || !self._blendMode || !self._blendImage ) return im;
         
         var startX = self.startX||0, startY = self.startY||0, 
-            startX2 = 0, startY2 = 0, W, H, 
-            im2, w2, h2, image2 = self._blendImage,
-            amount = self.amount||1
+            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
+            W1, W2, start, end, x, y, x2, y2,
+            image2 = self._blendImage, pix2,
+            blend = blend_functions[ self._blendMode ]
         ;
         
-        w2 = image2.width; h2 = image2.height;
+        //if ( !blend ) return im;
         
         if (startX < 0) { startX2 = -startX;  startX = 0; }
         if (startY < 0) { startY2 = -startY;  startY = 0; }
         
+        w2 = image2.width; h2 = image2.height;
         if (startX >= w || startY >= h) return im;
         if (startX2 >= w2 || startY2 >= h2) return im;
         
         startX = Round(startX); startY = Round(startY);
         startX2 = Round(startX2); startY2 = Round(startY2);
         W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
-        
         if (W <= 0 || H <= 0) return im;
         
         im2 = image2.data;
         
-        return self.blendMode(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount);
+        // blend images
+        x = startX; y = startY*w;
+        x2 = startX2; y2 = startY2*w2;
+        W1 = startX+W; W2 = startX2+W;
+        start = 0; end = H*W;
+        while (start<end)
+        {
+            pix2 = (x2 + y2)<<2;
+            // blend only if im2 has opacity in this point
+            if ( im2[pix2+3] ) 
+                // calculate and assign blended color
+                blend(im, (x + y)<<2, im2, pix2);
+            
+            // next pixels
+            start++;
+            x++; if (x>=W1) { x = startX; y += w; }
+            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
+        }
+        return im; 
     }
 });
-
-// JavaScript implementations of common image blending modes, based on
-// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
-blendModes = {
-    
-    normal: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // normal mode
-            rb = r2;  
-            gb = g2;  
-            bb = b2;
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    lighten: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // lighten mode
-            rb = (r > r2) ? r : r2; 
-            gb = (g > g2) ? g : g2; 
-            bb = (b > b2) ? b : b2; 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    darken: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // darken mode
-            rb = (r > r2) ? r2 : r; 
-            gb = (g > g2) ? g2 : g; 
-            bb = (b > b2) ? b2 : b; 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    multiply: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // multiply mode
-            rb = (r * r2 * 0.003921568627451);
-            gb = (g * g2 * 0.003921568627451);
-            bb = (b * b2 * 0.003921568627451);
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    average: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // average mode
-            rb = 0.5*(r + r2); 
-            gb = 0.5*(g + g2); 
-            bb = 0.5*(b + b2); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    add: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // add mode
-            rb = r + r2; 
-            gb = g + g2; 
-            bb = b + b2; 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    subtract: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // subtract mode
-            rb = (r + r2 < 255) ? 0 : r + r2 - 255;  
-            gb = (g + g2 < 255) ? 0 : g + g2 - 255;  
-            bb = (b + b2 < 255) ? 0 : b + b2 - 255;  
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    difference: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // difference mode
-            rb = Abs(r2 - r); 
-            gb = Abs(g2 - g); 
-            bb = Abs(b2 - b); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    negation: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // negation mode
-            rb = 255 - Abs(255 - r2 - r);
-            gb = 255 - Abs(255 - g2 - g);
-            bb = 255 - Abs(255 - b2 - b);
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    screen: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // screen mode
-            rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
-            gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
-            bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    exclusion: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // exclusion mode
-            rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
-            gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
-            bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    overlay: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // overlay mode
-            rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
-            gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
-            rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    softlight: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // softlight mode
-            rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
-            gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
-            bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    // reverse of overlay
-    hardlight: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // hardlight mode, reverse of overlay
-            rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
-            gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
-            bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    colordodge: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // colordodge mode
-            rb = (255 == r) ? r : Min(255, ((r2 << 8 ) / (255 - r))); 
-            gb = (255 == g) ? g : Min(255, ((g2 << 8 ) / (255 - g))); 
-            bb = (255 == b) ? r : Min(255, ((b2 << 8 ) / (255 - b))); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    colorburn: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // colorburn mode
-            rb = (0 == r) ? r : Max(0, (255 - ((255 - r2) << 8 ) / r)); 
-            gb = (0 == g) ? g : Max(0, (255 - ((255 - g2) << 8 ) / g)); 
-            bb = (0 == b) ? b : Max(0, (255 - ((255 - b2) << 8 ) / b)); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    linearlight: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        var tmp;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // linearlight mode
-            if (r < 128)
-            {
-                tmp = r*2;
-                rb = (tmp + r2 < 255) ? 0 : tmp + r2 - 255; //blendModes.linearBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (r - 128);
-                rb = tmp + r2; //blendModes.linearDodge(a, (2 * (b - 128)))
-            }
-            if (g < 128)
-            {
-                tmp = g*2;
-                gb = (tmp + g2 < 255) ? 0 : tmp + g2 - 255; //blendModes.linearBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (g - 128);
-                gb = tmp + g2; //blendModes.linearDodge(a, (2 * (b - 128)))
-            }
-            if (b < 128)
-            {
-                tmp = b*2;
-                bb = (tmp + b2 < 255) ? 0 : tmp + b2 - 255; //blendModes.linearBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (b - 128);
-                bb = tmp + b2; //blendModes.linearDodge(a, (2 * (b - 128)))
-            }
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    reflect: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // reflect mode
-            rb = (255 == r) ? r : Min(255, (r2 * r2 / (255 - r))); 
-            gb = (255 == g) ? g : Min(255, (g2 * g2 / (255 - g))); 
-            bb = (255 == b) ? b : Min(255, (b2 * b2 / (255 - b))); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    // reverse of reflect
-    glow: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // glow mode, reverse of reflect
-            rb = (255 == r2) ? r2 : Min(255, (r * r / (255 - r2))); 
-            gb = (255 == g2) ? g2 : Min(255, (g * g / (255 - g2))); 
-            bb = (255 == b2) ? b2 : Min(255, (b * b / (255 - b2))); 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    phoenix: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // phoenix mode
-            rb = Min(r2, r) - Max(r2, r) + 255; 
-            gb = Min(g2, g) - Max(g2, g) + 255; 
-            bb = Min(b2, b) - Max(b2, b) + 255; 
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    vividlight: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        var tmp;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // vividlight mode
-            if (r < 128)
-            {
-                tmp = 2*r;
-                rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (r-128);
-                rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-            }
-            if (g < 128)
-            {
-                tmp = 2*g;
-                gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (g-128);
-                gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-            }
-            if (b < 128)
-            {
-                tmp = 2*b;
-                bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (g-128);
-                bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-            }
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    pinlight: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        var tmp;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // pinlight mode
-            if (r < 128)
-            {
-                tmp = 2*r;
-                rb = (tmp > r2) ? tmp : r2;  //blendModes.darken(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (r-128);
-                rb = (tmp > r2) ? r2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-            }
-            if (g < 128)
-            {
-                tmp = 2*g;
-                gb = (tmp > g2) ? tmp : g2;  //blendModes.darken(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (r-128);
-                gb = (tmp > g2) ? g2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-            }
-            if (b < 128)
-            {
-                tmp = 2*b;
-                bb = (tmp > b2) ? tmp : b2;  //blendModes.darken(a, 2 * b)
-            }
-            else
-            {
-                tmp = 2 * (b-128);
-                bb = (tmp > b2) ? b2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-            }
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    },
-
-    hardmix: function(im, w, h, im2, w2, h2, startX, startY, startX2, startY2, W, H, amount) { 
-        var W1, W2, start, end, i, i2, x, y, x2, y2,
-            r, g, b, r2, g2, b2, rb, gb, bb, invamount
-        ;
-        
-        // blend images
-        invamount = 1-amount;
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        var tmp;
-        while (start<end)
-        {
-            i = (x + y)<<2; i2 = (x2 + y2)<<2;
-            r = im[i];  g = im[i + 1];  b = im[i + 2];
-            r2 = im2[i2];  g2 = im2[i2 + 1];  b2 = im2[i2 + 2];
-            
-            // calculate blended color
-            //rb = blendingMode(r2, r);  gb = blendingMode(g2, g);  bb = blendingMode(b2, b);
-            // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
-            if (r < 128)
-            {
-                tmp = 2*r;
-                rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));
-            }
-            else
-            {
-                tmp = 2 * (r-128);
-                rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
-            }
-            rb = (rb < 128) ? 0 : 255;
-            if (g < 128)
-            {
-                tmp = 2*g;
-                gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));
-            }
-            else
-            {
-                tmp = 2 * (g-128);
-                gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));
-            }
-            gb = (gb < 128) ? 0 : 255;
-            if (b < 128)
-            {
-                tmp = 2*b;
-                bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));
-            }
-            else
-            {
-                tmp = 2 * (b-128);
-                bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));
-            }
-            bb = (bb < 128) ? 0 : 255;
-            
-            // amount compositing
-            r = rb * amount + r * invamount;  
-            g = gb * amount + g * invamount;  
-            b = bb * amount + b * invamount;
-            
-            if (notSupportClamp)
-            {
-                // clamp them manually
-                r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                b = (b<0) ? 0 : ((b>255) ? 255 : b);
-            }
-            
-            // output
-            im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    }
-};
-// aliases
-blendModes.lineardodge = blendModes.add;
-blendModes.linearburn = blendModes.subtract;
 
 }(FILTER);/**
 *
@@ -10835,23 +10402,22 @@ FILTER.Create({
         if (!self._isOn || !self.thresholds || !self.thresholds.length || 
             !self.quantizedColors || !self.quantizedColors.length) return im;
         
-        var t0, t1, t2, t3, color, rgba,
+        var color, rgba,
             i, j, l=im.length,
             thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
-            ;
+        ;
         
         for (i=0; i<l; i+=4)
         {
-            color = RGBA2Color({r:im[i], g:im[i+1], b:im[i+2], a:im[i+3]});
+            color = RGBA2Color(im.subarray[i,i+4]);
             
             // maybe use sth faster here ??
             j=0; while (j<tl && color>thresholds[j]) j++;
             color = (j<cl) ? colors[j] : 255;
             
             rgba = Color2RGBA(color);
-            t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; t3 = rgba.a;
-            
-            im[i] = t0; im[i+1] = t1; im[i+2] = t2; im[i+3] = t3;
+            //im.set(rgba,i);
+            im[i] = rgba[0]; im[i+1] = rgba[1]; im[i+2] = rgba[2]; im[i+3] = rgba[3];
         }
         
         // return the new image data
@@ -12480,7 +12046,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var FLOOR = Math.floor;
+var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
  
 // adapted from:
 
@@ -12974,29 +12540,28 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
     return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
 }
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-var PI2 = FILTER.CONSTANTS.PI2;
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
-        nx = Math.cos(s)*baseX/w/PI2,
-        ny = Math.cos(t)*baseX/w/PI2,
-        nz = Math.sin(s)*baseY/h/PI2,
-        nw = Math.sin(t)*baseY/h/PI2
+    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
+        nx = w*cos(s)*PI2/baseX,
+        ny = h*cos(t)*PI2/baseY,
+        nz = w*sin(s)*PI2/baseX,
+        nw = h*sin(t)*PI2/baseY
     ;
     return simplex4(nx,ny,nz,nw);
 }
 function seamless_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
-        nx = Math.cos(s)*baseX/w/PI2,
-        ny = Math.cos(t)*baseX/w/PI2,
-        nz = Math.sin(s)*baseY/h/PI2,
-        nw = Math.sin(t)*baseY/h/PI2
+    var s = PI2*((x+offsetX)%w)/w, t = PI2*((y+offsetY)%h)/h,
+        nx = cos(s),
+        ny = cos(t),
+        nz = sin(s),
+        nw = sin(t)
     ;
     return perlin4(nx,ny,nz,nw);
 }
 // adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
+function octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, octave;
 
@@ -13144,7 +12709,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
-            n = 0.5*octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
+            n = 0.5*octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
             if ( is_grayscale )
             {
                 im[i] = im[i+1] = im[i+2] = ~~(255*n);

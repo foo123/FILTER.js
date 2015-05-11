@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-10 18:33:08
+*   @built on 2015-05-11 16:54:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-10 18:33:08
+*   @built on 2015-05-11 16:54:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -169,10 +169,6 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
     ,userAgent = navigator ? navigator.userAgent : ""
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
-    
-    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
-    
     ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
@@ -182,8 +178,19 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
             init.apply( this, arguments );
         };
     }
-    ,log
-    ,_uuid = 0
+    
+    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
+    
+    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
+    ,no_typed_array_set = ('undefined' === typeof Int16Array) || !Int16Array[PROTO].set
+    ,typed_array_set = function( a, offset ) {
+        var i = a.length;
+        offset = offset || 0;
+        while ( --i >= 0 ) this[ i + offset ] = a[ i ];
+    }
+    ,typed_array_subarray = AP.slice
+    
+    ,log, _uuid = 0
 ;
 
 //
@@ -249,15 +256,7 @@ FILTER.uuid = function( namespace ) {
     return [namespace||'filter', new Date( ).getTime( ), ++_uuid].join('_'); 
 };
 
-//
-//
-// webgl support
-FILTER.useWebGL = false;
-FILTER.useWebGLSharedResources = false;
-FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
-//
 //
 // Typed Arrays Substitute(s)
 FILTER.Array = Array;
@@ -270,26 +269,49 @@ FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
 
+if ( !FILTER.Array32F[PROTO].set )
+{
+    FILTER.Array32F[PROTO].set = typed_array_set;
+    FILTER.Array64F[PROTO].set = typed_array_set;
+    FILTER.Array8I[PROTO].set = typed_array_set;
+    FILTER.Array16I[PROTO].set = typed_array_set;
+    FILTER.Array32I[PROTO].set = typed_array_set;
+    FILTER.Array8U[PROTO].set = typed_array_set;
+    FILTER.Array16U[PROTO].set = typed_array_set;
+    FILTER.Array32U[PROTO].set = typed_array_set;
+}
+if ( !FILTER.Array32F[PROTO].subarray )
+{
+    FILTER.Array32F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array64F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32U[PROTO].subarray = typed_array_subarray;
+}
+
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-    
+
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
 {
-    var _set = function( a, offset ) {
-            var i = a.length;
-            offset = offset || 0;
-            while ( --i >= 0 ) this[ i + offset ] = a[ i ];
-            return this;
-    };
     // add the missing method to the array
-    CanvasPixelArray[PROTO].set = _set;
+    CanvasPixelArray[PROTO].set = typed_array_set;
 }
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 //
+// webgl support
+FILTER.useWebGL = false;
+FILTER.useWebGLSharedResources = false;
+FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
+FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
+
 //
 // Constants
 FILTER.CHANNEL = {
@@ -325,14 +347,12 @@ FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
 //
-//
 // logging
 log = FILTER.log = (console && console.log) ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ };
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
 var 
-    //
     //
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
@@ -452,7 +472,6 @@ var
     }),
     
     //
-    //
     // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
@@ -496,6 +515,7 @@ var
         
         // whether filter updates output image or not
         ,update: function( bool ) {
+            if ( !arguments.length ) bool = true;
             this._update = !!bool;
             return this;
         }
@@ -618,7 +638,6 @@ var
 ;
 
 //
-//
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
     methods = Merge({
@@ -685,151 +704,34 @@ FILTER.Math = {
     closestPower2: closest_power_of_two
 };
 
-FILTER.Compute = {
-    
-    // compute integral image (Summed Area Table, SAT)
-    integral: function( im, w, h, grayscale ) {
-        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-            imLen = im.length, count = (imLen>>2), i, j, x, rgb
-        ;
-        grayscale = true === grayscale; rgb = !grayscale;
-        // compute integral of image in one pass
-        integralR = new A32F(count); 
-        if ( rgb )
-        {
-            integralG = new A32F(count); 
-            integralB = new A32F(count);
-        }
-        // first row
-        j=0; i=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j++)
-        {
-            colR+=im[i]; integralR[j]=colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j]=colG; integralB[j]=colB;
-            }
-        }
-        // other rows
-        i=rowLen; x=0; j=0; colR=colG=colB=0;
-        for (i=rowLen; i<imLen; i+=4, j++, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colR+=im[i]; 
-            integralR[j+w]=integralR[j]+colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-            }
-        }
-        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
-    }
-    
-    // compute image histogram
-    ,histogram: function( im, w, h, grayscale ) {
-        var l = im.length,
-            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-            cdfR, cdfG, cdfB, r,g,b,
-            accumR, accumG, accumB,
-            i, n=1.0/(l>>2), rgb
-        ;
-        
-        grayscale = true === grayscale; rgb = !grayscale;
-        // initialize the arrays
-        cdfR=new A32F(256); 
-        if ( rgb )
-        {
-            cdfG=new A32F(256); 
-            cdfB=new A32F(256);
-        }
-        for (i=0; i<256; i+=4) 
-        { 
-            // partial loop unrolling
-            cdfR[i]=0;
-            cdfR[i+1]=0;
-            cdfR[i+2]=0;
-            cdfR[i+3]=0;
-            if ( rgb )
-            {
-                cdfG[i]=0; cdfB[i]=0;
-                cdfG[i+1]=0; cdfB[i+1]=0;
-                cdfG[i+2]=0; cdfB[i+2]=0;
-                cdfG[i+3]=0; cdfB[i+3]=0;
-            }
-        }
-        // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
-        {
-            r = im[i];
-            cdfR[r] += n;
-            
-            if (r>maxR) maxR=r;
-            else if (r<minR) minR=r;
-            
-            if ( rgb )
-            {
-                g = im[i+1]; b = im[i+2];
-                cdfG[g] += n; cdfB[b] += n;
-                if (g>maxG) maxG=g;
-                else if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                else if (b<minB) minB=b;
-            }
-        }
-        
-        // compute cdf
-        accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=4) 
-        { 
-            // partial loop unrolling
-            accumR += cdfR[i]; cdfR[i] = accumR;
-            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-            
-            if ( rgb )
-            {
-                accumG += cdfG[i]; cdfG[i] = accumG;
-                accumB += cdfB[i]; cdfB[i] = accumB;
-                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            }
-        }
-        
-        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
-    }
-    
-    ,spectrum: function( im, w, h, grayscale ) {
-        // TODO
-        return null;
-    }
-};
-
 FILTER.Interpolate = {
     
-     crop: function( im, w, h, x1, y1, x2, y2 ) {
+     pad: function( im, w, h, pad_right, pad_bot, pad_left, pad_top ) {
+         pad_right = pad_right || 0; pad_bot = pad_bot || 0;
+         pad_left = pad_left || 0; pad_top = pad_top || 0;
+         var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
+            paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize), 
+            y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+            offtop = pad_top*nw4, offleft = pad_left<<2;
+            
+            for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
+            {
+                pixel2 = yw<<2;
+                padded.set(im.subarray(pixel2,pixel2+w4),offleft+pixel);
+            }
+         return padded;
+    }
+    
+    ,crop: function( im, w, h, x1, y1, x2, y2 ) {
          x2 = min(x2,w-1); y2 = min(y2,h-1);
          var nw = x2-x1+1, nh = y2-y1+1, 
             croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
-            x, y, yw, ynw, pixel, pixel2;
+            y, yw, nw4 = nw<<2, pixel, pixel2;
             
-            x=x1; /*y=y1;*/ yw=y1*w; /*ynw=y1*nw;*/
-            for (pixel=0; pixel<croppedSize; pixel+=4,x++)
+            for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
             {
-                if ( x > x2 ) {x=x1; /*y++;*/ yw+=w; /*ynw+=nw;*/}
-                pixel2 = (yw+x)<<2;
-                cropped[pixel] = im[pixel2];
-                cropped[pixel+1] = im[pixel2+1];
-                cropped[pixel+2] = im[pixel2+2];
-                cropped[pixel+3] = im[pixel2+3];
+                pixel2 = (yw+x1)<<2;
+                cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
             }
          return cropped;
     }
@@ -875,8 +777,8 @@ FILTER.Interpolate = {
             xi = ~~x; dx = x - xi;
             
             // Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-            a = (1-dx)*(1-dy); b = (dx)*(1-dy);
-            c = (dy)*(1-dx); d = (dx*dy);
+            a = (1-dx)*(1-dy); b = dx*(1-dy);
+            c = dy*(1-dx); d = dx*dy;
             
             pixel = (yw + xi)<<2;
 
@@ -909,34 +811,34 @@ FILTER.Interpolate = {
             rgba2 = new A32F(4), rgba3 = new A32F(4),
             yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
             B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
-            p, q, r, s
+            p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
         ;
-        i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0;
+        i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
         for (index=0; index<size; index+=4,j++,x+=rx) 
         {
-            if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w; }
-            
+            if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
             xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
             
             pixel = (yw + xi)<<2;
+            T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
             
             // handle edge cases
             C = im.subarray(pixel, pixel+4);
-            L = (0===x) ? C : im.subarray(pixel-4, pixel);
-            R = (w-1===x) ? C : im.subarray(pixel+4, pixel+8);
-            RR = (w-1===x) ? C : im.subarray(pixel+8, pixel+12);
-            B = (h-1===y) ? C : im.subarray(pixel+w4, pixel+w4+4);
-            BB = (h-1===y) ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
-            BL = (h-1===y||0===x) ? C : im.subarray(pixel+w4-4, pixel+w4);
-            BR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+4, pixel+w4+8);
-            BRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+8, pixel+w4+12);
-            BBL = (h-1===y||0===x) ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
-            BBR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
-            BBRR = (h-1===y||w-1===x) ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
-            T = (0===y) ? C : im.subarray(pixel-w4, pixel-w4+4);
-            TL = (0===y||0===x) ? C : im.subarray(pixel-w4-4, pixel-w4);
-            TR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+4, pixel-w4+8);
-            TRR = (0===y||w-1===x) ? C : im.subarray(pixel-w4+8, pixel-w4+12);
+            L = L_EDGE ? C : im.subarray(pixel-4, pixel);
+            R = R_EDGE ? C : im.subarray(pixel+4, pixel+8);
+            RR = R_EDGE ? C : im.subarray(pixel+8, pixel+12);
+            B = B_EDGE ? C : im.subarray(pixel+w4, pixel+w4+4);
+            BB = B_EDGE ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
+            BL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4-4, pixel+w4);
+            BR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+4, pixel+w4+8);
+            BRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+8, pixel+w4+12);
+            BBL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
+            BBR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
+            BBRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
+            T = T_EDGE ? C : im.subarray(pixel-w4, pixel-w4+4);
+            TL = T_EDGE||L_EDGE ? C : im.subarray(pixel-w4-4, pixel-w4);
+            TR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+4, pixel-w4+8);
+            TRR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+8, pixel-w4+12);
             
             /*function interpolate_pixel(n, p0, p1, p2, p3, t)
             {
@@ -1329,6 +1231,134 @@ FILTER.Transform = {
     }
 };
 
+FILTER.Compute = {
+    
+    // compute integral image (Summed Area Table, SAT)
+    integral: function( im, w, h, grayscale ) {
+        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
+            imLen = im.length, count = (imLen>>2), i, j, x, rgb
+        ;
+        grayscale = true === grayscale; rgb = !grayscale;
+        // compute integral of image in one pass
+        integralR = new A32F(count); 
+        if ( rgb )
+        {
+            integralG = new A32F(count); 
+            integralB = new A32F(count);
+        }
+        // first row
+        j=0; i=0; colR=colG=colB=0;
+        for (x=0; x<w; x++, i+=4, j++)
+        {
+            colR+=im[i]; integralR[j]=colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j]=colG; integralB[j]=colB;
+            }
+        }
+        // other rows
+        i=rowLen; x=0; j=0; colR=colG=colB=0;
+        for (i=rowLen; i<imLen; i+=4, j++, x++)
+        {
+            if (x>=w) { x=0; colR=colG=colB=0; }
+            colR+=im[i]; 
+            integralR[j+w]=integralR[j]+colR; 
+            
+            if ( rgb )
+            {
+                colG+=im[i+1]; colB+=im[i+2];
+                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
+            }
+        }
+        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
+    }
+    
+    // compute image histogram
+    ,histogram: function( im, w, h, grayscale ) {
+        var l = im.length,
+            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+            cdfR, cdfG, cdfB, r,g,b,
+            accumR, accumG, accumB,
+            i, n=1.0/(l>>2), rgb
+        ;
+        
+        grayscale = true === grayscale; rgb = !grayscale;
+        // initialize the arrays
+        cdfR=new A32F(256); 
+        if ( rgb )
+        {
+            cdfG=new A32F(256); 
+            cdfB=new A32F(256);
+        }
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            cdfR[i]=0;
+            cdfR[i+1]=0;
+            cdfR[i+2]=0;
+            cdfR[i+3]=0;
+            if ( rgb )
+            {
+                cdfG[i]=0; cdfB[i]=0;
+                cdfG[i+1]=0; cdfB[i+1]=0;
+                cdfG[i+2]=0; cdfB[i+2]=0;
+                cdfG[i+3]=0; cdfB[i+3]=0;
+            }
+        }
+        // compute pdf and maxima/minima
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i];
+            cdfR[r] += n;
+            
+            if (r>maxR) maxR=r;
+            else if (r<minR) minR=r;
+            
+            if ( rgb )
+            {
+                g = im[i+1]; b = im[i+2];
+                cdfG[g] += n; cdfB[b] += n;
+                if (g>maxG) maxG=g;
+                else if (g<minG) minG=g;
+                if (b>maxB) maxB=b;
+                else if (b<minB) minB=b;
+            }
+        }
+        
+        // compute cdf
+        accumR=accumG=accumB=0;
+        for (i=0; i<256; i+=4) 
+        { 
+            // partial loop unrolling
+            accumR += cdfR[i]; cdfR[i] = accumR;
+            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+            
+            if ( rgb )
+            {
+                accumG += cdfG[i]; cdfG[i] = accumG;
+                accumB += cdfB[i]; cdfB[i] = accumB;
+                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+            }
+        }
+        
+        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
+    }
+    
+    ,spectrum: function( im, w, h, grayscale ) {
+        // TODO
+        return null;
+    }
+};
+
 }(FILTER);/**
 *
 * Color Methods / Transforms
@@ -1524,84 +1554,53 @@ var Color = FILTER.Color = FILTER.Class({
         
         clampPixel: function( v ) { return min(255, max(v, 0)); },
         
-        ubyteToFloat: function( ub ) { return ub * 0.0039215686274509803921568627451; /* 1 / 255; */ },
-
-        ubyteColorToFloatColor: function(color) {
-            var ii, cL=color.length, floatColor=new Array(cL);
-            for (i=0; i<cL; i++)  floatColor[i] = color[i] * 0.0039215686274509803921568627451;
-            return floatColor;
-        },
-        
-        hexColorToFloatColor: function(color) {
-            var r, g, b,a;
-            r = (color>>16)&255;
-            g = (color>>8)&255;
-            b = (color)&255;
-            a = (color>>24)&255;
-
-            return [
-                r * 0.0039215686274509803921568627451,
-                g * 0.0039215686274509803921568627451,
-                b * 0.0039215686274509803921568627451,
-                a * 0.0039215686274509803921568627451
-            ];
-        },
-        
-        blend: function(rgb1, rgb2, p) {
-            return {
-                r: rgb1.r - ~~((rgb1.r - rgb2.r) * p + 0.5), 
-                g:rgb1.g - ~~((rgb1.g - rgb2.g) * p + 0.5), 
-                b: rgb1.b - ~~((rgb1.b - rgb2.b) * p + 0.5)
-            };
-        },
-        
         toGray: function(r, g, b) {
             var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
         }, 
         
         distance: function(rgb1, rgb2) {
-            var dr=rgb1.r-rgb2.r, dg=rgb1.g-rgb2.g, db=rgb1.b-rgb2.b;
+            var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
         RGB2Color: function(rgb) {
-            return ((rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+            return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
         },
         
-        RGBA2Color: function(rgb) {
-            return ((rgb.a << 24) | (rgb.r << 16) | (rgb.g << 8) | (rgb.b)&255);
+        RGBA2Color: function(rgba) {
+            return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
         },
         
         Color2RGBA: function(c) {
             c=~~c;
-            return {
-                r : (c >>> 16) & 255,
-                g : (c >>> 8) & 255,
-                b : (c & 255),
-                a : (c >>> 24) & 255
-            };
+            return [
+                (c >>> 16) & 255,
+                (c >>> 8) & 255,
+                (c & 255),
+                (c >>> 24) & 255
+            ];
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
         RGB2YCbCr: function(rgb) {
-            var y, cb, cr, r=rgb.r, g=rgb.g, b=rgb.b;
+            var y, cb, cr, r=rgb[0], g=rgb[1], b=rgb[2];
             
             // each take full range from 0-255
             y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
             cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
             cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            return {y:y, cb:cb, cr:cr};
+            return [y, cb, cr];
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
         YCbCr2RGB: function(ycbcr) {
-            var r, g, b, y=ycbcr.y, cb=ycbcr.cb, cr=ycbcr.cr;
+            var r, g, b, y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
             
             // each take full range from 0-255
             r = ~~( y                      + 1.402   * (cr-128) );
             g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
             b = ~~( y + 1.772   * (cb-128) );
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -1611,7 +1610,7 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
 
-            r=rgb.r; g=rgb.g; b=rgb.b;
+            r=rgb[0]; g=rgb[1]; b=rgb[2];
             
             m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
             v = M;                // v
@@ -1624,7 +1623,7 @@ var Color = FILTER.Color = FILTER.Class({
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
-                return { h:h, s:s, v:v };
+                return [h, s, v];
             }
 
             if( r == M )    h = ( g - b ) / delta;        // between yellow & magenta
@@ -1634,7 +1633,7 @@ var Color = FILTER.Color = FILTER.Class({
             h *= 60;                // degrees
             if( h < 0 )  h += 360;
             
-            return { h:h, s:s, v:v };
+            return [h, s, v];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
@@ -1645,13 +1644,13 @@ var Color = FILTER.Color = FILTER.Class({
                 r, g, b, h, s, v
             ;
             
-            h=hsv.h; s=hsv.s; v=hsv.v;
+            h=hsv[0]; s=hsv[1]; v=hsv[2];
             
             if( s == 0 ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
-                return {r:r, g:g, b:b};
+                return [r, g, b];
             }
 
             h /= 60;            // sector 0 to 5
@@ -1676,7 +1675,7 @@ var Color = FILTER.Color = FILTER.Class({
                     break;
             }
             
-            return {r:r, g:g, b:b};
+            return [r, g, b];
         },
         
         toString: function() {
@@ -2475,7 +2474,6 @@ function _refreshSelectedData( scope, what )
 }
     
 //
-//
 // Image (Proxy) Class
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
@@ -3136,13 +3134,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
-//
 // static
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
+FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear;
 
 // crop image data
 FilterImage.crop = FILTER.Interpolate.crop;
+
+// pad image data
+FilterImage.pad = FILTER.Interpolate.pad;
 
 // compute integral image (summed area table, SAT)
 FilterImage.integral = FILTER.Compute.integral;
@@ -3153,7 +3153,6 @@ FilterImage.histogram = FILTER.Compute.histogram;
 // compute image spectrum
 FilterImage.spectrum = FILTER.Compute.spectrum;
 
-//
 //
 // Scaled Image (Proxy) Class
 var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {

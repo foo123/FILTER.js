@@ -26,9 +26,9 @@ FILTER.Create({
         
         for (i=0; i<l; i+=4)
         {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            ycbcr = RGB2YCBCR({r:r, g:g, b:b});
-            im[i] = ycbcr.cr; im[i+1] = ycbcr.y; im[i+2] = ycbcr.cb;
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            ycbcr = RGB2YCBCR(im.subarray(i,i+3));
+            im[i] = ycbcr[2]; im[i+1] = ycbcr[0]; im[i+2] = ycbcr[1];
         }
         
         // return the new image data

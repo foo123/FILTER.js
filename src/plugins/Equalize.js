@@ -44,9 +44,9 @@ FILTER.Create({
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
         {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            ycbcr = RGB2YCbCr({r:r, g:g, b:b});
-            r = im[i] = ~~ycbcr.cr; g = im[i+1] = ~~ycbcr.y; b = im[i+2] = ~~ycbcr.cb;
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            ycbcr = RGB2YCbCr(im.subarray(i,i+3));
+            r = im[i] = ~~ycbcr[2]; g = im[i+1] = ~~ycbcr[0]; b = im[i+2] = ~~ycbcr[1];
             cdfI[ g ] += n;
             
             if ( g>maxI ) maxI=g;
@@ -70,10 +70,10 @@ FILTER.Create({
         {   
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
-                ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                ycbcr = [im[i+1], im[i+2], im[i]];
+                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
                 rgba = YCbCr2RGB(ycbcr);
-                t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; 
+                t0 = rgba[0]; t1 = rgba[1]; t2 = rgba[2]; 
                 // clamp them manually
                 t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
                 t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
@@ -85,10 +85,10 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = {cr : im[i], y : im[i+1], cb : im[i+2]};
-                ycbcr.y = cdfI[ycbcr.y]*rangeI + minI;
+                ycbcr = [im[i+1], im[i+2], im[i]];
+                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
                 rgba = YCbCr2RGB(ycbcr);
-                im[i] = ~~rgba.r; im[i+1] = ~~rgba.g; im[i+2] = ~~rgba.b; 
+                im[i] = ~~rgba[0]; im[i+1] = ~~rgba[1]; im[i+2] = ~~rgba[2]; 
             }
         }
         

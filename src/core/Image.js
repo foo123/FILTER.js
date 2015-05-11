@@ -113,7 +113,6 @@ function _refreshSelectedData( scope, what )
 }
     
 //
-//
 // Image (Proxy) Class
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
@@ -774,13 +773,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
-//
 // static
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear/*bicubic*/;
+FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear;
 
 // crop image data
 FilterImage.crop = FILTER.Interpolate.crop;
+
+// pad image data
+FilterImage.pad = FILTER.Interpolate.pad;
 
 // compute integral image (summed area table, SAT)
 FilterImage.integral = FILTER.Compute.integral;
@@ -791,7 +792,6 @@ FilterImage.histogram = FILTER.Compute.histogram;
 // compute image spectrum
 FilterImage.spectrum = FILTER.Compute.spectrum;
 
-//
 //
 // Scaled Image (Proxy) Class
 var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {

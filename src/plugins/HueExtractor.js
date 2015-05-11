@@ -66,21 +66,21 @@ FILTER.Create({
         var self = this;
         if (!self._isOn || !self.range || !self.range.length) return im;
         
-        var r, g, b, br, bg, bb, ba,
+        var /*r, g, b,*/ br, bg, bb, ba,
             i, l=im.length, background, hue,
             hMin=self.range[0], hMax=self.range[self.range.length-1]
             ;
         
         background = Color2RGBA(self.background||0);
-        br = ~~clamp(background.r); 
-        bg = ~~clamp(background.g); 
-        bb = ~~clamp(background.b); 
-        ba = ~~clamp(background.a);
+        br = ~~clamp(background[0]); 
+        bg = ~~clamp(background[1]); 
+        bb = ~~clamp(background[2]); 
+        ba = ~~clamp(background[3]);
         
         for (i=0; i<l; i+=4)
         {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            hue = RGB2HSV({r:r, g:g, b:b}).h;
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            hue = RGB2HSV(im.subarray(i,i+3))[0];
             
             if (hue<hMin || hue>hMax) 
             {  

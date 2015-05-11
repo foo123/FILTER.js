@@ -25,15 +25,15 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var r,g,b, i, l=im.length, hsv, t0, t1, t2;
+        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2;
         
         if ( notSupportClamp )
         {   
             for (i=0; i<l; i+=4)
             {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV({r:r, g:g, b:b});
-                t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
                 // clamp them manually
                 if (t0<0) t0=0;
                 else if (t0>255) t0=255;
@@ -48,9 +48,9 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV({r:r, g:g, b:b});
-                t0 = hsv.h*toCol; t2 = hsv.s*255; t1 = hsv.v;
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }

@@ -7,7 +7,7 @@
 !function(FILTER){
 @@USE_STRICT@@
 
-var FLOOR = Math.floor;
+var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
  
 // adapted from:
 
@@ -501,29 +501,28 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
     return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
 }
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-var PI2 = FILTER.CONSTANTS.PI2;
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
-        nx = Math.cos(s)*baseX/w/PI2,
-        ny = Math.cos(t)*baseX/w/PI2,
-        nz = Math.sin(s)*baseY/h/PI2,
-        nw = Math.sin(t)*baseY/h/PI2
+    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
+        nx = w*cos(s)*PI2/baseX,
+        ny = h*cos(t)*PI2/baseY,
+        nz = w*sin(s)*PI2/baseX,
+        nw = h*sin(t)*PI2/baseY
     ;
     return simplex4(nx,ny,nz,nw);
 }
 function seamless_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = PI2*((x+offsetX)%w)/baseX, t = PI2*((y+offsetY)%h)/baseY,
-        nx = Math.cos(s)*baseX/w/PI2,
-        ny = Math.cos(t)*baseX/w/PI2,
-        nz = Math.sin(s)*baseY/h/PI2,
-        nw = Math.sin(t)*baseY/h/PI2
+    var s = PI2*((x+offsetX)%w)/w, t = PI2*((y+offsetY)%h)/h,
+        nx = cos(s),
+        ny = cos(t),
+        nz = sin(s),
+        nw = sin(t)
     ;
     return perlin4(nx,ny,nz,nw);
 }
 // adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
+function octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, octave;
 
@@ -671,7 +670,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
-            n = 0.5*octave_noise(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
+            n = 0.5*octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
             if ( is_grayscale )
             {
                 im[i] = im[i+1] = im[i+2] = ~~(255*n);

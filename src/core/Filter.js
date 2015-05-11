@@ -17,10 +17,6 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
     ,userAgent = navigator ? navigator.userAgent : ""
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
-    
-    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
-    
     ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
@@ -30,8 +26,19 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
             init.apply( this, arguments );
         };
     }
-    ,log
-    ,_uuid = 0
+    
+    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
+    
+    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
+    ,no_typed_array_set = ('undefined' === typeof Int16Array) || !Int16Array[PROTO].set
+    ,typed_array_set = function( a, offset ) {
+        var i = a.length;
+        offset = offset || 0;
+        while ( --i >= 0 ) this[ i + offset ] = a[ i ];
+    }
+    ,typed_array_subarray = AP.slice
+    
+    ,log, _uuid = 0
 ;
 
 //
@@ -97,15 +104,7 @@ FILTER.uuid = function( namespace ) {
     return [namespace||'filter', new Date( ).getTime( ), ++_uuid].join('_'); 
 };
 
-//
-//
-// webgl support
-FILTER.useWebGL = false;
-FILTER.useWebGLSharedResources = false;
-FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
-//
 //
 // Typed Arrays Substitute(s)
 FILTER.Array = Array;
@@ -118,26 +117,49 @@ FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
 
+if ( !FILTER.Array32F[PROTO].set )
+{
+    FILTER.Array32F[PROTO].set = typed_array_set;
+    FILTER.Array64F[PROTO].set = typed_array_set;
+    FILTER.Array8I[PROTO].set = typed_array_set;
+    FILTER.Array16I[PROTO].set = typed_array_set;
+    FILTER.Array32I[PROTO].set = typed_array_set;
+    FILTER.Array8U[PROTO].set = typed_array_set;
+    FILTER.Array16U[PROTO].set = typed_array_set;
+    FILTER.Array32U[PROTO].set = typed_array_set;
+}
+if ( !FILTER.Array32F[PROTO].subarray )
+{
+    FILTER.Array32F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array64F[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32I[PROTO].subarray = typed_array_subarray;
+    FILTER.Array8U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array16U[PROTO].subarray = typed_array_subarray;
+    FILTER.Array32U[PROTO].subarray = typed_array_subarray;
+}
+
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-    
+
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
 {
-    var _set = function( a, offset ) {
-            var i = a.length;
-            offset = offset || 0;
-            while ( --i >= 0 ) this[ i + offset ] = a[ i ];
-            return this;
-    };
     // add the missing method to the array
-    CanvasPixelArray[PROTO].set = _set;
+    CanvasPixelArray[PROTO].set = typed_array_set;
 }
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 //
+// webgl support
+FILTER.useWebGL = false;
+FILTER.useWebGLSharedResources = false;
+FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
+FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
+
 //
 // Constants
 FILTER.CHANNEL = {
@@ -173,14 +195,12 @@ FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
 //
-//
 // logging
 log = FILTER.log = (console && console.log) ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ };
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
 var 
-    //
     //
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
@@ -300,7 +320,6 @@ var
     }),
     
     //
-    //
     // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
@@ -344,6 +363,7 @@ var
         
         // whether filter updates output image or not
         ,update: function( bool ) {
+            if ( !arguments.length ) bool = true;
             this._update = !!bool;
             return this;
         }
@@ -465,7 +485,6 @@ var
     })
 ;
 
-//
 //
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {

@@ -67,23 +67,22 @@ FILTER.Create({
         if (!self._isOn || !self.thresholds || !self.thresholds.length || 
             !self.quantizedColors || !self.quantizedColors.length) return im;
         
-        var t0, t1, t2, t3, color, rgba,
+        var color, rgba,
             i, j, l=im.length,
             thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
-            ;
+        ;
         
         for (i=0; i<l; i+=4)
         {
-            color = RGBA2Color({r:im[i], g:im[i+1], b:im[i+2], a:im[i+3]});
+            color = RGBA2Color(im.subarray[i,i+4]);
             
             // maybe use sth faster here ??
             j=0; while (j<tl && color>thresholds[j]) j++;
             color = (j<cl) ? colors[j] : 255;
             
             rgba = Color2RGBA(color);
-            t0 = rgba.r; t1 = rgba.g; t2 = rgba.b; t3 = rgba.a;
-            
-            im[i] = t0; im[i+1] = t1; im[i+2] = t2; im[i+3] = t3;
+            //im.set(rgba,i);
+            im[i] = rgba[0]; im[i+1] = rgba[1]; im[i+2] = rgba[2]; im[i+3] = rgba[3];
         }
         
         // return the new image data
