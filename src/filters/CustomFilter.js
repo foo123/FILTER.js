@@ -11,7 +11,8 @@
 !function(FILTER, undef){
 @@USE_STRICT@@
 
-//
+var HAS = 'hasOwnProperty';
+
 //
 //  Custom Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
@@ -23,15 +24,31 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
         self.$super('constructor');
         // using bind makes the code become [native code] and thus unserializable
         self._handler = handler && 'function' === typeof(handler) ? handler : null;
+        self._params = {};
     }
     
     ,_handler: null
+    ,_params: null
     
     ,dispose: function( ) {
         var self = this;
         self.$super('dispose');
         self._handler = null;
+        self._params = null;
         return self;
+    }
+    
+    ,params: function( params ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            for (var p in params)
+            {
+                if ( params[HAS](p) ) self._params[p] = params[p];
+            }
+            return self;
+        }
+        return self._params;
     }
     
     ,serialize: function( ) {
@@ -42,6 +59,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
             
             ,params: {
                 _handler: self._handler ? self._handler.toString( ) : null
+                ,_params: self._params
             }
         };
     }
@@ -60,6 +78,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
                 // using bind makes the code become [native code] and thus unserializable
                 self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
             }
+            self._params = params._params || {};
         }
         return self;
     }

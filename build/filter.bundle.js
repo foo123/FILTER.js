@@ -21,7 +21,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-12 04:46:27
+*   @built on 2015-05-12 05:37:55
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -158,7 +158,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-12 04:46:27
+*   @built on 2015-05-12 05:37:55
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3685,7 +3685,8 @@ CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 !function(FILTER, undef){
 "use strict";
 
-//
+var HAS = 'hasOwnProperty';
+
 //
 //  Custom Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
@@ -3697,15 +3698,31 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
         self.$super('constructor');
         // using bind makes the code become [native code] and thus unserializable
         self._handler = handler && 'function' === typeof(handler) ? handler : null;
+        self._params = {};
     }
     
     ,_handler: null
+    ,_params: null
     
     ,dispose: function( ) {
         var self = this;
         self.$super('dispose');
         self._handler = null;
+        self._params = null;
         return self;
+    }
+    
+    ,params: function( params ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            for (var p in params)
+            {
+                if ( params[HAS](p) ) self._params[p] = params[p];
+            }
+            return self;
+        }
+        return self._params;
     }
     
     ,serialize: function( ) {
@@ -3716,6 +3733,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
             
             ,params: {
                 _handler: self._handler ? self._handler.toString( ) : null
+                ,_params: self._params
             }
         };
     }
@@ -3734,6 +3752,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
                 // using bind makes the code become [native code] and thus unserializable
                 self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
             }
+            self._params = params._params || {};
         }
         return self;
     }
@@ -11541,6 +11560,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
+    ,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -11552,6 +11572,7 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
+        self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
@@ -11566,8 +11587,10 @@ FILTER.Create({
     }
     
     ,haar: function( haardata ) {
-        this.haardata = haardata;
-        return this;
+        var self = this;
+        self.haardata = haardata;
+        self._haarchanged = true;
+        return self;
     }
     
     ,params: function( params ) {
@@ -11587,13 +11610,12 @@ FILTER.Create({
     
     ,serialize: function( ) {
         var self = this;
-        return {
+        var json = {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                 haardata: self.haardata
-                ,baseScale: self.baseScale
+                 baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -11602,6 +11624,13 @@ FILTER.Create({
                 ,cannyHigh: self.cannyHigh
             }
         };
+        // avoid unnecessary (large) data transfer
+        if ( self._haarchanged )
+        {
+            json.params.haardata = self.haardata;
+            self._haarchanged = false;
+        }
+        return json;
     }
     
     ,unserialize: function( json ) {
@@ -11612,7 +11641,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.haardata = params.haardata;
+            if ( params[HAS]('haardata') ) self.haardata = params.haardata;
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;

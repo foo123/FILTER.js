@@ -373,6 +373,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
+    ,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -384,6 +385,7 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
+        self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
@@ -398,8 +400,10 @@ FILTER.Create({
     }
     
     ,haar: function( haardata ) {
-        this.haardata = haardata;
-        return this;
+        var self = this;
+        self.haardata = haardata;
+        self._haarchanged = true;
+        return self;
     }
     
     ,params: function( params ) {
@@ -419,13 +423,12 @@ FILTER.Create({
     
     ,serialize: function( ) {
         var self = this;
-        return {
+        var json = {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                 haardata: self.haardata
-                ,baseScale: self.baseScale
+                 baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -434,6 +437,13 @@ FILTER.Create({
                 ,cannyHigh: self.cannyHigh
             }
         };
+        // avoid unnecessary (large) data transfer
+        if ( self._haarchanged )
+        {
+            json.params.haardata = self.haardata;
+            self._haarchanged = false;
+        }
+        return json;
     }
     
     ,unserialize: function( json ) {
@@ -444,7 +454,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.haardata = params.haardata;
+            if ( params[HAS]('haardata') ) self.haardata = params.haardata;
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
