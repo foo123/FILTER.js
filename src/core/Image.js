@@ -775,13 +775,13 @@ FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
 // static
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolate.bilinear;
+FilterImage.scale = FilterImage.resize = FILTER.Interpolation.bilinear;
 
 // crop image data
-FilterImage.crop = FILTER.Interpolate.crop;
+FilterImage.crop = FILTER.Interpolation.crop;
 
 // pad image data
-FilterImage.pad = FILTER.Interpolate.pad;
+FilterImage.pad = FILTER.Interpolation.pad;
 
 // compute integral image (summed area table, SAT)
 FilterImage.integral = FILTER.Compute.integral;
