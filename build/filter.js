@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-12 18:05:20
+*   @built on 2015-05-12 19:01:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-12 18:05:20
+*   @built on 2015-05-12 19:01:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library

@@ -503,11 +503,13 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
-        nx = w*cos(s)*PI2/baseX,
-        ny = h*cos(t)*PI2/baseY,
-        nz = w*sin(s)*PI2/baseX,
-        nw = h*sin(t)*PI2/baseY
+    var s = PI2*((x+offsetX)%baseX)/baseX, t = PI2*((y+offsetY)%baseY)/baseY,
+        x1 = -1, y1 = -1, x2 = 1, y2 = 1, 
+        dx = (x2-x1), dy = (y2-y1),
+        nx = x1 + cos(s)*dx/PI2,
+        ny = y1 + cos(t)*dy/PI2,
+        nz = x1 + sin(s)*dx/PI2,
+        nw = y1 + sin(t)*dy/PI2
     ;
     return simplex4(nx,ny,nz,nw);
 }

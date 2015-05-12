@@ -753,11 +753,13 @@ function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 // adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
 function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
 {
-    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
-        nx = w*cos(s)*PI2/baseX,
-        ny = h*cos(t)*PI2/baseY,
-        nz = w*sin(s)*PI2/baseX,
-        nw = h*sin(t)*PI2/baseY
+    var s = PI2*((x+offsetX)%baseX)/baseX, t = PI2*((y+offsetY)%baseY)/baseY,
+        x1 = -1, y1 = -1, x2 = 1, y2 = 1, 
+        dx = (x2-x1), dy = (y2-y1),
+        nx = x1 + cos(s)*dx/PI2,
+        ny = y1 + cos(t)*dy/PI2,
+        nz = x1 + sin(s)*dx/PI2,
+        nw = y1 + sin(t)*dy/PI2
     ;
     return simplex4(nx,ny,nz,nw);
 }
@@ -1766,7 +1768,8 @@ FILTER.Create({
             colored = !self._grayscale,
             x, y, yw, sw = size*w, i, j, jw, 
             sum_r, sum_g, sum_b, qr, qg, qb
-            //,f11 = area*f1, f22 = area*f2, f33 = area*f3, f44 = area*f4
+            ,f11 = /*area**/f1, f22 = /*area**/f2
+            ,f33 = /*area**/f3, f44 = /*area**/f4
         ;
         
         y=0; yw=0; x=0;
@@ -1813,9 +1816,9 @@ FILTER.Create({
                 while ( j < size )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f1*qr;
-                    err[index+1] += f1*qg;
-                    err[index+2] += f1*qb;
+                    err[index] += f11*qr;
+                    err[index+1] += f11*qg;
+                    err[index+2] += f11*qb;
                     i++;
                     if ( i>=size2 ) {i=size; j++; jw+=w;}
                 }
@@ -1826,9 +1829,9 @@ FILTER.Create({
                 while ( j < size2 )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f2*qr;
-                    err[index+1] += f2*qg;
-                    err[index+2] += f2*qb;
+                    err[index] += f22*qr;
+                    err[index+1] += f22*qg;
+                    err[index+2] += f22*qb;
                     i++;
                     if ( i>=0 ) {i=-size; j++; jw+=w;}
                 }
@@ -1839,9 +1842,9 @@ FILTER.Create({
                 while ( j < size2 )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f3*qr;
-                    err[index+1] += f3*qg;
-                    err[index+2] += f3*qb;
+                    err[index] += f33*qr;
+                    err[index+1] += f33*qg;
+                    err[index+2] += f33*qb;
                     i++;
                     if ( i>=size ) {i=0; j++; jw+=w;}
                 }
@@ -1852,9 +1855,9 @@ FILTER.Create({
                 while ( j < size2 )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f4*qr;
-                    err[index+1] += f4*qg;
-                    err[index+2] += f4*qb;
+                    err[index] += f44*qr;
+                    err[index+1] += f44*qg;
+                    err[index+2] += f44*qb;
                     i++;
                     if ( i>=size2 ) {i=size; j++; jw+=w;}
                 }
