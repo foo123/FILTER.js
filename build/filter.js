@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-11 16:54:56
+*   @built on 2015-05-12 04:46:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-11 16:54:56
+*   @built on 2015-05-12 04:46:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1359,6 +1359,12 @@ FILTER.Compute = {
     }
 };
 
+FILTER.Classify = {
+     kmeans: function(){}
+    ,em: function(){}
+    ,meanshift: function(){}
+};
+
 }(FILTER);/**
 *
 * Color Methods / Transforms
@@ -1372,7 +1378,7 @@ var // utils
     Sqrt = Math.sqrt, 
     round = Math.round, floor = Math.floor, min = Math.min, max = Math.max, abs = Math.abs,
     
-    clamp = function(v, m, M) { return max(min(v, M), m); },
+    clamp = FILTER.Math.clamp,
     
     esc = function(s) { return s.replace(/([.*+?^${}()|\[\]\/\\\-])/g, '\\$1'); },
     
@@ -3351,7 +3357,7 @@ FILTER.BinaryLoader = Class(Loader, {
                 .load( url, function( buffer ) {
                     var imData = loader._parser( buffer );
                     if ( !imData ) return;
-                    image.setImage(imData);
+                    image.image(imData);
                     if ( 'function' === typeof onLoad ) onLoad(image, imData);
                 }, onProgress, onError )
             ;

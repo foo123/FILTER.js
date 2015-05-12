@@ -106,7 +106,7 @@ FILTER.BinaryLoader = Class(Loader, {
                 .load( url, function( buffer ) {
                     var imData = loader._parser( buffer );
                     if ( !imData ) return;
-                    image.setImage(imData);
+                    image.image(imData);
                     if ( 'function' === typeof onLoad ) onLoad(image, imData);
                 }, onProgress, onError )
             ;

@@ -61,7 +61,7 @@ FILTER.Create({
         if (!self._isOn || self.scale<=1) return im;
         if (self.scale>100) self.scale=100;
         
-        var imLen = im.length, imArea = (imLen>>2),
+        var imLen = im.length, imArea = (imLen>>>2),
             step, stepw, hstep, wstep, hstepw, wRem, hRem,
             inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
             inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,

@@ -662,22 +662,23 @@ image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
 __Included Plugins__ (see examples for how to use)
 
 * __Noise__ : generate uniform noise
+* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
 * __Equalize__ : apply histogram equalization
 * __GrayscaleEqualize__ : apply a faster histogram equalization only for grayscale images
 * __RGBEqualize__ : apply histogram equalization per separate color channel
 * __Pixelate__ : fast pixelate the image to the given scale
 * __TriangularPixelate__ : fast triangular pixelate the image to the given scale
 * __HexagonalPixelate__ : fast hexagonal pixelate the image to the given scale (TODO)
-* __HSVConverter__ : convert the image to HSV color space
-* __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
-* __HueExtractor__ : extract a range of hues from the image
-* __AlphaMask__ : apply another image as an alpha mask to the target image
-* __Blend__ : apply photoshop-like image blending as a filter <del>(similar method exists also in __Image__ class)</del>
-* __ChannelCopy__ : copy a channel from an image to another channel on target image
-* __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
+* __Halftone__ : create a halftone/dithered black-white or colored image from target image
 * __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
 * __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
+* __SeamlessTile__ : create a seamless tileable pattern from target image
+* __HSVConverter__ : convert the image to HSV color space
+* __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
+* __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
+* __HueExtractor__ : extract a range of hues from the image
 * __CannyEdges__ : an efficient Canny Edges Detector/Extractor
 * __HaarDetector__ : detect features in image using Viola-Jones-Lienhart openCV algorithm with HAAR cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
-* __SeamlessTile__ : create a seamless tileable pattern from target image
+* __ChannelCopy__ : copy a channel from an image to another channel on target image
+* __AlphaMask__ : apply another image as an alpha mask to the target image
+* __Blend__ : apply photoshop-like image blending as a filter <del>(similar method exists also in __Image__ class)</del>

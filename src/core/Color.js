@@ -11,7 +11,7 @@ var // utils
     Sqrt = Math.sqrt, 
     round = Math.round, floor = Math.floor, min = Math.min, max = Math.max, abs = Math.abs,
     
-    clamp = function(v, m, M) { return max(min(v, M), m); },
+    clamp = FILTER.Math.clamp,
     
     esc = function(s) { return s.replace(/([.*+?^${}()|\[\]\/\\\-])/g, '\\$1'); },
     

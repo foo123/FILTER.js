@@ -21,7 +21,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-11 16:54:56
+*   @built on 2015-05-12 04:46:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -158,7 +158,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-11 16:54:56
+*   @built on 2015-05-12 04:46:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1378,6 +1378,12 @@ FILTER.Compute = {
     }
 };
 
+FILTER.Classify = {
+     kmeans: function(){}
+    ,em: function(){}
+    ,meanshift: function(){}
+};
+
 }(FILTER);/**
 *
 * Color Methods / Transforms
@@ -1391,7 +1397,7 @@ var // utils
     Sqrt = Math.sqrt, 
     round = Math.round, floor = Math.floor, min = Math.min, max = Math.max, abs = Math.abs,
     
-    clamp = function(v, m, M) { return max(min(v, M), m); },
+    clamp = FILTER.Math.clamp,
     
     esc = function(s) { return s.replace(/([.*+?^${}()|\[\]\/\\\-])/g, '\\$1'); },
     
@@ -3370,7 +3376,7 @@ FILTER.BinaryLoader = Class(Loader, {
                 .load( url, function( buffer ) {
                     var imData = loader._parser( buffer );
                     if ( !imData ) return;
-                    image.setImage(imData);
+                    image.image(imData);
                     if ( 'function' === typeof onLoad ) onLoad(image, imData);
                 }, onProgress, onError )
             ;
@@ -8207,6 +8213,695 @@ FILTER.Create({
 
 }(FILTER);/**
 *
+* Perlin Noise Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
+ 
+// adapted from:
+
+// https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c
+/* SimplexNoise1234, Simplex noise with true analytic
+ * derivative in 1D to 4D.
+ *
+ * Author: Stefan Gustavson, 2003-2005
+ * Contact: stegu@itn.liu.se
+ *
+ * This code was GPL licensed until February 2011.
+ * As the original author of this code, I hereby
+ * release it into the public domain.
+ * Please feel free to use it for whatever you want.
+ * Credit is appreciated where appropriate, and I also
+ * appreciate being told where this code finds any use,
+ * but you may do as you like.
+ */
+
+ // https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c
+/* noise1234
+ *
+ * Author: Stefan Gustavson, 2003-2005
+ * Contact: stegu@itn.liu.se
+ *
+ * This code was GPL licensed until February 2011.
+ * As the original author of this code, I hereby
+ * release it into the public domain.
+ * Please feel free to use it for whatever you want.
+ * Credit is appreciated where appropriate, and I also
+ * appreciate being told where this code finds any use,
+ * but you may do as you like.
+ */
+
+/*
+ * Permutation table. This is just a random jumble of all numbers 0-255,
+ * repeated twice to avoid wrapping the index at 255 for each lookup.
+ * This needs to be exactly the same for all instances on all platforms,
+ * so it's easiest to just keep it as static explicit data.
+ * This also removes the need for any initialisation of this class.
+ *
+ * Note that making this an int[] instead of a char[] might make the
+ * code run faster on platforms with a high penalty for unaligned single
+ * byte addressing. Intel x86 is generally single-byte-friendly, but
+ * some other CPUs are faster with 4-aligned reads.
+ * However, a char[] is smaller, which avoids cache trashing, and that
+ * is probably the most important aspect on most architectures.
+ * This array is accessed a *lot* by the noise functions.
+ * A vector-valued noise over 3D accesses it 96 times, and a
+ * float-valued 4D noise 64 times. We want this to fit in the cache!
+ */
+var p = new FILTER.Array8U([151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180,
+  151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
+]), perm = new FILTER.Array8U(p); // copy it initially
+
+// This isn't a very good seeding function, but it works ok. It supports 2^16
+// different seed values. Write something better if you need more seeds.
+function seed( seed ) 
+{
+    var v, i;
+    // Scale the seed out
+    if ( seed > 0 && seed < 1 ) seed *= 65536;
+
+    seed = FLOOR( seed );
+    if ( seed < 256 ) seed |= seed << 8;
+    for (i = 0; i < 256; i++) 
+    {
+        v = ( i & 1 ) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
+        perm[i] = perm[i + 256] = v;
+    }
+}
+//seed(0);
+
+/*
+ * Helper functions to compute gradients-dot-residualvectors (1D to 4D)
+ * Note that these generate gradients of more than unit length. To make
+ * a close match with the value range of classic Perlin noise, the final
+ * noise values need to be rescaled to fit nicely within [-1,1].
+ * (The simplex noise functions as such also have different scaling.)
+ * Note also that these noise functions are the most practical and useful
+ * signed version of Perlin noise. To return values according to the
+ * RenderMan specification from the SL noise() and pnoise() functions,
+ * the noise values need to be scaled and offset to [0,1], like this:
+ * float SLnoise = (noise(x,y,z) + 1.0) * 0.5;
+ */
+
+function grad1( hash, x ) 
+{
+    var h = hash & 15;
+    var grad = 1.0 + (h & 7);   // Gradient value 1.0, 2.0, ..., 8.0
+    if (h&8) grad = -grad;         // Set a random sign for the gradient
+    return ( grad * x );           // Multiply the gradient with the distance
+}
+
+function grad2( hash, x, y ) 
+{
+    var h = hash & 7;      // Convert low 3 bits of hash code
+    var u = h<4 ? x : y;  // into 8 simple gradient directions,
+    var v = h<4 ? y : x;  // and compute the dot product with (x,y).
+    return ((h&1)? -u : u) + ((h&2)? -2.0*v : 2.0*v);
+}
+
+function grad3( hash, x, y, z ) 
+{
+    var h = hash & 15;     // Convert low 4 bits of hash code into 12 simple
+    var u = h<8 ? x : y; // gradient directions, and compute dot product.
+    var v = h<4 ? y : h==12||h==14 ? x : z; // Fix repeats at h = 12 to 15
+    return ((h&1)? -u : u) + ((h&2)? -v : v);
+}
+
+function grad4( hash, x, y, z, t ) 
+{
+    var h = hash & 31;      // Convert low 5 bits of hash code into 32 simple
+    var u = h<24 ? x : y; // gradient directions, and compute dot product.
+    var v = h<16 ? y : z;
+    var w = h<8 ? z : t;
+    return ((h&1)? -u : u) + ((h&2)? -v : v) + ((h&4)? -w : w);
+}
+
+// A lookup table to traverse the simplex around a given point in 4D.
+// Details can be found where this table is used, in the 4D noise method.
+/* TODO: This should not be required, backport it from Bill's GLSL code! */
+var simplex = [
+[0,1,2,3],[0,1,3,2],[0,0,0,0],[0,2,3,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,2,3,0],
+[0,2,1,3],[0,0,0,0],[0,3,1,2],[0,3,2,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,3,2,0],
+[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
+[1,2,0,3],[0,0,0,0],[1,3,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,3,0,1],[2,3,1,0],
+[1,0,2,3],[1,0,3,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,0,3,1],[0,0,0,0],[2,1,3,0],
+[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
+[2,0,1,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,0,1,2],[3,0,2,1],[0,0,0,0],[3,1,2,0],
+[2,1,0,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,1,0,2],[0,0,0,0],[3,2,0,1],[3,2,1,0]
+];
+
+// 2D simplex noise
+function simplex2( x, y ) 
+{
+    var F2 = 0.366025403; // F2 = 0.5*(sqrt(3.0)-1.0)
+    var G2 = 0.211324865; // G2 = (3.0-Math.sqrt(3.0))/6.0
+    
+    var n0, n1, n2; // Noise contributions from the three corners
+
+    // Skew the input space to determine which simplex cell we're in
+    var s = (x+y)*F2; // Hairy factor for 2D
+    var xs = x + s;
+    var ys = y + s;
+    var i = FLOOR(xs);
+    var j = FLOOR(ys);
+
+    var t = (i+j)*G2;
+    var X0 = i-t; // Unskew the cell origin back to (x,y) space
+    var Y0 = j-t;
+    var x0 = x-X0; // The x,y distances from the cell origin
+    var y0 = y-Y0;
+
+    // For the 2D case, the simplex shape is an equilateral triangle.
+    // Determine which simplex we are in.
+    var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
+    if ( x0>y0 ) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+    else {i1=0; j1=1;}      // upper triangle, YX order: (0,0)->(0,1)->(1,1)
+
+    // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
+    // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
+    // c = (3-sqrt(3))/6
+
+    var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+    var y1 = y0 - j1 + G2;
+    var x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
+    var y2 = y0 - 1.0 + 2.0 * G2;
+
+    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
+    var ii = i & 0xff;
+    var jj = j & 0xff;
+
+    // Calculate the contribution from the three corners
+    var t0 = 0.5 - x0*x0-y0*y0;
+    if ( t0 < 0.0 ) n0 = 0.0;
+    else 
+    {
+        t0 *= t0;
+        n0 = t0 * t0 * grad2(perm[ii+perm[jj]], x0, y0); 
+    }
+
+    var t1 = 0.5 - x1*x1-y1*y1;
+    if (t1 < 0.0) n1 = 0.0;
+    else 
+    {
+        t1 *= t1;
+        n1 = t1 * t1 * grad2(perm[ii+i1+perm[jj+j1]], x1, y1);
+    }
+
+    var t2 = 0.5 - x2*x2-y2*y2;
+    if(t2 < 0.0) n2 = 0.0;
+    else 
+    {
+        t2 *= t2;
+        n2 = t2 * t2 * grad2(perm[ii+1+perm[jj+1]], x2, y2);
+    }
+
+    // Add contributions from each corner to get the final noise value.
+    // The result is scaled to return values in the interval [-1,1].
+    return 40.0 * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
+}
+
+// 4D simplex noise
+function simplex4( x, y, z, w ) 
+{
+    // The skewing and unskewing factors are hairy again for the 4D case
+    var F4 = 0.309016994; // F4 = (Math.sqrt(5.0)-1.0)/4.0
+    var G4 = 0.138196601; // G4 = (5.0-Math.sqrt(5.0))/20.0
+    
+    var n0, n1, n2, n3, n4; // Noise contributions from the five corners
+
+    // Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
+    var s = (x + y + z + w) * F4; // Factor for 4D skewing
+    var xs = x + s;
+    var ys = y + s;
+    var zs = z + s;
+    var ws = w + s;
+    var i = FLOOR(xs);
+    var j = FLOOR(ys);
+    var k = FLOOR(zs);
+    var l = FLOOR(ws);
+
+    var t = (i + j + k + l) * G4; // Factor for 4D unskewing
+    var X0 = i - t; // Unskew the cell origin back to (x,y,z,w) space
+    var Y0 = j - t;
+    var Z0 = k - t;
+    var W0 = l - t;
+
+    var x0 = x - X0;  // The x,y,z,w distances from the cell origin
+    var y0 = y - Y0;
+    var z0 = z - Z0;
+    var w0 = w - W0;
+
+    // For the 4D case, the simplex is a 4D shape I won't even try to describe.
+    // To find out which of the 24 possible simplices we're in, we need to
+    // determine the magnitude ordering of x0, y0, z0 and w0.
+    // The method below is a good way of finding the ordering of x,y,z,w and
+    // then find the correct traversal order for the simplex we’re in.
+    // First, six pair-wise comparisons are performed between each possible pair
+    // of the four coordinates, and the results are used to add up binary bits
+    // for an integer index.
+    var c1 = (x0 > y0) ? 32 : 0;
+    var c2 = (x0 > z0) ? 16 : 0;
+    var c3 = (y0 > z0) ? 8 : 0;
+    var c4 = (x0 > w0) ? 4 : 0;
+    var c5 = (y0 > w0) ? 2 : 0;
+    var c6 = (z0 > w0) ? 1 : 0;
+    var c = c1 + c2 + c3 + c4 + c5 + c6;
+
+    var i1, j1, k1, l1; // The integer offsets for the second simplex corner
+    var i2, j2, k2, l2; // The integer offsets for the third simplex corner
+    var i3, j3, k3, l3; // The integer offsets for the fourth simplex corner
+
+    // simplex[c] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
+    // Many values of c will never occur, since e.g. x>y>z>w makes x<z, y<w and x<w
+    // impossible. Only the 24 indices which have non-zero entries make any sense.
+    // We use a thresholding to set the coordinates in turn from the largest magnitude.
+    // The number 3 in the "simplex" array is at the position of the largest coordinate.
+    i1 = simplex[c][0]>=3 ? 1 : 0;
+    j1 = simplex[c][1]>=3 ? 1 : 0;
+    k1 = simplex[c][2]>=3 ? 1 : 0;
+    l1 = simplex[c][3]>=3 ? 1 : 0;
+    // The number 2 in the "simplex" array is at the second largest coordinate.
+    i2 = simplex[c][0]>=2 ? 1 : 0;
+    j2 = simplex[c][1]>=2 ? 1 : 0;
+    k2 = simplex[c][2]>=2 ? 1 : 0;
+    l2 = simplex[c][3]>=2 ? 1 : 0;
+    // The number 1 in the "simplex" array is at the second smallest coordinate.
+    i3 = simplex[c][0]>=1 ? 1 : 0;
+    j3 = simplex[c][1]>=1 ? 1 : 0;
+    k3 = simplex[c][2]>=1 ? 1 : 0;
+    l3 = simplex[c][3]>=1 ? 1 : 0;
+    // The fifth corner has all coordinate offsets = 1, so no need to look that up.
+
+    var x1 = x0 - i1 + G4; // Offsets for second corner in (x,y,z,w) coords
+    var y1 = y0 - j1 + G4;
+    var z1 = z0 - k1 + G4;
+    var w1 = w0 - l1 + G4;
+    var x2 = x0 - i2 + 2.0*G4; // Offsets for third corner in (x,y,z,w) coords
+    var y2 = y0 - j2 + 2.0*G4;
+    var z2 = z0 - k2 + 2.0*G4;
+    var w2 = w0 - l2 + 2.0*G4;
+    var x3 = x0 - i3 + 3.0*G4; // Offsets for fourth corner in (x,y,z,w) coords
+    var y3 = y0 - j3 + 3.0*G4;
+    var z3 = z0 - k3 + 3.0*G4;
+    var w3 = w0 - l3 + 3.0*G4;
+    var x4 = x0 - 1.0 + 4.0*G4; // Offsets for last corner in (x,y,z,w) coords
+    var y4 = y0 - 1.0 + 4.0*G4;
+    var z4 = z0 - 1.0 + 4.0*G4;
+    var w4 = w0 - 1.0 + 4.0*G4;
+
+    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
+    var ii = i & 0xff;
+    var jj = j & 0xff;
+    var kk = k & 0xff;
+    var ll = l & 0xff;
+
+    // Calculate the contribution from the five corners
+    var t0 = 0.5 - x0*x0 - y0*y0 - z0*z0 - w0*w0; // needs 0.5 here
+    if ( t0 < 0.0 ) n0 = 0.0;
+    else 
+    {
+        t0 *= t0;
+        n0 = t0 * t0 * grad4(perm[ii+perm[jj+perm[kk+perm[ll]]]], x0, y0, z0, w0);
+    }
+
+    var t1 = 0.5 - x1*x1 - y1*y1 - z1*z1 - w1*w1; // needs 0.5 here
+    if ( t1 < 0.0 ) n1 = 0.0;
+    else 
+    {
+        t1 *= t1;
+        n1 = t1 * t1 * grad4(perm[ii+i1+perm[jj+j1+perm[kk+k1+perm[ll+l1]]]], x1, y1, z1, w1);
+    }
+
+    var t2 = 0.5 - x2*x2 - y2*y2 - z2*z2 - w2*w2; // needs 0.5 here
+    if ( t2 < 0.0 ) n2 = 0.0;
+    else 
+    {
+        t2 *= t2;
+        n2 = t2 * t2 * grad4(perm[ii+i2+perm[jj+j2+perm[kk+k2+perm[ll+l2]]]], x2, y2, z2, w2);
+    }
+
+    var t3 = 0.5 - x3*x3 - y3*y3 - z3*z3 - w3*w3; // needs 0.5 here
+    if ( t3 < 0.0 ) n3 = 0.0;
+    else 
+    {
+        t3 *= t3;
+        n3 = t3 * t3 * grad4(perm[ii+i3+perm[jj+j3+perm[kk+k3+perm[ll+l3]]]], x3, y3, z3, w3);
+    }
+
+    var t4 = 0.5 - x4*x4 - y4*y4 - z4*z4 - w4*w4; // needs 0.5 here
+    if ( t4 < 0.0 ) n4 = 0.0;
+    else 
+    {
+        t4 *= t4;
+        n4 = t4 * t4 * grad4(perm[ii+1+perm[jj+1+perm[kk+1+perm[ll+1]]]], x4, y4, z4, w4);
+    }
+
+    // Sum up and scale the result to cover the range [-1,1]
+    return 27.0 * (n0 + n1 + n2 + n3 + n4); // TODO: The scale factor is preliminary!
+}
+
+// This is the new and improved, C(2) continuous interpolant
+function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
+function LERP(t, a, b) { return a + t*(b-a); }
+
+// 2D float Perlin noise.
+function perlin2( x, y )
+{
+    var ix0, iy0, ix1, iy1;
+    var fx0, fy0, fx1, fy1;
+    var s, t, nx0, nx1, n0, n1;
+
+    ix0 = FLOOR( x ); // Integer part of x
+    iy0 = FLOOR( y ); // Integer part of y
+    fx0 = x - ix0;        // Fractional part of x
+    fy0 = y - iy0;        // Fractional part of y
+    fx1 = fx0 - 1.0;
+    fy1 = fy0 - 1.0;
+    ix1 = (ix0 + 1) & 0xff;  // Wrap to 0..255
+    iy1 = (iy0 + 1) & 0xff;
+    ix0 = ix0 & 0xff;
+    iy0 = iy0 & 0xff;
+    
+    t = FADE( fy0 );
+    s = FADE( fx0 );
+
+    nx0 = grad2(perm[ix0 + perm[iy0]], fx0, fy0);
+    nx1 = grad2(perm[ix0 + perm[iy1]], fx0, fy1);
+    n0 = LERP( t, nx0, nx1 );
+
+    nx0 = grad2(perm[ix1 + perm[iy0]], fx1, fy0);
+    nx1 = grad2(perm[ix1 + perm[iy1]], fx1, fy1);
+    n1 = LERP(t, nx0, nx1);
+
+    return 0.507 * ( LERP( s, n0, n1 ) );
+}
+
+// 4D float Perlin noise.
+function perlin4( x, y, z, w )
+{
+    var ix0, iy0, iz0, iw0, ix1, iy1, iz1, iw1;
+    var fx0, fy0, fz0, fw0, fx1, fy1, fz1, fw1;
+    var s, t, r, q;
+    var nxyz0, nxyz1, nxy0, nxy1, nx0, nx1, n0, n1;
+
+    ix0 = FLOOR( x ); // Integer part of x
+    iy0 = FLOOR( y ); // Integer part of y
+    iz0 = FLOOR( z ); // Integer part of y
+    iw0 = FLOOR( w ); // Integer part of w
+    fx0 = x - ix0;        // Fractional part of x
+    fy0 = y - iy0;        // Fractional part of y
+    fz0 = z - iz0;        // Fractional part of z
+    fw0 = w - iw0;        // Fractional part of w
+    fx1 = fx0 - 1.0;
+    fy1 = fy0 - 1.0;
+    fz1 = fz0 - 1.0;
+    fw1 = fw0 - 1.0;
+    ix1 = ( ix0 + 1 ) & 0xff;  // Wrap to 0..255
+    iy1 = ( iy0 + 1 ) & 0xff;
+    iz1 = ( iz0 + 1 ) & 0xff;
+    iw1 = ( iw0 + 1 ) & 0xff;
+    ix0 = ix0 & 0xff;
+    iy0 = iy0 & 0xff;
+    iz0 = iz0 & 0xff;
+    iw0 = iw0 & 0xff;
+
+    q = FADE( fw0 );
+    r = FADE( fz0 );
+    t = FADE( fy0 );
+    s = FADE( fx0 );
+
+    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx0, fy0, fz0, fw0);
+    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx0, fy0, fz0, fw1);
+    nxy0 = LERP( q, nxyz0, nxyz1 );
+        
+    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx0, fy0, fz1, fw0);
+    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx0, fy0, fz1, fw1);
+    nxy1 = LERP( q, nxyz0, nxyz1 );
+        
+    nx0 = LERP ( r, nxy0, nxy1 );
+
+    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx0, fy1, fz0, fw0);
+    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx0, fy1, fz0, fw1);
+    nxy0 = LERP( q, nxyz0, nxyz1 );
+        
+    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx0, fy1, fz1, fw0);
+    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx0, fy1, fz1, fw1);
+    nxy1 = LERP( q, nxyz0, nxyz1 );
+
+    nx1 = LERP ( r, nxy0, nxy1 );
+
+    n0 = LERP( t, nx0, nx1 );
+
+    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx1, fy0, fz0, fw0);
+    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx1, fy0, fz0, fw1);
+    nxy0 = LERP( q, nxyz0, nxyz1 );
+        
+    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx1, fy0, fz1, fw0);
+    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx1, fy0, fz1, fw1);
+    nxy1 = LERP( q, nxyz0, nxyz1 );
+
+    nx0 = LERP ( r, nxy0, nxy1 );
+
+    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx1, fy1, fz0, fw0);
+    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx1, fy1, fz0, fw1);
+    nxy0 = LERP( q, nxyz0, nxyz1 );
+        
+    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx1, fy1, fz1, fw0);
+    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx1, fy1, fz1, fw1);
+    nxy1 = LERP( q, nxyz0, nxyz1 );
+
+    nx1 = LERP ( r, nxy0, nxy1 );
+
+    n1 = LERP( t, nx0, nx1 );
+
+    return 0.87 * ( LERP( s, n0, n1 ) );
+}
+
+function basic_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
+{
+    return simplex2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
+}
+function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
+{
+    return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
+}
+// adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
+function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
+{
+    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
+        nx = w*cos(s)*PI2/baseX,
+        ny = h*cos(t)*PI2/baseY,
+        nz = w*sin(s)*PI2/baseX,
+        nw = h*sin(t)*PI2/baseY
+    ;
+    return simplex4(nx,ny,nz,nw);
+}
+function seamless_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
+{
+    var s = PI2*((x+offsetX)%w)/w, t = PI2*((y+offsetY)%h)/h,
+        nx = cos(s),
+        ny = cos(t),
+        nz = sin(s),
+        nw = sin(t)
+    ;
+    return perlin4(nx,ny,nz,nw);
+}
+// adapted from: http://www.java-gaming.org/index.php?topic=31637.0
+function octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, octave;
+
+    for (octave = 0; octave < octaves; octave++) 
+    {
+        noiseSum += noise( x, y, w, h, baseX/layerFrequency, baseY/layerFrequency, offsets[octave][0], offsets[octave][1] ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    return noiseSum / weightSum;
+}
+/*function turbulence()
+{
+}*/
+
+
+// an efficient perlin noise and simplex noise plugin
+// http://en.wikipedia.org/wiki/Perlin_noise
+FILTER.Create({
+    name: "PerlinNoiseFilter"
+    
+    // parameters
+    ,baseX: 1
+    ,baseY: 1
+    ,numOctaves: 1
+    ,offsets: null
+    ,colors: null
+    ,_seed: 0
+    ,_stitch: false
+    ,_fractal: true
+    ,_perlin: false
+    
+    // constructor
+    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
+        var self = this;
+        self.baseX = baseX || 1;
+        self.baseY = baseY || 1;
+        self.octaves( octaves||1, offsets );
+        self.colors = colors || null;
+        self._seed = seed || 0;
+        self._stitch = !!stitch;
+        self._fractal = false !== fractal;
+        self._perlin = !!perlin;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
+    ,seed: function( randSeed ) {
+        var self = this;
+        seed( self._seed = randSeed || 0 );
+        return self;
+    }
+    
+    ,octaves: function( numOctaves, offsets ) {
+        var self = this;
+        self.numOctaves = numOctaves || 1;
+        self.offsets = !offsets ? [] : offsets.slice(0);
+        while (self.offsets.length < self.numOctaves) self.offsets.push([0,0]);
+        return self;
+    }
+    
+    ,seamless: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._stitch = !!enabled;
+        return this;
+    }
+    
+    ,turbulence: function( enabled ) {
+        if ( !arguments.length ) enabled = true;
+        this._fractal = !enabled;
+        return this;
+    }
+    
+    ,simplex: function( ) {
+        this._perlin = false;
+        return this;
+    }
+    
+    ,perlin: function( ) {
+        this._perlin = true;
+        return this;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                 baseX: self.baseX
+                ,baseY: self.baseY
+                ,numOctaves: self.numOctaves
+                ,offsets: self.offsets
+                ,colors: self.colors
+                ,_seed: self._seed
+                ,_stitch: self._stitch
+                ,_fractal: self._fractal
+                ,_perlin: self._perlin
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.baseX = params.baseX;
+            self.baseY = params.baseY;
+            self.numOctaves = params.numOctaves;
+            self.offsets = params.offsets;
+            self.colors = params.colors;
+            self._seed = params._seed;
+            self._stitch = params._stitch;
+            self._fractal = params._fractal;
+            self._perlin = params._perlin;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        // for this filter, no need to clone the image data, operate in-place
+        var self = this, baseX = self.baseX, baseY = self.baseY,
+            octaves = self.numOctaves, offsets = self.offsets,
+            colors = self.colors, is_grayscale = !colors || !colors.length,
+            is_perlin = self._perlin, is_turbulence = !self._fractal, is_seamless = self._stitch, 
+            i, l = im.length, x, y, n, c, noise
+        ;
+        
+        noise = is_perlin ? (is_seamless?seamless_perlin2:basic_perlin2) : (is_seamless?seamless_simplex2:basic_simplex2);
+        // avoid unnecesary re-seeding ??
+        //if ( self._seed ) seed( self._seed );
+        
+        x=0; y=0;
+        for (i=0; i<l; i+=4, x++)
+        {
+            if (x>=w) { x=0; y++; }
+            n = 0.5*octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
+            if ( is_grayscale )
+            {
+                im[i] = im[i+1] = im[i+2] = ~~(255*n);
+            }
+            else
+            {
+                c = colors[FLOOR(n*(colors.length-1))];
+                im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
+            }
+        }
+        
+        // return the new image data
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
 * Histogram Equalize Plugin, Histogram Equalize for grayscale images Plugin, RGB Histogram Equalize Plugin
 * @package FILTER.js
 *
@@ -8544,7 +9239,7 @@ FILTER.Create({
         if (!self._isOn || self.scale<=1) return im;
         if (self.scale>100) self.scale=100;
         
-        var imLen = im.length, imArea = (imLen>>2),
+        var imLen = im.length, imArea = (imLen>>>2),
             step, stepw, hstep, wstep, hstepw, wRem, hRem,
             inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
             inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
@@ -8737,7 +9432,7 @@ FILTER.Create({
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
         
-        var imLen = im.length, imArea = (imLen>>2), 
+        var imLen = im.length, imArea = (imLen>>>2), 
             step, step_2, step_1, stepw, hstep, wstep, hstepw, wRem, hRem,
             inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
             inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
@@ -8946,1302 +9641,54 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* HSV Converter Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
-    toCol = 0.70833333333333333333333333333333 // 255/360
-;
-
-// a plugin to convert an RGB Image to an HSV Image
-FILTER.Create({
-    name: "HSVConverterFilter"
-    
-    ,path: FILTER.getPath( exports.AMD )
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn ) return im;
-        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2;
-        
-        if ( notSupportClamp )
-        {   
-            for (i=0; i<l; i+=4)
-            {
-                //r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV(im.subarray(i,i+3));
-                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
-                // clamp them manually
-                if (t0<0) t0=0;
-                else if (t0>255) t0=255;
-                if (t1<0) t1=0;
-                else if (t1>255) t1=255;
-                if (t2<0) t2=0;
-                else if (t2>255) t2=255;
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            {
-                //r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV(im.subarray(i,i+3));
-                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-            }
-        }
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Hue Extractor Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp=FILTER._notSupportClamp,
-    IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
-    RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
-    ;
-
-// a plugin to extract regions based on a HUE range
-FILTER.Create({
-    name: "HueExtractorFilter"
-    
-    // filter parameters
-    ,range : null
-    ,background : 0
-    
-    // constructor
-    ,init : function( range, background ) {
-        var self = this;
-        self.range = range;
-        self.background = background || 0;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                range: self.range
-                ,background: self.background
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.range = params.range;
-            self.background = params.background;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if (!self._isOn || !self.range || !self.range.length) return im;
-        
-        var /*r, g, b,*/ br, bg, bb, ba,
-            i, l=im.length, background, hue,
-            hMin=self.range[0], hMax=self.range[self.range.length-1]
-            ;
-        
-        background = Color2RGBA(self.background||0);
-        br = ~~clamp(background[0]); 
-        bg = ~~clamp(background[1]); 
-        bb = ~~clamp(background[2]); 
-        ba = ~~clamp(background[3]);
-        
-        for (i=0; i<l; i+=4)
-        {
-            //r = im[i]; g = im[i+1]; b = im[i+2];
-            hue = RGB2HSV(im.subarray(i,i+3))[0];
-            
-            if (hue<hMin || hue>hMax) 
-            {  
-                im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Channel Copy Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
-    R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
-
-// a plugin to copy a channel of an image to a channel of another image
-FILTER.Create({
-    name: "ChannelCopyFilter"
-    
-    // parameters
-    ,_srcImg: null
-    ,srcImg: null
-    ,centerX: 0
-    ,centerY: 0
-    ,srcChannel: 0
-    ,dstChannel: 0
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    // constructor
-    ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
-        var self = this;
-        self._srcImg = null;
-        self.srcImg = null;
-        self.srcChannel = srcChannel || R;
-        self.dstChannel = dstChannel || R;
-        self.centerX = centerX || 0;
-        self.centerY = centerY || 0;
-        if ( srcImg ) self.setSrc( srcImg );
-    }
-    
-    ,dispose: function( ) {
-        var self = this;
-        self.srcImg = null;
-        self._srcImg = null;
-        self.$super('dispose');
-        return self;
-    }
-    
-    ,setSrc: function( srcImg ) {
-        var self = this;
-        if ( srcImg )
-        {
-            self.srcImg = srcImg;
-            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
-        }
-        else
-        {
-            self.srcImg = null;
-            self._srcImg = null;
-        }
-        return self;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _srcImg: self._srcImg
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,srcChannel: self.srcChannel
-                ,dstChannel: self.dstChannel
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._srcImg = params._srcImg;
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.srcChannel = params.srcChannel;
-            self.dstChannel = params.dstChannel;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn || !self._srcImg ) return im;
-        
-        var src = self._srcImg.data,
-            i, l = im.length, l2 = src.length, 
-            w2 = self._srcImg.width, 
-            h2 = self._srcImg.height,
-            sC = self.srcChannel, tC = self.dstChannel,
-            x, x2, y, y2, off, xc, yc, 
-            wm = Min(w,w2), hm = Min(h, h2),  
-            cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
-        ;
-        
-        
-        // make center relative
-        cX = Floor(cX*(w-1)) - cX2;
-        cY = Floor(cY*(h-1)) - cY2;
-        
-        i=0; x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            xc = x - cX; yc = y - cY;
-            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
-            {
-                // copy channel
-                off = (xc + yc*w2)<<2;
-                im[i + tC] = src[off + sC];
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Alpha Mask Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
-
-// a plugin to mask an image using the alpha channel of another image
-FILTER.Create({
-    name: "AlphaMaskFilter"
-    
-    // parameters
-    ,_alphaMask: null
-    ,alphaMask: null
-    ,centerX: 0
-    ,centerY: 0
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    // constructor
-    ,init: function( alphaMask, centerX, centerY ) {
-        var self = this;
-        self.centerX = centerX||0;
-        self.centerY = centerY||0;
-        self._alphaMask = null;
-        self.alphaMask = null;
-        if ( alphaMask ) self.setMask( alphaMask );
-    }
-    
-    ,dispose: function( ) {
-        var self = this;
-        self.alphaMask = null;
-        self._alphaMask = null;
-        self.$super('dispose');
-        return self;
-    }
-    
-    ,setMask: function( alphaMask ) {
-        var self = this;
-        if ( alphaMask )
-        {
-            self.alphaMask = alphaMask;
-            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
-        }
-        else
-        {
-            self.alphaMask = null;
-            self._alphaMask = null;
-        }
-        return self;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _alphaMask: self._alphaMask
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._alphaMask = params._alphaMask;
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        
-        var self = this;
-        if ( !self._isOn || !self._alphaMask ) return im;
-        
-        var alpha = self._alphaMask.data,
-            w2 = self._alphaMask.width, h2 = self._alphaMask.height,
-            i, l = im.length, l2 = alpha.length, 
-            x, x2, y, y2, off, xc, yc, 
-            wm = Min(w, w2), hm = Min(h, h2),  
-            cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
-        ;
-        
-        
-        // make center relative
-        cX = Floor(cX*(w-1)) - cX2;
-        cY = Floor(cY*(h-1)) - cY2;
-        
-        x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            xc = x - cX; yc = y - cY;
-            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
-            {
-                // copy alpha channel
-                off = (xc + yc*w2)<<2;
-                im[i+3] = alpha[off+3];
-            }
-            else
-            {
-                // better to remove the alpha channel if mask dimensions are different??
-                im[i+3] = 0;
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Image Blend Filter Plugin
+* Halftone Plugin
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
 
-var HAS = 'hasOwnProperty', Min = Math.min, Max = Math.max, 
-    Round = Math.round, Floor=Math.floor, Abs = Math.abs,
-    notSupportClamp = FILTER._notSupportClamp,
-    blend_functions
-;
+var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
+    A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
+    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
 
-// JavaScript implementations of common image blending modes, based on
-// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
-blend_functions = {
-    
-    normal: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-        
-        // normal mode
-        rb = r2;  
-        gb = g2;  
-        bb = b2;
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    lighten: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-        
-        // lighten mode
-        rb = (r > r2) ? r : r2; 
-        gb = (g > g2) ? g : g2; 
-        bb = (b > b2) ? b : b2; 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    darken: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // darken mode
-        rb = (r > r2) ? r2 : r; 
-        gb = (g > g2) ? g2 : g; 
-        bb = (b > b2) ? b2 : b; 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    multiply: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // multiply mode
-        rb = (r * r2 * 0.003921568627451);
-        gb = (g * g2 * 0.003921568627451);
-        bb = (b * b2 * 0.003921568627451);
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    average: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // average mode
-        rb = 0.5*(r + r2); 
-        gb = 0.5*(g + g2); 
-        bb = 0.5*(b + b2); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    add: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // add mode
-        rb = r + r2; 
-        gb = g + g2; 
-        bb = b + b2; 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    subtract: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // subtract mode
-        rb = (r + r2 < 255) ? 0 : r + r2 - 255;  
-        gb = (g + g2 < 255) ? 0 : g + g2 - 255;  
-        bb = (b + b2 < 255) ? 0 : b + b2 - 255;  
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    difference: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // difference mode
-        rb = Abs(r2 - r); 
-        gb = Abs(g2 - g); 
-        bb = Abs(b2 - b); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    negation: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // negation mode
-        rb = 255 - Abs(255 - r2 - r);
-        gb = 255 - Abs(255 - g2 - g);
-        bb = 255 - Abs(255 - b2 - b);
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    screen: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // screen mode
-        rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
-        gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
-        bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    exclusion: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // exclusion mode
-        rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
-        gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
-        bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    overlay: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // overlay mode
-        rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
-        gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
-        rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    softlight: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // softlight mode
-        rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
-        gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
-        bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    // reverse of overlay
-    hardlight: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // hardlight mode, reverse of overlay
-        rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
-        gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
-        bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    colordodge: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // colordodge mode
-        rb = (255 == r) ? r : Min(255, ((r2 << 8 ) / (255 - r))); 
-        gb = (255 == g) ? g : Min(255, ((g2 << 8 ) / (255 - g))); 
-        bb = (255 == b) ? r : Min(255, ((b2 << 8 ) / (255 - b))); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    colorburn: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // colorburn mode
-        rb = (0 == r) ? r : Max(0, (255 - ((255 - r2) << 8 ) / r)); 
-        gb = (0 == g) ? g : Max(0, (255 - ((255 - g2) << 8 ) / g)); 
-        bb = (0 == b) ? b : Max(0, (255 - ((255 - b2) << 8 ) / b)); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    linearlight: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb, tmp,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // linearlight mode
-        if (r < 128)
-        {
-            tmp = r*2;
-            rb = (tmp + r2 < 255) ? 0 : tmp + r2 - 255; //blendModes.linearBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (r - 128);
-            rb = tmp + r2; //blendModes.linearDodge(a, (2 * (b - 128)))
-        }
-        if (g < 128)
-        {
-            tmp = g*2;
-            gb = (tmp + g2 < 255) ? 0 : tmp + g2 - 255; //blendModes.linearBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (g - 128);
-            gb = tmp + g2; //blendModes.linearDodge(a, (2 * (b - 128)))
-        }
-        if (b < 128)
-        {
-            tmp = b*2;
-            bb = (tmp + b2 < 255) ? 0 : tmp + b2 - 255; //blendModes.linearBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (b - 128);
-            bb = tmp + b2; //blendModes.linearDodge(a, (2 * (b - 128)))
-        }
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    reflect: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // reflect mode
-        rb = (255 == r) ? r : Min(255, (r2 * r2 / (255 - r))); 
-        gb = (255 == g) ? g : Min(255, (g2 * g2 / (255 - g))); 
-        bb = (255 == b) ? b : Min(255, (b2 * b2 / (255 - b))); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    // reverse of reflect
-    glow: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // glow mode, reverse of reflect
-        rb = (255 == r2) ? r2 : Min(255, (r * r / (255 - r2))); 
-        gb = (255 == g2) ? g2 : Min(255, (g * g / (255 - g2))); 
-        bb = (255 == b2) ? b2 : Min(255, (b * b / (255 - b2))); 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    phoenix: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // phoenix mode
-        rb = Min(r2, r) - Max(r2, r) + 255; 
-        gb = Min(g2, g) - Max(g2, g) + 255; 
-        bb = Min(b2, b) - Max(b2, b) + 255; 
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    vividlight: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb, tmp,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // vividlight mode
-        if (r < 128)
-        {
-            tmp = 2*r;
-            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (r-128);
-            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-        }
-        if (g < 128)
-        {
-            tmp = 2*g;
-            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (g-128);
-            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-        }
-        if (b < 128)
-        {
-            tmp = 2*b;
-            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (g-128);
-            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
-        }
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    pinlight: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb, tmp,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // pinlight mode
-        if (r < 128)
-        {
-            tmp = 2*r;
-            rb = (tmp > r2) ? tmp : r2;  //blendModes.darken(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (r-128);
-            rb = (tmp > r2) ? r2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-        }
-        if (g < 128)
-        {
-            tmp = 2*g;
-            gb = (tmp > g2) ? tmp : g2;  //blendModes.darken(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (r-128);
-            gb = (tmp > g2) ? g2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-        }
-        if (b < 128)
-        {
-            tmp = 2*b;
-            bb = (tmp > b2) ? tmp : b2;  //blendModes.darken(a, 2 * b)
-        }
-        else
-        {
-            tmp = 2 * (b-128);
-            bb = (tmp > b2) ? b2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
-        }
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    },
-
-    hardmix: function(im, pixel, im2, pixel2) { 
-        var rb, gb, bb, tmp,
-            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
-            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
-            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
-        ;
-    
-        // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
-        if (r < 128)
-        {
-            tmp = 2*r;
-            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));
-        }
-        else
-        {
-            tmp = 2 * (r-128);
-            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
-        }
-        rb = (rb < 128) ? 0 : 255;
-        if (g < 128)
-        {
-            tmp = 2*g;
-            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));
-        }
-        else
-        {
-            tmp = 2 * (g-128);
-            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));
-        }
-        gb = (gb < 128) ? 0 : 255;
-        if (b < 128)
-        {
-            tmp = 2*b;
-            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));
-        }
-        else
-        {
-            tmp = 2 * (b-128);
-            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));
-        }
-        bb = (bb < 128) ? 0 : 255;
-        
-        // amount compositing
-        r = rb * amount + r * invamount;  
-        g = gb * amount + g * invamount;  
-        b = bb * amount + b * invamount;
-        
-        if (notSupportClamp)
-        {
-            // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
-        }
-        
-        // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
-    }
-};
-// aliases
-blend_functions.lineardodge = blend_functions.add;
-blend_functions.linearburn = blend_functions.subtract;
-
-//
-//
-// a photoshop-like Blend Filter Plugin
+// http://en.wikipedia.org/wiki/Halftone
+// http://en.wikipedia.org/wiki/Error_diffusion
+// http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
+// http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
 FILTER.Create({
-    name: "BlendFilter"
+    name: "HalftoneFilter"
     
     // parameters
-    ,_blendMode: null
-    ,_blendImage: null
-    ,blendImage: null
-    ,startX: 0
-    ,startY: 0
+    ,_threshold: 0.4
+    ,_size: 1
+    ,_grayscale: false
+    
+    // this is the filter constructor
+    ,init: function( size, threshold, grayscale ) {
+        var self = this;
+        self._size = size || 1;
+        self._threshold = clamp(undef === threshold ? 0.4 : threshold,0,1);
+        self._grayscale = !!grayscale;
+    }
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
     
-    // constructor
-    ,init: function( blendImage, blendMode ) { 
-        var self = this;
-        self.startX = 0;
-        self.startY = 0;
-        self._blendImage = null;
-        self.blendImage = null;
-        self._blendMode = null;
-        if ( blendImage ) self.setImage( blendImage );
-        if ( blendMode ) self.setMode( blendMode );
+    ,size: function( s ) {
+        this._size = s;
+        return this;
     }
     
-    ,dispose: function( ) {
-        var self = this;
-        self.blendImage = null;
-        self._blendImage = null;
-        self._blendMode = null;
-        self.$super('dispose');
-        return self;
+    ,threshold: function( t ) {
+        this._threshold = clamp(t,0,1);
+        return this;
     }
     
-    // set blend image auxiliary method
-    ,setImage: function( blendImage ) {
-        var self = this;
-        if ( blendImage )
-        {
-            self.blendImage = blendImage;
-            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
-        }
-        else
-        {
-            self.blendImage = null;
-            self._blendImage = null;
-        }
-        return self;
-    }
-    
-    // set blend mode auxiliary method
-    ,setMode: function( blendMode ) {
-        var self = this;
-        if ( blendMode )
-        {
-            self._blendMode = (''+blendMode).toLowerCase();
-            if ( !blend_functions[HAS](self._blendMode) ) self._blendMode = null;
-        }
-        else
-        {
-            self._blendMode = null;
-        }
-        return self;
+    ,grayscale: function( bool ) {
+        if ( !arguments.length ) bool = true;
+        this._grayscale = !!bool;
+        return this;
     }
     
     ,serialize: function( ) {
@@ -10251,10 +9698,9 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                _blendImage: self._blendImage
-                ,_blendMode: self._blendMode
-                ,startX: self.startX
-                ,startY: self.startY
+                _size: self._size
+                ,_threshold: self._threshold
+                ,_grayscale: self._grayscale
             }
         };
     }
@@ -10267,160 +9713,130 @@ FILTER.Create({
             
             params = json.params;
             
-            self.startX = params.startX;
-            self.startY = params.startY;
-            self._blendImage = params._blendImage;
-            self.setMode( params._blendMode );
-        }
-        return self;
-    }
-    
-    ,reset: function( ) {
-        var self = this;
-        self.startX = 0;
-        self.startY = 0;
-        self._blendMode = null;
-        return self;
-    }
-    
-    // main apply routine
-    ,apply: function(im, w, h/*, image*/) {
-        var self = this;
-        if ( !self._isOn || !self._blendMode || !self._blendImage ) return im;
-        
-        var startX = self.startX||0, startY = self.startY||0, 
-            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
-            W1, W2, start, end, x, y, x2, y2,
-            image2 = self._blendImage, pix2,
-            blend = blend_functions[ self._blendMode ]
-        ;
-        
-        //if ( !blend ) return im;
-        
-        if (startX < 0) { startX2 = -startX;  startX = 0; }
-        if (startY < 0) { startY2 = -startY;  startY = 0; }
-        
-        w2 = image2.width; h2 = image2.height;
-        if (startX >= w || startY >= h) return im;
-        if (startX2 >= w2 || startY2 >= h2) return im;
-        
-        startX = Round(startX); startY = Round(startY);
-        startX2 = Round(startX2); startY2 = Round(startY2);
-        W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
-        if (W <= 0 || H <= 0) return im;
-        
-        im2 = image2.data;
-        
-        // blend images
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
-        {
-            pix2 = (x2 + y2)<<2;
-            // blend only if im2 has opacity in this point
-            if ( im2[pix2+3] ) 
-                // calculate and assign blended color
-                blend(im, (x + y)<<2, im2, pix2);
-            
-            // next pixels
-            start++;
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    }
-});
-
-}(FILTER);/**
-*
-* Threshold Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp=FILTER._notSupportClamp,
-    RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
-    ;
-
-// a plugin to apply a general threshold filtering to an image
-FILTER.Create({
-    name: "ThresholdFilter"
-    
-    // filter parameters
-    ,thresholds: null
-    // NOTE: quantizedColors should contain 1 more element than thresholds
-    ,quantizedColors: null
-    
-    // constructor
-    ,init: function( thresholds, quantizedColors ) {
-        var self = this;
-        self.thresholds = thresholds;
-        self.quantizedColors = quantizedColors || null;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                thresholds: self.thresholds
-                ,quantizedColors: self.quantizedColors
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.thresholds = params.thresholds;
-            self.quantizedColors = params.quantizedColors;
+            self._size = params._size;
+            self._threshold = params._threshold;
+            self._grayscale = params._grayscale;
         }
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if (!self._isOn || !self.thresholds || !self.thresholds.length || 
-            !self.quantizedColors || !self.quantizedColors.length) return im;
-        
-        var color, rgba,
-            i, j, l=im.length,
-            thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
+        var self = this, l = im.length, imSize = l>>>2,
+            err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
+            size = self._size, area = size*size, invarea = 1.0/area,
+            threshold = 255*self._threshold, size2 = size2<<1,
+            colored = !self._grayscale,
+            x, y, yw, sw = size*w, i, j, jw, 
+            sum_r, sum_g, sum_b, qr, qg, qb
+            //,f11 = area*f1, f22 = area*f2, f33 = area*f3, f44 = area*f4
         ;
         
-        for (i=0; i<l; i+=4)
+        y=0; yw=0; x=0;
+        while ( y < h )
         {
-            color = RGBA2Color(im.subarray[i,i+4]);
+            sum_r = sum_g = sum_b = 0;
+            i=0; j=0; jw=0;
+            while ( j < size )
+            {
+                pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
+                sum_r += im[pixel] + err[index];
+                sum_g += im[pixel+1] + err[index+1];
+                sum_b += im[pixel+2] + err[index+2];
+                i++;
+                if ( i>=size ) {i=0; j++; jw+=w;}
+            }
+            sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
+            ycbcr = colored ? RGB2YCbCr([sum_r, sum_g, sum_b]) : [sum_r, sum_g, sum_b];
+            t = ycbcr[0];
+            if ( t > threshold )
+            {
+                if ( colored ) 
+                {
+                    ycbcr[0] = /*255;*/clamp(~~t, 0, 255);
+                    rgb = YCbCr2RGB(ycbcr);
+                }
+                else
+                {                    
+                    rgb = [255,255,255];
+                }
+            }
+            else
+            {                
+                rgb = [0,0,0];
+            }
+            pixel = (x+yw)<<2;
+            qr = im[pixel] - rgb[0];
+            qg = im[pixel+1] - rgb[1];
+            qb = im[pixel+2] - rgb[2];
             
-            // maybe use sth faster here ??
-            j=0; while (j<tl && color>thresholds[j]) j++;
-            color = (j<cl) ? colors[j] : 255;
+            if ( x+size<w )
+            {                
+                i=size; j=0; jw=0;
+                while ( j < size )
+                {
+                    index = (x+yw+i+jw)*3;
+                    err[index] += f1*qr;
+                    err[index+1] += f1*qg;
+                    err[index+2] += f1*qb;
+                    i++;
+                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                }
+            }
+            if ( y+size<h && x>size) 
+            {
+                i=-size; j=size; jw=0;
+                while ( j < size2 )
+                {
+                    index = (x+yw+i+jw)*3;
+                    err[index] += f2*qr;
+                    err[index+1] += f2*qg;
+                    err[index+2] += f2*qb;
+                    i++;
+                    if ( i>=0 ) {i=-size; j++; jw+=w;}
+                }
+            }
+            if ( y+size<h ) 
+            {
+                i=0; j=size; jw=0;
+                while ( j < size2 )
+                {
+                    index = (x+yw+i+jw)*3;
+                    err[index] += f3*qr;
+                    err[index+1] += f3*qg;
+                    err[index+2] += f3*qb;
+                    i++;
+                    if ( i>=size ) {i=0; j++; jw+=w;}
+                }
+            }
+            if ( y+size<h && x+size<w )
+            {
+                i=size; j=size; jw=0;
+                while ( j < size2 )
+                {
+                    index = (x+yw+i+jw)*3;
+                    err[index] += f4*qr;
+                    err[index+1] += f4*qg;
+                    err[index+2] += f4*qb;
+                    i++;
+                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                }
+            }
             
-            rgba = Color2RGBA(color);
-            //im.set(rgba,i);
-            im[i] = rgba[0]; im[i+1] = rgba[1]; im[i+2] = rgba[2]; im[i+3] = rgba[3];
+            i=0; j=0; jw=0;
+            while ( j < size )
+            {
+                pixel = (x+yw+i+jw)<<2;
+                im[pixel] = rgb[0];
+                im[pixel+1] = rgb[1];
+                im[pixel+2] = rgb[2];
+                i++;
+                if ( i>=size ) {i=0; j++; jw+=w;}
+            }
+            
+            x+=size;
+            if ( x>=w ) {x=0; y+=size; yw+=sw;}
         }
-        
-        // return the new image data
         return im;
     }
 });
@@ -10603,6 +10019,154 @@ FILTER.Create({
         
         // return the new image data
         return im;
+    }
+});
+
+}(FILTER);/**
+*
+* Seamless Tile Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+// a plugin to create a seamless tileable pattern from an image
+// adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+FILTER.Create({
+    name: "SeamlessTileFilter"
+    
+    ,type: 0 // 0 radial, 1 linear 1, 2 linear 2
+    
+    // constructor
+    ,init: function( tiling_type ) {
+        var self = this;
+        self.type = tiling_type || 0;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                type: self.type
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.type = params.type;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    // adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        var self = this, masktype = self.type,
+            //needed arrays
+            diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
+            index, N, N2, size, imSize;
+
+        //find largest side of the image
+        //and resize the image to become square
+        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
+        else  N = w; 
+        N2 = Math.round(N/2);
+        size = N*N; imSize = im.length;
+        diagonal = new FILTER.ImArray(imSize);
+        tile = new FILTER.ImArray(imSize);
+        mask = new FILTER.Array8U(size);
+
+        i = 0; j = 0;
+        for (k=0; k<imSize; k+=4,i++)
+        {
+            if ( i >= N ) {i=0; j++;}
+            index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
+            diagonal[ index   ] = im[ k ];
+            diagonal[ index+1 ] = im[ k+1 ];
+            diagonal[ index+2 ] = im[ k+2 ];
+            diagonal[ index+3 ] = im[ k+3 ];
+        }
+
+        //try to make your own masktypes here
+        //Create the mask
+        for (i=0; i<=N2-1; i++)
+        {
+            for (j=0; j<=N2-1; j++)
+            {
+                switch(masktype)
+                {
+                    case 0://RADIAL
+                    d = Math.sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
+                    break;
+
+                    case 1://LINEAR 1
+                    if ( (N2-i) < (N2-j) )
+                        d = (j-N2)/N2;
+
+                    else //if ( (N2-i) >= (N2-j) )
+                        d = (i-N/2)/N2;
+                    break;
+
+                    case 2://LINEAR 2
+                    default:
+                    if ( (N2-i) < (N2-j) )
+                        d = Math.sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
+
+                    else //if ( (N2-i)>=(N2-j) )
+                        d = Math.sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
+                    break;
+                }
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * d);
+                if (d < 1) d = 1;
+                else if (d > 255) d = 255;
+
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
+            }
+        }
+
+        //Create the tile
+        for (j=0; j<=N-1; j++)
+        {
+            for (i=0; i<=N-1; i++)
+            {
+                index = i+j*N;
+                a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
+                a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
+                tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
+                tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
+                tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
+                tile[index+3] = im[index+3];
+            }
+        }
+
+        //create the new tileable image
+        //if it wasn't a square image, resize it back to the original scale
+        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
+
+        // return the new image data
+        return tile;
     }
 });
 
@@ -10930,6 +10494,254 @@ FILTER.Create({
     }
 });
 */
+}(FILTER);/**
+*
+* HSV Converter Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
+    toCol = 0.70833333333333333333333333333333 // 255/360
+;
+
+// a plugin to convert an RGB Image to an HSV Image
+FILTER.Create({
+    name: "HSVConverterFilter"
+    
+    ,path: FILTER.getPath( exports.AMD )
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        // for this filter, no need to clone the image data, operate in-place
+        var self = this;
+        if ( !self._isOn ) return im;
+        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2;
+        
+        if ( notSupportClamp )
+        {   
+            for (i=0; i<l; i+=4)
+            {
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
+                // clamp them manually
+                if (t0<0) t0=0;
+                else if (t0>255) t0=255;
+                if (t1<0) t1=0;
+                else if (t1>255) t1=255;
+                if (t2<0) t2=0;
+                else if (t2>255) t2=255;
+                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                //r = im[i]; g = im[i+1]; b = im[i+2];
+                hsv = RGB2HSV(im.subarray(i,i+3));
+                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
+                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+            }
+        }
+        // return the new image data
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
+* Threshold Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+var notSupportClamp=FILTER._notSupportClamp,
+    RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
+    ;
+
+// a plugin to apply a general threshold filtering to an image
+FILTER.Create({
+    name: "ThresholdFilter"
+    
+    // filter parameters
+    ,thresholds: null
+    // NOTE: quantizedColors should contain 1 more element than thresholds
+    ,quantizedColors: null
+    
+    // constructor
+    ,init: function( thresholds, quantizedColors ) {
+        var self = this;
+        self.thresholds = thresholds;
+        self.quantizedColors = quantizedColors || null;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                thresholds: self.thresholds
+                ,quantizedColors: self.quantizedColors
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.thresholds = params.thresholds;
+            self.quantizedColors = params.quantizedColors;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        // for this filter, no need to clone the image data, operate in-place
+        var self = this;
+        if (!self._isOn || !self.thresholds || !self.thresholds.length || 
+            !self.quantizedColors || !self.quantizedColors.length) return im;
+        
+        var color, rgba,
+            i, j, l=im.length,
+            thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
+        ;
+        
+        for (i=0; i<l; i+=4)
+        {
+            color = RGBA2Color(im.subarray[i,i+4]);
+            
+            // maybe use sth faster here ??
+            j=0; while (j<tl && color>thresholds[j]) j++;
+            color = (j<cl) ? colors[j] : 255;
+            
+            rgba = Color2RGBA(color);
+            //im.set(rgba,i);
+            im[i] = rgba[0]; im[i+1] = rgba[1]; im[i+2] = rgba[2]; im[i+3] = rgba[3];
+        }
+        
+        // return the new image data
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
+* Hue Extractor Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+var notSupportClamp=FILTER._notSupportClamp,
+    IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
+    RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
+    ;
+
+// a plugin to extract regions based on a HUE range
+FILTER.Create({
+    name: "HueExtractorFilter"
+    
+    // filter parameters
+    ,range : null
+    ,background : 0
+    
+    // constructor
+    ,init : function( range, background ) {
+        var self = this;
+        self.range = range;
+        self.background = background || 0;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                range: self.range
+                ,background: self.background
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.range = params.range;
+            self.background = params.background;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        // for this filter, no need to clone the image data, operate in-place
+        var self = this;
+        if (!self._isOn || !self.range || !self.range.length) return im;
+        
+        var /*r, g, b,*/ br, bg, bb, ba,
+            i, l=im.length, background, hue,
+            hMin=self.range[0], hMax=self.range[self.range.length-1]
+            ;
+        
+        background = Color2RGBA(self.background||0);
+        br = ~~clamp(background[0]); 
+        bg = ~~clamp(background[1]); 
+        bb = ~~clamp(background[2]); 
+        ba = ~~clamp(background[3]);
+        
+        for (i=0; i<l; i+=4)
+        {
+            //r = im[i]; g = im[i+1]; b = im[i+2];
+            hue = RGB2HSV(im.subarray(i,i+3))[0];
+            
+            if (hue<hMin || hue>hMax) 
+            {  
+                im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
+            }
+        }
+        
+        // return the new image data
+        return im;
+    }
+});
+
 }(FILTER);/**
 *
 * Canny Edges Detector Plugin
@@ -12039,612 +11851,64 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Perlin Noise Plugin
+* Channel Copy Plugin
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
- 
-// adapted from:
+var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
+    R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
 
-// https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c
-/* SimplexNoise1234, Simplex noise with true analytic
- * derivative in 1D to 4D.
- *
- * Author: Stefan Gustavson, 2003-2005
- * Contact: stegu@itn.liu.se
- *
- * This code was GPL licensed until February 2011.
- * As the original author of this code, I hereby
- * release it into the public domain.
- * Please feel free to use it for whatever you want.
- * Credit is appreciated where appropriate, and I also
- * appreciate being told where this code finds any use,
- * but you may do as you like.
- */
-
- // https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c
-/* noise1234
- *
- * Author: Stefan Gustavson, 2003-2005
- * Contact: stegu@itn.liu.se
- *
- * This code was GPL licensed until February 2011.
- * As the original author of this code, I hereby
- * release it into the public domain.
- * Please feel free to use it for whatever you want.
- * Credit is appreciated where appropriate, and I also
- * appreciate being told where this code finds any use,
- * but you may do as you like.
- */
-
-/*
- * Permutation table. This is just a random jumble of all numbers 0-255,
- * repeated twice to avoid wrapping the index at 255 for each lookup.
- * This needs to be exactly the same for all instances on all platforms,
- * so it's easiest to just keep it as static explicit data.
- * This also removes the need for any initialisation of this class.
- *
- * Note that making this an int[] instead of a char[] might make the
- * code run faster on platforms with a high penalty for unaligned single
- * byte addressing. Intel x86 is generally single-byte-friendly, but
- * some other CPUs are faster with 4-aligned reads.
- * However, a char[] is smaller, which avoids cache trashing, and that
- * is probably the most important aspect on most architectures.
- * This array is accessed a *lot* by the noise functions.
- * A vector-valued noise over 3D accesses it 96 times, and a
- * float-valued 4D noise 64 times. We want this to fit in the cache!
- */
-var p = new FILTER.Array8U([151,160,137,91,90,15,
-  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
-  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
-  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
-  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
-  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
-  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
-  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
-  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
-  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
-  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
-  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
-  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180,
-  151,160,137,91,90,15,
-  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
-  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
-  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
-  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
-  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
-  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
-  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
-  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
-  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
-  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
-  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
-  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
-]), perm = new FILTER.Array8U(p); // copy it initially
-
-// This isn't a very good seeding function, but it works ok. It supports 2^16
-// different seed values. Write something better if you need more seeds.
-function seed( seed ) 
-{
-    var v, i;
-    // Scale the seed out
-    if ( seed > 0 && seed < 1 ) seed *= 65536;
-
-    seed = FLOOR( seed );
-    if ( seed < 256 ) seed |= seed << 8;
-    for (i = 0; i < 256; i++) 
-    {
-        v = ( i & 1 ) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
-        perm[i] = perm[i + 256] = v;
-    }
-}
-//seed(0);
-
-/*
- * Helper functions to compute gradients-dot-residualvectors (1D to 4D)
- * Note that these generate gradients of more than unit length. To make
- * a close match with the value range of classic Perlin noise, the final
- * noise values need to be rescaled to fit nicely within [-1,1].
- * (The simplex noise functions as such also have different scaling.)
- * Note also that these noise functions are the most practical and useful
- * signed version of Perlin noise. To return values according to the
- * RenderMan specification from the SL noise() and pnoise() functions,
- * the noise values need to be scaled and offset to [0,1], like this:
- * float SLnoise = (noise(x,y,z) + 1.0) * 0.5;
- */
-
-function grad1( hash, x ) 
-{
-    var h = hash & 15;
-    var grad = 1.0 + (h & 7);   // Gradient value 1.0, 2.0, ..., 8.0
-    if (h&8) grad = -grad;         // Set a random sign for the gradient
-    return ( grad * x );           // Multiply the gradient with the distance
-}
-
-function grad2( hash, x, y ) 
-{
-    var h = hash & 7;      // Convert low 3 bits of hash code
-    var u = h<4 ? x : y;  // into 8 simple gradient directions,
-    var v = h<4 ? y : x;  // and compute the dot product with (x,y).
-    return ((h&1)? -u : u) + ((h&2)? -2.0*v : 2.0*v);
-}
-
-function grad3( hash, x, y, z ) 
-{
-    var h = hash & 15;     // Convert low 4 bits of hash code into 12 simple
-    var u = h<8 ? x : y; // gradient directions, and compute dot product.
-    var v = h<4 ? y : h==12||h==14 ? x : z; // Fix repeats at h = 12 to 15
-    return ((h&1)? -u : u) + ((h&2)? -v : v);
-}
-
-function grad4( hash, x, y, z, t ) 
-{
-    var h = hash & 31;      // Convert low 5 bits of hash code into 32 simple
-    var u = h<24 ? x : y; // gradient directions, and compute dot product.
-    var v = h<16 ? y : z;
-    var w = h<8 ? z : t;
-    return ((h&1)? -u : u) + ((h&2)? -v : v) + ((h&4)? -w : w);
-}
-
-// A lookup table to traverse the simplex around a given point in 4D.
-// Details can be found where this table is used, in the 4D noise method.
-/* TODO: This should not be required, backport it from Bill's GLSL code! */
-var simplex = [
-[0,1,2,3],[0,1,3,2],[0,0,0,0],[0,2,3,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,2,3,0],
-[0,2,1,3],[0,0,0,0],[0,3,1,2],[0,3,2,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,3,2,0],
-[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
-[1,2,0,3],[0,0,0,0],[1,3,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,3,0,1],[2,3,1,0],
-[1,0,2,3],[1,0,3,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,0,3,1],[0,0,0,0],[2,1,3,0],
-[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
-[2,0,1,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,0,1,2],[3,0,2,1],[0,0,0,0],[3,1,2,0],
-[2,1,0,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,1,0,2],[0,0,0,0],[3,2,0,1],[3,2,1,0]
-];
-
-// 2D simplex noise
-function simplex2( x, y ) 
-{
-    var F2 = 0.366025403; // F2 = 0.5*(sqrt(3.0)-1.0)
-    var G2 = 0.211324865; // G2 = (3.0-Math.sqrt(3.0))/6.0
-    
-    var n0, n1, n2; // Noise contributions from the three corners
-
-    // Skew the input space to determine which simplex cell we're in
-    var s = (x+y)*F2; // Hairy factor for 2D
-    var xs = x + s;
-    var ys = y + s;
-    var i = FLOOR(xs);
-    var j = FLOOR(ys);
-
-    var t = (i+j)*G2;
-    var X0 = i-t; // Unskew the cell origin back to (x,y) space
-    var Y0 = j-t;
-    var x0 = x-X0; // The x,y distances from the cell origin
-    var y0 = y-Y0;
-
-    // For the 2D case, the simplex shape is an equilateral triangle.
-    // Determine which simplex we are in.
-    var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
-    if ( x0>y0 ) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
-    else {i1=0; j1=1;}      // upper triangle, YX order: (0,0)->(0,1)->(1,1)
-
-    // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
-    // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
-    // c = (3-sqrt(3))/6
-
-    var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
-    var y1 = y0 - j1 + G2;
-    var x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
-    var y2 = y0 - 1.0 + 2.0 * G2;
-
-    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
-    var ii = i & 0xff;
-    var jj = j & 0xff;
-
-    // Calculate the contribution from the three corners
-    var t0 = 0.5 - x0*x0-y0*y0;
-    if ( t0 < 0.0 ) n0 = 0.0;
-    else 
-    {
-        t0 *= t0;
-        n0 = t0 * t0 * grad2(perm[ii+perm[jj]], x0, y0); 
-    }
-
-    var t1 = 0.5 - x1*x1-y1*y1;
-    if (t1 < 0.0) n1 = 0.0;
-    else 
-    {
-        t1 *= t1;
-        n1 = t1 * t1 * grad2(perm[ii+i1+perm[jj+j1]], x1, y1);
-    }
-
-    var t2 = 0.5 - x2*x2-y2*y2;
-    if(t2 < 0.0) n2 = 0.0;
-    else 
-    {
-        t2 *= t2;
-        n2 = t2 * t2 * grad2(perm[ii+1+perm[jj+1]], x2, y2);
-    }
-
-    // Add contributions from each corner to get the final noise value.
-    // The result is scaled to return values in the interval [-1,1].
-    return 40.0 * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
-}
-
-// 4D simplex noise
-function simplex4( x, y, z, w ) 
-{
-    // The skewing and unskewing factors are hairy again for the 4D case
-    var F4 = 0.309016994; // F4 = (Math.sqrt(5.0)-1.0)/4.0
-    var G4 = 0.138196601; // G4 = (5.0-Math.sqrt(5.0))/20.0
-    
-    var n0, n1, n2, n3, n4; // Noise contributions from the five corners
-
-    // Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
-    var s = (x + y + z + w) * F4; // Factor for 4D skewing
-    var xs = x + s;
-    var ys = y + s;
-    var zs = z + s;
-    var ws = w + s;
-    var i = FLOOR(xs);
-    var j = FLOOR(ys);
-    var k = FLOOR(zs);
-    var l = FLOOR(ws);
-
-    var t = (i + j + k + l) * G4; // Factor for 4D unskewing
-    var X0 = i - t; // Unskew the cell origin back to (x,y,z,w) space
-    var Y0 = j - t;
-    var Z0 = k - t;
-    var W0 = l - t;
-
-    var x0 = x - X0;  // The x,y,z,w distances from the cell origin
-    var y0 = y - Y0;
-    var z0 = z - Z0;
-    var w0 = w - W0;
-
-    // For the 4D case, the simplex is a 4D shape I won't even try to describe.
-    // To find out which of the 24 possible simplices we're in, we need to
-    // determine the magnitude ordering of x0, y0, z0 and w0.
-    // The method below is a good way of finding the ordering of x,y,z,w and
-    // then find the correct traversal order for the simplex we’re in.
-    // First, six pair-wise comparisons are performed between each possible pair
-    // of the four coordinates, and the results are used to add up binary bits
-    // for an integer index.
-    var c1 = (x0 > y0) ? 32 : 0;
-    var c2 = (x0 > z0) ? 16 : 0;
-    var c3 = (y0 > z0) ? 8 : 0;
-    var c4 = (x0 > w0) ? 4 : 0;
-    var c5 = (y0 > w0) ? 2 : 0;
-    var c6 = (z0 > w0) ? 1 : 0;
-    var c = c1 + c2 + c3 + c4 + c5 + c6;
-
-    var i1, j1, k1, l1; // The integer offsets for the second simplex corner
-    var i2, j2, k2, l2; // The integer offsets for the third simplex corner
-    var i3, j3, k3, l3; // The integer offsets for the fourth simplex corner
-
-    // simplex[c] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
-    // Many values of c will never occur, since e.g. x>y>z>w makes x<z, y<w and x<w
-    // impossible. Only the 24 indices which have non-zero entries make any sense.
-    // We use a thresholding to set the coordinates in turn from the largest magnitude.
-    // The number 3 in the "simplex" array is at the position of the largest coordinate.
-    i1 = simplex[c][0]>=3 ? 1 : 0;
-    j1 = simplex[c][1]>=3 ? 1 : 0;
-    k1 = simplex[c][2]>=3 ? 1 : 0;
-    l1 = simplex[c][3]>=3 ? 1 : 0;
-    // The number 2 in the "simplex" array is at the second largest coordinate.
-    i2 = simplex[c][0]>=2 ? 1 : 0;
-    j2 = simplex[c][1]>=2 ? 1 : 0;
-    k2 = simplex[c][2]>=2 ? 1 : 0;
-    l2 = simplex[c][3]>=2 ? 1 : 0;
-    // The number 1 in the "simplex" array is at the second smallest coordinate.
-    i3 = simplex[c][0]>=1 ? 1 : 0;
-    j3 = simplex[c][1]>=1 ? 1 : 0;
-    k3 = simplex[c][2]>=1 ? 1 : 0;
-    l3 = simplex[c][3]>=1 ? 1 : 0;
-    // The fifth corner has all coordinate offsets = 1, so no need to look that up.
-
-    var x1 = x0 - i1 + G4; // Offsets for second corner in (x,y,z,w) coords
-    var y1 = y0 - j1 + G4;
-    var z1 = z0 - k1 + G4;
-    var w1 = w0 - l1 + G4;
-    var x2 = x0 - i2 + 2.0*G4; // Offsets for third corner in (x,y,z,w) coords
-    var y2 = y0 - j2 + 2.0*G4;
-    var z2 = z0 - k2 + 2.0*G4;
-    var w2 = w0 - l2 + 2.0*G4;
-    var x3 = x0 - i3 + 3.0*G4; // Offsets for fourth corner in (x,y,z,w) coords
-    var y3 = y0 - j3 + 3.0*G4;
-    var z3 = z0 - k3 + 3.0*G4;
-    var w3 = w0 - l3 + 3.0*G4;
-    var x4 = x0 - 1.0 + 4.0*G4; // Offsets for last corner in (x,y,z,w) coords
-    var y4 = y0 - 1.0 + 4.0*G4;
-    var z4 = z0 - 1.0 + 4.0*G4;
-    var w4 = w0 - 1.0 + 4.0*G4;
-
-    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
-    var ii = i & 0xff;
-    var jj = j & 0xff;
-    var kk = k & 0xff;
-    var ll = l & 0xff;
-
-    // Calculate the contribution from the five corners
-    var t0 = 0.5 - x0*x0 - y0*y0 - z0*z0 - w0*w0; // needs 0.5 here
-    if ( t0 < 0.0 ) n0 = 0.0;
-    else 
-    {
-        t0 *= t0;
-        n0 = t0 * t0 * grad4(perm[ii+perm[jj+perm[kk+perm[ll]]]], x0, y0, z0, w0);
-    }
-
-    var t1 = 0.5 - x1*x1 - y1*y1 - z1*z1 - w1*w1; // needs 0.5 here
-    if ( t1 < 0.0 ) n1 = 0.0;
-    else 
-    {
-        t1 *= t1;
-        n1 = t1 * t1 * grad4(perm[ii+i1+perm[jj+j1+perm[kk+k1+perm[ll+l1]]]], x1, y1, z1, w1);
-    }
-
-    var t2 = 0.5 - x2*x2 - y2*y2 - z2*z2 - w2*w2; // needs 0.5 here
-    if ( t2 < 0.0 ) n2 = 0.0;
-    else 
-    {
-        t2 *= t2;
-        n2 = t2 * t2 * grad4(perm[ii+i2+perm[jj+j2+perm[kk+k2+perm[ll+l2]]]], x2, y2, z2, w2);
-    }
-
-    var t3 = 0.5 - x3*x3 - y3*y3 - z3*z3 - w3*w3; // needs 0.5 here
-    if ( t3 < 0.0 ) n3 = 0.0;
-    else 
-    {
-        t3 *= t3;
-        n3 = t3 * t3 * grad4(perm[ii+i3+perm[jj+j3+perm[kk+k3+perm[ll+l3]]]], x3, y3, z3, w3);
-    }
-
-    var t4 = 0.5 - x4*x4 - y4*y4 - z4*z4 - w4*w4; // needs 0.5 here
-    if ( t4 < 0.0 ) n4 = 0.0;
-    else 
-    {
-        t4 *= t4;
-        n4 = t4 * t4 * grad4(perm[ii+1+perm[jj+1+perm[kk+1+perm[ll+1]]]], x4, y4, z4, w4);
-    }
-
-    // Sum up and scale the result to cover the range [-1,1]
-    return 27.0 * (n0 + n1 + n2 + n3 + n4); // TODO: The scale factor is preliminary!
-}
-
-// This is the new and improved, C(2) continuous interpolant
-function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
-function LERP(t, a, b) { return a + t*(b-a); }
-
-// 2D float Perlin noise.
-function perlin2( x, y )
-{
-    var ix0, iy0, ix1, iy1;
-    var fx0, fy0, fx1, fy1;
-    var s, t, nx0, nx1, n0, n1;
-
-    ix0 = FLOOR( x ); // Integer part of x
-    iy0 = FLOOR( y ); // Integer part of y
-    fx0 = x - ix0;        // Fractional part of x
-    fy0 = y - iy0;        // Fractional part of y
-    fx1 = fx0 - 1.0;
-    fy1 = fy0 - 1.0;
-    ix1 = (ix0 + 1) & 0xff;  // Wrap to 0..255
-    iy1 = (iy0 + 1) & 0xff;
-    ix0 = ix0 & 0xff;
-    iy0 = iy0 & 0xff;
-    
-    t = FADE( fy0 );
-    s = FADE( fx0 );
-
-    nx0 = grad2(perm[ix0 + perm[iy0]], fx0, fy0);
-    nx1 = grad2(perm[ix0 + perm[iy1]], fx0, fy1);
-    n0 = LERP( t, nx0, nx1 );
-
-    nx0 = grad2(perm[ix1 + perm[iy0]], fx1, fy0);
-    nx1 = grad2(perm[ix1 + perm[iy1]], fx1, fy1);
-    n1 = LERP(t, nx0, nx1);
-
-    return 0.507 * ( LERP( s, n0, n1 ) );
-}
-
-// 4D float Perlin noise.
-function perlin4( x, y, z, w )
-{
-    var ix0, iy0, iz0, iw0, ix1, iy1, iz1, iw1;
-    var fx0, fy0, fz0, fw0, fx1, fy1, fz1, fw1;
-    var s, t, r, q;
-    var nxyz0, nxyz1, nxy0, nxy1, nx0, nx1, n0, n1;
-
-    ix0 = FLOOR( x ); // Integer part of x
-    iy0 = FLOOR( y ); // Integer part of y
-    iz0 = FLOOR( z ); // Integer part of y
-    iw0 = FLOOR( w ); // Integer part of w
-    fx0 = x - ix0;        // Fractional part of x
-    fy0 = y - iy0;        // Fractional part of y
-    fz0 = z - iz0;        // Fractional part of z
-    fw0 = w - iw0;        // Fractional part of w
-    fx1 = fx0 - 1.0;
-    fy1 = fy0 - 1.0;
-    fz1 = fz0 - 1.0;
-    fw1 = fw0 - 1.0;
-    ix1 = ( ix0 + 1 ) & 0xff;  // Wrap to 0..255
-    iy1 = ( iy0 + 1 ) & 0xff;
-    iz1 = ( iz0 + 1 ) & 0xff;
-    iw1 = ( iw0 + 1 ) & 0xff;
-    ix0 = ix0 & 0xff;
-    iy0 = iy0 & 0xff;
-    iz0 = iz0 & 0xff;
-    iw0 = iw0 & 0xff;
-
-    q = FADE( fw0 );
-    r = FADE( fz0 );
-    t = FADE( fy0 );
-    s = FADE( fx0 );
-
-    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx0, fy0, fz0, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx0, fy0, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx0, fy0, fz1, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx0, fy0, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-        
-    nx0 = LERP ( r, nxy0, nxy1 );
-
-    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx0, fy1, fz0, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx0, fy1, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx0, fy1, fz1, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx0, fy1, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx1 = LERP ( r, nxy0, nxy1 );
-
-    n0 = LERP( t, nx0, nx1 );
-
-    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx1, fy0, fz0, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx1, fy0, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx1, fy0, fz1, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx1, fy0, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx0 = LERP ( r, nxy0, nxy1 );
-
-    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx1, fy1, fz0, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx1, fy1, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx1, fy1, fz1, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx1, fy1, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx1 = LERP ( r, nxy0, nxy1 );
-
-    n1 = LERP( t, nx0, nx1 );
-
-    return 0.87 * ( LERP( s, n0, n1 ) );
-}
-
-function basic_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    return simplex2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
-}
-function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
-}
-// adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    var s = baseX*PI2*((x+offsetX)%w)/w, t = baseY*PI2*((y+offsetY)%h)/h,
-        nx = w*cos(s)*PI2/baseX,
-        ny = h*cos(t)*PI2/baseY,
-        nz = w*sin(s)*PI2/baseX,
-        nw = h*sin(t)*PI2/baseY
-    ;
-    return simplex4(nx,ny,nz,nw);
-}
-function seamless_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    var s = PI2*((x+offsetX)%w)/w, t = PI2*((y+offsetY)%h)/h,
-        nx = cos(s),
-        ny = cos(t),
-        nz = sin(s),
-        nw = sin(t)
-    ;
-    return perlin4(nx,ny,nz,nw);
-}
-// adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
-{
-    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, octave;
-
-    for (octave = 0; octave < octaves; octave++) 
-    {
-        noiseSum += noise( x, y, w, h, baseX/layerFrequency, baseY/layerFrequency, offsets[octave][0], offsets[octave][1] ) * layerWeight;
-        layerFrequency *= 2;
-        weightSum += layerWeight;
-        layerWeight *= roughness;
-    }
-    return noiseSum / weightSum;
-}
-/*function turbulence()
-{
-}*/
-
-
-// an efficient perlin noise and simplex noise plugin
-// http://en.wikipedia.org/wiki/Perlin_noise
+// a plugin to copy a channel of an image to a channel of another image
 FILTER.Create({
-    name: "PerlinNoiseFilter"
+    name: "ChannelCopyFilter"
     
     // parameters
-    ,baseX: 1
-    ,baseY: 1
-    ,numOctaves: 1
-    ,offsets: null
-    ,colors: null
-    ,_seed: 0
-    ,_stitch: false
-    ,_fractal: true
-    ,_perlin: false
-    
-    // constructor
-    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
-        var self = this;
-        self.baseX = baseX || 1;
-        self.baseY = baseY || 1;
-        self.octaves( octaves||1, offsets );
-        self.colors = colors || null;
-        self._seed = seed || 0;
-        self._stitch = !!stitch;
-        self._fractal = false !== fractal;
-        self._perlin = !!perlin;
-    }
+    ,_srcImg: null
+    ,srcImg: null
+    ,centerX: 0
+    ,centerY: 0
+    ,srcChannel: 0
+    ,dstChannel: 0
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
     
-    ,seed: function( randSeed ) {
+    // constructor
+    ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
         var self = this;
-        seed( self._seed = randSeed || 0 );
+        self._srcImg = null;
+        self.srcImg = null;
+        self.srcChannel = srcChannel || R;
+        self.dstChannel = dstChannel || R;
+        self.centerX = centerX || 0;
+        self.centerY = centerY || 0;
+        if ( srcImg ) self.setSrc( srcImg );
+    }
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.srcImg = null;
+        self._srcImg = null;
+        self.$super('dispose');
         return self;
     }
     
-    ,octaves: function( numOctaves, offsets ) {
+    ,setSrc: function( srcImg ) {
         var self = this;
-        self.numOctaves = numOctaves || 1;
-        self.offsets = !offsets ? [] : offsets.slice(0);
-        while (self.offsets.length < self.numOctaves) self.offsets.push([0,0]);
+        if ( srcImg )
+        {
+            self.srcImg = srcImg;
+            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
+        }
+        else
+        {
+            self.srcImg = null;
+            self._srcImg = null;
+        }
         return self;
-    }
-    
-    ,seamless: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._stitch = !!enabled;
-        return this;
-    }
-    
-    ,turbulence: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._fractal = !enabled;
-        return this;
-    }
-    
-    ,simplex: function( ) {
-        this._perlin = false;
-        return this;
-    }
-    
-    ,perlin: function( ) {
-        this._perlin = true;
-        return this;
     }
     
     ,serialize: function( ) {
@@ -12654,15 +11918,11 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 baseX: self.baseX
-                ,baseY: self.baseY
-                ,numOctaves: self.numOctaves
-                ,offsets: self.offsets
-                ,colors: self.colors
-                ,_seed: self._seed
-                ,_stitch: self._stitch
-                ,_fractal: self._fractal
-                ,_perlin: self._perlin
+                _srcImg: self._srcImg
+                ,centerX: self.centerX
+                ,centerY: self.centerY
+                ,srcChannel: self.srcChannel
+                ,dstChannel: self.dstChannel
             }
         };
     }
@@ -12675,15 +11935,11 @@ FILTER.Create({
             
             params = json.params;
             
-            self.baseX = params.baseX;
-            self.baseY = params.baseY;
-            self.numOctaves = params.numOctaves;
-            self.offsets = params.offsets;
-            self.colors = params.colors;
-            self._seed = params._seed;
-            self._stitch = params._stitch;
-            self._fractal = params._fractal;
-            self._perlin = params._perlin;
+            self._srcImg = params._srcImg;
+            self.centerX = params.centerX;
+            self.centerY = params.centerY;
+            self.srcChannel = params.srcChannel;
+            self.dstChannel = params.dstChannel;
         }
         return self;
     }
@@ -12694,30 +11950,36 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this, baseX = self.baseX, baseY = self.baseY,
-            octaves = self.numOctaves, offsets = self.offsets,
-            colors = self.colors, is_grayscale = !colors || !colors.length,
-            is_perlin = self._perlin, is_turbulence = !self._fractal, is_seamless = self._stitch, 
-            i, l = im.length, x, y, n, c, noise
+        var self = this;
+        if ( !self._isOn || !self._srcImg ) return im;
+        
+        var src = self._srcImg.data,
+            i, l = im.length, l2 = src.length, 
+            w2 = self._srcImg.width, 
+            h2 = self._srcImg.height,
+            sC = self.srcChannel, tC = self.dstChannel,
+            x, x2, y, y2, off, xc, yc, 
+            wm = Min(w,w2), hm = Min(h, h2),  
+            cX = self.centerX||0, cY = self.centerY||0, 
+            cX2 = (w2>>1), cY2 = (h2>>1)
         ;
         
-        noise = is_perlin ? (is_seamless?seamless_perlin2:basic_perlin2) : (is_seamless?seamless_simplex2:basic_simplex2);
-        // avoid unnecesary re-seeding ??
-        //if ( self._seed ) seed( self._seed );
         
-        x=0; y=0;
+        // make center relative
+        cX = Floor(cX*(w-1)) - cX2;
+        cY = Floor(cY*(h-1)) - cY2;
+        
+        i=0; x=0; y=0;
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
-            n = 0.5*octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
-            if ( is_grayscale )
+            
+            xc = x - cX; yc = y - cY;
+            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
             {
-                im[i] = im[i+1] = im[i+2] = ~~(255*n);
-            }
-            else
-            {
-                c = colors[FLOOR(n*(colors.length-1))];
-                im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
+                // copy channel
+                off = (xc + yc*w2)<<2;
+                im[i + tC] = src[off + sC];
             }
         }
         
@@ -12728,28 +11990,60 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Seamless Tile Plugin
+* Alpha Mask Plugin
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-// a plugin to create a seamless tileable pattern from an image
-// adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
+
+// a plugin to mask an image using the alpha channel of another image
 FILTER.Create({
-    name: "SeamlessTileFilter"
+    name: "AlphaMaskFilter"
     
-    ,type: 0 // 0 radial, 1 linear 1, 2 linear 2
-    
-    // constructor
-    ,init: function( tiling_type ) {
-        var self = this;
-        self.type = tiling_type || 0;
-    }
+    // parameters
+    ,_alphaMask: null
+    ,alphaMask: null
+    ,centerX: 0
+    ,centerY: 0
     
     // support worker serialize/unserialize interface
     ,path: FILTER.getPath( exports.AMD )
+    
+    // constructor
+    ,init: function( alphaMask, centerX, centerY ) {
+        var self = this;
+        self.centerX = centerX||0;
+        self.centerY = centerY||0;
+        self._alphaMask = null;
+        self.alphaMask = null;
+        if ( alphaMask ) self.setMask( alphaMask );
+    }
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.alphaMask = null;
+        self._alphaMask = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    ,setMask: function( alphaMask ) {
+        var self = this;
+        if ( alphaMask )
+        {
+            self.alphaMask = alphaMask;
+            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
+        }
+        else
+        {
+            self.alphaMask = null;
+            self._alphaMask = null;
+        }
+        return self;
+    }
     
     ,serialize: function( ) {
         var self = this;
@@ -12758,7 +12052,9 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                type: self.type
+                _alphaMask: self._alphaMask
+                ,centerX: self.centerX
+                ,centerY: self.centerY
             }
         };
     }
@@ -12771,106 +12067,1018 @@ FILTER.Create({
             
             params = json.params;
             
-            self.type = params.type;
+            self._alphaMask = params._alphaMask;
+            self.centerX = params.centerX;
+            self.centerY = params.centerY;
         }
         return self;
     }
     
     // this is the filter actual apply method routine
-    // adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
     ,apply: function(im, w, h/*, image*/) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
-        var self = this, masktype = self.type,
-            //needed arrays
-            diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
-            index, N, N2, size, imSize;
-
-        //find largest side of the image
-        //and resize the image to become square
-        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
-        else  N = w; 
-        N2 = Math.round(N/2);
-        size = N*N; imSize = im.length;
-        diagonal = new FILTER.ImArray(imSize);
-        tile = new FILTER.ImArray(imSize);
-        mask = new FILTER.Array8U(size);
-
-        i = 0; j = 0;
-        for (k=0; k<imSize; k+=4,i++)
+        // for this filter, no need to clone the image data, operate in-place
+        
+        var self = this;
+        if ( !self._isOn || !self._alphaMask ) return im;
+        
+        var alpha = self._alphaMask.data,
+            w2 = self._alphaMask.width, h2 = self._alphaMask.height,
+            i, l = im.length, l2 = alpha.length, 
+            x, x2, y, y2, off, xc, yc, 
+            wm = Min(w, w2), hm = Min(h, h2),  
+            cX = self.centerX||0, cY = self.centerY||0, 
+            cX2 = (w2>>1), cY2 = (h2>>1)
+        ;
+        
+        
+        // make center relative
+        cX = Floor(cX*(w-1)) - cX2;
+        cY = Floor(cY*(h-1)) - cY2;
+        
+        x=0; y=0;
+        for (i=0; i<l; i+=4, x++)
         {
-            if ( i >= N ) {i=0; j++;}
-            index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
-            diagonal[ index   ] = im[ k ];
-            diagonal[ index+1 ] = im[ k+1 ];
-            diagonal[ index+2 ] = im[ k+2 ];
-            diagonal[ index+3 ] = im[ k+3 ];
-        }
-
-        //try to make your own masktypes here
-        //Create the mask
-        for (i=0; i<=N2-1; i++)
-        {
-            for (j=0; j<=N2-1; j++)
+            if (x>=w) { x=0; y++; }
+            
+            xc = x - cX; yc = y - cY;
+            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
             {
-                switch(masktype)
-                {
-                    case 0://RADIAL
-                    d = Math.sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
-                    break;
-
-                    case 1://LINEAR 1
-                    if ( (N2-i) < (N2-j) )
-                        d = (j-N2)/N2;
-
-                    else //if ( (N2-i) >= (N2-j) )
-                        d = (i-N/2)/N2;
-                    break;
-
-                    case 2://LINEAR 2
-                    default:
-                    if ( (N2-i) < (N2-j) )
-                        d = Math.sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
-
-                    else //if ( (N2-i)>=(N2-j) )
-                        d = Math.sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
-                    break;
-                }
-                //Scale d To range from 1 To 255
-                d = 255 - (255 * d);
-                if (d < 1) d = 1;
-                else if (d > 255) d = 255;
-
-                //Form the mask in Each quadrant
-                mask [i     + j*N      ] = d;
-                mask [i     + (N-1-j)*N] = d;
-                mask [N-1-i + j*N      ] = d;
-                mask [N-1-i + (N-1-j)*N] = d;
+                // copy alpha channel
+                off = (xc + yc*w2)<<2;
+                im[i+3] = alpha[off+3];
+            }
+            else
+            {
+                // better to remove the alpha channel if mask dimensions are different??
+                im[i+3] = 0;
             }
         }
-
-        //Create the tile
-        for (j=0; j<=N-1; j++)
-        {
-            for (i=0; i<=N-1; i++)
-            {
-                index = i+j*N;
-                a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
-                a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-                tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
-                tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
-                tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
-                tile[index+3] = im[index+3];
-            }
-        }
-
-        //create the new tileable image
-        //if it wasn't a square image, resize it back to the original scale
-        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
-
+        
         // return the new image data
-        return tile;
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
+* Image Blend Filter Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var HAS = 'hasOwnProperty', Min = Math.min, Max = Math.max, 
+    Round = Math.round, Floor=Math.floor, Abs = Math.abs,
+    notSupportClamp = FILTER._notSupportClamp,
+    blend_functions
+;
+
+// JavaScript implementations of common image blending modes, based on
+// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+blend_functions = {
+    
+    normal: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+        
+        // normal mode
+        rb = r2;  
+        gb = g2;  
+        bb = b2;
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    lighten: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+        
+        // lighten mode
+        rb = (r > r2) ? r : r2; 
+        gb = (g > g2) ? g : g2; 
+        bb = (b > b2) ? b : b2; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    darken: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // darken mode
+        rb = (r > r2) ? r2 : r; 
+        gb = (g > g2) ? g2 : g; 
+        bb = (b > b2) ? b2 : b; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    multiply: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // multiply mode
+        rb = (r * r2 * 0.003921568627451);
+        gb = (g * g2 * 0.003921568627451);
+        bb = (b * b2 * 0.003921568627451);
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    average: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // average mode
+        rb = 0.5*(r + r2); 
+        gb = 0.5*(g + g2); 
+        bb = 0.5*(b + b2); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    add: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // add mode
+        rb = r + r2; 
+        gb = g + g2; 
+        bb = b + b2; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    subtract: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // subtract mode
+        rb = (r + r2 < 255) ? 0 : r + r2 - 255;  
+        gb = (g + g2 < 255) ? 0 : g + g2 - 255;  
+        bb = (b + b2 < 255) ? 0 : b + b2 - 255;  
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    difference: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // difference mode
+        rb = Abs(r2 - r); 
+        gb = Abs(g2 - g); 
+        bb = Abs(b2 - b); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    negation: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // negation mode
+        rb = 255 - Abs(255 - r2 - r);
+        gb = 255 - Abs(255 - g2 - g);
+        bb = 255 - Abs(255 - b2 - b);
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    screen: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // screen mode
+        rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
+        gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
+        bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    exclusion: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // exclusion mode
+        rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
+        gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
+        bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    overlay: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // overlay mode
+        rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
+        rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    softlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // softlight mode
+        rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
+        bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    // reverse of overlay
+    hardlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // hardlight mode, reverse of overlay
+        rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
+        gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
+        bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    colordodge: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // colordodge mode
+        rb = (255 == r) ? r : Min(255, ((r2 << 8 ) / (255 - r))); 
+        gb = (255 == g) ? g : Min(255, ((g2 << 8 ) / (255 - g))); 
+        bb = (255 == b) ? r : Min(255, ((b2 << 8 ) / (255 - b))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    colorburn: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // colorburn mode
+        rb = (0 == r) ? r : Max(0, (255 - ((255 - r2) << 8 ) / r)); 
+        gb = (0 == g) ? g : Max(0, (255 - ((255 - g2) << 8 ) / g)); 
+        bb = (0 == b) ? b : Max(0, (255 - ((255 - b2) << 8 ) / b)); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    linearlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // linearlight mode
+        if (r < 128)
+        {
+            tmp = r*2;
+            rb = (tmp + r2 < 255) ? 0 : tmp + r2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r - 128);
+            rb = tmp + r2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = g*2;
+            gb = (tmp + g2 < 255) ? 0 : tmp + g2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g - 128);
+            gb = tmp + g2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = b*2;
+            bb = (tmp + b2 < 255) ? 0 : tmp + b2 - 255; //blendModes.linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b - 128);
+            bb = tmp + b2; //blendModes.linearDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    reflect: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // reflect mode
+        rb = (255 == r) ? r : Min(255, (r2 * r2 / (255 - r))); 
+        gb = (255 == g) ? g : Min(255, (g2 * g2 / (255 - g))); 
+        bb = (255 == b) ? b : Min(255, (b2 * b2 / (255 - b))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    // reverse of reflect
+    glow: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // glow mode, reverse of reflect
+        rb = (255 == r2) ? r2 : Min(255, (r * r / (255 - r2))); 
+        gb = (255 == g2) ? g2 : Min(255, (g * g / (255 - g2))); 
+        bb = (255 == b2) ? b2 : Min(255, (b * b / (255 - b2))); 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    phoenix: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // phoenix mode
+        rb = Min(r2, r) - Max(r2, r) + 255; 
+        gb = Min(g2, g) - Max(g2, g) + 255; 
+        bb = Min(b2, b) - Max(b2, b) + 255; 
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    vividlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // vividlight mode
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));  //blendModes.colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));  // blendModes.colorDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    pinlight: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // pinlight mode
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (tmp > r2) ? tmp : r2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (tmp > r2) ? r2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (tmp > g2) ? tmp : g2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            gb = (tmp > g2) ? g2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (tmp > b2) ? tmp : b2;  //blendModes.darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = (tmp > b2) ? b2 : tmp;  // blendModes.lighten(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    },
+
+    hardmix: function(im, pixel, im2, pixel2) { 
+        var rb, gb, bb, tmp,
+            amount = im2[pixel2+3]*0.003921568627451, invamount = 1-amount,
+            r = im[pixel], g = im[pixel+1], b = im[pixel+2],
+            r2 = im2[pixel2], g2 = im2[pixel2+1], b2 = im2[pixel2+2]
+        ;
+    
+        // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
+        if (r < 128)
+        {
+            tmp = 2*r;
+            rb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - r2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = (255 == tmp) ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
+        }
+        rb = (rb < 128) ? 0 : 255;
+        if (g < 128)
+        {
+            tmp = 2*g;
+            gb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - g2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = (255 == tmp) ? tmp : Min(255, ((g2 << 8 ) / (255 - tmp)));
+        }
+        gb = (gb < 128) ? 0 : 255;
+        if (b < 128)
+        {
+            tmp = 2*b;
+            bb = (0 == tmp) ? tmp : Max(0, (255 - ((255 - b2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = (255 == tmp) ? tmp : Min(255, ((b2 << 8 ) / (255 - tmp)));
+        }
+        bb = (bb < 128) ? 0 : 255;
+        
+        // amount compositing
+        r = rb * amount + r * invamount;  
+        g = gb * amount + g * invamount;  
+        b = bb * amount + b * invamount;
+        
+        if (notSupportClamp)
+        {
+            // clamp them manually
+            r = (r<0) ? 0 : ((r>255) ? 255 : r);
+            g = (g<0) ? 0 : ((g>255) ? 255 : g);
+            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+        }
+        
+        // output
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
+    }
+};
+// aliases
+blend_functions.lineardodge = blend_functions.add;
+blend_functions.linearburn = blend_functions.subtract;
+
+//
+//
+// a photoshop-like Blend Filter Plugin
+FILTER.Create({
+    name: "BlendFilter"
+    
+    // parameters
+    ,_blendMode: null
+    ,_blendImage: null
+    ,blendImage: null
+    ,startX: 0
+    ,startY: 0
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER.getPath( exports.AMD )
+    
+    // constructor
+    ,init: function( blendImage, blendMode ) { 
+        var self = this;
+        self.startX = 0;
+        self.startY = 0;
+        self._blendImage = null;
+        self.blendImage = null;
+        self._blendMode = null;
+        if ( blendImage ) self.setImage( blendImage );
+        if ( blendMode ) self.setMode( blendMode );
+    }
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.blendImage = null;
+        self._blendImage = null;
+        self._blendMode = null;
+        self.$super('dispose');
+        return self;
+    }
+    
+    // set blend image auxiliary method
+    ,setImage: function( blendImage ) {
+        var self = this;
+        if ( blendImage )
+        {
+            self.blendImage = blendImage;
+            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
+        }
+        else
+        {
+            self.blendImage = null;
+            self._blendImage = null;
+        }
+        return self;
+    }
+    
+    // set blend mode auxiliary method
+    ,setMode: function( blendMode ) {
+        var self = this;
+        if ( blendMode )
+        {
+            self._blendMode = (''+blendMode).toLowerCase();
+            if ( !blend_functions[HAS](self._blendMode) ) self._blendMode = null;
+        }
+        else
+        {
+            self._blendMode = null;
+        }
+        return self;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                _blendImage: self._blendImage
+                ,_blendMode: self._blendMode
+                ,startX: self.startX
+                ,startY: self.startY
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.startX = params.startX;
+            self.startY = params.startY;
+            self._blendImage = params._blendImage;
+            self.setMode( params._blendMode );
+        }
+        return self;
+    }
+    
+    ,reset: function( ) {
+        var self = this;
+        self.startX = 0;
+        self.startY = 0;
+        self._blendMode = null;
+        return self;
+    }
+    
+    // main apply routine
+    ,apply: function(im, w, h/*, image*/) {
+        var self = this;
+        if ( !self._isOn || !self._blendMode || !self._blendImage ) return im;
+        
+        var startX = self.startX||0, startY = self.startY||0, 
+            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
+            W1, W2, start, end, x, y, x2, y2,
+            image2 = self._blendImage, pix2,
+            blend = blend_functions[ self._blendMode ]
+        ;
+        
+        //if ( !blend ) return im;
+        
+        if (startX < 0) { startX2 = -startX;  startX = 0; }
+        if (startY < 0) { startY2 = -startY;  startY = 0; }
+        
+        w2 = image2.width; h2 = image2.height;
+        if (startX >= w || startY >= h) return im;
+        if (startX2 >= w2 || startY2 >= h2) return im;
+        
+        startX = Round(startX); startY = Round(startY);
+        startX2 = Round(startX2); startY2 = Round(startY2);
+        W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
+        if (W <= 0 || H <= 0) return im;
+        
+        im2 = image2.data;
+        
+        // blend images
+        x = startX; y = startY*w;
+        x2 = startX2; y2 = startY2*w2;
+        W1 = startX+W; W2 = startX2+W;
+        start = 0; end = H*W;
+        while (start<end)
+        {
+            pix2 = (x2 + y2)<<2;
+            // blend only if im2 has opacity in this point
+            if ( im2[pix2+3] ) 
+                // calculate and assign blended color
+                blend(im, (x + y)<<2, im2, pix2);
+            
+            // next pixels
+            start++;
+            x++; if (x>=W1) { x = startX; y += w; }
+            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
+        }
+        return im; 
     }
 });
 

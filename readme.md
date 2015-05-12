@@ -75,7 +75,7 @@ Some filters code has been adapted from open source libraries (mostly c, java an
 
 
 
-Some image processing theory, basics and tutorials:
+Some image processing/computer vision theory, basics and tutorials:
 
 
 * [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
@@ -83,8 +83,10 @@ Some image processing theory, basics and tutorials:
 * [fundamentals of image processing]( http://www.tnw.tudelft.nl/fileadmin/Faculteit/TNW/Over_de_faculteit/Afdelingen/Imaging_Science_and_Technology/Research/Research_Groups/Quantitative_Imaging/Education/doc/FIP2_3.pdf)
 * [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
 * [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
+* [image segmentation techniques](http://www.bioss.ac.uk/people/chris/ch4.pdf)
 * [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
 * [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
+* [image processing in C](http://homepages.inf.ed.ac.uk/rbf/BOOKS/PHILLIPS/)
 
 
 
@@ -96,7 +98,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Utilities Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
@@ -134,11 +136,12 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add CSS Filters interface support for various pre-built and custom Filters (todo, in progress)
 * add (generic/native) loader support for other image formats, e.g .TGA, .HDR/.RGBE, .GIF, .BMP, .PNG, .JPG etc.. [DONE partially]
 * add 2d-fft routines, frequency-domain filtering [DONE partially]
+* add image segmentation/classification algorithms (e.g kmeans, em, meanshift) (todo)
 * add support for Parallel Processing using Web Workers and/or Asynchronous Processing [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 * add caching of filter parameters where applicable [DONE partially]
-* add more filters (eg split/combine/adaptive/nonlinear etc..) [DONE partially]
+* add more filters/plugins (eg split/combine/adaptive/nonlinear etc..) [DONE partially]
 * increase support/performance for Opera, IE  [DONE partially]
 
 

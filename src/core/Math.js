@@ -704,4 +704,10 @@ FILTER.Compute = {
     }
 };
 
+FILTER.Classify = {
+     kmeans: function(){}
+    ,em: function(){}
+    ,meanshift: function(){}
+};
+
 }(FILTER);

@@ -43,7 +43,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     lighten: function(im, pixel, im2, pixel2) { 
@@ -72,7 +72,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     darken: function(im, pixel, im2, pixel2) { 
@@ -101,7 +101,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     multiply: function(im, pixel, im2, pixel2) { 
@@ -130,7 +130,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     average: function(im, pixel, im2, pixel2) { 
@@ -159,7 +159,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     add: function(im, pixel, im2, pixel2) { 
@@ -188,7 +188,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     subtract: function(im, pixel, im2, pixel2) { 
@@ -217,7 +217,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     difference: function(im, pixel, im2, pixel2) { 
@@ -246,7 +246,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     negation: function(im, pixel, im2, pixel2) { 
@@ -275,7 +275,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     screen: function(im, pixel, im2, pixel2) { 
@@ -304,7 +304,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     exclusion: function(im, pixel, im2, pixel2) { 
@@ -333,7 +333,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     overlay: function(im, pixel, im2, pixel2) { 
@@ -362,7 +362,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     softlight: function(im, pixel, im2, pixel2) { 
@@ -391,7 +391,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     // reverse of overlay
@@ -421,7 +421,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     colordodge: function(im, pixel, im2, pixel2) { 
@@ -450,7 +450,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     colorburn: function(im, pixel, im2, pixel2) { 
@@ -479,7 +479,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     linearlight: function(im, pixel, im2, pixel2) { 
@@ -535,7 +535,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     reflect: function(im, pixel, im2, pixel2) { 
@@ -564,7 +564,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     // reverse of reflect
@@ -594,7 +594,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     phoenix: function(im, pixel, im2, pixel2) { 
@@ -623,7 +623,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     vividlight: function(im, pixel, im2, pixel2) { 
@@ -679,7 +679,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     pinlight: function(im, pixel, im2, pixel2) { 
@@ -735,7 +735,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     },
 
     hardmix: function(im, pixel, im2, pixel2) { 
@@ -794,7 +794,7 @@ blend_functions = {
         }
         
         // output
-        im[i] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+        im[pixel] = ~~r; im[pixel+1] = ~~g; im[pixel+2] = ~~b;
     }
 };
 // aliases
