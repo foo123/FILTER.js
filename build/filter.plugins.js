@@ -485,146 +485,6 @@ function simplex2( x, y )
     return 40.0 * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
 }
 
-// 4D simplex noise
-function simplex4( x, y, z, w ) 
-{
-    // The skewing and unskewing factors are hairy again for the 4D case
-    var F4 = 0.309016994; // F4 = (Math.sqrt(5.0)-1.0)/4.0
-    var G4 = 0.138196601; // G4 = (5.0-Math.sqrt(5.0))/20.0
-    
-    var n0, n1, n2, n3, n4; // Noise contributions from the five corners
-
-    // Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
-    var s = (x + y + z + w) * F4; // Factor for 4D skewing
-    var xs = x + s;
-    var ys = y + s;
-    var zs = z + s;
-    var ws = w + s;
-    var i = FLOOR(xs);
-    var j = FLOOR(ys);
-    var k = FLOOR(zs);
-    var l = FLOOR(ws);
-
-    var t = (i + j + k + l) * G4; // Factor for 4D unskewing
-    var X0 = i - t; // Unskew the cell origin back to (x,y,z,w) space
-    var Y0 = j - t;
-    var Z0 = k - t;
-    var W0 = l - t;
-
-    var x0 = x - X0;  // The x,y,z,w distances from the cell origin
-    var y0 = y - Y0;
-    var z0 = z - Z0;
-    var w0 = w - W0;
-
-    // For the 4D case, the simplex is a 4D shape I won't even try to describe.
-    // To find out which of the 24 possible simplices we're in, we need to
-    // determine the magnitude ordering of x0, y0, z0 and w0.
-    // The method below is a good way of finding the ordering of x,y,z,w and
-    // then find the correct traversal order for the simplex we’re in.
-    // First, six pair-wise comparisons are performed between each possible pair
-    // of the four coordinates, and the results are used to add up binary bits
-    // for an integer index.
-    var c1 = (x0 > y0) ? 32 : 0;
-    var c2 = (x0 > z0) ? 16 : 0;
-    var c3 = (y0 > z0) ? 8 : 0;
-    var c4 = (x0 > w0) ? 4 : 0;
-    var c5 = (y0 > w0) ? 2 : 0;
-    var c6 = (z0 > w0) ? 1 : 0;
-    var c = c1 + c2 + c3 + c4 + c5 + c6;
-
-    var i1, j1, k1, l1; // The integer offsets for the second simplex corner
-    var i2, j2, k2, l2; // The integer offsets for the third simplex corner
-    var i3, j3, k3, l3; // The integer offsets for the fourth simplex corner
-
-    // simplex[c] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
-    // Many values of c will never occur, since e.g. x>y>z>w makes x<z, y<w and x<w
-    // impossible. Only the 24 indices which have non-zero entries make any sense.
-    // We use a thresholding to set the coordinates in turn from the largest magnitude.
-    // The number 3 in the "simplex" array is at the position of the largest coordinate.
-    i1 = simplex[c][0]>=3 ? 1 : 0;
-    j1 = simplex[c][1]>=3 ? 1 : 0;
-    k1 = simplex[c][2]>=3 ? 1 : 0;
-    l1 = simplex[c][3]>=3 ? 1 : 0;
-    // The number 2 in the "simplex" array is at the second largest coordinate.
-    i2 = simplex[c][0]>=2 ? 1 : 0;
-    j2 = simplex[c][1]>=2 ? 1 : 0;
-    k2 = simplex[c][2]>=2 ? 1 : 0;
-    l2 = simplex[c][3]>=2 ? 1 : 0;
-    // The number 1 in the "simplex" array is at the second smallest coordinate.
-    i3 = simplex[c][0]>=1 ? 1 : 0;
-    j3 = simplex[c][1]>=1 ? 1 : 0;
-    k3 = simplex[c][2]>=1 ? 1 : 0;
-    l3 = simplex[c][3]>=1 ? 1 : 0;
-    // The fifth corner has all coordinate offsets = 1, so no need to look that up.
-
-    var x1 = x0 - i1 + G4; // Offsets for second corner in (x,y,z,w) coords
-    var y1 = y0 - j1 + G4;
-    var z1 = z0 - k1 + G4;
-    var w1 = w0 - l1 + G4;
-    var x2 = x0 - i2 + 2.0*G4; // Offsets for third corner in (x,y,z,w) coords
-    var y2 = y0 - j2 + 2.0*G4;
-    var z2 = z0 - k2 + 2.0*G4;
-    var w2 = w0 - l2 + 2.0*G4;
-    var x3 = x0 - i3 + 3.0*G4; // Offsets for fourth corner in (x,y,z,w) coords
-    var y3 = y0 - j3 + 3.0*G4;
-    var z3 = z0 - k3 + 3.0*G4;
-    var w3 = w0 - l3 + 3.0*G4;
-    var x4 = x0 - 1.0 + 4.0*G4; // Offsets for last corner in (x,y,z,w) coords
-    var y4 = y0 - 1.0 + 4.0*G4;
-    var z4 = z0 - 1.0 + 4.0*G4;
-    var w4 = w0 - 1.0 + 4.0*G4;
-
-    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
-    var ii = i & 0xff;
-    var jj = j & 0xff;
-    var kk = k & 0xff;
-    var ll = l & 0xff;
-
-    // Calculate the contribution from the five corners
-    var t0 = 0.5 - x0*x0 - y0*y0 - z0*z0 - w0*w0; // needs 0.5 here
-    if ( t0 < 0.0 ) n0 = 0.0;
-    else 
-    {
-        t0 *= t0;
-        n0 = t0 * t0 * grad4(perm[ii+perm[jj+perm[kk+perm[ll]]]], x0, y0, z0, w0);
-    }
-
-    var t1 = 0.5 - x1*x1 - y1*y1 - z1*z1 - w1*w1; // needs 0.5 here
-    if ( t1 < 0.0 ) n1 = 0.0;
-    else 
-    {
-        t1 *= t1;
-        n1 = t1 * t1 * grad4(perm[ii+i1+perm[jj+j1+perm[kk+k1+perm[ll+l1]]]], x1, y1, z1, w1);
-    }
-
-    var t2 = 0.5 - x2*x2 - y2*y2 - z2*z2 - w2*w2; // needs 0.5 here
-    if ( t2 < 0.0 ) n2 = 0.0;
-    else 
-    {
-        t2 *= t2;
-        n2 = t2 * t2 * grad4(perm[ii+i2+perm[jj+j2+perm[kk+k2+perm[ll+l2]]]], x2, y2, z2, w2);
-    }
-
-    var t3 = 0.5 - x3*x3 - y3*y3 - z3*z3 - w3*w3; // needs 0.5 here
-    if ( t3 < 0.0 ) n3 = 0.0;
-    else 
-    {
-        t3 *= t3;
-        n3 = t3 * t3 * grad4(perm[ii+i3+perm[jj+j3+perm[kk+k3+perm[ll+l3]]]], x3, y3, z3, w3);
-    }
-
-    var t4 = 0.5 - x4*x4 - y4*y4 - z4*z4 - w4*w4; // needs 0.5 here
-    if ( t4 < 0.0 ) n4 = 0.0;
-    else 
-    {
-        t4 *= t4;
-        n4 = t4 * t4 * grad4(perm[ii+1+perm[jj+1+perm[kk+1+perm[ll+1]]]], x4, y4, z4, w4);
-    }
-
-    // Sum up and scale the result to cover the range [-1,1]
-    return 27.0 * (n0 + n1 + n2 + n3 + n4); // TODO: The scale factor is preliminary!
-}
-
 // This is the new and improved, C(2) continuous interpolant
 function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
 function LERP(t, a, b) { return a + t*(b-a); }
@@ -661,126 +521,22 @@ function perlin2( x, y )
     return 0.507 * ( LERP( s, n0, n1 ) );
 }
 
-// 4D float Perlin noise.
-function perlin4( x, y, z, w )
-{
-    var ix0, iy0, iz0, iw0, ix1, iy1, iz1, iw1;
-    var fx0, fy0, fz0, fw0, fx1, fy1, fz1, fw1;
-    var s, t, r, q;
-    var nxyz0, nxyz1, nxy0, nxy1, nx0, nx1, n0, n1;
-
-    ix0 = FLOOR( x ); // Integer part of x
-    iy0 = FLOOR( y ); // Integer part of y
-    iz0 = FLOOR( z ); // Integer part of y
-    iw0 = FLOOR( w ); // Integer part of w
-    fx0 = x - ix0;        // Fractional part of x
-    fy0 = y - iy0;        // Fractional part of y
-    fz0 = z - iz0;        // Fractional part of z
-    fw0 = w - iw0;        // Fractional part of w
-    fx1 = fx0 - 1.0;
-    fy1 = fy0 - 1.0;
-    fz1 = fz0 - 1.0;
-    fw1 = fw0 - 1.0;
-    ix1 = ( ix0 + 1 ) & 0xff;  // Wrap to 0..255
-    iy1 = ( iy0 + 1 ) & 0xff;
-    iz1 = ( iz0 + 1 ) & 0xff;
-    iw1 = ( iw0 + 1 ) & 0xff;
-    ix0 = ix0 & 0xff;
-    iy0 = iy0 & 0xff;
-    iz0 = iz0 & 0xff;
-    iw0 = iw0 & 0xff;
-
-    q = FADE( fw0 );
-    r = FADE( fz0 );
-    t = FADE( fy0 );
-    s = FADE( fx0 );
-
-    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx0, fy0, fz0, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx0, fy0, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx0, fy0, fz1, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx0, fy0, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-        
-    nx0 = LERP ( r, nxy0, nxy1 );
-
-    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx0, fy1, fz0, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx0, fy1, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx0, fy1, fz1, fw0);
-    nxyz1 = grad4(perm[ix0 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx0, fy1, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx1 = LERP ( r, nxy0, nxy1 );
-
-    n0 = LERP( t, nx0, nx1 );
-
-    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw0]]]], fx1, fy0, fz0, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz0 + perm[iw1]]]], fx1, fy0, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw0]]]], fx1, fy0, fz1, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy0 + perm[iz1 + perm[iw1]]]], fx1, fy0, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx0 = LERP ( r, nxy0, nxy1 );
-
-    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw0]]]], fx1, fy1, fz0, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz0 + perm[iw1]]]], fx1, fy1, fz0, fw1);
-    nxy0 = LERP( q, nxyz0, nxyz1 );
-        
-    nxyz0 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw0]]]], fx1, fy1, fz1, fw0);
-    nxyz1 = grad4(perm[ix1 + perm[iy1 + perm[iz1 + perm[iw1]]]], fx1, fy1, fz1, fw1);
-    nxy1 = LERP( q, nxyz0, nxyz1 );
-
-    nx1 = LERP ( r, nxy0, nxy1 );
-
-    n1 = LERP( t, nx0, nx1 );
-
-    return 0.87 * ( LERP( s, n0, n1 ) );
-}
-
-function basic_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    return simplex2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
-}
-function basic_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    return perlin2(((x+offsetX)%w)/baseX, ((y+offsetY)%h)/baseY);
-}
-// adapted from: http://www.gamedev.net/blog/33/entry-2138456-seamless-noise/
-function seamless_simplex2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    var s = PI2*((x+offsetX)%baseX)/baseX, t = PI2*((y+offsetY)%baseY)/baseY,
-        x1 = -1, y1 = -1, x2 = 1, y2 = 1, 
-        dx = (x2-x1), dy = (y2-y1),
-        nx = x1 + cos(s)*dx/PI2,
-        ny = y1 + cos(t)*dy/PI2,
-        nz = x1 + sin(s)*dx/PI2,
-        nw = y1 + sin(t)*dy/PI2
-    ;
-    return simplex4(nx,ny,nz,nw);
-}
-function seamless_perlin2( x, y, w, h, baseX, baseY, offsetX, offsetY )
-{
-    var s = PI2*((x+offsetX)%w)/w, t = PI2*((y+offsetY)%h)/h,
-        nx = cos(s),
-        ny = cos(t),
-        nz = sin(s),
-        nw = sin(t)
-    ;
-    return perlin4(nx,ny,nz,nw);
-}
 // adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
+function octaved(seamless, noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
 {
-    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, octave;
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
 
     for (octave = 0; octave < octaves; octave++) 
     {
-        noiseSum += noise( x, y, w, h, baseX/layerFrequency, baseY/layerFrequency, offsets[octave][0], offsets[octave][1] ) * layerWeight;
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        if ( seamless )
+        {
+            // simulate seamless stitching, i.e circular/tileable symmetry
+            if ( nx > w2 ) nx = w-1-nx;
+            if ( ny > h2 ) ny = h-1-ny;
+        }
+        noiseSum += noise( nx/(baseX/layerFrequency), ny/(baseY/layerFrequency) ) * layerWeight;
         layerFrequency *= 2;
         weightSum += layerWeight;
         layerWeight *= roughness;
@@ -798,11 +554,11 @@ FILTER.Create({
     name: "PerlinNoiseFilter"
     
     // parameters
-    ,baseX: 1
-    ,baseY: 1
-    ,numOctaves: 1
-    ,offsets: null
-    ,colors: null
+    ,_baseX: 1
+    ,_baseY: 1
+    ,_octaves: 1
+    ,_offsets: null
+    ,_colors: null
     ,_seed: 0
     ,_stitch: false
     ,_fractal: true
@@ -811,10 +567,10 @@ FILTER.Create({
     // constructor
     ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
         var self = this;
-        self.baseX = baseX || 1;
-        self.baseY = baseY || 1;
+        self._baseX = baseX || 1;
+        self._baseY = baseY || 1;
         self.octaves( octaves||1, offsets );
-        self.colors = colors || null;
+        self.colors( colors || null );
         self._seed = seed || 0;
         self._stitch = !!stitch;
         self._fractal = false !== fractal;
@@ -830,11 +586,17 @@ FILTER.Create({
         return self;
     }
     
-    ,octaves: function( numOctaves, offsets ) {
+    ,octaves: function( octaves, offsets ) {
         var self = this;
-        self.numOctaves = numOctaves || 1;
-        self.offsets = !offsets ? [] : offsets.slice(0);
-        while (self.offsets.length < self.numOctaves) self.offsets.push([0,0]);
+        self._octaves = octaves || 1;
+        self._offsets = !offsets ? [] : offsets.slice(0);
+        while (self._offsets.length < self._octaves) self._offsets.push([0,0]);
+        return self;
+    }
+    
+    ,colors: function( colors ) {
+        var self = this;
+        self._colors = colors || null;
         return self;
     }
     
@@ -867,11 +629,11 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 baseX: self.baseX
-                ,baseY: self.baseY
-                ,numOctaves: self.numOctaves
-                ,offsets: self.offsets
-                ,colors: self.colors
+                 _baseX: self._baseX
+                ,_baseY: self._baseY
+                ,_octaves: self._octaves
+                ,_offsets: self._offsets
+                ,_colors: self._colors
                 ,_seed: self._seed
                 ,_stitch: self._stitch
                 ,_fractal: self._fractal
@@ -888,11 +650,11 @@ FILTER.Create({
             
             params = json.params;
             
-            self.baseX = params.baseX;
-            self.baseY = params.baseY;
-            self.numOctaves = params.numOctaves;
-            self.offsets = params.offsets;
-            self.colors = params.colors;
+            self._baseX = params._baseX;
+            self._baseY = params._baseY;
+            self._octaves = params._octaves;
+            self._offsets = params._offsets;
+            self._colors = params._colors;
             self._seed = params._seed;
             self._stitch = params._stitch;
             self._fractal = params._fractal;
@@ -907,14 +669,14 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this, baseX = self.baseX, baseY = self.baseY,
-            octaves = self.numOctaves, offsets = self.offsets,
-            colors = self.colors, is_grayscale = !colors || !colors.length,
-            is_perlin = self._perlin, is_turbulence = !self._fractal, is_seamless = self._stitch, 
+        var self = this, baseX = self._baseX, baseY = self._baseY,
+            octaves = self._octaves, offsets = self._offsets,
+            colors = self._colors, is_grayscale = !colors || !colors.length,
+            is_perlin = self._perlin, is_turbulence = !self._fractal, seamless = !!self._stitch, 
             i, l = im.length, x, y, n, c, noise
         ;
         
-        noise = is_perlin ? (is_seamless?seamless_perlin2:basic_perlin2) : (is_seamless?seamless_simplex2:basic_simplex2);
+        noise = is_perlin ? perlin2 : simplex2;
         // avoid unnecesary re-seeding ??
         //if ( self._seed ) seed( self._seed );
         
@@ -922,7 +684,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
-            n = 0.5*octaved(noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
+            n = 0.5*octaved(seamless, noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
             if ( is_grayscale )
             {
                 im[i] = im[i+1] = im[i+2] = ~~(255*n);

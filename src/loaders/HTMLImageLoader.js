@@ -18,7 +18,7 @@ FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
         this.$super('constructor');
     },
     
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         var scope = this, loader, 
             image = new FilterImage( )
         ;

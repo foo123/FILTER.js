@@ -18,8 +18,8 @@ var Loader = FILTER.Loader = Class({
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( url, onLoad, onProgress, onError ) {
-                return new $class().load(url, onLoad, onProgress, onError);
+              return function( url, onLoad, onError ) {
+                return new $class().load(url, onLoad, onError);
             }
         }, FILTER.LATE|FILTER.STATIC )
     },
@@ -35,7 +35,7 @@ var Loader = FILTER.Loader = Class({
     },
     
     // override in sub-classes
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         return null;
     },
 
@@ -69,13 +69,13 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
             return new XHRLoader();
     },
     
-    load: function ( url, onLoad, onProgress, onError ) {
+    load: function ( url, onLoad, onError ) {
         var scope = this, request = new XMLHttpRequest( );
         request.open( 'GET', url, true );
         request[ON]('load', function ( event ) {
             if ( onLoad ) onLoad( this.response );
         }, false);
-        if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
+        //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
         if ( 'function' === typeof onError ) request[ON]('error', onError, false);
         if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
         if ( scope._responseType ) request.responseType = scope._responseType;
@@ -94,7 +94,7 @@ FILTER.BinaryLoader = Class(Loader, {
     
     _parser: null,
     
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         var loader = this, xhrloader, 
             image = new FilterImage( )
         ;
@@ -108,7 +108,7 @@ FILTER.BinaryLoader = Class(Loader, {
                     if ( !imData ) return;
                     image.image(imData);
                     if ( 'function' === typeof onLoad ) onLoad(image, imData);
-                }, onProgress, onError )
+                }, onError )
             ;
         }
         return image;

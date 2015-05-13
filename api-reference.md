@@ -84,11 +84,11 @@ __Methods:__
 ###Loader / HTMLImageLoader Classes
 
 ````javascript
-filterImageInstance = FILTER.HTMLImageLoader.load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = FILTER.HTMLImageLoader.load(imageUrl [, onLoad, onError]);
 
 // this is similar to:
 
-filterImageInstance = new FILTER.HTMLImageLoader().load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = new FILTER.HTMLImageLoader().load(imageUrl [, onLoad, onError]);
 ````
 
 Loads an image url into a FILTER.Image instance. 
@@ -103,11 +103,11 @@ Use the FILTER.HTMLImageLoader instead.
 Loads an image url in TGA format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = FILTER.TGALoader.load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = FILTER.TGALoader.load(imageUrl [, onLoad, onError]);
 
 // this is similar to:
 
-filterImageInstance = new FILTER.TGALoader().load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = new FILTER.TGALoader().load(imageUrl [, onLoad, onError]);
 ````
 
 ###RGBELoader / HDRLoader
@@ -115,11 +115,11 @@ filterImageInstance = new FILTER.TGALoader().load(imageUrl [, onLoad, onProgress
 Loads an image url in RGBE format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = FILTER.RGBELoader.load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = FILTER.RGBELoader.load(imageUrl [, onLoad, onError]);
 
 // this is similar to:
 
-filterImageInstance = new FILTER.RGBELoader().load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = new FILTER.RGBELoader().load(imageUrl [, onLoad, onError]);
 ````
 
 ###GIFLoader
@@ -129,11 +129,11 @@ Loads an image url in GIF format into a FILTER.Image instance.
 **Note** animated GIFs are not handled at this moment
 
 ````javascript
-filterImageInstance = FILTER.GIFLoader.load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = FILTER.GIFLoader.load(imageUrl [, onLoad, onError]);
 
 // this is similar to:
 
-filterImageInstance = new FILTER.GIFLoader().load(imageUrl [, onLoad, onProgress, onError]);
+filterImageInstance = new FILTER.GIFLoader().load(imageUrl [, onLoad, onError]);
 ````
 
 

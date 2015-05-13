@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-13 15:36:24
+*   @built on 2015-05-14 00:15:31
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -139,7 +139,7 @@
 *
 *   FILTER.js
 *   @version: 0.7
-*   @built on 2015-05-13 15:36:24
+*   @built on 2015-05-14 00:15:31
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -663,8 +663,7 @@ FILTER.Create = function( methods ) {
 "use strict";
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI, 
-    sin = Math.sin, cos = Math.cos, min = Math.min, max = Math.max
+    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI
 ;
 Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
@@ -827,8 +826,22 @@ FILTER.Compute = {
 !function(FILTER, undef){
 "use strict";
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
+var IMG = FILTER.ImArray, min = Math.min;
 FILTER.Interpolation = FILTER.Interpolation || {};
+
+FILTER.Interpolation.crop = function( im, w, h, x1, y1, x2, y2 ) {
+     x2 = min(x2,w-1); y2 = min(y2,h-1);
+     var nw = x2-x1+1, nh = y2-y1+1, 
+        croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
+        y, yw, nw4 = nw<<2, pixel, pixel2;
+        
+        for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
+        {
+            pixel2 = (yw+x1)<<2;
+            cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
+        }
+     return cropped;
+};
 
 FILTER.Interpolation.pad = function( im, w, h, pad_right, pad_bot, pad_left, pad_top ) {
      pad_right = pad_right || 0; pad_bot = pad_bot || 0;
@@ -846,20 +859,6 @@ FILTER.Interpolation.pad = function( im, w, h, pad_right, pad_bot, pad_left, pad
      return padded;
 };
     
-FILTER.Interpolation.crop = function( im, w, h, x1, y1, x2, y2 ) {
-     x2 = min(x2,w-1); y2 = min(y2,h-1);
-     var nw = x2-x1+1, nh = y2-y1+1, 
-        croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
-        y, yw, nw4 = nw<<2, pixel, pixel2;
-        
-        for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
-        {
-            pixel2 = (yw+x1)<<2;
-            cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
-        }
-     return cropped;
-};
-
 }(FILTER);/**
 *
 * Filter Interpolation methods
@@ -869,7 +868,7 @@ FILTER.Interpolation.crop = function( im, w, h, x1, y1, x2, y2 ) {
 !function(FILTER, undef){
 "use strict";
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
+var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray;
 FILTER.Interpolation = FILTER.Interpolation || {};
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
@@ -2817,8 +2816,8 @@ var Loader = FILTER.Loader = Class({
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( url, onLoad, onProgress, onError ) {
-                return new $class().load(url, onLoad, onProgress, onError);
+              return function( url, onLoad, onError ) {
+                return new $class().load(url, onLoad, onError);
             }
         }, FILTER.LATE|FILTER.STATIC )
     },
@@ -2834,7 +2833,7 @@ var Loader = FILTER.Loader = Class({
     },
     
     // override in sub-classes
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         return null;
     },
 
@@ -2868,13 +2867,13 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
             return new XHRLoader();
     },
     
-    load: function ( url, onLoad, onProgress, onError ) {
+    load: function ( url, onLoad, onError ) {
         var scope = this, request = new XMLHttpRequest( );
         request.open( 'GET', url, true );
         request[ON]('load', function ( event ) {
             if ( onLoad ) onLoad( this.response );
         }, false);
-        if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
+        //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
         if ( 'function' === typeof onError ) request[ON]('error', onError, false);
         if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
         if ( scope._responseType ) request.responseType = scope._responseType;
@@ -2893,7 +2892,7 @@ FILTER.BinaryLoader = Class(Loader, {
     
     _parser: null,
     
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         var loader = this, xhrloader, 
             image = new FilterImage( )
         ;
@@ -2907,7 +2906,7 @@ FILTER.BinaryLoader = Class(Loader, {
                     if ( !imData ) return;
                     image.image(imData);
                     if ( 'function' === typeof onLoad ) onLoad(image, imData);
-                }, onProgress, onError )
+                }, onError )
             ;
         }
         return image;
@@ -2934,7 +2933,7 @@ FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
         this.$super('constructor');
     },
     
-    load: function( url, onLoad, onProgress, onError ){
+    load: function( url, onLoad, onError ){
         var scope = this, loader, 
             image = new FilterImage( )
         ;

@@ -7,7 +7,6 @@
 !function(FILTER, undef){
 @@USE_STRICT@@
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
 FILTER.Interpolation = FILTER.Interpolation || {};
 
 // TODO

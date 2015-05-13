@@ -8,8 +8,7 @@
 @@USE_STRICT@@
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI, 
-    sin = Math.sin, cos = Math.cos, min = Math.min, max = Math.max
+    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI
 ;
 Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
