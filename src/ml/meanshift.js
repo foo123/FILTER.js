@@ -7,9 +7,9 @@
 !function(FILTER, undef){
 @@USE_STRICT@@
 
-FILTER.MachineLearning = FILTER.MachineLearning || {};
+FILTER.ML = FILTER.ML || {};
 
 // TODO
-FILTER.MachineLearning.MeanShift = function(){};
+FILTER.ML.meanshift = function(){};
 
 }(FILTER);

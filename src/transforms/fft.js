@@ -1,6 +1,6 @@
 /**
 *
-* Filter Transforms
+* Filter Transforms FFT
 * @package FILTER.js
 *
 **/
