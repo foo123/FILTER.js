@@ -8,7 +8,6 @@
 @@USE_STRICT@@
 
 var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
-FILTER.Interpolation = FILTER.Interpolation || {};
 
 // http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
 FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {

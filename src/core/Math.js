@@ -8,7 +8,7 @@
 @@USE_STRICT@@
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI
+    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI
 ;
 Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
@@ -28,16 +28,12 @@ function closest_power_of_two(x){ return Math.pow(2, Math.ceil(Math.log2(x))); }
 
 FILTER.Math = {
     
-    clamp: clamp,
+    clamp: clamp
     
-    closestPower2: closest_power_of_two
-};
-
-
-FILTER.Compute = {
+    ,closestPower2: closest_power_of_two
     
     // compute integral image (Summed Area Table, SAT)
-    integral: function( im, w, h, grayscale ) {
+    ,integral: function( im, w, h, grayscale ) {
         var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
             imLen = im.length, count = (imLen>>2), i, j, x, rgb
         ;

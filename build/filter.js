@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.7
-*   @built on 2015-05-14 00:15:31
+*   @version: 0.7.1
+*   @built on 2015-06-21 18:57:40
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -138,8 +138,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.7
-*   @built on 2015-05-14 00:15:31
+*   @version: 0.7.1
+*   @built on 2015-06-21 18:57:40
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -149,7 +149,7 @@
 var FILTER = exports['FILTER'] = Classy.Merge({ 
     Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
 }, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "0.7";
+FILTER.VERSION = "0.7.1";
 /**
 *
 * Filter SuperClass, Interfaces and Utilities
@@ -305,6 +305,11 @@ if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixel
 }
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
+FILTER.NotImplemented = function( method ) {
+    method = method || '';
+    return function( ) { throw new Error('Method '+method+' not Implemented!'); };
+};
+
 //
 // webgl support
 FILTER.useWebGL = false;
@@ -337,6 +342,8 @@ FILTER.FORMAT = {
     ,PNG:       8
     ,JPG:       16
     ,GIF:       32
+    ,TGA:       64
+    ,RGBE:      128
 };
 FILTER.MIME = {
      PNG:       "image/png"
@@ -345,6 +352,12 @@ FILTER.MIME = {
 };
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
+
+FILTER.Utils = { };
+FILTER.Codec = { };
+FILTER.Interpolation = { };
+FILTER.Transform = { };
+FILTER.ML = { };
 
 //
 // logging
@@ -663,7 +676,7 @@ FILTER.Create = function( methods ) {
 "use strict";
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = Math.PI, PI2 = 2.0*PI, PI_2 = 0.5*PI
+    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI
 ;
 Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
@@ -683,16 +696,12 @@ function closest_power_of_two(x){ return Math.pow(2, Math.ceil(Math.log2(x))); }
 
 FILTER.Math = {
     
-    clamp: clamp,
+    clamp: clamp
     
-    closestPower2: closest_power_of_two
-};
-
-
-FILTER.Compute = {
+    ,closestPower2: closest_power_of_two
     
     // compute integral image (Summed Area Table, SAT)
-    integral: function( im, w, h, grayscale ) {
+    ,integral: function( im, w, h, grayscale ) {
         var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
             imLen = im.length, count = (imLen>>2), i, j, x, rgb
         ;
@@ -827,7 +836,6 @@ FILTER.Compute = {
 "use strict";
 
 var IMG = FILTER.ImArray, min = Math.min;
-FILTER.Interpolation = FILTER.Interpolation || {};
 
 FILTER.Interpolation.crop = function( im, w, h, x1, y1, x2, y2 ) {
      x2 = min(x2,w-1); y2 = min(y2,h-1);
@@ -869,7 +877,6 @@ FILTER.Interpolation.pad = function( im, w, h, pad_right, pad_bot, pad_left, pad
 "use strict";
 
 var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray;
-FILTER.Interpolation = FILTER.Interpolation || {};
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
 // http://tech-algorithm.com/articles/bilinear-image-scaling/
@@ -922,8 +929,8 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
 "use strict";
 
 var // utils
-    Sqrt = Math.sqrt, 
-    round = Math.round, floor = Math.floor, min = Math.min, max = Math.max, abs = Math.abs,
+    Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
+    min = Math.min, max = Math.max, abs = Math.abs,
     
     clamp = FILTER.Math.clamp,
     
@@ -2698,13 +2705,13 @@ FilterImage.crop = FILTER.Interpolation.crop;
 FilterImage.pad = FILTER.Interpolation.pad;
 
 // compute integral image (summed area table, SAT)
-FilterImage.integral = FILTER.Compute.integral;
+FilterImage.integral = FILTER.Math.integral;
 
 // compute image histogram
-FilterImage.histogram = FILTER.Compute.histogram;
+FilterImage.histogram = FILTER.Math.histogram;
 
 // compute image spectrum
-FilterImage.spectrum = FILTER.Compute.spectrum;
+FilterImage.spectrum = FILTER.Math.spectrum;
 
 //
 // Scaled Image (Proxy) Class
@@ -2827,9 +2834,14 @@ var Loader = FILTER.Loader = Class({
             return new Loader();
     },
     
+    _crossOrigin: null,
+    _responseType: null,
+    
     dispose: function( ) {
-        // override
-        return this;
+        var self = this;
+        self._crossOrigin = null;
+        self._responseType = null;
+        return self;
     },
     
     // override in sub-classes
@@ -2837,9 +2849,6 @@ var Loader = FILTER.Loader = Class({
         return null;
     },
 
-    _crossOrigin: null,
-    _responseType: null,
-    
     responseType: function ( value ) {
         if ( arguments.length )
         {
@@ -2885,27 +2894,46 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
 FILTER.BinaryLoader = Class(Loader, {
     name: "BinaryLoader",
     
-    constructor: function BinaryLoader() {
-        if ( !(this instanceof BinaryLoader) )
-            return new BinaryLoader();
+    constructor: function BinaryLoader( decoder/*, encoder*/ ) {
+        var self = this;
+        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder/*, encoder*/ );
+        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        //self._encoder = "function" === typeof (encoder) ? encoder : null;
     },
     
-    _parser: null,
+    _decoder: null,
+    _encoder: null,
+    
+    dispose: function( ) {
+        var self = this;
+        self._decoder = null;
+        self._encoder = null;
+        self.$super("dispose");
+        return self;
+    },
+    
+    codec: function( decoder/*, encoder*/ ) {
+        var self = this;
+        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        //self._encoder = "function" === typeof (encoder) ? encoder : null;
+        return self;
+    },
     
     load: function( url, onLoad, onError ){
         var loader = this, xhrloader, 
-            image = new FilterImage( )
+            image = new FilterImage( ),
+            decoder = loader._decoder
         ;
         
-        if ( 'function' === typeof loader._parser )
+        if ( 'function' === typeof decoder )
         {
             xhrloader = new XHRLoader( )
                 .responseType( loader._responseType || 'arraybuffer' )
                 .load( url, function( buffer ) {
-                    var imData = loader._parser( buffer );
+                    var metaData = {}, imData = decoder( buffer, metaData );
                     if ( !imData ) return;
-                    image.image(imData);
-                    if ( 'function' === typeof onLoad ) onLoad(image, imData);
+                    image.image( imData );
+                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
                 }, onError )
             ;
         }

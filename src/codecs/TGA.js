@@ -1,26 +1,21 @@
 /**
 *
-* Filter TGALoader Class
+* Filter TGA Image Format CODEC
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 @@USE_STRICT@@
 
+var error = FILTER.error;
+
 // adapted from: Three.js
 // adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js
-// extend FILTER.BinaryLoader
-FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
+FILTER.Codec.TGA = {
 
-    name: "TGALoader",
+    encoder: FILTER.NotImplemented('TGA.encoder'),
     
-    constructor: function TGALoader() {
-        if ( !(this instanceof TGALoader) )
-            return new TGALoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function ( buffer ) {
+    decoder: function ( buffer, metaData ) {
 
         // TGA Constants
         var TGA_TYPE_NO_DATA = 0,
@@ -40,7 +35,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
 
 
         if ( buffer.length < 19 )
-            FILTER.error( 'TGALoader.parse: Not enough data to contain header.' );
+            error( 'TGALoader.parse: Not enough data to contain header.' );
 
         var content = new Uint8Array( buffer ),
             offset = 0,
@@ -70,7 +65,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
                 case TGA_TYPE_INDEXED:
                 case TGA_TYPE_RLE_INDEXED:
                     if ( header.colormap_length > 256 || header.colormap_size !== 24 || header.colormap_type !== 1) {
-                        FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for indexed type');
+                        error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for indexed type');
                     }
                     break;
 
@@ -80,23 +75,23 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
                 case TGA_TYPE_RLE_RGB:
                 case TGA_TYPE_RLE_GREY:
                     if (header.colormap_type) {
-                        FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for colormap type');
+                        error('TGALoader.parse.tgaCheckHeader: Invalid type colormap data for colormap type');
                     }
                     break;
 
                 // What the need of a file without data ?
                 case TGA_TYPE_NO_DATA:
-                    FILTER.error('TGALoader.parse.tgaCheckHeader: No data');
+                    error('TGALoader.parse.tgaCheckHeader: No data');
 
                 // Invalid type ?
                 default:
-                    FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid type " '+ header.image_type + '"');
+                    error('TGALoader.parse.tgaCheckHeader: Invalid type " '+ header.image_type + '"');
 
             }
 
             // Check image width and height
             if ( header.width <= 0 || header.height <=0 ) {
-                FILTER.error( 'TGALoader.parse.tgaCheckHeader: Invalid image size' );
+                error( 'TGALoader.parse.tgaCheckHeader: Invalid image size' );
             }
 
             // Check image pixel size
@@ -104,7 +99,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
                 header.pixel_size !== 16 &&
                 header.pixel_size !== 24 &&
                 header.pixel_size !== 32) {
-                FILTER.error('TGALoader.parse.tgaCheckHeader: Invalid pixel size "' + header.pixel_size + '"');
+                error('TGALoader.parse.tgaCheckHeader: Invalid pixel size "' + header.pixel_size + '"');
             }
 
         }
@@ -113,7 +108,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
         tgaCheckHeader( header );
 
         if ( header.id_length + offset > buffer.length ) {
-            FILTER.error('TGALoader.parse: No data');
+            error('TGALoader.parse: No data');
         }
 
         // Skip the needn't data
@@ -389,7 +384,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
                         tgaGetImageDataGrey16bits( data, y_start, y_step, y_end, x_start, x_step, x_end, image );
                         break;
                     default:
-                        FILTER.error( 'TGALoader.parse.getTgaRGBA: not support this format' );
+                        error( 'TGALoader.parse.getTgaRGBA: not support this format' );
                         break;
                 }
 
@@ -413,7 +408,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
                         break;
 
                     default:
-                        FILTER.error( 'TGALoader.parse.getTgaRGBA: not support this format' );
+                        error( 'TGALoader.parse.getTgaRGBA: not support this format' );
                         break;
                 }
 
@@ -434,7 +429,7 @@ FILTER.TGALoader = FILTER.Class(FILTER.BinaryLoader, {
             height: header.height,
             data: rgbaData
         };
-
     }
-});
+};
+
 }(FILTER);

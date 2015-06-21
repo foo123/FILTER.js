@@ -7,8 +7,6 @@
 !function(FILTER, undef){
 @@USE_STRICT@@
 
-FILTER.Interpolation = FILTER.Interpolation || {};
-
 // TODO
 // https://code.google.com/a/eclipselabs.org/p/bicubic-interpolation-image-processing/source/browse/trunk/libimage.c
 FILTER.Interpolation.biquadric = function( im, w, h, nw, nh ) {

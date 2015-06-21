@@ -8,8 +8,8 @@
 @@USE_STRICT@@
 
 var // utils
-    Sqrt = Math.sqrt, 
-    round = Math.round, floor = Math.floor, min = Math.min, max = Math.max, abs = Math.abs,
+    Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
+    min = Math.min, max = Math.max, abs = Math.abs,
     
     clamp = FILTER.Math.clamp,
     

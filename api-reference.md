@@ -26,6 +26,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Statistical Filter](#statistical-filter)  (previously called NonLinearFilter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Plugins / Inline Filters](#plugins-and-inline-filters) 
+* [Codecs](#codecs) 
 
 
 
@@ -40,32 +41,32 @@ and alter them.
 
 __Methods:__
 
-* _image(ImageOrCanvasOrVideoOrFilterImageInstance)_  Sets/Alters the underlying image
-* _select(x1, y1, x2, y2)_  set a rectangle as selected part of image (any filters will be applied only to that part)
-* _deselect()_  remove previous selection (selected part becomes whole image)
-* _store()_  store the current filtered/processed image as the original image
-* _restore()_ restore the original image, remove any filters applied to this image
-* _restorable( Boolean )_ whether the image is restorable (it can be faster if not)
-* _apply(filter [, callback])_ shorthand to apply method of a FILTER.Filter instance, image will change after application
-* _apply2(filter, destImage [, callback])_ shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
-* _clone(original)_ gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
-* _clear()_  clear the image data
-* _fill(color, x, y, w, h)_  fill the image area with a specific color
-* _crop(x1,y1,x2,y2)_  crop image area
-* _scale(sx, sy)_  scale the image in x/y directions
-* _dimensions(w, h)_  set image dimensions
-* _flipHorizontal()_  flip image horizontally
-* _flipVertical()_  flip image vertically
-* _setData()_ sets the image pixel data
-* _getData()_ gets a copy of image pixel data
-* _getProcessedData()_ gets a copy of image processed/filtered data
-* _setSelectedData()_ sets the image pixel data for the current selection
-* _getSelectedData()_ gets a copy of the pixel data of current image selection region
-* _getProcessedSelectedData()_ gets a copy of the processed/filtered data of current image selection region
-* _integral()_  Computes (and caches) the image integral (SAT image)
-* _histogram()_  Computes (and caches) the image histogram
-* _spectrum()_  Computes (and caches) the image fourier frequency spectrum (TODO)
-* _toImage(format)_  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
+* `image(ImageOrCanvasOrVideoOrFilterImageInstance)`  Sets/Alters the underlying image
+* `select(x1, y1, x2, y2)`  set a rectangle as selected part of image (any filters will be applied only to that part)
+* `deselect()`  remove previous selection (selected part becomes whole image)
+* `store()`  store the current filtered/processed image as the original image
+* `restore()` restore the original image, remove any filters applied to this image
+* `restorable( Boolean )` whether the image is restorable (it can be faster if not)
+* `apply(filter [, callback])` shorthand to apply method of a FILTER.Filter instance, image will change after application
+* `apply2(filter, destImage [, callback])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
+* `clone(original)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
+* `clear()`  clear the image data
+* `fill(color, x, y, w, h)`  fill the image area with a specific color
+* `crop(x1,y1,x2,y2)`  crop image area
+* `scale(sx, sy)`  scale the image in x/y directions
+* `dimensions(w, h)`  set image dimensions
+* `flipHorizontal()`  flip image horizontally
+* `flipVertical()`  flip image vertically
+* `setData()` sets the image pixel data
+* `getData()` gets a copy of image pixel data
+* `getProcessedData()` gets a copy of image processed/filtered data
+* `setSelectedData()` sets the image pixel data for the current selection
+* `getSelectedData()` gets a copy of the pixel data of current image selection region
+* `getProcessedSelectedData()` gets a copy of the processed/filtered data of current image selection region
+* `integral()`  Computes (and caches) the image integral (SAT image)
+* `histogram()`  Computes (and caches) the image histogram
+* `spectrum()`  Computes (and caches) the image fourier frequency spectrum (TODO)
+* `toImage(format)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
 
@@ -77,7 +78,7 @@ This is a placeholder for an image, which is automatically up/down scaled (for f
 
 __Methods:__
 
-* _setScale(sx, sy)_  Sets/Alters the scaling ratios
+* `setScale(sx, sy)`  Sets/Alters the scaling ratios
 
 
 
@@ -98,67 +99,27 @@ The same functionality to load a url into a FILTER.Image has been **removed from
 Use the FILTER.HTMLImageLoader instead.
 
 
-###TGALoader
-
-Loads an image url in TGA format into a FILTER.Image instance. 
-
-````javascript
-filterImageInstance = FILTER.TGALoader.load(imageUrl [, onLoad, onError]);
-
-// this is similar to:
-
-filterImageInstance = new FILTER.TGALoader().load(imageUrl [, onLoad, onError]);
-````
-
-###RGBELoader / HDRLoader
-
-Loads an image url in RGBE format into a FILTER.Image instance. 
-
-````javascript
-filterImageInstance = FILTER.RGBELoader.load(imageUrl [, onLoad, onError]);
-
-// this is similar to:
-
-filterImageInstance = new FILTER.RGBELoader().load(imageUrl [, onLoad, onError]);
-````
-
-###GIFLoader
-
-Loads an image url in GIF format into a FILTER.Image instance. 
-
-**Note** animated GIFs are not handled at this moment
-
-````javascript
-filterImageInstance = FILTER.GIFLoader.load(imageUrl [, onLoad, onError]);
-
-// this is similar to:
-
-filterImageInstance = new FILTER.GIFLoader().load(imageUrl [, onLoad, onError]);
-````
-
-
-
 ###Generic Abstract Filter
 
 Each filter (and plugin) is an extension of the generic abstract filter, which provides some common methods.
 
 __Properties:__
 
-* _name_   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
+* `name`   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
 
 
 __Methods:__
 
-* _reset( )_   reset the filter to identity (trivial)
-* _dispose( )_   dispose the filter (disposes associated filter worker also if needed)
-* _turnOn( [bool=true] )_  turn the filter ON/OFF 
-* _toggle( )_  toggle the filter's ON/OFF status
-* _isOn( )_   check if filter is ON or OFF
-* _combineWith( similarFilterInstance )_   for any filter that supports combination of a similar filter with itself, else does nothing
-* _serialize( )_   serialize filter's parameters (for use with parallel worker filters)
-* _unserialize( data )_   unserialize filter's parameters (for use with parallel worker filters)
-* _worker/thread( [enabled=true] )_   enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
-* _apply( srcImg [, destImg=srcImg] [, callback] )_   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
+* `reset( )`   reset the filter to identity (trivial)
+* `dispose( )`   dispose the filter (disposes associated filter worker also if needed)
+* `turnOn( [bool=true] )`  turn the filter ON/OFF 
+* `toggle( )`  toggle the filter's ON/OFF status
+* `isOn( )`   check if filter is ON or OFF
+* `combineWith( similarFilterInstance )`   for any filter that supports combination of a similar filter with itself, else does nothing
+* `serialize( )`   serialize filter's parameters (for use with parallel worker filters)
+* `unserialize( data )`   unserialize filter's parameters (for use with parallel worker filters)
+* `worker/thread( [enabled=true] )`   enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
+* `apply( srcImg [, destImg=srcImg] [, callback] )`   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
 
 
 ###Color Matrix Filter
@@ -175,25 +136,25 @@ The filter scans an image and changes the coloring of each pixel by mixing the R
 
 The class has various pre-defined filters which can be combined in any order.
 
-* _redChannel() / greenChannel() / blueChannel() / alphaChannel()_  Get the R/G/B/A channel of the image as a new image
-* _swapChannels()_  swap 2 image channels (eg FILTER.CHANNEL.GREEN, FILTER.CHANNEL.BLUE)
-* _maskChannel()_  mask (remove) an image channel
-* _desaturate() / grayscale()_  Applies grayscaling to an image
-* _colorize()_ Applies pseudo-color to an image
-* _invert()_ Inverts image colors to their complementary
-* _invertAlpha()_ Inverts ALPHA channel of image
-* _saturate()_  Saturates the image (each color to maximum degree)
-* _contrast()_  Increase/Decrease image contrast
-* _brightness()_  Adjust image brightness
-* _adjustHue()_  adjust image hue
-* _average()_   color image to an average color (similar to grayscale)
-* _quickContrastCorrection()_  
-* _sepia()_   applies a quick sepia effect
-* _sepia2()_   applies an alternative quick sepia effect
-* _threshold()_  applies a color threshod to the image
-* *threshold_rgb()*  applies a threshod to the image only to the RGB channels
-* *threshold_alpha()*  applies a threshod to the image only to the Alpha channel
-* _blend()_  blend this filter with another color matrix filter
+* `redChannel() / greenChannel() / blueChannel() / alphaChannel()`  Get the R/G/B/A channel of the image as a new image
+* `swapChannels()`  swap 2 image channels (eg `FILTER.CHANNEL.GREEN`, `FILTER.CHANNEL.BLUE`)
+* `maskChannel()`  mask (remove) an image channel
+* `desaturate() / grayscale()`  Applies grayscaling to an image
+* `colorize()` Applies pseudo-color to an image
+* `invert()` Inverts image colors to their complementary
+* `invertAlpha()` Inverts ALPHA channel of image
+* `saturate()`  Saturates the image (each color to maximum degree)
+* `contrast()`  Increase/Decrease image contrast
+* `brightness()`  Adjust image brightness
+* `adjustHue()`  adjust image hue
+* `average()`   color image to an average color (similar to grayscale)
+* `quickContrastCorrection()`  
+* `sepia()`   applies a quick sepia effect
+* `sepia2()`   applies an alternative quick sepia effect
+* `threshold()`  applies a color threshod to the image
+* `threshold_rgb()`  applies a threshod to the image only to the RGB channels
+* `threshold_alpha()`  applies a threshod to the image only to the Alpha channel
+* `blend()`  blend this filter with another color matrix filter
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
@@ -239,18 +200,18 @@ The filter scans an image and changes the coloring of each pixel according to th
 
 The class has various pre-defined filters which can be combined in any order.
 
-* _invert()_ Inverts image colors to their complementary
-* _mask()_ Apply a bit-mask to the image pixels
-* _replace()_ Replace a color with another color
-* _extract()_ Extract a color range from a specific color channel and set all rest to a background color
-* _gammaCorrection()_ Apply gamma correction to image channels
-* _exposure()_ Alter image exposure
-* _solarize()_  Apply a solarize effect
-* _solarize2()_  Apply alternative solarize effect
-* _posterize() / quantize()_  Quantize uniformly the image colors
-* _binarize()_  Quantize uniformly the image colors in 2 levels
-* _thresholds()_  Quantize non-uniformly the image colors according to given thresholds
-* _threshold()_  Quantize non-uniformly the image colors in 2 levels according to given threshold
+* `invert()` Inverts image colors to their complementary
+* `mask()` Apply a bit-mask to the image pixels
+* `replace()` Replace a color with another color
+* `extract()` Extract a color range from a specific color channel and set all rest to a background color
+* `gammaCorrection()` Apply gamma correction to image channels
+* `exposure()` Alter image exposure
+* `solarize()`  Apply a solarize effect
+* `solarize2()`  Apply alternative solarize effect
+* `posterize() / quantize()`  Quantize uniformly the image colors
+* `binarize()`  Quantize uniformly the image colors in 2 levels
+* `thresholds()`  Quantize non-uniformly the image colors according to given thresholds
+* `threshold()`  Quantize non-uniformly the image colors in 2 levels according to given threshold
 
 These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
 
@@ -304,28 +265,28 @@ element (ie. current pixel)  which only odd dimensions allow.
 
 The class has various pre-defined filters to use.
 
-* _fastGauss()_  A faster implementation of an arbitrary gaussian low pass filter
-* _lowPass() / boxBlur()_  Generic (box) fast lowpass filter (ie. box blur)
-* _highPass()_ Generic fast high pass filter (derived from the associated low pass filter)
-* _binomialLowPass() / gaussBlur()_ Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
-* _binomialHighPass()_ Generic high pass filter (derived from the associated low pass filter)
-* _horizontalBlur()_  apply a fast blur only to horizontal direction
-* _verticalBlur()_  apply a fast blur only to vertical direction
-* _directionalBlur()_  apply a fast blur to an arbitrary direction (at present supports only horizontal/vertical and diagonal blurs)
-* _glow()_  apply a fast glow effect
-* _sharpen()_  Sharpen the image fast
-* _prewittX() / gradX()_  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
-* _prewittY() / gradY()_  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
-* _prewittDirectional() / gradDirectional()_  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
-* _prewitt() / grad()_  Total gradient of the image (similar to edges/prewitt operator)
-* _sobelX()_  X-gradient using Sobel operator (similar to horizontal edges)
-* _sobelY()_  Y-gradient using Sobel operator (similar to vertical edges)
-* _sobelDirectional()_  Directional-gradient using Sobel operator (similar to edges along a direction)
-* _sobel()_  Total gradient of the image using Sobel operator
-* _laplace()_  Total second gradient of the image (fast Laplacian)
-* _emboss()_   Apply emboss effect to the image
-* _edges()_  Apply an edge filter to the image
-* _motionblur()_  __deprecated__  (use directionalBlur)
+* `fastGauss()`  A faster implementation of an arbitrary gaussian low pass filter
+* `lowPass() / boxBlur()`  Generic (box) fast lowpass filter (ie. box blur)
+* `highPass()` Generic fast high pass filter (derived from the associated low pass filter)
+* `binomialLowPass() / gaussBlur()` Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
+* `binomialHighPass()` Generic high pass filter (derived from the associated low pass filter)
+* `horizontalBlur()`  apply a fast blur only to horizontal direction
+* `verticalBlur()`  apply a fast blur only to vertical direction
+* `directionalBlur()`  apply a fast blur to an arbitrary direction (at present supports only horizontal/vertical and diagonal blurs)
+* `glow()`  apply a fast glow effect
+* `sharpen()`  Sharpen the image fast
+* `prewittX() / gradX()`  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
+* `prewittY() / gradY()`  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
+* `prewittDirectional() / gradDirectional()`  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
+* `prewitt() / grad()`  Total gradient of the image (similar to edges/prewitt operator)
+* `sobelX()`  X-gradient using Sobel operator (similar to horizontal edges)
+* `sobelY()`  Y-gradient using Sobel operator (similar to vertical edges)
+* `sobelDirectional()`  Directional-gradient using Sobel operator (similar to edges along a direction)
+* `sobel()`  Total gradient of the image using Sobel operator
+* `laplace()`  Total second gradient of the image (fast Laplacian)
+* `emboss()`   Apply emboss effect to the image
+* `edges()`  Apply an edge filter to the image
+* `motionblur()`  __deprecated__  (use `directionalBlur`)
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
@@ -421,19 +382,19 @@ The optional geometricMap parameter is a function that implements a geometric ma
 
 The class has some pre-defined filters to use.
 
-* _flipX( )_  Flip the target image wrt to X axis
-* _flipY( )_  Flip the target image wrt to Y axis
-* _flipXY( )_  Flip the target image wrt to both X and Y axis
-* _rotateCW( )_  Rotate target image clockwise 90 degrees
-* _rotateCCW( )_  Rotate target image counter-clockwise 90 degrees
-* _generic( )_ Apply a a user-defined generic geometric mapping to the image
-* _affine( )_ Apply an affine transformation (using an affine transform matrix) to the target image
-* _twirl( )_  Apply a twirling map
-* _sphere( )_  Apply a spherical map
-* _ripple( )_  Apply a wave ripple map
-* _shift( )/translate( )_  Apply (circular) translation / shifting of target image by specified **dx** / **dy** offsets
-* _polar( )_  Transform image to polar coords (TODO)
-* _cartesian( )_  Inverse of polar (TODO)
+* `flipX( )`  Flip the target image wrt to `X` axis
+* `flipY( )`  Flip the target image wrt to `Y` axis
+* `flipXY( )`  Flip the target image wrt to both `X` and `Y` axis
+* `rotateCW( )`  Rotate target image clockwise `90` degrees
+* `rotateCCW( )`  Rotate target image counter-clockwise `90` degrees
+* `generic( )` Apply a a user-defined generic geometric mapping to the image
+* `affine( )` Apply an affine transformation (using an affine transform matrix) to the target image
+* `twirl( )`  Apply a twirling map
+* `sphere( )`  Apply a spherical map
+* `ripple( )`  Apply a wave ripple map
+* `shift( )/translate( )`  Apply (circular) translation / shifting of target image by specified `dx` / `dy` offsets
+* `polar( )`  Transform image to polar coords (TODO)
+* `cartesian( )`  Inverse of polar (TODO)
 
 Geometric Map  Filters cannot be combined very easily. Use a composite filter (see below)
 
@@ -475,10 +436,10 @@ This filter implements basic morphological processing like erode and dilate filt
 
 The class has some pre-defined filters to use.
 
-* _erode( )_ Apply erode operation
-* _dilate( )_ Apply dilate operation
-* _opening( )_ Apply opening operation
-* _closing( )_ Apply closing operation
+* `erode( )` Apply erode operation
+* `dilate( )` Apply dilate operation
+* `opening( )` Apply opening operation
+* `closing( )` Apply closing operation
 
 Morphological Filters cannot be combined very easily since they operate on multiple pixels at a time with non-linear processing. Use a composite filter (see below)
 
@@ -522,13 +483,13 @@ new FILTER.StatisticalFilter( );
 
 __NOTE:__  *This was in previous versions called NonLinearFilter*
 
-This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and kth-order statistics concepts.
+This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and `kth`-order statistics concepts.
 
 The class has some pre-defined filters to use.
 
-* _median( )_  Apply median (ie. lowpass/remove noise) filter
-* _minimum( )/erode( )_ Apply minimum (erode) filter
-* _maximum( )/dilate( )_ Apply maximum (dilate) filter
+* `median( )`  Apply median (ie. lowpass/remove noise) filter
+* `minimum( )/erode( )` Apply minimum (erode) filter
+* `maximum( )/dilate( )` Apply maximum (dilate) filter
 
 Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
 
@@ -573,18 +534,18 @@ more easily (and slightly faster) to an image, than to apply them one-by-one man
 
 The class implements these methods:
 
-* _push( )/concat( )_  add filter(s) to the end of stack
-* _pop( )_ remove a filter from the end of stack
-* _shift( )_  remove a filter from the start of stack
-* _unshift( )_ add filter(s) to the start of stack
-* _remove( )_ remove a filter by instance 
-* _insertAt( )_ insert filter(s) at specified location/order
-* _removeAt( )_ remove the filter at specified location/order
-* _getAt( )_ get the filter at this location
-* _setAt( )_ replace the filter at this location
-* _filters( )_ set all the filters stack at once
-* _stable( [bool] )_ whether the filter is stable (meaning no filters will be added or removed), this makes serialization faster
-* _reset( )/empty( )_ reset the filter to identity
+* `push( )/concat( )`  add filter(s) to the end of stack
+* `pop( )` remove a filter from the end of stack
+* `shift( )`  remove a filter from the start of stack
+* `unshift( )` add filter(s) to the start of stack
+* `remove( )` remove a filter by instance 
+* `insertAt( )` insert filter(s) at specified location/order
+* `removeAt( )` remove the filter at specified location/order
+* `getAt( )` get the filter at this location
+* `setAt( )` replace the filter at this location
+* `filters( )` set all the filters stack at once
+* `stable( [bool] )` whether the filter is stable (meaning no filters will be added or removed), this makes serialization faster
+* `reset( )/empty( )` reset the filter to identity
 
 
 In order to use a composite filter do the following:
@@ -661,24 +622,82 @@ image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
 
 __Included Plugins__ (see examples for how to use)
 
-* __Noise__ : generate uniform noise
-* __PerlinNoise__ : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
-* __Equalize__ : apply histogram equalization
-* __GrayscaleEqualize__ : apply a faster histogram equalization only for grayscale images
-* __RGBEqualize__ : apply histogram equalization per separate color channel
-* __Pixelate__ : fast pixelate the image to the given scale
-* __TriangularPixelate__ : fast triangular pixelate the image to the given scale
-* __HexagonalPixelate__ : fast hexagonal pixelate the image to the given scale (TODO)
-* __Halftone__ : create a halftone/dithered black-white or colored image from target image
-* __Bokeh__ : apply a fast Bokeh (Depth-of-Field) effect to an image
-* __FloodFill__ : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
-* __SeamlessTile__ : create a seamless tileable pattern from target image
-* __HSVConverter__ : convert the image to HSV color space
-* __YCbCrConverter__ : convert the image to YCbCr color space (similar filter exists also in __ColorMatrixFilter__ )
-* __Threshold__ : apply general (full 32bit thresholds) thresholding to an image
-* __HueExtractor__ : extract a range of hues from the image
-* __CannyEdges__ : an efficient Canny Edges Detector/Extractor
-* __HaarDetector__ : detect features in image using Viola-Jones-Lienhart openCV algorithm with HAAR cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* __ChannelCopy__ : copy a channel from an image to another channel on target image
-* __AlphaMask__ : apply another image as an alpha mask to the target image
-* __Blend__ : apply photoshop-like image blending as a filter <del>(similar method exists also in __Image__ class)</del>
+* `Noise` : generate uniform noise
+* `PerlinNoise` : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
+* `Equalize` : apply histogram equalization
+* `GrayscaleEqualize` : apply a faster histogram equalization only for grayscale images
+* `RGBEqualize` : apply histogram equalization per separate color channel
+* `Pixelate` : fast pixelate the image to the given scale
+* `TriangularPixelate` : fast triangular pixelate the image to the given scale
+* `HexagonalPixelate` : fast hexagonal pixelate the image to the given scale (TODO)
+* `Halftone` : create a halftone/dithered black-white or colored image from target image
+* `Bokeh` : apply a fast Bokeh (Depth-of-Field) effect to an image
+* `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
+* `SeamlessTile` : create a seamless tileable pattern from target image
+* `HSVConverter` : convert the image to `HSV` color space
+* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists also in `ColorMatrixFilter` )
+* `Threshold` : apply general (full `32bit` thresholds) thresholding to an image
+* `HueExtractor` : extract a range of hues from the image
+* `CannyEdges` : an efficient Canny Edges Detector/Extractor
+* `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
+* `ChannelCopy` : copy a channel from an image to another channel on target image
+* `AlphaMask` : apply another image as an alpha mask to the target image
+* `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
+
+
+###Codecs
+
+
+Native javascript codecs (decoders/encoders, currently only decoders) are included for various image formats:
+
+1. `PNG` (adapted from https://github.com/devongovett/png.js/)
+2. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js)
+3. `BMP` (adapted from https://github.com/devongovett/bmp.js)
+4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js)
+5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js)
+6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html)
+
+Instead of separate loaders per image format, only one binary loader is used, with the appropriate codecs as parameters.
+This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.
+
+**`PNG` example**
+Loads an image url in PNG format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.PNG.decoder ).load(imageUrl [, onLoad, onError]);
+````
+
+**`JPG` example**
+Loads an image url in JPG format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.JPG.decoder ).load(imageUrl [, onLoad, onError]);
+````
+
+**`GIF` example**
+Loads an image url in GIF format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.GIF.decoder ).load(imageUrl [, onLoad, onError]);
+````
+
+**`BMP` example**
+Loads an image url in BMP format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.BMP.decoder ).load(imageUrl [, onLoad, onError]);
+````
+
+**`TGA` example**
+Loads an image url in TGA format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.TGA.decoder ).load(imageUrl [, onLoad, onError]);
+````
+
+**`RGBE` example**
+Loads an image url in RGBE format into a FILTER.Image instance. 
+
+````javascript
+filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.RGBE.decoder ).load(imageUrl [, onLoad, onError]);
+````

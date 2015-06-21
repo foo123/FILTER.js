@@ -1,27 +1,22 @@
 /**
 *
-* Filter RGBELoader Class
+* Filter RGBE/HDR Image Format CODEC
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 @@USE_STRICT@@
 
+var error = FILTER.error;
 // adapted from: Three.hs
 // adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html
 // https://github.com/mrdoob/three.js/issues/5552
 // http://en.wikipedia.org/wiki/RGBE_image_format
-FILTER.HDRLoader = FILTER.RGBELoader = FILTER.Class(FILTER.BinaryLoader, {
+FILTER.Codec.HDR = FILTER.Codec.RGBE = {
 
-    name: "RGBELoader",
+    encoder: FILTER.NotImplemented('RGBE.encoder'),
     
-    constructor: function RGBELoader() {
-        if ( !(this instanceof RGBELoader) )
-            return new RGBELoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function( buffer ) {
+    decoder: function( buffer, metaData ) {
 
         var
             /* return codes for rgbe routines */
@@ -35,14 +30,14 @@ FILTER.HDRLoader = FILTER.RGBELoader = FILTER.Class(FILTER.BinaryLoader, {
             rgbe_memory_error   = 4,
             rgbe_error = function(rgbe_error_code, msg) {
                 switch (rgbe_error_code) {
-                    case rgbe_read_error: FILTER.error("RGBELoader Read Error: " + (msg||''));
+                    case rgbe_read_error: error("RGBE Read Error: " + (msg||''));
                     break;
-                    case rgbe_write_error: FILTER.error("RGBELoader Write Error: " + (msg||''));
+                    case rgbe_write_error: error("RGBE Write Error: " + (msg||''));
                     break;
-                    case rgbe_format_error:  FILTER.error("RGBELoader Bad File Format: " + (msg||''));
+                    case rgbe_format_error:  error("RGBE Bad File Format: " + (msg||''));
                     break;
                     default:
-                    case rgbe_memory_error:  FILTER.error("RGBELoader: Error: " + (msg||''));
+                    case rgbe_memory_error:  error("RGBE: Error: " + (msg||''));
                 }
                 return RGBE_RETURN_FAILURE;
             },
@@ -294,16 +289,21 @@ FILTER.HDRLoader = FILTER.RGBELoader = FILTER.Class(FILTER.BinaryLoader, {
                 ,image_rgba_data = RGBE_ReadPixels_RLE( byteArray.subarray(byteArray.pos), w, h )
             ;
             if ( RGBE_RETURN_FAILURE !== image_rgba_data ) {
+                
+                if ( metaData ) {
+                    metaData.header = rgbe_header_info.string;
+                    metaData.gamma = rgbe_header_info.gamma;
+                    metaData.exposure = rgbe_header_info.exposure;
+                }
+                
                 return {
-                    width: w, height: h,
-                    data: image_rgba_data,
-                    header: rgbe_header_info.string,
-                    gamma: rgbe_header_info.gamma,
-                    exposure: rgbe_header_info.exposure
+                    width: w, 
+                    height: h,
+                    data: image_rgba_data
                 };
             }
         }
         return null;
     }
-});
+};
 }(FILTER);

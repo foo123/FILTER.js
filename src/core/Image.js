@@ -784,13 +784,13 @@ FilterImage.crop = FILTER.Interpolation.crop;
 FilterImage.pad = FILTER.Interpolation.pad;
 
 // compute integral image (summed area table, SAT)
-FilterImage.integral = FILTER.Compute.integral;
+FilterImage.integral = FILTER.Math.integral;
 
 // compute image histogram
-FilterImage.histogram = FILTER.Compute.histogram;
+FilterImage.histogram = FILTER.Math.histogram;
 
 // compute image spectrum
-FilterImage.spectrum = FILTER.Compute.spectrum;
+FilterImage.spectrum = FILTER.Math.spectrum;
 
 //
 // Scaled Image (Proxy) Class

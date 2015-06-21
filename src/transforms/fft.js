@@ -13,8 +13,6 @@ var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     closest_power_of_two = FILTER.Math.closest_power_of_two
 ;
 
-FILTER.Transform = FILTER.Transform || {};
-
 function precompute_trigonometric_tables(sine, cosn, N, dir)
 {
     // allocate and initialize trigonometric tables 

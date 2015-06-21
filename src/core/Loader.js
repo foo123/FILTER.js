@@ -29,9 +29,14 @@ var Loader = FILTER.Loader = Class({
             return new Loader();
     },
     
+    _crossOrigin: null,
+    _responseType: null,
+    
     dispose: function( ) {
-        // override
-        return this;
+        var self = this;
+        self._crossOrigin = null;
+        self._responseType = null;
+        return self;
     },
     
     // override in sub-classes
@@ -39,9 +44,6 @@ var Loader = FILTER.Loader = Class({
         return null;
     },
 
-    _crossOrigin: null,
-    _responseType: null,
-    
     responseType: function ( value ) {
         if ( arguments.length )
         {
@@ -87,27 +89,46 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
 FILTER.BinaryLoader = Class(Loader, {
     name: "BinaryLoader",
     
-    constructor: function BinaryLoader() {
-        if ( !(this instanceof BinaryLoader) )
-            return new BinaryLoader();
+    constructor: function BinaryLoader( decoder/*, encoder*/ ) {
+        var self = this;
+        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder/*, encoder*/ );
+        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        //self._encoder = "function" === typeof (encoder) ? encoder : null;
     },
     
-    _parser: null,
+    _decoder: null,
+    _encoder: null,
+    
+    dispose: function( ) {
+        var self = this;
+        self._decoder = null;
+        self._encoder = null;
+        self.$super("dispose");
+        return self;
+    },
+    
+    codec: function( decoder/*, encoder*/ ) {
+        var self = this;
+        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        //self._encoder = "function" === typeof (encoder) ? encoder : null;
+        return self;
+    },
     
     load: function( url, onLoad, onError ){
         var loader = this, xhrloader, 
-            image = new FilterImage( )
+            image = new FilterImage( ),
+            decoder = loader._decoder
         ;
         
-        if ( 'function' === typeof loader._parser )
+        if ( 'function' === typeof decoder )
         {
             xhrloader = new XHRLoader( )
                 .responseType( loader._responseType || 'arraybuffer' )
                 .load( url, function( buffer ) {
-                    var imData = loader._parser( buffer );
+                    var metaData = {}, imData = decoder( buffer, metaData );
                     if ( !imData ) return;
-                    image.image(imData);
-                    if ( 'function' === typeof onLoad ) onLoad(image, imData);
+                    image.image( imData );
+                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
                 }, onError )
             ;
         }

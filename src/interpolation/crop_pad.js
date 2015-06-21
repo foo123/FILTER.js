@@ -8,7 +8,6 @@
 @@USE_STRICT@@
 
 var IMG = FILTER.ImArray, min = Math.min;
-FILTER.Interpolation = FILTER.Interpolation || {};
 
 FILTER.Interpolation.crop = function( im, w, h, x1, y1, x2, y2 ) {
      x2 = min(x2,w-1); y2 = min(y2,h-1);

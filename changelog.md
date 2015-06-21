@@ -1,5 +1,12 @@
 ##ChangeLog
 
+__0.7.1__
+
+* use one binary loader and multiple image codecs instead of separate image loaders per image format (more flexible)
+* add image codecs (currently decoders only) for PNG,JPG,BMP,GIF,TGA,RGBE formats (see references)
+* minor refactoring/changes
+
+
 __0.7__
 
 * add FILTER.Math routines and algorithms (interpolation, fourier transforms etc..)

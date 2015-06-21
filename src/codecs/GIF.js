@@ -1,6 +1,6 @@
 /**
 *
-* Filter GIFLoader Class
+* Filter GIF Image Format CODEC
 * @package FILTER.js
 *
 **/
@@ -356,18 +356,11 @@ var parseGIF = function (st, handler) {
     parse();
 };
 
-// extend FILTER.BinaryLoader
-FILTER.GIFLoader = FILTER.Class(FILTER.BinaryLoader, {
+FILTER.Codec.GIF = {
 
-    name: "GIFLoader",
+    encoder: FILTER.NotImplemented('GIF.encoder'),
     
-    constructor: function GIFLoader() {
-        if ( !(this instanceof GIFLoader) )
-            return new GIFLoader();
-        this.$super('constructor');
-    },
-    
-    _parser: function ( buffer ) {
+    decoder: function ( buffer, metaData ) {
         var hdr, transparency = null,
             image = {width: 0, height: 0, data: null}
         ;
@@ -397,5 +390,5 @@ FILTER.GIFLoader = FILTER.Class(FILTER.BinaryLoader, {
         });
         return image;
     }
-});
+};
 }(FILTER);

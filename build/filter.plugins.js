@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.7
+*   @version: 0.7.1
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -137,7 +137,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.7
+*   @version: 0.7.1
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -522,12 +522,12 @@ function perlin2( x, y )
 }
 
 // adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octaved(seamless, noise, x, y, w, h, baseX, baseY, octaves, offsets, scale, roughness)
+function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
         octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
 
-    for (octave = 0; octave < octaves; octave++) 
+    for (octave=0; octave<octaves; octave++) 
     {
         nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
         if ( seamless )
@@ -536,7 +536,7 @@ function octaved(seamless, noise, x, y, w, h, baseX, baseY, octaves, offsets, sc
             if ( nx > w2 ) nx = w-1-nx;
             if ( ny > h2 ) ny = h-1-ny;
         }
-        noiseSum += noise( nx/(baseX/layerFrequency), ny/(baseY/layerFrequency) ) * layerWeight;
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
         layerFrequency *= 2;
         weightSum += layerWeight;
         layerWeight *= roughness;
@@ -670,6 +670,7 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this, baseX = self._baseX, baseY = self._baseY,
+            invBaseX = 1/baseX, invBaseY = 1/baseY,
             octaves = self._octaves, offsets = self._offsets,
             colors = self._colors, is_grayscale = !colors || !colors.length,
             is_perlin = self._perlin, is_turbulence = !self._fractal, seamless = !!self._stitch, 
@@ -684,7 +685,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
-            n = 0.5*octaved(seamless, noise, x, y, w, h, baseX, baseY, octaves, offsets, 1.0, 0.5)+0.5;
+            n = 0.5*octaved(seamless, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, 1.0, 0.5)+0.5;
             if ( is_grayscale )
             {
                 im[i] = im[i+1] = im[i+2] = ~~(255*n);

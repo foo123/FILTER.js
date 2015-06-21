@@ -7,14 +7,13 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js (todo).  
 
 
-**version 0.7**
+**version 0.7.1**
 
 
-* [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js)
-* [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
-* [filter.plugins.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.js)
-* [filter.plugins.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.min.js)
-* [filter.bundle.js, filter+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
+* [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js) / [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
+* [filter.codecs.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.codecs.js) / [filter.codecs.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.codecs.min.js)
+* [filter.plugins.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.js) / [filter.plugins.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.min.js)
+* [filter.bundle.js, filter+codecs+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
 
 
 **see also:**  
@@ -54,6 +53,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Video Processing with Filter.js](http://foo123.github.com/examples/filter-video/)
 * [Sound Visualization with Filter.js](http://foo123.github.com/examples/filter-sound/)
 * [Filter.js with Three.js](http://foo123.github.com/examples/filter-three/)
+* [Filter.js Image Codecs test](http://foo123.github.com/examples/filter-codecs/)
 
 
 ###Browser Support
@@ -99,7 +99,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes),  and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
@@ -121,7 +121,7 @@ __Parallel Workers Support__ (support parallel procesing/filtering with filter w
 __Image Blending Modes__ (analogous to PhotoShop blend modes)
 
 
-Each generic filter is prototype but it also includes basic implementation filters like  _grayscale_ , _colorize_ , _threshold_ , _gaussBlur_ , _laplace_ , _emboss_ , etc..  
+Each generic filter is prototype but it also includes basic implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , and so on..
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
@@ -131,14 +131,14 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add full support for Node.js (todo)
-* add WebGL support for various pre-built and custom Filters (todo, in progress)
-* add SVG Filters interface support for various pre-built and custom Filters (todo, in progress)
-* add CSS Filters interface support for various pre-built and custom Filters (todo, in progress)
-* add (generic/native) loader support for other image formats, e.g .TGA, .HDR/.RGBE, .GIF, .BMP, .PNG, .JPG etc.. [DONE partially]
-* add 2d-fft routines, frequency-domain filtering [DONE partially]
-* add image segmentation/classification algorithms (e.g kmeans, em, meanshift) (todo)
-* add support for Parallel Processing using Web Workers and/or Asynchronous Processing [DONE partially]
+* add full support for `Node.js` (todo)
+* add `WebGL` support for various pre-built and custom Filters (todo, in progress)
+* add `SVG` Filters interface support for various pre-built and custom Filters (todo, in progress)
+* add `CSS` Filters interface support for various pre-built and custom Filters (todo, in progress)
+* add (generic/native) loader support for other image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]
+* add `2d-fft` routines, frequency-domain filtering [DONE partially]
+* add image segmentation/classification algorithms (e.g `kmeans`, `em`, `meanshift`) (todo)
+* add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 * add caching of filter parameters where applicable [DONE partially]

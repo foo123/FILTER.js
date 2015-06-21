@@ -8,7 +8,6 @@
 @@USE_STRICT@@
 
 var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray;
-FILTER.Interpolation = FILTER.Interpolation || {};
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
 FILTER.Interpolation.nearest = function( im, w, h, nw, nh ) {

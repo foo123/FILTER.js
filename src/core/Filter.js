@@ -153,6 +153,11 @@ if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixel
 }
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
+FILTER.NotImplemented = function( method ) {
+    method = method || '';
+    return function( ) { throw new Error('Method '+method+' not Implemented!'); };
+};
+
 //
 // webgl support
 FILTER.useWebGL = false;
@@ -185,6 +190,8 @@ FILTER.FORMAT = {
     ,PNG:       8
     ,JPG:       16
     ,GIF:       32
+    ,TGA:       64
+    ,RGBE:      128
 };
 FILTER.MIME = {
      PNG:       "image/png"
@@ -193,6 +200,12 @@ FILTER.MIME = {
 };
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
+
+FILTER.Utils = { };
+FILTER.Codec = { };
+FILTER.Interpolation = { };
+FILTER.Transform = { };
+FILTER.ML = { };
 
 //
 // logging
