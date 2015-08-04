@@ -7,7 +7,7 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js (todo).  
 
 
-**version 0.7.1**
+**version 0.7.2**
 
 
 * [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js) / [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
@@ -19,6 +19,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 **see also:**  
 
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP, Python, ActionScript
+* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for PHP, Node/JS, Python (can be used as plugins for Contemplate engine as well)
 * [Tao](https://github.com/foo123/Tao.js) A simple, tiny, isomorphic, precise and fast template engine for handling both string and live dom based templates
 * [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework for JavaScript/HTML5
 * [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
@@ -26,8 +27,8 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/JS, PHP, Python, ActionScript
 * [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/JS, PHP, Python, ActionScript
 * [Xpresion](https://github.com/foo123/Xpresion) a simple and flexible eXpression parser engine (with custom functions and variables support) for PHP, Python, Node/JS, ActionScript
-* [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL construction for PHP, Python, Node/JS, ActionScript (in progress)
-* [Simulacra](https://github.com/foo123/Simulacra) a simulation, algebraic, probability and combinatorics PHP package for scientific computations
+* [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL construction for PHP, Python, Node/JS
+* [Abacus](https://github.com/foo123/Abacus) a fast combinatorics and computation library for Node/JS, PHP, Python, ActionScript
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
 
 
@@ -63,7 +64,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 ###Credits
 
-Some filters code has been adapted from open source libraries (mostly c, java and flash, plus a couple from javascript libraries), see the comments in the code for details.
+Some filters code has been adapted from open source libraries (mostly `c`, `java` and `flash`, plus a couple from `javascript` libraries), see the comments in the code for details.
 
 
 * [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
@@ -131,19 +132,19 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add full support for `Node.js` (todo)
+* add full support for `Node.js` (todo, in progress)
 * add `WebGL` support for various pre-built and custom Filters (todo, in progress)
 * add `SVG` Filters interface support for various pre-built and custom Filters (todo, in progress)
 * add `CSS` Filters interface support for various pre-built and custom Filters (todo, in progress)
-* add (generic/native) loader support for other image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]
+* add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]
 * add `2d-fft` routines, frequency-domain filtering [DONE partially]
 * add image segmentation/classification algorithms (e.g `kmeans`, `em`, `meanshift`) (todo)
 * add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
 * add caching of filter parameters where applicable [DONE partially]
-* add more filters/plugins (eg split/combine/adaptive/nonlinear etc..) [DONE partially]
-* increase support/performance for Opera, IE  [DONE partially]
+* add more filters/plugins (eg `split`/`combine`/`adaptive`/`nonlinear` etc..) [DONE partially]
+* increase support/performance for `Opera`, `IE`  [DONE partially]
 
 
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  

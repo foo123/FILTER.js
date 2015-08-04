@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.7.1
-*   @built on 2015-06-21 18:57:40
+*   @version: 0.7.2
+*   @built on 2015-08-04 23:41:00
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -138,8 +138,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.7.1
-*   @built on 2015-06-21 18:57:40
+*   @version: 0.7.2
+*   @built on 2015-08-04 23:41:00
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -149,7 +149,7 @@
 var FILTER = exports['FILTER'] = Classy.Merge({ 
     Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
 }, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "0.7.1";
+FILTER.VERSION = "0.7.2";
 /**
 *
 * Filter SuperClass, Interfaces and Utilities
@@ -236,21 +236,6 @@ Browser.isIE_lt9 = Browser.isIE && !isThread && (null == document.documentMode |
 Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
 
 FILTER.getPath = Async.path;
-
-FILTER.getCanvas = FILTER.createCanvas = function( w, h ) {
-    var canvas = document.createElement( 'canvas' );
-    w = w || 0; h = h || 0;
-    
-    // set the display size of the canvas.
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
-     
-    // set the size of the drawingBuffer
-    canvas.width = w * devicePixelRatio;
-    canvas.height = h * devicePixelRatio;
-    
-    return canvas;
-};
 
 FILTER.uuid = function( namespace ) { 
     return [namespace||'filter', new Date( ).getTime( ), ++_uuid].join('_'); 
@@ -917,6 +902,103 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
         interpolated[index+3] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
     }
     return interpolated;
+};
+
+}(FILTER);/**
+*
+* Canvas Proxy Class
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var FilterCanvas, FilterCanvasCtx;
+
+FilterCanvasCtx = FILTER.Class({
+    constructor: function( canvas ) {
+        var self = this;
+        self._cnv = canvas;
+        self._transform = {scale:[1,1], translate:[0,0], rotate:[0,0]};
+        self._data = null;
+    },
+    
+    _cnv: null,
+    _transform: null,
+    _data: null,
+    
+    dispose: function( ) {
+        var self = this;
+        self._cnv = null;
+        self._data = null;
+        self._transform = null;
+        return self;
+    },
+    
+    drawImage: function( ) {
+    },
+    
+    scale: function( sx, sy ) {
+        var self = this;
+        self._transform.scale[0] = sx;
+        self._transform.scale[1] = sy;
+        return self;
+    },
+    
+    translate: function( tx, ty ) {
+        var self = this;
+        self._transform.translate[0] = tx;
+        self._transform.translate[1] = ty;
+        return self;
+    }
+});
+
+FILTER.FilterCanvas = FilterCanvas = FILTER.Class({
+    constructor: function( w, h ) {
+        var self = this;
+        self.width = w || 0;
+        self.height = h || 0;
+        self.style = { };
+        self._ctx = new FilterCanvasCtx( self );
+    },
+    
+    _ctx: null,
+    width: null,
+    height: null,
+    style: null,
+    
+    dispose: function( ) {
+        var self = this;
+        self.width = null;
+        self.height = null;
+        self.style = null;
+        self._ctx.dispose( );
+        self._ctx = null;
+        return self;
+    },
+    
+    getContext: function( context ) {
+        return this._ctx;
+    },
+    
+    toDataURL: function( mime ) {
+        return '';
+    }
+});
+
+FILTER.Canvas = function( w, h ) {
+    var canvas = FILTER.Browser.isNode ? new FilterCanvas( ) : document.createElement( 'canvas' );
+    w = w || 0; h = h || 0;
+    
+    // set the display size of the canvas.
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+     
+    // set the size of the drawingBuffer
+    canvas.width = w * devicePixelRatio;
+    canvas.height = h * devicePixelRatio;
+    
+    return canvas;
 };
 
 }(FILTER);/**
@@ -1930,7 +2012,7 @@ var Color = FILTER.Color = FILTER.Class({
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    createCanvas = FILTER.createCanvas,
+    Canvas = FILTER.Canvas, FilterCanvas = FILTER.FilterCanvas,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
@@ -1947,7 +2029,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
 function _getTmpCanvas( scope ) 
 {
     var w = scope.width, h = scope.height,
-        cnv = createCanvas(w, h);
+        cnv = Canvas(w, h);
     cnv.width = w * devicePixelRatio;
     cnv.height = h * devicePixelRatio;
     return cnv;
@@ -2045,8 +2127,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = w; self.height = h;
         self.iData = null; self.iDataSel = null;
         self.oData = null; self.oDataSel = null;
-        self.iCanvas = createCanvas(w, h);
-        self.oCanvas = createCanvas(w, h);
+        self.iCanvas = Canvas(w, h);
+        self.oCanvas = Canvas(w, h);
         self.tmpCanvas = null;
         self.domElement = self.oCanvas;
         self.ictx = self.iCanvas.getContext('2d');
@@ -2541,7 +2623,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         isFilterImage = img instanceof FilterImage;
         if ( isFilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement;
+        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
         //isImageData = img instanceof Object || "object" === typeof img;
         
@@ -2766,7 +2848,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         isFilterImage = img instanceof FilterImage;
         if ( isFilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement;
+        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
         //isImageData = img instanceof Object || "object" === typeof img;
         
@@ -2830,8 +2912,9 @@ var Loader = FILTER.Loader = Class({
     },
     
     constructor: function Loader() {
-        if ( !(this instanceof Loader) )
-            return new Loader();
+        var self = this;
+        if ( !(self instanceof Loader) )
+            return new Loader( );
     },
     
     _crossOrigin: null,
@@ -2850,43 +2933,100 @@ var Loader = FILTER.Loader = Class({
     },
 
     responseType: function ( value ) {
+        var self = this;
         if ( arguments.length )
         {
-            this._responseType = value;
-            return this;
+            self._responseType = value;
+            return self;
         }
-        return this._responseType;
+        return self._responseType;
     },
 
     crossOrigin: function ( value ) {
+        var self = this;
         if ( arguments.length )
         {
-            this._crossOrigin = value;
-            return this;
+            self._crossOrigin = value;
+            return self;
         }
-        return this._crossOrigin;
+        return self._crossOrigin;
     }
 });
 
 var XHRLoader = FILTER.XHRLoader = Class(Loader, {
     name: "XHRLoader",
     
-    constructor: function XHRLoader() {
-        if ( !(this instanceof XHRLoader) )
-            return new XHRLoader();
+    constructor: function XHRLoader( ) {
+        var self = this;
+        if ( !(self instanceof XHRLoader) )
+            return new XHRLoader( );
     },
     
     load: function ( url, onLoad, onError ) {
-        var scope = this, request = new XMLHttpRequest( );
-        request.open( 'GET', url, true );
-        request[ON]('load', function ( event ) {
-            if ( onLoad ) onLoad( this.response );
-        }, false);
-        //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
-        if ( 'function' === typeof onError ) request[ON]('error', onError, false);
-        if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
-        if ( scope._responseType ) request.responseType = scope._responseType;
-        request.send( null );
+        var scope = this, request;
+        
+        if ( FILTER.Browser.isNode )
+        {
+            // https://nodejs.org/api/http.html#http_http_request_options_callback
+            request = require('http').get(url, function(response) {
+                var data = '';
+                //response.setEncoding('utf8');
+                response.on('data', function( chunk ) {
+                    data += chunk;
+                });
+                response.on('end', function( ) {
+                    if ( 'function' === typeof onLoad ) onLoad( new Buffer(data) );
+                });
+            }).on('error', function( e ) {
+                if ( 'function' === typeof onError ) onError( e );
+            });
+        }
+        else
+        {
+            // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+            request = new XMLHttpRequest( );
+            request.open( 'GET', url, true );
+            request[ON]('load', function ( event ) {
+                if ( 'function' === typeof onLoad ) onLoad( this.response );
+            }, false);
+            //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
+            if ( 'function' === typeof onError ) request[ON]('error', onError, false);
+            if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
+            if ( scope._responseType ) request.responseType = scope._responseType;
+            request.send( null );
+        }
+        return scope;
+    }
+});
+
+var FileLoader = FILTER.FileLoader = Class(Loader, {
+    name: "FileLoader",
+    
+    constructor: function FileLoader( ) {
+        var self = this;
+        if ( !(self instanceof FileLoader) )
+            return new FileLoader( );
+    },
+    
+    load: function ( file, onLoad, onError ) {
+        var scope = this, 
+            options = {
+                // return raw buffer
+                encoding: 'arraybuffer' === scope._responseType ? null : scope._responseType,
+                flag: 'r'
+            };
+        // read file
+        // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
+        require('fs').readFile(file, options, function( err, data ) {
+          if ( err )
+          {
+              if ( 'function' === typeof onError ) onError( err );
+          }
+          else
+          {
+              if ( 'function' === typeof onLoad ) onLoad( data );
+          }
+        });        
         return scope;
     }
 });
@@ -2894,11 +3034,10 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
 FILTER.BinaryLoader = Class(Loader, {
     name: "BinaryLoader",
     
-    constructor: function BinaryLoader( decoder/*, encoder*/ ) {
+    constructor: function BinaryLoader( decoder ) {
         var self = this;
-        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder/*, encoder*/ );
+        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder );
         self._decoder = "function" === typeof (decoder) ? decoder : null;
-        //self._encoder = "function" === typeof (encoder) ? encoder : null;
     },
     
     _decoder: null,
@@ -2912,10 +3051,15 @@ FILTER.BinaryLoader = Class(Loader, {
         return self;
     },
     
-    codec: function( decoder/*, encoder*/ ) {
+    decoder: function( decoder ) {
         var self = this;
         self._decoder = "function" === typeof (decoder) ? decoder : null;
-        //self._encoder = "function" === typeof (encoder) ? encoder : null;
+        return self;
+    },
+    
+    encoder: function( encoder ) {
+        var self = this;
+        self._encoder = "function" === typeof (encoder) ? encoder : null;
         return self;
     },
     
@@ -2927,7 +3071,8 @@ FILTER.BinaryLoader = Class(Loader, {
         
         if ( 'function' === typeof decoder )
         {
-            xhrloader = new XHRLoader( )
+            xhrloader = FILTER.Browser.isNode ? new FileLoader( ) : new XHRLoader( );
+            xhrloader
                 .responseType( loader._responseType || 'arraybuffer' )
                 .load( url, function( buffer ) {
                     var metaData = {}, imData = decoder( buffer, metaData );

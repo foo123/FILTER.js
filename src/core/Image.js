@@ -9,7 +9,7 @@
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    createCanvas = FILTER.createCanvas,
+    Canvas = FILTER.Canvas, FilterCanvas = FILTER.FilterCanvas,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
@@ -26,7 +26,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
 function _getTmpCanvas( scope ) 
 {
     var w = scope.width, h = scope.height,
-        cnv = createCanvas(w, h);
+        cnv = Canvas(w, h);
     cnv.width = w * devicePixelRatio;
     cnv.height = h * devicePixelRatio;
     return cnv;
@@ -124,8 +124,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = w; self.height = h;
         self.iData = null; self.iDataSel = null;
         self.oData = null; self.oDataSel = null;
-        self.iCanvas = createCanvas(w, h);
-        self.oCanvas = createCanvas(w, h);
+        self.iCanvas = Canvas(w, h);
+        self.oCanvas = Canvas(w, h);
         self.tmpCanvas = null;
         self.domElement = self.oCanvas;
         self.ictx = self.iCanvas.getContext('2d');
@@ -620,7 +620,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         isFilterImage = img instanceof FilterImage;
         if ( isFilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement;
+        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
         //isImageData = img instanceof Object || "object" === typeof img;
         
@@ -845,7 +845,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         isFilterImage = img instanceof FilterImage;
         if ( isFilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement;
+        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
         //isImageData = img instanceof Object || "object" === typeof img;
         

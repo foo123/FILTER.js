@@ -25,8 +25,9 @@ var Loader = FILTER.Loader = Class({
     },
     
     constructor: function Loader() {
-        if ( !(this instanceof Loader) )
-            return new Loader();
+        var self = this;
+        if ( !(self instanceof Loader) )
+            return new Loader( );
     },
     
     _crossOrigin: null,
@@ -45,43 +46,100 @@ var Loader = FILTER.Loader = Class({
     },
 
     responseType: function ( value ) {
+        var self = this;
         if ( arguments.length )
         {
-            this._responseType = value;
-            return this;
+            self._responseType = value;
+            return self;
         }
-        return this._responseType;
+        return self._responseType;
     },
 
     crossOrigin: function ( value ) {
+        var self = this;
         if ( arguments.length )
         {
-            this._crossOrigin = value;
-            return this;
+            self._crossOrigin = value;
+            return self;
         }
-        return this._crossOrigin;
+        return self._crossOrigin;
     }
 });
 
 var XHRLoader = FILTER.XHRLoader = Class(Loader, {
     name: "XHRLoader",
     
-    constructor: function XHRLoader() {
-        if ( !(this instanceof XHRLoader) )
-            return new XHRLoader();
+    constructor: function XHRLoader( ) {
+        var self = this;
+        if ( !(self instanceof XHRLoader) )
+            return new XHRLoader( );
     },
     
     load: function ( url, onLoad, onError ) {
-        var scope = this, request = new XMLHttpRequest( );
-        request.open( 'GET', url, true );
-        request[ON]('load', function ( event ) {
-            if ( onLoad ) onLoad( this.response );
-        }, false);
-        //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
-        if ( 'function' === typeof onError ) request[ON]('error', onError, false);
-        if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
-        if ( scope._responseType ) request.responseType = scope._responseType;
-        request.send( null );
+        var scope = this, request;
+        
+        if ( FILTER.Browser.isNode )
+        {
+            // https://nodejs.org/api/http.html#http_http_request_options_callback
+            request = require('http').get(url, function(response) {
+                var data = '';
+                //response.setEncoding('utf8');
+                response.on('data', function( chunk ) {
+                    data += chunk;
+                });
+                response.on('end', function( ) {
+                    if ( 'function' === typeof onLoad ) onLoad( new Buffer(data) );
+                });
+            }).on('error', function( e ) {
+                if ( 'function' === typeof onError ) onError( e );
+            });
+        }
+        else
+        {
+            // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+            request = new XMLHttpRequest( );
+            request.open( 'GET', url, true );
+            request[ON]('load', function ( event ) {
+                if ( 'function' === typeof onLoad ) onLoad( this.response );
+            }, false);
+            //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
+            if ( 'function' === typeof onError ) request[ON]('error', onError, false);
+            if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
+            if ( scope._responseType ) request.responseType = scope._responseType;
+            request.send( null );
+        }
+        return scope;
+    }
+});
+
+var FileLoader = FILTER.FileLoader = Class(Loader, {
+    name: "FileLoader",
+    
+    constructor: function FileLoader( ) {
+        var self = this;
+        if ( !(self instanceof FileLoader) )
+            return new FileLoader( );
+    },
+    
+    load: function ( file, onLoad, onError ) {
+        var scope = this, 
+            options = {
+                // return raw buffer
+                encoding: 'arraybuffer' === scope._responseType ? null : scope._responseType,
+                flag: 'r'
+            };
+        // read file
+        // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
+        require('fs').readFile(file, options, function( err, data ) {
+          if ( err )
+          {
+              if ( 'function' === typeof onError ) onError( err );
+          }
+          else
+          {
+              if ( 'function' === typeof onLoad ) onLoad( data );
+          }
+        });        
         return scope;
     }
 });
@@ -89,11 +147,10 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
 FILTER.BinaryLoader = Class(Loader, {
     name: "BinaryLoader",
     
-    constructor: function BinaryLoader( decoder/*, encoder*/ ) {
+    constructor: function BinaryLoader( decoder ) {
         var self = this;
-        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder/*, encoder*/ );
+        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder );
         self._decoder = "function" === typeof (decoder) ? decoder : null;
-        //self._encoder = "function" === typeof (encoder) ? encoder : null;
     },
     
     _decoder: null,
@@ -107,10 +164,15 @@ FILTER.BinaryLoader = Class(Loader, {
         return self;
     },
     
-    codec: function( decoder/*, encoder*/ ) {
+    decoder: function( decoder ) {
         var self = this;
         self._decoder = "function" === typeof (decoder) ? decoder : null;
-        //self._encoder = "function" === typeof (encoder) ? encoder : null;
+        return self;
+    },
+    
+    encoder: function( encoder ) {
+        var self = this;
+        self._encoder = "function" === typeof (encoder) ? encoder : null;
         return self;
     },
     
@@ -122,7 +184,8 @@ FILTER.BinaryLoader = Class(Loader, {
         
         if ( 'function' === typeof decoder )
         {
-            xhrloader = new XHRLoader( )
+            xhrloader = FILTER.Browser.isNode ? new FileLoader( ) : new XHRLoader( );
+            xhrloader
                 .responseType( loader._responseType || 'arraybuffer' )
                 .load( url, function( buffer ) {
                     var metaData = {}, imData = decoder( buffer, metaData );
