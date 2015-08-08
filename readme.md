@@ -69,10 +69,12 @@ Some filters code has been adapted from open source libraries (mostly `c`, `java
 
 * [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
 * [**AS3 Image Processing Library**](http://je2050.de/imageprocessing/)
-* [**AS3 ColorMatrix by GSkinner**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html)
+* [**AS3 ColorMatrix**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html) **by @GSkinner**
 * [**Simplex Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c) and [**Perlin Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c) by **Stefan Gustavson**
 * [**JSManipulate**](https://github.com/JoelBesada/JSManipulate)
 * [**glfx.js**](https://github.com/evanw/glfx.js)
+* [**JViolaJones**](http://code.google.com/p/jviolajones/)
+* [**OpenCV, HAAR cascades**](http://opencv.org/)
 
 
 
@@ -89,6 +91,8 @@ Some image processing/computer vision theory, basics and tutorials:
 * [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
 * [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
 * [image processing in C](http://homepages.inf.ed.ac.uk/rbf/BOOKS/PHILLIPS/)
+* [computer vision: algorithms and applications (draft)](http://szeliski.org/Book/)
+* [OpenCV, open source computer vision](http://opencv.org/)
 
 
 
