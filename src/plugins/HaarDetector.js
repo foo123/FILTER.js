@@ -358,6 +358,9 @@ function merge_features(rects, min_neighbors)
 
 // HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
 // adapted from: https://github.com/foo123/HAAR.js
+// references:
+// 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
+// 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
 FILTER.Create({
     name: "HaarDetectorFilter"
     
