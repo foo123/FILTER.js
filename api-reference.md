@@ -591,7 +591,7 @@ A comprehensive framework is provided for creating plugins that function the sam
 
 **NOTE** Included Plugins **DO SUPPORT** parallel thread/worker filters (see code and examples)
 
-For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
+For creating Inline Filters a custom class is provided _FILTER.InlineFilter_ .
 
 **NOTE2** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
 
@@ -653,9 +653,9 @@ Native javascript `codecs` (`encoders` / `decoders`) are included for various `i
 1. `PNG` (adapted from https://github.com/devongovett/png.js/) (**decoder only**)
 2. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js) (**encoder + decoder**)
 3. `BMP` (adapted from https://github.com/shaozilee/bmp-js) (**encoder + decoder**)
-4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js)(**decoder only**)
-5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js)(**decoder only**)
-6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html)(**encoder + decoder**)
+4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js) (**decoder only**)
+5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js) (**decoder only**)
+6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html) (**encoder + decoder**)
 
 Instead of separate loaders per image format, only one binary loader is used, with the appropriate codecs as parameters.
 This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.
