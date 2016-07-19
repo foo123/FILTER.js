@@ -623,7 +623,6 @@ image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
 __Included Plugins__ (see examples for how to use)
 
 * `Noise` : generate uniform noise
-* `PerlinNoise` : efficient implementations of **Simplex Noise** and **Perlin Noise** (analogous to ActionScript version)
 * `Equalize` : apply histogram equalization
 * `GrayscaleEqualize` : apply a faster histogram equalization only for grayscale images
 * `RGBEqualize` : apply histogram equalization per separate color channel
@@ -640,7 +639,7 @@ __Included Plugins__ (see examples for how to use)
 * `HueExtractor` : extract a range of hues from the image
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* `LipContourExtractor` : extract lip shape contour from image using Enevo Jumping Snake algorithm
+* `LipContourExtractor` : extract lip shape contour from image using Enevo Jumping Snake algorithm (TODO)
 * `ChannelCopy` : copy a channel from an image to another channel on target image
 * `AlphaMask` : apply another image as an alpha mask to the target image
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
