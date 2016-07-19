@@ -376,7 +376,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
-    ,_haarchanged: false
+    //,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -388,11 +388,11 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
-        self._haarchanged = !!self.haardata;
+        //self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,dispose: function( ) {
         var self = this;
@@ -405,7 +405,7 @@ FILTER.Create({
     ,haar: function( haardata ) {
         var self = this;
         self.haardata = haardata;
-        self._haarchanged = true;
+        //self._haarchanged = true;
         return self;
     }
     
@@ -413,6 +413,7 @@ FILTER.Create({
         var self = this;
         if ( params )
         {
+        if ( params[HAS]('haardata') ) self.haardata = params.haardata;
         if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
         if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
         if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
@@ -431,7 +432,8 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 baseScale: self.baseScale
+                 haardata: self.haardata
+                ,baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -441,11 +443,11 @@ FILTER.Create({
             }
         };
         // avoid unnecessary (large) data transfer
-        if ( self._haarchanged )
+        /*if ( self._haarchanged )
         {
             json.params.haardata = self.haardata;
             self._haarchanged = false;
-        }
+        }*/
         return json;
     }
     
@@ -457,7 +459,7 @@ FILTER.Create({
             
             params = json.params;
             
-            if ( params[HAS]('haardata') ) self.haardata = params.haardata;
+            /*if ( params[HAS]('haardata') )*/ self.haardata = params.haardata;
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
@@ -480,7 +482,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h/*, image, cache*/) {
         var self = this, imSize = im.length>>>2
             ,haar = self.haardata, haar_stages = haar.stages
             ,baseScale = self.baseScale
@@ -505,18 +507,47 @@ FILTER.Create({
             stage, threshold, trees, tl,
             t, cur_node_ind, where, features, feature, rects, nb_rects, thresholdf, 
             rect_sum, kr, r, x1, y1, x2, y2, x3, y3, x4, y4, rw, rh, yw, yh, sum
+            //,hid = 'haar-'+im.id
         ;
         
-        integral_image(im, w, h, 
-            gray=new Array8U(imSize), 
-            integral=new Array32F(imSize), 
-            squares=new Array32F(imSize), 
-            tilted=new Array32F(imSize)
-        );
-        if ( doCanny ) 
-            integral_canny(gray, w, h, 
-                canny=new Array32F(imSize)
+        //cache = cache || {};
+        /*if ( !cache[hid] )
+        {*/
+            integral_image(im, w, h, 
+                gray=new Array8U(imSize), 
+                integral=new Array32F(imSize), 
+                squares=new Array32F(imSize), 
+                tilted=new Array32F(imSize)
             );
+            /*cache[hid] = {
+                gray: gray, 
+                integral: integral, 
+                squares: squares, 
+                tilted: tilted,
+                canny: null
+            };
+        }
+        else
+        {
+            gray = cache[hid].gray;
+            integral = cache[hid].integral;
+            squares = cache[hid].squares;
+            tilted = cache[hid].tilted;
+        }*/
+        if ( doCanny )
+        {
+            /*if ( !cache[hid].canny )
+            {*/
+                integral_canny(gray, w, h, 
+                    canny=new Array32F(imSize)
+                );
+                /*cache[hid].canny = canny;
+            }
+            else
+            {
+                canny = cache[hid].canny;
+            }*/
+        }
         
         // synchronous detection loop
         bx1=0; bx2=w-1; by1=0; by2=imSize-w;

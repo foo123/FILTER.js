@@ -25,7 +25,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;

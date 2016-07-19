@@ -12,7 +12,7 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
     MAGNITUDE_SCALE = 100,
     MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    PI2 = FILTER.CONSTANTS.PI2, abs = Math.abs, exp = Math.exp,
+    PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -60,7 +60,7 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
         sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = (FILTER.CONSTANTS.PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        factor = (PI2 * /*kernelRadius * kernelRadius*/sigma2),
         kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
@@ -336,7 +336,7 @@ FILTER.Create({
     ,gaussWidth: 16
     ,contrastNormalized: false
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
         var self = this;

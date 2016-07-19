@@ -20,7 +20,7 @@ FILTER.Create({
     ,centerY: 0
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // constructor
     ,init: function( alphaMask, centerX, centerY ) {

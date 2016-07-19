@@ -13,7 +13,7 @@ var RGB2YCBCR=FILTER.Color.RGB2YCbCr;
 FILTER.Create({
     name: "YCbCrConverterFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {

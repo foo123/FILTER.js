@@ -1,13 +1,13 @@
 /**
 *
-* Perlin Noise Plugin
+* Filter Utils, perlin/simplex noise
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER, undef){
 @@USE_STRICT@@
 
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
+var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:
 
@@ -59,7 +59,7 @@ var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.P
  * A vector-valued noise over 3D accesses it 96 times, and a
  * float-valued 4D noise 64 times. We want this to fit in the cache!
  */
-var p = new FILTER.Array8U([151,160,137,91,90,15,
+var p = new Array8U([151,160,137,91,90,15,
   131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
   190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
   88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
@@ -85,7 +85,7 @@ var p = new FILTER.Array8U([151,160,137,91,90,15,
   251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
   49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
   138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
-]), perm = new FILTER.Array8U(p); // copy it initially
+]), perm = new Array8U(p); // copy it initially
 
 // This isn't a very good seeding function, but it works ok. It supports 2^16
 // different seed values. Write something better if you need more seeds.
@@ -272,7 +272,7 @@ function perlin2( x, y )
 }
 
 // adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+/*function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
         octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
@@ -292,164 +292,108 @@ function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale,
         layerWeight *= roughness;
     }
     return noiseSum / weightSum;
+}*/
+function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
+
+    for (octave=0; octave<octaves; octave++) 
+    {
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    return noiseSum / weightSum;
 }
+
 /*function turbulence()
 {
 }*/
 
 
-// an efficient perlin noise and simplex noise plugin
-// http://en.wikipedia.org/wiki/Perlin_noise
-FILTER.Create({
-    name: "PerlinNoiseFilter"
+
+FILTER.PerlinNoise = {
+    seed: seed,
     
-    // parameters
-    ,_baseX: 1
-    ,_baseY: 1
-    ,_octaves: 1
-    ,_offsets: null
-    ,_colors: null
-    ,_seed: 0
-    ,_stitch: false
-    ,_fractal: true
-    ,_perlin: false
-    
-    // constructor
-    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
-        var self = this;
-        self._baseX = baseX || 1;
-        self._baseY = baseY || 1;
-        self.octaves( octaves||1, offsets );
-        self.colors( colors || null );
-        self._seed = seed || 0;
-        self._stitch = !!stitch;
-        self._fractal = false !== fractal;
-        self._perlin = !!perlin;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    ,seed: function( randSeed ) {
-        var self = this;
-        seed( self._seed = randSeed || 0 );
-        return self;
-    }
-    
-    ,octaves: function( octaves, offsets ) {
-        var self = this;
-        self._octaves = octaves || 1;
-        self._offsets = !offsets ? [] : offsets.slice(0);
-        while (self._offsets.length < self._octaves) self._offsets.push([0,0]);
-        return self;
-    }
-    
-    ,colors: function( colors ) {
-        var self = this;
-        self._colors = colors || null;
-        return self;
-    }
-    
-    ,seamless: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._stitch = !!enabled;
-        return this;
-    }
-    
-    ,turbulence: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._fractal = !enabled;
-        return this;
-    }
-    
-    ,simplex: function( ) {
-        this._perlin = false;
-        return this;
-    }
-    
-    ,perlin: function( ) {
-        this._perlin = true;
-        return this;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _baseX: self._baseX
-                ,_baseY: self._baseY
-                ,_octaves: self._octaves
-                ,_offsets: self._offsets
-                ,_colors: self._colors
-                ,_seed: self._seed
-                ,_stitch: self._stitch
-                ,_fractal: self._fractal
-                ,_perlin: self._perlin
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
+    Image: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
+            invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+            w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+        scale = scale || 1.0; roughness = roughness || 0.5;
+        octaves = octaves || 1; offsets = offsets || [[0,0]];
+        if ( seamless )
         {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._baseX = params._baseX;
-            self._baseY = params._baseY;
-            self._octaves = params._octaves;
-            self._offsets = params._offsets;
-            self._colors = params._colors;
-            self._seed = params._seed;
-            self._stitch = params._stitch;
-            self._fractal = params._fractal;
-            self._perlin = params._perlin;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this, baseX = self._baseX, baseY = self._baseY,
-            invBaseX = 1/baseX, invBaseY = 1/baseY,
-            octaves = self._octaves, offsets = self._offsets,
-            colors = self._colors, is_grayscale = !colors || !colors.length,
-            is_perlin = self._perlin, is_turbulence = !self._fractal, seamless = !!self._stitch, 
-            i, l = im.length, x, y, n, c, noise
-        ;
-        
-        noise = is_perlin ? perlin2 : simplex2;
-        // avoid unnecesary re-seeding ??
-        //if ( self._seed ) seed( self._seed );
-        
-        x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            n = 0.5*octaved(seamless, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, 1.0, 0.5)+0.5;
-            if ( is_grayscale )
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
             {
-                im[i] = im[i+1] = im[i+2] = ~~(255*n);
-            }
-            else
-            {
-                c = colors[FLOOR(n*(colors.length-1))];
-                im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
+                if ( x >= w ) { x=0; y++; }
+                // simulate seamless stitching, i.e circular/tileable symmetry
+                nx = x > w2 ? w-1-x : x;
+                ny = y > h2 ? h-1-y : y;
+                if ( (nx < x) || (ny < y) )
+                {
+                    j = (ny*w + nx) << 2;
+                    n[ i   ] = n[ j   ];
+                    n[ i+1 ] = n[ j+1 ];
+                    n[ i+2 ] = n[ j+2 ];
+                }
+                else
+                {
+                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                    n[ i+1 ] = n[ i ];
+                    n[ i+2 ] = n[ i ];
+                }
             }
         }
-        
-        // return the new image data
-        return im;
-    }
-});
+        else
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                n[ i+1 ] = n[ i ];
+                n[ i+2 ] = n[ i ];
+            }
+        }
+        img.setData( n );
+        return img;
+    }/*,
+    
+    generate: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+            x, y, nx, ny, i, j, size = w*h, n = new Array8U(size), w2 = w>>>1, h2 = h>>>1;
+        scale = scale || 1.0; roughness = roughness || 0.5;
+        octaves = octaves || 1; offsets = offsets || [[0,0]];
+        if ( seamless )
+        {
+            for(x=0,y=0,i=0; i<size; i++,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                // simulate seamless stitching, i.e circular/tileable symmetry
+                nx = x > w2 ? w-1-x : x;
+                ny = y > h2 ? h-1-y : y;
+                if ( (nx < x) || (ny < y) )
+                {
+                    n[ i ] = n[ ny*w + nx ];
+                }
+                else
+                {
+                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                }
+            }
+        }
+        else
+        {
+            for(x=0,y=0,i=0; i<size; i++,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+            }
+        }
+        return n;
+    }*/
+};
 
 }(FILTER);

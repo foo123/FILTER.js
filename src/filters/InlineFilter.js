@@ -1,6 +1,6 @@
 /**
 *
-* Custom Filter(s)
+* Inline Filter(s)
 *
 * Allows to create an filter on-the-fly using an inline function
 *
@@ -14,10 +14,10 @@
 var HAS = 'hasOwnProperty';
 
 //
-//  Custom Filter 
+//  Inline Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
-var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
-    name: "CustomFilter"
+var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
+    name: "InlineFilter"
     
     ,constructor: function( handler ) {
         var self = this;
@@ -76,7 +76,8 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
             if ( params._handler )
             {
                 // using bind makes the code become [native code] and thus unserializable
-                self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
+                // make FILTER namespace accessible to the function code
+                self._handler = new Function( "FILTER", '"use strict"; return ' + params._handler + ';')( FILTER );
             }
             self._params = params._params || {};
         }
@@ -93,5 +94,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
         return this._isOn && this._handler;
     }
 });
+// aliases
+FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);

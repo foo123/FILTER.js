@@ -13,19 +13,21 @@ var // utils
     
     clamp = FILTER.Math.clamp,
     
-    esc = function(s) { return s.replace(/([.*+?^${}()|\[\]\/\\\-])/g, '\\$1'); },
+    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g,
+    esc = function(s) { return s.replace(esc_re, '\\$1'); },
     
-    trim = function(s) { return s.replace(/^\s+/gm, '').replace(/\s+$/gm, ''); },
+    trim_re = /^\s+|\s+$/g,
+    trim = String.prototype.trim 
+            ? function(s){ return s.trim(); }
+            : function(s){ return s.replace(trim_re, ''); },
     
-    C2F = 1/255,
-    C2P = 100/255,
-    P2C = 2.55,
+    C2F = 1/255, C2P = 100/255, P2C = 2.55,
 
     Keywords = {
         // http://www.w3.org/wiki/CSS/Properties/color/keywords
         // https://developer.mozilla.org/en-US/docs/Web/CSS/color_value
         /* extended */
-        'transparent'         : [  0,0,0        ,0]
+         'transparent'         : [  0,0,0        ,0]
         ,'aliceblue'           : [  240,248,255  ,1]
         ,'antiquewhite'        : [  250,235,215  ,1]
         ,'aqua'                : [  0,255,255    ,1]
@@ -297,22 +299,12 @@ var Color = FILTER.Color = FILTER.Class({
             f = h - i;          // factorial part of h
             p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
 
-            switch( i ) 
-            {
-                case 0:  r = v;   g = t;   b = p;
-                    break;
-                case 1: r = q;  g = v;   b = p;
-                    break;
-                case 2: r = p;  g = v;  b = t;
-                    break;
-                case 3: r = p;  g = q;  b = v;
-                    break;
-                case 4: r = t;  g = p;  b = v;
-                    break;
-                default:        // case 5:
-                    r = v;  g = p;  b = q;
-                    break;
-            }
+            if ( 0 === i )      { r = v; g = t; b = p; }
+            else if ( 1 === i ) { r = q;  g = v; b = p; }
+            else if ( 2 === i ) { r = p; g = v; b = t; }
+            else if ( 3 === i ) { r = p; g = q; b = v; }
+            else if ( 4 === i ) { r = t; g = p; b = v; }
+            else /* case 5: */  { r = v; g = p; b = q; }
             
             return [r, g, b];
         },
@@ -739,11 +731,11 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    constructor: function( color, cstop ) {
+    constructor: function Color( color, cstop ) {
         // constructor factory pattern used here also
         if ( this instanceof Color ) 
         {
-            this.reset();
+            this.reset( );
             if ( color ) this.set( color, cstop );
         } 
         else 

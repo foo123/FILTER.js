@@ -17,16 +17,21 @@
 // color table
 var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
 
-    eye = function(inv) {
-        var t=new CT(256), i=0;
-        if (inv)  while (i<256) { t[i]=255-i; i++; }
-        else   while (i<256) { t[i]=i; i++; }
+    eye = function( ) {
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=i;
+        return t;
+    },
+
+    inv_eye = function( ) {
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=255-i;
         return t;
     },
 
     ones = function(col) {
-        var t=new CT(256), i=0;
-        while (i<256) { t[i]=col; i++; }
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=col;
         return t;
     },
     
@@ -35,7 +40,7 @@ var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
         return null;
     },
     
-    Power=Math.pow, Exponential=Math.exp, nF=1/255, trivial=eye(), inverce=eye(1)
+    Power=Math.pow, Exponential=Math.exp, nF=1.0/255
 ;
 
 //
@@ -130,8 +135,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         thresholdsB[0]=~~(255*thresholdsB[0]);
         i=1; while (i<tLB) { thresholdsB[i]=thresholdsB[i-1] + ~~(255*thresholdsB[i]); i++; }
 
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             // the non-linear mapping is here
             j=0; while (j<tLR && i>thresholdsR[j]) j++;
@@ -140,7 +144,6 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             tG[ i ] = clamp(qG[ j ]); 
             j=0; while (j<tLB && i>thresholdsB[j]) j++;
             tB[ i ] = clamp(qB[ j ]); 
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -158,7 +161,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
 
         var t=new CT(256), q=new CT(numLevels), i, nL=255/(numLevels-1), nR=numLevels/256;
         i=0; while (i<numLevels) { q[i] = ~~(nL * i); i++; }
-        i=0; while (i<256) { t[i] = clamp(q[ ~~(nR * i) ]); i++; }
+        for(i=0; i<256; i++) { t[i] = clamp(q[ ~~(nR * i) ]); }
         return this.set(t);
     }
     
@@ -174,13 +177,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,q, c, n=2/255
         ;
         
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             q = n*i; 
             c = (q>threshold) ? (255-255*q) : (255*q-255); 
             t[i] = ~~(clamp( c ));
-            i++; 
         }
         return this.set(t);
     }
@@ -192,13 +193,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,q, c, n=2/255
         ;
         
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             q = n*i; 
             c = (q<threshold) ? (255-255*q) : (255*q-255); 
             t[i] = ~~(clamp( c ));
-            i++; 
         }
         return this.set(t);
     }
@@ -208,17 +207,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         threshold*=256; 
         
         var i=0, t=new CT(256);
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             t[i] = (i>threshold) ? 255-i : i; 
-            i++; 
         }
         return this.set(t);
     }
     
     ,invert: function( ) {
-        return this.set(inverce);
+        return this.set(inv_eye());
     }
     
     // apply a binary mask to the image color channels
@@ -226,12 +223,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
             tR=new CT(256), tG=new CT(256), tB=new CT(256)
             ;
-        i=0; while (i<256) 
+        for(i=0; i<256; i++)
         { 
             tR[i]=clamp(i & maskR); 
             tG[i]=clamp(i & maskG); 
             tB[i]=clamp(i & maskB); 
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -242,7 +238,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var  
             c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
             c2R=(replacecolor>>16)&255, c2G=(replacecolor>>8)&255, c2B=(replacecolor)&255, 
-            tR=clone(trivial), tG=clone(trivial), tB=clone(trivial)
+            tR=eye(), tG=eye(), tB=eye()
             ;
             tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
         return this.set(tR, tG, tB);
@@ -290,12 +286,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         gammaR=1.0/gammaR; gammaG=1.0/gammaG; gammaB=1.0/gammaB;
         
         var tR=new CT(256), tG=new CT(256), tB=new CT(256), i=0;
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             tR[i]=clamp(~~(255*Power(nF*i, gammaR))); 
             tG[i]=clamp(~~(255*Power(nF*i, gammaG))); 
             tB[i]=clamp(~~(255*Power(nF*i, gammaB)));  
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -304,16 +299,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,exposure: function( exposure ) {
         if ( exposure === undef ) exposure=1;
         var i=0, t=new CT(256);
-        i=0; while (i<256) 
+        for(i=0; i<256; i++)
         { 
             t[i]=clamp(~~(255 * (1 - Exponential(-exposure * i *nF)))); 
-            i++; 
         }
         return this.set(t);
     }
     
     ,set: function( _tR, _tG, _tB, _tA ) {
-        if (!_tR) return this;
+        if ( !_tR ) return this;
         
         _tG=_tG || _tR; _tB=_tB || _tG;
         var 
@@ -326,24 +320,20 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             tG=this._tableG || clone(tR); tB=this._tableB || clone(tG);
             tG2=clone(tG); tB2=clone(tB);
             // concat/compose the filter's tables, same as composing the filters
-            i=0; 
-            while (i<256) 
+            for(i=0; i<256; i++)
             { 
                 tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
                 tG[i]=clamp( _tG[clamp( tG2[i] )] ); 
                 tB[i]=clamp( _tB[clamp( tB2[i] )] ); 
-                i++; 
             }
             this._tableR=tR; this._tableG=tG; this._tableB=tB;
         }
         else
         {
             // concat/compose the filter's tables, same as composing the filters
-            i=0; 
-            while (i<256) 
+            for(i=0; i<256; i++)
             { 
                 tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-                i++; 
             }
             this._tableR=tR; this._tableG=this._tableR; this._tableB=this._tableR;
         }

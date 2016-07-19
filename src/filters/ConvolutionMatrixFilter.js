@@ -13,7 +13,7 @@
 @@USE_STRICT@@
 
 var 
-    sqrt2=FILTER.CONSTANTS.SQRT2, toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+    sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
     
     // Convolution Matrix

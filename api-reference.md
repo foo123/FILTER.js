@@ -593,13 +593,13 @@ A comprehensive framework is provided for creating plugins that function the sam
 
 For creating Inline Filters a custom class is provided _FILTER.CustomFilter_ .
 
-**NOTE2** Custom Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
+**NOTE2** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
 
 Example:
 
 ````javascript
 
-var inlinefilter = new FILTER.CustomFilter(function( inst, im, w, h ){
+var inlinefilter = new FILTER.InlineFilter(function( inst, im, w, h ){
     // this is the inline filter apply method
     // do your stuff here..
     // "inst"   is the (custom) filter instance
@@ -640,6 +640,7 @@ __Included Plugins__ (see examples for how to use)
 * `HueExtractor` : extract a range of hues from the image
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
+* `LipContourExtractor` : extract lip shape contour from image using Enevo Jumping Snake algorithm
 * `ChannelCopy` : copy a channel from an image to another channel on target image
 * `AlphaMask` : apply another image as an alpha mask to the target image
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
@@ -648,14 +649,14 @@ __Included Plugins__ (see examples for how to use)
 ###Codecs
 
 
-Native javascript codecs (decoders/encoders, currently only decoders) are included for various image formats:
+Native javascript `codecs` (`encoders` / `decoders`) are included for various `image` formats:
 
-1. `PNG` (adapted from https://github.com/devongovett/png.js/)
-2. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js)
-3. `BMP` (adapted from https://github.com/devongovett/bmp.js)
-4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js)
-5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js)
-6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html)
+1. `PNG` (adapted from https://github.com/devongovett/png.js/) (**decoder only**)
+2. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js) (**encoder + decoder**)
+3. `BMP` (adapted from https://github.com/shaozilee/bmp-js) (**encoder + decoder**)
+4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js)(**decoder only**)
+5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js)(**decoder only**)
+6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html)(**encoder + decoder**)
 
 Instead of separate loaders per image format, only one binary loader is used, with the appropriate codecs as parameters.
 This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.

@@ -1,150 +1,34 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.7.2
+*   @version: @@VERSION@@
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
-**/!function ( root, name, deps, factory ) {
-    "use strict";
-    
-    //
-    // export the module umd-style (with deps bundled-in or external)
-    
-    // Get current filename/path
-    function getPath( isNode, isWebWorker, isAMD, isBrowser, amdMod ) 
-    {
-        var f;
-        if (isNode) return {file:__filename, path:__dirname};
-        else if (isWebWorker) return {file:(f=self.location.href), path:f.split('/').slice(0, -1).join('/')};
-        else if (isAMD&&amdMod&&amdMod.uri)  return {file:(f=amdMod.uri), path:f.split('/').slice(0, -1).join('/')};
-        else if (isBrowser&&(f=document.getElementsByTagName('script'))&&f.length) return {file:(f=f[f.length - 1].src), path:f.split('/').slice(0, -1).join('/')};
-        return {file:null,  path:null};
-    }
-    function getDeps( names, paths, deps, depsType, require/*offset*/ )
-    {
-        //offset = offset || 0;
-        var i, dl = names.length, mods = new Array( dl );
-        for (i=0; i<dl; i++) 
-            mods[ i ] = (1 === depsType)
-                    ? /* node */ (deps[ names[ i ] ] || require( paths[ i ] )) 
-                    : (2 === depsType ? /* amd args */ /*(deps[ i + offset ])*/ (require( names[ i ] )) : /* globals */ (deps[ names[ i ] ]))
-                ;
-        return mods;
-    }
-    // load javascript(s) (a)sync using <script> tags if browser, or importScripts if worker
-    function loadScripts( scope, base, names, paths, callback, imported )
-    {
-        var dl = names.length, i, rel, t, load, next, head, link;
-        if ( imported )
-        {
-            for (i=0; i<dl; i++) if ( !(names[ i ] in scope) ) importScripts( base + paths[ i ] );
-            return callback( );
-        }
-        head = document.getElementsByTagName("head")[ 0 ]; link = document.createElement( 'a' );
-        rel = /^\./; t = 0; i = 0;
-        load = function( url, cb ) {
-            var done = 0, script = document.createElement('script');
-            script.type = 'text/javascript'; script.language = 'javascript';
-            script.onload = script.onreadystatechange = function( ) {
-                if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
-                {
-                    done = 1; script.onload = script.onreadystatechange = null;
-                    cb( );
-                    head.removeChild( script ); script = null;
-                }
-            }
-            if ( rel.test( url ) ) 
-            {
-                // http://stackoverflow.com/a/14781678/3591273
-                // let the browser generate abs path
-                link.href = base + url;
-                url = link.protocol + "//" + link.host + link.pathname + link.search + link.hash;
-            }
-            // load it
-            script.src = url; head.appendChild( script );
-        };
-        next = function( ) {
-            if ( names[ i ] in scope )
-            {
-                if ( ++i >= dl ) callback( );
-                else if ( names[ i ] in scope ) next( ); 
-                else load( paths[ i ], next );
-            }
-            else if ( ++t < 30 ) { setTimeout( next, 30 ); }
-            else { t = 0; i++; next( ); }
-        };
-        while ( i < dl && (names[ i ] in scope) ) i++;
-        if ( i < dl ) load( paths[ i ], next );
-        else callback( );
-    }
-    
-    deps = deps || [[],[]];
-    
-    var isNode = ("undefined" !== typeof global) && ("[object global]" === {}.toString.call(global)),
-        isBrowser = !isNode && ("undefined" !== typeof navigator), 
-        isWebWorker = !isNode && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator),
-        isAMD = ("function" === typeof define) && define.amd,
-        isCommonJS = isNode && ("object" === typeof module) && module.exports,
-        currentGlobal = isWebWorker ? self : root, currentPath = getPath( isNode, isWebWorker, isAMD, isBrowser ), m,
-        names = [].concat(deps[0]), paths = [].concat(deps[1]), dl = names.length, i, requireJSPath, ext_js = /\.js$/i
-    ;
-    
-    // commonjs, node, etc..
-    if ( isCommonJS ) 
-    {
-        module.$deps = module.$deps || {};
-        module.exports = module.$deps[ name ] = factory.apply( root, [{NODE:module}].concat(getDeps( names, paths, module.$deps, 1, require )) ) || 1;
-    }
-    
-    // amd, requirejs, etc..
-    else if ( isAMD && ("function" === typeof require) && ("function" === typeof require.specified) &&
-        require.specified(name) ) 
-    {
-        if ( !require.defined(name) )
-        {
-            requireJSPath = { };
-            for (i=0; i<dl; i++) 
-                require.specified( names[ i ] ) || (requireJSPath[ names[ i ] ] = paths[ i ].replace(ext_js, ''));
-            //requireJSPath[ name ] = currentPath.file.replace(ext_js, '');
-            require.config({ paths: requireJSPath });
-            // named modules, require the module by name given
-            define( name, ["require", "exports", "module"].concat( names ), function( require, exports, module ) {
-                return factory.apply( root, [{AMD:module}].concat(getDeps( names, paths, arguments, 2, require )) );
-            });
-        }
-    }
-    
-    // browser, web worker, other loaders, etc.. + AMD optional
-    else if ( !(name in currentGlobal) )
-    {
-        loadScripts( currentGlobal, currentPath.path + '/', names, paths, function( ){ 
-            m = factory.apply( root, [{}].concat(getDeps( names, paths, currentGlobal )) ); 
-            isAMD && define( name, ["require"], function( ){ return m; } );
-        }, isWebWorker);
-    }
-
-
+**/!function( root, factory ){
+"use strict";
+if ( ('object'===typeof module) && module.exports ) /* CommonJS */
+    module.exports = factory.call(root,(module.$deps && module.$deps["FILTER"]) || require("./FILTER".toLowerCase()));
+else if ( ("function"===typeof define) && define.amd && ("function"===typeof require) && ("function"===typeof require.specified) && require.specified("FILTER_PLUGINS") /*&& !require.defined("FILTER_PLUGINS")*/ ) 
+    define("FILTER_PLUGINS",['module',"FILTER"],function(mod,module){factory.moduleUri = mod.uri; factory.call(root,module); return module;});
+else /* Browser/WebWorker/.. */
+    (factory.call(root,root["FILTER"])||1)&&('function'===typeof define)&&define.amd&&define(function(){return root["FILTER"];} );
 }(  /* current root */          this, 
-    /* module name */           "FILTER_PLUGINS",
-    /* module dependencies */   [ ['FILTER'], ['./filter.js'] ], 
-    /* module factory */        function( exports, FILTER ) {
-        
-    /* main code starts here */
+    /* module factory */        function ModuleFactory__FILTER_PLUGINS( FILTER ){
+/* main code starts here */
 
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.7.2
+*   @version: @@VERSION@@
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
 *   https://github.com/foo123/FILTER.js
 *
 **/
-exports['FILTER_PLUGINS'] = FILTER;
 
 /**
 *
@@ -174,7 +58,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -250,460 +134,6 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Perlin Noise Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONSTANTS.PI2;
- 
-// adapted from:
-
-// https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c
-/* SimplexNoise1234, Simplex noise with true analytic
- * derivative in 1D to 4D.
- *
- * Author: Stefan Gustavson, 2003-2005
- * Contact: stegu@itn.liu.se
- *
- * This code was GPL licensed until February 2011.
- * As the original author of this code, I hereby
- * release it into the public domain.
- * Please feel free to use it for whatever you want.
- * Credit is appreciated where appropriate, and I also
- * appreciate being told where this code finds any use,
- * but you may do as you like.
- */
-
- // https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c
-/* noise1234
- *
- * Author: Stefan Gustavson, 2003-2005
- * Contact: stegu@itn.liu.se
- *
- * This code was GPL licensed until February 2011.
- * As the original author of this code, I hereby
- * release it into the public domain.
- * Please feel free to use it for whatever you want.
- * Credit is appreciated where appropriate, and I also
- * appreciate being told where this code finds any use,
- * but you may do as you like.
- */
-
-/*
- * Permutation table. This is just a random jumble of all numbers 0-255,
- * repeated twice to avoid wrapping the index at 255 for each lookup.
- * This needs to be exactly the same for all instances on all platforms,
- * so it's easiest to just keep it as static explicit data.
- * This also removes the need for any initialisation of this class.
- *
- * Note that making this an int[] instead of a char[] might make the
- * code run faster on platforms with a high penalty for unaligned single
- * byte addressing. Intel x86 is generally single-byte-friendly, but
- * some other CPUs are faster with 4-aligned reads.
- * However, a char[] is smaller, which avoids cache trashing, and that
- * is probably the most important aspect on most architectures.
- * This array is accessed a *lot* by the noise functions.
- * A vector-valued noise over 3D accesses it 96 times, and a
- * float-valued 4D noise 64 times. We want this to fit in the cache!
- */
-var p = new FILTER.Array8U([151,160,137,91,90,15,
-  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
-  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
-  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
-  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
-  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
-  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
-  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
-  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
-  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
-  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
-  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
-  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180,
-  151,160,137,91,90,15,
-  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
-  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
-  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
-  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
-  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
-  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
-  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
-  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
-  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
-  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
-  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
-  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
-]), perm = new FILTER.Array8U(p); // copy it initially
-
-// This isn't a very good seeding function, but it works ok. It supports 2^16
-// different seed values. Write something better if you need more seeds.
-function seed( seed ) 
-{
-    var v, i;
-    // Scale the seed out
-    if ( seed > 0 && seed < 1 ) seed *= 65536;
-
-    seed = FLOOR( seed );
-    if ( seed < 256 ) seed |= seed << 8;
-    for (i = 0; i < 256; i++) 
-    {
-        v = ( i & 1 ) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
-        perm[i] = perm[i + 256] = v;
-    }
-}
-//seed(0);
-
-/*
- * Helper functions to compute gradients-dot-residualvectors (1D to 4D)
- * Note that these generate gradients of more than unit length. To make
- * a close match with the value range of classic Perlin noise, the final
- * noise values need to be rescaled to fit nicely within [-1,1].
- * (The simplex noise functions as such also have different scaling.)
- * Note also that these noise functions are the most practical and useful
- * signed version of Perlin noise. To return values according to the
- * RenderMan specification from the SL noise() and pnoise() functions,
- * the noise values need to be scaled and offset to [0,1], like this:
- * float SLnoise = (noise(x,y,z) + 1.0) * 0.5;
- */
-
-function grad1( hash, x ) 
-{
-    var h = hash & 15;
-    var grad = 1.0 + (h & 7);   // Gradient value 1.0, 2.0, ..., 8.0
-    if (h&8) grad = -grad;         // Set a random sign for the gradient
-    return ( grad * x );           // Multiply the gradient with the distance
-}
-
-function grad2( hash, x, y ) 
-{
-    var h = hash & 7;      // Convert low 3 bits of hash code
-    var u = h<4 ? x : y;  // into 8 simple gradient directions,
-    var v = h<4 ? y : x;  // and compute the dot product with (x,y).
-    return ((h&1)? -u : u) + ((h&2)? -2.0*v : 2.0*v);
-}
-
-function grad3( hash, x, y, z ) 
-{
-    var h = hash & 15;     // Convert low 4 bits of hash code into 12 simple
-    var u = h<8 ? x : y; // gradient directions, and compute dot product.
-    var v = h<4 ? y : h==12||h==14 ? x : z; // Fix repeats at h = 12 to 15
-    return ((h&1)? -u : u) + ((h&2)? -v : v);
-}
-
-function grad4( hash, x, y, z, t ) 
-{
-    var h = hash & 31;      // Convert low 5 bits of hash code into 32 simple
-    var u = h<24 ? x : y; // gradient directions, and compute dot product.
-    var v = h<16 ? y : z;
-    var w = h<8 ? z : t;
-    return ((h&1)? -u : u) + ((h&2)? -v : v) + ((h&4)? -w : w);
-}
-
-// A lookup table to traverse the simplex around a given point in 4D.
-// Details can be found where this table is used, in the 4D noise method.
-/* TODO: This should not be required, backport it from Bill's GLSL code! */
-var simplex = [
-[0,1,2,3],[0,1,3,2],[0,0,0,0],[0,2,3,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,2,3,0],
-[0,2,1,3],[0,0,0,0],[0,3,1,2],[0,3,2,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,3,2,0],
-[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
-[1,2,0,3],[0,0,0,0],[1,3,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,3,0,1],[2,3,1,0],
-[1,0,2,3],[1,0,3,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,0,3,1],[0,0,0,0],[2,1,3,0],
-[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
-[2,0,1,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,0,1,2],[3,0,2,1],[0,0,0,0],[3,1,2,0],
-[2,1,0,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,1,0,2],[0,0,0,0],[3,2,0,1],[3,2,1,0]
-];
-
-// 2D simplex noise
-function simplex2( x, y ) 
-{
-    var F2 = 0.366025403; // F2 = 0.5*(sqrt(3.0)-1.0)
-    var G2 = 0.211324865; // G2 = (3.0-Math.sqrt(3.0))/6.0
-    
-    var n0, n1, n2; // Noise contributions from the three corners
-
-    // Skew the input space to determine which simplex cell we're in
-    var s = (x+y)*F2; // Hairy factor for 2D
-    var xs = x + s;
-    var ys = y + s;
-    var i = FLOOR(xs);
-    var j = FLOOR(ys);
-
-    var t = (i+j)*G2;
-    var X0 = i-t; // Unskew the cell origin back to (x,y) space
-    var Y0 = j-t;
-    var x0 = x-X0; // The x,y distances from the cell origin
-    var y0 = y-Y0;
-
-    // For the 2D case, the simplex shape is an equilateral triangle.
-    // Determine which simplex we are in.
-    var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
-    if ( x0>y0 ) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
-    else {i1=0; j1=1;}      // upper triangle, YX order: (0,0)->(0,1)->(1,1)
-
-    // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
-    // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
-    // c = (3-sqrt(3))/6
-
-    var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
-    var y1 = y0 - j1 + G2;
-    var x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
-    var y2 = y0 - 1.0 + 2.0 * G2;
-
-    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
-    var ii = i & 0xff;
-    var jj = j & 0xff;
-
-    // Calculate the contribution from the three corners
-    var t0 = 0.5 - x0*x0-y0*y0;
-    if ( t0 < 0.0 ) n0 = 0.0;
-    else 
-    {
-        t0 *= t0;
-        n0 = t0 * t0 * grad2(perm[ii+perm[jj]], x0, y0); 
-    }
-
-    var t1 = 0.5 - x1*x1-y1*y1;
-    if (t1 < 0.0) n1 = 0.0;
-    else 
-    {
-        t1 *= t1;
-        n1 = t1 * t1 * grad2(perm[ii+i1+perm[jj+j1]], x1, y1);
-    }
-
-    var t2 = 0.5 - x2*x2-y2*y2;
-    if(t2 < 0.0) n2 = 0.0;
-    else 
-    {
-        t2 *= t2;
-        n2 = t2 * t2 * grad2(perm[ii+1+perm[jj+1]], x2, y2);
-    }
-
-    // Add contributions from each corner to get the final noise value.
-    // The result is scaled to return values in the interval [-1,1].
-    return 40.0 * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
-}
-
-// This is the new and improved, C(2) continuous interpolant
-function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
-function LERP(t, a, b) { return a + t*(b-a); }
-
-// 2D float Perlin noise.
-function perlin2( x, y )
-{
-    var ix0, iy0, ix1, iy1;
-    var fx0, fy0, fx1, fy1;
-    var s, t, nx0, nx1, n0, n1;
-
-    ix0 = FLOOR( x ); // Integer part of x
-    iy0 = FLOOR( y ); // Integer part of y
-    fx0 = x - ix0;        // Fractional part of x
-    fy0 = y - iy0;        // Fractional part of y
-    fx1 = fx0 - 1.0;
-    fy1 = fy0 - 1.0;
-    ix1 = (ix0 + 1) & 0xff;  // Wrap to 0..255
-    iy1 = (iy0 + 1) & 0xff;
-    ix0 = ix0 & 0xff;
-    iy0 = iy0 & 0xff;
-    
-    t = FADE( fy0 );
-    s = FADE( fx0 );
-
-    nx0 = grad2(perm[ix0 + perm[iy0]], fx0, fy0);
-    nx1 = grad2(perm[ix0 + perm[iy1]], fx0, fy1);
-    n0 = LERP( t, nx0, nx1 );
-
-    nx0 = grad2(perm[ix1 + perm[iy0]], fx1, fy0);
-    nx1 = grad2(perm[ix1 + perm[iy1]], fx1, fy1);
-    n1 = LERP(t, nx0, nx1);
-
-    return 0.507 * ( LERP( s, n0, n1 ) );
-}
-
-// adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
-{
-    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
-        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
-
-    for (octave=0; octave<octaves; octave++) 
-    {
-        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
-        if ( seamless )
-        {
-            // simulate seamless stitching, i.e circular/tileable symmetry
-            if ( nx > w2 ) nx = w-1-nx;
-            if ( ny > h2 ) ny = h-1-ny;
-        }
-        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
-        layerFrequency *= 2;
-        weightSum += layerWeight;
-        layerWeight *= roughness;
-    }
-    return noiseSum / weightSum;
-}
-/*function turbulence()
-{
-}*/
-
-
-// an efficient perlin noise and simplex noise plugin
-// http://en.wikipedia.org/wiki/Perlin_noise
-FILTER.Create({
-    name: "PerlinNoiseFilter"
-    
-    // parameters
-    ,_baseX: 1
-    ,_baseY: 1
-    ,_octaves: 1
-    ,_offsets: null
-    ,_colors: null
-    ,_seed: 0
-    ,_stitch: false
-    ,_fractal: true
-    ,_perlin: false
-    
-    // constructor
-    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, colors, seed, perlin ) {
-        var self = this;
-        self._baseX = baseX || 1;
-        self._baseY = baseY || 1;
-        self.octaves( octaves||1, offsets );
-        self.colors( colors || null );
-        self._seed = seed || 0;
-        self._stitch = !!stitch;
-        self._fractal = false !== fractal;
-        self._perlin = !!perlin;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
-    
-    ,seed: function( randSeed ) {
-        var self = this;
-        seed( self._seed = randSeed || 0 );
-        return self;
-    }
-    
-    ,octaves: function( octaves, offsets ) {
-        var self = this;
-        self._octaves = octaves || 1;
-        self._offsets = !offsets ? [] : offsets.slice(0);
-        while (self._offsets.length < self._octaves) self._offsets.push([0,0]);
-        return self;
-    }
-    
-    ,colors: function( colors ) {
-        var self = this;
-        self._colors = colors || null;
-        return self;
-    }
-    
-    ,seamless: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._stitch = !!enabled;
-        return this;
-    }
-    
-    ,turbulence: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
-        this._fractal = !enabled;
-        return this;
-    }
-    
-    ,simplex: function( ) {
-        this._perlin = false;
-        return this;
-    }
-    
-    ,perlin: function( ) {
-        this._perlin = true;
-        return this;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _baseX: self._baseX
-                ,_baseY: self._baseY
-                ,_octaves: self._octaves
-                ,_offsets: self._offsets
-                ,_colors: self._colors
-                ,_seed: self._seed
-                ,_stitch: self._stitch
-                ,_fractal: self._fractal
-                ,_perlin: self._perlin
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._baseX = params._baseX;
-            self._baseY = params._baseY;
-            self._octaves = params._octaves;
-            self._offsets = params._offsets;
-            self._colors = params._colors;
-            self._seed = params._seed;
-            self._stitch = params._stitch;
-            self._fractal = params._fractal;
-            self._perlin = params._perlin;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this, baseX = self._baseX, baseY = self._baseY,
-            invBaseX = 1/baseX, invBaseY = 1/baseY,
-            octaves = self._octaves, offsets = self._offsets,
-            colors = self._colors, is_grayscale = !colors || !colors.length,
-            is_perlin = self._perlin, is_turbulence = !self._fractal, seamless = !!self._stitch, 
-            i, l = im.length, x, y, n, c, noise
-        ;
-        
-        noise = is_perlin ? perlin2 : simplex2;
-        // avoid unnecesary re-seeding ??
-        //if ( self._seed ) seed( self._seed );
-        
-        x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            n = 0.5*octaved(seamless, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, 1.0, 0.5)+0.5;
-            if ( is_grayscale )
-            {
-                im[i] = im[i+1] = im[i+2] = ~~(255*n);
-            }
-            else
-            {
-                c = colors[FLOOR(n*(colors.length-1))];
-                im[i] = c[0]; im[i+1] = c[1]; im[i+2] = c[2];
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
 * Histogram Equalize Plugin, Histogram Equalize for grayscale images Plugin, RGB Histogram Equalize Plugin
 * @package FILTER.js
 *
@@ -713,13 +143,13 @@ FILTER.Create({
 
 var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
     RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
-    ;
+;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
     name : "HistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -736,13 +166,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfI = new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfI[i]=0; 
             cdfI[i+1]=0; 
             cdfI[i+2]=0; 
             cdfI[i+3]=0; 
+            cdfI[i+4]=0; 
+            cdfI[i+5]=0; 
+            cdfI[i+6]=0; 
+            cdfI[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -759,13 +193,17 @@ FILTER.Create({
         
         // compute cdf
         accum = 0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accum += cdfI[i]; cdfI[i] = accum;
             accum += cdfI[i+1]; cdfI[i+1] = accum;
             accum += cdfI[i+2]; cdfI[i+2] = accum;
             accum += cdfI[i+3]; cdfI[i+3] = accum;
+            accum += cdfI[i+4]; cdfI[i+4] = accum;
+            accum += cdfI[i+5]; cdfI[i+5] = accum;
+            accum += cdfI[i+6]; cdfI[i+6] = accum;
+            accum += cdfI[i+7]; cdfI[i+7] = accum;
         }
         
         // equalize only the intesity channel
@@ -805,7 +243,7 @@ FILTER.Create({
 FILTER.Create({
     name: "GrayscaleHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -822,13 +260,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfI = new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfI[i]=0; 
             cdfI[i+1]=0; 
             cdfI[i+2]=0; 
             cdfI[i+3]=0; 
+            cdfI[i+4]=0; 
+            cdfI[i+5]=0; 
+            cdfI[i+6]=0; 
+            cdfI[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -843,13 +285,17 @@ FILTER.Create({
         
         // compute cdf
         accum = 0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accum += cdfI[i]; cdfI[i] = accum;
             accum += cdfI[i+1]; cdfI[i+1] = accum;
             accum += cdfI[i+2]; cdfI[i+2] = accum;
             accum += cdfI[i+3]; cdfI[i+3] = accum;
+            accum += cdfI[i+4]; cdfI[i+4] = accum;
+            accum += cdfI[i+5]; cdfI[i+5] = accum;
+            accum += cdfI[i+6]; cdfI[i+6] = accum;
+            accum += cdfI[i+7]; cdfI[i+7] = accum;
         }
         
         // equalize the grayscale/intesity channels
@@ -882,12 +328,11 @@ FILTER.Create({
 });
 
 // a sample RGB histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-// not the best implementation
 // used for illustration purposes on how to create a plugin filter
 FILTER.Create({
     name: "RGBHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -906,13 +351,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfR[i]=0; cdfG[i]=0; cdfB[i]=0; 
             cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0; 
             cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0; 
             cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0; 
+            cdfR[i+4]=0; cdfG[i+4]=0; cdfB[i+4]=0; 
+            cdfR[i+5]=0; cdfG[i+5]=0; cdfB[i+5]=0; 
+            cdfR[i+6]=0; cdfG[i+6]=0; cdfB[i+6]=0; 
+            cdfR[i+7]=0; cdfG[i+7]=0; cdfB[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -931,7 +380,7 @@ FILTER.Create({
         
         // compute cdf
         accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accumR+=cdfR[i]; cdfR[i]=accumR; 
@@ -946,6 +395,18 @@ FILTER.Create({
             accumR+=cdfR[i+3]; cdfR[i+3]=accumR; 
             accumG+=cdfG[i+3]; cdfG[i+3]=accumG; 
             accumB+=cdfB[i+3]; cdfB[i+3]=accumB; 
+            accumR+=cdfR[i+4]; cdfR[i+4]=accumR; 
+            accumG+=cdfG[i+4]; cdfG[i+4]=accumG; 
+            accumB+=cdfB[i+4]; cdfB[i+4]=accumB; 
+            accumR+=cdfR[i+5]; cdfR[i+5]=accumR; 
+            accumG+=cdfG[i+5]; cdfG[i+5]=accumG; 
+            accumB+=cdfB[i+5]; cdfB[i+5]=accumB; 
+            accumR+=cdfR[i+6]; cdfR[i+6]=accumR; 
+            accumG+=cdfG[i+6]; cdfG[i+6]=accumG; 
+            accumB+=cdfB[i+6]; cdfB[i+6]=accumB; 
+            accumR+=cdfR[i+7]; cdfR[i+7]=accumR; 
+            accumG+=cdfG[i+7]; cdfG[i+7]=accumG; 
+            accumB+=cdfB[i+7]; cdfB[i+7]=accumB; 
         }
         
         // equalize each channel separately
@@ -1005,7 +466,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -1198,7 +659,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -1475,7 +936,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,size: function( s ) {
         this._size = s;
@@ -1677,7 +1138,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -1848,7 +1309,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -1994,7 +1455,7 @@ FILTER.Create({
     ,color: null
     ,tolerance: 0.0
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( x, y, color, tolerance ) {
         var self = this;
@@ -2143,7 +1604,7 @@ FILTER.Create({
     ,_pattern: null
     ,mode: 0 // 0 tile, 1 stretch
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( x, y, pattern, mode, tolerance ) {
         var self = this;
@@ -2314,7 +1775,7 @@ var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,
 FILTER.Create({
     name: "HSVConverterFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -2388,7 +1849,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -2480,7 +1941,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,serialize: function( ) {
         var self = this;
@@ -2559,7 +2020,7 @@ var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
     MAGNITUDE_SCALE = 100,
     MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    PI2 = FILTER.CONSTANTS.PI2, abs = Math.abs, exp = Math.exp,
+    PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -2607,7 +2068,7 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
         sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = (FILTER.CONSTANTS.PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        factor = (PI2 * /*kernelRadius * kernelRadius*/sigma2),
         kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
@@ -2883,7 +2344,7 @@ FILTER.Create({
     ,gaussWidth: 16
     ,contrastNormalized: false
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
         var self = this;
@@ -3329,6 +2790,9 @@ function merge_features(rects, min_neighbors)
 
 // HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
 // adapted from: https://github.com/foo123/HAAR.js
+// references:
+// 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
+// 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -3344,7 +2808,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
-    ,_haarchanged: false
+    //,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -3356,11 +2820,11 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
-        self._haarchanged = !!self.haardata;
+        //self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,dispose: function( ) {
         var self = this;
@@ -3373,7 +2837,7 @@ FILTER.Create({
     ,haar: function( haardata ) {
         var self = this;
         self.haardata = haardata;
-        self._haarchanged = true;
+        //self._haarchanged = true;
         return self;
     }
     
@@ -3381,6 +2845,7 @@ FILTER.Create({
         var self = this;
         if ( params )
         {
+        if ( params[HAS]('haardata') ) self.haardata = params.haardata;
         if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
         if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
         if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
@@ -3399,7 +2864,8 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 baseScale: self.baseScale
+                 haardata: self.haardata
+                ,baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -3409,11 +2875,11 @@ FILTER.Create({
             }
         };
         // avoid unnecessary (large) data transfer
-        if ( self._haarchanged )
+        /*if ( self._haarchanged )
         {
             json.params.haardata = self.haardata;
             self._haarchanged = false;
-        }
+        }*/
         return json;
     }
     
@@ -3425,7 +2891,7 @@ FILTER.Create({
             
             params = json.params;
             
-            if ( params[HAS]('haardata') ) self.haardata = params.haardata;
+            /*if ( params[HAS]('haardata') )*/ self.haardata = params.haardata;
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
@@ -3448,7 +2914,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h/*, image, cache*/) {
         var self = this, imSize = im.length>>>2
             ,haar = self.haardata, haar_stages = haar.stages
             ,baseScale = self.baseScale
@@ -3473,18 +2939,47 @@ FILTER.Create({
             stage, threshold, trees, tl,
             t, cur_node_ind, where, features, feature, rects, nb_rects, thresholdf, 
             rect_sum, kr, r, x1, y1, x2, y2, x3, y3, x4, y4, rw, rh, yw, yh, sum
+            //,hid = 'haar-'+im.id
         ;
         
-        integral_image(im, w, h, 
-            gray=new Array8U(imSize), 
-            integral=new Array32F(imSize), 
-            squares=new Array32F(imSize), 
-            tilted=new Array32F(imSize)
-        );
-        if ( doCanny ) 
-            integral_canny(gray, w, h, 
-                canny=new Array32F(imSize)
+        //cache = cache || {};
+        /*if ( !cache[hid] )
+        {*/
+            integral_image(im, w, h, 
+                gray=new Array8U(imSize), 
+                integral=new Array32F(imSize), 
+                squares=new Array32F(imSize), 
+                tilted=new Array32F(imSize)
             );
+            /*cache[hid] = {
+                gray: gray, 
+                integral: integral, 
+                squares: squares, 
+                tilted: tilted,
+                canny: null
+            };
+        }
+        else
+        {
+            gray = cache[hid].gray;
+            integral = cache[hid].integral;
+            squares = cache[hid].squares;
+            tilted = cache[hid].tilted;
+        }*/
+        if ( doCanny )
+        {
+            /*if ( !cache[hid].canny )
+            {*/
+                integral_canny(gray, w, h, 
+                    canny=new Array32F(imSize)
+                );
+                /*cache[hid].canny = canny;
+            }
+            else
+            {
+                canny = cache[hid].canny;
+            }*/
+        }
         
         // synchronous detection loop
         bx1=0; bx2=w-1; by1=0; by2=imSize-w;
@@ -3687,7 +3182,7 @@ FILTER.Create({
     ,dstChannel: 0
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // constructor
     ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
@@ -3823,7 +3318,7 @@ FILTER.Create({
     ,centerY: 0
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // constructor
     ,init: function( alphaMask, centerX, centerY ) {
@@ -4752,7 +4247,7 @@ FILTER.Create({
     ,startY: 0
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // constructor
     ,init: function( blendImage, blendMode ) { 
@@ -4895,8 +4390,8 @@ FILTER.Create({
     }
 });
 
-}(FILTER);    
-    /* main code ends here */
-    /* export the module */
-    return exports["FILTER_PLUGINS"];
+}(FILTER);
+/* main code ends here */
+/* export the module */
+return FILTER;
 });

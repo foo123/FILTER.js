@@ -12,15 +12,15 @@
 @@USE_STRICT@@
 
 var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
-    PI=FILTER.CONSTANTS.PI,
-    DoublePI=FILTER.CONSTANTS.PI2,
-    HalfPI=FILTER.CONSTANTS.PI_2,
+    PI=FILTER.CONST.PI,
+    DoublePI=FILTER.CONST.PI2,
+    HalfPI=FILTER.CONST.PI_2,
     ThreePI2 = 1.5 * PI,
     Sqrt=Math.sqrt, Atan2=Math.atan2, Atan = Math.atan,
     Sin=Math.sin, Cos=Math.cos, 
-    Floor=Math.floor, //Round=Math.round, Ceil=Math.ceil,
+    Floor=Math.floor, Round=Math.round, //Ceil=Math.ceil,
     Asin=Math.asin, Tan=Math.tan, Abs=Math.abs, Max = Math.max,
-    toRad=FILTER.CONSTANTS.toRad,
+    toRad=FILTER.CONST.toRad,
     Maps
 ;
 
@@ -397,7 +397,7 @@ Maps = {
         {
             if (x>=w) { x=0; y++; yw+=w; }
             
-            j = ((x+dx)%w + ((y+dy)%h)*w)<<2;
+            j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
             dst[i] = im[j];   dst[i+1] = im[j+1];
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
         }
@@ -777,7 +777,7 @@ Maps = {
             // inverse transform
             ix = (w-1) - (w-1)/DoublePI * theta;
             iy = (h * r / radius);
-            
+            ix = Round(ix); iy = Round(iy);
             if (0>ix || ix>bx || 0>iy || iy>by)
             {
                 switch(mode)
@@ -798,7 +798,7 @@ Maps = {
                         break;
                 }
             }
-            ip = ( ~~(ix+0.5) + ~~(iy+0.5)*w )<<2;
+            ip = ( ix + iy*w ) << 2;
             im[i] = imcopy[ ip ];
             im[i+1] = imcopy[ ip+1 ];
             im[i+2] = imcopy[ ip+2 ];
@@ -862,6 +862,7 @@ Maps = {
                 iy = cY - ny;
             }
             // inverse transform
+            ix = Round(ix); iy = Round(iy);
             if (0>ix || ix>bx || 0>iy || iy>by)
             {
                 switch(mode)
@@ -882,7 +883,7 @@ Maps = {
                         break;
                 }
             }
-            ip = ( ~~(ix+0.5) + ~~(iy+0.5)*w )<<2;
+            ip = ( ix + iy*w ) << 2;
             im[i] = imcopy[ ip ];
             im[i+1] = imcopy[ ip+1 ];
             im[i+2] = imcopy[ ip+2 ];

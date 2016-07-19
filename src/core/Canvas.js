@@ -10,7 +10,7 @@
 var FilterCanvas, FilterCanvasCtx;
 
 FilterCanvasCtx = FILTER.Class({
-    constructor: function( canvas ) {
+    constructor: function FilterCanvasCtx( canvas ) {
         var self = this;
         self._cnv = canvas;
         self._transform = {scale:[1,1], translate:[0,0], rotate:[0,0]};
@@ -47,8 +47,8 @@ FilterCanvasCtx = FILTER.Class({
     }
 });
 
-FILTER.FilterCanvas = FilterCanvas = FILTER.Class({
-    constructor: function( w, h ) {
+FilterCanvas = FILTER.FilterCanvas = FILTER.Class({
+    constructor: function FilterCanvas( w, h ) {
         var self = this;
         self.width = w || 0;
         self.height = h || 0;

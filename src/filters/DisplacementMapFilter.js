@@ -68,13 +68,13 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Map = self.map;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _map: self._map
+                _map: self._map || (Map ? { data: Map.getData( ), width: Map.width, height: Map.height } : null)
                 ,scaleX: self.scaleX
                 ,scaleY: self.scaleY
                 ,startX: self.startX
@@ -132,8 +132,8 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         var self = this;
         if ( map )
         {
-            self.map = map; 
-            self._map = { data: map.getData( ), width: map.width, height: map.height }; 
+            self.map = map;
+            self._map = null;
         }
         return self;
     }
@@ -151,9 +151,10 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
         var self = this;
-        if ( !self._isOn || !self._map ) return im;
+        if ( !self._isOn || !(self.map || self._map) ) return im;
         
-        var map, mapW, mapH, mapArea, displace, ww, hh,
+        var Map = self.map, _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
+            map, mapW, mapH, mapArea, displace, ww, hh,
             sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
             comx = self.componentX, comy = self.componentY, 
             alpha = self.alpha, red = self.red, 
@@ -164,8 +165,8 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
         ;
         
-        map = self._map.data;
-        mapW = self._map.width; mapH = self._map.height; 
+        map = _map.data;
+        mapW = _map.width; mapH = _map.height; 
         mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
         imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
         

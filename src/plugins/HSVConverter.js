@@ -15,7 +15,7 @@ var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,
 FILTER.Create({
     name: "HSVConverterFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {

@@ -13,7 +13,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
-    MIME = FILTER.MIME,
+    MIME = FILTER.MIME, ID = 0,
 
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
@@ -121,6 +121,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, w = 0, h = 0;
         // factory-constructor pattern
         if ( !(self instanceof FilterImage) ) return new FilterImage(img);
+        self.id = ++ID;
         self.width = w; self.height = h;
         self.iData = null; self.iDataSel = null;
         self.oData = null; self.oDataSel = null;
@@ -143,6 +144,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // properties
+    ,id: null
     ,width: 0
     ,height: 0
     ,selection: null
@@ -166,6 +168,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,dispose: function( ) {
         var self = this;
+        self.id = null;
         self.width = null;
         self.height = null;
         self.selection = null;
@@ -614,11 +617,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( !img ) return this;
         
         var self = this, ictx, octx, w, h, 
-            isFilterImage, isVideo, isCanvas, isImage//, isImageData
+            isVideo, isCanvas, isImage//, isImageData
         ;
         
-        isFilterImage = img instanceof FilterImage;
-        if ( isFilterImage ) img = img.oCanvas;
+        if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
         isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
@@ -839,11 +841,10 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         
         var self = this, ictx, octx, w, h, 
             sw, sh, sx = self.scaleX, sy = self.scaleY,
-            isFilterImage, isVideo, isCanvas, isImage//, isImageData
+            isVideo, isCanvas, isImage//, isImageData
         ;
         
-        isFilterImage = img instanceof FilterImage;
-        if ( isFilterImage ) img = img.oCanvas;
+        if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
         isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;

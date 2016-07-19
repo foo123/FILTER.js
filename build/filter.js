@@ -1,155 +1,43 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.7.2
-*   @built on 2015-08-04 23:41:00
+*   @version: 0.8.0
+*   @built on 2016-07-19 20:00:58
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
-**/!function ( root, name, deps, factory ) {
-    "use strict";
-    
-    //
-    // export the module umd-style (with deps bundled-in or external)
-    
-    // Get current filename/path
-    function getPath( isNode, isWebWorker, isAMD, isBrowser, amdMod ) 
-    {
-        var f;
-        if (isNode) return {file:__filename, path:__dirname};
-        else if (isWebWorker) return {file:(f=self.location.href), path:f.split('/').slice(0, -1).join('/')};
-        else if (isAMD&&amdMod&&amdMod.uri)  return {file:(f=amdMod.uri), path:f.split('/').slice(0, -1).join('/')};
-        else if (isBrowser&&(f=document.getElementsByTagName('script'))&&f.length) return {file:(f=f[f.length - 1].src), path:f.split('/').slice(0, -1).join('/')};
-        return {file:null,  path:null};
-    }
-    function getDeps( names, paths, deps, depsType, require/*offset*/ )
-    {
-        //offset = offset || 0;
-        var i, dl = names.length, mods = new Array( dl );
-        for (i=0; i<dl; i++) 
-            mods[ i ] = (1 === depsType)
-                    ? /* node */ (deps[ names[ i ] ] || require( paths[ i ] )) 
-                    : (2 === depsType ? /* amd args */ /*(deps[ i + offset ])*/ (require( names[ i ] )) : /* globals */ (deps[ names[ i ] ]))
-                ;
-        return mods;
-    }
-    // load javascript(s) (a)sync using <script> tags if browser, or importScripts if worker
-    function loadScripts( scope, base, names, paths, callback, imported )
-    {
-        var dl = names.length, i, rel, t, load, next, head, link;
-        if ( imported )
-        {
-            for (i=0; i<dl; i++) if ( !(names[ i ] in scope) ) importScripts( base + paths[ i ] );
-            return callback( );
-        }
-        head = document.getElementsByTagName("head")[ 0 ]; link = document.createElement( 'a' );
-        rel = /^\./; t = 0; i = 0;
-        load = function( url, cb ) {
-            var done = 0, script = document.createElement('script');
-            script.type = 'text/javascript'; script.language = 'javascript';
-            script.onload = script.onreadystatechange = function( ) {
-                if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
-                {
-                    done = 1; script.onload = script.onreadystatechange = null;
-                    cb( );
-                    head.removeChild( script ); script = null;
-                }
-            }
-            if ( rel.test( url ) ) 
-            {
-                // http://stackoverflow.com/a/14781678/3591273
-                // let the browser generate abs path
-                link.href = base + url;
-                url = link.protocol + "//" + link.host + link.pathname + link.search + link.hash;
-            }
-            // load it
-            script.src = url; head.appendChild( script );
-        };
-        next = function( ) {
-            if ( names[ i ] in scope )
-            {
-                if ( ++i >= dl ) callback( );
-                else if ( names[ i ] in scope ) next( ); 
-                else load( paths[ i ], next );
-            }
-            else if ( ++t < 30 ) { setTimeout( next, 30 ); }
-            else { t = 0; i++; next( ); }
-        };
-        while ( i < dl && (names[ i ] in scope) ) i++;
-        if ( i < dl ) load( paths[ i ], next );
-        else callback( );
-    }
-    
-    deps = deps || [[],[]];
-    
-    var isNode = ("undefined" !== typeof global) && ("[object global]" === {}.toString.call(global)),
-        isBrowser = !isNode && ("undefined" !== typeof navigator), 
-        isWebWorker = !isNode && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator),
-        isAMD = ("function" === typeof define) && define.amd,
-        isCommonJS = isNode && ("object" === typeof module) && module.exports,
-        currentGlobal = isWebWorker ? self : root, currentPath = getPath( isNode, isWebWorker, isAMD, isBrowser ), m,
-        names = [].concat(deps[0]), paths = [].concat(deps[1]), dl = names.length, i, requireJSPath, ext_js = /\.js$/i
-    ;
-    
-    // commonjs, node, etc..
-    if ( isCommonJS ) 
-    {
-        module.$deps = module.$deps || {};
-        module.exports = module.$deps[ name ] = factory.apply( root, [{NODE:module}].concat(getDeps( names, paths, module.$deps, 1, require )) ) || 1;
-    }
-    
-    // amd, requirejs, etc..
-    else if ( isAMD && ("function" === typeof require) && ("function" === typeof require.specified) &&
-        require.specified(name) ) 
-    {
-        if ( !require.defined(name) )
-        {
-            requireJSPath = { };
-            for (i=0; i<dl; i++) 
-                require.specified( names[ i ] ) || (requireJSPath[ names[ i ] ] = paths[ i ].replace(ext_js, ''));
-            //requireJSPath[ name ] = currentPath.file.replace(ext_js, '');
-            require.config({ paths: requireJSPath });
-            // named modules, require the module by name given
-            define( name, ["require", "exports", "module"].concat( names ), function( require, exports, module ) {
-                return factory.apply( root, [{AMD:module}].concat(getDeps( names, paths, arguments, 2, require )) );
-            });
-        }
-    }
-    
-    // browser, web worker, other loaders, etc.. + AMD optional
-    else if ( !(name in currentGlobal) )
-    {
-        loadScripts( currentGlobal, currentPath.path + '/', names, paths, function( ){ 
-            currentGlobal[ name ] = m = factory.apply( root, [{}].concat(getDeps( names, paths, currentGlobal )) ) || 1; 
-            isAMD && define( name, ["require"], function( ){ return m; } );
-        }, isWebWorker);
-    }
-
-
+**/!function( root, name, factory ){
+"use strict";
+function extract(obj,keys,index,load){return obj ? keys.map(function(k, i){return (index ? obj[i] : obj[k]) || (load?load(k):null); }) : [];}
+if ( ('object'===typeof module) && module.exports ) /* CommonJS */
+    (module.$deps = module.$deps||{}) && (module.exports = module.$deps[name] = factory.apply(root, extract(module.$deps,['Classy','Asynchronous'],false,function(k){return require("./"+k.toLowerCase());})));
+else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&require.specified(name) /*&& !require.defined(name)*/ ) /* AMD */
+    define(name,['module'].concat(['Classy','Asynchronous']),function(module){factory.moduleUri = module.uri; return factory.apply(root, extract(Array.prototype.slice.call(arguments,1),['Classy','Asynchronous'],true));});
+else if ( !(name in root) ) /* Browser/WebWorker/.. */
+    (root[name]=factory.apply(root, extract(root,['Classy','Asynchronous'])))&&('function'===typeof(define))&&define.amd&&define(function(){return root[name];} );
 }(  /* current root */          this, 
     /* module name */           "FILTER",
-    /* module dependencies */   [ ['Classy', 'Asynchronous'], ['./classy.js', './asynchronous.js'] ], 
-    /* module factory */        function( exports, Classy, Asynchronous ) {
-        
-    /* main code starts here */
+    /* module factory */        function ModuleFactory__FILTER( Classy,Asynchronous ){
+/* main code starts here */
 
 /**
 *
 *   FILTER.js
-*   @version: 0.7.2
-*   @built on 2015-08-04 23:41:00
+*   @version: 0.8.0
+*   @built on 2016-07-19 20:00:58
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = exports['FILTER'] = Classy.Merge({ 
-    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
+"use strict";
+var FILTER = Classy.Merge({ 
+    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
 }, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "0.7.2";
+FILTER.VERSION = "0.8.0";
 /**
 *
 * Filter SuperClass, Interfaces and Utilities
@@ -182,7 +70,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
     
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
-    ,no_typed_array_set = ('undefined' === typeof Int16Array) || !Int16Array[PROTO].set
+    ,no_typed_array_set = ('undefined' === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     ,typed_array_set = function( a, offset ) {
         var i = a.length;
         offset = offset || 0;
@@ -280,15 +168,15 @@ if ( !FILTER.Array32F[PROTO].subarray )
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
+FILTER.ImArrayCopy = Browser.isNode||Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
+if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
 {
     // add the missing method to the array
     CanvasPixelArray[PROTO].set = typed_array_set;
 }
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
+notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera || Browser.isNode;
 
 FILTER.NotImplemented = function( method ) {
     method = method || '';
@@ -327,14 +215,17 @@ FILTER.FORMAT = {
     ,PNG:       8
     ,JPG:       16
     ,GIF:       32
-    ,TGA:       64
-    ,RGBE:      128
+    ,BMP:       64
+    ,TGA:       128
+    ,RGBE:      256
 };
 FILTER.MIME = {
      PNG:       "image/png"
     ,JPG:       "image/jpeg"
     ,GIF:       "image/gif"
+    ,BMP:       "image/bmp"
 };
+// aliases
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
@@ -342,7 +233,7 @@ FILTER.Utils = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
-FILTER.ML = { };
+FILTER.MachineLearning = FILTER.ML = { };
 
 //
 // logging
@@ -355,7 +246,7 @@ var
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
         
-        path: FILTER.getPath( exports.AMD )
+        path: FILTERPath
         ,name: null
         
         ,constructor: function( ) {
@@ -387,6 +278,7 @@ var
                         if ( filter && data && data.im )
                         {
                             if ( data.params ) filter.unserialize( data.params );
+                            data.im[ 0 ].id = data.id;
                             var ret = {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )};
                             // pass any filter metadata if needed
                             if ( filter.hasMeta ) ret.meta = filter.getMeta();/*self.send( 'meta', filter.getMeta() );*/
@@ -612,11 +504,12 @@ var
                             if ( cb ) cb.call( self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
+                        .send( 'apply', {im: im, id: src.id, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
+                    im[ 0 ].id = src.id;
                     im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
                     // update image only if needed
                     // some filters do not actually change the image data
@@ -639,7 +532,7 @@ var
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
     methods = Merge({
-            init: initPlugin
+             init: initPlugin
             ,name: "PluginFilter"
             ,toString: toStringPlugin
             ,apply: applyPlugin
@@ -661,154 +554,309 @@ FILTER.Create = function( methods ) {
 "use strict";
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI
+    Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil, Log = Math.log, 
+    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, LN2 = Math.LN2, SQRT2 = Math.SQRT2,
+    log2 = function( x ) { return Log(x) / LN2; },
+    Log2 = Math.log2 || log2,
+    X = 0, Y = 1, Z = 2
 ;
-Math.log2 = Math.log2 || function(x) { return Math.log(x) / Math.LN2; };
 
-//
-// Constants
-FILTER.CONSTANTS = {
-     PI:    PI
-    ,PI2:   PI2
-    ,PI_2:  PI_2
-    ,SQRT2: Math.SQRT2
-    ,toRad: PI/180
-    ,toDeg: 180/PI
-};
+function clamp( x, m, M )
+{ 
+    return x > M ? M : (x < m ? m : x); 
+}
 
-function clamp(v, m, M) { return v > M ? M : (v < m ? m : v); }
-function closest_power_of_two(x){ return Math.pow(2, Math.ceil(Math.log2(x))); }
+function closest_power_of_two( x )
+{ 
+    return Pow( 2, Ceil( Log2(x) ) ); 
+}
 
-FILTER.Math = {
+function point2( x, y )
+{
+    var p = new A32F( 2 );
+    p[X] = x||0.0; p[Y] = y||0.0;
+    return p;
+}
+
+function point3( x, y, z )
+{
+    var p = new A32F( 3 );
+    p[X] = x||0.0; p[Y] = y||0.0; p[Z] = z||0.0;
+    return p;
+}
+
+function interpolate2( p0, p1, t ) 
+{
+    var it = 1.0-t;
+    return point2( t*p0[X]+it*p1[X], t*p0[Y]+it*p1[Y] );
+}
+
+function interpolate3( p0, p1, t ) 
+{
+    var it = 1.0-t;
+    return point3( t*p0[X]+it*p1[X], t*p0[Y]+it*p1[Y], t*p0[Z]+it*p1[Z] );
+}
+
+function cross2( p0, p1 )
+{ 
+    return p0[X]*p1[Y] - p1[X]*p0[Y]; 
+}
+
+function enorm2( x, y ) 
+{
+    // avoid oveflows
+    var t;
+    if ( 0 > x ) x = -x;
+    if ( 0 > y ) y = -y;
+    if ( 0.0 == x )  
+    {
+        return y;
+    }
+    else if ( 0.0 == y )  
+    {
+        return x;
+    }
+    else if ( x > y ) 
+    {
+        t = y / x;  
+        return x *Sqrt( 1.0 + t*t ); 
+    }
+    else 
+    { 
+        t = x / y;
+        return y * Sqrt( 1.0 + t*t ); 
+    }
+}
+
+function normal2( p1, p0 ) 
+{
+    var d, n, lamda, normallamda, l;
+
+    d = point2( p1[X]-p0[X], p1[Y]-p0[Y] );
     
-    clamp: clamp
+    if ( 0 === d[Y] && 0 === d[X] )  // same point infinite normals
+    {
+        return null;
+    }
     
-    ,closestPower2: closest_power_of_two
+    n = point2( 0, 0 );
     
-    // compute integral image (Summed Area Table, SAT)
-    ,integral: function( im, w, h, grayscale ) {
-        var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-            imLen = im.length, count = (imLen>>2), i, j, x, rgb
-        ;
-        grayscale = true === grayscale; rgb = !grayscale;
-        // compute integral of image in one pass
-        integralR = new A32F(count); 
-        if ( rgb )
-        {
-            integralG = new A32F(count); 
-            integralB = new A32F(count);
-        }
+    if ( 0 === d[X] ) // lamda=Inf
+    {
+        n[X] = 10;
+    }
+    if ( 0 === d[Y] )  // normallamda=Inf
+    {
+        n[Y] = 10;
+    }
+    
+    if ( 0 !== d[Y] && 0 !== d[X] )
+    {
+        lamda = d[Y] / d[X];
+        normallamda = -d[X] / d[Y];
+        n[X] = 10;
+        n[Y] = normallamda*n[X];
+    }
+    
+    // normalize
+    l = enorm2( n[X], n[Y] );
+    n[X] /= l; n[Y] /= l;
+    if ( 0 > cross2( d, n ) )
+    {
+        n[X] = -n[X];
+        n[Y] = -n[Y];
+    }
+    return n;
+}
+
+// compute integral image (Summed Area Table, SAT)
+function integral( im, w, h, grayscale ) 
+{
+    var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
+        imLen = im.length, count = (imLen>>2), i, j, x, rgb
+    ;
+    rgb = true !== grayscale;
+    // compute integral of image in one pass
+    integralR = new A32F(count); 
+
+    // first row
+    j=0; i=0; colR=colG=colB=0;
+    for (x=0; x<w; x++, i+=4, j++)
+    {
+        colR+=im[i]; integralR[j]=colR; 
+    }
+    // other rows
+    i=rowLen; x=0; j=0; colR=colG=colB=0;
+    for (i=rowLen; i<imLen; i+=4, j++, x++)
+    {
+        if (x>=w) { x=0; colR=colG=colB=0; }
+        colR+=im[i]; 
+        integralR[j+w]=integralR[j]+colR; 
+    }
+    if ( rgb )
+    {
+        integralG = new A32F(count); 
+        integralB = new A32F(count);
         // first row
         j=0; i=0; colR=colG=colB=0;
         for (x=0; x<w; x++, i+=4, j++)
         {
-            colR+=im[i]; integralR[j]=colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j]=colG; integralB[j]=colB;
-            }
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j]=colG; integralB[j]=colB;
         }
         // other rows
         i=rowLen; x=0; j=0; colR=colG=colB=0;
         for (i=rowLen; i<imLen; i+=4, j++, x++)
         {
             if (x>=w) { x=0; colR=colG=colB=0; }
-            colR+=im[i]; 
-            integralR[j+w]=integralR[j]+colR; 
-            
-            if ( rgb )
-            {
-                colG+=im[i+1]; colB+=im[i+2];
-                integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-            }
+            colG+=im[i+1]; colB+=im[i+2];
+            integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
         }
-        return rgb ? [integralR, integralG, integralB] : [integralR, integralR, integralR];
+        return [integralR, integralG, integralB];
+    }
+    return [integralR, integralR, integralR];
+}
+
+// compute image histogram
+function histogram( im, w, h, grayscale ) 
+{
+    var l = im.length,
+        maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
+        cdfR, cdfG, cdfB, r,g,b,
+        accumR, accumG, accumB,
+        i, n=1.0/(l>>2), rgb
+    ;
+    
+    rgb = true !== grayscale;
+    // initialize the arrays
+    cdfR=new A32F(256); 
+    for (i=0; i<256; i+=8) 
+    { 
+        // partial loop unrolling
+        cdfR[i]=0;
+        cdfR[i+1]=0;
+        cdfR[i+2]=0;
+        cdfR[i+3]=0;
+        cdfR[i+4]=0;
+        cdfR[i+5]=0;
+        cdfR[i+6]=0;
+        cdfR[i+7]=0;
+    }
+    // compute pdf and maxima/minima
+    for (i=0; i<l; i+=4)
+    {
+        r = im[i];
+        cdfR[r] += n;
+        
+        if (r>maxR) maxR=r;
+        else if (r<minR) minR=r;
     }
     
-    // compute image histogram
-    ,histogram: function( im, w, h, grayscale ) {
-        var l = im.length,
-            maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-            cdfR, cdfG, cdfB, r,g,b,
-            accumR, accumG, accumB,
-            i, n=1.0/(l>>2), rgb
-        ;
-        
-        grayscale = true === grayscale; rgb = !grayscale;
+    // compute cdf
+    accumR=accumG=accumB=0;
+    for (i=0; i<256; i+=8) 
+    { 
+        // partial loop unrolling
+        accumR += cdfR[i]; cdfR[i] = accumR;
+        accumR += cdfR[i+1]; cdfR[i+1] = accumR;
+        accumR += cdfR[i+2]; cdfR[i+2] = accumR;
+        accumR += cdfR[i+3]; cdfR[i+3] = accumR;
+        accumR += cdfR[i+4]; cdfR[i+4] = accumR;
+        accumR += cdfR[i+5]; cdfR[i+5] = accumR;
+        accumR += cdfR[i+6]; cdfR[i+6] = accumR;
+        accumR += cdfR[i+7]; cdfR[i+7] = accumR;
+    }
+    
+    if ( rgb )
+    {
+        cdfG=new A32F(256); 
+        cdfB=new A32F(256);
         // initialize the arrays
-        cdfR=new A32F(256); 
-        if ( rgb )
-        {
-            cdfG=new A32F(256); 
-            cdfB=new A32F(256);
-        }
-        for (i=0; i<256; i+=4) 
+        for (i=0; i<256; i+=8) 
         { 
             // partial loop unrolling
-            cdfR[i]=0;
-            cdfR[i+1]=0;
-            cdfR[i+2]=0;
-            cdfR[i+3]=0;
-            if ( rgb )
-            {
-                cdfG[i]=0; cdfB[i]=0;
-                cdfG[i+1]=0; cdfB[i+1]=0;
-                cdfG[i+2]=0; cdfB[i+2]=0;
-                cdfG[i+3]=0; cdfB[i+3]=0;
-            }
+            cdfG[i]=0; cdfB[i]=0;
+            cdfG[i+1]=0; cdfB[i+1]=0;
+            cdfG[i+2]=0; cdfB[i+2]=0;
+            cdfG[i+3]=0; cdfB[i+3]=0;
+            cdfG[i+4]=0; cdfB[i+4]=0;
+            cdfG[i+5]=0; cdfB[i+5]=0;
+            cdfG[i+6]=0; cdfB[i+6]=0;
+            cdfG[i+7]=0; cdfB[i+7]=0;
         }
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
         {
-            r = im[i];
-            cdfR[r] += n;
-            
-            if (r>maxR) maxR=r;
-            else if (r<minR) minR=r;
-            
-            if ( rgb )
-            {
-                g = im[i+1]; b = im[i+2];
-                cdfG[g] += n; cdfB[b] += n;
-                if (g>maxG) maxG=g;
-                else if (g<minG) minG=g;
-                if (b>maxB) maxB=b;
-                else if (b<minB) minB=b;
-            }
+            g = im[i+1]; b = im[i+2];
+            cdfG[g] += n; cdfB[b] += n;
+            if (g>maxG) maxG=g;
+            else if (g<minG) minG=g;
+            if (b>maxB) maxB=b;
+            else if (b<minB) minB=b;
         }
         
         // compute cdf
         accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=4) 
+        for (i=0; i<256; i+=8) 
         { 
             // partial loop unrolling
-            accumR += cdfR[i]; cdfR[i] = accumR;
-            accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-            accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-            accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-            
-            if ( rgb )
-            {
-                accumG += cdfG[i]; cdfG[i] = accumG;
-                accumB += cdfB[i]; cdfB[i] = accumB;
-                accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-                accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-                accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-                accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-                accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-                accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            }
+            accumG += cdfG[i]; cdfG[i] = accumG;
+            accumB += cdfB[i]; cdfB[i] = accumB;
+            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
+            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
+            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
+            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
+            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
+            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
+            accumG += cdfG[i+4]; cdfG[i+4] = accumG;
+            accumB += cdfB[i+4]; cdfB[i+4] = accumB;
+            accumG += cdfG[i+5]; cdfG[i+5] = accumG;
+            accumB += cdfB[i+5]; cdfB[i+5] = accumB;
+            accumG += cdfG[i+6]; cdfG[i+6] = accumG;
+            accumB += cdfB[i+6]; cdfB[i+6] = accumB;
+            accumG += cdfG[i+7]; cdfG[i+7] = accumG;
+            accumB += cdfB[i+7]; cdfB[i+7] = accumB;
         }
-        
-        return rgb ? [cdfR, cdfG, cdfB] : [cdfR, cdfR, cdfR];
+        return [cdfR, cdfG, cdfB];
     }
-    
-    ,spectrum: function( im, w, h, grayscale ) {
-        // TODO
-        return null;
-    }
+    return [cdfR, cdfR, cdfR];
+}
+
+function spectrum( im, w, h, grayscale ) 
+{
+    // TODO
+    return null;
+}
+
+//
+// Constants
+FILTER.CONSTANTS = FILTER.CONST = {
+     PI:    PI
+    ,PI2:   PI2
+    ,PI_2:  PI_2
+    ,SQRT2: SQRT2
+    ,LN2: LN2
+    ,toRad: PI/180
+    ,toDeg: 180/PI
+    ,X: X
+    ,Y: Y
+    ,Z: Z
+};
+FILTER.Geometry = {
+     Point2: point2
+    ,Point3: point3
+    ,enorm2: enorm2
+    ,cross2: cross2
+    ,normal2: normal2
+    ,interpolate2: interpolate2
+    ,interpolate3: interpolate3
+};
+FILTER.Math = {
+     clamp: clamp
+    ,closestPower2: closest_power_of_two
+    ,integral: integral
+    ,histogram: histogram
+    ,spectrum: spectrum
 };
 
 }(FILTER);/**
@@ -916,7 +964,7 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
 var FilterCanvas, FilterCanvasCtx;
 
 FilterCanvasCtx = FILTER.Class({
-    constructor: function( canvas ) {
+    constructor: function FilterCanvasCtx( canvas ) {
         var self = this;
         self._cnv = canvas;
         self._transform = {scale:[1,1], translate:[0,0], rotate:[0,0]};
@@ -953,8 +1001,8 @@ FilterCanvasCtx = FILTER.Class({
     }
 });
 
-FILTER.FilterCanvas = FilterCanvas = FILTER.Class({
-    constructor: function( w, h ) {
+FilterCanvas = FILTER.FilterCanvas = FILTER.Class({
+    constructor: function FilterCanvas( w, h ) {
         var self = this;
         self.width = w || 0;
         self.height = h || 0;
@@ -1016,19 +1064,21 @@ var // utils
     
     clamp = FILTER.Math.clamp,
     
-    esc = function(s) { return s.replace(/([.*+?^${}()|\[\]\/\\\-])/g, '\\$1'); },
+    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g,
+    esc = function(s) { return s.replace(esc_re, '\\$1'); },
     
-    trim = function(s) { return s.replace(/^\s+/gm, '').replace(/\s+$/gm, ''); },
+    trim_re = /^\s+|\s+$/g,
+    trim = String.prototype.trim 
+            ? function(s){ return s.trim(); }
+            : function(s){ return s.replace(trim_re, ''); },
     
-    C2F = 1/255,
-    C2P = 100/255,
-    P2C = 2.55,
+    C2F = 1/255, C2P = 100/255, P2C = 2.55,
 
     Keywords = {
         // http://www.w3.org/wiki/CSS/Properties/color/keywords
         // https://developer.mozilla.org/en-US/docs/Web/CSS/color_value
         /* extended */
-        'transparent'         : [  0,0,0        ,0]
+         'transparent'         : [  0,0,0        ,0]
         ,'aliceblue'           : [  240,248,255  ,1]
         ,'antiquewhite'        : [  250,235,215  ,1]
         ,'aqua'                : [  0,255,255    ,1]
@@ -1300,22 +1350,12 @@ var Color = FILTER.Color = FILTER.Class({
             f = h - i;          // factorial part of h
             p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
 
-            switch( i ) 
-            {
-                case 0:  r = v;   g = t;   b = p;
-                    break;
-                case 1: r = q;  g = v;   b = p;
-                    break;
-                case 2: r = p;  g = v;  b = t;
-                    break;
-                case 3: r = p;  g = q;  b = v;
-                    break;
-                case 4: r = t;  g = p;  b = v;
-                    break;
-                default:        // case 5:
-                    r = v;  g = p;  b = q;
-                    break;
-            }
+            if ( 0 === i )      { r = v; g = t; b = p; }
+            else if ( 1 === i ) { r = q;  g = v; b = p; }
+            else if ( 2 === i ) { r = p; g = v; b = t; }
+            else if ( 3 === i ) { r = p; g = q; b = v; }
+            else if ( 4 === i ) { r = t; g = p; b = v; }
+            else /* case 5: */  { r = v; g = p; b = q; }
             
             return [r, g, b];
         },
@@ -1742,11 +1782,11 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    constructor: function( color, cstop ) {
+    constructor: function Color( color, cstop ) {
         // constructor factory pattern used here also
         if ( this instanceof Color ) 
         {
-            this.reset();
+            this.reset( );
             if ( color ) this.set( color, cstop );
         } 
         else 
@@ -2016,7 +2056,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
-    MIME = FILTER.MIME,
+    MIME = FILTER.MIME, ID = 0,
 
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
@@ -2124,6 +2164,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, w = 0, h = 0;
         // factory-constructor pattern
         if ( !(self instanceof FilterImage) ) return new FilterImage(img);
+        self.id = ++ID;
         self.width = w; self.height = h;
         self.iData = null; self.iDataSel = null;
         self.oData = null; self.oDataSel = null;
@@ -2146,6 +2187,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // properties
+    ,id: null
     ,width: 0
     ,height: 0
     ,selection: null
@@ -2169,6 +2211,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,dispose: function( ) {
         var self = this;
+        self.id = null;
         self.width = null;
         self.height = null;
         self.selection = null;
@@ -2617,11 +2660,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( !img ) return this;
         
         var self = this, ictx, octx, w, h, 
-            isFilterImage, isVideo, isCanvas, isImage//, isImageData
+            isVideo, isCanvas, isImage//, isImageData
         ;
         
-        isFilterImage = img instanceof FilterImage;
-        if ( isFilterImage ) img = img.oCanvas;
+        if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
         isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
@@ -2842,11 +2884,10 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         
         var self = this, ictx, octx, w, h, 
             sw, sh, sx = self.scaleX, sy = self.scaleY,
-            isFilterImage, isVideo, isCanvas, isImage//, isImageData
+            isVideo, isCanvas, isImage//, isImageData
         ;
         
-        isFilterImage = img instanceof FilterImage;
-        if ( isFilterImage ) img = img.oCanvas;
+        if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = img instanceof HTMLVideoElement;
         isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
         isImage = img instanceof Image;
@@ -2894,7 +2935,12 @@ FilterScaledImage[PROTO].setImage = FilterScaledImage[PROTO].image;
 !function(FILTER, undef){
 "use strict";
 
-var FilterImage = FILTER.Image, Class = FILTER.Class, ON = 'addEventListener';
+var HAS = 'hasOwnProperty', toString = Object.prototype.toString, KEYS = Object.keys, CRLF = "\r\n",
+    trim_re = /^\s+|\s+$/g,
+    trim = String.prototype.trim 
+        ? function( s ) { return s.trim( ); }
+        : function( s ) { return s.replace(trim_re, ''); },
+    FilterImage = FILTER.Image, Class = FILTER.Class, ON = 'addEventListener';
 
 var Loader = FILTER.Loader = Class({
     name: "Loader",
@@ -2912,9 +2958,9 @@ var Loader = FILTER.Loader = Class({
     },
     
     constructor: function Loader() {
-        var self = this;
+        /*var self = this;
         if ( !(self instanceof Loader) )
-            return new Loader( );
+            return new Loader( );*/
     },
     
     _crossOrigin: null,
@@ -2953,6 +2999,354 @@ var Loader = FILTER.Loader = Class({
     }
 });
 
+// adapted from https://github.com/foo123/RT
+function header_encode( headers, xmlHttpRequest, httpRequestResponse )
+{
+    var header = '';
+    if ( !headers ) return xhr ? xhr : header;
+    var keys = KEYS(headers), key, i, l, k, kl;
+    if ( httpRequestResponse )
+    {
+        for(i=0,l=keys.length; i<l; i++)
+        {
+            key = keys[i];
+            // both single value and array
+            httpRequestResponse.setHeader(key, headers[key]);
+        }
+        return httpRequestResponse;
+    }
+    else if ( xmlHttpRequest )
+    {
+        for(i=0,l=keys.length; i<l; i++)
+        {
+            key = keys[i];
+            if ( '[object Array]' === toString.call(headers[key]) )
+            {
+                for(k=0,kl=headers[key].length; k<kl; k++)
+                    xmlHttpRequest.setRequestHeader(key, String(headers[key][k]));
+            }
+            else
+            {
+                xmlHttpRequest.setRequestHeader(key, String(headers[key]));
+            }
+        }
+        return xmlHttpRequest;
+    }
+    else
+    {
+        for(i=0,l=keys.length; i<l; i++)
+        {
+            key = keys[i];
+            if ( '[object Array]' === toString.call(headers[key]) )
+            {
+                if ( header.length ) header += CRLF;
+                header += key + ': ' + String(headers[key][0]);
+                for(k=1,kl=headers[key].length; k<kl; k++)
+                    header += CRLF + String(headers[key][k]);
+            }
+            else
+            {
+                if ( header.length ) header += CRLF;
+                header += key + ': ' + String(headers[key]);
+            }
+        }
+        return header;
+    }
+}
+function header_decode( headers, lowercase )
+{
+    var header = { }, key = null, parts, i, l, line;
+    if ( !!headers )
+    {
+        lowercase = true === lowercase;
+        headers = headers.split( CRLF );
+        for (i=0,l=headers.length; i<l; i++)
+        {
+            line = headers[i];
+            parts = line.split(':');
+            if ( parts.length > 1 )
+            {
+                key = trim(parts.shift());
+                if ( lowercase ) key = key.toLowerCase();
+                if ( header[HAS](key) )
+                {
+                    if ( 'string' === typeof header[key] ) header[key] = [header[key]];
+                    header[key].push( trim(parts.join(':')) );
+                }
+                else
+                {
+                    header[key] = trim(parts.join(':'));
+                }
+            }
+            else if ( parts[0].length && key )
+            {
+                header[key] = CRLF + parts[0];
+            }
+        }
+    }
+    return header;
+}
+
+var XHR = FILTER.XHR = function XHR( send, abort ){
+    var xhr = this, aborted = false;
+    xhr.readyState = XHR.UNSENT;
+    xhr.status = null;
+    xhr.statusText = null;
+    xhr.responseType = 'text';
+    xhr.responseURL = null;
+    xhr.response = null;
+    xhr.responseText = null;
+    xhr.responseXml = null;
+    xhr._rawHeaders = null;
+    xhr._headers = null;
+    xhr.send = function( payload ) {
+        if ( aborted || (XHR.UNSENT !== xhr.readyState) ) return xhr;
+        if ( send ) send( payload );
+        xhr.readyState = XHR.OPENED;
+        return xhr;
+    };
+    xhr.abort = function( ){
+        if ( aborted ) return xhr;
+        aborted = true;
+        if ( abort ) abort( );
+        return xhr;
+    };
+    xhr.getAllResponseHeaders = function( decoded ) {
+        if ( XHR.DONE !== xhr.readyState ) return null;
+        return true===decoded ? xhr._headers : xhr._rawHeaders;
+    };
+    xhr.getResponseHeader = function( key, lowercased ) {
+        if ( (null == key) || (XHR.DONE !== xhr.readyState) ) return null;
+        var headers = xhr._headers || {};
+        if ( false !== lowercased ) key = key.toLowerCase( );
+        return headers[HAS](key) ? headers[key] : null;
+    };
+    xhr.dispose = function( ) {
+        xhr.readyState = null;
+        xhr.status = null;
+        xhr.statusText = null;
+        xhr.responseType = null;
+        xhr.responseURL = null;
+        xhr.response = null;
+        xhr.responseText = null;
+        xhr.responseXml = null;
+        xhr._rawHeaders = null;
+        xhr._headers = null;
+        xhr.getAllResponseHeaders = null;
+        xhr.getResponseHeader = null;
+        xhr.send = null;
+        xhr.abort = null;
+        return xhr;
+    };
+};
+
+XHR.UNSENT = 0;
+XHR.OPENED = 1;
+XHR.HEADERS_RECEIVED = 2;
+XHR.LOADING = 3;
+XHR.DONE = 4;
+
+XHR.create = FILTER.Browser.isNode
+    ? function( o, payload ) {
+        o = o || {};
+        if ( !o.url ) return null;
+        var url = '[object Object]' === toString.call(o.url) ? o.url : require('url').parse( o.url ),
+            $hr$, xhr,
+            options = {
+                method      : o.method || 'GET',
+                agent       : false,
+                protocol    : url.protocol,
+                host        : url.hostname,
+                hostname    : url.hostname,
+                port        : url.port || 80,
+                path        : (url.pathname||'/')+(url.query?('?'+url.query):'')
+            }
+        ;
+        
+        xhr = new XHR(
+        function( payload ) {
+            if ( null != payload )
+            {
+                payload = String( payload );
+                $hr$.setHeader( 'Content-Length', String(payload.length) );
+                $hr$.write( payload );
+            }
+            /*else
+            {
+                $hr$.setHeader( 'Content-Length', '0' );
+                $hr$.write( '' );
+            }*/
+            $hr$.end( );
+        },
+        function( ) {
+            $hr$.abort( );
+        });
+        
+        $hr$ = ('https:'===options.protocol?require('https').request:require('http').request)(options, function( response ) {
+            var xdata = '', data_sent = 0;
+            
+            xhr.readyState = XHR.OPENED;
+            if ( o.onStateChange ) o.onStateChange( xhr );
+            
+            xhr.readyState = XHR.HEADERS_RECEIVED;
+            xhr._rawHeaders = response.rawHeaders.join("\r\n");
+            xhr._headers = response.headers;
+            xhr.responseURL = response.url || null;
+            xhr.status = response.statusCode || null;
+            xhr.statusText = response.statusMessage || null;
+            if ( o.onStateChange ) o.onStateChange( xhr );
+            
+            response.on('data', function( chunk ){
+                xdata += chunk.toString( );
+                if ( !data_sent )
+                {
+                    data_sent = 1;
+                    xhr.readyState = XHR.LOADING;
+                    if ( o.onStateChange ) o.onStateChange( xhr );
+                    if ( o.onLoadStart ) o.onLoadStart( xhr );
+                }
+                if ( o.onProgress ) o.onProgress( xhr );
+            });
+            
+            response.on('end', function( ){
+                xhr.readyState = XHR.DONE;
+                xhr.responseType = 'text';
+                xhr.response = xhr.responseText = xdata;
+                
+                if ( o.onStateChange ) o.onStateChange( xhr );
+                if ( o.onLoadEnd ) o.onLoadEnd( xhr );
+                
+                if ( (XHR.DONE === xhr.readyState) )
+                {
+                    if ( 200 === xhr.status )
+                    {
+                        if ( o.onComplete ) o.onComplete( xhr );
+                    }
+                    else
+                    {
+                        if ( o.onRequestError ) o.onRequestError( xhr );
+                        else if ( o.onError ) o.onError( xhr );
+                    }
+                }
+            });
+            
+            response.on('error', function( ee ){
+                xhr.statusText = ee.toString( );
+                if ( o.onError ) o.onError( xhr );
+            });
+        });
+        
+        $hr$.setTimeout(o.timeout || 30000, function( e ){
+            if ( o.onTimeout ) o.onTimeout( xhr );
+        });
+        $hr$.on('abort', function( ee ){
+            if ( o.onAbort ) o.onAbort( xhr );
+        });
+        $hr$.on('error', function( ee ){
+            xhr.statusText = ee.toString( );
+            if ( o.onError ) o.onError( xhr );
+        });
+        
+        if ( o.headers ) header_encode( o.headers, null, $hr$ );
+        //if ( o.mimeType ) $hr$.overrideMimeType( o.mimeType );
+        if ( arguments.length > 1 ) xhr.send( payload );
+        return xhr;
+    }
+    : function( o, payload ) {
+        o = o || {};
+        if ( !o.url ) return null;
+        var $xhr$ = 'undefined' !== typeof XMLHttpRequest
+            ? new XMLHttpRequest( )
+            : new ActiveXObject( 'Microsoft.XMLHTTP' ) /* or ActiveXObject( 'Msxml2.XMLHTTP' ); ??*/,
+            
+            xhr = new XHR(
+            function( payload ){
+                $xhr$.send( payload );
+            },
+            function( ){
+                $xhr$.abort( );
+            }),
+            
+            update = function( xhr, $xhr$ ) {
+                xhr.readyState = $xhr$.readyState;
+                xhr.responseType = $xhr$.responseType;
+                xhr.responseURL = $xhr$.responseURL;
+                xhr.response = $xhr$.response;
+                xhr.responseText = $xhr$.responseText;
+                xhr.responseXml = $xhr$.responseXml;
+                xhr.status = $xhr$.status;
+                xhr.statusText = $xhr$.statusText;
+                return xhr;
+            }
+        ;
+        xhr.getAllResponseHeaders = function( decoded ){
+            var headers = $xhr$.getAllResponseHeaders( );
+            return true===decoded ? header_decode( headers ) : headers;
+        };
+        xhr.getResponseHeader = function( key ){
+            return $xhr$.getResponseHeader( key );
+        };
+        
+        $xhr$.open( o.method||'GET', o.url, !o.sync );
+        xhr.responseType = $xhr$.responseType = o.responseType || 'text';
+        $xhr$.timeout = o.timeout || 30000; // 30 secs default timeout
+        
+        if ( o.onProgress )
+        {
+            $xhr$.onprogress = function( ) {
+                o.onProgress( update( xhr, $xhr$ ) );
+            };
+        }
+        if ( o.onLoadStart )
+        {
+            $xhr$.onloadstart = function( ) {
+                o.onLoadStart( update( xhr, $xhr$ ) );
+            };
+        }
+        if ( o.onLoadEnd )
+        {
+            $xhr$.onloadend = function( ) {
+                o.onLoadEnd( update( xhr, $xhr$ ) );
+            };
+        }
+        if ( !o.sync && o.onStateChange )
+        {
+            $xhr$.onreadystatechange = function( ) {
+                o.onStateChange( update( xhr, $xhr$ ) );
+            };
+        }
+        $xhr$.onload = function( ) {
+            update( xhr, $xhr$ );
+            if ( (XHR.DONE === $xhr$.readyState) )
+            {
+                if ( 200 === $xhr$.status )
+                {
+                    if ( o.onComplete ) o.onComplete( xhr );
+                }
+                else
+                {
+                    if ( o.onRequestError ) o.onRequestError( xhr );
+                    else if ( o.onError ) o.onError( xhr );
+                }
+            }
+        };
+        $xhr$.onabort = function( ) {
+            if ( o.onAbort ) o.onAbort( update( xhr, $xhr$ ) );
+        };
+        $xhr$.onerror = function( ) {
+            if ( o.onError ) o.onError( update( xhr, $xhr$ ) );
+        };
+        $xhr$.ontimeout = function( ) {
+            if ( o.onTimeout ) o.onTimeout( update( xhr, $xhr$ ) );
+        };
+        
+        if ( o.headers ) header_encode( o.headers, $xhr$ );
+        if ( o.mimeType ) $xhr$.overrideMimeType( o.mimeType );
+        if ( arguments.length > 1 ) xhr.send( payload );
+        return xhr;
+    }
+;
+
 var XHRLoader = FILTER.XHRLoader = Class(Loader, {
     name: "XHRLoader",
     
@@ -2963,9 +3357,18 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
     },
     
     load: function ( url, onLoad, onError ) {
-        var scope = this, request;
+        var self = this;
         
-        if ( FILTER.Browser.isNode )
+        XHR.create({
+            url: url,
+            onComplete: function( xhr ) {
+                if ( 'function' === typeof onLoad ) onLoad( 'arraybuffer' === self._responseType ? new Buffer(xhr.response) : xhr.response );
+            },
+            onError: function( xhr ) {
+                if ( 'function' === typeof onError ) onError( xhr.statusText );
+            }
+        });
+        /*if ( FILTER.Browser.isNode )
         {
             // https://nodejs.org/api/http.html#http_http_request_options_callback
             request = require('http').get(url, function(response) {
@@ -2991,11 +3394,11 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
             }, false);
             //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
             if ( 'function' === typeof onError ) request[ON]('error', onError, false);
-            if ( scope._crossOrigin ) request.crossOrigin = scope._crossOrigin;
-            if ( scope._responseType ) request.responseType = scope._responseType;
+            if ( self._crossOrigin ) request.crossOrigin = self._crossOrigin;
+            if ( self._responseType ) request.responseType = self._responseType;
             request.send( null );
-        }
-        return scope;
+        }*/
+        return self;
     }
 });
 
@@ -3009,25 +3412,45 @@ var FileLoader = FILTER.FileLoader = Class(Loader, {
     },
     
     load: function ( file, onLoad, onError ) {
-        var scope = this, 
+        var self = this, 
             options = {
                 // return raw buffer
-                encoding: 'arraybuffer' === scope._responseType ? null : scope._responseType,
+                encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
                 flag: 'r'
             };
         // read file
-        // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
-        require('fs').readFile(file, options, function( err, data ) {
-          if ( err )
-          {
-              if ( 'function' === typeof onError ) onError( err );
-          }
-          else
-          {
-              if ( 'function' === typeof onLoad ) onLoad( data );
-          }
-        });        
-        return scope;
+        if ( FILTER.Browser.isNode )
+        {
+            // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
+            require('fs').readFile(file, {
+                // return raw buffer
+                encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
+                flag: 'r'
+            }, function( err, data ) {
+              if ( err )
+              {
+                  if ( 'function' === typeof onError ) onError( err.toString() );
+              }
+              else
+              {
+                  if ( 'function' === typeof onLoad ) onLoad( data );
+              }
+            });
+        }
+        else
+        {
+            XHR.create({
+                url: file,
+                responseType: self._responseType,
+                onComplete: function( xhr ) {
+                    if ( 'function' === typeof onLoad ) onLoad( xhr.response );
+                },
+                onError: function( xhr ) {
+                    if ( 'function' === typeof onError ) onError( xhr.statusText );
+                }
+            });
+        }
+        return self;
     }
 });
 
@@ -3037,7 +3460,7 @@ FILTER.BinaryLoader = Class(Loader, {
     constructor: function BinaryLoader( decoder ) {
         var self = this;
         if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder );
-        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        self._decoder = "function" === typeof decoder ? decoder : null;
     },
     
     _decoder: null,
@@ -3053,27 +3476,23 @@ FILTER.BinaryLoader = Class(Loader, {
     
     decoder: function( decoder ) {
         var self = this;
-        self._decoder = "function" === typeof (decoder) ? decoder : null;
+        self._decoder = "function" === typeof decoder ? decoder : null;
         return self;
     },
     
     encoder: function( encoder ) {
         var self = this;
-        self._encoder = "function" === typeof (encoder) ? encoder : null;
+        self._encoder = "function" === typeof encoder ? encoder : null;
         return self;
     },
     
     load: function( url, onLoad, onError ){
-        var loader = this, xhrloader, 
-            image = new FilterImage( ),
-            decoder = loader._decoder
-        ;
+        var self = this, image = new FilterImage( ), decoder = self._decoder;
         
         if ( 'function' === typeof decoder )
         {
-            xhrloader = FILTER.Browser.isNode ? new FileLoader( ) : new XHRLoader( );
-            xhrloader
-                .responseType( loader._responseType || 'arraybuffer' )
+            new FileLoader( )
+                .responseType( self._responseType || 'arraybuffer' )
                 .load( url, function( buffer ) {
                     var metaData = {}, imData = decoder( buffer, metaData );
                     if ( !imData ) return;
@@ -3329,7 +3748,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
-        var self = this;
+        var self = this/*, cache = {}*/;
         self.hasMeta = false; self._meta = [];
         if ( self._isOn && self._stack.length )
         {
@@ -3341,7 +3760,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                 filter = _filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    im = filter._apply(im, w, h, image);
+                    im = filter._apply(im, w, h, image/*, cache*/);
                     if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
                 }
             }
@@ -3375,7 +3794,7 @@ CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 
 }(FILTER);/**
 *
-* Custom Filter(s)
+* Inline Filter(s)
 *
 * Allows to create an filter on-the-fly using an inline function
 *
@@ -3389,10 +3808,10 @@ CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 var HAS = 'hasOwnProperty';
 
 //
-//  Custom Filter 
+//  Inline Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
-var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
-    name: "CustomFilter"
+var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
+    name: "InlineFilter"
     
     ,constructor: function( handler ) {
         var self = this;
@@ -3451,7 +3870,8 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
             if ( params._handler )
             {
                 // using bind makes the code become [native code] and thus unserializable
-                self._handler = new Function( "", '"use strict"; return ' + params._handler + ';')( );
+                // make FILTER namespace accessible to the function code
+                self._handler = new Function( "FILTER", '"use strict"; return ' + params._handler + ';')( FILTER );
             }
             self._params = params._params || {};
         }
@@ -3468,6 +3888,8 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
         return this._isOn && this._handler;
     }
 });
+// aliases
+FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);/**
 *
@@ -3489,7 +3911,7 @@ var CustomFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
 var Sin=Math.sin, Cos=Math.cos,
     // Color Matrix
     CM=FILTER.Array32F,
-    toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+    toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     notSupportClamp=FILTER._notSupportClamp
 ;
 
@@ -3564,7 +3986,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         switch(ch)
         {
             case FILTER.CHANNEL.ALPHA:
-                return this.concat([
+                return this.set([
                             0, 0, 0, 1, 0, 
                             0, 0, 0, 1, 0, 
                             0, 0, 0, 1, 0, 
@@ -4028,7 +4450,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,set: function( mat ) {
-        this._matrix = ( this._matrix ) ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
+        this._matrix = this._matrix ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
         return this;
     }
     
@@ -4328,16 +4750,21 @@ function CMblend(m1, m2, amount)
 // color table
 var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
 
-    eye = function(inv) {
-        var t=new CT(256), i=0;
-        if (inv)  while (i<256) { t[i]=255-i; i++; }
-        else   while (i<256) { t[i]=i; i++; }
+    eye = function( ) {
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=i;
+        return t;
+    },
+
+    inv_eye = function( ) {
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=255-i;
         return t;
     },
 
     ones = function(col) {
-        var t=new CT(256), i=0;
-        while (i<256) { t[i]=col; i++; }
+        var t=new CT(256), i;
+        for(i=0; i<256; i++) t[i]=col;
         return t;
     },
     
@@ -4346,7 +4773,7 @@ var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
         return null;
     },
     
-    Power=Math.pow, Exponential=Math.exp, nF=1/255, trivial=eye(), inverce=eye(1)
+    Power=Math.pow, Exponential=Math.exp, nF=1.0/255
 ;
 
 //
@@ -4441,8 +4868,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         thresholdsB[0]=~~(255*thresholdsB[0]);
         i=1; while (i<tLB) { thresholdsB[i]=thresholdsB[i-1] + ~~(255*thresholdsB[i]); i++; }
 
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             // the non-linear mapping is here
             j=0; while (j<tLR && i>thresholdsR[j]) j++;
@@ -4451,7 +4877,6 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             tG[ i ] = clamp(qG[ j ]); 
             j=0; while (j<tLB && i>thresholdsB[j]) j++;
             tB[ i ] = clamp(qB[ j ]); 
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -4469,7 +4894,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
 
         var t=new CT(256), q=new CT(numLevels), i, nL=255/(numLevels-1), nR=numLevels/256;
         i=0; while (i<numLevels) { q[i] = ~~(nL * i); i++; }
-        i=0; while (i<256) { t[i] = clamp(q[ ~~(nR * i) ]); i++; }
+        for(i=0; i<256; i++) { t[i] = clamp(q[ ~~(nR * i) ]); }
         return this.set(t);
     }
     
@@ -4485,13 +4910,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,q, c, n=2/255
         ;
         
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             q = n*i; 
             c = (q>threshold) ? (255-255*q) : (255*q-255); 
             t[i] = ~~(clamp( c ));
-            i++; 
         }
         return this.set(t);
     }
@@ -4503,13 +4926,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,q, c, n=2/255
         ;
         
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             q = n*i; 
             c = (q<threshold) ? (255-255*q) : (255*q-255); 
             t[i] = ~~(clamp( c ));
-            i++; 
         }
         return this.set(t);
     }
@@ -4519,17 +4940,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         threshold*=256; 
         
         var i=0, t=new CT(256);
-        i=0; 
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             t[i] = (i>threshold) ? 255-i : i; 
-            i++; 
         }
         return this.set(t);
     }
     
     ,invert: function( ) {
-        return this.set(inverce);
+        return this.set(inv_eye());
     }
     
     // apply a binary mask to the image color channels
@@ -4537,12 +4956,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
             tR=new CT(256), tG=new CT(256), tB=new CT(256)
             ;
-        i=0; while (i<256) 
+        for(i=0; i<256; i++)
         { 
             tR[i]=clamp(i & maskR); 
             tG[i]=clamp(i & maskG); 
             tB[i]=clamp(i & maskB); 
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -4553,7 +4971,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var  
             c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
             c2R=(replacecolor>>16)&255, c2G=(replacecolor>>8)&255, c2B=(replacecolor)&255, 
-            tR=clone(trivial), tG=clone(trivial), tB=clone(trivial)
+            tR=eye(), tG=eye(), tB=eye()
             ;
             tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
         return this.set(tR, tG, tB);
@@ -4601,12 +5019,11 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         gammaR=1.0/gammaR; gammaG=1.0/gammaG; gammaB=1.0/gammaB;
         
         var tR=new CT(256), tG=new CT(256), tB=new CT(256), i=0;
-        while (i<256) 
+        for(i=0; i<256; i++)
         { 
             tR[i]=clamp(~~(255*Power(nF*i, gammaR))); 
             tG[i]=clamp(~~(255*Power(nF*i, gammaG))); 
             tB[i]=clamp(~~(255*Power(nF*i, gammaB)));  
-            i++; 
         }
         return this.set(tR, tG, tB);
     }
@@ -4615,16 +5032,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,exposure: function( exposure ) {
         if ( exposure === undef ) exposure=1;
         var i=0, t=new CT(256);
-        i=0; while (i<256) 
+        for(i=0; i<256; i++)
         { 
             t[i]=clamp(~~(255 * (1 - Exponential(-exposure * i *nF)))); 
-            i++; 
         }
         return this.set(t);
     }
     
     ,set: function( _tR, _tG, _tB, _tA ) {
-        if (!_tR) return this;
+        if ( !_tR ) return this;
         
         _tG=_tG || _tR; _tB=_tB || _tG;
         var 
@@ -4637,24 +5053,20 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             tG=this._tableG || clone(tR); tB=this._tableB || clone(tG);
             tG2=clone(tG); tB2=clone(tB);
             // concat/compose the filter's tables, same as composing the filters
-            i=0; 
-            while (i<256) 
+            for(i=0; i<256; i++)
             { 
                 tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
                 tG[i]=clamp( _tG[clamp( tG2[i] )] ); 
                 tB[i]=clamp( _tB[clamp( tB2[i] )] ); 
-                i++; 
             }
             this._tableR=tR; this._tableG=tG; this._tableB=tB;
         }
         else
         {
             // concat/compose the filter's tables, same as composing the filters
-            i=0; 
-            while (i<256) 
+            for(i=0; i<256; i++)
             { 
                 tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-                i++; 
             }
             this._tableR=tR; this._tableG=this._tableR; this._tableB=this._tableR;
         }
@@ -4839,13 +5251,13 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Map = self.map;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _map: self._map
+                _map: self._map || (Map ? { data: Map.getData( ), width: Map.width, height: Map.height } : null)
                 ,scaleX: self.scaleX
                 ,scaleY: self.scaleY
                 ,startX: self.startX
@@ -4903,8 +5315,8 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         var self = this;
         if ( map )
         {
-            self.map = map; 
-            self._map = { data: map.getData( ), width: map.width, height: map.height }; 
+            self.map = map;
+            self._map = null;
         }
         return self;
     }
@@ -4922,9 +5334,10 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
         var self = this;
-        if ( !self._isOn || !self._map ) return im;
+        if ( !self._isOn || !(self.map || self._map) ) return im;
         
-        var map, mapW, mapH, mapArea, displace, ww, hh,
+        var Map = self.map, _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
+            map, mapW, mapH, mapArea, displace, ww, hh,
             sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
             comx = self.componentX, comy = self.componentY, 
             alpha = self.alpha, red = self.red, 
@@ -4935,8 +5348,8 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
         ;
         
-        map = self._map.data;
-        mapW = self._map.width; mapH = self._map.height; 
+        map = _map.data;
+        mapW = _map.width; mapH = _map.height; 
         mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
         imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
         
@@ -5032,15 +5445,15 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
 "use strict";
 
 var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
-    PI=FILTER.CONSTANTS.PI,
-    DoublePI=FILTER.CONSTANTS.PI2,
-    HalfPI=FILTER.CONSTANTS.PI_2,
+    PI=FILTER.CONST.PI,
+    DoublePI=FILTER.CONST.PI2,
+    HalfPI=FILTER.CONST.PI_2,
     ThreePI2 = 1.5 * PI,
     Sqrt=Math.sqrt, Atan2=Math.atan2, Atan = Math.atan,
     Sin=Math.sin, Cos=Math.cos, 
-    Floor=Math.floor, //Round=Math.round, Ceil=Math.ceil,
+    Floor=Math.floor, Round=Math.round, //Ceil=Math.ceil,
     Asin=Math.asin, Tan=Math.tan, Abs=Math.abs, Max = Math.max,
-    toRad=FILTER.CONSTANTS.toRad,
+    toRad=FILTER.CONST.toRad,
     Maps
 ;
 
@@ -5417,7 +5830,7 @@ Maps = {
         {
             if (x>=w) { x=0; y++; yw+=w; }
             
-            j = ((x+dx)%w + ((y+dy)%h)*w)<<2;
+            j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
             dst[i] = im[j];   dst[i+1] = im[j+1];
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
         }
@@ -5797,7 +6210,7 @@ Maps = {
             // inverse transform
             ix = (w-1) - (w-1)/DoublePI * theta;
             iy = (h * r / radius);
-            
+            ix = Round(ix); iy = Round(iy);
             if (0>ix || ix>bx || 0>iy || iy>by)
             {
                 switch(mode)
@@ -5818,7 +6231,7 @@ Maps = {
                         break;
                 }
             }
-            ip = ( ~~(ix+0.5) + ~~(iy+0.5)*w )<<2;
+            ip = ( ix + iy*w ) << 2;
             im[i] = imcopy[ ip ];
             im[i+1] = imcopy[ ip+1 ];
             im[i+2] = imcopy[ ip+2 ];
@@ -5882,6 +6295,7 @@ Maps = {
                 iy = cY - ny;
             }
             // inverse transform
+            ix = Round(ix); iy = Round(iy);
             if (0>ix || ix>bx || 0>iy || iy>by)
             {
                 switch(mode)
@@ -5902,7 +6316,7 @@ Maps = {
                         break;
                 }
             }
-            ip = ( ~~(ix+0.5) + ~~(iy+0.5)*w )<<2;
+            ip = ( ix + iy*w ) << 2;
             im[i] = imcopy[ ip ];
             im[i+1] = imcopy[ ip+1 ];
             im[i+2] = imcopy[ ip+2 ];
@@ -5927,7 +6341,7 @@ Maps = {
 "use strict";
 
 var 
-    sqrt2=FILTER.CONSTANTS.SQRT2, toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+    sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
     
     // Convolution Matrix
@@ -7676,8 +8090,406 @@ Filters = {
     }
 };
 
-}(FILTER);    
-    /* main code ends here */
-    /* export the module */
-    return exports["FILTER"];
+}(FILTER);/**
+*
+* Filter Utils, perlin/simplex noise
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
+ 
+// adapted from:
+
+// https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c
+/* SimplexNoise1234, Simplex noise with true analytic
+ * derivative in 1D to 4D.
+ *
+ * Author: Stefan Gustavson, 2003-2005
+ * Contact: stegu@itn.liu.se
+ *
+ * This code was GPL licensed until February 2011.
+ * As the original author of this code, I hereby
+ * release it into the public domain.
+ * Please feel free to use it for whatever you want.
+ * Credit is appreciated where appropriate, and I also
+ * appreciate being told where this code finds any use,
+ * but you may do as you like.
+ */
+
+ // https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c
+/* noise1234
+ *
+ * Author: Stefan Gustavson, 2003-2005
+ * Contact: stegu@itn.liu.se
+ *
+ * This code was GPL licensed until February 2011.
+ * As the original author of this code, I hereby
+ * release it into the public domain.
+ * Please feel free to use it for whatever you want.
+ * Credit is appreciated where appropriate, and I also
+ * appreciate being told where this code finds any use,
+ * but you may do as you like.
+ */
+
+/*
+ * Permutation table. This is just a random jumble of all numbers 0-255,
+ * repeated twice to avoid wrapping the index at 255 for each lookup.
+ * This needs to be exactly the same for all instances on all platforms,
+ * so it's easiest to just keep it as static explicit data.
+ * This also removes the need for any initialisation of this class.
+ *
+ * Note that making this an int[] instead of a char[] might make the
+ * code run faster on platforms with a high penalty for unaligned single
+ * byte addressing. Intel x86 is generally single-byte-friendly, but
+ * some other CPUs are faster with 4-aligned reads.
+ * However, a char[] is smaller, which avoids cache trashing, and that
+ * is probably the most important aspect on most architectures.
+ * This array is accessed a *lot* by the noise functions.
+ * A vector-valued noise over 3D accesses it 96 times, and a
+ * float-valued 4D noise 64 times. We want this to fit in the cache!
+ */
+var p = new Array8U([151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180,
+  151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180 
+]), perm = new Array8U(p); // copy it initially
+
+// This isn't a very good seeding function, but it works ok. It supports 2^16
+// different seed values. Write something better if you need more seeds.
+function seed( seed ) 
+{
+    var v, i;
+    // Scale the seed out
+    if ( seed > 0 && seed < 1 ) seed *= 65536;
+
+    seed = FLOOR( seed );
+    if ( seed < 256 ) seed |= seed << 8;
+    for (i = 0; i < 256; i++) 
+    {
+        v = ( i & 1 ) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
+        perm[i] = perm[i + 256] = v;
+    }
+}
+//seed(0);
+
+/*
+ * Helper functions to compute gradients-dot-residualvectors (1D to 4D)
+ * Note that these generate gradients of more than unit length. To make
+ * a close match with the value range of classic Perlin noise, the final
+ * noise values need to be rescaled to fit nicely within [-1,1].
+ * (The simplex noise functions as such also have different scaling.)
+ * Note also that these noise functions are the most practical and useful
+ * signed version of Perlin noise. To return values according to the
+ * RenderMan specification from the SL noise() and pnoise() functions,
+ * the noise values need to be scaled and offset to [0,1], like this:
+ * float SLnoise = (noise(x,y,z) + 1.0) * 0.5;
+ */
+
+function grad1( hash, x ) 
+{
+    var h = hash & 15;
+    var grad = 1.0 + (h & 7);   // Gradient value 1.0, 2.0, ..., 8.0
+    if (h&8) grad = -grad;         // Set a random sign for the gradient
+    return ( grad * x );           // Multiply the gradient with the distance
+}
+
+function grad2( hash, x, y ) 
+{
+    var h = hash & 7;      // Convert low 3 bits of hash code
+    var u = h<4 ? x : y;  // into 8 simple gradient directions,
+    var v = h<4 ? y : x;  // and compute the dot product with (x,y).
+    return ((h&1)? -u : u) + ((h&2)? -2.0*v : 2.0*v);
+}
+
+function grad3( hash, x, y, z ) 
+{
+    var h = hash & 15;     // Convert low 4 bits of hash code into 12 simple
+    var u = h<8 ? x : y; // gradient directions, and compute dot product.
+    var v = h<4 ? y : h==12||h==14 ? x : z; // Fix repeats at h = 12 to 15
+    return ((h&1)? -u : u) + ((h&2)? -v : v);
+}
+
+function grad4( hash, x, y, z, t ) 
+{
+    var h = hash & 31;      // Convert low 5 bits of hash code into 32 simple
+    var u = h<24 ? x : y; // gradient directions, and compute dot product.
+    var v = h<16 ? y : z;
+    var w = h<8 ? z : t;
+    return ((h&1)? -u : u) + ((h&2)? -v : v) + ((h&4)? -w : w);
+}
+
+// A lookup table to traverse the simplex around a given point in 4D.
+// Details can be found where this table is used, in the 4D noise method.
+/* TODO: This should not be required, backport it from Bill's GLSL code! */
+var simplex = [
+[0,1,2,3],[0,1,3,2],[0,0,0,0],[0,2,3,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,2,3,0],
+[0,2,1,3],[0,0,0,0],[0,3,1,2],[0,3,2,1],[0,0,0,0],[0,0,0,0],[0,0,0,0],[1,3,2,0],
+[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
+[1,2,0,3],[0,0,0,0],[1,3,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,3,0,1],[2,3,1,0],
+[1,0,2,3],[1,0,3,2],[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,0,3,1],[0,0,0,0],[2,1,3,0],
+[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],
+[2,0,1,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,0,1,2],[3,0,2,1],[0,0,0,0],[3,1,2,0],
+[2,1,0,3],[0,0,0,0],[0,0,0,0],[0,0,0,0],[3,1,0,2],[0,0,0,0],[3,2,0,1],[3,2,1,0]
+];
+
+// 2D simplex noise
+function simplex2( x, y ) 
+{
+    var F2 = 0.366025403; // F2 = 0.5*(sqrt(3.0)-1.0)
+    var G2 = 0.211324865; // G2 = (3.0-Math.sqrt(3.0))/6.0
+    
+    var n0, n1, n2; // Noise contributions from the three corners
+
+    // Skew the input space to determine which simplex cell we're in
+    var s = (x+y)*F2; // Hairy factor for 2D
+    var xs = x + s;
+    var ys = y + s;
+    var i = FLOOR(xs);
+    var j = FLOOR(ys);
+
+    var t = (i+j)*G2;
+    var X0 = i-t; // Unskew the cell origin back to (x,y) space
+    var Y0 = j-t;
+    var x0 = x-X0; // The x,y distances from the cell origin
+    var y0 = y-Y0;
+
+    // For the 2D case, the simplex shape is an equilateral triangle.
+    // Determine which simplex we are in.
+    var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
+    if ( x0>y0 ) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+    else {i1=0; j1=1;}      // upper triangle, YX order: (0,0)->(0,1)->(1,1)
+
+    // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
+    // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
+    // c = (3-sqrt(3))/6
+
+    var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+    var y1 = y0 - j1 + G2;
+    var x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
+    var y2 = y0 - 1.0 + 2.0 * G2;
+
+    // Wrap the integer indices at 256, to avoid indexing perm[] out of bounds
+    var ii = i & 0xff;
+    var jj = j & 0xff;
+
+    // Calculate the contribution from the three corners
+    var t0 = 0.5 - x0*x0-y0*y0;
+    if ( t0 < 0.0 ) n0 = 0.0;
+    else 
+    {
+        t0 *= t0;
+        n0 = t0 * t0 * grad2(perm[ii+perm[jj]], x0, y0); 
+    }
+
+    var t1 = 0.5 - x1*x1-y1*y1;
+    if (t1 < 0.0) n1 = 0.0;
+    else 
+    {
+        t1 *= t1;
+        n1 = t1 * t1 * grad2(perm[ii+i1+perm[jj+j1]], x1, y1);
+    }
+
+    var t2 = 0.5 - x2*x2-y2*y2;
+    if(t2 < 0.0) n2 = 0.0;
+    else 
+    {
+        t2 *= t2;
+        n2 = t2 * t2 * grad2(perm[ii+1+perm[jj+1]], x2, y2);
+    }
+
+    // Add contributions from each corner to get the final noise value.
+    // The result is scaled to return values in the interval [-1,1].
+    return 40.0 * (n0 + n1 + n2); // TODO: The scale factor is preliminary!
+}
+
+// This is the new and improved, C(2) continuous interpolant
+function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
+function LERP(t, a, b) { return a + t*(b-a); }
+
+// 2D float Perlin noise.
+function perlin2( x, y )
+{
+    var ix0, iy0, ix1, iy1;
+    var fx0, fy0, fx1, fy1;
+    var s, t, nx0, nx1, n0, n1;
+
+    ix0 = FLOOR( x ); // Integer part of x
+    iy0 = FLOOR( y ); // Integer part of y
+    fx0 = x - ix0;        // Fractional part of x
+    fy0 = y - iy0;        // Fractional part of y
+    fx1 = fx0 - 1.0;
+    fy1 = fy0 - 1.0;
+    ix1 = (ix0 + 1) & 0xff;  // Wrap to 0..255
+    iy1 = (iy0 + 1) & 0xff;
+    ix0 = ix0 & 0xff;
+    iy0 = iy0 & 0xff;
+    
+    t = FADE( fy0 );
+    s = FADE( fx0 );
+
+    nx0 = grad2(perm[ix0 + perm[iy0]], fx0, fy0);
+    nx1 = grad2(perm[ix0 + perm[iy1]], fx0, fy1);
+    n0 = LERP( t, nx0, nx1 );
+
+    nx0 = grad2(perm[ix1 + perm[iy0]], fx1, fy0);
+    nx1 = grad2(perm[ix1 + perm[iy1]], fx1, fy1);
+    n1 = LERP(t, nx0, nx1);
+
+    return 0.507 * ( LERP( s, n0, n1 ) );
+}
+
+// adapted from: http://www.java-gaming.org/index.php?topic=31637.0
+/*function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
+
+    for (octave=0; octave<octaves; octave++) 
+    {
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        if ( seamless )
+        {
+            // simulate seamless stitching, i.e circular/tileable symmetry
+            if ( nx > w2 ) nx = w-1-nx;
+            if ( ny > h2 ) ny = h-1-ny;
+        }
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    return noiseSum / weightSum;
+}*/
+function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
+
+    for (octave=0; octave<octaves; octave++) 
+    {
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    return noiseSum / weightSum;
+}
+
+/*function turbulence()
+{
+}*/
+
+
+
+FILTER.PerlinNoise = {
+    seed: seed,
+    
+    Image: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
+            invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+            w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+        scale = scale || 1.0; roughness = roughness || 0.5;
+        octaves = octaves || 1; offsets = offsets || [[0,0]];
+        if ( seamless )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                // simulate seamless stitching, i.e circular/tileable symmetry
+                nx = x > w2 ? w-1-x : x;
+                ny = y > h2 ? h-1-y : y;
+                if ( (nx < x) || (ny < y) )
+                {
+                    j = (ny*w + nx) << 2;
+                    n[ i   ] = n[ j   ];
+                    n[ i+1 ] = n[ j+1 ];
+                    n[ i+2 ] = n[ j+2 ];
+                }
+                else
+                {
+                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                    n[ i+1 ] = n[ i ];
+                    n[ i+2 ] = n[ i ];
+                }
+            }
+        }
+        else
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                n[ i+1 ] = n[ i ];
+                n[ i+2 ] = n[ i ];
+            }
+        }
+        img.setData( n );
+        return img;
+    }/*,
+    
+    generate: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+            x, y, nx, ny, i, j, size = w*h, n = new Array8U(size), w2 = w>>>1, h2 = h>>>1;
+        scale = scale || 1.0; roughness = roughness || 0.5;
+        octaves = octaves || 1; offsets = offsets || [[0,0]];
+        if ( seamless )
+        {
+            for(x=0,y=0,i=0; i<size; i++,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                // simulate seamless stitching, i.e circular/tileable symmetry
+                nx = x > w2 ? w-1-x : x;
+                ny = y > h2 ? h-1-y : y;
+                if ( (nx < x) || (ny < y) )
+                {
+                    n[ i ] = n[ ny*w + nx ];
+                }
+                else
+                {
+                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+                }
+            }
+        }
+        else
+        {
+            for(x=0,y=0,i=0; i<size; i++,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+            }
+        }
+        return n;
+    }*/
+};
+
+}(FILTER);
+/* main code ends here */
+/* export the module */
+return FILTER;
 });

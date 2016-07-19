@@ -19,7 +19,7 @@ FILTER.Create({
     ,color: null
     ,tolerance: 0.0
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( x, y, color, tolerance ) {
         var self = this;
@@ -168,7 +168,7 @@ FILTER.Create({
     ,_pattern: null
     ,mode: 0 // 0 tile, 1 stretch
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     ,init: function( x, y, pattern, mode, tolerance ) {
         var self = this;

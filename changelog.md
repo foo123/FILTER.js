@@ -1,5 +1,13 @@
 ##ChangeLog
 
+__0.8.0__
+
+* update classy, asynchronous dependencies, examples
+* update buildtools, UMD templates, filter add-ons are better bundled
+* various optimisations, refactorings
+* CustomFilter renamed to InlineFilter
+* some modifications towards node.js support
+
 __0.7.2__
 
 * add image encoders for `JPG`, `BMP`, `RGBE`

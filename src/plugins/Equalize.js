@@ -9,13 +9,13 @@
 
 var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
     RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
-    ;
+;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
     name : "HistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -32,13 +32,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfI = new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfI[i]=0; 
             cdfI[i+1]=0; 
             cdfI[i+2]=0; 
             cdfI[i+3]=0; 
+            cdfI[i+4]=0; 
+            cdfI[i+5]=0; 
+            cdfI[i+6]=0; 
+            cdfI[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -55,13 +59,17 @@ FILTER.Create({
         
         // compute cdf
         accum = 0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accum += cdfI[i]; cdfI[i] = accum;
             accum += cdfI[i+1]; cdfI[i+1] = accum;
             accum += cdfI[i+2]; cdfI[i+2] = accum;
             accum += cdfI[i+3]; cdfI[i+3] = accum;
+            accum += cdfI[i+4]; cdfI[i+4] = accum;
+            accum += cdfI[i+5]; cdfI[i+5] = accum;
+            accum += cdfI[i+6]; cdfI[i+6] = accum;
+            accum += cdfI[i+7]; cdfI[i+7] = accum;
         }
         
         // equalize only the intesity channel
@@ -101,7 +109,7 @@ FILTER.Create({
 FILTER.Create({
     name: "GrayscaleHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -118,13 +126,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfI = new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfI[i]=0; 
             cdfI[i+1]=0; 
             cdfI[i+2]=0; 
             cdfI[i+3]=0; 
+            cdfI[i+4]=0; 
+            cdfI[i+5]=0; 
+            cdfI[i+6]=0; 
+            cdfI[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -139,13 +151,17 @@ FILTER.Create({
         
         // compute cdf
         accum = 0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accum += cdfI[i]; cdfI[i] = accum;
             accum += cdfI[i+1]; cdfI[i+1] = accum;
             accum += cdfI[i+2]; cdfI[i+2] = accum;
             accum += cdfI[i+3]; cdfI[i+3] = accum;
+            accum += cdfI[i+4]; cdfI[i+4] = accum;
+            accum += cdfI[i+5]; cdfI[i+5] = accum;
+            accum += cdfI[i+6]; cdfI[i+6] = accum;
+            accum += cdfI[i+7]; cdfI[i+7] = accum;
         }
         
         // equalize the grayscale/intesity channels
@@ -178,12 +194,11 @@ FILTER.Create({
 });
 
 // a sample RGB histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-// not the best implementation
 // used for illustration purposes on how to create a plugin filter
 FILTER.Create({
     name: "RGBHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( exports.AMD )
+    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -202,13 +217,17 @@ FILTER.Create({
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             cdfR[i]=0; cdfG[i]=0; cdfB[i]=0; 
             cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0; 
             cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0; 
             cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0; 
+            cdfR[i+4]=0; cdfG[i+4]=0; cdfB[i+4]=0; 
+            cdfR[i+5]=0; cdfG[i+5]=0; cdfB[i+5]=0; 
+            cdfR[i+6]=0; cdfG[i+6]=0; cdfB[i+6]=0; 
+            cdfR[i+7]=0; cdfG[i+7]=0; cdfB[i+7]=0; 
         }
         
         // compute pdf and maxima/minima
@@ -227,7 +246,7 @@ FILTER.Create({
         
         // compute cdf
         accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=4)
+        for (i=0; i<256; i+=8)
         { 
             // partial loop unrolling
             accumR+=cdfR[i]; cdfR[i]=accumR; 
@@ -242,6 +261,18 @@ FILTER.Create({
             accumR+=cdfR[i+3]; cdfR[i+3]=accumR; 
             accumG+=cdfG[i+3]; cdfG[i+3]=accumG; 
             accumB+=cdfB[i+3]; cdfB[i+3]=accumB; 
+            accumR+=cdfR[i+4]; cdfR[i+4]=accumR; 
+            accumG+=cdfG[i+4]; cdfG[i+4]=accumG; 
+            accumB+=cdfB[i+4]; cdfB[i+4]=accumB; 
+            accumR+=cdfR[i+5]; cdfR[i+5]=accumR; 
+            accumG+=cdfG[i+5]; cdfG[i+5]=accumG; 
+            accumB+=cdfB[i+5]; cdfB[i+5]=accumB; 
+            accumR+=cdfR[i+6]; cdfR[i+6]=accumR; 
+            accumG+=cdfG[i+6]; cdfG[i+6]=accumG; 
+            accumB+=cdfB[i+6]; cdfB[i+6]=accumB; 
+            accumR+=cdfR[i+7]; cdfR[i+7]=accumR; 
+            accumG+=cdfG[i+7]; cdfG[i+7]=accumG; 
+            accumB+=cdfB[i+7]; cdfB[i+7]=accumB; 
         }
         
         // equalize each channel separately

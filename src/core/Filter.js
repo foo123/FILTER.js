@@ -30,7 +30,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
     
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
-    ,no_typed_array_set = ('undefined' === typeof Int16Array) || !Int16Array[PROTO].set
+    ,no_typed_array_set = ('undefined' === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     ,typed_array_set = function( a, offset ) {
         var i = a.length;
         offset = offset || 0;
@@ -128,15 +128,15 @@ if ( !FILTER.Array32F[PROTO].subarray )
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
+FILTER.ImArrayCopy = Browser.isNode||Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-if ( notSupportClamp && "undefined" !== typeof(CanvasPixelArray) && !CanvasPixelArray[PROTO].set )
+if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
 {
     // add the missing method to the array
     CanvasPixelArray[PROTO].set = typed_array_set;
 }
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
+notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera || Browser.isNode;
 
 FILTER.NotImplemented = function( method ) {
     method = method || '';
@@ -175,14 +175,17 @@ FILTER.FORMAT = {
     ,PNG:       8
     ,JPG:       16
     ,GIF:       32
-    ,TGA:       64
-    ,RGBE:      128
+    ,BMP:       64
+    ,TGA:       128
+    ,RGBE:      256
 };
 FILTER.MIME = {
      PNG:       "image/png"
     ,JPG:       "image/jpeg"
     ,GIF:       "image/gif"
+    ,BMP:       "image/bmp"
 };
+// aliases
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
@@ -190,7 +193,7 @@ FILTER.Utils = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
-FILTER.ML = { };
+FILTER.MachineLearning = FILTER.ML = { };
 
 //
 // logging
@@ -203,7 +206,7 @@ var
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
         
-        path: FILTER.getPath( exports.AMD )
+        path: FILTERPath
         ,name: null
         
         ,constructor: function( ) {
@@ -235,6 +238,7 @@ var
                         if ( filter && data && data.im )
                         {
                             if ( data.params ) filter.unserialize( data.params );
+                            data.im[ 0 ].id = data.id;
                             var ret = {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )};
                             // pass any filter metadata if needed
                             if ( filter.hasMeta ) ret.meta = filter.getMeta();/*self.send( 'meta', filter.getMeta() );*/
@@ -460,11 +464,12 @@ var
                             if ( cb ) cb.call( self );
                         })
                         // process request
-                        .send( 'apply', {im: im, params: self.serialize( )} )
+                        .send( 'apply', {im: im, id: src.id, params: self.serialize( )} )
                     ;
                 }
                 else
                 {
+                    im[ 0 ].id = src.id;
                     im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
                     // update image only if needed
                     // some filters do not actually change the image data
@@ -487,7 +492,7 @@ var
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
     methods = Merge({
-            init: initPlugin
+             init: initPlugin
             ,name: "PluginFilter"
             ,toString: toStringPlugin
             ,apply: applyPlugin

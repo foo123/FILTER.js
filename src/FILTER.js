@@ -9,7 +9,8 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = exports['@@MODULE_NAME@@'] = Classy.Merge({ 
-    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( exports.AMD )
+@@USE_STRICT@@
+var FILTER = Classy.Merge({ 
+    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
 }, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
 FILTER.VERSION = "@@VERSION@@";

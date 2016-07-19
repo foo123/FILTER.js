@@ -18,7 +18,7 @@
 var Sin=Math.sin, Cos=Math.cos,
     // Color Matrix
     CM=FILTER.Array32F,
-    toRad=FILTER.CONSTANTS.toRad, toDeg=FILTER.CONSTANTS.toDeg,
+    toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     notSupportClamp=FILTER._notSupportClamp
 ;
 
@@ -93,7 +93,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         switch(ch)
         {
             case FILTER.CHANNEL.ALPHA:
-                return this.concat([
+                return this.set([
                             0, 0, 0, 1, 0, 
                             0, 0, 0, 1, 0, 
                             0, 0, 0, 1, 0, 
@@ -557,7 +557,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,set: function( mat ) {
-        this._matrix = ( this._matrix ) ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
+        this._matrix = this._matrix ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
         return this;
     }
     

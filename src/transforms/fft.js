@@ -8,7 +8,7 @@
 @@USE_STRICT@@
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    PI = FILTER.CONSTANTS.PI, PI2 = FILTER.CONSTANTS.PI2, PI_2 = FILTER.CONSTANTS.PI_2, 
+    PI = FILTER.CONST.PI, PI2 = FILTER.CONST.PI2, PI_2 = FILTER.CONST.PI_2, 
     sin = Math.sin, cos = Math.cos, min = Math.min, max = Math.max,
     closest_power_of_two = FILTER.Math.closest_power_of_two
 ;
