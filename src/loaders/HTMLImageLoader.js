@@ -33,9 +33,7 @@ FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
             if ( 'function' === typeof onError ) onError(image, loader);
         };
         
-        if ( scope._crossOrigin ) loader.crossOrigin = scope._crossOrigin;
-        else  loader.crossOrigin = "";
-        
+        loader.crossOrigin = scope._crossOrigin || "";
         loader.src = url;
         
         return image;

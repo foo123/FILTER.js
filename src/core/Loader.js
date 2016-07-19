@@ -269,7 +269,6 @@ XHR.create = FILTER.Browser.isNode
             if ( o.onStateChange ) o.onStateChange( xhr );
             
             response.on('data', function( chunk ){
-                xdata += chunk.toString( );
                 if ( !data_sent )
                 {
                     data_sent = 1;
@@ -277,6 +276,7 @@ XHR.create = FILTER.Browser.isNode
                     if ( o.onStateChange ) o.onStateChange( xhr );
                     if ( o.onLoadStart ) o.onLoadStart( xhr );
                 }
+                xdata += chunk.toString( );
                 if ( o.onProgress ) o.onProgress( xhr );
             });
             
@@ -288,7 +288,7 @@ XHR.create = FILTER.Browser.isNode
                 if ( o.onStateChange ) o.onStateChange( xhr );
                 if ( o.onLoadEnd ) o.onLoadEnd( xhr );
                 
-                if ( (XHR.DONE === xhr.readyState) )
+                if ( XHR.DONE === xhr.readyState )
                 {
                     if ( 200 === xhr.status )
                     {
@@ -340,12 +340,8 @@ XHR.create = FILTER.Browser.isNode
             }),
             
             update = function( xhr, $xhr$ ) {
+                //xhr.responseType = $xhr$.responseType;
                 xhr.readyState = $xhr$.readyState;
-                xhr.responseType = $xhr$.responseType;
-                xhr.responseURL = $xhr$.responseURL;
-                xhr.response = $xhr$.response;
-                xhr.responseText = $xhr$.responseText;
-                xhr.responseXml = $xhr$.responseXml;
                 xhr.status = $xhr$.status;
                 xhr.statusText = $xhr$.statusText;
                 return xhr;
@@ -360,7 +356,7 @@ XHR.create = FILTER.Browser.isNode
         };
         
         $xhr$.open( o.method||'GET', o.url, !o.sync );
-        xhr.responseType = $xhr$.responseType = o.responseType || 'text';
+        if ( o.responseType ) xhr.responseType = $xhr$.responseType = o.responseType;
         $xhr$.timeout = o.timeout || 30000; // 30 secs default timeout
         
         if ( o.onProgress )
@@ -388,11 +384,15 @@ XHR.create = FILTER.Browser.isNode
             };
         }
         $xhr$.onload = function( ) {
-            update( xhr, $xhr$ );
-            if ( (XHR.DONE === $xhr$.readyState) )
+            if ( XHR.DONE === $xhr$.readyState )
             {
+                update( xhr, $xhr$ );
                 if ( 200 === $xhr$.status )
                 {
+                    xhr.responseURL = $xhr$.responseURL;
+                    xhr.response = $xhr$.response;
+                    //xhr.responseText = $xhr$.responseText;
+                    //xhr.responseXml = $xhr$.responseXml;
                     if ( o.onComplete ) o.onComplete( xhr );
                 }
                 else
@@ -424,8 +424,7 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
     
     constructor: function XHRLoader( ) {
         var self = this;
-        if ( !(self instanceof XHRLoader) )
-            return new XHRLoader( );
+        if ( !(self instanceof XHRLoader) ) return new XHRLoader( );
     },
     
     load: function ( url, onLoad, onError ) {
@@ -433,13 +432,14 @@ var XHRLoader = FILTER.XHRLoader = Class(Loader, {
         
         XHR.create({
             url: url,
+            responseType: self._responseType,
             onComplete: function( xhr ) {
-                if ( 'function' === typeof onLoad ) onLoad( 'arraybuffer' === self._responseType ? new Buffer(xhr.response) : xhr.response );
+                if ( 'function' === typeof onLoad ) onLoad( xhr.response );
             },
             onError: function( xhr ) {
                 if ( 'function' === typeof onError ) onError( xhr.statusText );
             }
-        });
+        }, null);
         /*if ( FILTER.Browser.isNode )
         {
             // https://nodejs.org/api/http.html#http_http_request_options_callback
@@ -479,17 +479,11 @@ var FileLoader = FILTER.FileLoader = Class(Loader, {
     
     constructor: function FileLoader( ) {
         var self = this;
-        if ( !(self instanceof FileLoader) )
-            return new FileLoader( );
+        if ( !(self instanceof FileLoader) ) return new FileLoader( );
     },
     
     load: function ( file, onLoad, onError ) {
-        var self = this, 
-            options = {
-                // return raw buffer
-                encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
-                flag: 'r'
-            };
+        var self = this;
         // read file
         if ( FILTER.Browser.isNode )
         {
@@ -520,7 +514,7 @@ var FileLoader = FILTER.FileLoader = Class(Loader, {
                 onError: function( xhr ) {
                     if ( 'function' === typeof onError ) onError( xhr.statusText );
                 }
-            });
+            }, null);
         }
         return self;
     }

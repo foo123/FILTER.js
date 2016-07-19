@@ -15,7 +15,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ###Contents
 
 * [Image](#image-class)
-* [Image Loader](#loader--htmlimageloader-classes)
+* [Image Loader](#loader--binaryloader--htmlimageloader-classes)
 * [Abstract Filter](#generic-abstract-filter)
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
 * [Table Lookup Filter](#table-lookup-filter) 
@@ -82,21 +82,21 @@ __Methods:__
 
 
 
-###Loader / HTMLImageLoader Classes
+###Loader / BinaryLoader / HTMLImageLoader Classes
 
 ````javascript
-filterImageInstance = FILTER.HTMLImageLoader.load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.HTMLImageLoader.load( imageUrl [, onLoad, onError] );
 
 // this is similar to:
 
-filterImageInstance = new FILTER.HTMLImageLoader().load(imageUrl [, onLoad, onError]);
+filterImageInstance = new FILTER.HTMLImageLoader( ).load( imageUrl [, onLoad, onError] );
 ````
 
-Loads an image url into a FILTER.Image instance. 
+Loads an image url into a `FILTER.Image` instance. 
 
-The same functionality to load a url into a FILTER.Image has been **removed from the FILTER.Image Class**
+The same functionality to load a url into a `FILTER.Image` has been **removed from the FILTER.Image Class**
 
-Use the FILTER.HTMLImageLoader instead.
+Use the `FILTER.HTMLImageLoader` instead. In order to use the `FILTER.BinaryLoader` to load and decode a custom image format, see below.
 
 
 ###Generic Abstract Filter
@@ -657,47 +657,47 @@ Native javascript `codecs` (`encoders` / `decoders`) are included for various `i
 5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js) (**decoder only**)
 6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html) (**encoder + decoder**)
 
-Instead of separate loaders per image format, only one binary loader is used, with the appropriate codecs as parameters.
+Instead of separate loaders per image format, only one `binary loader` is used, with the appropriate codecs as parameters.
 This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.
 
 **`PNG` example**
 Loads an image url in PNG format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.PNG.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.PNG.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`JPG` example**
 Loads an image url in JPG format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.JPG.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.JPG.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`GIF` example**
 Loads an image url in GIF format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.GIF.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.GIF.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`BMP` example**
 Loads an image url in BMP format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.BMP.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.BMP.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`TGA` example**
 Loads an image url in TGA format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.TGA.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.TGA.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`RGBE` example**
 Loads an image url in RGBE format into a FILTER.Image instance. 
 
 ````javascript
-filterImageInstance = new FILTER.BinaryLoader( FILTER.Codec.RGBE.decoder ).load(imageUrl [, onLoad, onError]);
+filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.RGBE.decoder ).load( imageUrl [, onLoad, onError] );
 ````
