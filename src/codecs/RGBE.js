@@ -433,7 +433,7 @@ FILTER.Codec.HDR = FILTER.Codec.RGBE = {
         var buffer = [ ];
         RGBE_WriteHeader( buffer, imgData.width, imgData.height, metaData );
         RGBE_WritePixels_RLE( buffer, imgData.data, metaData.scanline_width||0, metaData.num_scanlines||0 );
-        return new Uint8Array( buffer );
+        return new Buffer( new Uint8Array( buffer ) );
     },
     
     decoder: function( buffer, metaData ) {

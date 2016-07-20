@@ -700,14 +700,14 @@ FILTER.BinaryWriter = Class(FileWriter, {
         return self;
     },
     
-    write: function( file, data, onWrite, onError ){
+    write: function( file, image, onWrite, onError ){
         var self = this, encoder = self._encoder;
         
-        if ( 'function' === typeof encoder )
+        if ( image && ('function' === typeof encoder) )
         {
             self
-                .encoding( self._encoding || 'arraybuffer' )
-                .$super('write', file, encoder( data ), onWrite, onError )
+                .encoding( 'arraybuffer' )
+                .$super('write', file, encoder( image.getPixelData( ) ), onWrite, onError )
             ;
         }
         return self;

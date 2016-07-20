@@ -6,14 +6,15 @@ var F = require('../../build/filter.bundle'),
     che_file = path.join(__dirname, './che.jpg')
 ;
 
+console.log('Loading image..');
 F.BinaryReader( F.Codec.JPG.decoder ).load(che_file, function( che ){
-    console.log(che_file + ' loaded with dims: ' + che.width + ',' + che.height);
-    console.log('Applying grayscale filter');
+    console.log('./che.jpg' + ' loaded with dims: ' + che.width + ',' + che.height);
+    console.log('Applying grayscale filter..');
     grayscale.apply( che );
-    console.log('Saving grayscaled image');
-    F.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname, './che_grayscale.jpg'), che.getPixelData(),
+    console.log('Saving grayscaled image..');
+    F.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname, './che_grayscale.jpg'), che,
     function( file ){
-        console.log('grayscale image saved to: ' + file);
+        console.log('grayscale image saved to: ' + './che_grayscale.jpg');
     }, function( err ){
         console.log('error while saving image: ' + err);
     });

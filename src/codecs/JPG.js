@@ -1840,8 +1840,7 @@ FILTER.Codec.JPEG = FILTER.Codec.JPG = {
         metaData = metaData || {};
         var quality = 'undefined' === typeof metaData.quality ? 100 : metaData.quality;
         var encoder = new JPEGEncoder( quality );
-        var data = encoder.encode( imgData );
-        return new Buffer( data );
+        return new Buffer( encoder.encode( imgData ) );
     },
     
     decoder: function( buffer, metaData ) {

@@ -2752,8 +2752,7 @@ FILTER.Codec.JPEG = FILTER.Codec.JPG = {
         metaData = metaData || {};
         var quality = 'undefined' === typeof metaData.quality ? 100 : metaData.quality;
         var encoder = new JPEGEncoder( quality );
-        var data = encoder.encode( imgData );
-        return new Buffer( data );
+        return new Buffer( encoder.encode( imgData ) );
     },
     
     decoder: function( buffer, metaData ) {
@@ -3154,7 +3153,7 @@ FILTER.Codec.BMP = {
 
     encoder: function( imgData, metaData ) {
         var quality = typeof metaData.quality === 'undefined' ? 100 : metaData.quality;
-        return new BmpEncoder( imgData ).encode( );
+        return new Buffer( new BmpEncoder( imgData ).encode( ) );
     },
     
     decoder: function( buffer, metaData ) {
@@ -4457,7 +4456,7 @@ FILTER.Codec.HDR = FILTER.Codec.RGBE = {
         var buffer = [ ];
         RGBE_WriteHeader( buffer, imgData.width, imgData.height, metaData );
         RGBE_WritePixels_RLE( buffer, imgData.data, metaData.scanline_width||0, metaData.num_scanlines||0 );
-        return new Uint8Array( buffer );
+        return new Buffer( new Uint8Array( buffer ) );
     },
     
     decoder: function( buffer, metaData ) {

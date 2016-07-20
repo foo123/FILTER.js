@@ -383,7 +383,7 @@ FILTER.Codec.BMP = {
 
     encoder: function( imgData, metaData ) {
         var quality = typeof metaData.quality === 'undefined' ? 100 : metaData.quality;
-        return new BmpEncoder( imgData ).encode( );
+        return new Buffer( new BmpEncoder( imgData ).encode( ) );
     },
     
     decoder: function( buffer, metaData ) {

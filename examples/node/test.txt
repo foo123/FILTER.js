@@ -1,4 +1,5 @@
-che.jpg loaded with dims: 150,185
-Applying grayscale filter
-Saving grayscaled image
-grayscale image saved to: che_grayscale.jpg
+Loading image..
+./che.jpg loaded with dims: 150,185
+Applying grayscale filter..
+Saving grayscaled image..
+grayscale image saved to: ./che_grayscale.jpg
