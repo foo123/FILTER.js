@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var Sqrt = Math.sqrt, sqrt2 = Math.SQRT2, Min = Math.min,
     notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;

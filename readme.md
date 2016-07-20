@@ -4,16 +4,18 @@
 __A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
 
 
-This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js (todo).  
+This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js.  
 
 
-**version 0.8.0**
+**version 0.9.0**
 
 
-* [filter.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.js) / [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.min.js)
+* [filter.core.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.js) / [filter.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.min.js)
+* [filter.io.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.io.js) / [filter.io.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.io.min.js)
 * [filter.codecs.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.codecs.js) / [filter.codecs.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.codecs.min.js)
+* [filter.filters.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.filters.js) / [filter.filters.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.filters.min.js)
 * [filter.plugins.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.js) / [filter.plugins.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.plugins.min.js)
-* [filter.bundle.js, filter+codecs+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
+* [filter.bundle.js, filter+io+codecs+filters+plugins+dependencies](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.bundle.js)
 
 
 **see also:**  
@@ -56,11 +58,12 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Sound Visualization with Filter.js](http://foo123.github.com/examples/filter-sound/)
 * [Filter.js with Three.js](http://foo123.github.com/examples/filter-three/)
 * [Filter.js Image Codecs test](http://foo123.github.com/examples/filter-codecs/)
+* [Filter.js in Node.js](/examples/node)
 
 
 ###Browser Support
 
-![firefox](/screenshots/firefox.png) ![chrome](/screenshots/chrome.png) ![opera](/screenshots/opera.png) ![ie](/screenshots/ie.png)
+![firefox](/screenshots/firefox.png) ![chrome](/screenshots/chrome.png) ![opera](/screenshots/opera.png) ![ie](/screenshots/ie.png) ![nodejs](/screenshots/node.png)
 
 
 ###Credits
@@ -137,7 +140,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add full support for `Node.js` (todo, in progress)
+* add full support for `Node.js` [DONE]
 * add `WebGL` support for various pre-built and custom Filters (todo, in progress)
 * add `SVG` Filters interface support for various pre-built and custom Filters (todo, in progress)
 * add `CSS` Filters interface support for various pre-built and custom Filters (todo, in progress)

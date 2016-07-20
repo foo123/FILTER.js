@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var HAS = 'hasOwnProperty', Min = Math.min, Max = Math.max, 
     Round = Math.round, Floor=Math.floor, Abs = Math.abs,

@@ -5,7 +5,7 @@
 *
 **/
 !function(root, FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
 
@@ -15,7 +15,9 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
-    ,userAgent = navigator ? navigator.userAgent : ""
+    ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
+    ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
+    ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
     
     ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
@@ -29,7 +31,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     
     ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
     
-    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof(Uint8ClampedArray)
+    ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
     ,no_typed_array_set = ('undefined' === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     ,typed_array_set = function( a, offset ) {
         var i = a.length;
@@ -58,7 +60,7 @@ isPhantom               : /PhantomJS/.test(userAgent),
 isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
 isFirefox               : isBrowser && /Firefox\//.test(userAgent),
 isChrome                : isBrowser && /Chrome\//.test(userAgent),
-isSafari                : isBrowser && /Apple Computer/.test(navigator.vendor),
+isSafari                : isBrowser && /Apple Computer/.test(vendor),
 isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
 // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
 isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
@@ -71,14 +73,14 @@ isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userA
 
 isMobile                : false,
 isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
-isWin                   : /windows/i.test(navigator.platform),
+isWin                   : /windows/i.test(platform),
 isMac                   : false,
 isIE_lt8                : false,
 isIE_lt9                : false,
 isQtWebkit              : false
 };
 Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
-Browser.isMac = Browser.isIOS || /Mac/.test(navigator.platform);
+Browser.isMac = Browser.isIOS || /Mac/.test(platform);
 Browser.isIE_lt8 = Browser.isIE  && !isThread && (null == document.documentMode || document.documentMode < 8);
 Browser.isIE_lt9 = Browser.isIE && !isThread && (null == document.documentMode || document.documentMode < 9);
 Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
@@ -189,7 +191,7 @@ FILTER.MIME = {
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
-FILTER.Utils = { };
+FILTER.Util = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };

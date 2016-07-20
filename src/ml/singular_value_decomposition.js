@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // TODO
 FILTER.ML.singular_value_decomposition = FILTER.ML.svd = function(){};

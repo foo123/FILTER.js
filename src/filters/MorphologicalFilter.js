@@ -8,7 +8,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // used for internal purposes
 var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I, Sqrt = Math.sqrt,
@@ -42,6 +42,7 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
         self._indices = null;
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_filterName: null
     ,_filter: null
     ,_dim: 0

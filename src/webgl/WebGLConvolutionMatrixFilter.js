@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var MAX_KERNEL_SIZE=121,
 

@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var notSupportClamp=FILTER._notSupportClamp, rand=Math.random;
 

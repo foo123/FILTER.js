@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
     R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;

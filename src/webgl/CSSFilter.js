@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // https://dvcs.w3.org/hg/FXTF/raw-file/tip/filters/index.html
 // https://developer.mozilla.org/en-US/docs/Web/CSS/filter

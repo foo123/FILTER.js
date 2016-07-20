@@ -9,7 +9,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
     PI=FILTER.CONST.PI,
@@ -37,6 +37,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         if ( inverseTransform ) self.generic( inverseTransform );
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     // parameters
     ,_map: null
     ,_mapName: null

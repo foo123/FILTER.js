@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 /*
  * Extracted from pdf.js
@@ -472,7 +472,9 @@ var FlateStream = (function() {
   return constructor;
 })();
 
-FILTER.Utils.DecodeStream = DecodeStream;
-FILTER.Utils.FlateStream = FlateStream;
+FILTER.Util.ZLib = {
+    DecodeStream: DecodeStream,
+    FlateStream: FlateStream
+};
 
 }(FILTER);

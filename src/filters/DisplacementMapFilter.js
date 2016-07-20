@@ -9,7 +9,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
     A16I = FILTER.Array16I,
@@ -28,6 +28,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         if ( displacemap ) self.setMap( displacemap );
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_map: null
     ,map: null
     // parameters

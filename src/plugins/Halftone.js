@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
     A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,

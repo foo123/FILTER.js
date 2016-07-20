@@ -1,5 +1,11 @@
 ##ChangeLog
 
+__0.9.0__
+
+* restructure folders, separate builds for core, io, codecs, filters, plugins, bundle
+* full support for nodejs
+* various fixes and refactorings (esp. for nodejs support)
+
 __0.8.0__
 
 * update classy, asynchronous dependencies, examples

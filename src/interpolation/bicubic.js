@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
 

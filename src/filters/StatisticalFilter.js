@@ -8,7 +8,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // used for internal purposes
 var IMG=FILTER.ImArray, A32I=FILTER.Array32I,
@@ -29,6 +29,7 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
         self._filter = null;
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_dim: 0
     ,_indices: null
     ,_filter: null
@@ -80,18 +81,15 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     
     ,median: function( d ) { 
         // allow only odd dimensions for median
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        return this.set( d, "median" );
+        return this.set( null == d ? 3 : (d&1 ? d : d+1), "median" );
     }
     
     ,minimum: function( d ) { 
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        return this.set( d, "minimum" );
+        return this.set( null == d ? 3 : (d&1 ? d : d+1), "minimum" );
     }
     
     ,maximum: function( d ) { 
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        return this.set( d, "maximum" );
+        return this.set( null == d ? 3 : (d&1 ? d : d+1), "maximum" );
     }
     
     ,set: function( d, filt ) {
@@ -189,12 +187,12 @@ Filters = {
             
             // sort them, this is SLOW, alternative implementation needed
             rM.sort(); gM.sort(); bM.sort();
-            len=rM.length; len2=len>>1;
-            medianR=(len%2) ? rM[len2+1] : ~~(0.5*(rM[len2] + rM[len2+1]));
-            len=gM.length; len2=len>>1;
-            medianG=(len%2) ? gM[len2+1] : ~~(0.5*(gM[len2] + gM[len2+1]));
-            len=bM.length; len2=len>>1;
-            medianB=(len%2) ? bM[len2+1] : ~~(0.5*(bM[len2] + bM[len2+1]));
+            len=rM.length; len2=len>>>1;
+            medianR= len&1 ? rM[len2] : ~~(0.5*rM[len2-1] + 0.5*rM[len2]);
+            //len=gM.length; len2=len>>>1;
+            medianG= len&1 ? gM[len2] : ~~(0.5*gM[len2-1] + 0.5*gM[len2]);
+            //len=bM.length; len2=len>>>1;
+            medianB= len&1 ? bM[len2] : ~~(0.5*bM[len2-1] + 0.5*bM[len2]);
             
             // output
             dst[i] = medianR;  dst[i+1] = medianG;   dst[i+2] = medianB;  

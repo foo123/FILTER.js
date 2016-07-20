@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
     toCol = 0.70833333333333333333333333333333 // 255/360

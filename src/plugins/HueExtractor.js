@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var notSupportClamp=FILTER._notSupportClamp,
     IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,

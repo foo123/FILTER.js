@@ -1,75 +1,18 @@
 /**
 *
-* Filter Loader Class(es)
+* Filter Utils, utf8 / base64
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var HAS = 'hasOwnProperty', toString = Object.prototype.toString, KEYS = Object.keys, CRLF = "\r\n",
     trim_re = /^\s+|\s+$/g,
     trim = String.prototype.trim 
         ? function( s ) { return s.trim( ); }
-        : function( s ) { return s.replace(trim_re, ''); },
-    FilterImage = FILTER.Image, Class = FILTER.Class, ON = 'addEventListener';
-
-var Loader = FILTER.Loader = Class({
-    name: "Loader",
-    
-    __static__: {
-        // accessible as "$class.load" (extendable and with "late static binding")
-        load: FILTER.Method(function($super, $private, $class){
-              // $super is the direct reference to the superclass itself (NOT the prototype)
-              // $private is the direct reference to the private methods of this class (if any)
-              // $class is the direct reference to this class itself (NOT the prototype)
-              return function( url, onLoad, onError ) {
-                return new $class().load(url, onLoad, onError);
-            }
-        }, FILTER.LATE|FILTER.STATIC )
-    },
-    
-    constructor: function Loader() {
-        /*var self = this;
-        if ( !(self instanceof Loader) )
-            return new Loader( );*/
-    },
-    
-    _crossOrigin: null,
-    _responseType: null,
-    
-    dispose: function( ) {
-        var self = this;
-        self._crossOrigin = null;
-        self._responseType = null;
-        return self;
-    },
-    
-    // override in sub-classes
-    load: function( url, onLoad, onError ){
-        return null;
-    },
-
-    responseType: function ( value ) {
-        var self = this;
-        if ( arguments.length )
-        {
-            self._responseType = value;
-            return self;
-        }
-        return self._responseType;
-    },
-
-    crossOrigin: function ( value ) {
-        var self = this;
-        if ( arguments.length )
-        {
-            self._crossOrigin = value;
-            return self;
-        }
-        return self._crossOrigin;
-    }
-});
+        : function( s ) { return s.replace(trim_re, ''); }
+;
 
 // adapted from https://github.com/foo123/RT
 function header_encode( headers, xmlHttpRequest, httpRequestResponse )
@@ -125,6 +68,7 @@ function header_encode( headers, xmlHttpRequest, httpRequestResponse )
         return header;
     }
 }
+
 function header_decode( headers, lowercase )
 {
     var header = { }, key = null, parts, i, l, line;
@@ -159,7 +103,7 @@ function header_decode( headers, lowercase )
     return header;
 }
 
-var XHR = FILTER.XHR = function XHR( send, abort ){
+var XHR = FILTER.Util.XHR = function XHR( send, abort ){
     var xhr = this, aborted = false;
     xhr.readyState = XHR.UNSENT;
     xhr.status = null;
@@ -218,6 +162,13 @@ XHR.HEADERS_RECEIVED = 2;
 XHR.LOADING = 3;
 XHR.DONE = 4;
 
+FILTER.Util.Http = {
+    Header: {
+        encode: header_encode,
+        decode: header_decode
+    }
+};
+
 XHR.create = FILTER.Browser.isNode
     ? function( o, payload ) {
         o = o || {};
@@ -234,6 +185,53 @@ XHR.create = FILTER.Browser.isNode
                 path        : (url.pathname||'/')+(url.query?('?'+url.query):'')
             }
         ;
+        
+        if ( 'file:' === options.protocol )
+        {
+            xhr = new XHR(
+            function( payload ) {
+                // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
+                xhr.readyState = XHR.OPENED;
+                require('fs').readFile(options.path, {
+                    // return raw buffer
+                    encoding: 'arraybuffer' === xhr.responseType ? null : xhr.responseType,
+                    flag: 'r'
+                }, function( err, data ) {
+                    xhr.readyState = XHR.DONE;
+                    xhr.responseUrl = options.path;
+                    if ( o.onLoadStart ) o.onLoadStart( xhr );
+                    if ( o.onLoadEnd ) o.onLoadEnd( xhr );
+                    if ( err )
+                    {
+                        xhr.status = 500;
+                        xhr.statusText = err.toString();
+                        if ( o.onRequestError ) o.onRequestError( xhr );
+                        else if ( o.onError ) o.onError( xhr );
+                    }
+                    else
+                    {
+                        xhr.status = 200;
+                        xhr.statusText = null;
+                        xhr.response = data;
+                        if ( 'arraybuffer' !== xhr.responseType )
+                        {
+                            xhr.responseText = data;
+                            xhr.responseXml = null;
+                        }
+                        else
+                        {
+                            xhr.responseText = null;
+                            xhr.responseXml = null;
+                        }
+                        if ( o.onComplete ) o.onComplete( xhr );
+                    }
+                });
+            },
+            function( ) { });
+            xhr.responseType = o.responseType || 'text';
+            if ( arguments.length > 1 ) xhr.send( payload );
+            return xhr;
+        }
         
         xhr = new XHR(
         function( payload ) {
@@ -253,7 +251,6 @@ XHR.create = FILTER.Browser.isNode
         function( ) {
             $hr$.abort( );
         });
-        
         $hr$ = ('https:'===options.protocol?require('https').request:require('http').request)(options, function( response ) {
             var xdata = '', data_sent = 0;
             
@@ -344,6 +341,18 @@ XHR.create = FILTER.Browser.isNode
                 xhr.readyState = $xhr$.readyState;
                 xhr.status = $xhr$.status;
                 xhr.statusText = $xhr$.statusText;
+                xhr.responseURL = $xhr$.responseURL;
+                xhr.response = $xhr$.response;
+                if ( 'arraybuffer' !== $xhr$.responseType )
+                {
+                    xhr.responseText = $xhr$.responseText;
+                    xhr.responseXml = $xhr$.responseXml;
+                }
+                else
+                {
+                    xhr.responseText = null;
+                    xhr.responseXml = null;
+                }
                 return xhr;
             }
         ;
@@ -356,7 +365,7 @@ XHR.create = FILTER.Browser.isNode
         };
         
         $xhr$.open( o.method||'GET', o.url, !o.sync );
-        if ( o.responseType ) xhr.responseType = $xhr$.responseType = o.responseType;
+        xhr.responseType = $xhr$.responseType = o.responseType || 'text';
         $xhr$.timeout = o.timeout || 30000; // 30 secs default timeout
         
         if ( o.onProgress )
@@ -389,10 +398,6 @@ XHR.create = FILTER.Browser.isNode
                 update( xhr, $xhr$ );
                 if ( 200 === $xhr$.status )
                 {
-                    xhr.responseURL = $xhr$.responseURL;
-                    xhr.response = $xhr$.response;
-                    //xhr.responseText = $xhr$.responseText;
-                    //xhr.responseXml = $xhr$.responseXml;
                     if ( o.onComplete ) o.onComplete( xhr );
                 }
                 else
@@ -419,156 +424,4 @@ XHR.create = FILTER.Browser.isNode
     }
 ;
 
-var XHRLoader = FILTER.XHRLoader = Class(Loader, {
-    name: "XHRLoader",
-    
-    constructor: function XHRLoader( ) {
-        var self = this;
-        if ( !(self instanceof XHRLoader) ) return new XHRLoader( );
-    },
-    
-    load: function ( url, onLoad, onError ) {
-        var self = this;
-        
-        XHR.create({
-            url: url,
-            responseType: self._responseType,
-            onComplete: function( xhr ) {
-                if ( 'function' === typeof onLoad ) onLoad( xhr.response );
-            },
-            onError: function( xhr ) {
-                if ( 'function' === typeof onError ) onError( xhr.statusText );
-            }
-        }, null);
-        /*if ( FILTER.Browser.isNode )
-        {
-            // https://nodejs.org/api/http.html#http_http_request_options_callback
-            request = require('http').get(url, function(response) {
-                var data = '';
-                //response.setEncoding('utf8');
-                response.on('data', function( chunk ) {
-                    data += chunk;
-                });
-                response.on('end', function( ) {
-                    if ( 'function' === typeof onLoad ) onLoad( new Buffer(data) );
-                });
-            }).on('error', function( e ) {
-                if ( 'function' === typeof onError ) onError( e );
-            });
-        }
-        else
-        {
-            // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
-            request = new XMLHttpRequest( );
-            request.open( 'GET', url, true );
-            request[ON]('load', function ( event ) {
-                if ( 'function' === typeof onLoad ) onLoad( this.response );
-            }, false);
-            //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
-            if ( 'function' === typeof onError ) request[ON]('error', onError, false);
-            if ( self._crossOrigin ) request.crossOrigin = self._crossOrigin;
-            if ( self._responseType ) request.responseType = self._responseType;
-            request.send( null );
-        }*/
-        return self;
-    }
-});
-
-var FileLoader = FILTER.FileLoader = Class(Loader, {
-    name: "FileLoader",
-    
-    constructor: function FileLoader( ) {
-        var self = this;
-        if ( !(self instanceof FileLoader) ) return new FileLoader( );
-    },
-    
-    load: function ( file, onLoad, onError ) {
-        var self = this;
-        // read file
-        if ( FILTER.Browser.isNode )
-        {
-            // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
-            require('fs').readFile(file, {
-                // return raw buffer
-                encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
-                flag: 'r'
-            }, function( err, data ) {
-              if ( err )
-              {
-                  if ( 'function' === typeof onError ) onError( err.toString() );
-              }
-              else
-              {
-                  if ( 'function' === typeof onLoad ) onLoad( data );
-              }
-            });
-        }
-        else
-        {
-            XHR.create({
-                url: file,
-                responseType: self._responseType,
-                onComplete: function( xhr ) {
-                    if ( 'function' === typeof onLoad ) onLoad( xhr.response );
-                },
-                onError: function( xhr ) {
-                    if ( 'function' === typeof onError ) onError( xhr.statusText );
-                }
-            }, null);
-        }
-        return self;
-    }
-});
-
-FILTER.BinaryLoader = Class(Loader, {
-    name: "BinaryLoader",
-    
-    constructor: function BinaryLoader( decoder ) {
-        var self = this;
-        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder );
-        self._decoder = "function" === typeof decoder ? decoder : null;
-    },
-    
-    _decoder: null,
-    _encoder: null,
-    
-    dispose: function( ) {
-        var self = this;
-        self._decoder = null;
-        self._encoder = null;
-        self.$super("dispose");
-        return self;
-    },
-    
-    decoder: function( decoder ) {
-        var self = this;
-        self._decoder = "function" === typeof decoder ? decoder : null;
-        return self;
-    },
-    
-    encoder: function( encoder ) {
-        var self = this;
-        self._encoder = "function" === typeof encoder ? encoder : null;
-        return self;
-    },
-    
-    load: function( url, onLoad, onError ){
-        var self = this, image = new FilterImage( ), decoder = self._decoder;
-        
-        if ( 'function' === typeof decoder )
-        {
-            new FileLoader( )
-                .responseType( self._responseType || 'arraybuffer' )
-                .load( url, function( buffer ) {
-                    var metaData = {}, imData = decoder( buffer, metaData );
-                    if ( !imData ) return;
-                    image.image( imData );
-                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
-                }, onError )
-            ;
-        }
-        return image;
-    }
-
-});    
 }(FILTER);

@@ -5,11 +5,11 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    Canvas = FILTER.Canvas, FilterCanvas = FILTER.FilterCanvas,
+    Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     notSupportTyped = FILTER._notSupportTypedArrays,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
@@ -584,7 +584,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             var sel = self.selection, ow = self.width-1, oh = self.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
             if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
-            self.oDataSel.data.set(a); // not supported in Opera, IE, Safari
+            self.oDataSel.data.set( a ); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
             self._needsRefresh |= ODATA;
         }
@@ -621,9 +621,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ;
         
         if ( img instanceof FilterImage ) img = img.oCanvas;
-        isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
-        isImage = img instanceof Image;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isImage = ("undefined" !== typeof Image) && (img instanceof Image);
         //isImageData = img instanceof Object || "object" === typeof img;
         
         if ( isVideo )
@@ -660,12 +660,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( self._restorable )
             {
             ictx = self.ictx = self.iCanvas.getContext('2d');
-            self.iData.data.set(img.data); // not supported in Opera, IE, Safari
+            self.iData.data.set( img.data ); // not supported in Opera, IE, Safari
             ictx.putImageData(self.iData, 0, 0); 
             }
             
             octx = self.octx = self.oCanvas.getContext('2d');
-            self.oData.data.set(img.data); // not supported in Opera, IE, Safari
+            self.oData.data.set( img.data ); // not supported in Opera, IE, Safari
             octx.putImageData(self.oData, 0, 0); 
             //self._needsRefresh &= CLEAR_DATA;
         }
@@ -845,9 +845,9 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         ;
         
         if ( img instanceof FilterImage ) img = img.oCanvas;
-        isVideo = img instanceof HTMLVideoElement;
-        isCanvas = img instanceof HTMLCanvasElement || img instanceof FilterCanvas;
-        isImage = img instanceof Image;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isImage = ("undefined" !== typeof Image) && (img instanceof Image);
         //isImageData = img instanceof Object || "object" === typeof img;
         
         if ( isVideo )

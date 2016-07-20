@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 // a plugin to create a seamless tileable pattern from an image
 // adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846

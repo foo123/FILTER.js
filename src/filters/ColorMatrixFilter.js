@@ -13,7 +13,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var Sin=Math.sin, Cos=Math.cos,
     // Color Matrix
@@ -47,6 +47,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         }
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_matrix: null
     ,_webglInstance: null
     

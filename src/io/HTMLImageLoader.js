@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var FilterImage = FILTER.Image/*, ON = 'addEventListener'*/;
 

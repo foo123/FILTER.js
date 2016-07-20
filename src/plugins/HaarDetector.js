@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var Array32F = FILTER.Array32F,
     Array8U = FILTER.Array8U,

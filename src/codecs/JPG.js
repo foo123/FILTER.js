@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // adapted from https://github.com/eugeneware/jpeg-js
 
@@ -1841,7 +1841,7 @@ FILTER.Codec.JPEG = FILTER.Codec.JPG = {
         var quality = 'undefined' === typeof metaData.quality ? 100 : metaData.quality;
         var encoder = new JPEGEncoder( quality );
         var data = encoder.encode( imgData );
-        return data;
+        return new Buffer( data );
     },
     
     decoder: function( buffer, metaData ) {

@@ -12,7 +12,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // color table
 var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
@@ -29,7 +29,7 @@ var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
         return t;
     },
 
-    ones = function(col) {
+    val = function(col) {
         var t=new CT(256), i;
         for(i=0; i<256; i++) t[i]=col;
         return t;
@@ -58,6 +58,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         self._tableA = tA || null;
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     // parameters
     ,_tableR: null
     ,_tableG: null
@@ -169,6 +170,28 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         return this.quantize(2);
     }
     
+    ,channel: function( channel ) {
+        if ( null == channel ) return this;
+        var tR, tG, tB;
+        switch(channel)
+        {
+            case FILTER.CHANNEL.BLUE: 
+                tR = val(0); tG = val(0); tB = eye(); 
+                break;
+            
+            case FILTER.CHANNEL.GREEN: 
+                tR = val(0); tG = eye(); tB = val(0); 
+                break;
+            
+            case FILTER.CHANNEL.RED: 
+            default:
+                tR = eye(); tG = val(0); tB = val(0); 
+                break;
+            
+        }
+        return this.set(tR, tG, tB);
+    }
+    
     // adapted from http://www.jhlabs.com/ip/filters/
     ,solarize: function( threshold ) {
         if ( threshold === undef ) threshold=0.5;
@@ -251,7 +274,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         background=background||0;
         var  
             bR=(background>>16)&255, bG=(background>>8)&255, bB=(background)&255, 
-            tR=ones(bR), tG=ones(bG), tB=ones(bB),
+            tR=val(bR), tG=val(bG), tB=val(bB),
             s, f
             ;
         switch(channel)

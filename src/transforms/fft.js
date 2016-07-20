@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     PI = FILTER.CONST.PI, PI2 = FILTER.CONST.PI2, PI_2 = FILTER.CONST.PI_2, 

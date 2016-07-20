@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
     ,slice = AP.slice, splice = AP.splice, concat = AP.concat
@@ -23,6 +23,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_stack: null
     ,_meta: null
     ,_stable: true

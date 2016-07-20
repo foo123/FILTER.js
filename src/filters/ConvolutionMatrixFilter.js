@@ -10,7 +10,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var 
     sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
@@ -64,6 +64,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         }
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_dim: 0
     ,_dim2: 0
     ,_matrix: null

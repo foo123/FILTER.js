@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
 // TODO

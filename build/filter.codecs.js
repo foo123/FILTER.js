@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Codecs
-*   @version: @@VERSION@@
+*   @version: 0.9.0
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Image Codecs)
@@ -22,7 +22,7 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js Codecs
-*   @version: @@VERSION@@
+*   @version: 0.9.0
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Image Codecs)
@@ -504,8 +504,10 @@ var FlateStream = (function() {
   return constructor;
 })();
 
-FILTER.Utils.DecodeStream = DecodeStream;
-FILTER.Utils.FlateStream = FlateStream;
+FILTER.Util.ZLib = {
+    DecodeStream: DecodeStream,
+    FlateStream: FlateStream
+};
 
 }(FILTER);/**
 *
@@ -517,11 +519,8 @@ FILTER.Utils.FlateStream = FlateStream;
 "use strict";
 
 // adapted from https://github.com/devongovett/png.js/
-// @requires FILTER/utils/zlib.js
-function FlateStream( data )
-{
-    return new FILTER.Utils.FlateStream( data );
-}
+// @requires FILTER/util/zlib.js
+function FlateStream( data ) { return new FILTER.Util.ZLib.FlateStream( data ); }
 
 var
 APNG_DISPOSE_OP_NONE = 0,
@@ -2754,7 +2753,7 @@ FILTER.Codec.JPEG = FILTER.Codec.JPG = {
         var quality = 'undefined' === typeof metaData.quality ? 100 : metaData.quality;
         var encoder = new JPEGEncoder( quality );
         var data = encoder.encode( imgData );
-        return data;
+        return new Buffer( data );
     },
     
     decoder: function( buffer, metaData ) {

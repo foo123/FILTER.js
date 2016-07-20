@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
     GAUSSIAN_CUT_OFF = 0.005,

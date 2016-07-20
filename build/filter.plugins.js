@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: @@VERSION@@
+*   @version: 0.9.0
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -22,7 +22,7 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js Plugins
-*   @version: @@VERSION@@
+*   @version: 0.9.0
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)

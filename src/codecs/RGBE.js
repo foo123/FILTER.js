@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var error = function( err ){ FILTER.error(err, true); };
 // adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html

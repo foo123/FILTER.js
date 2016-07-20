@@ -9,24 +9,25 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 var HAS = 'hasOwnProperty';
 
 //
 //  Inline Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
-var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
+var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
     name: "InlineFilter"
     
     ,constructor: function( handler ) {
         var self = this;
         self.$super('constructor');
         // using bind makes the code become [native code] and thus unserializable
-        self._handler = handler && 'function' === typeof(handler) ? handler : null;
+        self._handler = handler && ('function' === typeof handler) ? handler : null;
         self._params = {};
     }
     
+    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
     ,_handler: null
     ,_params: null
     
@@ -94,7 +95,5 @@ var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
         return this._isOn && this._handler;
     }
 });
-// aliases
-FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);

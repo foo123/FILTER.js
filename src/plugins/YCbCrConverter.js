@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var RGB2YCBCR=FILTER.Color.RGB2YCbCr;
 

@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, 
     Abs=Math.abs, Floor=Math.floor,

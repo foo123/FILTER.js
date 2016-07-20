@@ -5,7 +5,7 @@
 *
 **/
 !function(FILTER){
-@@USE_STRICT@@
+"use strict";
 
 var // utils
     Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 

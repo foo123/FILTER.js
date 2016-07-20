@@ -5,14 +5,11 @@
 *
 **/
 !function(FILTER, undef){
-@@USE_STRICT@@
+"use strict";
 
 // adapted from https://github.com/devongovett/png.js/
-// @requires FILTER/utils/zlib.js
-function FlateStream( data )
-{
-    return new FILTER.Utils.FlateStream( data );
-}
+// @requires FILTER/util/zlib.js
+function FlateStream( data ) { return new FILTER.Util.ZLib.FlateStream( data ); }
 
 var
 APNG_DISPOSE_OP_NONE = 0,
