@@ -4,7 +4,7 @@
 *   @version: @@VERSION@@
 *   @dependencies: Filter.js
 *
-*   JavaScript Image Processing Library (File Codecs)
+*   JavaScript Image Processing Library (Image Codecs)
 *   https://github.com/foo123/FILTER.js
 *
 **/!function( root, factory ){
@@ -25,7 +25,7 @@ else /* Browser/WebWorker/.. */
 *   @version: @@VERSION@@
 *   @dependencies: Filter.js
 *
-*   JavaScript Image Processing Library (File Codecs)
+*   JavaScript Image Processing Library (Image Codecs)
 *   https://github.com/foo123/FILTER.js
 *
 **/

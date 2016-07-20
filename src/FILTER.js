@@ -3,7 +3,7 @@
 *   FILTER.js
 *   @version: @@VERSION@@
 *   @built on @@DATE@@
-*   @@DEPENDENCIES@@
+*   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
 *   https://github.com/foo123/FILTER.js

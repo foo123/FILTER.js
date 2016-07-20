@@ -2,7 +2,7 @@
 *
 *   FILTER.js Transforms
 *   @version: @@VERSION@@
-*   @@DEPENDENCIES@@
+*   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Transforms)
 *   https://github.com/foo123/FILTER.js

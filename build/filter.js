@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.8.0
-*   @built on 2016-07-19 22:00:50
+*   @built on 2016-07-20 12:11:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -10,13 +10,14 @@
 *
 **/!function( root, name, factory ){
 "use strict";
+var deps = "Classy,Asynchronous".split(/\s*,\s*/);
 function extract(obj,keys,index,load){return obj ? keys.map(function(k, i){return (index ? obj[i] : obj[k]) || (load?load(k):null); }) : [];}
 if ( ('object'===typeof module) && module.exports ) /* CommonJS */
-    (module.$deps = module.$deps||{}) && (module.exports = module.$deps[name] = factory.apply(root, extract(module.$deps,['Classy','Asynchronous'],false,function(k){return require("./"+k.toLowerCase());})));
+    (module.$deps = module.$deps||{}) && (module.exports = module.$deps[name] = factory.apply(root, extract(module.$deps,deps,false,function(k){return require("./"+k.toLowerCase());})));
 else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&require.specified(name) /*&& !require.defined(name)*/ ) /* AMD */
-    define(name,['module'].concat(['Classy','Asynchronous']),function(module){factory.moduleUri = module.uri; return factory.apply(root, extract(Array.prototype.slice.call(arguments,1),['Classy','Asynchronous'],true));});
+    define(name,['module'].concat(deps),function(module){factory.moduleUri = module.uri; return factory.apply(root, extract(Array.prototype.slice.call(arguments,1),deps,true));});
 else if ( !(name in root) ) /* Browser/WebWorker/.. */
-    (root[name]=factory.apply(root, extract(root,['Classy','Asynchronous'])))&&('function'===typeof(define))&&define.amd&&define(function(){return root[name];} );
+    (root[name]=factory.apply(root, extract(root,deps)))&&('function'===typeof(define))&&define.amd&&define(function(){return root[name];} );
 }(  /* current root */          this, 
     /* module name */           "FILTER",
     /* module factory */        function ModuleFactory__FILTER( Classy,Asynchronous ){
@@ -26,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.8.0
-*   @built on 2016-07-19 22:00:50
+*   @built on 2016-07-20 12:11:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
