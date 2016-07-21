@@ -78,6 +78,7 @@ FILTER.Create({
             params = json.params;
             
             self._alphaMask = params._alphaMask;
+            if ( self._alphaMask ) self._alphaMask.data = FILTER.TypedArray( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
         }

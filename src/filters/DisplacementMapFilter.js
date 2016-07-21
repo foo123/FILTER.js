@@ -12,6 +12,7 @@
 "use strict";
 
 var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
+    TypedArray = FILTER.TypedArray,
     A16I = FILTER.Array16I,
     Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
@@ -102,6 +103,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             
             self.map = null;
             self._map = params._map;
+            if ( self._map ) self._map.data = TypedArray( self._map.data, IMG );
             self.scaleX = params.scaleX;
             self.scaleY = params.scaleY;
             self.startX = params.startX;

@@ -9,6 +9,7 @@
 
 var notSupportClamp=FILTER._notSupportClamp,
     IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
+    TypedArray=FILTER.TypedArray,
     RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
     ;
 
@@ -51,7 +52,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.range = params.range;
+            self.range = TypedArray( params.range, Array );
             self.background = params.background;
         }
         return self;

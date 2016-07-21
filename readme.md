@@ -108,7 +108,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 8 generic Filter types plus various Plugins (with support for parallel processing transparently)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 8 generic Filter types plus various Plugins (with support for parallel processing transparently both for browser and nodejs)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
@@ -117,11 +117,15 @@ The framework defines an [Image Proxy class](/api-reference.md#image-class), whi
 4. [__DisplacementMapFilter__](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
 5. [__GeometricMapFilter__](/api-reference.md#geometric-map-filter)
 6. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
-7. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called NonLinearFilter)
+7. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called `NonLinearFilter`)
 8. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
+9. [__CombinatorFilter__](/api-reference.md#combinator-filter) (combine/blend multiple processed inputs into one output)
 
 
-__Parallel Workers Support__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way)
+__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
+
+
+The filters, and the way they operate, naturaly represent a system of interconnected nodes which process and interchange (image) data (not necesarily synchronously), a.k.a *a signal processing graph system*. The result is a streamlined flow for image processing and computer vision in JavaScript.
 
 
 [__Extension by Plugins / Inline Filters__](/api-reference.md#plugins-and-inline-filters) 

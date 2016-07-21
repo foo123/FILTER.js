@@ -7,8 +7,8 @@
 !function(FILTER, undef){
 "use strict";
 
-FILTER.Loader = FILTER.Reader = FILTER.Class({
-    name: "Loader",
+FILTER.IO.Loader = FILTER.IO.Reader = FILTER.Class({
+    name: "IO.Loader",
     
     __static__: {
         // accessible as "$class.load" (extendable and with "late static binding")
@@ -64,10 +64,10 @@ FILTER.Loader = FILTER.Reader = FILTER.Class({
     }
 });
 // aliases
-FILTER.Loader.prototype.read = FILTER.Loader.prototype.load;
+FILTER.IO.Loader.prototype.read = FILTER.IO.Loader.prototype.load;
 
-FILTER.Writer = FILTER.Class({
-    name: "Writer",
+FILTER.IO.Writer = FILTER.Class({
+    name: "IO.Writer",
     
     __static__: {
         // accessible as "$class.load" (extendable and with "late static binding")

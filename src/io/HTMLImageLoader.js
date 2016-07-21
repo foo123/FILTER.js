@@ -9,8 +9,8 @@
 
 var FilterImage = FILTER.Image/*, ON = 'addEventListener'*/;
 
-FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
-    name: "HTMLImageLoader",
+FILTER.IO.HTMLImageLoader = FILTER.Class(FILTER.IO.Loader, {
+    name: "IO.HTMLImageLoader",
     
     constructor: function HTMLImageLoader() {
         if ( !(this instanceof HTMLImageLoader) )

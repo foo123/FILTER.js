@@ -12,6 +12,7 @@
 
 // used for internal purposes
 var IMG=FILTER.ImArray, A32I=FILTER.Array32I,
+    TypedArray=FILTER.TypedArray,
     Min=Math.min, Max=Math.max, Filters;
     
 //
@@ -71,7 +72,7 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
             params = json.params;
             
             self._dim = params._dim;
-            self._indices = params._indices;
+            self._indices = TypedArray( params._indices, A32I );
             self._filterName = params._filterName;
             if ( self._filterName && Filters[ self._filterName ] )
                 self._filter = Filters[ self._filterName ];

@@ -8,6 +8,7 @@
 "use strict";
 
 var notSupportClamp=FILTER._notSupportClamp,
+    TypedArray=FILTER.TypedArray,
     RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
     ;
 
@@ -51,8 +52,8 @@ FILTER.Create({
             
             params = json.params;
             
-            self.thresholds = params.thresholds;
-            self.quantizedColors = params.quantizedColors;
+            self.thresholds = TypedArray( params.thresholds, Array );
+            self.quantizedColors = TypedArray( params.quantizedColors, Array );
         }
         return self;
     }

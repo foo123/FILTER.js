@@ -1,3 +1,4 @@
+Test runs "parallel"
 Loading image..
 ./che.jpg loaded with dims: 150,185
 Applying grayscale filter..

@@ -11,8 +11,8 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I, Sqrt = Math.sqrt,
-    
+var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
+    Sqrt = Math.sqrt, TypedArray = FILTER.TypedArray,
     // return a box structure element
     box = function(d) {
         var i, size=d*d, ones=new STRUCT(size);
@@ -87,8 +87,8 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
             params = json.params;
             
             self._dim = params._dim;
-            self._structureElement = params._structureElement;
-            self._indices = params._indices;
+            self._structureElement = TypedArray( params._structureElement, STRUCT );
+            self._indices = TypedArray( params._indices, A32I );
             self._filterName = params._filterName;
             if ( self._filterName && Filters[ self._filterName ] )
                 self._filter = Filters[ self._filterName ];

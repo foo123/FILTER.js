@@ -7,8 +7,8 @@
 !function(FILTER, undef){
 "use strict";
 
-FILTER.XHRLoader = FILTER.Class(FILTER.Loader, {
-    name: "XHRLoader",
+FILTER.IO.XHRLoader = FILTER.Class(FILTER.IO.Loader, {
+    name: "IO.XHRLoader",
     
     constructor: function XHRLoader( ) {
         var self = this;

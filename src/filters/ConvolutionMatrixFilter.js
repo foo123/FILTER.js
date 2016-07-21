@@ -16,6 +16,7 @@ var
     sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
     
+    TypedArray=FILTER.TypedArray,
     // Convolution Matrix
     CM=FILTER.Array32F, 
     IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
@@ -140,18 +141,18 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             
             self._dim = params._dim;
             self._dim2 = params._dim2;
-            self._matrix = params._matrix;
-            self._matrix2 = params._matrix2;
-            self._mat = params._mat;
-            self._mat2 = params._mat2;
-            self._coeff = params._coeff;
+            self._matrix = TypedArray( params._matrix, CM );
+            self._matrix2 = TypedArray( params._matrix2, CM );
+            self._mat = TypedArray( params._mat, CM );
+            self._mat2 = TypedArray( params._mat2, CM );
+            self._coeff = TypedArray( params._coeff, CM );
             self._isGrad = params._isGrad;
             self._doIntegral = params._doIntegral;
             self._doSeparable = params._doSeparable;
-            self._indices = params._indices;
-            self._indices2 = params._indices2;
-            self._indicesf = params._indicesf;
-            self._indicesf2 = params._indicesf2;
+            self._indices = TypedArray( params._indices, A16I );
+            self._indices2 = TypedArray( params._indices2, A16I );
+            self._indicesf = TypedArray( params._indicesf, A16I );
+            self._indicesf2 = TypedArray( params._indicesf2, A16I );
         }
         return self;
     }

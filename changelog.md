@@ -3,8 +3,9 @@
 __0.9.0__
 
 * restructure folders, separate builds for core, io, codecs, filters, plugins, bundle
-* full support for nodejs
+* full support for nodejs (including parallel processing through forked processes)
 * various fixes and refactorings (esp. for nodejs support)
+* update dependencies (asynchronous)
 
 __0.8.0__
 

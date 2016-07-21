@@ -16,7 +16,7 @@
 
 // color table
 var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-
+    TypedArray = FILTER.TypedArray,
     eye = function( ) {
         var t=new CT(256), i;
         for(i=0; i<256; i++) t[i]=i;
@@ -101,10 +101,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._tableR = params._tableR;
-            self._tableG = params._tableG;
-            self._tableB = params._tableB;
-            self._tableA = params._tableA;
+            self._tableR = TypedArray(params._tableR, CT);
+            self._tableG = TypedArray(params._tableG, CT);
+            self._tableB = TypedArray(params._tableB, CT);
+            self._tableA = TypedArray(params._tableA, CT);
         }
         return self;
     }

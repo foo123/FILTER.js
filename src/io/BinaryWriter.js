@@ -9,8 +9,8 @@
 
 var Class = FILTER.Class;
 
-var FileWriter = FILTER.FileWriter = Class(FILTER.Writer, {
-    name: "FileWriter",
+var FileWriter = FILTER.IO.FileWriter = Class(FILTER.IO.Writer, {
+    name: "IO.FileWriter",
     
     constructor: function FileWriter( ) {
         var self = this;
@@ -42,8 +42,8 @@ var FileWriter = FILTER.FileWriter = Class(FILTER.Writer, {
     }
 });
 
-FILTER.BinaryWriter = Class(FileWriter, {
-    name: "BinaryWriter",
+FILTER.IO.BinaryWriter = Class(FileWriter, {
+    name: "IO.BinaryWriter",
     
     constructor: function BinaryWriter( encoder ) {
         var self = this;

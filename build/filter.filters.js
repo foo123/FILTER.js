@@ -393,6 +393,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
 var Sin=Math.sin, Cos=Math.cos,
     // Color Matrix
     CM=FILTER.Array32F,
+    TypedArray=FILTER.TypedArray,
     toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     notSupportClamp=FILTER._notSupportClamp
 ;
@@ -457,7 +458,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._matrix = params._matrix;
+            self._matrix = TypedArray( params._matrix, CM );
         }
         return self;
     }
@@ -1232,7 +1233,7 @@ function CMblend(m1, m2, amount)
 
 // color table
 var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-
+    TypedArray = FILTER.TypedArray,
     eye = function( ) {
         var t=new CT(256), i;
         for(i=0; i<256; i++) t[i]=i;
@@ -1317,10 +1318,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._tableR = params._tableR;
-            self._tableG = params._tableG;
-            self._tableB = params._tableB;
-            self._tableA = params._tableA;
+            self._tableR = TypedArray(params._tableR, CT);
+            self._tableG = TypedArray(params._tableG, CT);
+            self._tableB = TypedArray(params._tableB, CT);
+            self._tableA = TypedArray(params._tableA, CT);
         }
         return self;
     }
@@ -1701,6 +1702,7 @@ TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = Tab
 "use strict";
 
 var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
+    TypedArray = FILTER.TypedArray,
     A16I = FILTER.Array16I,
     Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
@@ -1791,6 +1793,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             
             self.map = null;
             self._map = params._map;
+            if ( self._map ) self._map.data = TypedArray( self._map.data, IMG );
             self.scaleX = params.scaleX;
             self.scaleY = params.scaleY;
             self.startX = params.startX;
@@ -1952,6 +1955,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
 "use strict";
 
 var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
+    TypedArray=FILTER.TypedArray,
     PI=FILTER.CONST.PI,
     DoublePI=FILTER.CONST.PI2,
     HalfPI=FILTER.CONST.PI_2,
@@ -2065,7 +2069,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             
             self.inverseTransform = null;
             
-            self.matrix = params.matrix;
+            self.matrix = TypedArray( params.matrix, Array );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
             self.dx = params.dx;
@@ -2852,6 +2856,7 @@ var
     sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
     
+    TypedArray=FILTER.TypedArray,
     // Convolution Matrix
     CM=FILTER.Array32F, 
     IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
@@ -2976,18 +2981,18 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             
             self._dim = params._dim;
             self._dim2 = params._dim2;
-            self._matrix = params._matrix;
-            self._matrix2 = params._matrix2;
-            self._mat = params._mat;
-            self._mat2 = params._mat2;
-            self._coeff = params._coeff;
+            self._matrix = TypedArray( params._matrix, CM );
+            self._matrix2 = TypedArray( params._matrix2, CM );
+            self._mat = TypedArray( params._mat, CM );
+            self._mat2 = TypedArray( params._mat2, CM );
+            self._coeff = TypedArray( params._coeff, CM );
             self._isGrad = params._isGrad;
             self._doIntegral = params._doIntegral;
             self._doSeparable = params._doSeparable;
-            self._indices = params._indices;
-            self._indices2 = params._indices2;
-            self._indicesf = params._indicesf;
-            self._indicesf2 = params._indicesf2;
+            self._indices = TypedArray( params._indices, A16I );
+            self._indices2 = TypedArray( params._indices2, A16I );
+            self._indicesf = TypedArray( params._indicesf, A16I );
+            self._indicesf2 = TypedArray( params._indicesf2, A16I );
         }
         return self;
     }
@@ -3885,8 +3890,8 @@ function convolution3(im, w, h, matrix, matrix2, coeff1, coeff2, _isGrad)
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I, Sqrt = Math.sqrt,
-    
+var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
+    Sqrt = Math.sqrt, TypedArray = FILTER.TypedArray,
     // return a box structure element
     box = function(d) {
         var i, size=d*d, ones=new STRUCT(size);
@@ -3961,8 +3966,8 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
             params = json.params;
             
             self._dim = params._dim;
-            self._structureElement = params._structureElement;
-            self._indices = params._indices;
+            self._structureElement = TypedArray( params._structureElement, STRUCT );
+            self._indices = TypedArray( params._indices, A32I );
             self._filterName = params._filterName;
             if ( self._filterName && Filters[ self._filterName ] )
                 self._filter = Filters[ self._filterName ];
@@ -4313,6 +4318,7 @@ Filters = {
 
 // used for internal purposes
 var IMG=FILTER.ImArray, A32I=FILTER.Array32I,
+    TypedArray=FILTER.TypedArray,
     Min=Math.min, Max=Math.max, Filters;
     
 //
@@ -4372,7 +4378,7 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
             params = json.params;
             
             self._dim = params._dim;
-            self._indices = params._indices;
+            self._indices = TypedArray( params._indices, A32I );
             self._filterName = params._filterName;
             if ( self._filterName && Filters[ self._filterName ] )
                 self._filter = Filters[ self._filterName ];

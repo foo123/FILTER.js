@@ -85,6 +85,7 @@ FILTER.Create({
             params = json.params;
             
             self._srcImg = params._srcImg;
+            if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
             self.srcChannel = params.srcChannel;

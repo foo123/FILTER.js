@@ -85,18 +85,18 @@ __Methods:__
 ###Loader / BinaryLoader / HTMLImageLoader Classes
 
 ````javascript
-filterImageInstance = FILTER.HTMLImageLoader.load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl [, onLoad, onError] );
 
-// this is similar to:
+// this is same as (factory-constructor pattern):
 
-filterImageInstance = new FILTER.HTMLImageLoader( ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = new FILTER.IO.HTMLImageLoader( ).load( imageUrl [, onLoad, onError] );
 ````
 
 Loads an image url into a `FILTER.Image` instance. 
 
 The same functionality to load a url into a `FILTER.Image` has been **removed from the FILTER.Image Class**
 
-Use the `FILTER.HTMLImageLoader` instead. In order to use the `FILTER.BinaryLoader` to load and decode a custom image format, see below.
+Use the `FILTER.IO.HTMLImageLoader` instead. In order to use the `FILTER.IO.BinaryLoader` to load and decode a custom image format, see below.
 
 
 ###Generic Abstract Filter
@@ -450,7 +450,7 @@ In order to use a dilate filter do the following:
 var dilate = new FILTER.MorphologicalFilter( ).dilate([
         0, 0, 1,
         0, 1, 0,
-        1, 1, 0
+        1, 0, 0
 ]);  // dilate with a 3x3 diagonal structure element
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
@@ -481,7 +481,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.StatisticalFilter( );
 ````
 
-__NOTE:__  *This was in previous versions called NonLinearFilter*
+__NOTE:__  *This was in older versions called `NonLinearFilter`*
 
 This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and `kth`-order statistics concepts.
 
@@ -584,6 +584,13 @@ emboss.turnOn( false );    // turn off the emboss filter while on the chain with
 
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
+
+###Combinator Filter
+
+*to be added*
+
+
+
 ###Plugins and Inline Filters
 
 The library can be extended by custom plugins which add new filters.
@@ -591,7 +598,7 @@ A comprehensive framework is provided for creating plugins that function the sam
 
 **NOTE** Included Plugins **DO SUPPORT** parallel thread/worker filters (see code and examples)
 
-For creating Inline Filters a custom class is provided _FILTER.InlineFilter_ .
+For creating Inline Filters a custom class is provided `FILTER.InlineFilter` .
 
 **NOTE2** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
 
@@ -634,7 +641,7 @@ __Included Plugins__ (see examples for how to use)
 * `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `HSVConverter` : convert the image to `HSV` color space
-* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists also in `ColorMatrixFilter` )
+* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists also in `ColorMatrixFilter`)
 * `Threshold` : apply general (full `32bit` thresholds) thresholding to an image
 * `HueExtractor` : extract a range of hues from the image
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
@@ -661,43 +668,43 @@ Instead of separate loaders per image format, only one `binary loader` is used, 
 This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.
 
 **`PNG` example**
-Loads an image url in PNG format into a FILTER.Image instance. 
+Loads an image url in PNG format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.PNG.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.PNG.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`JPG` example**
-Loads an image url in JPG format into a FILTER.Image instance. 
+Loads an image url in JPG format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.JPG.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.JPG.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`GIF` example**
-Loads an image url in GIF format into a FILTER.Image instance. 
+Loads an image url in GIF format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.GIF.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.GIF.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`BMP` example**
-Loads an image url in BMP format into a FILTER.Image instance. 
+Loads an image url in BMP format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.BMP.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.BMP.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`TGA` example**
-Loads an image url in TGA format into a FILTER.Image instance. 
+Loads an image url in TGA format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.TGA.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.TGA.decoder ).load( imageUrl [, onLoad, onError] );
 ````
 
 **`RGBE` example**
-Loads an image url in RGBE format into a FILTER.Image instance. 
+Loads an image url in RGBE format into a `FILTER.Image` instance. 
 
 ````javascript
-filterImageInstance = FILTER.BinaryLoader( FILTER.Codec.RGBE.decoder ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.RGBE.decoder ).load( imageUrl [, onLoad, onError] );
 ````

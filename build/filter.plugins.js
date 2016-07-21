@@ -1443,6 +1443,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
+var TypedArray=FILTER.TypedArray;
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
@@ -1488,7 +1489,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.color = params.color;
+            self.color = TypedArray( params.color, Array );
             self.x = params.x;
             self.y = params.y;
             self.tolerance = params.tolerance;
@@ -1829,6 +1830,7 @@ FILTER.Create({
 "use strict";
 
 var notSupportClamp=FILTER._notSupportClamp,
+    TypedArray=FILTER.TypedArray,
     RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
     ;
 
@@ -1872,8 +1874,8 @@ FILTER.Create({
             
             params = json.params;
             
-            self.thresholds = params.thresholds;
-            self.quantizedColors = params.quantizedColors;
+            self.thresholds = TypedArray( params.thresholds, Array );
+            self.quantizedColors = TypedArray( params.quantizedColors, Array );
         }
         return self;
     }
@@ -1922,6 +1924,7 @@ FILTER.Create({
 
 var notSupportClamp=FILTER._notSupportClamp,
     IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
+    TypedArray=FILTER.TypedArray,
     RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
     ;
 
@@ -1964,7 +1967,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.range = params.range;
+            self.range = TypedArray( params.range, Array );
             self.background = params.background;
         }
         return self;
@@ -3244,6 +3247,7 @@ FILTER.Create({
             params = json.params;
             
             self._srcImg = params._srcImg;
+            if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
             self.srcChannel = params.srcChannel;
@@ -3376,6 +3380,7 @@ FILTER.Create({
             params = json.params;
             
             self._alphaMask = params._alphaMask;
+            if ( self._alphaMask ) self._alphaMask.data = FILTER.TypedArray( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
         }
@@ -4327,6 +4332,7 @@ FILTER.Create({
             self.startX = params.startX;
             self.startY = params.startY;
             self._blendImage = params._blendImage;
+            if ( self._blendImage ) self._blendImage.data = FILTER.TypedArray( self._blendImage.data, FILTER.ImArray );
             self.setMode( params._blendMode );
         }
         return self;

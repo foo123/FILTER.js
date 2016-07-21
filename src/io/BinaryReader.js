@@ -7,10 +7,10 @@
 !function(FILTER, undef){
 "use strict";
 
-var Loader = FILTER.Loader, XHR = FILTER.Util.XHR, FilterImage = FILTER.Image, Class = FILTER.Class;
+var Loader = FILTER.IO.Loader, XHR = FILTER.Util.XHR, FilterImage = FILTER.Image, Class = FILTER.Class;
 
-var FileLoader = FILTER.FileLoader = FILTER.FileReader = Class(Loader, {
-    name: "FileLoader",
+var FileLoader = FILTER.IO.FileLoader = FILTER.IO.FileReader = Class(Loader, {
+    name: "IO.FileLoader",
     
     constructor: function FileLoader( ) {
         var self = this;
@@ -55,8 +55,8 @@ var FileLoader = FILTER.FileLoader = FILTER.FileReader = Class(Loader, {
     }
 });
 
-FILTER.BinaryLoader = FILTER.BinaryReader = Class(FileLoader, {
-    name: "BinaryLoader",
+FILTER.IO.BinaryLoader = FILTER.IO.BinaryReader = Class(FileLoader, {
+    name: "IO.BinaryLoader",
     
     constructor: function BinaryLoader( decoder ) {
         var self = this;
@@ -93,7 +93,7 @@ FILTER.BinaryLoader = FILTER.BinaryReader = Class(FileLoader, {
         if ( 'function' === typeof decoder )
         {
             self
-                .responseType( self._responseType || 'arraybuffer' )
+                .responseType( 'arraybuffer' )
                 .$super('load', url, function( buffer ) {
                     var metaData = {}, imData = decoder( buffer, metaData );
                     if ( !imData )

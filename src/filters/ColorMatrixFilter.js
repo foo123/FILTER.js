@@ -18,6 +18,7 @@
 var Sin=Math.sin, Cos=Math.cos,
     // Color Matrix
     CM=FILTER.Array32F,
+    TypedArray=FILTER.TypedArray,
     toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
     notSupportClamp=FILTER._notSupportClamp
 ;
@@ -82,7 +83,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._matrix = params._matrix;
+            self._matrix = TypedArray( params._matrix, CM );
         }
         return self;
     }

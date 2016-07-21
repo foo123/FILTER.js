@@ -895,6 +895,7 @@ FILTER.Create({
             self.startX = params.startX;
             self.startY = params.startY;
             self._blendImage = params._blendImage;
+            if ( self._blendImage ) self._blendImage.data = FILTER.TypedArray( self._blendImage.data, FILTER.ImArray );
             self.setMode( params._blendMode );
         }
         return self;

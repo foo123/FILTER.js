@@ -465,8 +465,8 @@ XHR.create = FILTER.Browser.isNode
 !function(FILTER, undef){
 "use strict";
 
-FILTER.XHRLoader = FILTER.Class(FILTER.Loader, {
-    name: "XHRLoader",
+FILTER.IO.XHRLoader = FILTER.Class(FILTER.IO.Loader, {
+    name: "IO.XHRLoader",
     
     constructor: function XHRLoader( ) {
         var self = this;
@@ -528,10 +528,10 @@ FILTER.XHRLoader = FILTER.Class(FILTER.Loader, {
 !function(FILTER, undef){
 "use strict";
 
-var Loader = FILTER.Loader, XHR = FILTER.Util.XHR, FilterImage = FILTER.Image, Class = FILTER.Class;
+var Loader = FILTER.IO.Loader, XHR = FILTER.Util.XHR, FilterImage = FILTER.Image, Class = FILTER.Class;
 
-var FileLoader = FILTER.FileLoader = FILTER.FileReader = Class(Loader, {
-    name: "FileLoader",
+var FileLoader = FILTER.IO.FileLoader = FILTER.IO.FileReader = Class(Loader, {
+    name: "IO.FileLoader",
     
     constructor: function FileLoader( ) {
         var self = this;
@@ -576,8 +576,8 @@ var FileLoader = FILTER.FileLoader = FILTER.FileReader = Class(Loader, {
     }
 });
 
-FILTER.BinaryLoader = FILTER.BinaryReader = Class(FileLoader, {
-    name: "BinaryLoader",
+FILTER.IO.BinaryLoader = FILTER.IO.BinaryReader = Class(FileLoader, {
+    name: "IO.BinaryLoader",
     
     constructor: function BinaryLoader( decoder ) {
         var self = this;
@@ -614,7 +614,7 @@ FILTER.BinaryLoader = FILTER.BinaryReader = Class(FileLoader, {
         if ( 'function' === typeof decoder )
         {
             self
-                .responseType( self._responseType || 'arraybuffer' )
+                .responseType( 'arraybuffer' )
                 .$super('load', url, function( buffer ) {
                     var metaData = {}, imData = decoder( buffer, metaData );
                     if ( !imData )
@@ -643,8 +643,8 @@ FILTER.BinaryLoader = FILTER.BinaryReader = Class(FileLoader, {
 
 var Class = FILTER.Class;
 
-var FileWriter = FILTER.FileWriter = Class(FILTER.Writer, {
-    name: "FileWriter",
+var FileWriter = FILTER.IO.FileWriter = Class(FILTER.IO.Writer, {
+    name: "IO.FileWriter",
     
     constructor: function FileWriter( ) {
         var self = this;
@@ -676,8 +676,8 @@ var FileWriter = FILTER.FileWriter = Class(FILTER.Writer, {
     }
 });
 
-FILTER.BinaryWriter = Class(FileWriter, {
-    name: "BinaryWriter",
+FILTER.IO.BinaryWriter = Class(FileWriter, {
+    name: "IO.BinaryWriter",
     
     constructor: function BinaryWriter( encoder ) {
         var self = this;
@@ -726,8 +726,8 @@ FILTER.BinaryWriter = Class(FileWriter, {
 
 var FilterImage = FILTER.Image/*, ON = 'addEventListener'*/;
 
-FILTER.HTMLImageLoader = FILTER.Class(FILTER.Loader, {
-    name: "HTMLImageLoader",
+FILTER.IO.HTMLImageLoader = FILTER.Class(FILTER.IO.Loader, {
+    name: "IO.HTMLImageLoader",
     
     constructor: function HTMLImageLoader() {
         if ( !(this instanceof HTMLImageLoader) )

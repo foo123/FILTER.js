@@ -7,6 +7,7 @@
 !function(FILTER){
 "use strict";
 
+var TypedArray=FILTER.TypedArray;
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
@@ -52,7 +53,7 @@ FILTER.Create({
             
             params = json.params;
             
-            self.color = params.color;
+            self.color = TypedArray( params.color, Array );
             self.x = params.x;
             self.y = params.y;
             self.tolerance = params.tolerance;

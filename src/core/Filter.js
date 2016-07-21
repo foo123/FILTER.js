@@ -130,7 +130,21 @@ if ( !FILTER.Array32F[PROTO].subarray )
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isNode||Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
+FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
+
+/*FILTER.serialize = Browser.isNode
+    ? function( a, A ) { return Array.isArray( a ) ? a : Array.prototype.slice.call( a ); }
+    : function( a, A ) { return a; }
+;*/
+FILTER.TypedArray = Browser.isNode
+    ? function( a, A ) {
+        if ( (null == a) || (a instanceof A) ) return a;
+        else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+        if ( null == a.length ) a.length = Object.keys( a ).length;
+        return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+    }
+    : function( a, A ) { return a; }
+;
 
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
@@ -138,7 +152,7 @@ if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function"
     // add the missing method to the array
     CanvasPixelArray[PROTO].set = typed_array_set;
 }
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera || Browser.isNode;
+notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 FILTER.NotImplemented = function( method ) {
     method = method || '';
@@ -165,6 +179,8 @@ FILTER.MODE = {
     ,WRAP:      1
     ,CLAMP:     2
     ,COLOR:     4
+    ,TILE:      8
+    ,STRETCH:   16
 };
 FILTER.LUMA = new FILTER.Array32F([ 
      0.212671
@@ -192,6 +208,7 @@ FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
 FILTER.Util = { };
+FILTER.IO = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
@@ -199,7 +216,7 @@ FILTER.MachineLearning = FILTER.ML = { };
 
 //
 // logging
-log = FILTER.log = (console && console.log) ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ };
+log = FILTER.log = isThread ? Async.log : (console && console.log ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ });
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
@@ -224,13 +241,13 @@ var
                                 filter.dispose( true );
                                 filter = null;
                             }
-                            filter = Async.load( 'FILTER.' + data.filter );
+                            filter = Async.load( 'FILTER.' + data.filter/*, data["import"] || data["imports"]*/ );
                         }
                     })
                     .listen('import', function( data ) {
                         if ( data && data["import"] && data["import"].length )
                         {
-                            importScripts( data["import"]/*.join(',')*/ );
+                            Async.importScripts( data["import"].join ? data["import"].join(',') : data["import"] );
                         }
                     })
                     .listen('params', function( data ) {
@@ -240,11 +257,10 @@ var
                         if ( filter && data && data.im )
                         {
                             if ( data.params ) filter.unserialize( data.params );
-                            data.im[ 0 ].id = data.id;
-                            var ret = {im: filter._apply( data.im[ 0 ], data.im[ 1 ], data.im[ 2 ] )};
+                            //log(data.im[0]);
+                            var im = FILTER.TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
-                            if ( filter.hasMeta ) ret.meta = filter.getMeta();/*self.send( 'meta', filter.getMeta() );*/
-                            self.send( 'apply', ret );
+                            self.send( 'apply', {im: filter._apply( im, data.im[ 1 ], data.im[ 2 ] ), meta: filter.hasMeta ? filter.getMeta() : null} );
                         }
                         else
                         {
@@ -258,7 +274,7 @@ var
                             filter = null;
                         }
                         self.dispose( true );
-                        close( );
+                        //Async.close( );
                     })
                 ;
             }
@@ -461,17 +477,16 @@ var
                             {
                                 // listen for metadata if needed
                                 if ( data.meta ) self.setMeta( data.meta );
-                                if ( self._update ) dest.setSelectedData( data.im );
+                                if ( self._update ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
                             }
                             if ( cb ) cb.call( self );
                         })
                         // process request
-                        .send( 'apply', {im: im, id: src.id, params: self.serialize( )} )
+                        .send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
                     ;
                 }
                 else
                 {
-                    im[ 0 ].id = src.id;
                     im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
                     // update image only if needed
                     // some filters do not actually change the image data

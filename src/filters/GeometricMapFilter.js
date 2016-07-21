@@ -12,6 +12,7 @@
 "use strict";
 
 var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
+    TypedArray=FILTER.TypedArray,
     PI=FILTER.CONST.PI,
     DoublePI=FILTER.CONST.PI2,
     HalfPI=FILTER.CONST.PI_2,
@@ -125,7 +126,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             
             self.inverseTransform = null;
             
-            self.matrix = params.matrix;
+            self.matrix = TypedArray( params.matrix, Array );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
             self.dx = params.dx;
