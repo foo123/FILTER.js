@@ -11,6 +11,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     notSupportTyped = FILTER._notSupportTypedArrays,
+    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
     MIME = FILTER.MIME, ID = 0,
@@ -569,7 +570,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setData: function(a) {
         var self = this;
         if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-        self.oData.data.set( a ); // not supported in Opera, IE, Safari
+        arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
         self.octx.putImageData(self.oData, 0, 0); 
         self._needsRefresh |= HIST | SAT | SPECTRUM;
         if (self.selection) self._needsRefresh |= OSEL;
@@ -584,14 +585,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
             var sel = self.selection, ow = self.width-1, oh = self.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
             if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
-            self.oDataSel.data.set( a ); // not supported in Opera, IE, Safari
+            arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
             self._needsRefresh |= ODATA;
         }
         else
         {
             if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-            self.oData.data.set( a ); // not supported in Opera, IE, Safari
+            arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oData, 0, 0); 
         }
         self._needsRefresh |= HIST | SAT | SPECTRUM;
@@ -660,12 +661,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( self._restorable )
             {
             ictx = self.ictx = self.iCanvas.getContext('2d');
-            self.iData.data.set( img.data ); // not supported in Opera, IE, Safari
+            arrayset(self.iData.data, img.data); // not supported in Opera, IE, Safari
             ictx.putImageData(self.iData, 0, 0); 
             }
             
             octx = self.octx = self.oCanvas.getContext('2d');
-            self.oData.data.set( img.data ); // not supported in Opera, IE, Safari
+            arrayset(self.oData.data, img.data); // not supported in Opera, IE, Safari
             octx.putImageData(self.oData, 0, 0); 
             //self._needsRefresh &= CLEAR_DATA;
         }

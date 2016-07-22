@@ -313,87 +313,48 @@ function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness
 {
 }*/
 
-
-
-FILTER.PerlinNoise = {
-    seed: seed,
-    
-    Image: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-        var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
-            invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-            w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
-        scale = scale || 1.0; roughness = roughness || 0.5;
-        octaves = octaves || 1; offsets = offsets || [[0,0]];
-        if ( seamless )
+FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
+        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+        w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+    scale = scale || 1.0; roughness = roughness || 0.5;
+    octaves = octaves || 1; offsets = offsets || [[0,0]];
+    if ( seamless )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
-            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            if ( x >= w ) { x=0; y++; }
+            // simulate seamless stitching, i.e circular/tileable symmetry
+            nx = x > w2 ? w-1-x : x;
+            ny = y > h2 ? h-1-y : y;
+            if ( (nx < x) || (ny < y) )
             {
-                if ( x >= w ) { x=0; y++; }
-                // simulate seamless stitching, i.e circular/tileable symmetry
-                nx = x > w2 ? w-1-x : x;
-                ny = y > h2 ? h-1-y : y;
-                if ( (nx < x) || (ny < y) )
-                {
-                    j = (ny*w + nx) << 2;
-                    n[ i   ] = n[ j   ];
-                    n[ i+1 ] = n[ j+1 ];
-                    n[ i+2 ] = n[ j+2 ];
-                }
-                else
-                {
-                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                    n[ i+1 ] = n[ i ];
-                    n[ i+2 ] = n[ i ];
-                }
+                j = (ny*w + nx) << 2;
+                n[ i   ] = n[ j   ];
+                n[ i+1 ] = n[ j+1 ];
+                n[ i+2 ] = n[ j+2 ];
             }
-        }
-        else
-        {
-            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            else
             {
-                if ( x >= w ) { x=0; y++; }
                 n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
                 n[ i+1 ] = n[ i ];
                 n[ i+2 ] = n[ i ];
             }
         }
-        img.setData( n );
-        return img;
-    }/*,
-    
-    generate: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-        var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-            x, y, nx, ny, i, j, size = w*h, n = new Array8U(size), w2 = w>>>1, h2 = h>>>1;
-        scale = scale || 1.0; roughness = roughness || 0.5;
-        octaves = octaves || 1; offsets = offsets || [[0,0]];
-        if ( seamless )
+    }
+    else
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
-            for(x=0,y=0,i=0; i<size; i++,x++)
-            {
-                if ( x >= w ) { x=0; y++; }
-                // simulate seamless stitching, i.e circular/tileable symmetry
-                nx = x > w2 ? w-1-x : x;
-                ny = y > h2 ? h-1-y : y;
-                if ( (nx < x) || (ny < y) )
-                {
-                    n[ i ] = n[ ny*w + nx ];
-                }
-                else
-                {
-                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                }
-            }
+            if ( x >= w ) { x=0; y++; }
+            n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+            n[ i+1 ] = n[ i ];
+            n[ i+2 ] = n[ i ];
         }
-        else
-        {
-            for(x=0,y=0,i=0; i<size; i++,x++)
-            {
-                if ( x >= w ) { x=0; y++; }
-                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-            }
-        }
-        return n;
-    }*/
+    }
+    img.setData( n );
+    return img;
 };
+FILTER.Image.PerlinNoise.seed = seed;
 
 }(FILTER);

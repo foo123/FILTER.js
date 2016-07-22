@@ -844,11 +844,6 @@ FILTER.Create({
         if ( blendImage )
         {
             self.blendImage = blendImage;
-            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
-        }
-        else
-        {
-            self.blendImage = null;
             self._blendImage = null;
         }
         return self;
@@ -870,13 +865,13 @@ FILTER.Create({
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, bImg = self.blendImage;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _blendImage: self._blendImage
+                _blendImage: self._blendImage || (bImg ? { data: bImg.getData( ), width: bImg.width, height: bImg.height } : null)
                 ,_blendMode: self._blendMode
                 ,startX: self.startX
                 ,startY: self.startY
@@ -894,6 +889,7 @@ FILTER.Create({
             
             self.startX = params.startX;
             self.startY = params.startY;
+            self.blendImage = null;
             self._blendImage = params._blendImage;
             if ( self._blendImage ) self._blendImage.data = FILTER.TypedArray( self._blendImage.data, FILTER.ImArray );
             self.setMode( params._blendMode );
@@ -911,14 +907,16 @@ FILTER.Create({
     
     // main apply routine
     ,apply: function(im, w, h/*, image*/) {
-        var self = this;
-        if ( !self._isOn || !self._blendMode || !self._blendImage ) return im;
+        var self = this, bImg = self.blendImage;
+        if ( !self._isOn || !self._blendMode || !(bImg || self._blendImage) ) return im;
         
-        var startX = self.startX||0, startY = self.startY||0, 
+        //self._blendImage = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height };
+        
+        var image2 = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height },
+            startX = self.startX||0, startY = self.startY||0, 
             startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
             W1, W2, start, end, x, y, x2, y2,
-            image2 = self._blendImage, pix2,
-            blend = blend_functions[ self._blendMode ]
+            pix2, blend = blend_functions[ self._blendMode ]
         ;
         
         //if ( !blend ) return im;

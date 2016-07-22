@@ -36,7 +36,6 @@ PNG.prototype = {
     compressionMethod: null,
     filterMethod: null,
     interlaceMethod: null,
-    animation: null,
     hasAlphaChannel: null,
     colors: null,
     colorSpace: null,

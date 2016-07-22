@@ -45,24 +45,19 @@ FILTER.Create({
         if ( alphaMask )
         {
             self.alphaMask = alphaMask;
-            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
-        }
-        else
-        {
-            self.alphaMask = null;
             self._alphaMask = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Mask = self.alphaMask;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _alphaMask: self._alphaMask
+                _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
             }
@@ -77,6 +72,7 @@ FILTER.Create({
             
             params = json.params;
             
+            self.alphaMask = null;
             self._alphaMask = params._alphaMask;
             if ( self._alphaMask ) self._alphaMask.data = FILTER.TypedArray( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
@@ -92,11 +88,13 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         
-        var self = this;
-        if ( !self._isOn || !self._alphaMask ) return im;
+        var self = this, Mask = self.alphaMask;
+        if ( !self._isOn || !(Mask || self._alphaMask) ) return im;
         
-        var alpha = self._alphaMask.data,
-            w2 = self._alphaMask.width, h2 = self._alphaMask.height,
+        //self._alphaMask = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height };
+        
+        var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
+            alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
             i, l = im.length, l2 = alpha.length, 
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  

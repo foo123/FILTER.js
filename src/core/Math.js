@@ -12,7 +12,8 @@ var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, LN2 = Math.LN2, SQRT2 = Math.SQRT2,
     log2 = function( x ) { return Log(x) / LN2; },
     Log2 = Math.log2 || log2, Min = Math.min,
-    X = 0, Y = 1, Z = 2
+    X = 0, Y = 1, Z = 2,
+    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray
 ;
 
 function clamp( x, m, M )
@@ -292,7 +293,7 @@ function crop( im, w, h, x1, y1, x2, y2 )
     for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = (yw+x1)<<2;
-        cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
+        arrayset(cropped, subarray(im, pixel2, pixel2+nw4), pixel);
     }
     return cropped;
 }
@@ -309,7 +310,7 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = yw<<2;
-        padded.set(im.subarray(pixel2,pixel2+w4),offleft+pixel);
+        arrayset(padded, subarray(im, pixel2, pixel2+w4), offleft+pixel);
     }
     return padded;
 }

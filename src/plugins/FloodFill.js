@@ -74,7 +74,7 @@ FILTER.Create({
             OC, NC = self.color, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length, 
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, segment, notdone, abs = Math.abs
+            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
         /*
          * Filled horizontal segment of scanline y for xl<=x<=xr.
          * Parent segment was on line y-dy.  dy=1 or -1
@@ -85,14 +85,14 @@ FILTER.Create({
         
         // seed color is the image color at x0,y0 position
         OC = [im[x0+yw], im[x0+yw+1], im[x0+yw+2]];    
-        stack = [];
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, x0, x0, dy]); /* needed in some cases */
-        /*if ( yw >= ymin && yw <= ymax)*/ stack.push([yw+dy, x0, x0, -dy]); /* seed segment (popped 1st) */
+        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
+        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
+        /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
         
-        while ( stack.length ) 
+        while ( slen > 0 ) 
         {
             /* pop segment off stack and fill a neighboring scan line */
-            segment = stack.pop();
+            segment = stack[--slen];
             yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
             
             /*
@@ -126,7 +126,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, l, x1-4, -dy]);  /* leak on left? */
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
                 }
                 x = x1+4;
                 notdone = true;
@@ -142,10 +142,10 @@ FILTER.Create({
                     im[i+2] = NC[2];
                     x+=4; i = x+yw;
                 }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, l, x-4, dy]);
+                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
                 if ( x > x2+4 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	/* leak on right? */
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
                 }
     /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
                     x+=4;
@@ -167,7 +167,7 @@ FILTER.Create({
     ,tolerance: 0.0
     ,pattern: null
     ,_pattern: null
-    ,mode: 0 // 0 tile, 1 stretch
+    ,mode: FILTER.MODE.TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
     
     ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
@@ -176,7 +176,7 @@ FILTER.Create({
         self.x = x || 0;
         self.y = y || 0;
         self.setPattern( pattern );
-        self.mode = mode || 0;
+        self.mode = mode || FILTER.MODE.TILE;
         self.tolerance = tolerance || 0.0;
     }
     
@@ -246,19 +246,19 @@ FILTER.Create({
             pw = self._pattern.width, ph = self._pattern.height, 
             x0 = self.x, y0 = self.y, imSize = im.length, 
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, segment, notdone, abs = Math.abs
+            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
 
             yw = (y0*w)<<2; x0 <<= 2;
         if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
         
-        stack = [];
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, x0, x0, dy]); // needed in some cases 
-        stack.push([yw+dy, x0, x0, -dy]); // seed segment (popped 1st)
+        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
+        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; // needed in some cases 
+        stack[slen++]=[yw+dy, x0, x0, -dy]; // seed segment (popped 1st)
         
-        while ( stack.length ) 
+        while ( slen > 0 ) 
         {
             // pop segment off stack and fill a neighboring scan line 
-            segment = stack.pop();
+            segment = stack]--slen\;
             yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
             
             // segment of scan line y-dy for x1<=x<=x2 was previously filled,
@@ -290,7 +290,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, l, x1-4, -dy]);  // leak on left?
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  // leak on left?
                 }
                 x = x1+4;
                 notdone = true;
@@ -306,7 +306,7 @@ FILTER.Create({
                     im[i+2] = NC[2];
                     x+=4; i = x+yw;
                 }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, l, x-4, dy]);
+                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
                 if ( x > x2+4 ) 
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	// leak on right?

@@ -11,6 +11,7 @@ var Array32F = FILTER.Array32F,
     Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
+    TypedObj = FILTER.TypedObj,
     HAS = 'hasOwnProperty'
 ;
 
@@ -376,7 +377,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
-    //,_haarchanged: false
+    ,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -388,7 +389,7 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
-        //self._haarchanged = !!self.haardata;
+        self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
@@ -405,7 +406,7 @@ FILTER.Create({
     ,haar: function( haardata ) {
         var self = this;
         self.haardata = haardata;
-        //self._haarchanged = true;
+        self._haarchanged = true;
         return self;
     }
     
@@ -413,7 +414,11 @@ FILTER.Create({
         var self = this;
         if ( params )
         {
-        if ( params[HAS]('haardata') ) self.haardata = params.haardata;
+        if ( params[HAS]('haardata') )
+        {
+            self.haardata = params.haardata;
+            self._haarchanged = true;
+        }
         if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
         if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
         if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
@@ -432,8 +437,8 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 haardata: self.haardata
-                ,baseScale: self.baseScale
+                 //haardata: null
+                 baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -443,11 +448,11 @@ FILTER.Create({
             }
         };
         // avoid unnecessary (large) data transfer
-        /*if ( self._haarchanged )
+        if ( self._haarchanged )
         {
-            json.params.haardata = self.haardata;
+            json.params.haardata = TypedObj( self.haardata );
             self._haarchanged = false;
-        }*/
+        }
         return json;
     }
     
@@ -459,7 +464,7 @@ FILTER.Create({
             
             params = json.params;
             
-            /*if ( params[HAS]('haardata') )*/ self.haardata = params.haardata;
+            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata );
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
@@ -473,11 +478,11 @@ FILTER.Create({
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
     ,getMeta: function( ) {
-        return this.objects;
+        return FILTER.isWorker ? TypedObj( this.objects ) : this.objects;
     }
     
     ,setMeta: function( meta ) {
-        this.objects = meta;
+        this.objects = "string" === typeof meta ? TypedObj( meta ) : meta;
         return this;
     }
     

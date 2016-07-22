@@ -1343,22 +1343,22 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         var self = this, masktype = self.type,
+            resize = FILTER.Image.resize, IMG = FILTER.ImArray,
             //needed arrays
             diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
-            index, N, N2, size, imSize;
+            index, N, N2, size, imSize, sqrt = Math.sqrt;
 
         //find largest side of the image
         //and resize the image to become square
-        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
+        if ( w !== h ) im = resize( im, w, h, N = w > h ? w : h, N );
         else  N = w; 
         N2 = Math.round(N/2);
         size = N*N; imSize = im.length;
-        diagonal = new FILTER.ImArray(imSize);
-        tile = new FILTER.ImArray(imSize);
+        diagonal = new IMG(imSize);
+        tile = new IMG(imSize);
         mask = new FILTER.Array8U(size);
 
-        i = 0; j = 0;
-        for (k=0; k<imSize; k+=4,i++)
+        for (i=0,j=0,k=0; k<imSize; k+=4,i++)
         {
             if ( i >= N ) {i=0; j++;}
             index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
@@ -1370,64 +1370,60 @@ FILTER.Create({
 
         //try to make your own masktypes here
         //Create the mask
-        for (i=0; i<=N2-1; i++)
+        for (i=0,j=0; i<N2; j++)
         {
-            for (j=0; j<=N2-1; j++)
+            if ( j >= N2 ) { j=0; i++; }
+            switch(masktype)
             {
-                switch(masktype)
-                {
-                    case 0://RADIAL
-                    d = Math.sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
-                    break;
+                case 0://RADIAL
+                d = sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
+                break;
 
-                    case 1://LINEAR 1
-                    if ( (N2-i) < (N2-j) )
-                        d = (j-N2)/N2;
+                case 1://LINEAR 1
+                if ( (N2-i) < (N2-j) )
+                    d = (j-N2)/N2;
 
-                    else //if ( (N2-i) >= (N2-j) )
-                        d = (i-N/2)/N2;
-                    break;
+                else //if ( (N2-i) >= (N2-j) )
+                    d = (i-N/2)/N2;
+                break;
 
-                    case 2://LINEAR 2
-                    default:
-                    if ( (N2-i) < (N2-j) )
-                        d = Math.sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
+                case 2://LINEAR 2
+                default:
+                if ( (N2-i) < (N2-j) )
+                    d = sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
 
-                    else //if ( (N2-i)>=(N2-j) )
-                        d = Math.sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
-                    break;
-                }
-                //Scale d To range from 1 To 255
-                d = 255 - (255 * d);
-                if (d < 1) d = 1;
-                else if (d > 255) d = 255;
-
-                //Form the mask in Each quadrant
-                mask [i     + j*N      ] = d;
-                mask [i     + (N-1-j)*N] = d;
-                mask [N-1-i + j*N      ] = d;
-                mask [N-1-i + (N-1-j)*N] = d;
+                else //if ( (N2-i)>=(N2-j) )
+                    d = sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
+                break;
             }
+            //Scale d To range from 1 To 255
+            d = 255 - (255 * d);
+            if (d < 1) d = 1;
+            else if (d > 255) d = 255;
+
+            //Form the mask in Each quadrant
+            mask [i     + j*N      ] = d;
+            mask [i     + (N-1-j)*N] = d;
+            mask [N-1-i + j*N      ] = d;
+            mask [N-1-i + (N-1-j)*N] = d;
         }
 
         //Create the tile
-        for (j=0; j<=N-1; j++)
+        for (j=0,i=0; j<N; i++)
         {
-            for (i=0; i<=N-1; i++)
-            {
-                index = i+j*N;
-                a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
-                a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-                tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
-                tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
-                tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
-                tile[index+3] = im[index+3];
-            }
+            if ( i >= N ) {i=0; j++;}
+            index = i+j*N;
+            a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
+            a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
+            tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
+            tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
+            tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
+            tile[index+3] = im[index+3];
         }
 
         //create the new tileable image
         //if it wasn't a square image, resize it back to the original scale
-        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
+        if ( w !== h ) tile = resize( tile, N, N, w, h );
 
         // return the new image data
         return tile;
@@ -1510,7 +1506,7 @@ FILTER.Create({
             OC, NC = self.color, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length, 
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, segment, notdone, abs = Math.abs
+            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
         /*
          * Filled horizontal segment of scanline y for xl<=x<=xr.
          * Parent segment was on line y-dy.  dy=1 or -1
@@ -1521,14 +1517,14 @@ FILTER.Create({
         
         // seed color is the image color at x0,y0 position
         OC = [im[x0+yw], im[x0+yw+1], im[x0+yw+2]];    
-        stack = [];
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, x0, x0, dy]); /* needed in some cases */
-        /*if ( yw >= ymin && yw <= ymax)*/ stack.push([yw+dy, x0, x0, -dy]); /* seed segment (popped 1st) */
+        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
+        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
+        /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
         
-        while ( stack.length ) 
+        while ( slen > 0 ) 
         {
             /* pop segment off stack and fill a neighboring scan line */
-            segment = stack.pop();
+            segment = stack[--slen];
             yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
             
             /*
@@ -1562,7 +1558,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, l, x1-4, -dy]);  /* leak on left? */
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
                 }
                 x = x1+4;
                 notdone = true;
@@ -1578,10 +1574,10 @@ FILTER.Create({
                     im[i+2] = NC[2];
                     x+=4; i = x+yw;
                 }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, l, x-4, dy]);
+                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
                 if ( x > x2+4 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	/* leak on right? */
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
                 }
     /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
                     x+=4;
@@ -1603,7 +1599,7 @@ FILTER.Create({
     ,tolerance: 0.0
     ,pattern: null
     ,_pattern: null
-    ,mode: 0 // 0 tile, 1 stretch
+    ,mode: FILTER.MODE.TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
     
     ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
@@ -1612,7 +1608,7 @@ FILTER.Create({
         self.x = x || 0;
         self.y = y || 0;
         self.setPattern( pattern );
-        self.mode = mode || 0;
+        self.mode = mode || FILTER.MODE.TILE;
         self.tolerance = tolerance || 0.0;
     }
     
@@ -1682,19 +1678,19 @@ FILTER.Create({
             pw = self._pattern.width, ph = self._pattern.height, 
             x0 = self.x, y0 = self.y, imSize = im.length, 
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, segment, notdone, abs = Math.abs
+            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
 
             yw = (y0*w)<<2; x0 <<= 2;
         if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
         
-        stack = [];
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, x0, x0, dy]); // needed in some cases 
-        stack.push([yw+dy, x0, x0, -dy]); // seed segment (popped 1st)
+        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
+        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; // needed in some cases 
+        stack[slen++]=[yw+dy, x0, x0, -dy]; // seed segment (popped 1st)
         
-        while ( stack.length ) 
+        while ( slen > 0 ) 
         {
             // pop segment off stack and fill a neighboring scan line 
-            segment = stack.pop();
+            segment = stack]--slen\;
             yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
             
             // segment of scan line y-dy for x1<=x<=x2 was previously filled,
@@ -1726,7 +1722,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, l, x1-4, -dy]);  // leak on left?
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  // leak on left?
                 }
                 x = x1+4;
                 notdone = true;
@@ -1742,7 +1738,7 @@ FILTER.Create({
                     im[i+2] = NC[2];
                     x+=4; i = x+yw;
                 }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack.push([yw, l, x-4, dy]);
+                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
                 if ( x > x2+4 ) 
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	// leak on right?
@@ -2446,6 +2442,7 @@ var Array32F = FILTER.Array32F,
     Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
+    TypedObj = FILTER.TypedObj,
     HAS = 'hasOwnProperty'
 ;
 
@@ -2811,7 +2808,7 @@ FILTER.Create({
     ,doCannyPruning: true
     ,cannyLow: 20
     ,cannyHigh: 100
-    //,_haarchanged: false
+    ,_haarchanged: false
     
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning ) {
@@ -2823,7 +2820,7 @@ FILTER.Create({
         self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
         self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
-        //self._haarchanged = !!self.haardata;
+        self._haarchanged = !!self.haardata;
     }
     
     // support worker serialize/unserialize interface
@@ -2840,7 +2837,7 @@ FILTER.Create({
     ,haar: function( haardata ) {
         var self = this;
         self.haardata = haardata;
-        //self._haarchanged = true;
+        self._haarchanged = true;
         return self;
     }
     
@@ -2848,7 +2845,11 @@ FILTER.Create({
         var self = this;
         if ( params )
         {
-        if ( params[HAS]('haardata') ) self.haardata = params.haardata;
+        if ( params[HAS]('haardata') )
+        {
+            self.haardata = params.haardata;
+            self._haarchanged = true;
+        }
         if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
         if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
         if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
@@ -2867,8 +2868,8 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                 haardata: self.haardata
-                ,baseScale: self.baseScale
+                 //haardata: null
+                 baseScale: self.baseScale
                 ,scaleIncrement: self.scaleIncrement
                 ,stepIncrement: self.stepIncrement
                 ,minNeighbors: self.minNeighbors
@@ -2878,11 +2879,11 @@ FILTER.Create({
             }
         };
         // avoid unnecessary (large) data transfer
-        /*if ( self._haarchanged )
+        if ( self._haarchanged )
         {
-            json.params.haardata = self.haardata;
+            json.params.haardata = TypedObj( self.haardata );
             self._haarchanged = false;
-        }*/
+        }
         return json;
     }
     
@@ -2894,7 +2895,7 @@ FILTER.Create({
             
             params = json.params;
             
-            /*if ( params[HAS]('haardata') )*/ self.haardata = params.haardata;
+            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata );
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
@@ -2908,11 +2909,11 @@ FILTER.Create({
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
     ,getMeta: function( ) {
-        return this.objects;
+        return FILTER.isWorker ? TypedObj( this.objects ) : this.objects;
     }
     
     ,setMeta: function( meta ) {
-        this.objects = meta;
+        this.objects = "string" === typeof meta ? TypedObj( meta ) : meta;
         return this;
     }
     
@@ -3212,24 +3213,19 @@ FILTER.Create({
         if ( srcImg )
         {
             self.srcImg = srcImg;
-            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
-        }
-        else
-        {
-            self.srcImg = null;
             self._srcImg = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Src = self.srcImg;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _srcImg: self._srcImg
+                _srcImg: self._srcImg || (Src ? { data: Src.getData( ), width: Src.width, height: Src.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
                 ,srcChannel: self.srcChannel
@@ -3246,6 +3242,7 @@ FILTER.Create({
             
             params = json.params;
             
+            self.srcImg = null;
             self._srcImg = params._srcImg;
             if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
             self.centerX = params.centerX;
@@ -3262,13 +3259,14 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn || !self._srcImg ) return im;
+        var self = this, Src = self.srcImg;
+        if ( !self._isOn || !(Src || self._srcImg) ) return im;
         
-        var src = self._srcImg.data,
+        //self._srcImg = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height };
+        
+        var _src = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height },
+            src = _src.data, w2 = _src.width, h2 = _src.height,
             i, l = im.length, l2 = src.length, 
-            w2 = self._srcImg.width, 
-            h2 = self._srcImg.height,
             sC = self.srcChannel, tC = self.dstChannel,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w,w2), hm = Min(h, h2),  
@@ -3347,24 +3345,19 @@ FILTER.Create({
         if ( alphaMask )
         {
             self.alphaMask = alphaMask;
-            self._alphaMask = { data: alphaMask.getData( ), width: alphaMask.width, height: alphaMask.height };
-        }
-        else
-        {
-            self.alphaMask = null;
             self._alphaMask = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Mask = self.alphaMask;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _alphaMask: self._alphaMask
+                _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
             }
@@ -3379,6 +3372,7 @@ FILTER.Create({
             
             params = json.params;
             
+            self.alphaMask = null;
             self._alphaMask = params._alphaMask;
             if ( self._alphaMask ) self._alphaMask.data = FILTER.TypedArray( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
@@ -3394,11 +3388,13 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         
-        var self = this;
-        if ( !self._isOn || !self._alphaMask ) return im;
+        var self = this, Mask = self.alphaMask;
+        if ( !self._isOn || !(Mask || self._alphaMask) ) return im;
         
-        var alpha = self._alphaMask.data,
-            w2 = self._alphaMask.width, h2 = self._alphaMask.height,
+        //self._alphaMask = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height };
+        
+        var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
+            alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
             i, l = im.length, l2 = alpha.length, 
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  
@@ -4281,11 +4277,6 @@ FILTER.Create({
         if ( blendImage )
         {
             self.blendImage = blendImage;
-            self._blendImage = { data: blendImage.getData( ), width: blendImage.width, height: blendImage.height };
-        }
-        else
-        {
-            self.blendImage = null;
             self._blendImage = null;
         }
         return self;
@@ -4307,13 +4298,13 @@ FILTER.Create({
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, bImg = self.blendImage;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _blendImage: self._blendImage
+                _blendImage: self._blendImage || (bImg ? { data: bImg.getData( ), width: bImg.width, height: bImg.height } : null)
                 ,_blendMode: self._blendMode
                 ,startX: self.startX
                 ,startY: self.startY
@@ -4331,6 +4322,7 @@ FILTER.Create({
             
             self.startX = params.startX;
             self.startY = params.startY;
+            self.blendImage = null;
             self._blendImage = params._blendImage;
             if ( self._blendImage ) self._blendImage.data = FILTER.TypedArray( self._blendImage.data, FILTER.ImArray );
             self.setMode( params._blendMode );
@@ -4348,14 +4340,16 @@ FILTER.Create({
     
     // main apply routine
     ,apply: function(im, w, h/*, image*/) {
-        var self = this;
-        if ( !self._isOn || !self._blendMode || !self._blendImage ) return im;
+        var self = this, bImg = self.blendImage;
+        if ( !self._isOn || !self._blendMode || !(bImg || self._blendImage) ) return im;
         
-        var startX = self.startX||0, startY = self.startY||0, 
+        //self._blendImage = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height };
+        
+        var image2 = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height },
+            startX = self.startX||0, startY = self.startY||0, 
             startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
             W1, W2, start, end, x, y, x2, y2,
-            image2 = self._blendImage, pix2,
-            blend = blend_functions[ self._blendMode ]
+            pix2, blend = blend_functions[ self._blendMode ]
         ;
         
         //if ( !blend ) return im;

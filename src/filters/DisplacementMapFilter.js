@@ -153,10 +153,12 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
-        var self = this;
-        if ( !self._isOn || !(self.map || self._map) ) return im;
+        var self = this, Map = self.map;
+        if ( !self._isOn || !(Map || self._map) ) return im;
         
-        var Map = self.map, _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
+        //self._map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height };
+        
+        var _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
             map, mapW, mapH, mapArea, displace, ww, hh,
             sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
             comx = self.componentX, comy = self.componentY, 

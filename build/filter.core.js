@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.0
-*   @built on 2016-07-21 23:47:08
+*   @built on 2016-07-22 11:49:32
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.0
-*   @built on 2016-07-21 23:47:08
+*   @built on 2016-07-22 11:49:32
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -70,16 +70,10 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
         };
     }
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = root.devicePixelRatio || 1
+    ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isThread ? window.devicePixelRatio : 1) || 1
     
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,no_typed_array_set = ('undefined' === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
-    ,typed_array_set = function( a, offset ) {
-        var i = a.length;
-        offset = offset || 0;
-        while ( --i >= 0 ) this[ i + offset ] = a[ i ];
-    }
-    ,typed_array_subarray = AP.slice
+    ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     
     ,log, _uuid = 0
 ;
@@ -145,39 +139,27 @@ FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
 
-if ( !FILTER.Array32F[PROTO].set )
-{
-    FILTER.Array32F[PROTO].set = typed_array_set;
-    FILTER.Array64F[PROTO].set = typed_array_set;
-    FILTER.Array8I[PROTO].set = typed_array_set;
-    FILTER.Array16I[PROTO].set = typed_array_set;
-    FILTER.Array32I[PROTO].set = typed_array_set;
-    FILTER.Array8U[PROTO].set = typed_array_set;
-    FILTER.Array16U[PROTO].set = typed_array_set;
-    FILTER.Array32U[PROTO].set = typed_array_set;
+FILTER.ArraySet = no_typed_array_set
+? function( a, b, offset ) {
+    offset = offset || 0;
+    for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
 }
-if ( !FILTER.Array32F[PROTO].subarray )
-{
-    FILTER.Array32F[PROTO].subarray = typed_array_subarray;
-    FILTER.Array64F[PROTO].subarray = typed_array_subarray;
-    FILTER.Array8I[PROTO].subarray = typed_array_subarray;
-    FILTER.Array16I[PROTO].subarray = typed_array_subarray;
-    FILTER.Array32I[PROTO].subarray = typed_array_subarray;
-    FILTER.Array8U[PROTO].subarray = typed_array_subarray;
-    FILTER.Array16U[PROTO].subarray = typed_array_subarray;
-    FILTER.Array32U[PROTO].subarray = typed_array_subarray;
-}
+: function( a, b, offset ){ a.set(b, offset||0); };
+
+FILTER.ArraySubArray = !FILTER.Array32F[PROTO].subarray
+? function( a, i1, i2 ){ return a.slice(i1, i2); }
+: function( a, i1, i2 ){ return a.subarray(i1, i2); };
 
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 
-/*FILTER.serialize = Browser.isNode
-    ? function( a, A ) { return Array.isArray( a ) ? a : Array.prototype.slice.call( a ); }
-    : function( a, A ) { return a; }
-;*/
-FILTER.TypedArray = Browser.isNode
+FILTER.TypedObj = isNode
+    ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
+    : function( o ) { return o; }
+;
+FILTER.TypedArray = isNode
     ? function( a, A ) {
         if ( (null == a) || (a instanceof A) ) return a;
         else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
@@ -188,11 +170,11 @@ FILTER.TypedArray = Browser.isNode
 ;
 
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
+/*if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
 {
     // add the missing method to the array
     CanvasPixelArray[PROTO].set = typed_array_set;
-}
+}*/
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 FILTER.NotImplemented = function( method ) {
@@ -387,7 +369,7 @@ var
         
         ,constructor: function( ) {
             var self = this;
-            //self.$superv('constructor', [100, false]);
+            //self.$super('constructor', 100, false);
         }
         
         // filters can have id's
@@ -523,7 +505,7 @@ var
                             if ( cb ) cb.call( self );
                         })
                         // process request
-                        .send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
+                        .send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} )
                     ;
                 }
                 else
@@ -576,7 +558,8 @@ var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, LN2 = Math.LN2, SQRT2 = Math.SQRT2,
     log2 = function( x ) { return Log(x) / LN2; },
     Log2 = Math.log2 || log2, Min = Math.min,
-    X = 0, Y = 1, Z = 2
+    X = 0, Y = 1, Z = 2,
+    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray
 ;
 
 function clamp( x, m, M )
@@ -856,7 +839,7 @@ function crop( im, w, h, x1, y1, x2, y2 )
     for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = (yw+x1)<<2;
-        cropped.set(im.subarray(pixel2,pixel2+nw4),pixel);
+        arrayset(cropped, subarray(im, pixel2, pixel2+nw4), pixel);
     }
     return cropped;
 }
@@ -873,7 +856,7 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = yw<<2;
-        padded.set(im.subarray(pixel2,pixel2+w4),offleft+pixel);
+        arrayset(padded, subarray(im, pixel2, pixel2+w4), offleft+pixel);
     }
     return padded;
 }
@@ -2214,6 +2197,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     notSupportTyped = FILTER._notSupportTypedArrays,
+    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
     Min = Math.min, Floor = Math.floor,
     FORMAT = FILTER.FORMAT,
     MIME = FILTER.MIME, ID = 0,
@@ -2772,7 +2756,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setData: function(a) {
         var self = this;
         if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-        self.oData.data.set( a ); // not supported in Opera, IE, Safari
+        arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
         self.octx.putImageData(self.oData, 0, 0); 
         self._needsRefresh |= HIST | SAT | SPECTRUM;
         if (self.selection) self._needsRefresh |= OSEL;
@@ -2787,14 +2771,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
             var sel = self.selection, ow = self.width-1, oh = self.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
             if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
-            self.oDataSel.data.set( a ); // not supported in Opera, IE, Safari
+            arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
             self._needsRefresh |= ODATA;
         }
         else
         {
             if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
-            self.oData.data.set( a ); // not supported in Opera, IE, Safari
+            arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oData, 0, 0); 
         }
         self._needsRefresh |= HIST | SAT | SPECTRUM;
@@ -2863,12 +2847,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( self._restorable )
             {
             ictx = self.ictx = self.iCanvas.getContext('2d');
-            self.iData.data.set( img.data ); // not supported in Opera, IE, Safari
+            arrayset(self.iData.data, img.data); // not supported in Opera, IE, Safari
             ictx.putImageData(self.iData, 0, 0); 
             }
             
             octx = self.octx = self.oCanvas.getContext('2d');
-            self.oData.data.set( img.data ); // not supported in Opera, IE, Safari
+            arrayset(self.oData.data, img.data); // not supported in Opera, IE, Safari
             octx.putImageData(self.oData, 0, 0); 
             //self._needsRefresh &= CLEAR_DATA;
         }
@@ -3514,88 +3498,49 @@ function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness
 {
 }*/
 
-
-
-FILTER.PerlinNoise = {
-    seed: seed,
-    
-    Image: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-        var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
-            invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-            w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
-        scale = scale || 1.0; roughness = roughness || 0.5;
-        octaves = octaves || 1; offsets = offsets || [[0,0]];
-        if ( seamless )
+FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
+        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
+        w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+    scale = scale || 1.0; roughness = roughness || 0.5;
+    octaves = octaves || 1; offsets = offsets || [[0,0]];
+    if ( seamless )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
-            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            if ( x >= w ) { x=0; y++; }
+            // simulate seamless stitching, i.e circular/tileable symmetry
+            nx = x > w2 ? w-1-x : x;
+            ny = y > h2 ? h-1-y : y;
+            if ( (nx < x) || (ny < y) )
             {
-                if ( x >= w ) { x=0; y++; }
-                // simulate seamless stitching, i.e circular/tileable symmetry
-                nx = x > w2 ? w-1-x : x;
-                ny = y > h2 ? h-1-y : y;
-                if ( (nx < x) || (ny < y) )
-                {
-                    j = (ny*w + nx) << 2;
-                    n[ i   ] = n[ j   ];
-                    n[ i+1 ] = n[ j+1 ];
-                    n[ i+2 ] = n[ j+2 ];
-                }
-                else
-                {
-                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                    n[ i+1 ] = n[ i ];
-                    n[ i+2 ] = n[ i ];
-                }
+                j = (ny*w + nx) << 2;
+                n[ i   ] = n[ j   ];
+                n[ i+1 ] = n[ j+1 ];
+                n[ i+2 ] = n[ j+2 ];
             }
-        }
-        else
-        {
-            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            else
             {
-                if ( x >= w ) { x=0; y++; }
                 n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
                 n[ i+1 ] = n[ i ];
                 n[ i+2 ] = n[ i ];
             }
         }
-        img.setData( n );
-        return img;
-    }/*,
-    
-    generate: function( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-        var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-            x, y, nx, ny, i, j, size = w*h, n = new Array8U(size), w2 = w>>>1, h2 = h>>>1;
-        scale = scale || 1.0; roughness = roughness || 0.5;
-        octaves = octaves || 1; offsets = offsets || [[0,0]];
-        if ( seamless )
+    }
+    else
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
-            for(x=0,y=0,i=0; i<size; i++,x++)
-            {
-                if ( x >= w ) { x=0; y++; }
-                // simulate seamless stitching, i.e circular/tileable symmetry
-                nx = x > w2 ? w-1-x : x;
-                ny = y > h2 ? h-1-y : y;
-                if ( (nx < x) || (ny < y) )
-                {
-                    n[ i ] = n[ ny*w + nx ];
-                }
-                else
-                {
-                    n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                }
-            }
+            if ( x >= w ) { x=0; y++; }
+            n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
+            n[ i+1 ] = n[ i ];
+            n[ i+2 ] = n[ i ];
         }
-        else
-        {
-            for(x=0,y=0,i=0; i<size; i++,x++)
-            {
-                if ( x >= w ) { x=0; y++; }
-                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-            }
-        }
-        return n;
-    }*/
+    }
+    img.setData( n );
+    return img;
 };
+FILTER.Image.PerlinNoise.seed = seed;
 
 }(FILTER);
 /* main code ends here */

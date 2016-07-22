@@ -55,22 +55,22 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         var self = this, masktype = self.type,
+            resize = FILTER.Image.resize, IMG = FILTER.ImArray,
             //needed arrays
             diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
-            index, N, N2, size, imSize;
+            index, N, N2, size, imSize, sqrt = Math.sqrt;
 
         //find largest side of the image
         //and resize the image to become square
-        if ( w !== h ) im = FILTER.Image.resize( im, w, h, N = w > h ? w : h, N );
+        if ( w !== h ) im = resize( im, w, h, N = w > h ? w : h, N );
         else  N = w; 
         N2 = Math.round(N/2);
         size = N*N; imSize = im.length;
-        diagonal = new FILTER.ImArray(imSize);
-        tile = new FILTER.ImArray(imSize);
+        diagonal = new IMG(imSize);
+        tile = new IMG(imSize);
         mask = new FILTER.Array8U(size);
 
-        i = 0; j = 0;
-        for (k=0; k<imSize; k+=4,i++)
+        for (i=0,j=0,k=0; k<imSize; k+=4,i++)
         {
             if ( i >= N ) {i=0; j++;}
             index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
@@ -82,64 +82,60 @@ FILTER.Create({
 
         //try to make your own masktypes here
         //Create the mask
-        for (i=0; i<=N2-1; i++)
+        for (i=0,j=0; i<N2; j++)
         {
-            for (j=0; j<=N2-1; j++)
+            if ( j >= N2 ) { j=0; i++; }
+            switch(masktype)
             {
-                switch(masktype)
-                {
-                    case 0://RADIAL
-                    d = Math.sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
-                    break;
+                case 0://RADIAL
+                d = sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
+                break;
 
-                    case 1://LINEAR 1
-                    if ( (N2-i) < (N2-j) )
-                        d = (j-N2)/N2;
+                case 1://LINEAR 1
+                if ( (N2-i) < (N2-j) )
+                    d = (j-N2)/N2;
 
-                    else //if ( (N2-i) >= (N2-j) )
-                        d = (i-N/2)/N2;
-                    break;
+                else //if ( (N2-i) >= (N2-j) )
+                    d = (i-N/2)/N2;
+                break;
 
-                    case 2://LINEAR 2
-                    default:
-                    if ( (N2-i) < (N2-j) )
-                        d = Math.sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
+                case 2://LINEAR 2
+                default:
+                if ( (N2-i) < (N2-j) )
+                    d = sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
 
-                    else //if ( (N2-i)>=(N2-j) )
-                        d = Math.sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
-                    break;
-                }
-                //Scale d To range from 1 To 255
-                d = 255 - (255 * d);
-                if (d < 1) d = 1;
-                else if (d > 255) d = 255;
-
-                //Form the mask in Each quadrant
-                mask [i     + j*N      ] = d;
-                mask [i     + (N-1-j)*N] = d;
-                mask [N-1-i + j*N      ] = d;
-                mask [N-1-i + (N-1-j)*N] = d;
+                else //if ( (N2-i)>=(N2-j) )
+                    d = sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
+                break;
             }
+            //Scale d To range from 1 To 255
+            d = 255 - (255 * d);
+            if (d < 1) d = 1;
+            else if (d > 255) d = 255;
+
+            //Form the mask in Each quadrant
+            mask [i     + j*N      ] = d;
+            mask [i     + (N-1-j)*N] = d;
+            mask [N-1-i + j*N      ] = d;
+            mask [N-1-i + (N-1-j)*N] = d;
         }
 
         //Create the tile
-        for (j=0; j<=N-1; j++)
+        for (j=0,i=0; j<N; i++)
         {
-            for (i=0; i<=N-1; i++)
-            {
-                index = i+j*N;
-                a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
-                a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-                tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
-                tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
-                tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
-                tile[index+3] = im[index+3];
-            }
+            if ( i >= N ) {i=0; j++;}
+            index = i+j*N;
+            a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
+            a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
+            tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
+            tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
+            tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
+            tile[index+3] = im[index+3];
         }
 
         //create the new tileable image
         //if it wasn't a square image, resize it back to the original scale
-        if ( w !== h ) tile = FILTER.Image.resize( tile, N, N, w, h );
+        if ( w !== h ) tile = resize( tile, N, N, w, h );
 
         // return the new image data
         return tile;

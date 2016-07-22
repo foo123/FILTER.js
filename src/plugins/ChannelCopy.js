@@ -50,24 +50,19 @@ FILTER.Create({
         if ( srcImg )
         {
             self.srcImg = srcImg;
-            self._srcImg = { data: srcImg.getData( ), width: srcImg.width, height: srcImg.height };
-        }
-        else
-        {
-            self.srcImg = null;
             self._srcImg = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Src = self.srcImg;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _srcImg: self._srcImg
+                _srcImg: self._srcImg || (Src ? { data: Src.getData( ), width: Src.width, height: Src.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
                 ,srcChannel: self.srcChannel
@@ -84,6 +79,7 @@ FILTER.Create({
             
             params = json.params;
             
+            self.srcImg = null;
             self._srcImg = params._srcImg;
             if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
             self.centerX = params.centerX;
@@ -100,13 +96,14 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn || !self._srcImg ) return im;
+        var self = this, Src = self.srcImg;
+        if ( !self._isOn || !(Src || self._srcImg) ) return im;
         
-        var src = self._srcImg.data,
+        //self._srcImg = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height };
+        
+        var _src = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height },
+            src = _src.data, w2 = _src.width, h2 = _src.height,
             i, l = im.length, l2 = src.length, 
-            w2 = self._srcImg.width, 
-            h2 = self._srcImg.height,
             sC = self.srcChannel, tC = self.dstChannel,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w,w2), hm = Min(h, h2),  
