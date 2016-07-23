@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER, undef){
 "use strict";
 
 var // utils
@@ -561,21 +561,21 @@ var Color = FILTER.Color = FILTER.Class({
         parse: function(s, withColorStops, parsed, onlyColor) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
             
-            if ( 'hsl' == parsed || 
+            if ( 'hsl' === parsed || 
                 ( !parsed && (m = s.match(Color.hslRE)) ) 
             )
             {
                 // hsl(a)
-                if ( 'hsl' == parsed )
+                if ( 'hsl' === parsed )
                 {
-                    hasOpacity = 'hsla' == s[0].toLowerCase();
+                    hasOpacity = 'hsla' === s[0].toLowerCase();
                     var col = s[1].split(',').map(trim);
                 }
                 else
                 {
                     end = m[0].length;
                     end2 = 0;
-                    hasOpacity = 'hsla' == m[1].toLowerCase();
+                    hasOpacity = 'hsla' === m[1].toLowerCase();
                     var col = m[2].split(',').map(trim);
                 }    
                 
@@ -585,8 +585,8 @@ var Color = FILTER.Color = FILTER.Class({
                 var a = hasOpacity && null!=col[3] ? col[3] : '1';
                 
                 h = parseFloat(h, 10);
-                s = ('%'==s.slice(-1)) ? parseFloat(s, 10) : parseFloat(s, 10)*C2P;
-                l = ('%'==l.slice(-1)) ? parseFloat(l, 10) : parseFloat(l, 10)*C2P;
+                s = ('%'===s.slice(-1)) ? parseFloat(s, 10) : parseFloat(s, 10)*C2P;
+                l = ('%'===l.slice(-1)) ? parseFloat(l, 10) : parseFloat(l, 10)*C2P;
                 a = parseFloat(a, 10);
                 
                 c = new Color().fromHSL([h, s, l, a]);
@@ -602,21 +602,21 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'rgb' == parsed || 
+            if ( 'rgb' === parsed || 
                 ( !parsed && (m = s.match(Color.rgbRE)) ) 
             )
             {
                 // rgb(a)
-                if ( 'rgb' == parsed )
+                if ( 'rgb' === parsed )
                 {
-                    hasOpacity = 'rgba' == s[0].toLowerCase();
+                    hasOpacity = 'rgba' === s[0].toLowerCase();
                     var col = s[1].split(',').map(trim);
                 }
                 else
                 {
                     end = m[0].length;
                     end2 = 0;
-                    hasOpacity = 'rgba' == m[1].toLowerCase();
+                    hasOpacity = 'rgba' === m[1].toLowerCase();
                     var col = m[2].split(',').map(trim);
                 }    
                     
@@ -625,9 +625,9 @@ var Color = FILTER.Color = FILTER.Class({
                 var b = col[2] ? col[2] : '0';
                 var a = hasOpacity && null!=col[3] ? col[3] : '1';
                 
-                r = ('%'==r.slice(-1)) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
-                g = ('%'==g.slice(-1)) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
-                b = ('%'==b.slice(-1)) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
+                r = ('%'===r.slice(-1)) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
+                g = ('%'===g.slice(-1)) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
+                b = ('%'===b.slice(-1)) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
                 a = parseFloat(a, 10);
                 
                 c = new Color().fromRGB([r, g, b, a]);
@@ -643,12 +643,12 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'hex' == parsed || 
+            if ( 'hex' === parsed || 
                 ( !parsed && (m = s.match(Color.hexRE)) ) 
             )
             {
                 // hex
-                if ( 'hex' == parsed )
+                if ( 'hex' === parsed )
                 {
                     var col = Color.hex2rgb( s[0] );
                 }
@@ -677,12 +677,12 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'keyword' == parsed || 
+            if ( 'keyword' === parsed || 
                 ( !parsed && (m = s.match(Color.keywordRE)) ) 
             )
             {
                 // keyword
-                if ( 'keyword' == parsed )
+                if ( 'keyword' === parsed )
                 {
                     var col = s[0];
                 }

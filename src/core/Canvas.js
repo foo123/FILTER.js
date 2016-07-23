@@ -98,23 +98,23 @@ CanvasProxyCtx = FILTER.Class({
     },
     
     fillRect: function( x, y, w, h ) {
-        var self = this, W = self._w, H = self._h, col, fill = self.fillStyle;
+        var self = this, W = self._w, H = self._h, col, fillStyle = self.fillStyle;
         if ( null == x ) x = 0;
         if ( null == y ) y = 0;
         if ( null == w ) w = W;
         if ( null == h ) h = H;
-        if ( fill === +fill )
+        if ( fillStyle === +fillStyle )
         {
-            col = Color.Color2RGBA( fill );
+            col = Color.Color2RGBA( fillStyle );
         }
-        else if ( fill && fill.substr )
+        else if ( fillStyle && fillStyle.substr )
         {
-            col = Color.parse( fill ).toRGB( false );
+            col = Color.fromString( fillStyle ).toRGB( false );
             col[3] = ~~(255*col[3]);
         }
         else
         {
-            col = fill && (2 < fill.length) ? fill : [0,0,0,0];
+            col = fillStyle && (2 < fillStyle.length) ? fillStyle : [0,0,0,0];
         }
         fill( self._data, W, H, col, x, y, x+w-1, y+h-1 );
     },
