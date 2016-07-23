@@ -64,25 +64,23 @@ function parse_args( args )
     return {flags: Flags, options: Options, params: Params};
 }
 
-
 var path = require('path'), F = require('../../build/filter.bundle'),
-    parallel = !!parse_args().options['parallel'];
+    perlin
+;
 
-console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
-var grayscale = new F.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
-if ( parallel ) grayscale.worker( true );
-console.log('Loading image..');
-F.IO.BinaryReader( F.Codec.JPG.decoder ).load(path.join(__dirname,'./che.jpg'), function( che ){
-    console.log('./che.jpg' + ' loaded with dims: ' + che.width + ',' + che.height);
-    console.log('Applying grayscale filter..');
-    grayscale.apply( che, function( ){
-        if ( parallel ) grayscale.worker( false );
-        console.log('Saving grayscaled image..');
-        F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./che_grayscale.jpg'), che,
-        function( file ){
-            console.log('grayscale image saved to: ' + './che_grayscale.jpg');
-        }, function( err ){
-            console.log('error while saving image: ' + err);
-        });
-    });
+console.log('Generating perlin noise..');
+perlin = F.Image.PerlinNoise(
+    200 /* width */, 200 /* height */,
+    false/* seamless pattern */,
+    true/* grayscale */,
+    80/* baseX */, 50/* baseY */,
+    4/* num octaves */,
+    [[0,0],[10,10],[20,10],[10,20]] /* octave offsets */
+);
+console.log('Saving perlin noise..');
+F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./perlin.jpg'), perlin,
+function( file ){
+    console.log('perlin noise saved to: ' + './perlin.jpg');
+}, function( err ){
+    console.log('error while saving image: ' + err);
 });

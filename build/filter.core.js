@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.0
-*   @built on 2016-07-22 11:49:32
+*   @built on 2016-07-24 01:00:06
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.0
-*   @built on 2016-07-22 11:49:32
+*   @built on 2016-07-24 01:00:06
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -283,7 +283,8 @@ var
                             //log(data.im[0]);
                             var im = FILTER.TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
-                            self.send( 'apply', {im: filter._apply( im, data.im[ 1 ], data.im[ 2 ] ), meta: filter.hasMeta ? filter.getMeta() : null} );
+                            im = filter._apply( im, data.im[ 1 ], data.im[ 2 ] );
+                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
                         }
                         else
                         {
@@ -496,11 +497,12 @@ var
                         })*/
                         .listen( 'apply', function( data ) { 
                             self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
-                            if ( data && data.im ) 
+                            if ( data ) 
                             {
                                 // listen for metadata if needed
+                                //if ( null != data.update ) self._update = !!data.update;
                                 if ( data.meta ) self.setMeta( data.meta );
-                                if ( self._update ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                                if ( data.im/*self._update*/ ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
                             }
                             if ( cb ) cb.call( self );
                         })
@@ -953,7 +955,7 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER, undef){
 "use strict";
 
 var // utils
@@ -1510,21 +1512,21 @@ var Color = FILTER.Color = FILTER.Class({
         parse: function(s, withColorStops, parsed, onlyColor) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
             
-            if ( 'hsl' == parsed || 
+            if ( 'hsl' === parsed || 
                 ( !parsed && (m = s.match(Color.hslRE)) ) 
             )
             {
                 // hsl(a)
-                if ( 'hsl' == parsed )
+                if ( 'hsl' === parsed )
                 {
-                    hasOpacity = 'hsla' == s[0].toLowerCase();
+                    hasOpacity = 'hsla' === s[0].toLowerCase();
                     var col = s[1].split(',').map(trim);
                 }
                 else
                 {
                     end = m[0].length;
                     end2 = 0;
-                    hasOpacity = 'hsla' == m[1].toLowerCase();
+                    hasOpacity = 'hsla' === m[1].toLowerCase();
                     var col = m[2].split(',').map(trim);
                 }    
                 
@@ -1534,8 +1536,8 @@ var Color = FILTER.Color = FILTER.Class({
                 var a = hasOpacity && null!=col[3] ? col[3] : '1';
                 
                 h = parseFloat(h, 10);
-                s = ('%'==s.slice(-1)) ? parseFloat(s, 10) : parseFloat(s, 10)*C2P;
-                l = ('%'==l.slice(-1)) ? parseFloat(l, 10) : parseFloat(l, 10)*C2P;
+                s = ('%'===s.slice(-1)) ? parseFloat(s, 10) : parseFloat(s, 10)*C2P;
+                l = ('%'===l.slice(-1)) ? parseFloat(l, 10) : parseFloat(l, 10)*C2P;
                 a = parseFloat(a, 10);
                 
                 c = new Color().fromHSL([h, s, l, a]);
@@ -1551,21 +1553,21 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'rgb' == parsed || 
+            if ( 'rgb' === parsed || 
                 ( !parsed && (m = s.match(Color.rgbRE)) ) 
             )
             {
                 // rgb(a)
-                if ( 'rgb' == parsed )
+                if ( 'rgb' === parsed )
                 {
-                    hasOpacity = 'rgba' == s[0].toLowerCase();
+                    hasOpacity = 'rgba' === s[0].toLowerCase();
                     var col = s[1].split(',').map(trim);
                 }
                 else
                 {
                     end = m[0].length;
                     end2 = 0;
-                    hasOpacity = 'rgba' == m[1].toLowerCase();
+                    hasOpacity = 'rgba' === m[1].toLowerCase();
                     var col = m[2].split(',').map(trim);
                 }    
                     
@@ -1574,9 +1576,9 @@ var Color = FILTER.Color = FILTER.Class({
                 var b = col[2] ? col[2] : '0';
                 var a = hasOpacity && null!=col[3] ? col[3] : '1';
                 
-                r = ('%'==r.slice(-1)) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
-                g = ('%'==g.slice(-1)) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
-                b = ('%'==b.slice(-1)) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
+                r = ('%'===r.slice(-1)) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
+                g = ('%'===g.slice(-1)) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
+                b = ('%'===b.slice(-1)) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
                 a = parseFloat(a, 10);
                 
                 c = new Color().fromRGB([r, g, b, a]);
@@ -1592,12 +1594,12 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'hex' == parsed || 
+            if ( 'hex' === parsed || 
                 ( !parsed && (m = s.match(Color.hexRE)) ) 
             )
             {
                 // hex
-                if ( 'hex' == parsed )
+                if ( 'hex' === parsed )
                 {
                     var col = Color.hex2rgb( s[0] );
                 }
@@ -1626,12 +1628,12 @@ var Color = FILTER.Color = FILTER.Class({
                 }
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ( 'keyword' == parsed || 
+            if ( 'keyword' === parsed || 
                 ( !parsed && (m = s.match(Color.keywordRE)) ) 
             )
             {
                 // keyword
-                if ( 'keyword' == parsed )
+                if ( 'keyword' === parsed )
                 {
                     var col = s[0];
                 }
@@ -2039,23 +2041,23 @@ CanvasProxyCtx = FILTER.Class({
     },
     
     fillRect: function( x, y, w, h ) {
-        var self = this, W = self._w, H = self._h, col, fill = self.fillStyle;
+        var self = this, W = self._w, H = self._h, col, fillStyle = self.fillStyle;
         if ( null == x ) x = 0;
         if ( null == y ) y = 0;
         if ( null == w ) w = W;
         if ( null == h ) h = H;
-        if ( fill === +fill )
+        if ( fillStyle === +fillStyle )
         {
-            col = Color.Color2RGBA( fill );
+            col = Color.Color2RGBA( fillStyle );
         }
-        else if ( fill && fill.substr )
+        else if ( fillStyle && fillStyle.substr )
         {
-            col = Color.parse( fill ).toRGB( false );
+            col = Color.fromString( fillStyle ).toRGB( false );
             col[3] = ~~(255*col[3]);
         }
         else
         {
-            col = fill && (2 < fill.length) ? fill : [0,0,0,0];
+            col = fillStyle && (2 < fillStyle.length) ? fillStyle : [0,0,0,0];
         }
         fill( self._data, W, H, col, x, y, x+w-1, y+h-1 );
     },
@@ -3185,14 +3187,162 @@ FILTER.IO.Writer = FILTER.Class({
 
 }(FILTER);/**
 *
-* Filter Utils, perlin/simplex noise
+* Filter Fx, gradient, radial-gradient
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
 
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
+var Image = FILTER.Image, floor = Math.floor, sqrt = Math.sqrt,
+    abs = Math.abs, sin =Math.sin, cos = Math.cos,
+    pi = Math.PI, pi2 = 2*pi, pi_2 = pi/2, pi_32 = 3*pi_2, min = Math.min;
+
+Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
+    var Grad = new Image().restorable(false).createImageData(w, h),
+        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
+        t, invt, px, py, c1, c2, stop1, stop2, sn, cs, r;
+    stops = stops ? stops.slice() : stops;
+    colors = colors ? colors.slice() : colors;
+    angle = angle || 0.0;
+    if ( 0 > angle ) angle += pi2;
+    if ( pi2 < angle ) angle -= pi2;
+    sn = abs(sin(angle)); cs = abs(cos(angle));
+    r = cs*w + sn*h;
+    if ( !stops )
+    {
+        if ( 1 === cl )
+        {
+            stops = [1.0];
+        }
+        else
+        {
+            stops = new Array(cl);
+            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
+        }
+    }
+    else if ( stops.length < cl )
+    {
+        var cstoplen = stops.length, cstop = stops[cstoplen-1];
+        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
+    }
+    if ( 1.0 != stops[stops.length-1] )
+    {
+        stops.push( 1.0 );
+        colors.push( colors[colors.length-1] );
+    }
+    for(x=0,y=0,i=0; i<size; i+=4,x++)
+    {
+        if ( x >= w ) { x=0; y++; }
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            px = w-1-x; py = y;
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            px = w-1-x; py = h-1-y;
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            px = x; py = h-1-y;
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
+        {
+            px = x; py = y;
+        }
+        t = min(1.0, (cs*px + sn*py) / r);
+        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+        stop1 = 0 === stop2 ? 0 : stop2-1;
+        c1 = colors[stop1]; c2 = colors[stop2];
+        // warp the value if needed, between stop ranges
+        t = stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t;
+        invt = 1.0-t;
+        g[i  ] = (~~(c1[0]*invt + c2[0]*t)) & 255;
+        g[i+1] = (~~(c1[1]*invt + c2[1]*t)) & 255;
+        g[i+2] = (~~(c1[2]*invt + c2[2]*t)) & 255;
+        g[i+3] = (~~(c1[3]*invt + c2[3]*t)) & 255;
+    }
+    Grad.setData( g );
+    return Grad;
+};
+
+Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY ) {
+    var Grad = new Image().restorable(false).createImageData(w, h),
+        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
+        t, invt, px, py, c1, c2, stop1, stop2;
+    centerX = centerX || 0; centerY = centerY || 0;
+    radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
+    //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
+    if ( radiusY > radiusX )
+    {
+        radiusX = radiusX/radiusY;
+        radiusY = 1.0;
+    }
+    else if ( radiusX > radiusY )
+    {
+        radiusY = radiusY/radiusX;
+        radiusX = 1.0;
+    }
+    else
+    {
+        radiusY = 1.0;
+        radiusX = 1.0;
+    }
+    stops = stops ? stops.slice() : stops;
+    colors = colors ? colors.slice() : colors;
+    if ( !stops )
+    {
+        if ( 1 === cl )
+        {
+            stops = [1.0];
+        }
+        else
+        {
+            stops = new Array(cl);
+            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
+        }
+    }
+    else if ( stops.length < cl )
+    {
+        var cstoplen = stops.length, cstop = stops[cstoplen-1];
+        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
+    }
+    if ( 1.0 != stops[stops.length-1] )
+    {
+        stops.push( 1.0 );
+        colors.push( colors[colors.length-1] );
+    }
+    for(x=0,y=0,i=0; i<size; i+=4,x++)
+    {
+        if ( x >= w ) { x=0; y++; }
+        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+        t = min(1.0, sqrt(px*px + py*py));
+        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+        stop1 = 0 === stop2 ? 0 : stop2-1;
+        c1 = colors[stop1]; c2 = colors[stop2];
+        // warp the value if needed, between stop ranges
+        t = stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t;
+        invt = 1.0-t;
+        g[i  ] = (~~(c1[0]*invt + c2[0]*t)) & 255;
+        g[i+1] = (~~(c1[1]*invt + c2[1]*t)) & 255;
+        g[i+2] = (~~(c1[2]*invt + c2[2]*t)) & 255;
+        g[i+3] = (~~(c1[3]*invt + c2[3]*t)) & 255;
+    }
+    Grad.setData( g );
+    return Grad;
+};
+
+}(FILTER);/**
+*
+* Filter Fx, perlin/simplex noise
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var Image = FILTER.Image, FLOOR = Math.floor,
+    sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:
 
@@ -3478,10 +3628,10 @@ function perlin2( x, y )
     }
     return noiseSum / weightSum;
 }*/
-function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+function octaved(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
-        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
 
     for (octave=0; octave<octaves; octave++) 
     {
@@ -3491,17 +3641,42 @@ function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness
         weightSum += layerWeight;
         layerWeight *= roughness;
     }
-    return noiseSum / weightSum;
+    v = ~~(0xff*(0.5*noiseSum/weightSum+0.5));
+    data[index  ] = v;
+    data[index+1] = v;
+    data[index+2] = v;
+    data[index+3] = 255;
+}
+function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
+
+    for (octave=0; octave<octaves; octave++) 
+    {
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    v = ~~(0xffffff*(0.5*noiseSum/weightSum+0.5));
+    data[index  ] = (v >>> 16) & 255;
+    data[index+1] = (v >>> 8) & 255;
+    data[index+2] = (v) & 255;
+    data[index+3] = 255;
 }
 
 /*function turbulence()
 {
 }*/
 
-FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var img = new FILTER.Image().restorable(false).fill("rgb(0,0,0)", 0, 0, w, h),
-        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-        w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var perlin = new Image().restorable(false).createImageData(w, h),
+        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
+        noise = use_perlin ? perlin2 : simplex2,
+        generate = grayscale ? octaved : octaved_rgb,
+        n = perlin.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
     scale = scale || 1.0; roughness = roughness || 0.5;
     octaves = octaves || 1; offsets = offsets || [[0,0]];
     if ( seamless )
@@ -3518,12 +3693,11 @@ FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, o
                 n[ i   ] = n[ j   ];
                 n[ i+1 ] = n[ j+1 ];
                 n[ i+2 ] = n[ j+2 ];
+                n[ i+3 ] = 255;
             }
             else
             {
-                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                n[ i+1 ] = n[ i ];
-                n[ i+2 ] = n[ i ];
+                generate(n, i, noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
             }
         }
     }
@@ -3532,15 +3706,13 @@ FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, o
         for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
             if ( x >= w ) { x=0; y++; }
-            n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-            n[ i+1 ] = n[ i ];
-            n[ i+2 ] = n[ i ];
+            generate(n, i, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
         }
     }
-    img.setData( n );
-    return img;
+    perlin.setData( n );
+    return perlin;
 };
-FILTER.Image.PerlinNoise.seed = seed;
+Image.PerlinNoise.seed = seed;
 
 }(FILTER);
 /* main code ends here */

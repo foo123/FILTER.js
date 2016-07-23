@@ -2,9 +2,12 @@
 
 __0.9.0__
 
-* restructure folders, separate builds for core, io, codecs, filters, plugins, bundle
+* restructure folders, separate builds for core, io, fx, util, codecs, filters, plugins, bundle
 * full support for nodejs (including parallel processing through forked processes)
 * various fixes and refactorings (esp. for nodejs support)
+* new effects: `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter,Image` (fx/ folder)
+* new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
+* `PerlinNoise` is **not** a plugin anymore, it is extra static part of `Filter,Image` (fx/ folder)
 * update dependencies (asynchronous)
 
 __0.8.0__

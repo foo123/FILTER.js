@@ -1439,7 +1439,10 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var TypedArray=FILTER.TypedArray;
+var TypedArray = FILTER.TypedArray, abs = Math.abs, min = Math.min, max = Math.max,
+    TILE = FILTER.MODE.TILE, STRETCH = FILTER.MODE.STRETCH,
+    Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
+    
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
@@ -1504,9 +1507,10 @@ FILTER.Create({
             /* seems to have issues when tol is exactly 1.0*/
             tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
             OC, NC = self.color, /*pix = 4,*/ dy = w<<2, 
-            x0 = self.x, y0 = self.y, imSize = im.length, 
+            x0 = self.x, y0 = self.y, imSize = im.length,
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
+            l, i, x, x1, x2, yw, stack, slen, segment, notdone
+        ;
         /*
          * Filled horizontal segment of scanline y for xl<=x<=xr.
          * Parent segment was on line y-dy.  dy=1 or -1
@@ -1516,8 +1520,9 @@ FILTER.Create({
             (im[x0+yw] === NC[0] && im[x0+yw+1] === NC[1] && im[x0+yw+2] === NC[2]) ) return im;
         
         // seed color is the image color at x0,y0 position
-        OC = [im[x0+yw], im[x0+yw+1], im[x0+yw+2]];    
-        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
+        OC = new Array8U(3);
+        OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
+        stack = new Array(imSize>>>2); slen = 0; // pre-allocate and soft push/pop for speed
         if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
         /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
         
@@ -1536,7 +1541,7 @@ FILTER.Create({
                 i = x+yw;
                 if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[i] = NC[0];
+                    im[i  ] = NC[0];
                     im[i+1] = NC[1];
                     im[i+2] = NC[2];
                 }
@@ -1548,8 +1553,12 @@ FILTER.Create({
             if ( x >= x1 ) 
             {
                 // goto skip:
-                while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                i = x+yw;
+                while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                {
                     x+=4;
+                    i = x+yw;
+                }
                 l = x;
                 notdone = (x <= x2);
             }
@@ -1569,7 +1578,7 @@ FILTER.Create({
                 i = x+yw;
                 while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[i] = NC[0];
+                    im[i  ] = NC[0];
                     im[i+1] = NC[1];
                     im[i+2] = NC[2];
                     x+=4; i = x+yw;
@@ -1579,8 +1588,12 @@ FILTER.Create({
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
                 }
-    /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                i = x+yw;
+    /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) ) 
+                {
                     x+=4;
+                    i = x+yw;
+                }
                 l = x;
                 notdone = (x <= x2);
             }
@@ -1591,24 +1604,27 @@ FILTER.Create({
     }
 });
 
-/*    
 FILTER.Create({
     name : "PatternFillFilter"
     ,x: 0
     ,y: 0
+    ,offsetX: 0
+    ,offsetY: 0
     ,tolerance: 0.0
     ,pattern: null
     ,_pattern: null
-    ,mode: FILTER.MODE.TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
+    ,mode: TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
     
     ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
     
-    ,init: function( x, y, pattern, mode, tolerance ) {
+    ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance ) {
         var self = this;
         self.x = x || 0;
         self.y = y || 0;
-        self.setPattern( pattern );
-        self.mode = mode || FILTER.MODE.TILE;
+        self.offsetX = offsetX || 0;
+        self.offsetY = offsetY || 0;
+        if ( pattern ) self.setPattern( pattern );
+        self.mode = mode || TILE;
         self.tolerance = tolerance || 0.0;
     }
     
@@ -1616,27 +1632,28 @@ FILTER.Create({
         var self = this;
         self.pattern = null;
         self._pattern = null;
+        self.x = null;
+        self.y = null;
+        self.offsetX = null;
+        self.offsetY = null;
+        self.tolerance = null;
+        self.mode = null;
         self.$super('dispose');
         return self;
     }
     
     ,setPattern( pattern ) {
         var self = this;
-        if ( pattern instanceof FILTER.Image )
+        if ( pattern )
         {
             self.pattern = pattern;
-            self._pattern = {data:pattern.getData(), width:pattern.width, height:pattern.height};
-        }
-        else
-        {
-            self.pattern = null;
             self._pattern = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
+        var self = this, Pat = self.pattern;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
@@ -1644,9 +1661,11 @@ FILTER.Create({
             ,params: {
                  x: self.x
                 ,y: self.y
+                ,offsetX: self.offsetX
+                ,offsetY: self.offsetY
                 ,tolerance: self.tolerance
                 ,mode: self.mode
-                ,_pattern: self._pattern
+                ,_pattern: self._pattern || (Pat ? { data: Pat.getData( ), width: Pat.width, height: Pat.height } : null)
             }
         };
     }
@@ -1661,48 +1680,77 @@ FILTER.Create({
             
             self.x = params.x;
             self.y = params.y;
+            self.offsetX = params.offsetX;
+            self.offsetY = params.offsetY;
             self.tolerance = params.tolerance;
             self.mode = params.mode;
+            self.pattern = null;
             self._pattern = params._pattern;
+            if ( self._pattern ) self._pattern.data = TypedArray( self._pattern.data, FILTER.ImArray );
         }
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-         if ( !this._pattern ) return im;
-        var self = this, 
-            // seems to have issues when tol is exactly 1.0
-            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
-            OC, dy = w<<2, pattern = self._pattern.data,
-            pw = self._pattern.width, ph = self._pattern.height, 
-            x0 = self.x, y0 = self.y, imSize = im.length, 
-            ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, slen, segment, notdone, abs = Math.abs
-
-            yw = (y0*w)<<2; x0 <<= 2;
+        var self = this, Pat = self.pattern;
+        
+        if ( !self._isOn || !(Pat || self._pattern) ) return im;
+        
+        // seems to have issues when tol is exactly 1.0
+        var _pat = self._pattern || { data: Pat.getData( ), width: Pat.width, height: Pat.height },
+            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+            OC, NC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
+            x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
+            imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
+            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone
+        ;
+        
+        if ( 0 > px0 ) px0 += pw;
+        if ( 0 > py0 ) py0 += ph;
+        
+        y = y0; yw = (y0*w)<<2; x0 <<= 2;
         if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
         
-        stack = new Array(h*w); slen = 0; // pre-allocate and soft push/pop for speed
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; // needed in some cases 
-        stack[slen++]=[yw+dy, x0, x0, -dy]; // seed segment (popped 1st)
+        // seed color is the image color at x0,y0 position
+        OC = new Array8U(3);
+        OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
+        stack = new Array(size); slen = 0; // pre-allocate and soft push/pop for speed
+        visited = new Array32U(Math.ceil(size/32));
+        if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy, y+1]; /* needed in some cases */
+        /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy, y]; /* seed segment (popped 1st) */
         
         while ( slen > 0 ) 
         {
-            // pop segment off stack and fill a neighboring scan line 
-            segment = stack]--slen\;
+            /* pop segment off stack and fill a neighboring scan line */
+            segment = stack[--slen];
             yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
+            y = segment[4];
             
-            // segment of scan line y-dy for x1<=x<=x2 was previously filled,
-            // now explore adjacent pixels in scan line y
+            /*
+             * segment of scan line y-dy for x1<=x<=x2 was previously filled,
+             * now explore adjacent pixels in scan line y
+             */
             for (x=x1; x>=xmin; x-=4)
             {
                 i = x+yw;
-                if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                if ( !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[i] = NC[0];
-                    im[i+1] = NC[1];
-                    im[i+2] = NC[2];
+                    visited[i>>>7] |= 1<<((i>>>2)&31);
+                    if ( STRETCH === mode )
+                    {
+                        px = ~~(pw*(x>>>2)/w);
+                        py = ~~(ph*(y)/h);
+                    }
+                    else
+                    {
+                        px = ((x>>>2)+px0) % pw;
+                        py = (y+py0) % ph;
+                    }
+                    pi = (px + py*pw) << 2;
+                    im[i  ] = pattern[pi  ];
+                    im[i+1] = pattern[pi+1];
+                    im[i+2] = pattern[pi+2];
                 }
                 else
                 {
@@ -1712,8 +1760,12 @@ FILTER.Create({
             if ( x >= x1 ) 
             {
                 // goto skip:
-                while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                i = x+yw;
+                while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                {
                     x+=4;
+                    i = x+yw;
+                }
                 l = x;
                 notdone = (x <= x2);
             }
@@ -1722,7 +1774,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  // leak on left?
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy, 0 < dy ? y-1 : y+1];  /* leak on left? */
                 }
                 x = x1+4;
                 notdone = true;
@@ -1731,20 +1783,36 @@ FILTER.Create({
             while ( notdone ) 
             {
                 i = x+yw;
-                while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                 {
-                    im[i] = NC[0];
-                    im[i+1] = NC[1];
-                    im[i+2] = NC[2];
+                    visited[i>>>7] |= 1<<((i>>>2)&31);
+                    if ( STRETCH === mode )
+                    {
+                        px = ~~(pw*(x>>>2)/w);
+                        py = ~~(ph*(y)/h);
+                    }
+                    else
+                    {
+                        px = ((x>>>2)+px0) % pw;
+                        py = (y+py0) % ph;
+                    }
+                    pi = (px + py*pw) << 2;
+                    im[i  ] = pattern[pi  ];
+                    im[i+1] = pattern[pi+1];
+                    im[i+2] = pattern[pi+2];
                     x+=4; i = x+yw;
                 }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
+                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy, 0 < dy ? y+1 : y-1];
                 if ( x > x2+4 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack.push([yw, x2+4, x-4, -dy]);	// leak on right?
+                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy, 0 < dy ? y-1 : y+1];	/* leak on right? */
                 }
-    /*skip:* /   while ( x<=x2 && !(abs(OC[0]-im[x+yw])<=tol && abs(OC[1]-im[x+yw+1])<=tol && abs(OC[2]-im[x+yw+2])<=tol) ) 
+                i = x+yw;
+    /*skip:*/   while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                {
                     x+=4;
+                    i = x+yw;
+                }
                 l = x;
                 notdone = (x <= x2);
             }
@@ -1754,7 +1822,7 @@ FILTER.Create({
         return im;
     }
 });
-*/
+
 }(FILTER);/**
 *
 * HSV Converter Plugin

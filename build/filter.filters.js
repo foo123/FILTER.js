@@ -231,7 +231,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
-        var self = this/*, cache = {}*/;
+        var self = this/*, cache = {}*/, update = false;
         self.hasMeta = false; self._meta = [];
         if ( self._isOn && self._stack.length )
         {
@@ -244,10 +244,12 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                 if ( filter && filter._isOn ) 
                 {
                     im = filter._apply(im, w, h, image/*, cache*/);
+                    update = update || filter._update;
                     if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
                 }
             }
         }
+        self._update = update;
         self.hasMeta = self._meta.length > 0;
         return im;
     }

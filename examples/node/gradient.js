@@ -68,12 +68,23 @@ var path = require('path'), F = require('../../build/filter.bundle'),
     radial = !!parse_args().options['radial'], gradient
 ;
 
-console.log('Applying '+(radial?'radial':'linear')+' gradient..');
+console.log('Generating '+(radial?'radial':'linear')+' gradient..');
 gradient = radial
-? F.Image.RadialGradient(200, 200, [[255,0,0,255],[0,255,0,255],[0,0,255,255]], [0, 0.2, 1], 100, 100)
-: F.Image.Gradient(200, 200, [[255,0,0,255],[0,255,0,255],[0,0,255,255]], [0, 0.7, 1], Math.PI/4);
+? F.Image.RadialGradient(
+    200, 200, /* width,height */
+    [[255,0,0,255],[0,255,0,255],[0,0,255,255]], /* colors rgba */
+    [0, 0.2, 1], /* color stops, leave empty/null for uniform stops */
+    100, 100, /* centerX,centerY, default 0,0 */
+    0.5, 1 /* radiusX,radiusY, default 1,1 */
+)
+: F.Image.Gradient(
+    200, 200, /* width,height */
+    [[255,0,0,255],[0,255,0,255],[0,0,255,255]], /* colors rgba */
+    [0, 0.7, 1], /* color stops, leave empty/null for uniform stops */
+    -Math.PI/4 /* angle 0 - 2Math.PI, default 0 */
+);
 console.log('Saving gradient..');
-F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname, './gradient.jpg'), gradient,
+F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./gradient.jpg'), gradient,
 function( file ){
     console.log('gradient image saved to: ' + './gradient.jpg');
 }, function( err ){

@@ -7,7 +7,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
+var Image = FILTER.Image, FLOOR = Math.floor,
+    sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:
 
@@ -293,10 +294,10 @@ function perlin2( x, y )
     }
     return noiseSum / weightSum;
 }*/
-function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+function octaved(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
-        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
 
     for (octave=0; octave<octaves; octave++) 
     {
@@ -306,17 +307,42 @@ function octaved(noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness
         weightSum += layerWeight;
         layerWeight *= roughness;
     }
-    return noiseSum / weightSum;
+    v = ~~(0xff*(0.5*noiseSum/weightSum+0.5));
+    data[index  ] = v;
+    data[index+1] = v;
+    data[index+2] = v;
+    data[index+3] = 255;
+}
+function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
+{
+    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0, 
+        octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
+
+    for (octave=0; octave<octaves; octave++) 
+    {
+        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
+        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        layerFrequency *= 2;
+        weightSum += layerWeight;
+        layerWeight *= roughness;
+    }
+    v = ~~(0xffffff*(0.5*noiseSum/weightSum+0.5));
+    data[index  ] = (v >>> 16) & 255;
+    data[index+1] = (v >>> 8) & 255;
+    data[index+2] = (v) & 255;
+    data[index+3] = 255;
 }
 
 /*function turbulence()
 {
 }*/
 
-FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var img = new FILTER.Image().restorable(false).createImageData(w, h),
-        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY, noise = use_perlin ? perlin2 : simplex2,
-        w = img.width, h = img.height, n = img.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var perlin = new Image().restorable(false).createImageData(w, h),
+        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
+        noise = use_perlin ? perlin2 : simplex2,
+        generate = grayscale ? octaved : octaved_rgb,
+        n = perlin.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
     scale = scale || 1.0; roughness = roughness || 0.5;
     octaves = octaves || 1; offsets = offsets || [[0,0]];
     if ( seamless )
@@ -333,14 +359,11 @@ FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, o
                 n[ i   ] = n[ j   ];
                 n[ i+1 ] = n[ j+1 ];
                 n[ i+2 ] = n[ j+2 ];
-                n[ i+3 ] = n[ j+3 ];
+                n[ i+3 ] = 255;
             }
             else
             {
-                n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-                n[ i+1 ] = n[ i ];
-                n[ i+2 ] = n[ i ];
-                n[ i+3 ] = 255;
+                generate(n, i, noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
             }
         }
     }
@@ -349,15 +372,12 @@ FILTER.Image.PerlinNoise = function PerlinNoise( seamless, w, h, baseX, baseY, o
         for(x=0,y=0,i=0; i<size; i+=4,x++)
         {
             if ( x >= w ) { x=0; y++; }
-            n[ i ] = ~~(255*(0.5*octaved(noise, nx, ny, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness)+0.5));
-            n[ i+1 ] = n[ i ];
-            n[ i+2 ] = n[ i ];
-            n[ i+3 ] = 255;
+            generate(n, i, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
         }
     }
-    img.setData( n );
-    return img;
+    perlin.setData( n );
+    return perlin;
 };
-FILTER.Image.PerlinNoise.seed = seed;
+Image.PerlinNoise.seed = seed;
 
 }(FILTER);
