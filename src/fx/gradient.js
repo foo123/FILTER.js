@@ -7,11 +7,11 @@
 !function(FILTER, undef){
 "use strict";
 
-var floor = Math.floor;
+var Image = FILTER.Image, floor = Math.floor, sqrt = Math.sqrt;
 
-FILTER.Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
-    var G = new FILTER.Image().restorable(false).createImageData(w, h),
-        g = G.getData(), cl = colors.length, i, x, y, size = g.length,
+Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
+    var Grad = new Image().restorable(false).createImageData(w, h),
+        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
         t, it, px, py, c1, c2, stop1, stop2, sin, cos;
     angle = angle || 0.0;
     sin = Math.sin(angle); cos = Math.cos(angle);
@@ -69,14 +69,14 @@ FILTER.Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
         g[i+2] = (~~(c1[2]*it + c2[2]*t)) & 255;
         g[i+3] = (~~(c1[3]*it + c2[3]*t)) & 255;
     }
-    G.setData( g );
-    return G;
+    Grad.setData( g );
+    return Grad;
 };
 
-FILTER.Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY ) {
-    var G = new FILTER.Image().restorable(false).createImageData(w, h),
-        g = G.getData(), cl = colors.length, i, x, y, size = g.length,
-        t, it, px, py, c1, c2, stop1, stop2, sqrt = Math.sqrt, atan2 = Math.atan2;
+Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY ) {
+    var Grad = new Image().restorable(false).createImageData(w, h),
+        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
+        t, it, px, py, c1, c2, stop1, stop2;
     centerX = centerX || 0;
     centerY = centerY || 0;
     if ( !stops )
@@ -118,8 +118,8 @@ FILTER.Image.RadialGradient = function RadialGradient( w, h, colors, stops, cent
         g[i+2] = (~~(c1[2]*it + c2[2]*t)) & 255;
         g[i+3] = (~~(c1[3]*it + c2[3]*t)) & 255;
     }
-    G.setData( g );
-    return G;
+    Grad.setData( g );
+    return Grad;
 };
 
 }(FILTER);
