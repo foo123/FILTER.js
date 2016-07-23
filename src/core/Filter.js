@@ -242,7 +242,8 @@ var
                             //log(data.im[0]);
                             var im = FILTER.TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
-                            self.send( 'apply', {im: filter._apply( im, data.im[ 1 ], data.im[ 2 ] ), meta: filter.hasMeta ? filter.getMeta() : null} );
+                            im = filter._apply( im, data.im[ 1 ], data.im[ 2 ] );
+                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
                         }
                         else
                         {
@@ -455,11 +456,12 @@ var
                         })*/
                         .listen( 'apply', function( data ) { 
                             self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
-                            if ( data && data.im ) 
+                            if ( data ) 
                             {
                                 // listen for metadata if needed
+                                //if ( null != data.update ) self._update = !!data.update;
                                 if ( data.meta ) self.setMeta( data.meta );
-                                if ( self._update ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                                if ( data.im/*self._update*/ ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
                             }
                             if ( cb ) cb.call( self );
                         })
