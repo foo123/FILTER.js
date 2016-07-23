@@ -7,14 +7,19 @@
 !function(FILTER, undef){
 "use strict";
 
-var Image = FILTER.Image, floor = Math.floor, sqrt = Math.sqrt;
+var Image = FILTER.Image, floor = Math.floor, sqrt = Math.sqrt, abs = Math.abs,
+    sin =Math.sin, cos = Math.cos,
+    pi = Math.PI, pi2 = 2*pi, pi_2 = pi/2, pi_32 = 3*pi_2, min = Math.min;
 
 Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
     var Grad = new Image().restorable(false).createImageData(w, h),
         g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
-        t, it, px, py, c1, c2, stop1, stop2, sin, cos;
+        t, it, px, py, c1, c2, stop1, stop2, sn, cs, r;
     angle = angle || 0.0;
-    sin = Math.sin(angle); cos = Math.cos(angle);
+    if ( 0 > angle ) angle += pi2;
+    if ( pi2 < angle ) angle -= pi2;
+    sn = sin(angle); cs = cos(angle);
+    r = cs*w + sn*h;
     if ( !stops )
     {
         if ( 1 === cl )
@@ -37,29 +42,28 @@ Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
         stops.push( 1.0 );
         colors.push( colors[colors.length-1] );
     }
-    stop1=stop2=0;
     for(x=0,y=0,i=0; i<size; i+=4,x++)
     {
-        if ( x >= w ) { x=0; stop1=stop2=0; y++; }
-        if ( 0 <= angle && angle <= Math.PI/2 )
+        if ( x >= w ) { x=0; y++; }
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            px = (w-1-x); py = y;
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            px = (w-1-x); py = (h-1-y);
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            px = x; py = (h-1-y);
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
         {
             px = x; py = y;
         }
-        else if ( Math.PI/2 < angle && angle <= Math.PI )
-        {
-            px = w-1-x; py = y;
-        }
-        else if ( 0 > angle && angle >= -Math.PI/2 )
-        {
-            px = x; py = h-1-y;
-        }
-        else if ( -Math.PI/2 > angle && angle > -Math.PI )
-        {
-            px = w-1-x; py = h-1-y;
-        }
-        t = (cos*px + sin*py) / (cos*w + sin*h);
-        if ( t > 1.0 ) t = 1.0;
-        if ( t > stops[stop2] ) { stop1 = stop2; ++stop2; }
+        t = min(1.0, abs((cs*px + sn*py) / r));
+        stop1 = stop2 = 0;
+        while ( t > stops[stop2] ) { stop1 = stop2; ++stop2; }
         c1 = colors[stop1]; c2 = colors[stop2];
         // warp the value if needed, between stop ranges
         t = stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t;
@@ -105,8 +109,7 @@ Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, ce
     {
         if ( x >= w ) { x=0; y++; }
         px = (x-centerX)/(w-centerX); py = (y-centerY)/(h-centerY);
-        t = sqrt(px*px + py*py);
-        if ( t > 1.0 ) t = 1.0;
+        t = min(1.0, sqrt(px*px + py*py));
         stop1 = stop2 = 0;
         while ( t > stops[stop2] ) { stop1 = stop2; ++stop2; }
         c1 = colors[stop1]; c2 = colors[stop2];
