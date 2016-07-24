@@ -642,16 +642,19 @@ __Included Plugins__ (see examples for how to use)
 * `PatternFill` : apply a (fast) pattern fill to an (connected) area of an image using another image as pattern
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `HSVConverter` : convert the image to `HSV` color space
-* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists also in `ColorMatrixFilter`)
+* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
 * `Threshold` : apply general (full `32bit` thresholds) thresholding to an image
 * `HueExtractor` : extract a range of hues from the image
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* `ConnectedComponents` : extract the connected components and their bounding boxes (TODO)
-* `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake algorithm (TODO)
+* `ConnectedComponents` : extract the connected components and their bounding boxes (TO BE ADDED)
+* `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
 * `ChannelCopy` : copy a channel from an image to another channel on target image
 * `AlphaMask` : apply another image as an alpha mask to the target image
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
+* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
+* `Gradient` : gradient image effect also as filter plugin
+* `RadialGradient` : radial-gradient image effect also as filter plugin
 
 
 ###Codecs
