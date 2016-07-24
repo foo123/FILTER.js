@@ -1,6 +1,6 @@
 /**
 *
-* Filter Utils, utf8 / base64
+* Filter Utils, cross-platform XmlHttpRequest (XHR)
 * @package FILTER.js
 *
 **/
@@ -393,9 +393,9 @@ XHR.create = FILTER.Browser.isNode
             };
         }
         $xhr$.onload = function( ) {
+            update( xhr, $xhr$ );
             if ( XHR.DONE === $xhr$.readyState )
             {
-                update( xhr, $xhr$ );
                 if ( 200 === $xhr$.status )
                 {
                     if ( o.onComplete ) o.onComplete( xhr );

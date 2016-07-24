@@ -224,7 +224,7 @@ FILTER.Create({
     }
     
     ,serialize: function( ) {
-        var self = this, Mask = self.alphaMask;
+        var self = this;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
@@ -304,7 +304,7 @@ FILTER.Create({
     }
     
     ,serialize: function( ) {
-        var self = this, Mask = self.alphaMask;
+        var self = this;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
