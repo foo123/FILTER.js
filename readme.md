@@ -92,6 +92,9 @@ Some image processing/computer vision theory, basics and tutorials:
 * [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
 * [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
 * [image segmentation techniques](http://www.bioss.ac.uk/people/chris/ch4.pdf)
+* [Procedural Noise](https://en.wikipedia.org/wiki/Procedural_generation)
+* [Perlin Noise](https://en.wikipedia.org/wiki/Perlin_noise)
+* [Simplex Noise](https://en.wikipedia.org/wiki/Simplex_noise)
 * [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
 * [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
 * [image processing in C](http://homepages.inf.ed.ac.uk/rbf/BOOKS/PHILLIPS/)
@@ -101,7 +104,11 @@ Some image processing/computer vision theory, basics and tutorials:
 
 Advanced references:
 
-
+* [An Image Synthesizer, Ken Perlin 1985](https://design.osu.edu/carlson/history/PDFs/p287-perlin.pdf)
+* [Improving Noise, Ken Perlin 2001](http://mrl.nyu.edu/~perlin/paper445.pdf)
+* [Optimizations in perlin noise-generated procedural terrain, Marinescu 2012](http://www.cs.ubbcluj.ro/~studia-i/2012-2/05-Marinescu.pdf)
+* [Efficient computational noise in GLSL, McEwan, Sheets, Gustavson, Richardson 2012](http://arxiv.org/pdf/1204.1461.pdf)
+* [Efficient Integral Image Computation on the GPU, Bilgic, Horn, Masaki 2010](http://dspace.mit.edu/openaccess-disseminate/1721.1/71883)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
