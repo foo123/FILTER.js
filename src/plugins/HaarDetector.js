@@ -464,7 +464,7 @@ FILTER.Create({
             
             params = json.params;
             
-            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata );
+            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata, 1 );
             self.baseScale = params.baseScale;
             self.scaleIncrement = params.scaleIncrement;
             self.stepIncrement = params.stepIncrement;
@@ -482,7 +482,7 @@ FILTER.Create({
     }
     
     ,setMeta: function( meta ) {
-        this.objects = "string" === typeof meta ? TypedObj( meta ) : meta;
+        this.objects = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     

@@ -8,7 +8,8 @@ __0.9.0__
 * new effects: `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter,Image` (fx/ folder)
 * new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
 * `PerlinNoise` is **not** a plugin anymore, it is extra static part of `Filter,Image` (fx/ folder)
-* update dependencies (asynchronous)
+* update examples, dependencies (asynchronous), add advanced references
+
 
 __0.8.0__
 

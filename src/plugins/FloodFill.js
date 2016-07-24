@@ -1,13 +1,14 @@
 /**
 *
-* FloodFill Plugin
+* FloodFill, PatternFill Plugin(s)
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.TypedArray, abs = Math.abs, min = Math.min, max = Math.max,
+var TypedArray = FILTER.TypedArray, abs = Math.abs,
+    min = Math.min, max = Math.max, ceil = Math.ceil,
     TILE = FILTER.MODE.TILE, STRETCH = FILTER.MODE.STRETCH,
     Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
     
@@ -91,7 +92,7 @@ FILTER.Create({
         OC = new Array8U(3);
         OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
         stack = new Array(imSize>>>2); slen = 0; // pre-allocate and soft push/pop for speed
-        if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
+        if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
         /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
         
         while ( slen > 0 ) 
@@ -135,7 +136,7 @@ FILTER.Create({
                 l = x+4;
                 if ( l < x1 ) 
                 {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                    if ( yw-dy >= ymin && yw-dy <= ymax ) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
                 }
                 x = x1+4;
                 notdone = true;
@@ -210,7 +211,7 @@ FILTER.Create({
         return self;
     }
     
-    ,setPattern( pattern ) {
+    ,setPattern: function( pattern ) {
         var self = this;
         if ( pattern )
         {
@@ -268,7 +269,7 @@ FILTER.Create({
         // seems to have issues when tol is exactly 1.0
         var _pat = self._pattern || { data: Pat.getData( ), width: Pat.width, height: Pat.height },
             tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
-            OC, NC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
+            OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
             l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone
@@ -284,7 +285,7 @@ FILTER.Create({
         OC = new Array8U(3);
         OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
         stack = new Array(size); slen = 0; // pre-allocate and soft push/pop for speed
-        visited = new Array32U(Math.ceil(size/32));
+        visited = new Array32U(ceil(size/32));
         if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy, y+1]; /* needed in some cases */
         /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy, y]; /* seed segment (popped 1st) */
         

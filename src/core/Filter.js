@@ -14,7 +14,8 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
-    ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( )
+    ,supportsThread = Async.supportsMultiThreading( )
+    ,isThread = Async.isThread( null, true )//, isInstantiatedThread = Async.isThread( null, true )
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
