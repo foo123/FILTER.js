@@ -99,6 +99,14 @@ Some image processing/computer vision theory, basics and tutorials:
 * [OpenCV, open source computer vision](http://opencv.org/)
 
 
+Advanced references:
+
+
+* [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
+* [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
+* [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
+
+
 
 
 ###Features
