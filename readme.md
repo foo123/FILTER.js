@@ -99,6 +99,8 @@ Some image processing/computer vision theory, basics and tutorials:
 * [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
 * [image processing in C](http://homepages.inf.ed.ac.uk/rbf/BOOKS/PHILLIPS/)
 * [computer vision: algorithms and applications (draft)](http://szeliski.org/Book/)
+* [(Blind) Source Separation](https://en.wikipedia.org/wiki/Blind_signal_separation)
+* [Independent Component Analysis](https://en.wikipedia.org/wiki/Independent_component_analysis)
 * [OpenCV, open source computer vision](http://opencv.org/)
 
 
@@ -112,6 +114,11 @@ Advanced references:
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
+* [Method for Image Source Separation by Means of Independent Component Analysis: ICA, Maximum Entory Method: MEM, and Wavelet Based Method:
+WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&type=pdf)
+* [Natural Gradient works efficiently in Learning, Amari 1998](http://www.maths.tcd.ie/~mnl/store/Amari1998a.pdf)
+* [Adaptive On-Line Learning algorithms for Blind Separation, Yang, Amari 1997](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.37.7984&rep=rep1&type=pdf)
+* [Blind signal separation and identification of mixtures of images, Carmo, Teixeira de Assis, Estrela, Coelho 2009](https://arxiv.org/ftp/arxiv/papers/1603/1603.08095.pdf)
 
 
 
