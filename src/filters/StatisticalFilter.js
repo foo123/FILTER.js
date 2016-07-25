@@ -30,7 +30,7 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
         self._filter = null;
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_dim: 0
     ,_indices: null
     ,_filter: null

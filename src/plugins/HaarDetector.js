@@ -7,12 +7,10 @@
 !function(FILTER, undef){
 "use strict";
 
-var Array32F = FILTER.Array32F,
-    Array8U = FILTER.Array8U,
+var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
-    TypedObj = FILTER.TypedObj,
-    HAS = 'hasOwnProperty'
+    TypedObj = FILTER.TypedObj, HAS = 'hasOwnProperty'
 ;
 
 
@@ -393,7 +391,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,dispose: function( ) {
         var self = this;

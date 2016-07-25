@@ -12,7 +12,6 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
 ;
 
 //
-//
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     name: "CompositeFilter"
@@ -23,7 +22,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_stack: null
     ,_meta: null
     ,_stable: true

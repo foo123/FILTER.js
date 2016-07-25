@@ -7,10 +7,10 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp,
-    IMG=FILTER.ImArray, clamp=FILTER.Color.clampPixel,
-    TypedArray=FILTER.TypedArray,
-    RGB2HSV=FILTER.Color.RGB2HSV, HSV2RGB=FILTER.Color.HSV2RGB, Color2RGBA=FILTER.Color.Color2RGBA
+var notSupportClamp = FILTER._notSupportClamp,
+    IMG = FILTER.ImArray, clamp = FILTER.Color.clampPixel,
+    TypedArray = FILTER.TypedArray,
+    RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB, Color2RGBA = FILTER.Color.Color2RGBA
     ;
 
 // a plugin to extract regions based on a HUE range
@@ -29,7 +29,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;
@@ -69,21 +69,21 @@ FILTER.Create({
         
         var /*r, g, b,*/ br, bg, bb, ba,
             i, l=im.length, background, hue,
-            hMin=self.range[0], hMax=self.range[self.range.length-1]
+            hMin = self.range[0], hMax = self.range[self.range.length-1]
             ;
         
         background = Color2RGBA(self.background||0);
-        br = ~~clamp(background[0]); 
-        bg = ~~clamp(background[1]); 
-        bb = ~~clamp(background[2]); 
-        ba = ~~clamp(background[3]);
+        br = background[0]; 
+        bg = background[1]; 
+        bb = background[2]; 
+        ba = background[3];
         
         for (i=0; i<l; i+=4)
         {
             //r = im[i]; g = im[i+1]; b = im[i+2];
             hue = RGB2HSV(im.subarray(i,i+3))[0];
             
-            if (hue<hMin || hue>hMax) 
+            if ( hue<hMin || hue>hMax ) 
             {  
                 im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
             }

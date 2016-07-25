@@ -7,15 +7,16 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F,
-    RGB2YCbCr=FILTER.Color.RGB2YCbCr, YCbCr2RGB=FILTER.Color.YCbCr2RGB
+var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
+    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB,
+    Min = Math.min, Max = Math.max
 ;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
     name : "HistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -25,24 +26,48 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var r,g,b, rangeI,  maxI = 0, minI = 255,
-            cdfI, accum = 0, t0, t1, t2,
+        var r,g,b, range, max = 0, min = 255,
+            cdf, accum, t0, t1, t2,
             i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, rgba
         ;
         
         // initialize the arrays
-        cdfI = new A32F(256);
-        for (i=0; i<256; i+=8)
+        cdf = new A32F( 256 );
+        for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            cdfI[i]=0; 
-            cdfI[i+1]=0; 
-            cdfI[i+2]=0; 
-            cdfI[i+3]=0; 
-            cdfI[i+4]=0; 
-            cdfI[i+5]=0; 
-            cdfI[i+6]=0; 
-            cdfI[i+7]=0; 
+            cdf[i   ]=0;
+            cdf[i+1 ]=0;
+            cdf[i+2 ]=0;
+            cdf[i+3 ]=0;
+            cdf[i+4 ]=0;
+            cdf[i+5 ]=0;
+            cdf[i+6 ]=0;
+            cdf[i+7 ]=0;
+            cdf[i+8 ]=0;
+            cdf[i+9 ]=0;
+            cdf[i+10]=0;
+            cdf[i+11]=0;
+            cdf[i+12]=0;
+            cdf[i+13]=0;
+            cdf[i+14]=0;
+            cdf[i+15]=0;
+            cdf[i+16]=0;
+            cdf[i+17]=0;
+            cdf[i+18]=0;
+            cdf[i+19]=0;
+            cdf[i+20]=0;
+            cdf[i+21]=0;
+            cdf[i+22]=0;
+            cdf[i+23]=0;
+            cdf[i+24]=0;
+            cdf[i+25]=0;
+            cdf[i+26]=0;
+            cdf[i+27]=0;
+            cdf[i+28]=0;
+            cdf[i+29]=0;
+            cdf[i+30]=0;
+            cdf[i+31]=0;
         }
         
         // compute pdf and maxima/minima
@@ -51,41 +76,61 @@ FILTER.Create({
             //r = im[i]; g = im[i+1]; b = im[i+2];
             ycbcr = RGB2YCbCr(im.subarray(i,i+3));
             r = im[i] = ~~ycbcr[2]; g = im[i+1] = ~~ycbcr[0]; b = im[i+2] = ~~ycbcr[1];
-            cdfI[ g ] += n;
-            
-            if ( g>maxI ) maxI=g;
-            else if ( g<minI ) minI=g;
+            cdf[ g ] += n;
+            max = Max(g, max);
+            min = Min(g, min);
         }
         
         // compute cdf
-        accum = 0;
-        for (i=0; i<256; i+=8)
+        for (accum=0,i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            accum += cdfI[i]; cdfI[i] = accum;
-            accum += cdfI[i+1]; cdfI[i+1] = accum;
-            accum += cdfI[i+2]; cdfI[i+2] = accum;
-            accum += cdfI[i+3]; cdfI[i+3] = accum;
-            accum += cdfI[i+4]; cdfI[i+4] = accum;
-            accum += cdfI[i+5]; cdfI[i+5] = accum;
-            accum += cdfI[i+6]; cdfI[i+6] = accum;
-            accum += cdfI[i+7]; cdfI[i+7] = accum;
+            accum += cdf[i   ]; cdf[i   ] = accum;
+            accum += cdf[i+1 ]; cdf[i+1 ] = accum;
+            accum += cdf[i+2 ]; cdf[i+2 ] = accum;
+            accum += cdf[i+3 ]; cdf[i+3 ] = accum;
+            accum += cdf[i+4 ]; cdf[i+4 ] = accum;
+            accum += cdf[i+5 ]; cdf[i+5 ] = accum;
+            accum += cdf[i+6 ]; cdf[i+6 ] = accum;
+            accum += cdf[i+7 ]; cdf[i+7 ] = accum;
+            accum += cdf[i+8 ]; cdf[i+8 ] = accum;
+            accum += cdf[i+9 ]; cdf[i+9 ] = accum;
+            accum += cdf[i+10]; cdf[i+10] = accum;
+            accum += cdf[i+11]; cdf[i+11] = accum;
+            accum += cdf[i+12]; cdf[i+12] = accum;
+            accum += cdf[i+13]; cdf[i+13] = accum;
+            accum += cdf[i+14]; cdf[i+14] = accum;
+            accum += cdf[i+15]; cdf[i+15] = accum;
+            accum += cdf[i+16]; cdf[i+16] = accum;
+            accum += cdf[i+17]; cdf[i+17] = accum;
+            accum += cdf[i+18]; cdf[i+18] = accum;
+            accum += cdf[i+19]; cdf[i+19] = accum;
+            accum += cdf[i+20]; cdf[i+20] = accum;
+            accum += cdf[i+21]; cdf[i+21] = accum;
+            accum += cdf[i+22]; cdf[i+22] = accum;
+            accum += cdf[i+23]; cdf[i+23] = accum;
+            accum += cdf[i+24]; cdf[i+24] = accum;
+            accum += cdf[i+25]; cdf[i+25] = accum;
+            accum += cdf[i+26]; cdf[i+26] = accum;
+            accum += cdf[i+27]; cdf[i+27] = accum;
+            accum += cdf[i+28]; cdf[i+28] = accum;
+            accum += cdf[i+29]; cdf[i+29] = accum;
+            accum += cdf[i+30]; cdf[i+30] = accum;
+            accum += cdf[i+31]; cdf[i+31] = accum;
         }
         
         // equalize only the intesity channel
-        rangeI = maxI-minI;
+        range = max-min;
         if (notSupportClamp)
         {   
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = [im[i+1], im[i+2], im[i]];
-                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
-                rgba = YCbCr2RGB(ycbcr);
+                rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
                 t0 = rgba[0]; t1 = rgba[1]; t2 = rgba[2]; 
                 // clamp them manually
-                t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }
@@ -93,9 +138,7 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             { 
-                ycbcr = [im[i+1], im[i+2], im[i]];
-                ycbcr[0] = cdfI[ycbcr[0]]*rangeI + minI;
-                rgba = YCbCr2RGB(ycbcr);
+                rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
                 im[i] = ~~rgba[0]; im[i+1] = ~~rgba[1]; im[i+2] = ~~rgba[2]; 
             }
         }
@@ -109,7 +152,7 @@ FILTER.Create({
 FILTER.Create({
     name: "GrayscaleHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -198,7 +241,7 @@ FILTER.Create({
 FILTER.Create({
     name: "RGBHistogramEqualizeFilter"
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {

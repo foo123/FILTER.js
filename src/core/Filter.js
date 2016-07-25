@@ -190,6 +190,25 @@ FILTER.MIME = {
 FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
 FILTER.MIME.JPEG = FILTER.MIME.JPG;
 
+//
+// Constants
+FILTER.CONSTANTS = FILTER.CONST = {
+     PI:    Math.PI
+    ,PI2:   2*Math.PI
+    ,PI_2:  Math.PI/2
+    ,SQRT2: Math.SQRT2
+    ,LN2: Math.LN2
+    ,toRad: Math.PI/180
+    ,toDeg: 180/Math.PI
+    ,X: 0
+    ,Y: 1
+    ,Z: 2
+};
+
+FILTER.MathUtil = { };
+FILTER.StringUtil = { };
+FILTER.FilterUtil = { };
+FILTER.ImageUtil = { };
 FILTER.Util = { };
 FILTER.IO = { };
 FILTER.Codec = { };

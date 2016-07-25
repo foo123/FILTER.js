@@ -7,8 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var Sqrt=Math.sqrt,
-    notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
+var Sqrt = Math.sqrt, notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
 
 
 // a sample fast pixelate filter
@@ -25,7 +24,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;

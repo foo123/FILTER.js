@@ -9,7 +9,7 @@
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
+    ImageUtil = FILTER.ImageUtil, Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     notSupportTyped = FILTER._notSupportTypedArrays,
     arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
     Min = Math.min, Floor = Math.floor,
@@ -133,9 +133,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx = self.iCanvas.getContext('2d');
         self.octx = self.oCanvas.getContext('2d');
         self.webgl = null;
-        self._histogram = null;
-        self._integral = null;
-        self._spectrum = null;
+        self._histogram = [null, null, null, null];
+        self._integral = [null, null, null, null];
+        self._spectrum = [null, null, null, null];
+        self._histogramRefresh = [0, 0, 0, 0];
+        self._integralRefresh = [0, 0, 0, 0];
+        self._spectrumRefresh = [0, 0, 0, 0];
         // lazy
         self.selection = null;
         self._needsRefresh = 0;
@@ -187,6 +190,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._histogram = null;
         self._integral = null;
         self._spectrum = null;
+        self._histogramRefresh = null;
+        self._integralRefresh = null;
+        self._spectrumRefresh = null;
         self._needsRefresh = null;
         self._restorable = null;
         self._grayscale = null;
@@ -272,6 +278,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             self.octx.drawImage(self.iCanvas, 0, 0); 
             self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= OSEL;
         }
         return self;
@@ -281,6 +290,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -322,6 +334,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         //ctx.restore();
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -344,7 +359,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._needsRefresh |= DATA | SAT | SPECTRUM;
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -367,7 +384,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._needsRefresh |= DATA | SAT | SPECTRUM;
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -385,6 +404,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( self._restorable ) self.ictx.clearRect(0, 0, w, h);
             self.octx.clearRect(0, 0, w, h);
             self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= SEL;
         }
         return self;
@@ -443,6 +465,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.tmpCanvas.height = self.oCanvas.height;
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (sel) self._needsRefresh |= SEL;
         return self;
     }
@@ -485,6 +510,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillRect(x, y, w, h);
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (sel) self._needsRefresh |= SEL;
         return self;
     }
@@ -573,6 +601,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
         self.octx.putImageData(self.oData, 0, 0); 
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
@@ -596,6 +627,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.octx.putImageData(self.oData, 0, 0); 
         }
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         return self;
     }
     
@@ -672,6 +706,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -692,6 +729,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self.octx.putImageData(new IMG([r&255, g&255, b&255, a&255]), x, y); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
@@ -707,41 +747,104 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self.octx.putImageData(data, 0, 0); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
     
-    ,integral: function( ) {
-        var self = this;
-        if (self._needsRefresh & SAT) 
+    ,integral: function( channel ) {
+        var self = this, integral = ImageUtil.integral, grayscale = self._grayscale;
+        if ( null == channel )
         {
-            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height, self._grayscale);
-            self._needsRefresh &= CLEAR_SAT;
+            if ( self._needsRefresh & SAT )
+            {
+                var data = self.getPixelData().data, w = self.width, h = self.height,
+                    i0 = integral(data, w, h, 0);
+                self._integral = [
+                    i0,
+                    grayscale ? i0 : integral(data, w, h, 1),
+                    grayscale ? i0 : integral(data, w, h, 2),
+                    integral(data, w, h, 3)
+                ];
+                self._integralRefresh = [0, 0, 0, 0];
+                self._needsRefresh &= CLEAR_SAT;
+            }
         }
-        return self._integral;
+        else
+        {
+            channel = channel || 0;
+            if ( (self._needsRefresh & SAT) || self._integralRefresh[channel] )
+            {
+                if ( grayscale && !self._integralRefresh[0] )
+                {
+                    self._integral[channel] = self._integral[0];
+                }
+                else
+                {
+                    var data = self.getPixelData().data, w = self.width, h = self.height;
+                    self._integral[channel] = integral(data, w, h, channel);
+                }
+                self._integralRefresh[channel] = 0;
+                self._needsRefresh &= CLEAR_SAT;
+            }
+        }
+        return null == channel ? self._integral : self._integral[channel||0];
     }
     
-    ,histogram: function( ) {
-        var self = this;
-        if (self._needsRefresh & HIST) 
+    ,histogram: function( channel ) {
+        var self = this, hist = ImageUtil.histogram, grayscale = self._grayscale;
+        if ( null == channel )
         {
-            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height, self._grayscale);
-            self._needsRefresh &= CLEAR_HIST;
+            if ( self._needsRefresh & HIST )
+            {
+                var data = self.getPixelData().data, w = self.width, h = self.height,
+                    h0 = hist(data, w, h, 0);
+                self._histogram = [
+                    h0,
+                    grayscale ? h0 : hist(data, w, h, 1),
+                    grayscale ? h0 : hist(data, w, h, 2),
+                    null//hist(data, w, h, 3)
+                ];
+                self._histogramRefresh = [0, 0, 0, 0];
+                self._needsRefresh &= CLEAR_HIST;
+            }
         }
-        return self._histogram;
+        else
+        {
+            channel = channel || 0;
+            if ( (self._needsRefresh & HIST) || self._histogramRefresh[channel] )
+            {
+                if ( grayscale && !self._histogramRefresh[0] )
+                {
+                    self._histogram[channel] = self._histogram[0];
+                }
+                else
+                {
+                    var data = self.getPixelData().data, w = self.width, h = self.height;
+                    self._histogram[channel] = hist(data, w, h, channel);
+                }
+                self._histogramRefresh[channel] = 0;
+                self._needsRefresh &= CLEAR_HIST;
+            }
+        }
+        return null == channel ? self._histogram : self._histogram[channel||0];
     }
     
     // TODO
-    ,spectrum: function( ) {
-        var self = this;
+    ,spectrum: function( channel ) {
+        var self = this, spec = ImageUtil.spectrum;
         /*
         if (self._needsRefresh & SPECTRUM) 
         {
-            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height, self._grayscale);
+                channel = channel || 0;
+            var data = self.getPixelData().data, w = self.width, h = self.height;
+            self._spectrum[channel] = spec(data, w, h, channel);
             self._needsRefresh &= CLEAR_SPECTRUM;
         }
         */
-        return self._spectrum;
+        return null == channel ? self._spectrum : self._spectrum[channel||0];
     }
     
     ,toImage: function( format ) {
@@ -777,23 +880,28 @@ FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
 // static
+FilterImage.Gradient = function Gradient( w, h, colors, stops, angle, interpolate ) {
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
+    Grad.setData( ImageUtil.gradient( Grad.getData(), w, h, c[0], c[1], angle, interpolate||ImageUtil.lerp ) );
+    return Grad;
+};
+FilterImage.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
+    Grad.setData( ImageUtil.radial_gradient( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||ImageUtil.lerp ) );
+    return Grad;
+};
+FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var perlinNoise = new FilterImage().restorable(false).createImageData(w, h);
+    if ( ImageUtil.perlin )
+    {
+        if ( seed ) ImageUtil.perlin.seed( seed );
+        perlinNoise.setData( ImageUtil.perlin(perlinNoise.getData(), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
+    }
+    return perlinNoise;
+};
+
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolation.bilinear;
-
-// crop image data
-FilterImage.crop = FILTER.Interpolation.crop;
-
-// pad image data
-FilterImage.pad = FILTER.Interpolation.pad;
-
-// compute integral image (summed area table, SAT)
-FilterImage.integral = FILTER.Math.integral;
-
-// compute image histogram
-FilterImage.histogram = FILTER.Math.histogram;
-
-// compute image spectrum
-FilterImage.spectrum = FILTER.Math.spectrum;
+ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
 
 //
 // Scaled Image (Proxy) Class
@@ -875,6 +983,9 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0, w, h, 0, 0, sw, sh);
             self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= SEL;
         }
         //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;

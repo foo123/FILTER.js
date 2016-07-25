@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var Image = FILTER.Image, FLOOR = Math.floor,
+var ImageUtil = FILTER.ImageUtil, Image = FILTER.Image, FLOOR = Math.floor,
     sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:
@@ -337,12 +337,11 @@ function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets,
 {
 }*/
 
-Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var perlin = new Image().restorable(false).createImageData(w, h),
-        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
+ImageUtil.perlin = function perlin( n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
         noise = use_perlin ? perlin2 : simplex2,
         generate = grayscale ? octaved : octaved_rgb,
-        n = perlin.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+        x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
     scale = scale || 1.0; roughness = roughness || 0.5;
     octaves = octaves || 1; offsets = offsets || [[0,0]];
     if ( seamless )
@@ -375,9 +374,8 @@ Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, base
             generate(n, i, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
         }
     }
-    perlin.setData( n );
-    return perlin;
+    return n;
 };
-Image.PerlinNoise.seed = seed;
+ImageUtil.perlin.seed = seed;
 
 }(FILTER);

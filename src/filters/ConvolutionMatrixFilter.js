@@ -13,18 +13,17 @@
 "use strict";
 
 var 
-    sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
-    Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
+    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
     
-    TypedArray=FILTER.TypedArray,
+    TypedArray = FILTER.TypedArray, FilterUtil = FILTER.FilterUtil,
     // Convolution Matrix
-    CM=FILTER.Array32F, 
+    CM = FILTER.Array32F, 
     IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
-    A32F=FILTER.Array32F, A16I=FILTER.Array16I, A8U=FILTER.Array8U,
-    notSupportClamp=FILTER._notSupportClamp,
-    
-    integralConvolution = FILTER.Math.integralConvolution,
-    separableConvolution = FILTER.Math.separableConvolution,
+    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    notSupportClamp = FILTER._notSupportClamp,
+    integral_convolution = FilterUtil.integral_convolution,
+    separable_convolution = FilterUtil.separable_convolution,
     
     // hardcode Pascal numbers, used for binomial kernels
     _pascal=[
@@ -46,7 +45,7 @@ var
 var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ConvolutionMatrixFilter"
     
-    ,constructor: function( weights, factor, bias ) {
+    ,constructor: function( weights, factor, bias, rgba ) {
         var self = this;
         self.$super('constructor');
         self._coeff = new CM([1.0, 0.0]);
@@ -61,14 +60,14 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         }
         self._matrix2 = null;  self._dim2 = 0;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
-        
-        if ( FILTER.useWebGL ) 
+        self._rgba = !!rgba;
+        /*if ( FILTER.useWebGL ) 
         {
             self._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
-        }
+        }*/
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_dim: 0
     ,_dim2: 0
     ,_matrix: null
@@ -83,6 +82,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,_indices2: null
     ,_indicesf: null
     ,_indicesf2: null
+    ,_rgba: false
     ,_webglInstance: null
     
     ,dispose: function( ) {
@@ -105,6 +105,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         self._indices2 = null;
         self._indicesf = null;
         self._indicesf2 = null;
+        self._rgba = null;
         
         return self;
     }
@@ -130,6 +131,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 ,_indices2: self._indices2
                 ,_indicesf: self._indicesf
                 ,_indicesf2: self._indicesf2
+                ,_rgba: self._rgba
             }
         };
     }
@@ -156,8 +158,22 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             self._indices2 = TypedArray( params._indices2, A16I );
             self._indicesf = TypedArray( params._indicesf, A16I );
             self._indicesf2 = TypedArray( params._indicesf2, A16I );
+            self._rgba = params._rgba;
         }
         return self;
+    }
+    
+    ,rgba: function( bool ) {
+        var self = this;
+        if ( !arguments.length )
+        {
+            return self._rgba;
+        }
+        else
+        {
+            self._rgba = !!bool;
+            return self;
+        }
     }
     
     // generic low-pass filter
@@ -328,10 +344,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,edges: function( m ) {
         m = m||1;
         return this.set([
-                0,   m,   0,
-                m,  -4*m, m,
-                0,   m,   0
-             ], 3, 1.0, 0.0);
+            0,   m,   0,
+            m,  -4*m, m,
+            0,   m,   0
+         ], 3, 1.0, 0.0);
     }
     
     ,set: function( m, d, f, b ) {
@@ -390,20 +406,20 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     // used for internal purposes
     ,_apply: function(im, w, h/*, image*/) {
-        var self = this;
+        var self = this, rgba = self._rgba;
         if ( !self._isOn || !self._matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            if (self._matrix2)
-                return integralConvolution(im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral);
-            else
-                return integralConvolution(im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self._matrix2
+            ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral)
+            : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral)
+            ;
         }
         else if ( self._doSeparable )
         {
-            return separableConvolution(im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         // handle some common cases fast
         /*else if (3==this._dim)
@@ -413,10 +429,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         
         var imLen = im.length, imArea = (imLen>>2), 
             dst = new IMG(imLen), 
-            t0, t1, t2,
+            t0, t1, t2, t3,
             i, j, k, x, ty, ty2, 
             xOff, yOff, srcOff, 
-            r, g, b, r2, g2, b2,
+            r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w,
             coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
@@ -445,21 +461,21 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 
                 // calculate the weighed sum of the source image pixels that
                 // fall under the convolution matrix
-                r=0; g=0; b=0; r2=0; g2=0; b2=0; 
+                r=g=b=a=r2=g2=b2=a2=0;
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;  a += im[srcOff+3] * wt;
                         // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;  a2 += im[srcOff+3] * wt2;
                     }
                 }
                 
                 // output
-                if (_isGrad)
+                if ( _isGrad )
                 {
                     t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
                 }
@@ -467,16 +483,25 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 {
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
-                if (notSupportClamp)
+                if ( notSupportClamp )
                 {   
                     // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
+                if ( rgba )
+                {
+                    t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         else
@@ -501,14 +526,14 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 
                 // calculate the weighed sum of the source image pixels that
                 // fall under the convolution matrix
-                r=0; g=0; b=0;
+                r=g=b=a=0;
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt; a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -522,8 +547,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
+                if ( rgba )
+                {
+                    t3 = coeff1*a + coeff2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         return dst;

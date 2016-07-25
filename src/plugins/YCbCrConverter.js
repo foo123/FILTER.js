@@ -7,13 +7,13 @@
 !function(FILTER){
 "use strict";
 
-var RGB2YCBCR=FILTER.Color.RGB2YCbCr;
+var RGB2YCBCR = FILTER.Color.RGB2YCbCr;
 
 // a plugin to convert an RGB Image to an YCbCr Image
 FILTER.Create({
     name: "YCbCrConverterFilter"
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {

@@ -11,17 +11,13 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
-    TypedArray=FILTER.TypedArray,
-    PI=FILTER.CONST.PI,
-    DoublePI=FILTER.CONST.PI2,
-    HalfPI=FILTER.CONST.PI_2,
-    ThreePI2 = 1.5 * PI,
-    Sqrt=Math.sqrt, Atan2=Math.atan2, Atan = Math.atan,
-    Sin=Math.sin, Cos=Math.cos, 
-    Floor=Math.floor, Round=Math.round, //Ceil=Math.ceil,
-    Asin=Math.asin, Tan=Math.tan, Abs=Math.abs, Max = Math.max,
-    toRad=FILTER.CONST.toRad,
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+    PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
+    toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
+    Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
+    Sin = Math.sin, Cos = Math.cos, 
+    Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
+    Asin = Math.asin, Tan = Math.tan, Abs = Math.abs, Max = Math.max,
     Maps
 ;
 
@@ -38,7 +34,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         if ( inverseTransform ) self.generic( inverseTransform );
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     // parameters
     ,_map: null
     ,_mapName: null
@@ -145,7 +141,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             if ( params.inverseTransform )
             {
                 // using bind makes the code become [native code] and thus unserializable
-                self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();');
+                self.inverseTransform = new Function("FILTER", '"use strict"; return ' + params.inverseTransform)( FILTER );
             }
             
             self._mapName = params._mapName;

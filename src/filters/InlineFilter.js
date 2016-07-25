@@ -27,7 +27,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
         self._params = {};
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_handler: null
     ,_params: null
     

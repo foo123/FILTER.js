@@ -336,7 +336,7 @@ FILTER.Create({
     ,gaussWidth: 16
     ,contrastNormalized: false
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
         var self = this;

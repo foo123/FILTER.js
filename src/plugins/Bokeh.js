@@ -7,9 +7,9 @@
 !function(FILTER){
 "use strict";
 
-var Sqrt=Math.sqrt, Exp=Math.exp, Log=Math.log, 
-    Abs=Math.abs, Floor=Math.floor,
-    notSupportClamp=FILTER._notSupportClamp, A32F=FILTER.Array32F;
+var Sqrt = Math.sqrt, Exp = Math.exp, Log = Math.log, 
+    Abs = Math.abs, Floor = Math.floor,
+    notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
 
 // a simple bokeh (depth-of-field) filter
 FILTER.Create({
@@ -31,7 +31,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;

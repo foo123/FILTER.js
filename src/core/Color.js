@@ -7,21 +7,17 @@
 !function(FILTER, undef){
 "use strict";
 
+// adapted from https://github.com/foo123/css-color
 var // utils
     Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
     min = Math.min, max = Math.max, abs = Math.abs,
-    
-    clamp = FILTER.Math.clamp,
-    
-    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g,
-    esc = function(s) { return s.replace(esc_re, '\\$1'); },
-    
-    trim_re = /^\s+|\s+$/g,
-    trim = String.prototype.trim 
-            ? function(s){ return s.trim(); }
-            : function(s){ return s.replace(trim_re, ''); },
+    //notSupportClamp = FILTER._notSupportClamp,
+    clamp = FILTER.MathUtil.clamp,
+    esc = FILTER.StringUtil.esc,
+    trim = FILTER.StringUtil.trim,
     
     C2F = 1/255, C2P = 100/255, P2C = 2.55,
+    LUMA = FILTER.LUMA,
 
     Keywords = {
         // http://www.w3.org/wiki/CSS/Properties/color/keywords
@@ -195,25 +191,23 @@ var Color = FILTER.Color = FILTER.Class({
         
         clampPixel: function( v ) { return min(255, max(v, 0)); },
         
-        toGray: function(r, g, b) {
-            var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
-        }, 
+        toGray: function( r, g, b ) { return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b); }, 
         
-        distance: function(rgb1, rgb2) {
+        distance: function( rgb1, rgb2 ) {
             var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
-        RGB2Color: function(rgb) {
+        RGB2Color: function( rgb ) {
             return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
         },
         
-        RGBA2Color: function(rgba) {
+        RGBA2Color: function( rgba ) {
             return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
         },
         
-        Color2RGBA: function(c) {
-            c=~~c;
+        Color2RGBA: function( c ) {
+            c = ~~c;
             return [
                 (c >>> 16) & 255,
                 (c >>> 8) & 255,
@@ -223,33 +217,31 @@ var Color = FILTER.Color = FILTER.Class({
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
-        RGB2YCbCr: function(rgb) {
-            var y, cb, cr, r=rgb[0], g=rgb[1], b=rgb[2];
-            
+        RGB2YCbCr: function( rgb ) {
+            var r=rgb[0], g=rgb[1], b=rgb[2];
             // each take full range from 0-255
-            y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-            cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-            cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            return [y, cb, cr];
+            return [
+                ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    ),
+                ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      ),
+                ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b )
+            ];
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
-        YCbCr2RGB: function(ycbcr) {
-            var r, g, b, y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
-            
+        YCbCr2RGB: function( ycbcr ) {
+            var y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
             // each take full range from 0-255
-            r = ~~( y                      + 1.402   * (cr-128) );
-            g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-            b = ~~( y + 1.772   * (cb-128) );
-            return [r, g, b];
+            return [
+                ~~( y                      + 1.402   * (cr-128) ),
+                ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) ),
+                ~~( y + 1.772   * (cb-128) )
+            ];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/colo
-        RGB2HSV: function(rgb)  {
-            var m, M, delta, 
-                r, g, b, h, s, v
-            ;
+        RGB2HSV: function( rgb )  {
+            var m, M, delta, r, g, b, h, s, v;
 
             r=rgb[0]; g=rgb[1]; b=rgb[2];
             
@@ -280,10 +272,7 @@ var Color = FILTER.Color = FILTER.Class({
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
         HSV2RGB: function( hsv ) {
-            var i,
-                f, p, q, t,
-                r, g, b, h, s, v
-            ;
+            var i, f, p, q, t, r, g, b, h, s, v;
             
             h=hsv[0]; s=hsv[1]; v=hsv[2];
             
@@ -329,18 +318,16 @@ var Color = FILTER.Color = FILTER.Class({
         
         // color format conversions
         // http://www.rapidtables.com/convert/color/index.htm
-        col2per: function(c, suffix) {
+        col2per: function( c, suffix ) {
             return (c*C2P)+(suffix||'');
         },
-        per2col: function(c) {
+        per2col: function( c ) {
             return c*P2C;
         },
         
         // http://www.javascripter.net/faq/rgb2cmyk.htm
-        rgb2cmyk: function(r, g, b, asPercent) {
-            var c = 0, m = 0, y = 0, k = 0,
-                minCMY, invCMY
-            ;
+        rgb2cmyk: function( r, g, b, asPercent ) {
+            var c = 0, m = 0, y = 0, k = 0, minCMY, invCMY;
 
             if ( asPercent )
             {
@@ -369,9 +356,8 @@ var Color = FILTER.Color = FILTER.Class({
 
             return [c, m, y, k];
         },
-        cmyk2rgb: function(c, m, y, k) {
-            var r = 0, g = 0, b = 0,
-                minCMY, invCMY
+        cmyk2rgb: function( c, m, y, k ) {
+            var r = 0, g = 0, b = 0, minCMY, invCMY
             ;
 
             // BLACK
@@ -396,7 +382,7 @@ var Color = FILTER.Color = FILTER.Class({
                 clamp(round(b), 0, 255)
             ];
         },
-        rgb2hex: function(r, g, b, condenced, asPercent) { 
+        rgb2hex: function( r, g, b, condenced, asPercent ) { 
             var hex;
             if ( asPercent )
             {
@@ -416,7 +402,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             return hex;
         },
-        rgb2hexIE: function(r, g, b, a, asPercent) { 
+        rgb2hexIE: function( r, g, b, a, asPercent ) { 
             var hex;
             if ( asPercent )
             {
@@ -434,7 +420,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             return hex;
         },
-        hex2rgb: function(h/*, asPercent*/) {  
+        hex2rgb: function( h/*, asPercent*/ ) {  
             if ( !h || 3 > h.length )
                 return [0, 0, 0];
                 
@@ -466,7 +452,7 @@ var Color = FILTER.Color = FILTER.Class({
          * Assumes h, s, and l are contained in the set [0, 1] and
          * returns r, g, and b in the set [0, 255].
          */
-        hue2rgb: function(p, q, t) {
+        hue2rgb: function( p, q, t ) {
             if ( t < 0 ) t += 1;
             if ( t > 1 ) t -= 1;
             if ( t < 1/6 ) return p + (q - p) * 6 * t;
@@ -474,8 +460,8 @@ var Color = FILTER.Color = FILTER.Class({
             if ( t < 2/3 ) return p + (q - p) * (2/3 - t) * 6;
             return p;
         },
-        hsl2rgb: function(h, s, l) {
-            var r, g, b, p, q;
+        hsl2rgb: function( h, s, l ) {
+            var r, g, b, p, q, hue2rgb = Color.hue2rgb;
 
             // convert to [0, 1] range
             h = ((h + 360)%360)/360;
@@ -494,9 +480,9 @@ var Color = FILTER.Color = FILTER.Class({
 
                 q = l < 0.5 ? l * (1 + s) : l + s - l * s;
                 p = 2 * l - q;
-                r = Color.hue2rgb(p, q, h + 1/3);
-                g = Color.hue2rgb(p, q, h);
-                b = Color.hue2rgb(p, q, h - 1/3);
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
             }
 
             return [
@@ -511,7 +497,7 @@ var Color = FILTER.Color = FILTER.Class({
         * Assumes r, g, and b are contained in the set [0, 255] and
         * returns h, s, and l in the set [0, 1].
         */
-        rgb2hsl: function(r, g, b, asPercent) {
+        rgb2hsl: function( r, g, b, asPercent ) {
             var m, M, h, s, l, d;
             
             if ( asPercent )
@@ -558,7 +544,7 @@ var Color = FILTER.Color = FILTER.Class({
             ];
         },
         
-        parse: function(s, withColorStops, parsed, onlyColor) {
+        parse: function( s, withColorStops, parsed, onlyColor ) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
             
             if ( 'hsl' === parsed || 
@@ -708,22 +694,22 @@ var Color = FILTER.Color = FILTER.Class({
             }
             return null;
         },
-        fromString: function(s, withColorStops, parsed) {
+        fromString: function( s, withColorStops, parsed ) {
             return Color.parse(s, withColorStops, parsed, 1);
         },
-        fromRGB: function(rgb) {
+        fromRGB: function( rgb ) {
             return new Color().fromRGB(rgb);
         },
-        fromHSL: function(hsl) {
+        fromHSL: function( hsl ) {
             return new Color().fromHSL(hsl);
         },
-        fromCMYK: function(cmyk) {
+        fromCMYK: function( cmyk ) {
             return new Color().fromCMYK(cmyk);
         },
-        fromHEX: function(hex) {
+        fromHEX: function( hex ) {
             return new Color().fromHEX(hex);
         },
-        fromKeyword: function(keyword) {
+        fromKeyword: function( keyword ) {
             return new Color().fromKeyword(keyword);
         },
         fromPixel: function(pixCol) {
@@ -749,7 +735,7 @@ var Color = FILTER.Color = FILTER.Class({
     cstop: null,
     kword: null,
     
-    clone: function() {
+    clone: function( ) {
         var c = new Color();
         c.col = this.col.slice();
         c.cstop = this.cstop+'';
@@ -757,14 +743,14 @@ var Color = FILTER.Color = FILTER.Class({
         return c;
     },
     
-    reset: function() {
+    reset: function( ) {
         this.col = [0, 0, 0, 1];
         this.cstop = '';
         this.kword = null;
         return this;
     },
     
-    set: function(color, cstop) {
+    set: function( color, cstop ) {
         if ( color )
         {
             if ( undef !== color[0] )
@@ -786,20 +772,20 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    colorStop: function(cstop) {
+    colorStop: function( cstop ) {
         this.cstop = cstop;
         return this;
     },
     
-    isTransparent: function() {
+    isTransparent: function( ) {
         return 1 > this.col[3];
     },
     
-    isKeyword: function() {
+    isKeyword: function( ) {
         return this.kword ? true : false;
     },
     
-    fromPixel: function(color) {
+    fromPixel: function( color ) {
         color = color || 0;
         this.col = [
             clamp((color>>16)&255, 0, 255),
@@ -812,7 +798,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromKeyword: function(kword) {
+    fromKeyword: function( kword ) {
         
         kword = kword.toLowerCase();
         if ( Color.Keywords[kword] )
@@ -823,7 +809,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromHEX: function(hex) {
+    fromHEX: function( hex ) {
         
         this.col[0] = hex[0] ? clamp(parseInt(hex[0], 10), 0, 255) : 0;
         this.col[1] = hex[1] ? clamp(parseInt(hex[1], 10), 0, 255) : 0;
@@ -835,7 +821,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromRGB: function(rgb) {
+    fromRGB: function( rgb ) {
         
         this.col[0] = rgb[0] ? clamp(round(rgb[0]), 0, 255) : 0;
         this.col[1] = rgb[1] ? clamp(round(rgb[1]), 0, 255) : 0;
@@ -847,7 +833,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromCMYK: function(cmyk) {
+    fromCMYK: function( cmyk ) {
         var rgb = Color.cmyk2rgb(cmyk[0]||0, cmyk[1]||0, cmyk[2]||0, cmyk[3]||0);
         
         this.col[0] = rgb[0];
@@ -860,7 +846,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromHSL: function(hsl) {
+    fromHSL: function( hsl ) {
         var rgb = Color.hsl2rgb(hsl[0]||0, hsl[1]||0, hsl[2]||0);
         
         this.col[0] = rgb[0];
@@ -873,14 +859,14 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    toPixel: function(withTransparency) {
+    toPixel: function( withTransparency ) {
         if ( withTransparency )
             return ((clamp(this.col[3]*255, 0, 255) << 24) | (this.col[0] << 16) | (this.col[1] << 8) | (this.col[2])&255);
         else
             return ((this.col[0] << 16) | (this.col[1] << 8) | (this.col[2])&255);
     },
     
-    toCMYK: function(asString, condenced, noTransparency) {
+    toCMYK: function( asString, condenced, noTransparency ) {
         var cmyk = Color.rgb2cmyk(this.col[0], this.col[1], this.col[2]);
         if (noTransparency)
             return cmyk;
@@ -888,21 +874,21 @@ var Color = FILTER.Color = FILTER.Class({
             return cmyk.concat(this.col[3]);
     },
     
-    toKeyword: function(asString, condenced, withTransparency) {
+    toKeyword: function( asString, condenced, withTransparency ) {
         if ( this.kword )
             return this.kword;
         else
             return this.toHEX(1, condenced, withTransparency);
     },
     
-    toHEX: function(asString, condenced, withTransparency) {
+    toHEX: function( asString, condenced, withTransparency ) {
         if ( withTransparency )
             return Color.rgb2hexIE( this.col[0], this.col[1], this.col[2], clamp(round(255*this.col[3]), 0, 255) );
         else
             return Color.rgb2hex( this.col[0], this.col[1], this.col[2], condenced );
     },
     
-    toRGB: function(asString, condenced, noTransparency) {
+    toRGB: function( asString, condenced, noTransparency ) {
         var opcty = this.col[3];
         if ( asString )
         {
@@ -925,7 +911,7 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    toHSL: function(asString, condenced, noTransparency) {
+    toHSL: function( asString, condenced, noTransparency ) {
         var opcty = this.col[3];
         var hsl = Color.rgb2hsl(this.col[0], this.col[1], this.col[2]);
         
@@ -952,7 +938,7 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    toColorStop: function(compatType) {
+    toColorStop: function( compatType ) {
         var cstop = this.cstop;
         if ( compatType )
         {
@@ -989,5 +975,794 @@ var Color = FILTER.Color = FILTER.Class({
         return this.toHEX(1, false!==condenced, 'hexie' == format);
     }
 });
+
+// JavaScript implementations of common image blending modes, based on
+// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+Color.Blend = Color.Combine = {
+    //p1 = p1 || 0; p2 = p2 || 0;
     
+    normal: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+        
+        // normal mode
+        rb = r2;  
+        gb = g2;  
+        bb = b2;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    lighten: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+        
+        // lighten mode
+        rb = r > r2 ? r : r2; 
+        gb = g > g2 ? g : g2; 
+        bb = b > b2 ? b : b2; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    darken: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // darken mode
+        rb = r > r2 ? r2 : r; 
+        gb = g > g2 ? g2 : g; 
+        bb = b > b2 ? b2 : b; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    multiply: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // multiply mode
+        rb = r * r2 * 0.003921568627451;
+        gb = g * g2 * 0.003921568627451;
+        bb = b * b2 * 0.003921568627451;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    average: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // average mode
+        rb = 0.5*(r + r2); 
+        gb = 0.5*(g + g2); 
+        bb = 0.5*(b + b2); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    add: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // add mode
+        rb = r + r2; 
+        gb = g + g2; 
+        bb = b + b2; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    subtract: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // subtract mode
+        rb = r + r2 < 255 ? 0 : r + r2 - 255;  
+        gb = g + g2 < 255 ? 0 : g + g2 - 255;  
+        bb = b + b2 < 255 ? 0 : b + b2 - 255;  
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    difference: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // difference mode
+        rb = abs(r2 - r); 
+        gb = abs(g2 - g); 
+        bb = abs(b2 - b); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    negation: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // negation mode
+        rb = 255 - abs(255 - r2 - r);
+        gb = 255 - abs(255 - g2 - g);
+        bb = 255 - abs(255 - b2 - b);
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    screen: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // screen mode
+        rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
+        gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
+        bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    exclusion: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // exclusion mode
+        rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
+        gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
+        bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    overlay: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // overlay mode
+        rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
+        rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    softlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // softlight mode
+        rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
+        bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    // reverse of overlay
+    hardlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // hardlight mode, reverse of overlay
+        rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
+        gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
+        bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    colordodge: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // colordodge mode
+        rb = 255 === r ? r : min(255, ((r2 << 8 ) / (255 - r))); 
+        gb = 255 === g ? g : min(255, ((g2 << 8 ) / (255 - g))); 
+        bb = 255 === b ? b : min(255, ((b2 << 8 ) / (255 - b))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    colorburn: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // colorburn mode
+        rb = 0 === r ? r : max(0, (255 - ((255 - r2) << 8 ) / r)); 
+        gb = 0 === g ? g : max(0, (255 - ((255 - g2) << 8 ) / g)); 
+        bb = 0 === b ? b : max(0, (255 - ((255 - b2) << 8 ) / b)); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    linearlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // linearlight mode
+        if ( r < 128 )
+        {
+            tmp = r*2;
+            rb = tmp + r2 < 255 ? 0 : tmp + r2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r - 128);
+            rb = tmp + r2; //linearDodge(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = g*2;
+            gb = tmp + g2 < 255 ? 0 : tmp + g2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g - 128);
+            gb = tmp + g2; //linearDodge(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = b*2;
+            bb = tmp + b2 < 255 ? 0 : tmp + b2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b - 128);
+            bb = tmp + b2; //linearDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    reflect: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // reflect mode
+        rb = 255 === r ? r : min(255, (r2 * r2 / (255 - r))); 
+        gb = 255 === g ? g : min(255, (g2 * g2 / (255 - g))); 
+        bb = 255 === b ? b : min(255, (b2 * b2 / (255 - b))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    // reverse of reflect
+    glow: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // glow mode, reverse of reflect
+        rb = 255 === r2 ? r2 : min(255, (r * r / (255 - r2))); 
+        gb = 255 === g2 ? g2 : min(255, (g * g / (255 - g2))); 
+        bb = 255 === b2 ? b2 : min(255, (b * b / (255 - b2))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    phoenix: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // phoenix mode
+        rb = min(r2, r) - max(r2, r) + 255; 
+        gb = min(g2, g) - max(g2, g) + 255; 
+        bb = min(b2, b) - max(b2, b) + 255; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    vividlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // vividlight mode
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = 0 === tmp ? tmp : max(0, (255 - ((255 - r2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = 255 === tmp ? tmp : min(255, ((r2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = 0 === tmp ? tmp : max(0, (255 - ((255 - g2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = 255 === tmp ? tmp : min(255, ((g2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = 0 === tmp ? tmp : max(0, (255 - ((255 - b2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            bb = 255 === tmp ? tmp : min(255, ((b2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    pinlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // pinlight mode
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = tmp > r2 ? tmp : r2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = tmp > r2 ? r2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = tmp > g2 ? tmp : g2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            gb = tmp > g2 ? g2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = tmp > b2 ? tmp : b2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = tmp > b2 ? b2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    hardmix: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = 0 === tmp ? tmp : max(0, (255 - ((255 - r2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = 255 === tmp ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
+        }
+        rb = rb < 128 ? 0 : 255;
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = 0 === tmp ? tmp : max(0, (255 - ((255 - g2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = 255 === tmp ? tmp : min(255, ((g2 << 8 ) / (255 - tmp)));
+        }
+        gb = gb < 128 ? 0 : 255;
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = 0 === tmp ? tmp : max(0, (255 - ((255 - b2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = 255 === tmp ? tmp : min(255, ((b2 << 8 ) / (255 - tmp)));
+        }
+        bb = bb < 128 ? 0 : 255;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    }
+};
+// aliases
+Color.Blend.lineardodge = Color.Blend.add;
+Color.Blend.linearburn = Color.Blend.subtract;
+ 
 }(FILTER);

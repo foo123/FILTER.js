@@ -11,10 +11,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
-    TypedArray = FILTER.TypedArray,
-    A16I = FILTER.Array16I,
-    Min = Math.min, Max = Math.max, Floor = Math.floor
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+    A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
 
 //
@@ -29,7 +27,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         if ( displacemap ) self.setMap( displacemap );
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_map: null
     ,map: null
     // parameters

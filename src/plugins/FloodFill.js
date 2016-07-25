@@ -24,7 +24,7 @@ FILTER.Create({
     ,color: null
     ,tolerance: 0.0
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,init: function( x, y, color, tolerance ) {
         var self = this;
@@ -184,7 +184,7 @@ FILTER.Create({
     ,_pattern: null
     ,mode: TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance ) {
         var self = this;

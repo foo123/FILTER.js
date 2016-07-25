@@ -17,6 +17,8 @@
 FILTER.CSSFilter = FILTER.Class( FILTER.Filter, {
     name: "CSSFilter"
     
+    ,path: FILTER_SVG_PATH
+    
     ,constructor: function( cssFilterString ) { 
         // todo
         this.$super('constructor');

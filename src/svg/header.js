@@ -8,4 +8,5 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-
+"use strict";
+var FILTER_SVG_PATH = FILTER.getPath( ModuleFactory__FILTER_SVG.moduleUri );

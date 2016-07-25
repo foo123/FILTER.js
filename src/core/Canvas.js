@@ -8,71 +8,13 @@
 "use strict";
 
 var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
-    Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear
+    Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
+    get = FILTER.ImageUtil.get, set = FILTER.ImageUtil.set, fill = FILTER.ImageUtil.fill
 ;
-
-function get( D, W, H, x0, y0, x1, y1, orig )
-{
-    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
-    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
-    if ( (0 === x0) && (0 === y0) && (W === x1+1) && (H === y1+1) ) return true === orig ? D : new IMGcpy( D );
-    if ( !D.length || (x1 < x0) || (y1 < y0) ) return new IMG(0);
-    var x, y, i, I, w = x1-x0+1, h = y1-y0+1, size = (w*h) << 2, d = new IMG(size);
-    for(x=x0,y=y0,i=0; y<=y1; i+=4,x++)
-    {
-        if ( x>x1 ){ x=x0; y++; }
-        I = (y*W + x) << 2;
-        d[i  ] = D[I  ];
-        d[i+1] = D[I+1];
-        d[i+2] = D[I+2];
-        d[i+3] = D[I+3];
-    }
-    return d;
-}
-
-function set( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
-{
-    var i, I, x, y;
-    if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
-    x0 = Min(x0, w-1); y0 = Min(y0, h-1);
-    X0 = Min(X0, W-1); Y0 = Min(Y0, H-1);
-    x1 = Min(x1, w-1); y1 = Min(y1, h-1);
-    X0 -= x0; Y0 -= y0;
-    for(x=x0,y=y0; y<=y1; x++)
-    {
-        if ( x>x1 ) { x=x0; y++; }
-        if ( (y+Y0 >= H) || (x+X0 >= W) ) continue;
-        i = (y*w + x) << 2;
-        I = ((y+Y0)*W + x+X0) << 2;
-        D[I  ] = d[i  ];
-        D[I+1] = d[i+1];
-        D[I+2] = d[i+2];
-        D[I+3] = d[i+3];
-    }
-    return D;
-}
 
 function scale( d, w, h, nw, nh )
 {
     return (w === nw) && (h === nh) ? d : resize( d, w, h, nw, nh );
-}
-
-function fill( D, W, H, c, x0, y0, x1, y1 )
-{
-    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
-    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
-    if ( !D.length || (x1 < x0) || (y1 < y0) ) return D;
-    var x, y, i, r = c[0] & 255, g = c[1] & 255, b = c[2] & 255, a = 3 < c.length ? c[3] & 255 : 255;
-    for(x=x0,y=y0; y<=y1; x++)
-    {
-        if ( x>x1 ) { x=x0; y++; }
-        i = (y*W + x) << 2;
-        D[i  ] = r;
-        D[i+1] = g;
-        D[i+2] = b;
-        D[i+3] = a;
-    }
-    return D;
 }
 
 CanvasProxyCtx = FILTER.Class({

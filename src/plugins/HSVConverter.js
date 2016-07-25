@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,                 
+var notSupportClamp = FILTER._notSupportClamp, RGB2HSV = FILTER.Color.RGB2HSV,
     toCol = 0.70833333333333333333333333333333 // 255/360
 ;
 
@@ -15,7 +15,7 @@ var notSupportClamp=FILTER._notSupportClamp, RGB2HSV=FILTER.Color.RGB2HSV,
 FILTER.Create({
     name: "HSVConverterFilter"
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -33,14 +33,11 @@ FILTER.Create({
             {
                 //r = im[i]; g = im[i+1]; b = im[i+2];
                 hsv = RGB2HSV(im.subarray(i,i+3));
-                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
+                t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
                 // clamp them manually
-                if (t0<0) t0=0;
-                else if (t0>255) t0=255;
-                if (t1<0) t1=0;
-                else if (t1>255) t1=255;
-                if (t2<0) t2=0;
-                else if (t2>255) t2=255;
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }
@@ -50,7 +47,7 @@ FILTER.Create({
             {
                 //r = im[i]; g = im[i+1]; b = im[i+2];
                 hsv = RGB2HSV(im.subarray(i,i+3));
-                t0 = hsv[0]*toCol; t2 = hsv[1]*255; t1 = hsv[2];
+                t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }

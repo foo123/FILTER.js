@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, integralConvolution = FILTER.Math.integralConvolution_rgba,
+var IMG = FILTER.ImArray, integral_convolution = FILTER.FilterUtil.integral_convolution,
     boxKernel_3x3 = new FILTER.Array32F([
         1/9,1/9,1/9
         1/9,1/9,1/9
@@ -26,6 +26,9 @@ FILTER.Create({
     ,color: 0
     ,opacity: 1
     ,quality: 3
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER_PLUGINS_PATH
     
     // constructor
     ,init: function( offsetX, offsetY, color, opacity, quality ) {
@@ -120,7 +123,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integralConvolution(shadow, w, h, boxKernel_3x3, 3, 3, 1.0, 0.0, quality);
+        shadow = integral_convolution(true, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         for(x=0,y=0,si=0; si<imSize; si+=4,x++)

@@ -21,7 +21,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;
@@ -55,7 +55,7 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         var self = this, masktype = self.type,
-            resize = FILTER.Image.resize, IMG = FILTER.ImArray,
+            resize = FILTER.Interpolation.bilinear, IMG = FILTER.ImArray,
             //needed arrays
             diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
             index, N, N2, size, imSize, sqrt = Math.sqrt;

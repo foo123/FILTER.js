@@ -15,12 +15,12 @@
 !function(FILTER, undef){
 "use strict";
 
-var Sin=Math.sin, Cos=Math.cos,
+var Sin = Math.sin, Cos = Math.cos,
     // Color Matrix
-    CM=FILTER.Array32F,
-    TypedArray=FILTER.TypedArray,
-    toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
-    notSupportClamp=FILTER._notSupportClamp
+    CM = FILTER.Array32F,
+    TypedArray = FILTER.TypedArray,
+    toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    notSupportClamp = FILTER._notSupportClamp
 ;
 
 //
@@ -42,13 +42,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             self._matrix = null;
         }
         
-        if ( FILTER.useWebGL )
+        /*if ( FILTER.useWebGL )
         {
             self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
-        }
+        }*/
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_matrix: null
     ,_webglInstance: null
     
@@ -96,39 +96,39 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         {
             case FILTER.CHANNEL.ALPHA:
                 return this.set([
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.BLUE:
                 return this.set([
-                            0, 0, f, 0, 0, 
-                            0, 0, f, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, 0, f, 0, 0, 
+                        0, 0, f, 0, 0, 
+                        0, 0, 1, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.GREEN:
                 return this.set([
-                            0, f, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, f, 0, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, f, 0, 0, 0, 
+                        0, 1, 0, 0, 0, 
+                        0, f, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.RED:
             default:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            f, 0, 0, 0, 0, 
-                            f, 0, 0, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        1, 0, 0, 0, 0, 
+                        f, 0, 0, 0, 0, 
+                        f, 0, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
         }
     }
@@ -163,30 +163,30 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             case FILTER.CHANNEL.BLUE:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, 0, 0, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    1, 0, 0, 0, 0, 
+                    0, 1, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
             
             case FILTER.CHANNEL.GREEN:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            0, 0, 0, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    1, 0, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 
+                    0, 0, 1, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
             
             case FILTER.CHANNEL.RED:
             default:
                 return this.set([
-                            0, 0, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    0, 0, 0, 0, 0, 
+                    0, 1, 0, 0, 0, 
+                    0, 0, 1, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
         }
     }
@@ -203,30 +203,30 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 0, 0, 1, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    1, 0, 0, 0, 0
-                                ]);
+                                0, 0, 0, 1, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                1, 0, 0, 0, 0
+                            ]);
                         break;
                 }
                 break;
@@ -236,11 +236,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
@@ -249,21 +249,21 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                 }
                 break;
@@ -273,20 +273,20 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
@@ -296,11 +296,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                 }
                 break;
@@ -311,29 +311,29 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    0, 0, 0, 1, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    1, 0, 0, 0, 0
-                                ]);
+                                0, 0, 0, 1, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                1, 0, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
@@ -347,62 +347,61 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,desaturate: function( ) {
+        var L = FILTER.LUMA;
         return this.set([
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    0, 0, 0, 1, 0
-                ]);
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,colorize: function( rgb, amount ) {
-        var r, g, b, inv_amount;
+        var r, g, b, inv_amount, L = FILTER.LUMA;
         if ( amount === undef ) amount = 1;
         r = (((rgb >> 16) & 255) * 0.0039215686274509803921568627451);  // / 255
         g = (((rgb >> 8) & 255) * 0.0039215686274509803921568627451);  // / 255
         b = ((rgb & 255) * 0.0039215686274509803921568627451);  // / 255
         inv_amount = 1 - amount;
-
         return this.set([
-                    (inv_amount + ((amount * r) * FILTER.LUMA[0])), ((amount * r) * FILTER.LUMA[1]), ((amount * r) * FILTER.LUMA[2]), 0, 0, 
-                    ((amount * g) * FILTER.LUMA[0]), (inv_amount + ((amount * g) * FILTER.LUMA[1])), ((amount * g) * FILTER.LUMA[2]), 0, 0, 
-                    ((amount * b) * FILTER.LUMA[0]), ((amount * b) * FILTER.LUMA[1]), (inv_amount + ((amount * b) * FILTER.LUMA[2])), 0, 0, 
-                        0, 0, 0, 1, 0
-                    ]);
+            (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
+            ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
+            ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
+                0, 0, 0, 1, 0
+            ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,invert: function( ) {
         return this.set([
-                -1, 0,  0, 0, 255,
-                0, -1,  0, 0, 255,
-                0,  0, -1, 0, 255,
-                0,  0,  0, 1,   0
-            ]);
+            -1, 0,  0, 0, 255,
+            0, -1,  0, 0, 255,
+            0,  0, -1, 0, 255,
+            0,  0,  0, 1,   0
+        ]);
     }
     
     ,invertAlpha: function( ) {
         return this.set([
-                1,  0,  0, 0, 0,
-                0,  1,  0, 0, 0,
-                0,  0,  1, 0, 0,
-                0,  0,  0, -1, 255
-            ]);
+            1,  0,  0, 0, 0,
+            0,  1,  0, 0, 0,
+            0,  0,  1, 0, 0,
+            0,  0,  0, -1, 255
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,saturate: function( s ) {
-        var sInv, irlum, iglum, iblum;
-        sInv = (1 - s);  irlum = (sInv * FILTER.LUMA[0]);
-        iglum = (sInv * FILTER.LUMA[1]);  iblum = (sInv * FILTER.LUMA[2]);
-        
+        var sInv, irlum, iglum, iblum, L = FILTER.LUMA;
+        sInv = 1 - s;  irlum = sInv * L[0];
+        iglum = sInv * L[1];  iblum = sInv * L[2];
         return this.set([
-                (irlum + s), iglum, iblum, 0, 0, 
-                irlum, (iglum + s), iblum, 0, 0, 
-                irlum, iglum, (iblum + s), 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            (irlum + s), iglum, iblum, 0, 0, 
+            irlum, (iglum + s), iblum, 0, 0, 
+            irlum, iglum, (iblum + s), 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -411,37 +410,35 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( b === undef )  b = r;
         r += 1.0; g += 1.0; b += 1.0;
         return this.set([
-                r, 0, 0, 0, (128 * (1 - r)), 
-                0, g, 0, 0, (128 * (1 - g)), 
-                0, 0, b, 0, (128 * (1 - b)), 
-                0, 0, 0, 1, 0
-            ]);
+            r, 0, 0, 0, (128 * (1 - r)), 
+            0, g, 0, 0, (128 * (1 - g)), 
+            0, 0, b, 0, (128 * (1 - b)), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,brightness: function( r, g, b ) {
         if ( g === undef )  g = r;
         if ( b === undef )  b = r;
-        
         return this.set([
-                1, 0, 0, 0, r, 
-                0, 1, 0, 0, g, 
-                0, 0, 1, 0, b, 
-                0, 0, 0, 1, 0
-            ]);
+            1, 0, 0, 0, r, 
+            0, 1, 0, 0, g, 
+            0, 0, 1, 0, b, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,adjustHue: function( degrees ) {
         degrees *= toRad;
-        var cos = Cos(degrees), sin = Sin(degrees);
-        
+        var cos = Cos(degrees), sin = Sin(degrees), L = FILTER.LUMA;
         return this.set([
-                ((FILTER.LUMA[0] + (cos * (1 - FILTER.LUMA[0]))) + (sin * -(FILTER.LUMA[0]))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * -(FILTER.LUMA[1]))), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * (1 - FILTER.LUMA[2]))), 0, 0, 
-                ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * 0.143)), ((FILTER.LUMA[1] + (cos * (1 - FILTER.LUMA[1]))) + (sin * 0.14)), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * -0.283)), 0, 0, 
-                ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * -((1 - FILTER.LUMA[0])))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * FILTER.LUMA[1])), ((FILTER.LUMA[2] + (cos * (1 - FILTER.LUMA[2]))) + (sin * FILTER.LUMA[2])), 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
+            ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
+            ((L[0] + (cos * -(L[0]))) + (sin * -((1 - L[0])))), ((L[1] + (cos * -(L[1]))) + (sin * L[1])), ((L[2] + (cos * (1 - L[2]))) + (sin * L[2])), 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -449,24 +446,22 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( r === undef ) r = 0.3333;
         if ( g === undef ) g = 0.3333;
         if ( b === undef ) b = 0.3334;
-        
         return this.set([
-                r, g, b, 0, 0, 
-                r, g, b, 0, 0, 
-                r, g, b, 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            r, g, b, 0, 0, 
+            r, g, b, 0, 0, 
+            r, g, b, 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     ,quickContrastCorrection: function( contrast ) {
         if ( contrast === undef ) contrast = 1.2;
-        
         return this.set([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
             0, 0, contrast, 0, 0, 
             0, 0, 0, 1, 0
-            ]);
+        ]);
     }
     
     // adapted from glfx.js
@@ -488,10 +483,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( amount === undef ) amount = 10;
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
+        var L = FILTER.LUMA;
         return this.set([
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 40, 
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 20, 
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, -amount, 
+            L[0], L[1], L[2], 0, 40, 
+            L[0], L[1], L[2], 0, 20, 
+            L[0], L[1], L[2], 0, -amount, 
             0, 0, 0, 1, 0
         ]);
     }
@@ -499,57 +495,55 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
-        
+        var L = FILTER.LUMA;
         return this.set([
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                0, 0, 0, 1, 0
-            ]);
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold_rgb: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
-        
         return this.set([
-                factor, 0, 0, 0, (-(factor-1) * threshold), 
-                0, factor, 0, 0, (-(factor-1) * threshold), 
-                0,  0, factor, 0, (-(factor-1) * threshold), 
-                0, 0, 0, 1, 0
-            ]);
+            factor, 0, 0, 0, (-(factor-1) * threshold), 
+            0, factor, 0, 0, (-(factor-1) * threshold), 
+            0,  0, factor, 0, (-(factor-1) * threshold), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     ,threshold_alpha: function( threshold, factor ) {
         if ( threshold === undef )  threshold = 0.5;
         if ( factor === undef ) factor = 256;
-        
         return this.set([
-                1, 0, 0, 0, 0, 
-                0, 1, 0, 0, 0, 
-                0, 0, 1, 0, 0, 
-                0, 0, 0, factor, (-factor * threshold)
-            ]);
+            1, 0, 0, 0, 0, 
+            0, 1, 0, 0, 0, 
+            0, 0, 1, 0, 0, 
+            0, 0, 0, factor, (-factor * threshold)
+        ]);
     }
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
         return this.set([
-                0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
-                0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
-                -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
-                0, 0, 0, 1, 0
-            ]);
+            0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
+            0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
+            -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
         return this.set([
-                1.402, 1, 0, 0, -179.456,  
-                -0.71414, 1, -0.34414, 0, 135.45984,
-                0, 1, 1.772, 0, -226.816,
-                0, 0, 0, 1, 0
-            ]);
+            1.402, 1, 0, 0, -179.456,  
+            -0.71414, 1, -0.34414, 0, 135.45984,
+            0, 1, 1.772, 0, -226.816,
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // blend with another filter
@@ -582,85 +576,8 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // used for internal purposes
-    ,_apply: function(p, w, h/*, image*/) {
-        var self = this;
-        if ( self._isOn && self._matrix )
-        {
-            var pl = p.length, m = self._matrix,
-                i, rem = (pl>>2)%4,
-                p0, p1, p2, p3, 
-                p4, p5, p6, p7, 
-                p8, p9, p10, p11,
-                p12, p13, p14, p15,
-                t0, t1, t2, t3
-            ;
-            
-            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-            // linearize array
-            // partial loop unrolling (quarter iterations)
-            for (i=0; i<pl; i+=16)
-            {
-                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-            }
-            
-            // loop unrolling remainder
-            if (rem)
-            {
-                rem <<= 2;
-                for (i=pl-rem; i<pl; i+=4)
-                {
-                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                    
-                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                }
-            }
-        }
-        return p;
-    }
-        
-    ,canRun: function( ) {
-        return this._isOn && this._matrix;
-    }
-});
-// aliases
-ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
-ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
-ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
-ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
-if (notSupportClamp)
-{   
-    ColorMatrixFilter.prototype._apply = function(p, w, h/*, image*/) {
+    ,_apply: notSupportClamp
+    ? function(p, w, h/*, image*/) {
         var self = this;
         if ( self._isOn && self._matrix )
         {
@@ -720,9 +637,9 @@ if (notSupportClamp)
                 p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
                 p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
                 
-                p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
+                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
+                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
                 p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
             }
             
@@ -749,8 +666,83 @@ if (notSupportClamp)
             }
         }
         return p;
-    };
-}
+    }
+    : function(p, w, h/*, image*/) {
+        var self = this;
+        if ( self._isOn && self._matrix )
+        {
+            var pl = p.length, m = self._matrix,
+                i, rem = (pl>>2)%4,
+                p0, p1, p2, p3, 
+                p4, p5, p6, p7, 
+                p8, p9, p10, p11,
+                p12, p13, p14, p15,
+                t0, t1, t2, t3
+            ;
+            
+            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+            // linearize array
+            // partial loop unrolling (quarter iterations)
+            for (i=0; i<pl; i+=16)
+            {
+                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
+                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
+                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
+                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+            }
+            
+            // loop unrolling remainder
+            if (rem)
+            {
+                rem <<= 2;
+                for (i=pl-rem; i<pl; i+=4)
+                {
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                }
+            }
+        }
+        return p;
+    }
+        
+    ,canRun: function( ) {
+        return this._isOn && this._matrix;
+    }
+});
+// aliases
+ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
+ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
+ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
+ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
 
 //
 //
@@ -808,36 +800,40 @@ function eye()
 
 function CMblend(m1, m2, amount)
 {
-    var inv_amount = (1 - amount), i = 0, m=new CM(20);
+    var m=new CM(20);
     
     // unroll the loop completely
-    m[ 0 ] = (inv_amount * m1[0]) + (amount * m2[0]);
-    m[ 1 ] = (inv_amount * m1[1]) + (amount * m2[1]);
-    m[ 2 ] = (inv_amount * m1[2]) + (amount * m2[2]);
-    m[ 3 ] = (inv_amount * m1[3]) + (amount * m2[3]);
-    m[ 4 ] = (inv_amount * m1[4]) + (amount * m2[4]);
+    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
+    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
+    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
+    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
+    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
 
-    m[ 5 ] = (inv_amount * m1[5]) + (amount * m2[5]);
-    m[ 6 ] = (inv_amount * m1[6]) + (amount * m2[6]);
-    m[ 7 ] = (inv_amount * m1[7]) + (amount * m2[7]);
-    m[ 8 ] = (inv_amount * m1[8]) + (amount * m2[8]);
-    m[ 9 ] = (inv_amount * m1[9]) + (amount * m2[9]);
+    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
+    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
+    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
+    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
+    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
     
-    m[ 10 ] = (inv_amount * m1[10]) + (amount * m2[10]);
-    m[ 11 ] = (inv_amount * m1[11]) + (amount * m2[11]);
-    m[ 12 ] = (inv_amount * m1[12]) + (amount * m2[12]);
-    m[ 13 ] = (inv_amount * m1[13]) + (amount * m2[13]);
-    m[ 14 ] = (inv_amount * m1[14]) + (amount * m2[14]);
+    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
+    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
+    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
+    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
+    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
     
-    m[ 15 ] = (inv_amount * m1[15]) + (amount * m2[15]);
-    m[ 16 ] = (inv_amount * m1[16]) + (amount * m2[16]);
-    m[ 17 ] = (inv_amount * m1[17]) + (amount * m2[17]);
-    m[ 18 ] = (inv_amount * m1[18]) + (amount * m2[18]);
-    m[ 19 ] = (inv_amount * m1[19]) + (amount * m2[19]);
+    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
+    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
+    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
+    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
+    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
     
     //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
     
     return m;
 }
+
+ColorMatrixFilter.multiply = CMconcat;
+ColorMatrixFilter.blend = CMblend;
+ColorMatrixFilter.eye = eye;
 
 }(FILTER);

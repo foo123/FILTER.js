@@ -15,6 +15,8 @@
 FILTER.SVGFilter = FILTER.Class( FILTER.Filter, {
     name: "SVGFilter"
     
+    ,path: FILTER_SVG_PATH
+    
     ,constructor: function( svgXml ) { 
         // todo
         this.$super('constructor');

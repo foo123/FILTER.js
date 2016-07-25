@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, rand=Math.random;
+var notSupportClamp = FILTER._notSupportClamp, rand = Math.random;
 
 // a sample noise filter
 // used for illustration purposes on how to create a plugin filter
@@ -26,7 +26,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;

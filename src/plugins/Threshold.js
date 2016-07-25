@@ -7,9 +7,9 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp,
-    TypedArray=FILTER.TypedArray,
-    RGBA2Color=FILTER.Color.RGBA2Color, Color2RGBA=FILTER.Color.Color2RGBA
+var notSupportClamp = FILTER._notSupportClamp,
+    TypedArray = FILTER.TypedArray,
+    RGBA2Color = FILTER.Color.RGBA2Color, Color2RGBA = FILTER.Color.Color2RGBA
     ;
 
 // a plugin to apply a general threshold filtering to an image
@@ -29,7 +29,7 @@ FILTER.Create({
     }
     
     // support worker serialize/unserialize interface
-    ,path: FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUri )
+    ,path: FILTER_PLUGINS_PATH
     
     ,serialize: function( ) {
         var self = this;
@@ -79,7 +79,7 @@ FILTER.Create({
             
             // maybe use sth faster here ??
             j=0; while (j<tl && color>thresholds[j]) j++;
-            color = (j<cl) ? colors[j] : 255;
+            color = j < cl ? colors[j] : 255;
             
             rgba = Color2RGBA(color);
             //im.set(rgba,i);

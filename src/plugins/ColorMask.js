@@ -1,72 +1,71 @@
 /**
 *
-* Channel Copy Plugin
+* Color Mask Plugin
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
-    R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
+var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
 
-// a plugin to copy a channel of an image to a channel of another image
+// a plugin to mask an image using the alpha channel of another image
 FILTER.Create({
-    name: "ChannelCopyFilter"
+    name: "ColorMaskFilter"
     
     // parameters
-    ,_srcImg: null
-    ,srcImg: null
+    ,_mask: null
+    ,mask: null
+    ,color: 0
     ,centerX: 0
     ,centerY: 0
-    ,srcChannel: 0
-    ,dstChannel: 0
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
+    ,init: function( color, colorMask, centerX, centerY ) {
         var self = this;
-        self._srcImg = null;
-        self.srcImg = null;
-        self.srcChannel = srcChannel || R;
-        self.dstChannel = dstChannel || R;
-        self.centerX = centerX || 0;
-        self.centerY = centerY || 0;
-        if ( srcImg ) self.setSrc( srcImg );
+        self.color = color || 0;
+        self.centerX = centerX||0;
+        self.centerY = centerY||0;
+        self._mask = null;
+        self.mask = null;
+        if ( null != colorMask ) self.setMask( colorMask );
     }
     
     ,dispose: function( ) {
         var self = this;
-        self.srcImg = null;
-        self._srcImg = null;
+        self.color = null;
+        self.centerX = null;
+        self.centerY = null;
+        self.mask = null;
+        self._mask = null;
         self.$super('dispose');
         return self;
     }
     
-    ,setSrc: function( srcImg ) {
+    ,setMask: function( colorMask ) {
         var self = this;
-        if ( srcImg )
+        if ( null != colorMask )
         {
-            self.srcImg = srcImg;
-            self._srcImg = null;
+            self.mask = colorMask;
+            self._mask = null;
         }
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this, Src = self.srcImg;
+        var self = this, mask = self.mask;
         return {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _srcImg: self._srcImg || (Src ? { data: Src.getData( ), width: Src.width, height: Src.height } : null)
+                _mask: mask === +mask ? +mask : (self._mask || (mask ? { data: mask.getData( ), width: mask.width, height: mask.height } : null))
+                ,color: self.color
                 ,centerX: self.centerX
                 ,centerY: self.centerY
-                ,srcChannel: self.srcChannel
-                ,dstChannel: self.dstChannel
             }
         };
     }
@@ -79,13 +78,12 @@ FILTER.Create({
             
             params = json.params;
             
-            self.srcImg = null;
-            self._srcImg = params._srcImg;
-            if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
+            self.mask = null;
+            self._mask = params._mask;
+            if ( self._mask && (self._mask !== +self._mask) ) self._mask.data = FILTER.TypedArray( self._mask.data, FILTER.ImArray );
+            self.color = params.color;
             self.centerX = params.centerX;
             self.centerY = params.centerY;
-            self.srcChannel = params.srcChannel;
-            self.dstChannel = params.dstChannel;
         }
         return self;
     }
@@ -96,17 +94,15 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this, Src = self.srcImg;
-        if ( !self._isOn || !(Src || self._srcImg) ) return im;
         
-        //self._srcImg = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height };
+        var self = this, mask = self.mask;
+        if ( !self._isOn || null == mask || null == self._mask ) return im;
         
-        var _src = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height },
-            src = _src.data, w2 = _src.width, h2 = _src.height,
-            i, l = im.length, l2 = src.length, 
-            sC = self.srcChannel, tC = self.dstChannel,
+        var _mask = self._mask || { data: mask.getData( ), width: mask.width, height: mask.height },
+            mask = _mask.data, w2 = _mask.width, h2 = _mask.height, color = self.color||0,
+            i, l = im.length, l2 = alpha.length, 
             x, x2, y, y2, off, xc, yc, 
-            wm = Min(w,w2), hm = Min(h, h2),  
+            wm = Min(w, w2), hm = Min(h, h2),  
             cX = self.centerX||0, cY = self.centerY||0, 
             cX2 = (w2>>1), cY2 = (h2>>1)
         ;
@@ -116,7 +112,7 @@ FILTER.Create({
         cX = Floor(cX*(w-1)) - cX2;
         cY = Floor(cY*(h-1)) - cY2;
         
-        i=0; x=0; y=0;
+        x=0; y=0;
         for (i=0; i<l; i+=4, x++)
         {
             if (x>=w) { x=0; y++; }
@@ -124,9 +120,14 @@ FILTER.Create({
             xc = x - cX; yc = y - cY;
             if (xc>=0 && xc<wm && yc>=0 && yc<hm)
             {
-                // copy channel
+                // copy alpha channel
                 off = (xc + yc*w2)<<2;
-                im[i + tC] = src[off + sC];
+                im[i+3] = alpha[off+3];
+            }
+            else
+            {
+                // better to remove the alpha channel if mask dimensions are different??
+                im[i+3] = 0;
             }
         }
         

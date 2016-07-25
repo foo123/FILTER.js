@@ -910,6 +910,8 @@ var WebGLFilter = FILTER.WebGLFilter = FILTER.Class( FILTER.Filter, {
     
     name : "WebGLFilter",
     
+    path: FILTER_WEBGL_PATH,
+    
     constructor: function(shaders, attributes, uniforms, textures) { 
         var self = this;
         self.$super('constructor');
