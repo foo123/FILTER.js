@@ -8,7 +8,7 @@ __0.9.5__
 * new effects utiltiies and plugins `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter,Image`
 * new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
 * new plugin `DropShadowFilter` (analogous to ActionScript filter)
-* new plugin `ConnectedComponentsFilter` (analogous to ActionScript filter)
+* new plugin `ConnectedComponentsFilter`
 * heavy refactoring and optimisations
 * make paralle thread calls faster (both browser and nodejs), update asynchronous
 * make histogram equalisation faster, some convolutions faster and fix some typos, pixelation faster, hue extraction faster, .. (up to consistent 60 fps processing)
