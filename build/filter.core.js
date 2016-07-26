@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-26 04:03:10
+*   @built on 2016-07-26 14:24:06
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-26 04:03:10
+*   @built on 2016-07-26 14:24:06
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -77,7 +77,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
     ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     
-    ,log, _uuid = 0
+    ,TypedArray, log, _uuid = 0
 ;
 
 //
@@ -140,36 +140,10 @@ FILTER.Array32I = (typeof Int32Array !== "undefined") ? Int32Array : Array;
 FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
-
-FILTER.ArraySet = no_typed_array_set
-? function( a, b, offset ) {
-    offset = offset || 0;
-    for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
-}
-: function( a, b, offset ){ a.set(b, offset||0); };
-
-FILTER.ArraySubArray = !FILTER.Array32F[PROTO].subarray
-? function( a, i1, i2 ){ return a.slice(i1, i2); }
-: function( a, i1, i2 ){ return a.subarray(i1, i2); };
-
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-
-FILTER.TypedObj = isNode
-    ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
-    : function( o ) { return o; }
-;
-FILTER.TypedArray = isNode
-    ? function( a, A ) {
-        if ( (null == a) || (a instanceof A) ) return a;
-        else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
-        if ( null == a.length ) a.length = Object.keys( a ).length;
-        return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-    }
-    : function( a, A ) { return a; }
-;
 
 //
 // Constants
@@ -215,6 +189,29 @@ FILTER.MachineLearning = FILTER.ML = { };
 // utilities
 FILTER.Util = {
     Math    : { },
+    Array   : {
+        arrayset: no_typed_array_set
+            ? function( a, b, offset ) {
+                offset = offset || 0;
+                for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
+            }
+            : function( a, b, offset ){ a.set(b, offset||0); }
+
+        ,subarray: !FILTER.Array32F[PROTO].subarray
+            ? function( a, i1, i2 ){ return a.slice(i1, i2); }
+            : function( a, i1, i2 ){ return a.subarray(i1, i2); }
+        ,typed: TypedArray = (isNode
+            ? function( a, A ) {
+                if ( (null == a) || (a instanceof A) ) return a;
+                else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+                if ( null == a.length ) a.length = Object.keys( a ).length;
+                return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+            }
+            : function( a, A ) { return a; })
+        ,typed_obj: isNode
+            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
+            : function( o ) { return o; }
+    },
     String  : { },
     IO      : { },
     Filter  : { },
@@ -286,7 +283,7 @@ var
                         {
                             if ( data.params ) filter.unserialize( data.params );
                             //log(data.im[0]);
-                            var im = FILTER.TypedArray( data.im[ 0 ], FILTER.ImArray );
+                            var im = TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
                             im = filter._apply( im, data.im[ 1 ], data.im[ 2 ] );
                             self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
@@ -347,7 +344,8 @@ var
         }
         
         ,sources: function( ) {
-            var sources = AP.slice.call( arguments );
+            if ( !arguments.length ) return this;
+            var sources = arguments[0] instanceof Array ? arguments[0] : AP.slice.call( arguments );
             if ( sources.length )
             {
                 var blobs = [ ], i;
@@ -364,7 +362,8 @@ var
         }
         
         ,scripts: function( ) {
-            var scripts = AP.slice.call( arguments );
+            if ( !arguments.length ) return this;
+            var scripts = arguments[0] instanceof Array ? arguments[0] : AP.slice.call( arguments );
             if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }
@@ -521,7 +520,7 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im/*self._update*/ ) dst.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im/*self._update*/ ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                         }
                         if ( cb ) cb.call( self );
                     };
@@ -584,7 +583,7 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
-    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
+    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
     notSupportClamp = FILTER._notSupportClamp,
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
 ;
@@ -817,7 +816,7 @@ function histogram( im, w, h, channel )
     // initialize the arrays
     channel = channel || 0;
     cdf = new A32F( 256 ); 
-    for (i=0; i<256; i+=32) 
+    /*for (i=0; i<256; i+=32) 
     { 
         // partial loop unrolling
         cdf[i   ]=0;
@@ -852,7 +851,7 @@ function histogram( im, w, h, channel )
         cdf[i+29]=0;
         cdf[i+30]=0;
         cdf[i+31]=0;
-    }
+    }*/
     // compute pdf and maxima/minima
     for (i=0; i<l; i+=4)
     {
@@ -906,7 +905,7 @@ function spectrum( im, w, h, channel )
 }
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
@@ -1098,7 +1097,7 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
     }
     return dst;
 }
-function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+/*function integral_convolution_rgba(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB, colA,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
@@ -1296,7 +1295,7 @@ function integral_convolution(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff
     : integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
     ;
 }
-
+*/
 // speed-up convolution for separable kernels
 function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
@@ -1351,7 +1350,7 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
                         r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        a += im[srcOff+3] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -1364,17 +1363,17 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff * a;
                     t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         else
@@ -1395,7 +1394,7 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
                         r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        a += im[srcOff+3] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -1403,16 +1402,16 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                 t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
                 
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff * a;
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         
@@ -1617,7 +1616,7 @@ ImageUtil.radial_gradient = radial_gradient;
 ImageUtil.lerp = lerp;
 ImageUtil.colors_stops = colors_stops;
 
-FilterUtil.integral_convolution = integral_convolution;
+FilterUtil.integral_convolution = integral_convolution_rgb;
 FilterUtil.separable_convolution = separable_convolution;
 
 }(FILTER);/**
@@ -1717,7 +1716,7 @@ FILTER.Interpolation.nearest = function( im, w, h, nw, nh ) {
 "use strict";
 
 var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F,
-    subarray = FILTER.ArraySubArray;
+    subarray = FILTER.Util.Array.subarray;
 
 // http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
 FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
@@ -2096,9 +2095,25 @@ var Color = FILTER.Color = FILTER.Class({
     
         clamp: clamp,
         
-        clampPixel: function( v ) { return min(255, max(v, 0)); },
+        clampPixel: function( v ) {
+            return min(255, max(v, 0));
+        },
         
-        toGray: function( r, g, b ) { return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b); }, 
+        intensity: function( r, g, b ) {
+            return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+        }, 
+        
+        hue: function( r, g, b ) {
+            var M = max( r, g, b );
+            return (0 === M) || (r === g && g === b)
+            ? 0
+            : (r === M
+            ? 60 * abs( g - b ) / (M - min( r, g, b ))
+            : (g === M
+            ? 120 + 60 * abs( b - r ) / (M - min( r, g, b ))
+            : 240 + 60 * abs( r - g ) / (M - min( r, g, b ))))
+            ;
+        },
         
         distance: function( rgb1, rgb2 ) {
             var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
@@ -2110,7 +2125,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
         
         RGBA2Color: function( rgba ) {
-            return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
+            return (rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2]&255);
         },
         
         Color2RGBA: function( c ) {
@@ -2155,23 +2170,23 @@ var Color = FILTER.Color = FILTER.Class({
             m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
             v = M;                // v
 
-            if( M != 0 )
-            {
-                s = delta / M;        // s
-            }
-            else 
+            if ( (0 === M) || ( r === g && g === b) )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
                 return [h, s, v];
             }
+            else 
+            {
+                s = delta / M;        // s
+            }
 
-            if( r == M )    h = ( g - b ) / delta;        // between yellow & magenta
-            else if ( g == M )  h = 2 + ( b - r ) / delta;    // between cyan & yellow
-            else   h = 4 + ( r - g ) / delta;   // between magenta & cyan
+            if( r === M )    h = 60 * abs( g - b ) / delta;        // between yellow & magenta
+            else if ( g === M )  h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
+            else   h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
 
-            h *= 60;                // degrees
-            if( h < 0 )  h += 360;
+            //h *= 60;                // degrees
+            //if( h < 0 )  h += 360;
             
             return [h, s, v];
         },
@@ -2183,7 +2198,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             h=hsv[0]; s=hsv[1]; v=hsv[2];
             
-            if( s == 0 ) 
+            if( 0 === s ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
@@ -2191,8 +2206,8 @@ var Color = FILTER.Color = FILTER.Class({
             }
 
             h /= 60;            // sector 0 to 5
-            i = ~~( h );
-            f = h - i;          // factorial part of h
+            i = ~~h;
+            f = h - i;          // fractional part of h
             p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
 
             if ( 0 === i )      { r = v; g = t; b = p; }
@@ -2883,6 +2898,7 @@ var Color = FILTER.Color = FILTER.Class({
     }
 });
 
+Color.toGray = Color.intensity;
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
 Color.Blend = Color.Combine = {
@@ -3873,7 +3889,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     ImageUtil = FILTER.Util.Image, Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
     notSupportTyped = FILTER._notSupportTypedArrays,
-    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
+    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
     Min = Math.min, Floor = Math.floor,
 
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,

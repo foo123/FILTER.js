@@ -81,7 +81,7 @@ FILTER.Create({
             
             self.srcImg = null;
             self._srcImg = params._srcImg;
-            if ( self._srcImg ) self._srcImg.data = FILTER.TypedArray( self._srcImg.data, FILTER.ImArray );
+            if ( self._srcImg ) self._srcImg.data = FILTER.Util.Array.typed( self._srcImg.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
             self.srcChannel = params.srcChannel;

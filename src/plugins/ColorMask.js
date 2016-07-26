@@ -80,7 +80,7 @@ FILTER.Create({
             
             self.mask = null;
             self._mask = params._mask;
-            if ( self._mask && (self._mask !== +self._mask) ) self._mask.data = FILTER.TypedArray( self._mask.data, FILTER.ImArray );
+            if ( self._mask && (self._mask !== +self._mask) ) self._mask.data = FILTER.Util.Array.typed( self._mask.data, FILTER.ImArray );
             self.color = params.color;
             self.centerX = params.centerX;
             self.centerY = params.centerY;

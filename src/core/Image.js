@@ -12,7 +12,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     ImageUtil = FILTER.Util.Image, Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
     notSupportTyped = FILTER._notSupportTypedArrays,
-    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
+    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
     Min = Math.min, Floor = Math.floor,
 
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,

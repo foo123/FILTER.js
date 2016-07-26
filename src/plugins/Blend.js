@@ -100,7 +100,7 @@ FILTER.Create({
             self.startY = params.startY;
             self.blendImage = null;
             self._blendImage = params._blendImage;
-            if ( self._blendImage ) self._blendImage.data = FILTER.TypedArray( self._blendImage.data, FILTER.ImArray );
+            if ( self._blendImage ) self._blendImage.data = FILTER.Util.Array.typed( self._blendImage.data, FILTER.ImArray );
             self.setMode( params._blendMode );
         }
         return self;

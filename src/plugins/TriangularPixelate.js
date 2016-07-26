@@ -66,7 +66,7 @@ FILTER.Create({
             inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
             integral, colR, colG, colB,
             rowLen = (w<<1)+w, imageIndicesX, imageIndicesY,
-            i, j, x, y, yw, px, py, pyw, pi,
+            i, j, x, yw, px, py,
             xOff1, yOff1, xOff2, yOff2, 
             bx1, by1, bx2, by2, 
             p1, p2, p3, p4, 
@@ -76,7 +76,7 @@ FILTER.Create({
     
         step = ~~(Sqrt(imArea)*self.scale*0.01);
         step_2 = step>>1; step_1 = step-1;
-        stepw = w*step; hstep = (h%step); wstep = (w%step); hstepw = (hstep-1)*w;
+        stepw = w*step; hstep = h%step; wstep = w%step; hstepw = (hstep-1)*w;
         inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
         inv_sizes = 2*inv_size1; inv_sizew = 2*inv_size1w; inv_sizeh = 2*inv_size1h; inv_sizewh = 2*inv_size1hw;
         
@@ -107,7 +107,7 @@ FILTER.Create({
         }
         
         // first block
-        x = 0; y = 0; yw = 0;
+        x = 0; yw = 0;
         // calculate the weighed sum of the source image pixels that
         // fall under the pixelate convolution matrix
         
@@ -116,8 +116,8 @@ FILTER.Create({
         xOff2 = x-step_2 + imageIndicesX; yOff2 = yw+imageIndicesY;
         
         // fix borders
-        xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-        yOff2 = (yOff2>by2) ? by2 : yOff2;
+        xOff2 = xOff2>bx2 ? bx2 : xOff2;
+        yOff2 = yOff2>by2 ? by2 : yOff2;
         
         // compute integral positions
         p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
@@ -134,7 +134,7 @@ FILTER.Create({
         xOff2 = x+imageIndicesX;
         
         // fix borders
-        xOff2 = (xOff2>bx2) ? bx2 : xOff2;
+        xOff2 = xOff2>bx2 ? bx2 : xOff2;
         
         // compute integral positions
         p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
@@ -148,12 +148,12 @@ FILTER.Create({
         if (notSupportClamp)
         {   
             // clamp them manually
-            r1 = (r1<0) ? 0 : ((r1>255) ? 255 : r1);
-            g1 = (g1<0) ? 0 : ((g1>255) ? 255 : g1);
-            b1 = (b1<0) ? 0 : ((b1>255) ? 255 : b1);
-            r2 = (r2<0) ? 0 : ((r2>255) ? 255 : r2);
-            g2 = (g2<0) ? 0 : ((g2>255) ? 255 : g2);
-            b2 = (b2<0) ? 0 : ((b2>255) ? 255 : b2);
+            r1 = r1<0 ? 0 : (r1>255 ? 255 : r1);
+            g1 = g1<0 ? 0 : (g1>255 ? 255 : g1);
+            b1 = b1<0 ? 0 : (b1>255 ? 255 : b1);
+            r2 = r2<0 ? 0 : (r2>255 ? 255 : r2);
+            g2 = g2<0 ? 0 : (g2>255 ? 255 : g2);
+            b2 = b2<0 ? 0 : (b2>255 ? 255 : b2);
         }
         r1 = ~~r1;  g1 = ~~g1;  b1 = ~~b1; // alpha channel is not transformed
         r2 = ~~r2;  g2 = ~~g2;  b2 = ~~b2; // alpha channel is not transformed
@@ -162,43 +162,28 @@ FILTER.Create({
         r = r1; g = g1; b = b1;
         
         // do direct pixelate convolution
-        px = 0; py = 0; pyw = 0;
+        px = 0; py = 0;
         for (i=0; i<imLen; i+=4)
         {
             // output
             // replace the area equal to the given pixelate size
             // with the average color, computed in previous step
-            pi = (px+x + pyw+yw)<<2;
-            im[pi] = r;  im[pi+1] = g;  im[pi+2] = b; 
+            im[i] = r; im[i+1] = g; im[i+2] = b; 
             
             // next pixel
-            px++; 
-            if ( px+x >= w || px >= step ) 
+            x++; px++; 
+            if ( x >= w ) 
             { 
-                px=0; py++; pyw+=w; 
-                // render first triangle, faster if put here
-                r = r1; g = g1; b = b1;
+                px=0; x=0; py++; yw+=w;
+                if ( py >= step ) py=0;
             }
-            // these edge conditions create the various triangular patterns
-            if ( px > step_1-py ) 
+            if ( px >= step ) 
             { 
-                // render second triangle
-                r = r2; g = g2; b = b2;
+                px=0;
             }
-            /*else
-            {
-                 // render first triangle
-                r = r1; g = g1; b = b1;
-            }*/
-            
-            
             // next block
-            if (py + y >= h || py >= step)
+            if (0 === px)
             {
-                // update image coordinates
-                x += step; if (x >= w)  { x=0; y+=step; yw+=stepw; }
-                px = 0; py = 0; pyw = 0;
-                
                 // calculate the weighed sum of the source image pixels that
                 // fall under the pixelate convolution matrix
                 
@@ -207,17 +192,17 @@ FILTER.Create({
                 xOff2 = x - step_2 + imageIndicesX; yOff2 = yw + imageIndicesY;
                 
                 // fix borders
-                xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-                yOff2 = (yOff2>by2) ? by2 : yOff2;
+                xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
                 p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
                 p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
                 
                 // get correct area size
-                wRem = (0==xOff2-xOff1+step_2-wstep+1);
-                hRem = (0==yOff2-yOff1-hstepw);
-                inv_size = (wRem && hRem) ? inv_sizewh : ((wRem) ? inv_sizew : ((hRem) ? inv_sizeh : inv_sizes));
+                wRem = wstep+xOff1===xOff2+step_2+1;
+                hRem = yOff1+hstepw===yOff2;
+                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
                 
                 // compute matrix sum of these elements
                 r1 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
@@ -229,15 +214,15 @@ FILTER.Create({
                 xOff2 = x + imageIndicesX;
                 
                 // fix borders
-                xOff2 = (xOff2>bx2) ? bx2 : xOff2;
+                xOff2 = xOff2>bx2 ? bx2 : xOff2;
                 
                 // compute integral positions
                 p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
                 p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
                 
                 // get correct area size
-                wRem = (0==xOff2-xOff1+step_2-wstep+1);
-                inv_size = (wRem && hRem) ? inv_sizewh : ((wRem) ? inv_sizew : ((hRem) ? inv_sizeh : inv_sizes));
+                wRem = wstep+xOff1===xOff2+step_2+1;
+                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
                 
                 // compute matrix sum of these elements
                 r2 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
@@ -247,12 +232,12 @@ FILTER.Create({
                 if (notSupportClamp)
                 {   
                     // clamp them manually
-                    r1 = (r1<0) ? 0 : ((r1>255) ? 255 : r1);
-                    g1 = (g1<0) ? 0 : ((g1>255) ? 255 : g1);
-                    b1 = (b1<0) ? 0 : ((b1>255) ? 255 : b1);
-                    r2 = (r2<0) ? 0 : ((r2>255) ? 255 : r2);
-                    g2 = (g2<0) ? 0 : ((g2>255) ? 255 : g2);
-                    b2 = (b2<0) ? 0 : ((b2>255) ? 255 : b2);
+                    r1 = r1<0 ? 0 : (r1>255 ? 255 : r1);
+                    g1 = g1<0 ? 0 : (g1>255 ? 255 : g1);
+                    b1 = b1<0 ? 0 : (b1>255 ? 255 : b1);
+                    r2 = r2<0 ? 0 : (r2>255 ? 255 : r2);
+                    g2 = g2<0 ? 0 : (g2>255 ? 255 : g2);
+                    b2 = b2<0 ? 0 : (b2>255 ? 255 : b2);
                 }
                 r1 = ~~r1;  g1 = ~~g1;  b1 = ~~b1; // alpha channel is not transformed
                 r2 = ~~r2;  g2 = ~~g2;  b2 = ~~b2; // alpha channel is not transformed
@@ -260,6 +245,17 @@ FILTER.Create({
                 // render first triangle
                 r = r1; g = g1; b = b1;
             }
+            // these edge conditions create the various triangular patterns
+            if ( px+py > step_1 ) 
+            { 
+                // render second triangle
+                r = r2; g = g2; b = b2;
+            }
+            /*else
+            {
+                 // render first triangle
+                r = r1; g = g1; b = b1;
+            }*/
         }
         
         // return the pixelated image data

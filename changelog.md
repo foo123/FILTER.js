@@ -1,5 +1,20 @@
 ##ChangeLog
 
+__0.9.5__
+
+* fix any nodejs portability emulation and parallel threads issues
+* fix some typos in Color utility and plugins
+* restructure utiltiies and folders (e.g Math, String, Array, Image, Filter utils ..)
+* new effects utiltiies and plugins `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter,Image`
+* new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
+* new plugin `DropShadowFilter` (analogous to ActionScript filter)
+* new plugin `ConnectedComponentsFilter` (analogous to ActionScript filter)
+* heavy refactoring and optimisations
+* make paralle thread calls faster (both browser and nodejs), update asynchronous
+* make histogram equalisation faster, some convolutions faster and fix some typos, pixelation faster, hue extraction faster, .. (up to consistent 60 fps processing)
+* update examples (both live browser and nodejs)
+
+
 __0.9.0__
 
 * restructure folders, separate builds for core, io, fx, util, codecs, filters, plugins, bundle

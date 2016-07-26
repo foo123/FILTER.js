@@ -8,7 +8,7 @@
 "use strict";
 
 //toCol = 0.70833333333333333333333333333333 // 255/360
-var notSupportClamp = FILTER._notSupportClamp, RGB2HSV = FILTER.Color.RGB2HSV, subarray = FILTER.ArraySubArray;
+var notSupportClamp = FILTER._notSupportClamp, RGB2HSV = FILTER.Color.RGB2HSV, subarray = FILTER.Util.Array.subarray;
 
 // a plugin to convert an RGB Image to an HSV Image
 FILTER.Create({

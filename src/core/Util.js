@@ -18,7 +18,7 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
-    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
+    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
     notSupportClamp = FILTER._notSupportClamp,
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
 ;
@@ -251,7 +251,7 @@ function histogram( im, w, h, channel )
     // initialize the arrays
     channel = channel || 0;
     cdf = new A32F( 256 ); 
-    for (i=0; i<256; i+=32) 
+    /*for (i=0; i<256; i+=32) 
     { 
         // partial loop unrolling
         cdf[i   ]=0;
@@ -286,7 +286,7 @@ function histogram( im, w, h, channel )
         cdf[i+29]=0;
         cdf[i+30]=0;
         cdf[i+31]=0;
-    }
+    }*/
     // compute pdf and maxima/minima
     for (i=0; i<l; i+=4)
     {
@@ -340,7 +340,7 @@ function spectrum( im, w, h, channel )
 }
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
@@ -532,7 +532,7 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
     }
     return dst;
 }
-function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+/*function integral_convolution_rgba(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB, colA,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
@@ -730,7 +730,7 @@ function integral_convolution(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff
     : integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
     ;
 }
-
+*/
 // speed-up convolution for separable kernels
 function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
@@ -785,7 +785,7 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
                         r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        a += im[srcOff+3] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -798,17 +798,17 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff * a;
                     t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         else
@@ -829,7 +829,7 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
                         r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        a += im[srcOff+3] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -837,16 +837,16 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
                 t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
                 
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff * a;
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         
@@ -1051,7 +1051,7 @@ ImageUtil.radial_gradient = radial_gradient;
 ImageUtil.lerp = lerp;
 ImageUtil.colors_stops = colors_stops;
 
-FilterUtil.integral_convolution = integral_convolution;
+FilterUtil.integral_convolution = integral_convolution_rgb;
 FilterUtil.separable_convolution = separable_convolution;
 
 }(FILTER);

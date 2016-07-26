@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var RGB2YCBCR = FILTER.Color.RGB2YCbCr;
+var subarray = FILTER.Util.Array.subarray, RGB2YCBCR = FILTER.Color.RGB2YCbCr;
 
 // a plugin to convert an RGB Image to an YCbCr Image
 FILTER.Create({
@@ -27,7 +27,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4)
         {
             //r = im[i]; g = im[i+1]; b = im[i+2];
-            ycbcr = RGB2YCBCR(im.subarray(i,i+3));
+            ycbcr = RGB2YCBCR(subarray(im,i,i+3));
             im[i] = ycbcr[2]; im[i+1] = ycbcr[0]; im[i+2] = ycbcr[1];
         }
         

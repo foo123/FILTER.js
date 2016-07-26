@@ -15,7 +15,7 @@
 var 
     sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
-    TypedArray = FILTER.TypedArray, FilterUtil = FILTER.Util.Filter,
+    TypedArray = FILTER.Util.Array.typed, FilterUtil = FILTER.Util.Filter,
     notSupportClamp = FILTER._notSupportClamp,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,

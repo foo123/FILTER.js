@@ -8,8 +8,8 @@
 "use strict";
 
 var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
-    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB,
-    Min = Math.min, Max = Math.max
+    //RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB,
+    Min = Math.min, Max = Math.max, subarray = FILTER.Util.Array.subarray
 ;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -26,14 +26,13 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var r,g,b, range, max = 0, min = 255,
-            cdf, accum, t0, t1, t2,
-            i, y, l=im.length, l2=l>>2, n=1.0/(l2), ycbcr, rgba
+        var r, g, b, y, cb, cr, range, max = 0, min = 255,
+            cdf, accum, i, l=im.length, l2=l>>2, n=1.0/(l2)
         ;
         
         // initialize the arrays
         cdf = new A32F( 256 );
-        for (i=0; i<256; i+=32)
+        /*for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
             cdf[i   ]=0;
@@ -68,17 +67,24 @@ FILTER.Create({
             cdf[i+29]=0;
             cdf[i+30]=0;
             cdf[i+31]=0;
-        }
+        }*/
         
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
         {
-            //r = im[i]; g = im[i+1]; b = im[i+2];
-            ycbcr = RGB2YCbCr(im.subarray(i,i+3));
-            r = im[i] = ~~ycbcr[2]; g = im[i+1] = ~~ycbcr[0]; b = im[i+2] = ~~ycbcr[1];
-            cdf[ g ] += n;
-            max = Max(g, max);
-            min = Min(g, min);
+            //ycbcr = RGB2YCbCr(subarray(im,i,i+3));
+            r = im[i]; g = im[i+1]; b = im[i+2];
+            y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
+            cb = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
+            cr = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+            // clamp them manually
+            cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+            y = y<0 ? 0 : (y>255 ? 255 : y);
+            cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+            im[i] = cr; im[i+1] = y; im[i+2] = cb;
+            cdf[ y ] += n;
+            max = Max(y, max);
+            min = Min(y, min);
         }
         
         // compute cdf
@@ -125,21 +131,28 @@ FILTER.Create({
         {   
             for (i=0; i<l; i+=4)
             { 
-                rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
-                t0 = rgba[0]; t1 = rgba[1]; t2 = rgba[2]; 
+                //rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
+                y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                r = ~~( y                      + 1.402   * (cr-128) );
+                g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                b = ~~( y + 1.772   * (cb-128) );
                 // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                r = r<0 ? 0 : (r>255 ? 255 : r);
+                g = g<0 ? 0 : (g>255 ? 255 : g);
+                b = b<0 ? 0 : (b>255 ? 255 : b);
+                im[i] = r; im[i+1] = g; im[i+2] = b; 
             }
         }
         else
         {
             for (i=0; i<l; i+=4)
             { 
-                rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
-                im[i] = ~~rgba[0]; im[i+1] = ~~rgba[1]; im[i+2] = ~~rgba[2]; 
+                //rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
+                y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                r = ~~( y                      + 1.402   * (cr-128) );
+                g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                b = ~~( y + 1.772   * (cb-128) );
+                im[i] = r; im[i+1] = g; im[i+2] = b; 
             }
         }
         
@@ -169,7 +182,7 @@ FILTER.Create({
         
         // initialize the arrays
         cdf = new A32F( 256 );
-        for (i=0; i<256; i+=32)
+        /*for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
             cdf[i   ]=0;
@@ -204,7 +217,7 @@ FILTER.Create({
             cdf[i+29]=0;
             cdf[i+30]=0;
             cdf[i+31]=0;
-        }
+        }*/
         
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
@@ -306,7 +319,7 @@ FILTER.Create({
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-        for (i=0; i<256; i+=32)
+        /*for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
             cdfR[i   ]=0;
@@ -407,7 +420,7 @@ FILTER.Create({
             cdfB[i+29]=0;
             cdfB[i+30]=0;
             cdfB[i+31]=0;
-        }
+        }*/
         
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)

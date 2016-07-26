@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.TypedArray, abs = Math.abs,
+var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
     min = Math.min, max = Math.max, ceil = Math.ceil,
     TILE = FILTER.MODE.TILE, STRETCH = FILTER.MODE.STRETCH,
     Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
@@ -22,16 +22,18 @@ FILTER.Create({
     ,x: 0
     ,y: 0
     ,color: null
+    ,borderColor: null
     ,tolerance: 0.0
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( x, y, color, tolerance ) {
+    ,init: function( x, y, color, tolerance, borderColor ) {
         var self = this;
         self.x = x || 0;
         self.y = y || 0;
-        self.color = color || [0,0,0];
+        self.color = color || 0;
         self.tolerance = tolerance || 0.0;
+        self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
     
     ,serialize: function( ) {
@@ -42,6 +44,7 @@ FILTER.Create({
             
             ,params: {
                  color: self.color
+                ,borderColor: self.borderColor
                 ,x: self.x
                 ,y: self.y
                 ,tolerance: self.tolerance
@@ -57,7 +60,8 @@ FILTER.Create({
             
             params = json.params;
             
-            self.color = TypedArray( params.color, Array );
+            self.color = params.color;
+            self.borderColor = params.borderColor;
             self.x = params.x;
             self.y = params.y;
             self.tolerance = params.tolerance;
@@ -75,7 +79,8 @@ FILTER.Create({
         var self = this, 
             /* seems to have issues when tol is exactly 1.0*/
             tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
-            OC, NC = self.color, /*pix = 4,*/ dy = w<<2, 
+            color = self.color || 0, borderColor = self.borderColor,
+            isBorderColor = borderColor === +borderColor, OC, NC, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length,
             ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
             l, i, x, x1, x2, yw, stack, slen, segment, notdone
@@ -85,13 +90,24 @@ FILTER.Create({
          * Parent segment was on line y-dy.  dy=1 or -1
          */
         yw = (y0*w)<<2; x0 <<= 2;
-        if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ||
-            (im[x0+yw] === NC[0] && im[x0+yw+1] === NC[1] && im[x0+yw+2] === NC[2]) ) return im;
+        if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
         
+        OC = new Array8U(3); NC = new Array8U(3);
+        NC[0] = (color >>> 16) & 255; NC[1] = (color >>> 8) & 255; NC[2] = color & 255; //NC[3] = (color >>> 24) & 255;
         // seed color is the image color at x0,y0 position
-        OC = new Array8U(3);
-        OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
+        if ( isBorderColor )
+        {
+            OC[0] = (borderColor >>> 16) & 255; OC[1] = (borderColor >>> 8) & 255; OC[2] = borderColor & 255;
+            if ( abs(OC[0]-im[x0+yw])<=tol && abs(OC[1]-im[x0+yw+1])<=tol && abs(OC[2]-im[x0+yw+2])<=tol ) return im;
+        }
+        else
+        {
+            if ( im[x0+yw] === NC[0] && im[x0+yw+1] === NC[1] && im[x0+yw+2] === NC[2] ) return im;
+            OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];
+        }
+        
         stack = new Array(imSize>>>2); slen = 0; // pre-allocate and soft push/pop for speed
+        
         if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
         /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
         
@@ -105,28 +121,59 @@ FILTER.Create({
              * segment of scan line y-dy for x1<=x<=x2 was previously filled,
              * now explore adjacent pixels in scan line y
              */
-            for (x=x1; x>=xmin; x-=4)
+            if ( isBorderColor )
             {
-                i = x+yw;
-                if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                for (x=x1; x>=xmin; x-=4)
                 {
-                    im[i  ] = NC[0];
-                    im[i+1] = NC[1];
-                    im[i+2] = NC[2];
+                    i = x+yw;
+                    if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        im[i  ] = NC[0];
+                        im[i+1] = NC[1];
+                        im[i+2] = NC[2];
+                    }
                 }
-                else
+            }
+            else
+            {
+                for (x=x1; x>=xmin; x-=4)
                 {
-                    break;
+                    i = x+yw;
+                    if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                    {
+                        im[i  ] = NC[0];
+                        im[i+1] = NC[1];
+                        im[i+2] = NC[2];
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
             if ( x >= x1 ) 
             {
                 // goto skip:
                 i = x+yw;
-                while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                if ( isBorderColor )
                 {
-                    x+=4;
-                    i = x+yw;
+                    while ( x<=x2 && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
+                }
+                else
+                {
+                    while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
                 }
                 l = x;
                 notdone = (x <= x2);
@@ -145,23 +192,48 @@ FILTER.Create({
             while ( notdone ) 
             {
                 i = x+yw;
-                while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                if ( isBorderColor )
                 {
-                    im[i  ] = NC[0];
-                    im[i+1] = NC[1];
-                    im[i+2] = NC[2];
-                    x+=4; i = x+yw;
+                    while ( x<=xmax && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        im[i  ] = NC[0];
+                        im[i+1] = NC[1];
+                        im[i+2] = NC[2];
+                        x+=4; i = x+yw;
+                    }
+                }
+                else
+                {
+                    while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                    {
+                        im[i  ] = NC[0];
+                        im[i+1] = NC[1];
+                        im[i+2] = NC[2];
+                        x+=4; i = x+yw;
+                    }
                 }
                 if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
                 if ( x > x2+4 ) 
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
                 }
+        /*skip:*/   
                 i = x+yw;
-    /*skip:*/   while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) ) 
+                if ( isBorderColor )
                 {
-                    x+=4;
-                    i = x+yw;
+                    while ( x<=x2 && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol ) 
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
+                }
+                else
+                {
+                    while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) ) 
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
                 }
                 l = x;
                 notdone = (x <= x2);
@@ -183,10 +255,11 @@ FILTER.Create({
     ,pattern: null
     ,_pattern: null
     ,mode: TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
+    ,borderColor: null
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance ) {
+    ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance, borderColor ) {
         var self = this;
         self.x = x || 0;
         self.y = y || 0;
@@ -195,6 +268,7 @@ FILTER.Create({
         if ( pattern ) self.setPattern( pattern );
         self.mode = mode || TILE;
         self.tolerance = tolerance || 0.0;
+        self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
     
     ,dispose: function( ) {
@@ -207,6 +281,7 @@ FILTER.Create({
         self.offsetY = null;
         self.tolerance = null;
         self.mode = null;
+        self.borderColor = null;
         self.$super('dispose');
         return self;
     }
@@ -234,6 +309,7 @@ FILTER.Create({
                 ,offsetY: self.offsetY
                 ,tolerance: self.tolerance
                 ,mode: self.mode
+                ,borderColor: self.borderColor
                 ,_pattern: self._pattern || (Pat ? { data: Pat.getData( ), width: Pat.width, height: Pat.height } : null)
             }
         };
@@ -253,6 +329,7 @@ FILTER.Create({
             self.offsetY = params.offsetY;
             self.tolerance = params.tolerance;
             self.mode = params.mode;
+            self.borderColor = params.borderColor;
             self.pattern = null;
             self._pattern = params._pattern;
             if ( self._pattern ) self._pattern.data = TypedArray( self._pattern.data, FILTER.ImArray );
@@ -269,6 +346,7 @@ FILTER.Create({
         // seems to have issues when tol is exactly 1.0
         var _pat = self._pattern || { data: Pat.getData( ), width: Pat.width, height: Pat.height },
             tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+            borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
             OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
@@ -283,7 +361,16 @@ FILTER.Create({
         
         // seed color is the image color at x0,y0 position
         OC = new Array8U(3);
-        OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];    
+        if ( isBorderColor )
+        {
+            OC[0] = (borderColor >>> 16) & 255; OC[1] = (borderColor >>> 8) & 255; OC[2] = borderColor & 255;
+            if ( abs(OC[0]-im[x0+yw])<=tol && abs(OC[1]-im[x0+yw+1])<=tol && abs(OC[2]-im[x0+yw+2])<=tol ) return im;
+        }
+        else
+        {
+            OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];
+        }
+        
         stack = new Array(size); slen = 0; // pre-allocate and soft push/pop for speed
         visited = new Array32U(ceil(size/32));
         if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy, y+1]; /* needed in some cases */
@@ -300,40 +387,83 @@ FILTER.Create({
              * segment of scan line y-dy for x1<=x<=x2 was previously filled,
              * now explore adjacent pixels in scan line y
              */
-            for (x=x1; x>=xmin; x-=4)
+            if ( isBorderColor )
             {
-                i = x+yw;
-                if ( !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                for (x=x1; x>=xmin; x-=4)
                 {
-                    visited[i>>>7] |= 1<<((i>>>2)&31);
-                    if ( STRETCH === mode )
+                    i = x+yw;
+                    if ( (visited[i>>>7]&(1<<((i>>>2)&31))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
                     {
-                        px = ~~(pw*(x>>>2)/w);
-                        py = ~~(ph*(y)/h);
+                        break;
                     }
                     else
                     {
-                        px = ((x>>>2)+px0) % pw;
-                        py = (y+py0) % ph;
+                        visited[i>>>7] |= 1<<((i>>>2)&31);
+                        if ( STRETCH === mode )
+                        {
+                            px = ~~(pw*(x>>>2)/w);
+                            py = ~~(ph*(y)/h);
+                        }
+                        else
+                        {
+                            px = ((x>>>2)+px0) % pw;
+                            py = (y+py0) % ph;
+                        }
+                        pi = (px + py*pw) << 2;
+                        im[i  ] = pattern[pi  ];
+                        im[i+1] = pattern[pi+1];
+                        im[i+2] = pattern[pi+2];
                     }
-                    pi = (px + py*pw) << 2;
-                    im[i  ] = pattern[pi  ];
-                    im[i+1] = pattern[pi+1];
-                    im[i+2] = pattern[pi+2];
                 }
-                else
+            }
+            else
+            {
+                for (x=x1; x>=xmin; x-=4)
                 {
-                    break;
+                    i = x+yw;
+                    if ( !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                    {
+                        visited[i>>>7] |= 1<<((i>>>2)&31);
+                        if ( STRETCH === mode )
+                        {
+                            px = ~~(pw*(x>>>2)/w);
+                            py = ~~(ph*(y)/h);
+                        }
+                        else
+                        {
+                            px = ((x>>>2)+px0) % pw;
+                            py = (y+py0) % ph;
+                        }
+                        pi = (px + py*pw) << 2;
+                        im[i  ] = pattern[pi  ];
+                        im[i+1] = pattern[pi+1];
+                        im[i+2] = pattern[pi+2];
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
             if ( x >= x1 ) 
             {
                 // goto skip:
                 i = x+yw;
-                while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                if ( isBorderColor )
                 {
-                    x+=4;
-                    i = x+yw;
+                    while ( (x<=x2 && (visited[i>>>7]&(1<<((i>>>2)&31)))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
+                }
+                else
+                {
+                    while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
                 }
                 l = x;
                 notdone = (x <= x2);
@@ -352,35 +482,72 @@ FILTER.Create({
             while ( notdone ) 
             {
                 i = x+yw;
-                while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
+                if ( isBorderColor )
                 {
-                    visited[i>>>7] |= 1<<((i>>>2)&31);
-                    if ( STRETCH === mode )
+                    while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
                     {
-                        px = ~~(pw*(x>>>2)/w);
-                        py = ~~(ph*(y)/h);
+                        visited[i>>>7] |= 1<<((i>>>2)&31);
+                        if ( STRETCH === mode )
+                        {
+                            px = ~~(pw*(x>>>2)/w);
+                            py = ~~(ph*(y)/h);
+                        }
+                        else
+                        {
+                            px = ((x>>>2)+px0) % pw;
+                            py = (y+py0) % ph;
+                        }
+                        pi = (px + py*pw) << 2;
+                        im[i  ] = pattern[pi  ];
+                        im[i+1] = pattern[pi+1];
+                        im[i+2] = pattern[pi+2];
+                        x+=4; i = x+yw;
                     }
-                    else
+                }
+                else
+                {
+                    while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
                     {
-                        px = ((x>>>2)+px0) % pw;
-                        py = (y+py0) % ph;
+                        visited[i>>>7] |= 1<<((i>>>2)&31);
+                        if ( STRETCH === mode )
+                        {
+                            px = ~~(pw*(x>>>2)/w);
+                            py = ~~(ph*(y)/h);
+                        }
+                        else
+                        {
+                            px = ((x>>>2)+px0) % pw;
+                            py = (y+py0) % ph;
+                        }
+                        pi = (px + py*pw) << 2;
+                        im[i  ] = pattern[pi  ];
+                        im[i+1] = pattern[pi+1];
+                        im[i+2] = pattern[pi+2];
+                        x+=4; i = x+yw;
                     }
-                    pi = (px + py*pw) << 2;
-                    im[i  ] = pattern[pi  ];
-                    im[i+1] = pattern[pi+1];
-                    im[i+2] = pattern[pi+2];
-                    x+=4; i = x+yw;
                 }
                 if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy, 0 < dy ? y+1 : y-1];
                 if ( x > x2+4 ) 
                 {
                     if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy, 0 < dy ? y-1 : y+1];	/* leak on right? */
                 }
+      /*skip:*/   
                 i = x+yw;
-    /*skip:*/   while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                if ( isBorderColor )
                 {
-                    x+=4;
-                    i = x+yw;
+                    while ( (x<=x2 && (visited[i>>>7]&(1<<((i>>>2)&31)))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
+                }
+                else
+                {
+                    while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
+                    {
+                        x+=4;
+                        i = x+yw;
+                    }
                 }
                 l = x;
                 notdone = (x <= x2);

@@ -189,9 +189,25 @@ var Color = FILTER.Color = FILTER.Class({
     
         clamp: clamp,
         
-        clampPixel: function( v ) { return min(255, max(v, 0)); },
+        clampPixel: function( v ) {
+            return min(255, max(v, 0));
+        },
         
-        toGray: function( r, g, b ) { return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b); }, 
+        intensity: function( r, g, b ) {
+            return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+        }, 
+        
+        hue: function( r, g, b ) {
+            var M = max( r, g, b );
+            return (0 === M) || (r === g && g === b)
+            ? 0
+            : (r === M
+            ? 60 * abs( g - b ) / (M - min( r, g, b ))
+            : (g === M
+            ? 120 + 60 * abs( b - r ) / (M - min( r, g, b ))
+            : 240 + 60 * abs( r - g ) / (M - min( r, g, b ))))
+            ;
+        },
         
         distance: function( rgb1, rgb2 ) {
             var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
@@ -203,7 +219,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
         
         RGBA2Color: function( rgba ) {
-            return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
+            return (rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2]&255);
         },
         
         Color2RGBA: function( c ) {
@@ -248,23 +264,23 @@ var Color = FILTER.Color = FILTER.Class({
             m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
             v = M;                // v
 
-            if( M != 0 )
-            {
-                s = delta / M;        // s
-            }
-            else 
+            if ( (0 === M) || ( r === g && g === b) )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
                 return [h, s, v];
             }
+            else 
+            {
+                s = delta / M;        // s
+            }
 
-            if( r == M )    h = ( g - b ) / delta;        // between yellow & magenta
-            else if ( g == M )  h = 2 + ( b - r ) / delta;    // between cyan & yellow
-            else   h = 4 + ( r - g ) / delta;   // between magenta & cyan
+            if( r === M )    h = 60 * abs( g - b ) / delta;        // between yellow & magenta
+            else if ( g === M )  h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
+            else   h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
 
-            h *= 60;                // degrees
-            if( h < 0 )  h += 360;
+            //h *= 60;                // degrees
+            //if( h < 0 )  h += 360;
             
             return [h, s, v];
         },
@@ -276,7 +292,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             h=hsv[0]; s=hsv[1]; v=hsv[2];
             
-            if( s == 0 ) 
+            if( 0 === s ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
@@ -284,8 +300,8 @@ var Color = FILTER.Color = FILTER.Class({
             }
 
             h /= 60;            // sector 0 to 5
-            i = ~~( h );
-            f = h - i;          // factorial part of h
+            i = ~~h;
+            f = h - i;          // fractional part of h
             p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
 
             if ( 0 === i )      { r = v; g = t; b = p; }
@@ -976,6 +992,7 @@ var Color = FILTER.Color = FILTER.Class({
     }
 });
 
+Color.toGray = Color.intensity;
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
 Color.Blend = Color.Combine = {

@@ -17,7 +17,7 @@
 
 var Sin = Math.sin, Cos = Math.cos,
     // Color Matrix
-    CM = FILTER.Array32F, TypedArray = FILTER.TypedArray,
+    CM = FILTER.Array32F, TypedArray = FILTER.Util.Array.typed,
     toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     notSupportClamp = FILTER._notSupportClamp
 ;

@@ -11,7 +11,7 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I,TypedArray = FILTER.TypedArray,
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array.typed,
     Min = Math.min, Max = Math.max, Filters;
     
 //

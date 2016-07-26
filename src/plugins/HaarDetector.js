@@ -10,7 +10,7 @@
 var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
-    TypedObj = FILTER.TypedObj, HAS = 'hasOwnProperty'
+    TypedObj = FILTER.Util.Array.typed_obj, HAS = 'hasOwnProperty'
 ;
 
 

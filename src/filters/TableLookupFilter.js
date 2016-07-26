@@ -16,7 +16,7 @@
 
 // color table
 var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-    TypedArray = FILTER.TypedArray,
+    TypedArray = FILTER.Util.Array.typed,
     eye = function( ) {
         var t=new CT(256), i;
         for(i=0; i<256; i++) t[i]=i;
@@ -190,6 +190,18 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
         }
         return this.set(tR, tG, tB);
+    }
+    
+    ,redChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.RED );
+    }
+    
+    ,greenChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.GREEN );
+    }
+    
+    ,blueChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.BLUE );
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/

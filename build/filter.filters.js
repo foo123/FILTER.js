@@ -394,7 +394,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
 
 var Sin = Math.sin, Cos = Math.cos,
     // Color Matrix
-    CM = FILTER.Array32F, TypedArray = FILTER.TypedArray,
+    CM = FILTER.Array32F, TypedArray = FILTER.Util.Array.typed,
     toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     notSupportClamp = FILTER._notSupportClamp
 ;
@@ -1230,7 +1230,7 @@ ColorMatrixFilter.eye = eye;
 
 // color table
 var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-    TypedArray = FILTER.TypedArray,
+    TypedArray = FILTER.Util.Array.typed,
     eye = function( ) {
         var t=new CT(256), i;
         for(i=0; i<256; i++) t[i]=i;
@@ -1404,6 +1404,18 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
         }
         return this.set(tR, tG, tB);
+    }
+    
+    ,redChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.RED );
+    }
+    
+    ,greenChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.GREEN );
+    }
+    
+    ,blueChannel: function( ) {
+        return this.channel( FILTER.CHANNEL.BLUE );
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
@@ -1698,7 +1710,7 @@ TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = Tab
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
     MODE = FILTER.MODE, A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
 
@@ -1951,7 +1963,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
     PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
     MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
     Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
@@ -2848,7 +2860,7 @@ Maps = {
 var 
     sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
-    TypedArray = FILTER.TypedArray, FilterUtil = FILTER.Util.Filter,
+    TypedArray = FILTER.Util.Array.typed, FilterUtil = FILTER.Util.Filter,
     notSupportClamp = FILTER._notSupportClamp,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
@@ -3608,7 +3620,7 @@ function twos2(d, c, s, cf)
 
 // used for internal purposes
 var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
-    Sqrt = Math.sqrt, TypedArray = FILTER.TypedArray,
+    Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     // return a box structure element
     box = function(d) {
         var i, size=d*d, ones=new STRUCT(size);
@@ -4034,7 +4046,7 @@ Filters = {
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I,TypedArray = FILTER.TypedArray,
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array.typed,
     Min = Math.min, Max = Math.max, Filters;
     
 //

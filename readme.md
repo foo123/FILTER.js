@@ -7,7 +7,7 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js.  
 
 
-**version 0.9.0**
+**version 0.9.5**
 
 
 * [filter.core.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.js) / [filter.core.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.min.js)

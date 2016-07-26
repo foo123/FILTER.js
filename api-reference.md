@@ -42,19 +42,19 @@ and alter them.
 __Methods:__
 
 * `image(ImageOrCanvasOrVideoOrFilterImageInstance)`  Sets/Alters the underlying image
-* `select(x1, y1, x2, y2)`  set a rectangle as selected part of image (any filters will be applied only to that part)
+* `select(x1:Number, y1:Number, x2:Number, y2:Number)`  set a rectangle as selected part of image (any filters will be applied only to that part)
 * `deselect()`  remove previous selection (selected part becomes whole image)
 * `store()`  store the current filtered/processed image as the original image
 * `restore()` restore the original image, remove any filters applied to this image
 * `restorable( Boolean )` whether the image is restorable (it can be faster if not)
-* `apply(filter [, callback])` shorthand to apply method of a FILTER.Filter instance, image will change after application
-* `apply2(filter, destImage [, callback])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
-* `clone(original)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
+* `apply(filter:Filter [, callback:Function])` shorthand to apply method of a FILTER.Filter instance, image will change after application
+* `apply2(filter:Filter, destImage:Image [, callback:Function])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
+* `clone(original:Boolean)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
 * `clear()`  clear the image data
-* `fill(color, x, y, w, h)`  fill the image area with a specific color
-* `crop(x1,y1,x2,y2)`  crop image area
-* `scale(sx, sy)`  scale the image in x/y directions
-* `dimensions(w, h)`  set image dimensions
+* `fill(color:Color, x:Integer, y:Integer, w:Integer, h:Integer)`  fill the image area with a specific color
+* `crop(x1:Integer,y1:Integer,x2:Integer,y2:Integer)`  crop image area
+* `scale(sx:Number, sy:Number)`  scale the image in x/y directions
+* `dimensions(w:Integer, h:Integer)`  set image dimensions
 * `flipHorizontal()`  flip image horizontally
 * `flipVertical()`  flip image vertically
 * `setData()` sets the image pixel data
@@ -63,10 +63,10 @@ __Methods:__
 * `setSelectedData()` sets the image pixel data for the current selection
 * `getSelectedData()` gets a copy of the pixel data of current image selection region
 * `getProcessedSelectedData()` gets a copy of the processed/filtered data of current image selection region
-* `integral()`  Computes (and caches) the image integral (SAT image)
-* `histogram()`  Computes (and caches) the image histogram
-* `spectrum()`  Computes (and caches) the image fourier frequency spectrum (TODO)
-* `toImage(format)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
+* `integral(channel:FILTER.CHANNEL)`  Computes (and caches) the image integral (SAT image)
+* `histogram(channel:FILTER.CHANNEL)`  Computes (and caches) the image histogram
+* `spectrum(channel:FILTER.CHANNEL)`  Computes (and caches) the image fourier frequency spectrum (TODO)
+* `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
 
@@ -112,20 +112,20 @@ __Methods:__
 
 * `reset( )`   reset the filter to identity (trivial)
 * `dispose( )`   dispose the filter (disposes associated filter worker also if needed)
-* `turnOn( [bool=true] )`  turn the filter ON/OFF 
+* `turnOn( [bool:Boolean=true] )`  turn the filter ON/OFF 
 * `toggle( )`  toggle the filter's ON/OFF status
 * `isOn( )`   check if filter is ON or OFF
 * `combineWith( similarFilterInstance )`   for any filter that supports combination of a similar filter with itself, else does nothing
 * `serialize( )`   serialize filter's parameters (for use with parallel worker filters)
-* `unserialize( data )`   unserialize filter's parameters (for use with parallel worker filters)
-* `worker/thread( [enabled=true] )`   enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
-* `apply( srcImg [, destImg=srcImg] [, callback] )`   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
+* `unserialize( data:Object )`   unserialize filter's parameters (for use with parallel worker filters)
+* `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
+* `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
 
 
 ###Color Matrix Filter
 
 ````javascript
-new FILTER.ColorMatrixFilter( weights );
+new FILTER.ColorMatrixFilter( weights:Array );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -191,7 +191,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Table Lookup Filter
 
 ````javascript
-new FILTER.TableLookupFilter(colorTable [, colorTableG, colorTableB]);
+new FILTER.TableLookupFilter(colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray]);
 ````
 
 The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
@@ -248,7 +248,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Convolution Matrix Filter
 
 ````javascript
-new FILTER.ConvolutionMatrixFilter( weights, factor );
+new FILTER.ConvolutionMatrixFilter( weights:Array, factor:Number );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -324,7 +324,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Displacement Map Filter
 
 ````javascript
-new FILTER.DisplacementMapFilter( displaceMap );
+new FILTER.DisplacementMapFilter( displaceMap:Image );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -374,7 +374,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Geometric Map Filter
 
 ````javascript
-new FILTER.GeomatricMapFilter( geometricMapFunction );
+new FILTER.GeomatricMapFilter( geometricMapFunction:Function );
 ````
 
 The filter scans an image and changes the current pixel by distorting it according to the geometric map function
@@ -526,7 +526,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 
 ````javascript
-new FILTER.CompositeFilter([ filter1, filter2, filter3/*, etc..*/ ]);
+new FILTER.CompositeFilter([ filter1:Filter, filter2:Filter, filter3:Filter /*, etc..*/ ]:Array);
 ````
 
 This filter implements a filter stack which enables multiple filters (even other composite filters) to be applied
@@ -633,9 +633,9 @@ __Included Plugins__ (see examples for how to use)
 * `PerlinNoise` : perlin noise also as filter plugin
 * `Gradient` : gradient image effect also as filter plugin
 * `RadialGradient` : radial-gradient image effect also as filter plugin
-* `Equalize` : apply histogram equalization
-* `GrayscaleEqualize` : apply a faster histogram equalization only for grayscale images
-* `RGBEqualize` : apply histogram equalization per separate color channel
+* `Equalize` : apply fast histogram equalization
+* `GrayscaleEqualize` : apply faster histogram equalization only for grayscale images
+* `RGBEqualize` : apply fast histogram equalization per separate color channel
 * `Pixelate` : fast pixelate the image to the given scale
 * `TriangularPixelate` : fast triangular pixelate the image to the given scale
 * `HexagonalPixelate` : fast hexagonal pixelate the image to the given scale (TODO)
@@ -645,9 +645,9 @@ __Included Plugins__ (see examples for how to use)
 * `PatternFill` : apply a (fast) pattern fill to an (connected) area of an image using another image as pattern
 * `ChannelCopy` : copy a channel from an image to another channel on target image
 * `AlphaMask` : apply another image as an alpha mask to the target image
-* `ColorMask` : replace a color or use a color as mask for another pattern (e.g *green screen* effects) (TO BE ADDED)
+* `ColorMask` : replace a color or use a color as mask for another image pattern (e.g *green screen* effects) (TO BE ADDED)
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
-* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter) (To BE ADDED)
+* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `HSVConverter` : convert the image to `HSV` color space
 * `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
@@ -655,7 +655,7 @@ __Included Plugins__ (see examples for how to use)
 * `HueExtractor` : extract a range of hues from the image
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* `ConnectedComponents` : extract the connected components and their bounding boxes (TO BE ADDED)
+* `ConnectedComponents` : extract the connected components of an image (and their bounding boxes)
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
 
 

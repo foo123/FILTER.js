@@ -74,7 +74,7 @@ FILTER.Create({
             
             self.alphaMask = null;
             self._alphaMask = params._alphaMask;
-            if ( self._alphaMask ) self._alphaMask.data = FILTER.TypedArray( self._alphaMask.data, FILTER.ImArray );
+            if ( self._alphaMask ) self._alphaMask.data = FILTER.Util.Array.typed( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
         }

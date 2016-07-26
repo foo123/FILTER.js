@@ -73,7 +73,7 @@ FILTER.Create({
         ;
         
         step = ~~(Sqrt(imArea)*self.scale*0.01);
-        stepw = w*step; hstep = (h%step); wstep = (w%step); hstepw = (hstep-1)*w;
+        stepw = w*step; hstep = h%step; wstep = w%step; hstepw = (hstep-1)*w;
         inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
         inv_sizes = inv_size1; inv_sizew = inv_size1w; inv_sizeh = inv_size1h; inv_sizewh = inv_size1hw;
         
@@ -110,8 +110,8 @@ FILTER.Create({
         xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
         
         // fix borders
-        xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-        yOff2 = (yOff2>by2) ? by2 : yOff2;
+        xOff2 = xOff2>bx2 ? bx2 : xOff2;
+        yOff2 = yOff2>by2 ? by2 : yOff2;
         
         // compute integral positions
         p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
@@ -127,9 +127,9 @@ FILTER.Create({
         if (notSupportClamp)
         {   
             // clamp them manually
-            r = (r<0) ? 0 : ((r>255) ? 255 : r);
-            g = (g<0) ? 0 : ((g>255) ? 255 : g);
-            b = (b<0) ? 0 : ((b>255) ? 255 : b);
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
         }
         r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
         
@@ -159,17 +159,17 @@ FILTER.Create({
                 xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
                 
                 // fix borders
-                xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-                yOff2 = (yOff2>by2) ? by2 : yOff2;
+                xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
                 p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
                 p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
                 
                 // get correct area size
-                wRem = (0==xOff2-xOff1-wstep+1);
-                hRem = (0==yOff2-yOff1-hstepw);
-                inv_size = (wRem && hRem) ? inv_sizewh : ((wRem) ? inv_sizew : ((hRem) ? inv_sizeh : inv_sizes));
+                wRem = wstep+xOff1===xOff2+1;
+                hRem = hstepw+yOff1===yOff2;
+                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
                 
                 // compute matrix sum of these elements
                 r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
@@ -178,9 +178,9 @@ FILTER.Create({
                 if (notSupportClamp)
                 {   
                     // clamp them manually
-                    r = (r<0) ? 0 : ((r>255) ? 255 : r);
-                    g = (g<0) ? 0 : ((g>255) ? 255 : g);
-                    b = (b<0) ? 0 : ((b>255) ? 255 : b);
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
                 }
                 r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
             }

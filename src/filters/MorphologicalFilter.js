@@ -12,7 +12,7 @@
 
 // used for internal purposes
 var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
-    Sqrt = Math.sqrt, TypedArray = FILTER.TypedArray,
+    Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     // return a box structure element
     box = function(d) {
         var i, size=d*d, ones=new STRUCT(size);

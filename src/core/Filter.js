@@ -36,7 +36,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
     ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
     
-    ,log, _uuid = 0
+    ,TypedArray, log, _uuid = 0
 ;
 
 //
@@ -99,36 +99,10 @@ FILTER.Array32I = (typeof Int32Array !== "undefined") ? Int32Array : Array;
 FILTER.Array8U = (typeof Uint8Array !== "undefined") ? Uint8Array : Array;
 FILTER.Array16U = (typeof Uint16Array !== "undefined") ? Uint16Array : Array;
 FILTER.Array32U = (typeof Uint32Array !== "undefined") ? Uint32Array : Array;
-
-FILTER.ArraySet = no_typed_array_set
-? function( a, b, offset ) {
-    offset = offset || 0;
-    for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
-}
-: function( a, b, offset ){ a.set(b, offset||0); };
-
-FILTER.ArraySubArray = !FILTER.Array32F[PROTO].subarray
-? function( a, i1, i2 ){ return a.slice(i1, i2); }
-: function( a, i1, i2 ){ return a.subarray(i1, i2); };
-
 FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-
-FILTER.TypedObj = isNode
-    ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
-    : function( o ) { return o; }
-;
-FILTER.TypedArray = isNode
-    ? function( a, A ) {
-        if ( (null == a) || (a instanceof A) ) return a;
-        else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
-        if ( null == a.length ) a.length = Object.keys( a ).length;
-        return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-    }
-    : function( a, A ) { return a; }
-;
 
 //
 // Constants
@@ -174,6 +148,29 @@ FILTER.MachineLearning = FILTER.ML = { };
 // utilities
 FILTER.Util = {
     Math    : { },
+    Array   : {
+        arrayset: no_typed_array_set
+            ? function( a, b, offset ) {
+                offset = offset || 0;
+                for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
+            }
+            : function( a, b, offset ){ a.set(b, offset||0); }
+
+        ,subarray: !FILTER.Array32F[PROTO].subarray
+            ? function( a, i1, i2 ){ return a.slice(i1, i2); }
+            : function( a, i1, i2 ){ return a.subarray(i1, i2); }
+        ,typed: TypedArray = (isNode
+            ? function( a, A ) {
+                if ( (null == a) || (a instanceof A) ) return a;
+                else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+                if ( null == a.length ) a.length = Object.keys( a ).length;
+                return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+            }
+            : function( a, A ) { return a; })
+        ,typed_obj: isNode
+            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
+            : function( o ) { return o; }
+    },
     String  : { },
     IO      : { },
     Filter  : { },
@@ -245,7 +242,7 @@ var
                         {
                             if ( data.params ) filter.unserialize( data.params );
                             //log(data.im[0]);
-                            var im = FILTER.TypedArray( data.im[ 0 ], FILTER.ImArray );
+                            var im = TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
                             im = filter._apply( im, data.im[ 1 ], data.im[ 2 ] );
                             self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
@@ -306,7 +303,8 @@ var
         }
         
         ,sources: function( ) {
-            var sources = AP.slice.call( arguments );
+            if ( !arguments.length ) return this;
+            var sources = arguments[0] instanceof Array ? arguments[0] : AP.slice.call( arguments );
             if ( sources.length )
             {
                 var blobs = [ ], i;
@@ -323,7 +321,8 @@ var
         }
         
         ,scripts: function( ) {
-            var scripts = AP.slice.call( arguments );
+            if ( !arguments.length ) return this;
+            var scripts = arguments[0] instanceof Array ? arguments[0] : AP.slice.call( arguments );
             if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }
@@ -480,7 +479,7 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im/*self._update*/ ) dst.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im/*self._update*/ ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                         }
                         if ( cb ) cb.call( self );
                     };

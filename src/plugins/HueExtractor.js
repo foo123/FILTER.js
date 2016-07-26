@@ -7,23 +7,22 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, TypedArray = FILTER.TypedArray,
-    IMG = FILTER.ImArray, clamp = FILTER.Color.clampPixel,
-    RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB, Color2RGBA = FILTER.Color.Color2RGBA
-;
+var HUE = FILTER.Color.hue;
 
 // a plugin to extract regions based on a HUE range
 FILTER.Create({
     name: "HueExtractorFilter"
     
     // filter parameters
-    ,range : null
+    ,minHue : 0
+    ,maxHue : 360
     ,background : 0
     
     // constructor
-    ,init : function( range, background ) {
+    ,init : function( minHue, maxHue, background ) {
         var self = this;
-        self.range = range;
+        self.minHue = minHue;
+        self.maxHue = maxHue;
         self.background = background || 0;
     }
     
@@ -37,8 +36,9 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                range: self.range
-                ,background: self.background
+                 minHue: self.minHue
+                ,maxHue: self.maxHue
+                ,background: self.background||0
             }
         };
     }
@@ -51,8 +51,9 @@ FILTER.Create({
             
             params = json.params;
             
-            self.range = TypedArray( params.range, Array );
-            self.background = params.background;
+            self.minHue = params.minHue;
+            self.maxHue = params.maxHue;
+            self.background = params.background||0;
         }
         return self;
     }
@@ -64,25 +65,21 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
-        if (!self._isOn || !self.range || !self.range.length) return im;
+        if ( !self._isOn ) return im;
         
-        var /*r, g, b,*/ br, bg, bb, ba,
-            i, l=im.length, background, hue,
-            hMin = self.range[0], hMax = self.range[self.range.length-1]
-            ;
+        var br, bg, bb, ba, background = self.background||0,
+            i, l=im.length, hue, minHue = self.minHue, maxHue = self.maxHue
+        ;
         
-        background = Color2RGBA(self.background||0);
-        br = background[0]; 
-        bg = background[1]; 
-        bb = background[2]; 
-        ba = background[3];
+        br = (background >>> 16) & 255;
+        bg = (background >>> 8) & 255;
+        bb = background & 255;
+        ba = (background >>> 24) & 255;
         
         for (i=0; i<l; i+=4)
         {
-            //r = im[i]; g = im[i+1]; b = im[i+2];
-            hue = RGB2HSV(im.subarray(i,i+3))[0];
-            
-            if ( hue<hMin || hue>hMax ) 
+            hue = HUE(im[i], im[i+1], im[i+2]);
+            if ( (hue<minHue) || (hue>maxHue) ) 
             {  
                 im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
             }

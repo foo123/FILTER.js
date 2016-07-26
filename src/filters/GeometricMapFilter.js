@@ -11,7 +11,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
     PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
     MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
     Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
