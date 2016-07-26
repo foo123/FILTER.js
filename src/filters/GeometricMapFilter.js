@@ -13,7 +13,7 @@
 
 var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
     PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
-    toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
     Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
     Sin = Math.sin, Cos = Math.cos, 
     Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
@@ -54,7 +54,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,yAmplitude: 0
     ,xWavelength: 0
     ,yWavelength: 0
-    ,mode: FILTER.MODE.CLAMP
+    ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
         var self = this;
@@ -305,7 +305,7 @@ Maps = {
     "generic": function( self, im, w, h )  {
         var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
             invTransform=self.inverseTransform, mode=self.mode,
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             t, tx, ty
         ;
         
@@ -346,7 +346,7 @@ Maps = {
         var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
             mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
             tyw, cw, dw, mode=self.mode,
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             nx, ny, bx=w-1, by=imArea-w
         ;
         
@@ -485,7 +485,7 @@ Maps = {
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im), // in Opera this is by-reference, hence the previous discrepancies
             cX=self.centerX, cY=self.centerY, angle=self.angle, radius=self.radius, mode=self.mode, 
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, theta, fact=angle/radius,
             bx=w-1, by=h-1
         ;
@@ -541,7 +541,7 @@ Maps = {
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
             cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, theta, radius2=radius*radius,
             refraction = 0.555556, invrefraction=1-refraction,
             r2, thetax, thetay, d2, ds, tx2, ty2,
@@ -599,7 +599,7 @@ Maps = {
         if (0>=self.radius) return im;
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, amount, 
             r2, d2, ds, tx2, ty2,
             bx=w-1, by=h-1,
@@ -662,7 +662,7 @@ Maps = {
     /*
     ,"circle": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             tx, ty, ix, iy, ip, d2,
             bx = w-1, by = h-1, 
             cX, cY, cX2, cY2,
@@ -716,7 +716,7 @@ Maps = {
     */
     ,"polar": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             tx, ty, ix, iy, ip,
             bx = w-1, by = h-1, 
             theta, r=0, radius, cX, cY, 
@@ -808,7 +808,7 @@ Maps = {
     // adapted from http://www.jhlabs.com/ip/filters/
     ,"cartesian": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             ix, iy, ip, nx, ny,
             bx = w-1, by = h-1, 
             theta, theta2, r=0, radius, cX, cY, 

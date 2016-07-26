@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var ImageUtil = FILTER.ImageUtil, TypedArray = FILTER.TypedArray;
+var ImageUtil = FILTER.Util.Image, TypedArray = FILTER.TypedArray;
 
 FILTER.Create({
      name: "GradientFilter"

@@ -71,6 +71,7 @@ var path = require('path'), F = require('../../build/filter.bundle'),
 console.log('Generating perlin noise..');
 perlin = F.Image.PerlinNoise(
     200 /* width */, 200 /* height */,
+    Math.random( ),/* seed */
     false/* seamless pattern */,
     true/* grayscale */,
     80/* baseX */, 50/* baseY */,

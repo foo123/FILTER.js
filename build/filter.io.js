@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js I/O Classes
-*   @version: 0.9.0
+*   @version: 0.9.5
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (I/O Loaders)
@@ -22,28 +22,26 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js I/O Classes
-*   @version: 0.9.0
+*   @version: 0.9.5
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (I/O Loaders)
 *   https://github.com/foo123/FILTER.js
 *
 **/
-
+"use strict";
+var FILTER_IO_PATH = FILTER.getPath( ModuleFactory__FILTER_IO.moduleUri );
 /**
 *
-* Filter Utils, utf8 / base64
+* Filter Utils, cross-platform XmlHttpRequest (XHR)
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
 
-var HAS = 'hasOwnProperty', toString = Object.prototype.toString, KEYS = Object.keys, CRLF = "\r\n",
-    trim_re = /^\s+|\s+$/g,
-    trim = String.prototype.trim 
-        ? function( s ) { return s.trim( ); }
-        : function( s ) { return s.replace(trim_re, ''); }
+var HAS = 'hasOwnProperty', toString = Object.prototype.toString,
+    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim
 ;
 
 // adapted from https://github.com/foo123/RT
@@ -135,6 +133,13 @@ function header_decode( headers, lowercase )
     return header;
 }
 
+FILTER.Util.Http = {
+    Header: {
+        encode: header_encode,
+        decode: header_decode
+    }
+};
+
 var XHR = FILTER.Util.XHR = function XHR( send, abort ){
     var xhr = this, aborted = false;
     xhr.readyState = XHR.UNSENT;
@@ -193,13 +198,6 @@ XHR.OPENED = 1;
 XHR.HEADERS_RECEIVED = 2;
 XHR.LOADING = 3;
 XHR.DONE = 4;
-
-FILTER.Util.Http = {
-    Header: {
-        encode: header_encode,
-        decode: header_decode
-    }
-};
 
 XHR.create = FILTER.Browser.isNode
     ? function( o, payload ) {
@@ -425,9 +423,9 @@ XHR.create = FILTER.Browser.isNode
             };
         }
         $xhr$.onload = function( ) {
+            update( xhr, $xhr$ );
             if ( XHR.DONE === $xhr$.readyState )
             {
-                update( xhr, $xhr$ );
                 if ( 200 === $xhr$.status )
                 {
                     if ( o.onComplete ) o.onComplete( xhr );

@@ -7,8 +7,8 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp=FILTER._notSupportClamp, Min=Math.min, Floor=Math.floor,
-    R=FILTER.CHANNEL.RED, G=FILTER.CHANNEL.GREEN, B=FILTER.CHANNEL.BLUE, A=FILTER.CHANNEL.ALPHA;
+var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor = Math.floor,
+    R = FILTER.CHANNEL.RED, G = FILTER.CHANNEL.GREEN, B = FILTER.CHANNEL.BLUE, A = FILTER.CHANNEL.ALPHA;
 
 // a plugin to copy a channel of an image to a channel of another image
 FILTER.Create({

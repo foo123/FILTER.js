@@ -15,7 +15,7 @@
 "use strict";
 
 // color table
-var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
+var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
     TypedArray = FILTER.TypedArray,
     eye = function( ) {
         var t=new CT(256), i;
@@ -40,7 +40,7 @@ var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
         return null;
     },
     
-    Power=Math.pow, Exponential=Math.exp, nF=1.0/255
+    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255
 ;
 
 //

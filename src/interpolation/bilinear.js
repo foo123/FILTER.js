@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray;
+var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray;
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
 // http://tech-algorithm.com/articles/bilinear-image-scaling/

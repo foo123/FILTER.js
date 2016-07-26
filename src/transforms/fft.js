@@ -10,7 +10,7 @@
 var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     PI = FILTER.CONST.PI, PI2 = FILTER.CONST.PI2, PI_2 = FILTER.CONST.PI_2, 
     sin = Math.sin, cos = Math.cos, min = Math.min, max = Math.max,
-    closest_power_of_two = FILTER.Math.closest_power_of_two
+    closest_power_of_two = FILTER.Util.Math.closest_power_of_two
 ;
 
 function precompute_trigonometric_tables(sine, cosn, N, dir)

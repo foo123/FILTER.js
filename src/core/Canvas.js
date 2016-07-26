@@ -7,9 +7,9 @@
 !function(FILTER, undef){
 "use strict";
 
-var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.Image,
     Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
-    get = FILTER.ImageUtil.get, set = FILTER.ImageUtil.set, fill = FILTER.ImageUtil.fill
+    get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill
 ;
 
 function scale( d, w, h, nw, nh )

@@ -7,11 +7,10 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp,
+var notSupportClamp = FILTER._notSupportClamp, TypedArray = FILTER.TypedArray,
     IMG = FILTER.ImArray, clamp = FILTER.Color.clampPixel,
-    TypedArray = FILTER.TypedArray,
     RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB, Color2RGBA = FILTER.Color.Color2RGBA
-    ;
+;
 
 // a plugin to extract regions based on a HUE range
 FILTER.Create({

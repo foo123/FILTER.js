@@ -7,7 +7,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F;
+var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F,
+    subarray = FILTER.ArraySubArray;
 
 // http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
 FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
@@ -31,22 +32,22 @@ FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
         T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
         
         // handle edge cases
-        C = im.subarray(pixel, pixel+4);
-        L = L_EDGE ? C : im.subarray(pixel-4, pixel);
-        R = R_EDGE ? C : im.subarray(pixel+4, pixel+8);
-        RR = R_EDGE ? C : im.subarray(pixel+8, pixel+12);
-        B = B_EDGE ? C : im.subarray(pixel+w4, pixel+w4+4);
-        BB = B_EDGE ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
-        BL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4-4, pixel+w4);
-        BR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+4, pixel+w4+8);
-        BRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+8, pixel+w4+12);
-        BBL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
-        BBR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
-        BBRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
-        T = T_EDGE ? C : im.subarray(pixel-w4, pixel-w4+4);
-        TL = T_EDGE||L_EDGE ? C : im.subarray(pixel-w4-4, pixel-w4);
-        TR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+4, pixel-w4+8);
-        TRR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+8, pixel-w4+12);
+        C = subarray(im, pixel, pixel+4);
+        L = L_EDGE ? C : subarray(im, pixel-4, pixel);
+        R = R_EDGE ? C : subarray(im, pixel+4, pixel+8);
+        RR = R_EDGE ? C : subarray(im, pixel+8, pixel+12);
+        B = B_EDGE ? C : subarray(im, pixel+w4, pixel+w4+4);
+        BB = B_EDGE ? C : subarray(im, pixel+w4+w4, pixel+w4+w4+4);
+        BL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4-4, pixel+w4);
+        BR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+4, pixel+w4+8);
+        BRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+8, pixel+w4+12);
+        BBL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4+w4-4, pixel+w4+w4);
+        BBR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+4, pixel+w4+w4+8);
+        BBRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+8, pixel+w4+w4+12);
+        T = T_EDGE ? C : subarray(im, pixel-w4, pixel-w4+4);
+        TL = T_EDGE||L_EDGE ? C : subarray(im, pixel-w4-4, pixel-w4);
+        TR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+4, pixel-w4+8);
+        TRR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+8, pixel-w4+12);
         
         /*function interpolate_pixel(n, p0, p1, p2, p3, t)
         {

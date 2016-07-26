@@ -162,61 +162,107 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var c, g, rangeI, maxI=0, minI=255,
-            cdfI, accum=0, t0, t1, t2,
-            i, l=im.length, l2=l>>2, n=1.0/(l2)
-            ;
+        var c, g, range, max = 0, min = 255,
+            cdf, accum, t0, t1, t2,
+            i, l = im.length, l2=l>>2, n=1.0/(l2)
+        ;
         
         // initialize the arrays
-        cdfI = new A32F(256);
-        for (i=0; i<256; i+=8)
+        cdf = new A32F( 256 );
+        for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            cdfI[i]=0; 
-            cdfI[i+1]=0; 
-            cdfI[i+2]=0; 
-            cdfI[i+3]=0; 
-            cdfI[i+4]=0; 
-            cdfI[i+5]=0; 
-            cdfI[i+6]=0; 
-            cdfI[i+7]=0; 
+            cdf[i   ]=0;
+            cdf[i+1 ]=0;
+            cdf[i+2 ]=0;
+            cdf[i+3 ]=0;
+            cdf[i+4 ]=0;
+            cdf[i+5 ]=0;
+            cdf[i+6 ]=0;
+            cdf[i+7 ]=0;
+            cdf[i+8 ]=0;
+            cdf[i+9 ]=0;
+            cdf[i+10]=0;
+            cdf[i+11]=0;
+            cdf[i+12]=0;
+            cdf[i+13]=0;
+            cdf[i+14]=0;
+            cdf[i+15]=0;
+            cdf[i+16]=0;
+            cdf[i+17]=0;
+            cdf[i+18]=0;
+            cdf[i+19]=0;
+            cdf[i+20]=0;
+            cdf[i+21]=0;
+            cdf[i+22]=0;
+            cdf[i+23]=0;
+            cdf[i+24]=0;
+            cdf[i+25]=0;
+            cdf[i+26]=0;
+            cdf[i+27]=0;
+            cdf[i+28]=0;
+            cdf[i+29]=0;
+            cdf[i+30]=0;
+            cdf[i+31]=0;
         }
         
         // compute pdf and maxima/minima
         for (i=0; i<l; i+=4)
         {
             c = im[i];  // image is already grayscale
-            cdfI[c] += n;
-            
-            if (c>maxI) maxI=c;
-            else if (c<minI) minI=c;
+            cdf[c] += n;
+            max = Max(c, max);
+            min = Min(c, min);
         }
         
         // compute cdf
-        accum = 0;
-        for (i=0; i<256; i+=8)
+        for (accum=0,i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            accum += cdfI[i]; cdfI[i] = accum;
-            accum += cdfI[i+1]; cdfI[i+1] = accum;
-            accum += cdfI[i+2]; cdfI[i+2] = accum;
-            accum += cdfI[i+3]; cdfI[i+3] = accum;
-            accum += cdfI[i+4]; cdfI[i+4] = accum;
-            accum += cdfI[i+5]; cdfI[i+5] = accum;
-            accum += cdfI[i+6]; cdfI[i+6] = accum;
-            accum += cdfI[i+7]; cdfI[i+7] = accum;
+            accum += cdf[i   ]; cdf[i   ] = accum;
+            accum += cdf[i+1 ]; cdf[i+1 ] = accum;
+            accum += cdf[i+2 ]; cdf[i+2 ] = accum;
+            accum += cdf[i+3 ]; cdf[i+3 ] = accum;
+            accum += cdf[i+4 ]; cdf[i+4 ] = accum;
+            accum += cdf[i+5 ]; cdf[i+5 ] = accum;
+            accum += cdf[i+6 ]; cdf[i+6 ] = accum;
+            accum += cdf[i+7 ]; cdf[i+7 ] = accum;
+            accum += cdf[i+8 ]; cdf[i+8 ] = accum;
+            accum += cdf[i+9 ]; cdf[i+9 ] = accum;
+            accum += cdf[i+10]; cdf[i+10] = accum;
+            accum += cdf[i+11]; cdf[i+11] = accum;
+            accum += cdf[i+12]; cdf[i+12] = accum;
+            accum += cdf[i+13]; cdf[i+13] = accum;
+            accum += cdf[i+14]; cdf[i+14] = accum;
+            accum += cdf[i+15]; cdf[i+15] = accum;
+            accum += cdf[i+16]; cdf[i+16] = accum;
+            accum += cdf[i+17]; cdf[i+17] = accum;
+            accum += cdf[i+18]; cdf[i+18] = accum;
+            accum += cdf[i+19]; cdf[i+19] = accum;
+            accum += cdf[i+20]; cdf[i+20] = accum;
+            accum += cdf[i+21]; cdf[i+21] = accum;
+            accum += cdf[i+22]; cdf[i+22] = accum;
+            accum += cdf[i+23]; cdf[i+23] = accum;
+            accum += cdf[i+24]; cdf[i+24] = accum;
+            accum += cdf[i+25]; cdf[i+25] = accum;
+            accum += cdf[i+26]; cdf[i+26] = accum;
+            accum += cdf[i+27]; cdf[i+27] = accum;
+            accum += cdf[i+28]; cdf[i+28] = accum;
+            accum += cdf[i+29]; cdf[i+29] = accum;
+            accum += cdf[i+30]; cdf[i+30] = accum;
+            accum += cdf[i+31]; cdf[i+31] = accum;
         }
         
         // equalize the grayscale/intesity channels
-        rangeI = maxI-minI;
+        range = max-min;
         if (notSupportClamp)
         {   
             for (i=0; i<l; i+=4)
             { 
                 c = im[i]; // grayscale image has same value in all channels
-                g = cdfI[c]*rangeI + minI;
+                g = cdf[c]*range + min;
                 // clamp them manually
-                g = (g<0) ? 0 : ((g>255) ? 255 : g);
+                g = g<0 ? 0 : (g>255 ? 255 : g);
                 g = ~~g;
                 im[i] = g; im[i+1] = g; im[i+2] = g; 
             }
@@ -226,7 +272,7 @@ FILTER.Create({
             for (i=0; i<l; i+=4)
             { 
                 c = im[i]; // grayscale image has same value in all channels
-                g = ~~( cdfI[c]*rangeI + minI );
+                g = ~~( cdf[c]*range + min );
                 im[i] = g; im[i+1] = g; im[i+2] = g; 
             }
         }
@@ -260,17 +306,107 @@ FILTER.Create({
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-        for (i=0; i<256; i+=8)
+        for (i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            cdfR[i]=0; cdfG[i]=0; cdfB[i]=0; 
-            cdfR[i+1]=0; cdfG[i+1]=0; cdfB[i+1]=0; 
-            cdfR[i+2]=0; cdfG[i+2]=0; cdfB[i+2]=0; 
-            cdfR[i+3]=0; cdfG[i+3]=0; cdfB[i+3]=0; 
-            cdfR[i+4]=0; cdfG[i+4]=0; cdfB[i+4]=0; 
-            cdfR[i+5]=0; cdfG[i+5]=0; cdfB[i+5]=0; 
-            cdfR[i+6]=0; cdfG[i+6]=0; cdfB[i+6]=0; 
-            cdfR[i+7]=0; cdfG[i+7]=0; cdfB[i+7]=0; 
+            cdfR[i   ]=0;
+            cdfR[i+1 ]=0;
+            cdfR[i+2 ]=0;
+            cdfR[i+3 ]=0;
+            cdfR[i+4 ]=0;
+            cdfR[i+5 ]=0;
+            cdfR[i+6 ]=0;
+            cdfR[i+7 ]=0;
+            cdfR[i+8 ]=0;
+            cdfR[i+9 ]=0;
+            cdfR[i+10]=0;
+            cdfR[i+11]=0;
+            cdfR[i+12]=0;
+            cdfR[i+13]=0;
+            cdfR[i+14]=0;
+            cdfR[i+15]=0;
+            cdfR[i+16]=0;
+            cdfR[i+17]=0;
+            cdfR[i+18]=0;
+            cdfR[i+19]=0;
+            cdfR[i+20]=0;
+            cdfR[i+21]=0;
+            cdfR[i+22]=0;
+            cdfR[i+23]=0;
+            cdfR[i+24]=0;
+            cdfR[i+25]=0;
+            cdfR[i+26]=0;
+            cdfR[i+27]=0;
+            cdfR[i+28]=0;
+            cdfR[i+29]=0;
+            cdfR[i+30]=0;
+            cdfR[i+31]=0;
+        
+            cdfG[i   ]=0;
+            cdfG[i+1 ]=0;
+            cdfG[i+2 ]=0;
+            cdfG[i+3 ]=0;
+            cdfG[i+4 ]=0;
+            cdfG[i+5 ]=0;
+            cdfG[i+6 ]=0;
+            cdfG[i+7 ]=0;
+            cdfG[i+8 ]=0;
+            cdfG[i+9 ]=0;
+            cdfG[i+10]=0;
+            cdfG[i+11]=0;
+            cdfG[i+12]=0;
+            cdfG[i+13]=0;
+            cdfG[i+14]=0;
+            cdfG[i+15]=0;
+            cdfG[i+16]=0;
+            cdfG[i+17]=0;
+            cdfG[i+18]=0;
+            cdfG[i+19]=0;
+            cdfG[i+20]=0;
+            cdfG[i+21]=0;
+            cdfG[i+22]=0;
+            cdfG[i+23]=0;
+            cdfG[i+24]=0;
+            cdfG[i+25]=0;
+            cdfG[i+26]=0;
+            cdfG[i+27]=0;
+            cdfG[i+28]=0;
+            cdfG[i+29]=0;
+            cdfG[i+30]=0;
+            cdfG[i+31]=0;
+        
+            cdfB[i   ]=0;
+            cdfB[i+1 ]=0;
+            cdfB[i+2 ]=0;
+            cdfB[i+3 ]=0;
+            cdfB[i+4 ]=0;
+            cdfB[i+5 ]=0;
+            cdfB[i+6 ]=0;
+            cdfB[i+7 ]=0;
+            cdfB[i+8 ]=0;
+            cdfB[i+9 ]=0;
+            cdfB[i+10]=0;
+            cdfB[i+11]=0;
+            cdfB[i+12]=0;
+            cdfB[i+13]=0;
+            cdfB[i+14]=0;
+            cdfB[i+15]=0;
+            cdfB[i+16]=0;
+            cdfB[i+17]=0;
+            cdfB[i+18]=0;
+            cdfB[i+19]=0;
+            cdfB[i+20]=0;
+            cdfB[i+21]=0;
+            cdfB[i+22]=0;
+            cdfB[i+23]=0;
+            cdfB[i+24]=0;
+            cdfB[i+25]=0;
+            cdfB[i+26]=0;
+            cdfB[i+27]=0;
+            cdfB[i+28]=0;
+            cdfB[i+29]=0;
+            cdfB[i+30]=0;
+            cdfB[i+31]=0;
         }
         
         // compute pdf and maxima/minima
@@ -278,44 +414,116 @@ FILTER.Create({
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
             cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
-            
-            if (r>maxR) maxR=r;
-            else if (r<minR) minR=r;
-            if (g>maxG) maxG=g;
-            else if (g<minG) minG=g;
-            if (b>maxB) maxB=b;
-            else if (b<minB) minB=b;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
         }
         
         // compute cdf
-        accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=8)
+        for (accumR=accumG=accumB=0,i=0; i<256; i+=32)
         { 
             // partial loop unrolling
-            accumR+=cdfR[i]; cdfR[i]=accumR; 
-            accumG+=cdfG[i]; cdfG[i]=accumG; 
-            accumB+=cdfB[i]; cdfB[i]=accumB; 
-            accumR+=cdfR[i+1]; cdfR[i+1]=accumR; 
-            accumG+=cdfG[i+1]; cdfG[i+1]=accumG; 
-            accumB+=cdfB[i+1]; cdfB[i+1]=accumB; 
-            accumR+=cdfR[i+2]; cdfR[i+2]=accumR; 
-            accumG+=cdfG[i+2]; cdfG[i+2]=accumG; 
-            accumB+=cdfB[i+2]; cdfB[i+2]=accumB; 
-            accumR+=cdfR[i+3]; cdfR[i+3]=accumR; 
-            accumG+=cdfG[i+3]; cdfG[i+3]=accumG; 
-            accumB+=cdfB[i+3]; cdfB[i+3]=accumB; 
-            accumR+=cdfR[i+4]; cdfR[i+4]=accumR; 
-            accumG+=cdfG[i+4]; cdfG[i+4]=accumG; 
-            accumB+=cdfB[i+4]; cdfB[i+4]=accumB; 
-            accumR+=cdfR[i+5]; cdfR[i+5]=accumR; 
-            accumG+=cdfG[i+5]; cdfG[i+5]=accumG; 
-            accumB+=cdfB[i+5]; cdfB[i+5]=accumB; 
-            accumR+=cdfR[i+6]; cdfR[i+6]=accumR; 
-            accumG+=cdfG[i+6]; cdfG[i+6]=accumG; 
-            accumB+=cdfB[i+6]; cdfB[i+6]=accumB; 
-            accumR+=cdfR[i+7]; cdfR[i+7]=accumR; 
-            accumG+=cdfG[i+7]; cdfG[i+7]=accumG; 
-            accumB+=cdfB[i+7]; cdfB[i+7]=accumB; 
+            accumR += cdfR[i   ]; cdfR[i   ] = accumR;
+            accumR += cdfR[i+1 ]; cdfR[i+1 ] = accumR;
+            accumR += cdfR[i+2 ]; cdfR[i+2 ] = accumR;
+            accumR += cdfR[i+3 ]; cdfR[i+3 ] = accumR;
+            accumR += cdfR[i+4 ]; cdfR[i+4 ] = accumR;
+            accumR += cdfR[i+5 ]; cdfR[i+5 ] = accumR;
+            accumR += cdfR[i+6 ]; cdfR[i+6 ] = accumR;
+            accumR += cdfR[i+7 ]; cdfR[i+7 ] = accumR;
+            accumR += cdfR[i+8 ]; cdfR[i+8 ] = accumR;
+            accumR += cdfR[i+9 ]; cdfR[i+9 ] = accumR;
+            accumR += cdfR[i+10]; cdfR[i+10] = accumR;
+            accumR += cdfR[i+11]; cdfR[i+11] = accumR;
+            accumR += cdfR[i+12]; cdfR[i+12] = accumR;
+            accumR += cdfR[i+13]; cdfR[i+13] = accumR;
+            accumR += cdfR[i+14]; cdfR[i+14] = accumR;
+            accumR += cdfR[i+15]; cdfR[i+15] = accumR;
+            accumR += cdfR[i+16]; cdfR[i+16] = accumR;
+            accumR += cdfR[i+17]; cdfR[i+17] = accumR;
+            accumR += cdfR[i+18]; cdfR[i+18] = accumR;
+            accumR += cdfR[i+19]; cdfR[i+19] = accumR;
+            accumR += cdfR[i+20]; cdfR[i+20] = accumR;
+            accumR += cdfR[i+21]; cdfR[i+21] = accumR;
+            accumR += cdfR[i+22]; cdfR[i+22] = accumR;
+            accumR += cdfR[i+23]; cdfR[i+23] = accumR;
+            accumR += cdfR[i+24]; cdfR[i+24] = accumR;
+            accumR += cdfR[i+25]; cdfR[i+25] = accumR;
+            accumR += cdfR[i+26]; cdfR[i+26] = accumR;
+            accumR += cdfR[i+27]; cdfR[i+27] = accumR;
+            accumR += cdfR[i+28]; cdfR[i+28] = accumR;
+            accumR += cdfR[i+29]; cdfR[i+29] = accumR;
+            accumR += cdfR[i+30]; cdfR[i+30] = accumR;
+            accumR += cdfR[i+31]; cdfR[i+31] = accumR;
+        
+            accumG += cdfG[i   ]; cdfG[i   ] = accumG;
+            accumG += cdfG[i+1 ]; cdfG[i+1 ] = accumG;
+            accumG += cdfG[i+2 ]; cdfG[i+2 ] = accumG;
+            accumG += cdfG[i+3 ]; cdfG[i+3 ] = accumG;
+            accumG += cdfG[i+4 ]; cdfG[i+4 ] = accumG;
+            accumG += cdfG[i+5 ]; cdfG[i+5 ] = accumG;
+            accumG += cdfG[i+6 ]; cdfG[i+6 ] = accumG;
+            accumG += cdfG[i+7 ]; cdfG[i+7 ] = accumG;
+            accumG += cdfG[i+8 ]; cdfG[i+8 ] = accumG;
+            accumG += cdfG[i+9 ]; cdfG[i+9 ] = accumG;
+            accumG += cdfG[i+10]; cdfG[i+10] = accumG;
+            accumG += cdfG[i+11]; cdfG[i+11] = accumG;
+            accumG += cdfG[i+12]; cdfG[i+12] = accumG;
+            accumG += cdfG[i+13]; cdfG[i+13] = accumG;
+            accumG += cdfG[i+14]; cdfG[i+14] = accumG;
+            accumG += cdfG[i+15]; cdfG[i+15] = accumG;
+            accumG += cdfG[i+16]; cdfG[i+16] = accumG;
+            accumG += cdfG[i+17]; cdfG[i+17] = accumG;
+            accumG += cdfG[i+18]; cdfG[i+18] = accumG;
+            accumG += cdfG[i+19]; cdfG[i+19] = accumG;
+            accumG += cdfG[i+20]; cdfG[i+20] = accumG;
+            accumG += cdfG[i+21]; cdfG[i+21] = accumG;
+            accumG += cdfG[i+22]; cdfG[i+22] = accumG;
+            accumG += cdfG[i+23]; cdfG[i+23] = accumG;
+            accumG += cdfG[i+24]; cdfG[i+24] = accumG;
+            accumG += cdfG[i+25]; cdfG[i+25] = accumG;
+            accumG += cdfG[i+26]; cdfG[i+26] = accumG;
+            accumG += cdfG[i+27]; cdfG[i+27] = accumG;
+            accumG += cdfG[i+28]; cdfG[i+28] = accumG;
+            accumG += cdfG[i+29]; cdfG[i+29] = accumG;
+            accumG += cdfG[i+30]; cdfG[i+30] = accumG;
+            accumG += cdfG[i+31]; cdfG[i+31] = accumG;
+        
+            accumB += cdfB[i   ]; cdfB[i   ] = accumB;
+            accumB += cdfB[i+1 ]; cdfB[i+1 ] = accumB;
+            accumB += cdfB[i+2 ]; cdfB[i+2 ] = accumB;
+            accumB += cdfB[i+3 ]; cdfB[i+3 ] = accumB;
+            accumB += cdfB[i+4 ]; cdfB[i+4 ] = accumB;
+            accumB += cdfB[i+5 ]; cdfB[i+5 ] = accumB;
+            accumB += cdfB[i+6 ]; cdfB[i+6 ] = accumB;
+            accumB += cdfB[i+7 ]; cdfB[i+7 ] = accumB;
+            accumB += cdfB[i+8 ]; cdfB[i+8 ] = accumB;
+            accumB += cdfB[i+9 ]; cdfB[i+9 ] = accumB;
+            accumB += cdfB[i+10]; cdfB[i+10] = accumB;
+            accumB += cdfB[i+11]; cdfB[i+11] = accumB;
+            accumB += cdfB[i+12]; cdfB[i+12] = accumB;
+            accumB += cdfB[i+13]; cdfB[i+13] = accumB;
+            accumB += cdfB[i+14]; cdfB[i+14] = accumB;
+            accumB += cdfB[i+15]; cdfB[i+15] = accumB;
+            accumB += cdfB[i+16]; cdfB[i+16] = accumB;
+            accumB += cdfB[i+17]; cdfB[i+17] = accumB;
+            accumB += cdfB[i+18]; cdfB[i+18] = accumB;
+            accumB += cdfB[i+19]; cdfB[i+19] = accumB;
+            accumB += cdfB[i+20]; cdfB[i+20] = accumB;
+            accumB += cdfB[i+21]; cdfB[i+21] = accumB;
+            accumB += cdfB[i+22]; cdfB[i+22] = accumB;
+            accumB += cdfB[i+23]; cdfB[i+23] = accumB;
+            accumB += cdfB[i+24]; cdfB[i+24] = accumB;
+            accumB += cdfB[i+25]; cdfB[i+25] = accumB;
+            accumB += cdfB[i+26]; cdfB[i+26] = accumB;
+            accumB += cdfB[i+27]; cdfB[i+27] = accumB;
+            accumB += cdfB[i+28]; cdfB[i+28] = accumB;
+            accumB += cdfB[i+29]; cdfB[i+29] = accumB;
+            accumB += cdfB[i+30]; cdfB[i+30] = accumB;
+            accumB += cdfB[i+31]; cdfB[i+31] = accumB;
         }
         
         // equalize each channel separately
@@ -327,9 +535,9 @@ FILTER.Create({
                 r = im[i]; g = im[i+1]; b = im[i+2]; 
                 t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
                 // clamp them manually
-                t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
             }
         }

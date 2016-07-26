@@ -12,7 +12,7 @@
 "use strict";
 
 var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
-    A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
+    MODE = FILTER.MODE, A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
 
 //
@@ -42,7 +42,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,green: 0
     ,blue: 0
     ,alpha: 0
-    ,mode: FILTER.MODE.CLAMP
+    ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
         var self = this;
@@ -165,7 +165,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             sty, stx, styw, bx0, by0, bx, by,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
             applyArea, imArea, imLen, imcopy, srcx, srcy,
-            _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
+            _Ignore = MODE.IGNORE, _Clamp = MODE.CLAMP, _Color = MODE.COLOR, _Wrap = MODE.WRAP
         ;
         
         map = _map.data;

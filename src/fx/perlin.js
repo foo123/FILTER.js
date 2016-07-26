@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var ImageUtil = FILTER.ImageUtil, Image = FILTER.Image, FLOOR = Math.floor,
+var ImageUtil = FILTER.Util.Image, Image = FILTER.Image, FLOOR = Math.floor,
     sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:

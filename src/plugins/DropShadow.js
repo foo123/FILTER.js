@@ -7,10 +7,10 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, integral_convolution = FILTER.FilterUtil.integral_convolution,
+var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
     boxKernel_3x3 = new FILTER.Array32F([
-        1/9,1/9,1/9
-        1/9,1/9,1/9
+        1/9,1/9,1/9,
+        1/9,1/9,1/9,
         1/9,1/9,1/9
     ])
 ;
@@ -88,11 +88,11 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
         if ( !self._isOn ) return im;
-        var color = self.color || 0, offX = self.offsetX||0, offY = self.offsetY||0,
+        var color = self.color || 0, offX = self.offsetX||0, offY = (self.offsetY||0)*w,
             quality = ~~self.quality,
             a = ~~(255*self.opacity), r = (color >>> 16)&255,
             g = (color >>> 8)&255, b = (color)&255,
-            imSize = im.length, i, x, y, sx, sy, si, shadow, ai, aa;
+            imSize = im.length, imArea = imSize>>>2, i, x, y, sx, sy, si, shadow, ai, aa;
             
         if ( 0 > a ) a = 0;
         if ( 255 < a ) a = 255;
@@ -111,7 +111,7 @@ FILTER.Create({
                 shadow[i  ] = r;
                 shadow[i+1] = g;
                 shadow[i+2] = b;
-                shadow[i+3] = a;
+                shadow[i+3] = 255;
             }
             else
             {
@@ -128,10 +128,10 @@ FILTER.Create({
         // offset and combine with original image
         for(x=0,y=0,si=0; si<imSize; si+=4,x++)
         {
-            if ( x >= w ) {x=0; y++;}
+            if ( x >= w ) {x=0; y+=w;}
             sx = x+offX; sy = y+offY;
-            if ( 0 > sx || sx >= w || 0 > sy || sy >= h ) continue;
-            i = (sx + sy*w) << 2; ai = im[i+3]; a = shadow[si+3];
+            if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea ) continue;
+            i = (sx + sy) << 2; ai = im[i+3]; a = shadow[si+3];
             if ( /*0 === alpha ||*/ (255 === ai) || (0 === a) ) continue;
             a /= 255; ai /= 255; aa = ai + a*(1.0-ai);
             // src over composition
@@ -139,7 +139,10 @@ FILTER.Create({
             im[i  ] = (~~((im[i  ]*ai + shadow[si  ]*a*(1.0-ai))/aa))&255;
             im[i+1] = (~~((im[i+1]*ai + shadow[si+1]*a*(1.0-ai))/aa))&255;
             im[i+2] = (~~((im[i+2]*ai + shadow[si+2]*a*(1.0-ai))/aa))&255;
-            im[i+3] = ~~(aa*255);
+            //im[i+3] = ~~(aa*255);
+            /*im[i  ] = (~~(im[i  ] + (shadow[si  ]-im[i  ])*a))&255;
+            im[i+1] = (~~(im[i+1] + (shadow[si+1]-im[i+1])*a))&255;
+            im[i+2] = (~~(im[i+2] + (shadow[si+2]-im[i+2])*a))&255;*/
         }
         
         // return image with shadow

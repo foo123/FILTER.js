@@ -630,6 +630,9 @@ image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
 __Included Plugins__ (see examples for how to use)
 
 * `Noise` : generate uniform noise
+* `PerlinNoise` : perlin noise also as filter plugin
+* `Gradient` : gradient image effect also as filter plugin
+* `RadialGradient` : radial-gradient image effect also as filter plugin
 * `Equalize` : apply histogram equalization
 * `GrayscaleEqualize` : apply a faster histogram equalization only for grayscale images
 * `RGBEqualize` : apply histogram equalization per separate color channel
@@ -640,6 +643,11 @@ __Included Plugins__ (see examples for how to use)
 * `Bokeh` : apply a fast Bokeh (Depth-of-Field) effect to an image
 * `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
 * `PatternFill` : apply a (fast) pattern fill to an (connected) area of an image using another image as pattern
+* `ChannelCopy` : copy a channel from an image to another channel on target image
+* `AlphaMask` : apply another image as an alpha mask to the target image
+* `ColorMask` : replace a color or use a color as mask for another pattern (e.g *green screen* effects) (TO BE ADDED)
+* `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
+* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter) (To BE ADDED)
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `HSVConverter` : convert the image to `HSV` color space
 * `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
@@ -649,12 +657,6 @@ __Included Plugins__ (see examples for how to use)
 * `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
 * `ConnectedComponents` : extract the connected components and their bounding boxes (TO BE ADDED)
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
-* `ChannelCopy` : copy a channel from an image to another channel on target image
-* `AlphaMask` : apply another image as an alpha mask to the target image
-* `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
-* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
-* `Gradient` : gradient image effect also as filter plugin
-* `RadialGradient` : radial-gradient image effect also as filter plugin
 
 
 ###Codecs

@@ -7,8 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp,
-    TypedArray = FILTER.TypedArray,
+var notSupportClamp = FILTER._notSupportClamp, TypedArray = FILTER.TypedArray,
     RGBA2Color = FILTER.Color.RGBA2Color, Color2RGBA = FILTER.Color.Color2RGBA
     ;
 

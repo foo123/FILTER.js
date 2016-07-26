@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Generic Filters
-*   @version: 0.9.0
+*   @version: 0.9.5
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Generic Filters)
@@ -22,14 +22,15 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js Generic Filters
-*   @version: 0.9.0
+*   @version: 0.9.5
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Generic Filters)
 *   https://github.com/foo123/FILTER.js
 *
 **/
-
+"use strict";
+var FILTER_FILTERS_PATH = FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri );
 /**
 *
 * CompositeFilter Class
@@ -44,7 +45,6 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
 ;
 
 //
-//
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     name: "CompositeFilter"
@@ -55,7 +55,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_stack: null
     ,_meta: null
     ,_stable: true
@@ -306,7 +306,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
         self._params = {};
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_handler: null
     ,_params: null
     
@@ -392,12 +392,11 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
 !function(FILTER, undef){
 "use strict";
 
-var Sin=Math.sin, Cos=Math.cos,
+var Sin = Math.sin, Cos = Math.cos,
     // Color Matrix
-    CM=FILTER.Array32F,
-    TypedArray=FILTER.TypedArray,
-    toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
-    notSupportClamp=FILTER._notSupportClamp
+    CM = FILTER.Array32F, TypedArray = FILTER.TypedArray,
+    toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    notSupportClamp = FILTER._notSupportClamp
 ;
 
 //
@@ -419,13 +418,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             self._matrix = null;
         }
         
-        if ( FILTER.useWebGL )
+        /*if ( FILTER.useWebGL )
         {
             self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
-        }
+        }*/
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_matrix: null
     ,_webglInstance: null
     
@@ -473,39 +472,39 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         {
             case FILTER.CHANNEL.ALPHA:
                 return this.set([
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 1, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 1, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.BLUE:
                 return this.set([
-                            0, 0, f, 0, 0, 
-                            0, 0, f, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, 0, f, 0, 0, 
+                        0, 0, f, 0, 0, 
+                        0, 0, 1, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.GREEN:
                 return this.set([
-                            0, f, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, f, 0, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        0, f, 0, 0, 0, 
+                        0, 1, 0, 0, 0, 
+                        0, f, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
             
             case FILTER.CHANNEL.RED:
             default:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            f, 0, 0, 0, 0, 
-                            f, 0, 0, 0, 0, 
-                            0, 0, 0, 0, 255
-                        ]);
+                        1, 0, 0, 0, 0, 
+                        f, 0, 0, 0, 0, 
+                        f, 0, 0, 0, 0, 
+                        0, 0, 0, 0, 255
+                    ]);
                 break;
         }
     }
@@ -540,30 +539,30 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             case FILTER.CHANNEL.BLUE:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, 0, 0, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    1, 0, 0, 0, 0, 
+                    0, 1, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
             
             case FILTER.CHANNEL.GREEN:
                 return this.set([
-                            1, 0, 0, 0, 0, 
-                            0, 0, 0, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    1, 0, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 
+                    0, 0, 1, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
             
             case FILTER.CHANNEL.RED:
             default:
                 return this.set([
-                            0, 0, 0, 0, 0, 
-                            0, 1, 0, 0, 0, 
-                            0, 0, 1, 0, 0, 
-                            0, 0, 0, 1, 0
-                        ]);
+                    0, 0, 0, 0, 0, 
+                    0, 1, 0, 0, 0, 
+                    0, 0, 1, 0, 0, 
+                    0, 0, 0, 1, 0
+                ]);
                 break;
         }
     }
@@ -580,30 +579,30 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 0, 0, 1, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    1, 0, 0, 0, 0
-                                ]);
+                                0, 0, 0, 1, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                1, 0, 0, 0, 0
+                            ]);
                         break;
                 }
                 break;
@@ -613,11 +612,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
@@ -626,21 +625,21 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                 }
                 break;
@@ -650,20 +649,20 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
@@ -673,11 +672,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     case FILTER.CHANNEL.RED:
                     default:
                         return this.set([
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                 }
                 break;
@@ -688,29 +687,29 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 {
                     case FILTER.CHANNEL.ALPHA:
                         return this.set([
-                                    0, 0, 0, 1, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    1, 0, 0, 0, 0
-                                ]);
+                                0, 0, 0, 1, 0, 
+                                0, 1, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                1, 0, 0, 0, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.BLUE:
                         return this.set([
-                                    0, 0, 1, 0, 0, 
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 0, 1, 0, 0, 
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.GREEN:
                         return this.set([
-                                    0, 1, 0, 0, 0, 
-                                    1, 0, 0, 0, 0, 
-                                    0, 0, 1, 0, 0, 
-                                    0, 0, 0, 1, 0
-                                ]);
+                                0, 1, 0, 0, 0, 
+                                1, 0, 0, 0, 0, 
+                                0, 0, 1, 0, 0, 
+                                0, 0, 0, 1, 0
+                            ]);
                         break;
                     
                     case FILTER.CHANNEL.RED:
@@ -724,62 +723,61 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,desaturate: function( ) {
+        var L = FILTER.LUMA;
         return this.set([
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 0, 
-                    0, 0, 0, 1, 0
-                ]);
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,colorize: function( rgb, amount ) {
-        var r, g, b, inv_amount;
+        var r, g, b, inv_amount, L = FILTER.LUMA;
         if ( amount === undef ) amount = 1;
         r = (((rgb >> 16) & 255) * 0.0039215686274509803921568627451);  // / 255
         g = (((rgb >> 8) & 255) * 0.0039215686274509803921568627451);  // / 255
         b = ((rgb & 255) * 0.0039215686274509803921568627451);  // / 255
         inv_amount = 1 - amount;
-
         return this.set([
-                    (inv_amount + ((amount * r) * FILTER.LUMA[0])), ((amount * r) * FILTER.LUMA[1]), ((amount * r) * FILTER.LUMA[2]), 0, 0, 
-                    ((amount * g) * FILTER.LUMA[0]), (inv_amount + ((amount * g) * FILTER.LUMA[1])), ((amount * g) * FILTER.LUMA[2]), 0, 0, 
-                    ((amount * b) * FILTER.LUMA[0]), ((amount * b) * FILTER.LUMA[1]), (inv_amount + ((amount * b) * FILTER.LUMA[2])), 0, 0, 
-                        0, 0, 0, 1, 0
-                    ]);
+            (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
+            ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
+            ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
+                0, 0, 0, 1, 0
+            ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,invert: function( ) {
         return this.set([
-                -1, 0,  0, 0, 255,
-                0, -1,  0, 0, 255,
-                0,  0, -1, 0, 255,
-                0,  0,  0, 1,   0
-            ]);
+            -1, 0,  0, 0, 255,
+            0, -1,  0, 0, 255,
+            0,  0, -1, 0, 255,
+            0,  0,  0, 1,   0
+        ]);
     }
     
     ,invertAlpha: function( ) {
         return this.set([
-                1,  0,  0, 0, 0,
-                0,  1,  0, 0, 0,
-                0,  0,  1, 0, 0,
-                0,  0,  0, -1, 255
-            ]);
+            1,  0,  0, 0, 0,
+            0,  1,  0, 0, 0,
+            0,  0,  1, 0, 0,
+            0,  0,  0, -1, 255
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,saturate: function( s ) {
-        var sInv, irlum, iglum, iblum;
-        sInv = (1 - s);  irlum = (sInv * FILTER.LUMA[0]);
-        iglum = (sInv * FILTER.LUMA[1]);  iblum = (sInv * FILTER.LUMA[2]);
-        
+        var sInv, irlum, iglum, iblum, L = FILTER.LUMA;
+        sInv = 1 - s;  irlum = sInv * L[0];
+        iglum = sInv * L[1];  iblum = sInv * L[2];
         return this.set([
-                (irlum + s), iglum, iblum, 0, 0, 
-                irlum, (iglum + s), iblum, 0, 0, 
-                irlum, iglum, (iblum + s), 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            (irlum + s), iglum, iblum, 0, 0, 
+            irlum, (iglum + s), iblum, 0, 0, 
+            irlum, iglum, (iblum + s), 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -788,37 +786,35 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( b === undef )  b = r;
         r += 1.0; g += 1.0; b += 1.0;
         return this.set([
-                r, 0, 0, 0, (128 * (1 - r)), 
-                0, g, 0, 0, (128 * (1 - g)), 
-                0, 0, b, 0, (128 * (1 - b)), 
-                0, 0, 0, 1, 0
-            ]);
+            r, 0, 0, 0, (128 * (1 - r)), 
+            0, g, 0, 0, (128 * (1 - g)), 
+            0, 0, b, 0, (128 * (1 - b)), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,brightness: function( r, g, b ) {
         if ( g === undef )  g = r;
         if ( b === undef )  b = r;
-        
         return this.set([
-                1, 0, 0, 0, r, 
-                0, 1, 0, 0, g, 
-                0, 0, 1, 0, b, 
-                0, 0, 0, 1, 0
-            ]);
+            1, 0, 0, 0, r, 
+            0, 1, 0, 0, g, 
+            0, 0, 1, 0, b, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,adjustHue: function( degrees ) {
         degrees *= toRad;
-        var cos = Cos(degrees), sin = Sin(degrees);
-        
+        var cos = Cos(degrees), sin = Sin(degrees), L = FILTER.LUMA;
         return this.set([
-                ((FILTER.LUMA[0] + (cos * (1 - FILTER.LUMA[0]))) + (sin * -(FILTER.LUMA[0]))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * -(FILTER.LUMA[1]))), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * (1 - FILTER.LUMA[2]))), 0, 0, 
-                ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * 0.143)), ((FILTER.LUMA[1] + (cos * (1 - FILTER.LUMA[1]))) + (sin * 0.14)), ((FILTER.LUMA[2] + (cos * -(FILTER.LUMA[2]))) + (sin * -0.283)), 0, 0, 
-                ((FILTER.LUMA[0] + (cos * -(FILTER.LUMA[0]))) + (sin * -((1 - FILTER.LUMA[0])))), ((FILTER.LUMA[1] + (cos * -(FILTER.LUMA[1]))) + (sin * FILTER.LUMA[1])), ((FILTER.LUMA[2] + (cos * (1 - FILTER.LUMA[2]))) + (sin * FILTER.LUMA[2])), 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
+            ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
+            ((L[0] + (cos * -(L[0]))) + (sin * -((1 - L[0])))), ((L[1] + (cos * -(L[1]))) + (sin * L[1])), ((L[2] + (cos * (1 - L[2]))) + (sin * L[2])), 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -826,24 +822,22 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( r === undef ) r = 0.3333;
         if ( g === undef ) g = 0.3333;
         if ( b === undef ) b = 0.3334;
-        
         return this.set([
-                r, g, b, 0, 0, 
-                r, g, b, 0, 0, 
-                r, g, b, 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            r, g, b, 0, 0, 
+            r, g, b, 0, 0, 
+            r, g, b, 0, 0, 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     ,quickContrastCorrection: function( contrast ) {
         if ( contrast === undef ) contrast = 1.2;
-        
         return this.set([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
             0, 0, contrast, 0, 0, 
             0, 0, 0, 1, 0
-            ]);
+        ]);
     }
     
     // adapted from glfx.js
@@ -865,10 +859,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( amount === undef ) amount = 10;
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
+        var L = FILTER.LUMA;
         return this.set([
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 40, 
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, 20, 
-            FILTER.LUMA[0], FILTER.LUMA[1], FILTER.LUMA[2], 0, -amount, 
+            L[0], L[1], L[2], 0, 40, 
+            L[0], L[1], L[2], 0, 20, 
+            L[0], L[1], L[2], 0, -amount, 
             0, 0, 0, 1, 0
         ]);
     }
@@ -876,57 +871,55 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
-        
+        var L = FILTER.LUMA;
         return this.set([
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                (FILTER.LUMA[0] * factor), (FILTER.LUMA[1] * factor), (FILTER.LUMA[2] * factor), 0, (-(factor-1) * threshold), 
-                0, 0, 0, 1, 0
-            ]);
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold_rgb: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
-        
         return this.set([
-                factor, 0, 0, 0, (-(factor-1) * threshold), 
-                0, factor, 0, 0, (-(factor-1) * threshold), 
-                0,  0, factor, 0, (-(factor-1) * threshold), 
-                0, 0, 0, 1, 0
-            ]);
+            factor, 0, 0, 0, (-(factor-1) * threshold), 
+            0, factor, 0, 0, (-(factor-1) * threshold), 
+            0,  0, factor, 0, (-(factor-1) * threshold), 
+            0, 0, 0, 1, 0
+        ]);
     }
     
     ,threshold_alpha: function( threshold, factor ) {
         if ( threshold === undef )  threshold = 0.5;
         if ( factor === undef ) factor = 256;
-        
         return this.set([
-                1, 0, 0, 0, 0, 
-                0, 1, 0, 0, 0, 
-                0, 0, 1, 0, 0, 
-                0, 0, 0, factor, (-factor * threshold)
-            ]);
+            1, 0, 0, 0, 0, 
+            0, 1, 0, 0, 0, 
+            0, 0, 1, 0, 0, 
+            0, 0, 0, factor, (-factor * threshold)
+        ]);
     }
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
         return this.set([
-                0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
-                0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
-                -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
-                0, 0, 0, 1, 0
-            ]);
+            0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
+            0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
+            -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
         return this.set([
-                1.402, 1, 0, 0, -179.456,  
-                -0.71414, 1, -0.34414, 0, 135.45984,
-                0, 1, 1.772, 0, -226.816,
-                0, 0, 0, 1, 0
-            ]);
+            1.402, 1, 0, 0, -179.456,  
+            -0.71414, 1, -0.34414, 0, 135.45984,
+            0, 1, 1.772, 0, -226.816,
+            0, 0, 0, 1, 0
+        ]);
     }
     
     // blend with another filter
@@ -959,85 +952,8 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // used for internal purposes
-    ,_apply: function(p, w, h/*, image*/) {
-        var self = this;
-        if ( self._isOn && self._matrix )
-        {
-            var pl = p.length, m = self._matrix,
-                i, rem = (pl>>2)%4,
-                p0, p1, p2, p3, 
-                p4, p5, p6, p7, 
-                p8, p9, p10, p11,
-                p12, p13, p14, p15,
-                t0, t1, t2, t3
-            ;
-            
-            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-            // linearize array
-            // partial loop unrolling (quarter iterations)
-            for (i=0; i<pl; i+=16)
-            {
-                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
-                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-            }
-            
-            // loop unrolling remainder
-            if (rem)
-            {
-                rem <<= 2;
-                for (i=pl-rem; i<pl; i+=4)
-                {
-                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                    
-                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                }
-            }
-        }
-        return p;
-    }
-        
-    ,canRun: function( ) {
-        return this._isOn && this._matrix;
-    }
-});
-// aliases
-ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
-ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
-ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
-ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
-if (notSupportClamp)
-{   
-    ColorMatrixFilter.prototype._apply = function(p, w, h/*, image*/) {
+    ,_apply: notSupportClamp
+    ? function(p, w, h/*, image*/) {
         var self = this;
         if ( self._isOn && self._matrix )
         {
@@ -1097,9 +1013,9 @@ if (notSupportClamp)
                 p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
                 p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
                 
-                p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                p[i+4] = ~~p4; p[i+5] = ~~p5; p[i+6] = ~~p6; p[i+7] = ~~p7;
-                p[i+8] = ~~p8; p[i+9] = ~~p9; p[i+10] = ~~p10; p[i+11] = ~~p11;
+                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
+                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
+                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
                 p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
             }
             
@@ -1126,8 +1042,83 @@ if (notSupportClamp)
             }
         }
         return p;
-    };
-}
+    }
+    : function(p, w, h/*, image*/) {
+        var self = this;
+        if ( self._isOn && self._matrix )
+        {
+            var pl = p.length, m = self._matrix,
+                i, rem = (pl>>2)%4,
+                p0, p1, p2, p3, 
+                p4, p5, p6, p7, 
+                p8, p9, p10, p11,
+                p12, p13, p14, p15,
+                t0, t1, t2, t3
+            ;
+            
+            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+            // linearize array
+            // partial loop unrolling (quarter iterations)
+            for (i=0; i<pl; i+=16)
+            {
+                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
+                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
+                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
+                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                
+                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
+                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
+                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
+                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
+            }
+            
+            // loop unrolling remainder
+            if (rem)
+            {
+                rem <<= 2;
+                for (i=pl-rem; i<pl; i+=4)
+                {
+                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
+                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
+                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                    
+                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
+                }
+            }
+        }
+        return p;
+    }
+        
+    ,canRun: function( ) {
+        return this._isOn && this._matrix;
+    }
+});
+// aliases
+ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
+ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
+ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
+ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
 
 //
 //
@@ -1185,37 +1176,41 @@ function eye()
 
 function CMblend(m1, m2, amount)
 {
-    var inv_amount = (1 - amount), i = 0, m=new CM(20);
+    var m=new CM(20);
     
     // unroll the loop completely
-    m[ 0 ] = (inv_amount * m1[0]) + (amount * m2[0]);
-    m[ 1 ] = (inv_amount * m1[1]) + (amount * m2[1]);
-    m[ 2 ] = (inv_amount * m1[2]) + (amount * m2[2]);
-    m[ 3 ] = (inv_amount * m1[3]) + (amount * m2[3]);
-    m[ 4 ] = (inv_amount * m1[4]) + (amount * m2[4]);
+    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
+    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
+    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
+    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
+    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
 
-    m[ 5 ] = (inv_amount * m1[5]) + (amount * m2[5]);
-    m[ 6 ] = (inv_amount * m1[6]) + (amount * m2[6]);
-    m[ 7 ] = (inv_amount * m1[7]) + (amount * m2[7]);
-    m[ 8 ] = (inv_amount * m1[8]) + (amount * m2[8]);
-    m[ 9 ] = (inv_amount * m1[9]) + (amount * m2[9]);
+    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
+    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
+    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
+    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
+    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
     
-    m[ 10 ] = (inv_amount * m1[10]) + (amount * m2[10]);
-    m[ 11 ] = (inv_amount * m1[11]) + (amount * m2[11]);
-    m[ 12 ] = (inv_amount * m1[12]) + (amount * m2[12]);
-    m[ 13 ] = (inv_amount * m1[13]) + (amount * m2[13]);
-    m[ 14 ] = (inv_amount * m1[14]) + (amount * m2[14]);
+    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
+    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
+    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
+    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
+    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
     
-    m[ 15 ] = (inv_amount * m1[15]) + (amount * m2[15]);
-    m[ 16 ] = (inv_amount * m1[16]) + (amount * m2[16]);
-    m[ 17 ] = (inv_amount * m1[17]) + (amount * m2[17]);
-    m[ 18 ] = (inv_amount * m1[18]) + (amount * m2[18]);
-    m[ 19 ] = (inv_amount * m1[19]) + (amount * m2[19]);
+    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
+    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
+    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
+    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
+    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
     
     //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
     
     return m;
 }
+
+ColorMatrixFilter.multiply = CMconcat;
+ColorMatrixFilter.blend = CMblend;
+ColorMatrixFilter.eye = eye;
 
 }(FILTER);/**
 *
@@ -1234,7 +1229,7 @@ function CMblend(m1, m2, amount)
 "use strict";
 
 // color table
-var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
+var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
     TypedArray = FILTER.TypedArray,
     eye = function( ) {
         var t=new CT(256), i;
@@ -1259,7 +1254,7 @@ var CT=FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
         return null;
     },
     
-    Power=Math.pow, Exponential=Math.exp, nF=1.0/255
+    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255
 ;
 
 //
@@ -1277,7 +1272,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         self._tableA = tA || null;
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     // parameters
     ,_tableR: null
     ,_tableG: null
@@ -1703,10 +1698,8 @@ TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = Tab
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, 
-    TypedArray = FILTER.TypedArray,
-    A16I = FILTER.Array16I,
-    Min = Math.min, Max = Math.max, Floor = Math.floor
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+    MODE = FILTER.MODE, A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
 ;
 
 //
@@ -1721,7 +1714,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         if ( displacemap ) self.setMap( displacemap );
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_map: null
     ,map: null
     // parameters
@@ -1736,7 +1729,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,green: 0
     ,blue: 0
     ,alpha: 0
-    ,mode: FILTER.MODE.CLAMP
+    ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
         var self = this;
@@ -1859,7 +1852,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             sty, stx, styw, bx0, by0, bx, by,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
             applyArea, imArea, imLen, imcopy, srcx, srcy,
-            _Ignore = FILTER.MODE.IGNORE, _Clamp = FILTER.MODE.CLAMP, _Color = FILTER.MODE.COLOR, _Wrap = FILTER.MODE.WRAP
+            _Ignore = MODE.IGNORE, _Clamp = MODE.CLAMP, _Color = MODE.COLOR, _Wrap = MODE.WRAP
         ;
         
         map = _map.data;
@@ -1958,17 +1951,13 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
 !function(FILTER, undef){
 "use strict";
 
-var IMG=FILTER.ImArray, IMGcopy=FILTER.ImArrayCopy, 
-    TypedArray=FILTER.TypedArray,
-    PI=FILTER.CONST.PI,
-    DoublePI=FILTER.CONST.PI2,
-    HalfPI=FILTER.CONST.PI_2,
-    ThreePI2 = 1.5 * PI,
-    Sqrt=Math.sqrt, Atan2=Math.atan2, Atan = Math.atan,
-    Sin=Math.sin, Cos=Math.cos, 
-    Floor=Math.floor, Round=Math.round, //Ceil=Math.ceil,
-    Asin=Math.asin, Tan=Math.tan, Abs=Math.abs, Max = Math.max,
-    toRad=FILTER.CONST.toRad,
+var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.TypedArray,
+    PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
+    Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
+    Sin = Math.sin, Cos = Math.cos, 
+    Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
+    Asin = Math.asin, Tan = Math.tan, Abs = Math.abs, Max = Math.max,
     Maps
 ;
 
@@ -1985,7 +1974,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         if ( inverseTransform ) self.generic( inverseTransform );
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     // parameters
     ,_map: null
     ,_mapName: null
@@ -2005,7 +1994,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,yAmplitude: 0
     ,xWavelength: 0
     ,yWavelength: 0
-    ,mode: FILTER.MODE.CLAMP
+    ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
         var self = this;
@@ -2092,7 +2081,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             if ( params.inverseTransform )
             {
                 // using bind makes the code become [native code] and thus unserializable
-                self.inverseTransform = eval( '(function(){ "use strict"; return ' + params.inverseTransform + '})();');
+                self.inverseTransform = new Function("FILTER", '"use strict"; return ' + params.inverseTransform)( FILTER );
             }
             
             self._mapName = params._mapName;
@@ -2256,7 +2245,7 @@ Maps = {
     "generic": function( self, im, w, h )  {
         var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
             invTransform=self.inverseTransform, mode=self.mode,
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             t, tx, ty
         ;
         
@@ -2297,7 +2286,7 @@ Maps = {
         var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
             mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
             tyw, cw, dw, mode=self.mode,
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             nx, ny, bx=w-1, by=imArea-w
         ;
         
@@ -2436,7 +2425,7 @@ Maps = {
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im), // in Opera this is by-reference, hence the previous discrepancies
             cX=self.centerX, cY=self.centerY, angle=self.angle, radius=self.radius, mode=self.mode, 
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, theta, fact=angle/radius,
             bx=w-1, by=h-1
         ;
@@ -2492,7 +2481,7 @@ Maps = {
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
             cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, theta, radius2=radius*radius,
             refraction = 0.555556, invrefraction=1-refraction,
             r2, thetax, thetay, d2, ds, tx2, ty2,
@@ -2550,7 +2539,7 @@ Maps = {
         if (0>=self.radius) return im;
         
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             d, tx, ty, amount, 
             r2, d2, ds, tx2, ty2,
             bx=w-1, by=h-1,
@@ -2613,7 +2602,7 @@ Maps = {
     /*
     ,"circle": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             tx, ty, ix, iy, ip, d2,
             bx = w-1, by = h-1, 
             cX, cY, cX2, cY2,
@@ -2667,7 +2656,7 @@ Maps = {
     */
     ,"polar": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             tx, ty, ix, iy, ip,
             bx = w-1, by = h-1, 
             theta, r=0, radius, cX, cY, 
@@ -2759,7 +2748,7 @@ Maps = {
     // adapted from http://www.jhlabs.com/ip/filters/
     ,"cartesian": function( self, im, w, h ) {
         var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=FILTER.MODE.CLAMP, _Wrap=FILTER.MODE.WRAP,
+            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
             ix, iy, ip, nx, ny,
             bx = w-1, by = h-1, 
             theta, theta2, r=0, radius, cX, cY, 
@@ -2857,15 +2846,15 @@ Maps = {
 "use strict";
 
 var 
-    sqrt2=FILTER.CONST.SQRT2, toRad=FILTER.CONST.toRad, toDeg=FILTER.CONST.toDeg,
-    Abs=Math.abs, Sqrt=Math.sqrt, Sin=Math.sin, Cos=Math.cos,
-    
-    TypedArray=FILTER.TypedArray,
+    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
+    TypedArray = FILTER.TypedArray, FilterUtil = FILTER.Util.Filter,
+    notSupportClamp = FILTER._notSupportClamp,
+    integral_convolution = FilterUtil.integral_convolution,
+    separable_convolution = FilterUtil.separable_convolution,
     // Convolution Matrix
-    CM=FILTER.Array32F, 
-    IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
-    A32F=FILTER.Array32F, A16I=FILTER.Array16I, A8U=FILTER.Array8U,
-    notSupportClamp=FILTER._notSupportClamp,
+    CM = FILTER.Array32F, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     
     // hardcode Pascal numbers, used for binomial kernels
     _pascal=[
@@ -2887,7 +2876,7 @@ var
 var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ConvolutionMatrixFilter"
     
-    ,constructor: function( weights, factor, bias ) {
+    ,constructor: function( weights, factor, bias, rgba ) {
         var self = this;
         self.$super('constructor');
         self._coeff = new CM([1.0, 0.0]);
@@ -2902,14 +2891,14 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         }
         self._matrix2 = null;  self._dim2 = 0;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
-        
-        if ( FILTER.useWebGL ) 
+        self._rgba = !!rgba;
+        /*if ( FILTER.useWebGL ) 
         {
             self._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
-        }
+        }*/
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_dim: 0
     ,_dim2: 0
     ,_matrix: null
@@ -2924,6 +2913,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,_indices2: null
     ,_indicesf: null
     ,_indicesf2: null
+    ,_rgba: false
     ,_webglInstance: null
     
     ,dispose: function( ) {
@@ -2946,6 +2936,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         self._indices2 = null;
         self._indicesf = null;
         self._indicesf2 = null;
+        self._rgba = null;
         
         return self;
     }
@@ -2971,6 +2962,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 ,_indices2: self._indices2
                 ,_indicesf: self._indicesf
                 ,_indicesf2: self._indicesf2
+                ,_rgba: self._rgba
             }
         };
     }
@@ -2997,8 +2989,22 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             self._indices2 = TypedArray( params._indices2, A16I );
             self._indicesf = TypedArray( params._indicesf, A16I );
             self._indicesf2 = TypedArray( params._indicesf2, A16I );
+            self._rgba = params._rgba;
         }
         return self;
+    }
+    
+    ,rgba: function( bool ) {
+        var self = this;
+        if ( !arguments.length )
+        {
+            return self._rgba;
+        }
+        else
+        {
+            self._rgba = !!bool;
+            return self;
+        }
     }
     
     // generic low-pass filter
@@ -3169,10 +3175,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,edges: function( m ) {
         m = m||1;
         return this.set([
-                0,   m,   0,
-                m,  -4*m, m,
-                0,   m,   0
-             ], 3, 1.0, 0.0);
+            0,   m,   0,
+            m,  -4*m, m,
+            0,   m,   0
+         ], 3, 1.0, 0.0);
     }
     
     ,set: function( m, d, f, b ) {
@@ -3231,20 +3237,20 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     // used for internal purposes
     ,_apply: function(im, w, h/*, image*/) {
-        var self = this;
+        var self = this, rgba = self._rgba;
         if ( !self._isOn || !self._matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            if (self._matrix2)
-                return integralConvolution(im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral);
-            else
-                return integralConvolution(im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self._matrix2
+            ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral)
+            : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral)
+            ;
         }
         else if ( self._doSeparable )
         {
-            return separableConvolution(im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         // handle some common cases fast
         /*else if (3==this._dim)
@@ -3254,10 +3260,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         
         var imLen = im.length, imArea = (imLen>>2), 
             dst = new IMG(imLen), 
-            t0, t1, t2,
+            t0, t1, t2, t3,
             i, j, k, x, ty, ty2, 
             xOff, yOff, srcOff, 
-            r, g, b, r2, g2, b2,
+            r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w,
             coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
@@ -3286,21 +3292,21 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 
                 // calculate the weighed sum of the source image pixels that
                 // fall under the convolution matrix
-                r=0; g=0; b=0; r2=0; g2=0; b2=0; 
+                r=g=b=a=r2=g2=b2=a2=0;
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;  a += im[srcOff+3] * wt;
                         // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;  a2 += im[srcOff+3] * wt2;
                     }
                 }
                 
                 // output
-                if (_isGrad)
+                if ( _isGrad )
                 {
                     t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
                 }
@@ -3308,16 +3314,25 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 {
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
-                if (notSupportClamp)
+                if ( notSupportClamp )
                 {   
                     // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
+                if ( rgba )
+                {
+                    t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         else
@@ -3342,14 +3357,14 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 
                 // calculate the weighed sum of the source image pixels that
                 // fall under the convolution matrix
-                r=0; g=0; b=0;
+                r=g=b=a=0;
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt; a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -3363,8 +3378,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
+                if ( rgba )
+                {
+                    t3 = coeff1*a + coeff2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         return dst;
@@ -3570,317 +3594,6 @@ function twos2(d, c, s, cf)
     return o;
 }
 
-// speed-up convolution for special kernels like moving-average
-function integralConvolution(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
-{
-    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
-        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
-        dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
-        i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
-        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat
-    ;
-    
-    // convolution speed-up based on the integral image concept and symmetric / separable kernels
-    
-    // pre-compute indices, 
-    // reduce redundant computations inside the main convolution loop (faster)
-    matArea = matRadiusX*matRadiusY;
-    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
-    // one additional offest needed due to integral computation
-    matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
-    matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
-    bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
-    
-    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-    
-    numRepeats = numRepeats||1;  repeat = 0;
-    
-    if (matrix2) // allow to compute a second matrix in-parallel
-    {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
-        
-        // do this multiple times??
-        while (repeat<numRepeats)
-        {
-            dst = new IMG(imLen); integral = new A32F(integralLen);
-            
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
-            }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
-            {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen]=integral[j]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
-            }
-            
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = (xOff1<bx1) ? bx1 : xOff1;
-                 xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-                 yOff1 = (yOff1<by1) ? by1 : yOff1;
-                 yOff2 = (yOff2>by2) ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * im[i]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                r2 = wt2 * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset2 * im[i]);
-                g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
-                b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
-                
-                // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
-            im = dst;  repeat++;
-        }
-    }
-    else
-    {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-    
-        // do this multiple times??
-        while (repeat<numRepeats)
-        {
-            dst = new IMG(imLen); integral = new A32F(integralLen);
-            
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
-            }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
-            {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen]=integral[j]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
-            }
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = (xOff1<bx1) ? bx1 : xOff1;
-                 xOff2 = (xOff2>bx2) ? bx2 : xOff2;
-                 yOff1 = (yOff1<by1) ? by1 : yOff1;
-                 yOff2 = (yOff2>by2) ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1])  +  (centerOffset * im[i]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
-            im = dst;  repeat++;
-        }
-    }
-    return dst;
-}
-
-// speed-up convolution for separable kernels
-function separableConvolution(im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
-{
-    var imLen=im.length, imArea=(imLen>>2),
-        matA, indA,
-        matArea, mat, indices, matArea2,
-        dst, imageIndices,
-        i, j, k, x, ty, ty2,
-        xOff, yOff, bx, by, t0, t1, t2, wt,
-        r, g, b, coeffs, coeff,
-        numPasses
-    ;
-    
-    // pre-compute indices, 
-    // reduce redundant computations inside the main convolution loop (faster)
-    matA = [matrix2, matrix];
-    indA = [ind2, ind1];
-    coeffs = [coeff2, coeff1];
-    
-    bx = w-1; by = imArea-w;
-    
-    // one horizontal and one vertical pass
-    numPasses = 2;
-    while (numPasses--)
-    {
-        dst = new IMG(imLen);
-        
-        mat = matA[numPasses];
-        indices = indA[numPasses];
-        matArea = mat.length;
-        matArea2 = indices.length;
-        coeff = coeffs[numPasses];
-        
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        imageIndices = new A16I(indices);
-        for (k=0; k<matArea2; k+=2)
-        { 
-            imageIndices[k+1] *= w;
-        } 
-    
-        // do direct convolution
-        if (notSupportClamp)
-        {   
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=0; g=0; b=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
-                {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    }
-                }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                // clamp them manually
-                t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-        }
-        else
-        {
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=0; g=0; b=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
-                {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    }
-                }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-        }
-        
-        // do another pass??
-        im = dst;
-    }
-    return dst;
-}
-/*
-// some common convolution cases can be handled faster (3x3)
-function convolution3(im, w, h, matrix, matrix2, coeff1, coeff2, _isGrad) 
-{
-    return im;
-}
-*/
 }(FILTER);/**
 *
 * Morphological Filter(s)
@@ -3925,7 +3638,7 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
         self._indices = null;
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_filterName: null
     ,_filter: null
     ,_dim: 0
@@ -4321,9 +4034,8 @@ Filters = {
 "use strict";
 
 // used for internal purposes
-var IMG=FILTER.ImArray, A32I=FILTER.Array32I,
-    TypedArray=FILTER.TypedArray,
-    Min=Math.min, Max=Math.max, Filters;
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I,TypedArray = FILTER.TypedArray,
+    Min = Math.min, Max = Math.max, Filters;
     
 //
 //
@@ -4340,7 +4052,7 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
         self._filter = null;
     }
     
-    ,path: FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri )
+    ,path: FILTER_FILTERS_PATH
     ,_dim: 0
     ,_indices: null
     ,_filter: null

@@ -12,12 +12,12 @@ var // utils
     Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
     min = Math.min, max = Math.max, abs = Math.abs,
     //notSupportClamp = FILTER._notSupportClamp,
-    clamp = FILTER.MathUtil.clamp,
-    esc = FILTER.StringUtil.esc,
-    trim = FILTER.StringUtil.trim,
+    clamp = FILTER.Util.Math.clamp,
+    esc = FILTER.Util.String.esc,
+    trim = FILTER.Util.String.trim,
     
-    C2F = 1/255, C2P = 100/255, P2C = 2.55,
     LUMA = FILTER.LUMA,
+    C2F = 1/255, C2P = 100/255, P2C = 2.55,
 
     Keywords = {
         // http://www.w3.org/wiki/CSS/Properties/color/keywords
@@ -1718,7 +1718,7 @@ Color.Blend = Color.Combine = {
         else
         {
             tmp = 2 * (r-128);
-            rb = 255 === tmp ? tmp : Min(255, ((r2 << 8 ) / (255 - tmp)));
+            rb = 255 === tmp ? tmp : min(255, ((r2 << 8 ) / (255 - tmp)));
         }
         rb = rb < 128 ? 0 : 255;
         if ( g < 128 )

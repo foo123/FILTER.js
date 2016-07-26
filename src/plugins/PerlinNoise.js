@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var ImageUtil = FILTER.ImageUtil, perlin = ImageUtil.perlin;
+var perlin_noise = FILTER.Util.Image.perlin;
 
 // an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
@@ -126,13 +126,14 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
-        if ( !self._isOn || !perlin ) return im;
+        if ( !self._isOn || !perlin_noise ) return im;
         if ( self._seed )
         {
-            perlin.seed( self._seed );
+            perlin_noise.seed( self._seed );
             self._seed = 0;
         }
-        return perlin( im, w, h, self._stitch, !self._colors, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+        return perlin_noise( im, w, h, self._stitch, !self._colors, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+    }
 });
 
 }(FILTER);

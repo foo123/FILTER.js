@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.9.0
-*   @built on 2016-07-24 16:01:10
+*   @version: 0.9.5
+*   @built on 2016-07-26 04:03:10
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -26,8 +26,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js
-*   @version: 0.9.0
-*   @built on 2016-07-24 16:01:10
+*   @version: 0.9.5
+*   @built on 2016-07-26 04:03:10
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -38,7 +38,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 var FILTER = Classy.Merge({ 
     Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
 }, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "0.9.0";
+FILTER.VERSION = "0.9.5";
 /**
 *
 * Filter SuperClass, Interfaces and Utilities
@@ -56,7 +56,8 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( )
-    ,isThread = Async.isThread( null, true )//, isInstantiatedThread = Async.isThread( null, true )
+    ,isThread = Async.isThread( null, true )
+    ,isInsideThread = Async.isThread( )
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
@@ -71,7 +72,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
         };
     }
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isThread ? window.devicePixelRatio : 1) || 1
+    ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
     
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
     ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
@@ -80,13 +81,13 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
 ;
 
 //
-//
 // Browser Sniffing support
 var Browser = FILTER.Browser = {
 // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
 isNode                  : isNode,
 isBrowser               : isBrowser,
 isWorker                : isThread,
+isInsideWorker          : isInsideThread,
 supportsWorker          : supportsThread,
 isPhantom               : /PhantomJS/.test(userAgent),
 
@@ -117,8 +118,8 @@ isQtWebkit              : false
 };
 Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
 Browser.isMac = Browser.isIOS || /Mac/.test(platform);
-Browser.isIE_lt8 = Browser.isIE  && !isThread && (null == document.documentMode || document.documentMode < 8);
-Browser.isIE_lt9 = Browser.isIE && !isThread && (null == document.documentMode || document.documentMode < 9);
+Browser.isIE_lt8 = Browser.isIE  && !isInsideThread && (null == document.documentMode || document.documentMode < 8);
+Browser.isIE_lt9 = Browser.isIE && !isInsideThread && (null == document.documentMode || document.documentMode < 9);
 Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
 
 FILTER.getPath = Async.path;
@@ -170,6 +171,56 @@ FILTER.TypedArray = isNode
     : function( a, A ) { return a; }
 ;
 
+//
+// Constants
+FILTER.CHANNEL = {
+    R: 0, G: 1, B: 2, A: 3,
+    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3
+};
+FILTER.MODE = {
+    IGNORE: 0, WRAP: 1, CLAMP: 2,
+    COLOR: 3, TILE: 4, STRETCH: 5
+};
+FILTER.LUMA = new FILTER.Array32F([
+    0.212671, 0.71516, 0.072169
+]);
+FILTER.FORMAT = {
+    IMAGE: 1024, DATA: 2048,
+    PNG: 2, JPG: 3, JPEG: 4,
+    GIF: 5, BMP: 6, TGA: 7, RGBE: 8
+};
+FILTER.MIME = {
+     PNG    : "image/png"
+    ,JPG    : "image/jpeg"
+    ,JPEG   : "image/jpeg"
+    ,GIF    : "image/gif"
+    ,BMP    : "image/bmp"
+};
+FILTER.CONSTANTS = FILTER.CONST = {
+     X: 0, Y: 1, Z: 2
+    
+    ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
+    ,toRad: Math.PI/180, toDeg: 180/Math.PI
+    
+    ,SQRT2: Math.SQRT2
+    ,LN2: Math.LN2
+};
+
+// packages
+FILTER.IO = { };
+FILTER.Codec = { };
+FILTER.Interpolation = { };
+FILTER.Transform = { };
+FILTER.MachineLearning = FILTER.ML = { };
+// utilities
+FILTER.Util = {
+    Math    : { },
+    String  : { },
+    IO      : { },
+    Filter  : { },
+    Image   : { }
+};
+
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 /*if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
 {
@@ -191,56 +242,8 @@ FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
 FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
 //
-// Constants
-FILTER.CHANNEL = {
-     RED:   0
-    ,GREEN: 1
-    ,BLUE:  2
-    ,ALPHA: 3
-};
-FILTER.MODE = {
-     IGNORE:    0
-    ,WRAP:      1
-    ,CLAMP:     2
-    ,COLOR:     4
-    ,TILE:      8
-    ,STRETCH:   16
-};
-FILTER.LUMA = new FILTER.Array32F([ 
-     0.212671
-    ,0.71516 
-    ,0.072169 
-]);
-FILTER.FORMAT = {
-     IMAGE:     1
-    ,DATA:      4
-    ,PNG:       8
-    ,JPG:       16
-    ,GIF:       32
-    ,BMP:       64
-    ,TGA:       128
-    ,RGBE:      256
-};
-FILTER.MIME = {
-     PNG:       "image/png"
-    ,JPG:       "image/jpeg"
-    ,GIF:       "image/gif"
-    ,BMP:       "image/bmp"
-};
-// aliases
-FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
-FILTER.MIME.JPEG = FILTER.MIME.JPG;
-
-FILTER.Util = { };
-FILTER.IO = { };
-FILTER.Codec = { };
-FILTER.Interpolation = { };
-FILTER.Transform = { };
-FILTER.MachineLearning = FILTER.ML = { };
-
-//
 // logging
-log = FILTER.log = isThread ? Async.log : (console && console.log ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ });
+log = FILTER.log = isThread ? Async.log : (("undefine" !== typeof console) && console.log ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ });
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
@@ -249,8 +252,9 @@ var
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
         
-        path: FILTERPath
+         path: FILTERPath
         ,name: null
+        ,_listener: null
         
         ,constructor: function( ) {
             var self = this, filter = null;
@@ -305,20 +309,38 @@ var
             }
         }
         
+        ,dispose: function( explicit ) {
+            var self = this;
+            self.path = null;
+            self.name = null;
+            if ( self._listener )
+            {
+                self._listener.cb = null;
+                self._listener = null;
+            }
+            self.$super('dispose', explicit);
+            return self;
+        }
+        
         // activate or de-activate thread/worker filter
-        ,thread: function( enable ) {
+        ,thread: function( enable, imports ) {
             var self = this;
             if ( !arguments.length ) enable = true;
             enable = !!enable;
             // activate worker
             if ( enable && !self.$thread ) 
             {
-                self.fork( 'FILTER.FilterThread', (FILTERPath.file !== self.path.file) ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                if ( imports && imports.length )
+                    self.send('import', {'import': imports.join ? imports.join(',') : imports});
                 self.send('load', {filter: self.name});
+                self.listen( 'apply', self._listener=function l( data ) { l.cb && l.cb( data ); } );
             }
             // de-activate worker (if was activated before)
             else if ( !enable && self.$thread )
             {
+                self._listener.cb = null;
+                self._listener = null;
                 self.unfork( );
             }
             return self;
@@ -346,22 +368,6 @@ var
             if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }
-        
-        // @override
-        ,serialize: function( ) {
-            var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, params: {} };
-        }
-        
-        // @override
-        ,unserialize: function( json ) {
-            var self = this;
-            if ( json && self.name === json.filter )
-            {
-                self._isOn = !!json._isOn;
-            }
-            return self;
-        }
     }),
     
     //
@@ -370,7 +376,7 @@ var
         name: "Filter"
         
         ,constructor: function( ) {
-            var self = this;
+            //var self = this;
             //self.$super('constructor', 100, false);
         }
         
@@ -395,6 +401,23 @@ var
         
         // alias of thread method
         ,worker: FilterThread[PROTO].thread
+        
+        
+        // @override
+        ,serialize: function( ) {
+            var self = this;
+            return { filter: self.name, _isOn: !!self._isOn, params: {} };
+        }
+        
+        // @override
+        ,unserialize: function( json ) {
+            var self = this;
+            if ( json && self.name === json.filter )
+            {
+                self._isOn = !!json._isOn;
+            }
+            return self;
+        }
         
         ,complete: function( f ) {
             this._onComplete = f || null;
@@ -459,57 +482,51 @@ var
         
         // generic apply a filter from an image (src) to another image (dest)
         // with optional callback (cb)
-        ,apply: function( src, dest, cb ) {
+        ,apply: function( src, dst, cb ) {
             var self = this, im, im2;
             
             if ( !self.canRun( ) ) return src;
             
             if ( arguments.length < 3 )
             {
-                if ( dest && dest.setSelectedData ) 
+                if ( dst && dst.setSelectedData ) 
                 {
                     // dest is an image and no callback
                     cb = null;
                 }
-                else if ( 'function' === typeof(dest) )
+                else if ( 'function' === typeof dst )
                 {
-                    // dest is callback, dest is same as src
-                    cb = dest;
-                    dest = src;
+                    // dst is callback, dst is same as src
+                    cb = dst;
+                    dst = src;
                 }
                 else
                 {
-                    dest = src;
+                    dst = src;
                     cb = null;
                 }
             }
             
-            if ( src && dest )
+            if ( src && dst )
             {
                 cb = cb || self._onComplete;
                 im = src.getSelectedData( );
                 if ( self.$thread )
                 {
-                    self
-                        // listen for metadata if needed
-                        /*.listen( 'meta', function( data ) { 
-                            self.unlisten( 'meta' );
-                            self.setMeta( data );
-                        })*/
-                        .listen( 'apply', function( data ) { 
-                            self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
-                            if ( data ) 
-                            {
-                                // listen for metadata if needed
-                                //if ( null != data.update ) self._update = !!data.update;
-                                if ( data.meta ) self.setMeta( data.meta );
-                                if ( data.im/*self._update*/ ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
-                            }
-                            if ( cb ) cb.call( self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} )
-                    ;
+                    self._listener.cb = function( data ) { 
+                        //self.unlisten( 'apply' );
+                        self._listener.cb = null;
+                        if ( data ) 
+                        {
+                            // listen for metadata if needed
+                            //if ( null != data.update ) self._update = !!data.update;
+                            if ( data.meta ) self.setMeta( data.meta );
+                            if ( data.im/*self._update*/ ) dst.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                        }
+                        if ( cb ) cb.call( self );
+                    };
+                    // process request
+                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
                 }
                 else
                 {
@@ -518,7 +535,7 @@ var
                     // some filters do not actually change the image data
                     // but instead process information from the data,
                     // no need to update in such a case
-                    if ( self._update ) dest.setSelectedData( im2 );
+                    if ( self._update ) dst.setSelectedData( im2 );
                     if ( cb ) cb.call( self );
                 }
             }
@@ -549,20 +566,27 @@ FILTER.Create = function( methods ) {
 
 }(this, FILTER);/**
 *
-* Filter Math
+* Filter Core Utils (Filter, Image, Math, Geometry)
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil, Log = Math.log, 
-    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, LN2 = Math.LN2, SQRT2 = Math.SQRT2,
-    log2 = function( x ) { return Log(x) / LN2; },
-    Log2 = Math.log2 || log2, Min = Math.min,
-    X = 0, Y = 1, Z = 2,
-    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray
+var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+    A32F = FILTER.Array32F, A64F = FILTER.Array64F,
+    A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
+    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
+    Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
+    Log = Math.log, Sin = Math.sin, Cos = Math.cos,
+    Min = Math.min, Max = Math.max, Abs = Math.abs,
+    PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
+    pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
+    Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
+    arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
+    notSupportClamp = FILTER._notSupportClamp,
+    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
 ;
 
 function clamp( x, m, M )
@@ -578,32 +602,30 @@ function closest_power_of_two( x )
 function point2( x, y )
 {
     var p = new A32F( 2 );
-    p[X] = x||0.0; p[Y] = y||0.0;
+    p[0] = x||0.0; p[1] = y||0.0;
     return p;
 }
 
 function point3( x, y, z )
 {
     var p = new A32F( 3 );
-    p[X] = x||0.0; p[Y] = y||0.0; p[Z] = z||0.0;
+    p[0] = x||0.0; p[1] = y||0.0; p[2] = z||0.0;
     return p;
 }
 
 function interpolate2( p0, p1, t ) 
 {
-    var it = 1.0-t;
-    return point2( t*p0[X]+it*p1[X], t*p0[Y]+it*p1[Y] );
+    return point2( p0[0]+t*(p1[0]-p0[0]), p0[1]+t*(p1[1]-p0[1]) );
 }
 
 function interpolate3( p0, p1, t ) 
 {
-    var it = 1.0-t;
-    return point3( t*p0[X]+it*p1[X], t*p0[Y]+it*p1[Y], t*p0[Z]+it*p1[Z] );
+    return point3( p0[0]+t*(p1[0]-p0[0]), p0[1]+t*(p1[1]-p0[1]), p0[2]+t*(p1[2]-p0[2]) );
 }
 
 function cross2( p0, p1 )
 { 
-    return p0[X]*p1[Y] - p1[X]*p0[Y]; 
+    return p0[0]*p1[1] - p1[0]*p0[1]; 
 }
 
 function enorm2( x, y ) 
@@ -612,11 +634,11 @@ function enorm2( x, y )
     var t;
     if ( 0 > x ) x = -x;
     if ( 0 > y ) y = -y;
-    if ( 0.0 == x )  
+    if ( 0 === x )  
     {
         return y;
     }
-    else if ( 0.0 == y )  
+    else if ( 0 === y )  
     {
         return x;
     }
@@ -636,205 +658,46 @@ function normal2( p1, p0 )
 {
     var d, n, lamda, normallamda, l;
 
-    d = point2( p1[X]-p0[X], p1[Y]-p0[Y] );
+    d = point2( p1[0]-p0[0], p1[1]-p0[1] );
     
-    if ( 0 === d[Y] && 0 === d[X] )  // same point infinite normals
+    if ( 0 === d[1] && 0 === d[0] )  // same point infinite normals
     {
         return null;
     }
     
     n = point2( 0, 0 );
     
-    if ( 0 === d[X] ) // lamda=Inf
+    if ( 0 === d[0] ) // lamda=Inf
     {
-        n[X] = 10;
+        n[0] = 10;
     }
-    if ( 0 === d[Y] )  // normallamda=Inf
+    if ( 0 === d[1] )  // normallamda=Inf
     {
-        n[Y] = 10;
+        n[1] = 10;
     }
     
-    if ( 0 !== d[Y] && 0 !== d[X] )
+    if ( 0 !== d[1] && 0 !== d[0] )
     {
-        lamda = d[Y] / d[X];
-        normallamda = -d[X] / d[Y];
-        n[X] = 10;
-        n[Y] = normallamda*n[X];
+        lamda = d[1] / d[0];
+        normallamda = -d[0] / d[1];
+        n[0] = 10;
+        n[1] = normallamda*n[0];
     }
     
     // normalize
-    l = enorm2( n[X], n[Y] );
-    n[X] /= l; n[Y] /= l;
+    l = enorm2( n[0], n[1] );
+    n[0] /= l; n[1] /= l;
     if ( 0 > cross2( d, n ) )
     {
-        n[X] = -n[X];
-        n[Y] = -n[Y];
+        n[0] = -n[0];
+        n[1] = -n[1];
     }
     return n;
 }
 
-// compute integral image (Summed Area Table, SAT)
-function integral( im, w, h, grayscale ) 
-{
-    var rowLen = w<<2, integralR, integralG, integralB, colR, colG, colB,
-        imLen = im.length, count = (imLen>>2), i, j, x, rgb
-    ;
-    rgb = true !== grayscale;
-    // compute integral of image in one pass
-    integralR = new A32F(count); 
-
-    // first row
-    j=0; i=0; colR=colG=colB=0;
-    for (x=0; x<w; x++, i+=4, j++)
-    {
-        colR+=im[i]; integralR[j]=colR; 
-    }
-    // other rows
-    i=rowLen; x=0; j=0; colR=colG=colB=0;
-    for (i=rowLen; i<imLen; i+=4, j++, x++)
-    {
-        if (x>=w) { x=0; colR=colG=colB=0; }
-        colR+=im[i]; 
-        integralR[j+w]=integralR[j]+colR; 
-    }
-    if ( rgb )
-    {
-        integralG = new A32F(count); 
-        integralB = new A32F(count);
-        // first row
-        j=0; i=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j++)
-        {
-            colG+=im[i+1]; colB+=im[i+2];
-            integralG[j]=colG; integralB[j]=colB;
-        }
-        // other rows
-        i=rowLen; x=0; j=0; colR=colG=colB=0;
-        for (i=rowLen; i<imLen; i+=4, j++, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colG+=im[i+1]; colB+=im[i+2];
-            integralG[j+w]=integralG[j]+colG; integralB[j+w]=integralB[j]+colB;
-        }
-        return [integralR, integralG, integralB];
-    }
-    return [integralR, integralR, integralR];
-}
-
-// compute image histogram
-function histogram( im, w, h, grayscale ) 
-{
-    var l = im.length,
-        maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-        cdfR, cdfG, cdfB, r,g,b,
-        accumR, accumG, accumB,
-        i, n=1.0/(l>>2), rgb
-    ;
-    
-    rgb = true !== grayscale;
-    // initialize the arrays
-    cdfR=new A32F(256); 
-    for (i=0; i<256; i+=8) 
-    { 
-        // partial loop unrolling
-        cdfR[i]=0;
-        cdfR[i+1]=0;
-        cdfR[i+2]=0;
-        cdfR[i+3]=0;
-        cdfR[i+4]=0;
-        cdfR[i+5]=0;
-        cdfR[i+6]=0;
-        cdfR[i+7]=0;
-    }
-    // compute pdf and maxima/minima
-    for (i=0; i<l; i+=4)
-    {
-        r = im[i];
-        cdfR[r] += n;
-        
-        if (r>maxR) maxR=r;
-        else if (r<minR) minR=r;
-    }
-    
-    // compute cdf
-    accumR=accumG=accumB=0;
-    for (i=0; i<256; i+=8) 
-    { 
-        // partial loop unrolling
-        accumR += cdfR[i]; cdfR[i] = accumR;
-        accumR += cdfR[i+1]; cdfR[i+1] = accumR;
-        accumR += cdfR[i+2]; cdfR[i+2] = accumR;
-        accumR += cdfR[i+3]; cdfR[i+3] = accumR;
-        accumR += cdfR[i+4]; cdfR[i+4] = accumR;
-        accumR += cdfR[i+5]; cdfR[i+5] = accumR;
-        accumR += cdfR[i+6]; cdfR[i+6] = accumR;
-        accumR += cdfR[i+7]; cdfR[i+7] = accumR;
-    }
-    
-    if ( rgb )
-    {
-        cdfG=new A32F(256); 
-        cdfB=new A32F(256);
-        // initialize the arrays
-        for (i=0; i<256; i+=8) 
-        { 
-            // partial loop unrolling
-            cdfG[i]=0; cdfB[i]=0;
-            cdfG[i+1]=0; cdfB[i+1]=0;
-            cdfG[i+2]=0; cdfB[i+2]=0;
-            cdfG[i+3]=0; cdfB[i+3]=0;
-            cdfG[i+4]=0; cdfB[i+4]=0;
-            cdfG[i+5]=0; cdfB[i+5]=0;
-            cdfG[i+6]=0; cdfB[i+6]=0;
-            cdfG[i+7]=0; cdfB[i+7]=0;
-        }
-        // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
-        {
-            g = im[i+1]; b = im[i+2];
-            cdfG[g] += n; cdfB[b] += n;
-            if (g>maxG) maxG=g;
-            else if (g<minG) minG=g;
-            if (b>maxB) maxB=b;
-            else if (b<minB) minB=b;
-        }
-        
-        // compute cdf
-        accumR=accumG=accumB=0;
-        for (i=0; i<256; i+=8) 
-        { 
-            // partial loop unrolling
-            accumG += cdfG[i]; cdfG[i] = accumG;
-            accumB += cdfB[i]; cdfB[i] = accumB;
-            accumG += cdfG[i+1]; cdfG[i+1] = accumG;
-            accumB += cdfB[i+1]; cdfB[i+1] = accumB;
-            accumG += cdfG[i+2]; cdfG[i+2] = accumG;
-            accumB += cdfB[i+2]; cdfB[i+2] = accumB;
-            accumG += cdfG[i+3]; cdfG[i+3] = accumG;
-            accumB += cdfB[i+3]; cdfB[i+3] = accumB;
-            accumG += cdfG[i+4]; cdfG[i+4] = accumG;
-            accumB += cdfB[i+4]; cdfB[i+4] = accumB;
-            accumG += cdfG[i+5]; cdfG[i+5] = accumG;
-            accumB += cdfB[i+5]; cdfB[i+5] = accumB;
-            accumG += cdfG[i+6]; cdfG[i+6] = accumG;
-            accumB += cdfB[i+6]; cdfB[i+6] = accumB;
-            accumG += cdfG[i+7]; cdfG[i+7] = accumG;
-            accumB += cdfB[i+7]; cdfB[i+7] = accumB;
-        }
-        return [cdfR, cdfG, cdfB];
-    }
-    return [cdfR, cdfR, cdfR];
-}
-
-function spectrum( im, w, h, grayscale ) 
-{
-    // TODO
-    return null;
-}
-
 function crop( im, w, h, x1, y1, x2, y2 )
 {
-    x2 = Min(x2,w-1); y2 = Min(y2,h-1);
+    x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1, 
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
         y, yw, nw4 = nw<<2, pixel, pixel2;
@@ -864,21 +727,869 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     return padded;
 }
 
-//
-// Constants
-FILTER.CONSTANTS = FILTER.CONST = {
-     PI:    PI
-    ,PI2:   PI2
-    ,PI_2:  PI_2
-    ,SQRT2: SQRT2
-    ,LN2: LN2
-    ,toRad: PI/180
-    ,toDeg: 180/PI
-    ,X: X
-    ,Y: Y
-    ,Z: Z
-};
-FILTER.Geometry = {
+function get_data( D, W, H, x0, y0, x1, y1, orig )
+{
+    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
+    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
+    if ( (0 === x0) && (0 === y0) && (W === x1+1) && (H === y1+1) ) return true === orig ? D : new IMGcpy( D );
+    if ( !D.length || (x1 < x0) || (y1 < y0) ) return new IMG(0);
+    var x, y, i, I, w = x1-x0+1, h = y1-y0+1, size = (w*h) << 2, d = new IMG(size);
+    for(x=x0,y=y0,i=0; y<=y1; i+=4,x++)
+    {
+        if ( x>x1 ){ x=x0; y++; }
+        I = (y*W + x) << 2;
+        d[i  ] = D[I  ];
+        d[i+1] = D[I+1];
+        d[i+2] = D[I+2];
+        d[i+3] = D[I+3];
+    }
+    return d;
+}
+
+function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
+{
+    var i, I, x, y;
+    if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
+    x0 = Min(x0, w-1); y0 = Min(y0, h-1);
+    X0 = Min(X0, W-1); Y0 = Min(Y0, H-1);
+    x1 = Min(x1, w-1); y1 = Min(y1, h-1);
+    X0 -= x0; Y0 -= y0;
+    for(x=x0,y=y0; y<=y1; x++)
+    {
+        if ( x>x1 ) { x=x0; y++; }
+        if ( (y+Y0 >= H) || (x+X0 >= W) ) continue;
+        i = (y*w + x) << 2;
+        I = ((y+Y0)*W + x+X0) << 2;
+        D[I  ] = d[i  ];
+        D[I+1] = d[i+1];
+        D[I+2] = d[i+2];
+        D[I+3] = d[i+3];
+    }
+    return D;
+}
+
+function fill_data( D, W, H, c, x0, y0, x1, y1 )
+{
+    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
+    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
+    if ( !D.length || (x1 < x0) || (y1 < y0) ) return D;
+    var x, y, i, r = c[0] & 255, g = c[1] & 255, b = c[2] & 255, a = 3 < c.length ? c[3] & 255 : 255;
+    for(x=x0,y=y0; y<=y1; x++)
+    {
+        if ( x>x1 ) { x=x0; y++; }
+        i = (y*W + x) << 2;
+        D[i  ] = r;
+        D[i+1] = g;
+        D[i+2] = b;
+        D[i+3] = a;
+    }
+    return D;
+}
+
+// compute integral image (Summed Area Table, SAT) (for a given channel)
+function integral( im, w, h, channel ) 
+{
+    var rowLen = w<<2, integ, sum,
+        imLen = im.length, count = imLen>>2, i, j, x
+    ;
+    // compute integral of image in one pass
+    channel = channel || 0;
+    integ = new A32F(count); 
+    // first row
+    for (x=0,j=0,i=0,sum=0; x<w; x++, i+=4, j++)
+    {
+        sum+=im[i+channel]; integ[j]=sum; 
+    }
+    // other rows
+    for (x=0,j=0,sum=0,i=rowLen; i<imLen; i+=4, j++, x++)
+    {
+        if ( x >=w ) { x=0; sum=0; }
+        sum+=im[i+channel]; integ[j+w]=integ[j]+sum; 
+    }
+    return integ;
+}
+
+// compute image histogram (for a given channel)
+function histogram( im, w, h, channel ) 
+{
+    var i, l = im.length, cdf, accum, n = 1.0 / (l>>2);
+    
+    // initialize the arrays
+    channel = channel || 0;
+    cdf = new A32F( 256 ); 
+    for (i=0; i<256; i+=32) 
+    { 
+        // partial loop unrolling
+        cdf[i   ]=0;
+        cdf[i+1 ]=0;
+        cdf[i+2 ]=0;
+        cdf[i+3 ]=0;
+        cdf[i+4 ]=0;
+        cdf[i+5 ]=0;
+        cdf[i+6 ]=0;
+        cdf[i+7 ]=0;
+        cdf[i+8 ]=0;
+        cdf[i+9 ]=0;
+        cdf[i+10]=0;
+        cdf[i+11]=0;
+        cdf[i+12]=0;
+        cdf[i+13]=0;
+        cdf[i+14]=0;
+        cdf[i+15]=0;
+        cdf[i+16]=0;
+        cdf[i+17]=0;
+        cdf[i+18]=0;
+        cdf[i+19]=0;
+        cdf[i+20]=0;
+        cdf[i+21]=0;
+        cdf[i+22]=0;
+        cdf[i+23]=0;
+        cdf[i+24]=0;
+        cdf[i+25]=0;
+        cdf[i+26]=0;
+        cdf[i+27]=0;
+        cdf[i+28]=0;
+        cdf[i+29]=0;
+        cdf[i+30]=0;
+        cdf[i+31]=0;
+    }
+    // compute pdf and maxima/minima
+    for (i=0; i<l; i+=4)
+    {
+        cdf[ im[i+channel] ] += n;
+    }
+    
+    // compute cdf
+    for (accum=0,i=0; i<256; i+=32) 
+    { 
+        // partial loop unrolling
+        accum += cdf[i   ]; cdf[i   ] = accum;
+        accum += cdf[i+1 ]; cdf[i+1 ] = accum;
+        accum += cdf[i+2 ]; cdf[i+2 ] = accum;
+        accum += cdf[i+3 ]; cdf[i+3 ] = accum;
+        accum += cdf[i+4 ]; cdf[i+4 ] = accum;
+        accum += cdf[i+5 ]; cdf[i+5 ] = accum;
+        accum += cdf[i+6 ]; cdf[i+6 ] = accum;
+        accum += cdf[i+7 ]; cdf[i+7 ] = accum;
+        accum += cdf[i+8 ]; cdf[i+8 ] = accum;
+        accum += cdf[i+9 ]; cdf[i+9 ] = accum;
+        accum += cdf[i+10]; cdf[i+10] = accum;
+        accum += cdf[i+11]; cdf[i+11] = accum;
+        accum += cdf[i+12]; cdf[i+12] = accum;
+        accum += cdf[i+13]; cdf[i+13] = accum;
+        accum += cdf[i+14]; cdf[i+14] = accum;
+        accum += cdf[i+15]; cdf[i+15] = accum;
+        accum += cdf[i+16]; cdf[i+16] = accum;
+        accum += cdf[i+17]; cdf[i+17] = accum;
+        accum += cdf[i+18]; cdf[i+18] = accum;
+        accum += cdf[i+19]; cdf[i+19] = accum;
+        accum += cdf[i+20]; cdf[i+20] = accum;
+        accum += cdf[i+21]; cdf[i+21] = accum;
+        accum += cdf[i+22]; cdf[i+22] = accum;
+        accum += cdf[i+23]; cdf[i+23] = accum;
+        accum += cdf[i+24]; cdf[i+24] = accum;
+        accum += cdf[i+25]; cdf[i+25] = accum;
+        accum += cdf[i+26]; cdf[i+26] = accum;
+        accum += cdf[i+27]; cdf[i+27] = accum;
+        accum += cdf[i+28]; cdf[i+28] = accum;
+        accum += cdf[i+29]; cdf[i+29] = accum;
+        accum += cdf[i+30]; cdf[i+30] = accum;
+        accum += cdf[i+31]; cdf[i+31] = accum;
+    }
+    return cdf;
+}
+
+function spectrum( im, w, h, channel ) 
+{
+    // TODO
+    return null;
+}
+
+// speed-up convolution for special kernels like moving-average
+function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+{
+    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
+        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+        dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
+        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
+        r, g, b, r2, g2, b2, repeat, tmp
+    ;
+    
+    // convolution speed-up based on the integral image concept and symmetric / separable kernels
+    
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    matArea = matRadiusX*matRadiusY;
+    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    // one additional offest needed due to integral computation
+    matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
+    matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
+    
+    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
+    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
+    
+    numRepeats = numRepeats||1;
+    
+    if (matrix2) // allow to compute a second matrix in-parallel
+    {
+        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        
+        // do this multiple times??
+        for(repeat=0; repeat<numRepeats; repeat++)
+        {
+            //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
+
+            // compute integral of image in one pass
+            
+            // first row
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+            }
+            // other rows
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+            {
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen]=integral[j]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
+            }
+            
+            
+            // now can compute any symmetric convolution kernel in constant time 
+            // depending only on image dimensions, regardless of matrix radius
+            
+            // do direct convolution
+            x=0; y=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; y++; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                
+                // fix borders
+                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                 yOff1 = yOff1<by1 ? by1 : yOff1;
+                 yOff2 = yOff2>by2 ? by2 : yOff2;
+                
+                // compute integral positions
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                
+                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                // also fix the center element (in case it is different)
+                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                
+                r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
+                b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
+                
+                // output
+                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                if (notSupportClamp)
+                {   
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                }
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            }
+            
+            // do another pass??
+        }
+    }
+    else
+    {
+        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+    
+        // do this multiple times??
+        for(repeat=0; repeat<numRepeats; repeat++)
+        {
+            //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
+            
+            // compute integral of image in one pass
+            
+            // first row
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+            }
+            // other rows
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+            {
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen  ]=integral[j  ]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
+            }
+            
+            // now can compute any symmetric convolution kernel in constant time 
+            // depending only on image dimensions, regardless of matrix radius
+            
+            // do direct convolution
+            x=0; y=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; y++; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                
+                // fix borders
+                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                 yOff1 = yOff1<by1 ? by1 : yOff1;
+                 yOff2 = yOff2>by2 ? by2 : yOff2;
+                
+                // compute integral positions
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                
+                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                // also fix the center element (in case it is different)
+                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                
+                // output
+                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
+                if (notSupportClamp)
+                {   
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                }
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            }
+            
+            // do another pass??
+        }
+    }
+    return dst;
+}
+function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+{
+    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB, colA,
+        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+        dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
+        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2, t3,
+        r, g, b, a, r2, g2, b2, a2, repeat, tmp
+    ;
+    
+    // convolution speed-up based on the integral image concept and symmetric / separable kernels
+    
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    matArea = matRadiusX*matRadiusY;
+    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    // one additional offest needed due to integral computation
+    matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
+    matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
+    
+    integralLen = imLen;  rowLen = w<<2;
+    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
+    
+    numRepeats = numRepeats||1;
+    
+    if (matrix2) // allow to compute a second matrix in-parallel
+    {
+        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        
+        // do this multiple times??
+        for(repeat=0; repeat<numRepeats; repeat++)
+        {
+            //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
+            
+            // compute integral of image in one pass
+            
+            // first row
+            i=0; colR=colG=colB=colA=0;
+            for (x=0; x<w; x++, i+=4)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
+                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+            }
+            // other rows
+            x=0; colR=colG=colB=colA=0;
+            for (i=rowLen+w; i<imLen; i+=4, x++)
+            {
+                if (x>=w) { x=0; colR=colG=colB=colA=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
+                integral[i+rowLen  ]=integral[i  ]+colR; 
+                integral[i+rowLen+1]=integral[i+1]+colG; 
+                integral[i+rowLen+2]=integral[i+2]+colB;
+                integral[i+rowLen+3]=integral[i+3]+colA;
+            }
+            
+            
+            // now can compute any symmetric convolution kernel in constant time 
+            // depending only on image dimensions, regardless of matrix radius
+            
+            // do direct convolution
+            x=0; y=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; y++; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                
+                // fix borders
+                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                 yOff1 = yOff1<by1 ? by1 : yOff1;
+                 yOff2 = yOff2>by2 ? by2 : yOff2;
+                
+                // compute integral positions
+                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                
+                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                // also fix the center element (in case it is different)
+                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
+                
+                r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
+                b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
+                a2 = wt2 * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset2 * im[i+3]);
+                
+                // output
+                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;  t3 = coeff1*a + coeff2*a2;
+                if (notSupportClamp)
+                {   
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                }
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+            }
+            
+            // do another pass??
+        }
+    }
+    else
+    {
+        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+    
+        // do this multiple times??
+        for(repeat=0; repeat<numRepeats; repeat++)
+        {
+            //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
+            
+            // compute integral of image in one pass
+            
+            // first row
+            i=0; colR=colG=colB=colA=0;
+            for (x=0; x<w; x++, i+=4)
+            {
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
+                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+            }
+            // other rows
+            x=0; colR=colG=colB=colA=0;
+            for (i=rowLen+w; i<imLen; i+=4, x++)
+            {
+                if (x>=w) { x=0; colR=colG=colB=colA=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
+                integral[i+rowLen  ]=integral[i  ]+colR; 
+                integral[i+rowLen+1]=integral[i+1]+colG; 
+                integral[i+rowLen+2]=integral[i+2]+colB;
+                integral[i+rowLen+3]=integral[i+3]+colA;
+            }
+            
+            // now can compute any symmetric convolution kernel in constant time 
+            // depending only on image dimensions, regardless of matrix radius
+            
+            // do direct convolution
+            x=0; y=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; y++; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                
+                // fix borders
+                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                 yOff1 = yOff1<by1 ? by1 : yOff1;
+                 yOff2 = yOff2>by2 ? by2 : yOff2;
+                
+                // compute integral positions
+                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                
+                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                // also fix the center element (in case it is different)
+                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
+                
+                // output
+                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;  t3 = coeff1*a + coeff2;
+                if (notSupportClamp)
+                {   
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                }
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+            }
+            
+            // do another pass??
+        }
+    }
+    return dst;
+}
+function integral_convolution(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+{
+    return rgba
+    ? integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+    : integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+    ;
+}
+
+// speed-up convolution for separable kernels
+function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+{
+    var imLen=im.length, imArea=(imLen>>2),
+        matArea, mat, indices, matArea2,
+        dst, imageIndices, imageIndices1, imageIndices2,
+        i, j, k, x, ty, ty2,
+        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        r, g, b, a, coeff, numPasses, tmp
+    ;
+    
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    bx = w-1; by = imArea-w;
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    imageIndices1 = new A16I(ind1);
+    for (k=0,matArea2=ind1.length; k<matArea2; k+=2) imageIndices1[k+1] *= w;
+    imageIndices2 = new A16I(ind2);
+    for (k=0,matArea2=ind2.length; k<matArea2; k+=2) imageIndices2[k+1] *= w;
+
+    // one horizontal and one vertical pass
+    numPasses = 2;
+    mat = matrix;
+    indices = ind1;
+    coeff = coeff1;
+    imageIndices = imageIndices1;
+    dst = im; im = new IMG(imLen);
+    
+    while (numPasses--)
+    {
+        tmp = im; im = dst; dst = tmp;
+        matArea = mat.length;
+        matArea2 = indices.length;
+        
+        // do direct convolution
+        if (notSupportClamp)
+        {   
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        a += im[srcOff+3] * wt;
+                    }
+                }
+                
+                // output
+                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+                
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                if ( rgba )
+                {
+                    t3 = coeff * a;
+                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+            }
+        }
+        else
+        {
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        a += im[srcOff+3] * wt;
+                    }
+                }
+                
+                // output
+                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+                
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                if ( rgba )
+                {
+                    t3 = coeff * a;
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+            }
+        }
+        
+        // do another pass??
+        mat = matrix2;
+        indices = ind2;
+        coeff = coeff2;
+        imageIndices = imageIndices2;
+    }
+    return dst;
+}
+
+function lerp( data, index, c1, c2, t )
+{
+    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
+    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
+    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
+    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
+}
+
+function colors_stops( colors, stops )
+{
+    stops = stops ? stops.slice() : stops;
+    colors = colors ? colors.slice() : colors;
+    var cl = colors.length, i;
+    if ( !stops )
+    {
+        if ( 1 === cl )
+        {
+            stops = [1.0];
+        }
+        else
+        {
+            stops = new Array(cl);
+            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
+        }
+    }
+    else if ( stops.length < cl )
+    {
+        var cstoplen = stops.length, cstop = stops[cstoplen-1];
+        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
+    }
+    if ( 1.0 != stops[stops.length-1] )
+    {
+        stops.push( 1.0 );
+        colors.push( colors[colors.length-1] );
+    }
+    return [colors, stops];
+}
+
+function gradient( g, w, h, colors, stops, angle, interpolate )
+{
+    var i, x, y, size = g.length, t, px, py, stop1, stop2, sin, cos, r;
+    //interpolate = interpolate || lerp;
+    angle = angle || 0.0;
+    if ( 0 > angle ) angle += pi2;
+    if ( pi2 < angle ) angle -= pi2;
+    sin = Abs(Sin(angle)); cos = Abs(Cos(angle));
+    r = cos*w + sin*h;
+    if ( (pi_2 < angle) && (angle <= pi) )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = w-1-x; py = y;
+            t = Min(1.0, (cos*px + sin*py) / r);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+    }
+    else if ( (pi < angle) && (angle <= pi_32) )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = w-1-x; py = h-1-y;
+            t = Min(1.0, (cos*px + sin*py) / r);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+    }
+    else if ( (pi_32 < angle) && (angle < pi2) )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = x; py = h-1-y;
+            t = Min(1.0, (cos*px + sin*py) / r);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+    }
+    else //if ( (0 <= angle) && (angle <= pi_2) )
+    {
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = x; py = y;
+            t = Min(1.0, (cos*px + sin*py) / r);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+    }
+    return g;
+}
+
+function radial_gradient( g, w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate )
+{
+    var i, x, y, size = g.length, t, px, py, stop1, stop2;
+    //interpolate = interpolate || lerp;
+    centerX = centerX || 0; centerY = centerY || 0;
+    radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
+    //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
+    if ( radiusY > radiusX )
+    {
+        radiusX = radiusX/radiusY;
+        radiusY = 1.0;
+    }
+    else if ( radiusX > radiusY )
+    {
+        radiusY = radiusY/radiusX;
+        radiusX = 1.0;
+    }
+    else
+    {
+        radiusY = 1.0;
+        radiusX = 1.0;
+    }
+    for(x=0,y=0,i=0; i<size; i+=4,x++)
+    {
+        if ( x >= w ) { x=0; y++; }
+        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+        t = Min(1.0, Sqrt(px*px + py*py));
+        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+        stop1 = 0 === stop2 ? 0 : stop2-1;
+        interpolate(
+            g, i,
+            colors[stop1], colors[stop2],
+            // warp the value if needed, between stop ranges
+            stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+        );
+    }
+    return g;
+}
+
+function esc( s )
+{
+    return s.replace(esc_re, '\\$1');
+}
+
+MathUtil.clamp = clamp;
+MathUtil.closest_power2 = closest_power_of_two;
+MathUtil.Geometry = {
      Point2: point2
     ,Point3: point3
     ,enorm2: enorm2
@@ -887,16 +1598,27 @@ FILTER.Geometry = {
     ,interpolate2: interpolate2
     ,interpolate3: interpolate3
 };
-FILTER.Math = {
-     clamp: clamp
-    ,closestPower2: closest_power_of_two
-    ,integral: integral
-    ,histogram: histogram
-    ,spectrum: spectrum
-};
 
-FILTER.Interpolation.crop = crop;
-FILTER.Interpolation.pad = pad;
+StringUtil.esc = esc;
+StringUtil.trim = String.prototype.trim 
+? function( s ){ return s.trim(); }
+: function( s ){ return s.replace(trim_re, ''); };
+
+ImageUtil.crop = FILTER.Interpolation.crop = crop;
+ImageUtil.pad = FILTER.Interpolation.pad = pad;
+ImageUtil.get_data = get_data;
+ImageUtil.set_data = set_data;
+ImageUtil.fill = fill_data;
+ImageUtil.integral = integral;
+ImageUtil.histogram = histogram;
+ImageUtil.spectrum = spectrum;
+ImageUtil.gradient = gradient;
+ImageUtil.radial_gradient = radial_gradient;
+ImageUtil.lerp = lerp;
+ImageUtil.colors_stops = colors_stops;
+
+FilterUtil.integral_convolution = integral_convolution;
+FilterUtil.separable_convolution = separable_convolution;
 
 }(FILTER);/**
 *
@@ -907,7 +1629,7 @@ FILTER.Interpolation.pad = pad;
 !function(FILTER, undef){
 "use strict";
 
-var clamp = FILTER.Math.clamp, IMG = FILTER.ImArray;
+var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray;
 
 // http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
 // http://tech-algorithm.com/articles/bilinear-image-scaling/
@@ -952,6 +1674,239 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
 
 }(FILTER);/**
 *
+* Filter Interpolation methods
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray;
+
+// http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
+FILTER.Interpolation.nearest = function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        rx = (w-1)/nw, ry = (h-1)/nh, 
+        i, j, x, y, xi, yi, pixel, index,
+        yw, xoff, yoff, w4 = w<<2
+    ;
+    i=0; j=0; x=0; y=0; yi=0; yw=0; yoff=0;
+    for (index=0; index<size; index+=4,j++,x+=rx) 
+    {
+        if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; yw=yi*w; yoff=y - yi<0.5 ? 0 : w4; }
+        
+        xi = ~~x; xoff = x - xi<0.5 ? 0 : 4;
+        
+        pixel = ((yw + xi)<<2) + xoff + yoff;
+
+        interpolated[index]      = im[pixel];
+        interpolated[index+1]    = im[pixel+1];
+        interpolated[index+2]    = im[pixel+2];
+        interpolated[index+3]    = im[pixel+3];
+    }
+    return interpolated;
+};
+
+}(FILTER);/**
+*
+* Filter Interpolation methods
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F,
+    subarray = FILTER.ArraySubArray;
+
+// http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
+FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        rx = (w-1)/nw, ry = (h-1)/nh, 
+        i, j, x, y, xi, yi, pixel, index,
+        rgba = new IMG(4), 
+        rgba0 = new A32F(4), rgba1 = new A32F(4), 
+        rgba2 = new A32F(4), rgba3 = new A32F(4),
+        yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
+        B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
+        p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
+    ;
+    i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
+    for (index=0; index<size; index+=4,j++,x+=rx) 
+    {
+        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
+        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
+        
+        pixel = (yw + xi)<<2;
+        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
+        
+        // handle edge cases
+        C = subarray(im, pixel, pixel+4);
+        L = L_EDGE ? C : subarray(im, pixel-4, pixel);
+        R = R_EDGE ? C : subarray(im, pixel+4, pixel+8);
+        RR = R_EDGE ? C : subarray(im, pixel+8, pixel+12);
+        B = B_EDGE ? C : subarray(im, pixel+w4, pixel+w4+4);
+        BB = B_EDGE ? C : subarray(im, pixel+w4+w4, pixel+w4+w4+4);
+        BL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4-4, pixel+w4);
+        BR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+4, pixel+w4+8);
+        BRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+8, pixel+w4+12);
+        BBL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4+w4-4, pixel+w4+w4);
+        BBR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+4, pixel+w4+w4+8);
+        BBRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+8, pixel+w4+w4+12);
+        T = T_EDGE ? C : subarray(im, pixel-w4, pixel-w4+4);
+        TL = T_EDGE||L_EDGE ? C : subarray(im, pixel-w4-4, pixel-w4);
+        TR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+4, pixel-w4+8);
+        TRR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+8, pixel-w4+12);
+        
+        /*function interpolate_pixel(n, p0, p1, p2, p3, t)
+        {
+            var p, q, r, s, t2 = t*t, t3 = t2 * t, v;
+            
+            p = (p3[0] - p2[0]) - (p0[0] - p1[0]);
+            q = (p0[0] - p1[0]) - p;
+            r = p2[0] - p0[0];
+            s = p1[0];
+            n[0] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+            p = (p3[1] - p2[1]) - (p0[1] - p1[1]);
+            q = (p0[1] - p1[1]) - p;
+            r = p2[1] - p0[1];
+            s = p1[1];
+            n[1] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+            p = (p3[2] - p2[2]) - (p0[2] - p1[2]);
+            q = (p0[2] - p1[2]) - p;
+            r = p2[2] - p0[2];
+            s = p1[2];
+            n[2] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+
+            p = (p3[3] - p2[3]) - (p0[3] - p1[3]);
+            q = (p0[3] - p1[3]) - p;
+            r = p2[3] - p0[3];
+            s = p1[3];
+            n[3] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
+        }*/
+        //interpolate_pixel(rgba0, TL, T, TR, TRR, dx);
+        p = (TRR[0] - TR[0]) - (TL[0] - T[0]);
+        q = (TL[0] - T[0]) - p;
+        r = TR[0] - TL[0];
+        s = T[0];
+        rgba0[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[1] - TR[1]) - (TL[1] - T[1]);
+        q = (TL[1] - T[1]) - p;
+        r = TR[1] - TL[1];
+        s = T[1];
+        rgba0[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[2] - TR[2]) - (TL[2] - T[2]);
+        q = (TL[2] - T[2]) - p;
+        r = TR[2] - TL[2];
+        s = T[2];
+        rgba0[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[3] - TR[3]) - (TL[3] - T[3]);
+        q = (TL[3] - T[3]) - p;
+        r = TR[3] - TL[3];
+        s = T[3];
+        rgba0[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba1, L, C, R, RR, dx);
+        p = (RR[0] - R[0]) - (L[0] - C[0]);
+        q = (L[0] - C[0]) - p;
+        r = R[0] - L[0];
+        s = C[0];
+        rgba1[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[1] - R[1]) - (L[1] - C[1]);
+        q = (L[1] - C[1]) - p;
+        r = R[1] - L[1];
+        s = C[1];
+        rgba1[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[2] - R[2]) - (L[2] - C[2]);
+        q = (L[2] - C[2]) - p;
+        r = R[2] - L[2];
+        s = C[2];
+        rgba1[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[3] - R[3]) - (L[3] - C[3]);
+        q = (L[3] - C[3]) - p;
+        r = R[3] - L[3];
+        s = C[3];
+        rgba1[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba2, BL, B, BR, BRR, dx);
+        p = (BRR[0] - BR[0]) - (BL[0] - B[0]);
+        q = (BL[0] - B[0]) - p;
+        r = BR[0] - BL[0];
+        s = B[0];
+        rgba2[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[1] - BR[1]) - (BL[1] - B[1]);
+        q = (BL[1] - B[1]) - p;
+        r = BR[1] - BL[1];
+        s = B[1];
+        rgba2[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[2] - BR[2]) - (BL[2] - B[2]);
+        q = (BL[2] - B[2]) - p;
+        r = BR[2] - BL[2];
+        s = B[2];
+        rgba2[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[3] - BR[3]) - (BL[3] - B[3]);
+        q = (BL[3] - B[3]) - p;
+        r = BR[3] - BL[3];
+        s = B[3];
+        rgba2[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba3, BBL, BB, BBR, BBRR, dx);
+        p = (BBRR[0] - BBR[0]) - (BBL[0] - BB[0]);
+        q = (BBL[0] - BB[0]) - p;
+        r = BBR[0] - BBL[0];
+        s = BB[0];
+        rgba3[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[1] - BBR[1]) - (BBL[1] - BB[1]);
+        q = (BBL[1] - BB[1]) - p;
+        r = BBR[1] - BBL[1];
+        s = BB[1];
+        rgba3[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[2] - BBR[2]) - (BBL[2] - BB[2]);
+        q = (BBL[2] - BB[2]) - p;
+        r = BBR[2] - BBL[2];
+        s = BB[2];
+        rgba3[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[3] - BBR[3]) - (BBL[3] - BB[3]);
+        q = (BBL[3] - BB[3]) - p;
+        r = BBR[3] - BBL[3];
+        s = BB[3];
+        rgba3[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        // Then we interpolate those 4 pixels to get a single pixel that is a composite of 4 * 4 pixels, 16 pixels
+        //interpolate_pixel(rgba, rgba0, rgba1, rgba2, rgba3, dy);
+        p = (rgba3[0] - rgba2[0]) - (rgba0[0] - rgba1[0]);
+        q = (rgba0[0] - rgba1[0]) - p;
+        r = rgba2[0] - rgba0[0];
+        s = rgba1[0];
+        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
+        q = (rgba0[1] - rgba1[1]) - p;
+        r = rgba2[1] - rgba0[1];
+        s = rgba1[1];
+        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
+        q = (rgba0[2] - rgba1[2]) - p;
+        r = rgba2[2] - rgba0[2];
+        s = rgba1[2];
+        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
+        q = (rgba0[3] - rgba1[3]) - p;
+        r = rgba2[3] - rgba0[3];
+        s = rgba1[3];
+        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        
+        interpolated[index]      = rgba[0];
+        interpolated[index+1]    = rgba[1];
+        interpolated[index+2]    = rgba[2];
+        interpolated[index+3]    = rgba[3];
+    }
+    return interpolated;
+};
+
+}(FILTER);/**
+*
 * Color Methods / Transforms
 * @package FILTER.js
 *
@@ -959,20 +1914,16 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
 !function(FILTER, undef){
 "use strict";
 
+// adapted from https://github.com/foo123/css-color
 var // utils
     Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
     min = Math.min, max = Math.max, abs = Math.abs,
+    //notSupportClamp = FILTER._notSupportClamp,
+    clamp = FILTER.Util.Math.clamp,
+    esc = FILTER.Util.String.esc,
+    trim = FILTER.Util.String.trim,
     
-    clamp = FILTER.Math.clamp,
-    
-    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g,
-    esc = function(s) { return s.replace(esc_re, '\\$1'); },
-    
-    trim_re = /^\s+|\s+$/g,
-    trim = String.prototype.trim 
-            ? function(s){ return s.trim(); }
-            : function(s){ return s.replace(trim_re, ''); },
-    
+    LUMA = FILTER.LUMA,
     C2F = 1/255, C2P = 100/255, P2C = 2.55,
 
     Keywords = {
@@ -1147,25 +2098,23 @@ var Color = FILTER.Color = FILTER.Class({
         
         clampPixel: function( v ) { return min(255, max(v, 0)); },
         
-        toGray: function(r, g, b) {
-            var LUMA=FILTER.LUMA;  return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
-        }, 
+        toGray: function( r, g, b ) { return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b); }, 
         
-        distance: function(rgb1, rgb2) {
+        distance: function( rgb1, rgb2 ) {
             var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
             return Sqrt(dr*dr + dg*dg + db*db);
         },
         
-        RGB2Color: function(rgb) {
+        RGB2Color: function( rgb ) {
             return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
         },
         
-        RGBA2Color: function(rgba) {
+        RGBA2Color: function( rgba ) {
             return ((rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2])&255);
         },
         
-        Color2RGBA: function(c) {
-            c=~~c;
+        Color2RGBA: function( c ) {
+            c = ~~c;
             return [
                 (c >>> 16) & 255,
                 (c >>> 8) & 255,
@@ -1175,33 +2124,31 @@ var Color = FILTER.Color = FILTER.Class({
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
-        RGB2YCbCr: function(rgb) {
-            var y, cb, cr, r=rgb[0], g=rgb[1], b=rgb[2];
-            
+        RGB2YCbCr: function( rgb ) {
+            var r=rgb[0], g=rgb[1], b=rgb[2];
             // each take full range from 0-255
-            y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-            cb= ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-            cr= ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            return [y, cb, cr];
+            return [
+                ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    ),
+                ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      ),
+                ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b )
+            ];
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
-        YCbCr2RGB: function(ycbcr) {
-            var r, g, b, y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
-            
+        YCbCr2RGB: function( ycbcr ) {
+            var y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
             // each take full range from 0-255
-            r = ~~( y                      + 1.402   * (cr-128) );
-            g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-            b = ~~( y + 1.772   * (cb-128) );
-            return [r, g, b];
+            return [
+                ~~( y                      + 1.402   * (cr-128) ),
+                ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) ),
+                ~~( y + 1.772   * (cb-128) )
+            ];
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/colo
-        RGB2HSV: function(rgb)  {
-            var m, M, delta, 
-                r, g, b, h, s, v
-            ;
+        RGB2HSV: function( rgb )  {
+            var m, M, delta, r, g, b, h, s, v;
 
             r=rgb[0]; g=rgb[1]; b=rgb[2];
             
@@ -1232,10 +2179,7 @@ var Color = FILTER.Color = FILTER.Class({
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
         HSV2RGB: function( hsv ) {
-            var i,
-                f, p, q, t,
-                r, g, b, h, s, v
-            ;
+            var i, f, p, q, t, r, g, b, h, s, v;
             
             h=hsv[0]; s=hsv[1]; v=hsv[2];
             
@@ -1281,18 +2225,16 @@ var Color = FILTER.Color = FILTER.Class({
         
         // color format conversions
         // http://www.rapidtables.com/convert/color/index.htm
-        col2per: function(c, suffix) {
+        col2per: function( c, suffix ) {
             return (c*C2P)+(suffix||'');
         },
-        per2col: function(c) {
+        per2col: function( c ) {
             return c*P2C;
         },
         
         // http://www.javascripter.net/faq/rgb2cmyk.htm
-        rgb2cmyk: function(r, g, b, asPercent) {
-            var c = 0, m = 0, y = 0, k = 0,
-                minCMY, invCMY
-            ;
+        rgb2cmyk: function( r, g, b, asPercent ) {
+            var c = 0, m = 0, y = 0, k = 0, minCMY, invCMY;
 
             if ( asPercent )
             {
@@ -1321,9 +2263,8 @@ var Color = FILTER.Color = FILTER.Class({
 
             return [c, m, y, k];
         },
-        cmyk2rgb: function(c, m, y, k) {
-            var r = 0, g = 0, b = 0,
-                minCMY, invCMY
+        cmyk2rgb: function( c, m, y, k ) {
+            var r = 0, g = 0, b = 0, minCMY, invCMY
             ;
 
             // BLACK
@@ -1348,7 +2289,7 @@ var Color = FILTER.Color = FILTER.Class({
                 clamp(round(b), 0, 255)
             ];
         },
-        rgb2hex: function(r, g, b, condenced, asPercent) { 
+        rgb2hex: function( r, g, b, condenced, asPercent ) { 
             var hex;
             if ( asPercent )
             {
@@ -1368,7 +2309,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             return hex;
         },
-        rgb2hexIE: function(r, g, b, a, asPercent) { 
+        rgb2hexIE: function( r, g, b, a, asPercent ) { 
             var hex;
             if ( asPercent )
             {
@@ -1386,7 +2327,7 @@ var Color = FILTER.Color = FILTER.Class({
             
             return hex;
         },
-        hex2rgb: function(h/*, asPercent*/) {  
+        hex2rgb: function( h/*, asPercent*/ ) {  
             if ( !h || 3 > h.length )
                 return [0, 0, 0];
                 
@@ -1418,7 +2359,7 @@ var Color = FILTER.Color = FILTER.Class({
          * Assumes h, s, and l are contained in the set [0, 1] and
          * returns r, g, and b in the set [0, 255].
          */
-        hue2rgb: function(p, q, t) {
+        hue2rgb: function( p, q, t ) {
             if ( t < 0 ) t += 1;
             if ( t > 1 ) t -= 1;
             if ( t < 1/6 ) return p + (q - p) * 6 * t;
@@ -1426,8 +2367,8 @@ var Color = FILTER.Color = FILTER.Class({
             if ( t < 2/3 ) return p + (q - p) * (2/3 - t) * 6;
             return p;
         },
-        hsl2rgb: function(h, s, l) {
-            var r, g, b, p, q;
+        hsl2rgb: function( h, s, l ) {
+            var r, g, b, p, q, hue2rgb = Color.hue2rgb;
 
             // convert to [0, 1] range
             h = ((h + 360)%360)/360;
@@ -1446,9 +2387,9 @@ var Color = FILTER.Color = FILTER.Class({
 
                 q = l < 0.5 ? l * (1 + s) : l + s - l * s;
                 p = 2 * l - q;
-                r = Color.hue2rgb(p, q, h + 1/3);
-                g = Color.hue2rgb(p, q, h);
-                b = Color.hue2rgb(p, q, h - 1/3);
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
             }
 
             return [
@@ -1463,7 +2404,7 @@ var Color = FILTER.Color = FILTER.Class({
         * Assumes r, g, and b are contained in the set [0, 255] and
         * returns h, s, and l in the set [0, 1].
         */
-        rgb2hsl: function(r, g, b, asPercent) {
+        rgb2hsl: function( r, g, b, asPercent ) {
             var m, M, h, s, l, d;
             
             if ( asPercent )
@@ -1510,7 +2451,7 @@ var Color = FILTER.Color = FILTER.Class({
             ];
         },
         
-        parse: function(s, withColorStops, parsed, onlyColor) {
+        parse: function( s, withColorStops, parsed, onlyColor ) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
             
             if ( 'hsl' === parsed || 
@@ -1660,22 +2601,22 @@ var Color = FILTER.Color = FILTER.Class({
             }
             return null;
         },
-        fromString: function(s, withColorStops, parsed) {
+        fromString: function( s, withColorStops, parsed ) {
             return Color.parse(s, withColorStops, parsed, 1);
         },
-        fromRGB: function(rgb) {
+        fromRGB: function( rgb ) {
             return new Color().fromRGB(rgb);
         },
-        fromHSL: function(hsl) {
+        fromHSL: function( hsl ) {
             return new Color().fromHSL(hsl);
         },
-        fromCMYK: function(cmyk) {
+        fromCMYK: function( cmyk ) {
             return new Color().fromCMYK(cmyk);
         },
-        fromHEX: function(hex) {
+        fromHEX: function( hex ) {
             return new Color().fromHEX(hex);
         },
-        fromKeyword: function(keyword) {
+        fromKeyword: function( keyword ) {
             return new Color().fromKeyword(keyword);
         },
         fromPixel: function(pixCol) {
@@ -1701,7 +2642,7 @@ var Color = FILTER.Color = FILTER.Class({
     cstop: null,
     kword: null,
     
-    clone: function() {
+    clone: function( ) {
         var c = new Color();
         c.col = this.col.slice();
         c.cstop = this.cstop+'';
@@ -1709,14 +2650,14 @@ var Color = FILTER.Color = FILTER.Class({
         return c;
     },
     
-    reset: function() {
+    reset: function( ) {
         this.col = [0, 0, 0, 1];
         this.cstop = '';
         this.kword = null;
         return this;
     },
     
-    set: function(color, cstop) {
+    set: function( color, cstop ) {
         if ( color )
         {
             if ( undef !== color[0] )
@@ -1738,20 +2679,20 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    colorStop: function(cstop) {
+    colorStop: function( cstop ) {
         this.cstop = cstop;
         return this;
     },
     
-    isTransparent: function() {
+    isTransparent: function( ) {
         return 1 > this.col[3];
     },
     
-    isKeyword: function() {
+    isKeyword: function( ) {
         return this.kword ? true : false;
     },
     
-    fromPixel: function(color) {
+    fromPixel: function( color ) {
         color = color || 0;
         this.col = [
             clamp((color>>16)&255, 0, 255),
@@ -1764,7 +2705,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromKeyword: function(kword) {
+    fromKeyword: function( kword ) {
         
         kword = kword.toLowerCase();
         if ( Color.Keywords[kword] )
@@ -1775,7 +2716,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromHEX: function(hex) {
+    fromHEX: function( hex ) {
         
         this.col[0] = hex[0] ? clamp(parseInt(hex[0], 10), 0, 255) : 0;
         this.col[1] = hex[1] ? clamp(parseInt(hex[1], 10), 0, 255) : 0;
@@ -1787,7 +2728,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromRGB: function(rgb) {
+    fromRGB: function( rgb ) {
         
         this.col[0] = rgb[0] ? clamp(round(rgb[0]), 0, 255) : 0;
         this.col[1] = rgb[1] ? clamp(round(rgb[1]), 0, 255) : 0;
@@ -1799,7 +2740,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromCMYK: function(cmyk) {
+    fromCMYK: function( cmyk ) {
         var rgb = Color.cmyk2rgb(cmyk[0]||0, cmyk[1]||0, cmyk[2]||0, cmyk[3]||0);
         
         this.col[0] = rgb[0];
@@ -1812,7 +2753,7 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    fromHSL: function(hsl) {
+    fromHSL: function( hsl ) {
         var rgb = Color.hsl2rgb(hsl[0]||0, hsl[1]||0, hsl[2]||0);
         
         this.col[0] = rgb[0];
@@ -1825,14 +2766,14 @@ var Color = FILTER.Color = FILTER.Class({
         return this;
     },
     
-    toPixel: function(withTransparency) {
+    toPixel: function( withTransparency ) {
         if ( withTransparency )
             return ((clamp(this.col[3]*255, 0, 255) << 24) | (this.col[0] << 16) | (this.col[1] << 8) | (this.col[2])&255);
         else
             return ((this.col[0] << 16) | (this.col[1] << 8) | (this.col[2])&255);
     },
     
-    toCMYK: function(asString, condenced, noTransparency) {
+    toCMYK: function( asString, condenced, noTransparency ) {
         var cmyk = Color.rgb2cmyk(this.col[0], this.col[1], this.col[2]);
         if (noTransparency)
             return cmyk;
@@ -1840,21 +2781,21 @@ var Color = FILTER.Color = FILTER.Class({
             return cmyk.concat(this.col[3]);
     },
     
-    toKeyword: function(asString, condenced, withTransparency) {
+    toKeyword: function( asString, condenced, withTransparency ) {
         if ( this.kword )
             return this.kword;
         else
             return this.toHEX(1, condenced, withTransparency);
     },
     
-    toHEX: function(asString, condenced, withTransparency) {
+    toHEX: function( asString, condenced, withTransparency ) {
         if ( withTransparency )
             return Color.rgb2hexIE( this.col[0], this.col[1], this.col[2], clamp(round(255*this.col[3]), 0, 255) );
         else
             return Color.rgb2hex( this.col[0], this.col[1], this.col[2], condenced );
     },
     
-    toRGB: function(asString, condenced, noTransparency) {
+    toRGB: function( asString, condenced, noTransparency ) {
         var opcty = this.col[3];
         if ( asString )
         {
@@ -1877,7 +2818,7 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    toHSL: function(asString, condenced, noTransparency) {
+    toHSL: function( asString, condenced, noTransparency ) {
         var opcty = this.col[3];
         var hsl = Color.rgb2hsl(this.col[0], this.col[1], this.col[2]);
         
@@ -1904,7 +2845,7 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
     
-    toColorStop: function(compatType) {
+    toColorStop: function( compatType ) {
         var cstop = this.cstop;
         if ( compatType )
         {
@@ -1941,7 +2882,796 @@ var Color = FILTER.Color = FILTER.Class({
         return this.toHEX(1, false!==condenced, 'hexie' == format);
     }
 });
+
+// JavaScript implementations of common image blending modes, based on
+// http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
+Color.Blend = Color.Combine = {
+    //p1 = p1 || 0; p2 = p2 || 0;
     
+    normal: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+        
+        // normal mode
+        rb = r2;  
+        gb = g2;  
+        bb = b2;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    lighten: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+        
+        // lighten mode
+        rb = r > r2 ? r : r2; 
+        gb = g > g2 ? g : g2; 
+        bb = b > b2 ? b : b2; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    darken: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // darken mode
+        rb = r > r2 ? r2 : r; 
+        gb = g > g2 ? g2 : g; 
+        bb = b > b2 ? b2 : b; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    multiply: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // multiply mode
+        rb = r * r2 * 0.003921568627451;
+        gb = g * g2 * 0.003921568627451;
+        bb = b * b2 * 0.003921568627451;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    average: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // average mode
+        rb = 0.5*(r + r2); 
+        gb = 0.5*(g + g2); 
+        bb = 0.5*(b + b2); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    add: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // add mode
+        rb = r + r2; 
+        gb = g + g2; 
+        bb = b + b2; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    subtract: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // subtract mode
+        rb = r + r2 < 255 ? 0 : r + r2 - 255;  
+        gb = g + g2 < 255 ? 0 : g + g2 - 255;  
+        bb = b + b2 < 255 ? 0 : b + b2 - 255;  
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    difference: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // difference mode
+        rb = abs(r2 - r); 
+        gb = abs(g2 - g); 
+        bb = abs(b2 - b); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    negation: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // negation mode
+        rb = 255 - abs(255 - r2 - r);
+        gb = 255 - abs(255 - g2 - g);
+        bb = 255 - abs(255 - b2 - b);
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    screen: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // screen mode
+        rb = 255 - (((255 - r2) * (255 - r)) >> 8); 
+        gb = 255 - (((255 - g2) * (255 - g)) >> 8); 
+        bb = 255 - (((255 - b2) * (255 - b)) >> 8); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    exclusion: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // exclusion mode
+        rb = r2 + r - 2 * r2 * r * 0.003921568627451; 
+        gb = g2 + g - 2 * g2 * g * 0.003921568627451; 
+        bb = b2 + b - 2 * b2 * b * 0.003921568627451; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    overlay: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // overlay mode
+        rb = r < 128 ? (2 * r2 * r * 0.003921568627451) : (255 - 2 * (255 - r2) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * g2 * g * 0.003921568627451) : (255 - 2 * (255 - g2) * (255 - g) * 0.003921568627451); 
+        rb = b < 128 ? (2 * b2 * b * 0.003921568627451) : (255 - 2 * (255 - b2) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    softlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // softlight mode
+        rb = r < 128 ? (2 * ((r2 >> 1) + 64)) * (r * 0.003921568627451) : 255 - (2 * (255 - (( r2 >> 1) + 64)) * (255 - r) * 0.003921568627451); 
+        gb = g < 128 ? (2 * ((g2 >> 1) + 64)) * (g * 0.003921568627451) : 255 - (2 * (255 - (( g2 >> 1) + 64)) * (255 - g) * 0.003921568627451); 
+        bb = b < 128 ? (2 * ((b2 >> 1) + 64)) * (b * 0.003921568627451) : 255 - (2 * (255 - (( b2 >> 1) + 64)) * (255 - b) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    // reverse of overlay
+    hardlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // hardlight mode, reverse of overlay
+        rb = r2 < 128 ? (2 * r * r2 * 0.003921568627451) : (255 - 2 * (255 - r) * (255 - r2) * 0.003921568627451); 
+        gb = g2 < 128 ? (2 * g * g2 * 0.003921568627451) : (255 - 2 * (255 - g) * (255 - g2) * 0.003921568627451); 
+        bb = b2 < 128 ? (2 * b * b2 * 0.003921568627451) : (255 - 2 * (255 - b) * (255 - b2) * 0.003921568627451); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    colordodge: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // colordodge mode
+        rb = 255 === r ? r : min(255, ((r2 << 8 ) / (255 - r))); 
+        gb = 255 === g ? g : min(255, ((g2 << 8 ) / (255 - g))); 
+        bb = 255 === b ? b : min(255, ((b2 << 8 ) / (255 - b))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    colorburn: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // colorburn mode
+        rb = 0 === r ? r : max(0, (255 - ((255 - r2) << 8 ) / r)); 
+        gb = 0 === g ? g : max(0, (255 - ((255 - g2) << 8 ) / g)); 
+        bb = 0 === b ? b : max(0, (255 - ((255 - b2) << 8 ) / b)); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    linearlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // linearlight mode
+        if ( r < 128 )
+        {
+            tmp = r*2;
+            rb = tmp + r2 < 255 ? 0 : tmp + r2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r - 128);
+            rb = tmp + r2; //linearDodge(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = g*2;
+            gb = tmp + g2 < 255 ? 0 : tmp + g2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g - 128);
+            gb = tmp + g2; //linearDodge(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = b*2;
+            bb = tmp + b2 < 255 ? 0 : tmp + b2 - 255; //linearBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b - 128);
+            bb = tmp + b2; //linearDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    reflect: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // reflect mode
+        rb = 255 === r ? r : min(255, (r2 * r2 / (255 - r))); 
+        gb = 255 === g ? g : min(255, (g2 * g2 / (255 - g))); 
+        bb = 255 === b ? b : min(255, (b2 * b2 / (255 - b))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    // reverse of reflect
+    glow: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // glow mode, reverse of reflect
+        rb = 255 === r2 ? r2 : min(255, (r * r / (255 - r2))); 
+        gb = 255 === g2 ? g2 : min(255, (g * g / (255 - g2))); 
+        bb = 255 === b2 ? b2 : min(255, (b * b / (255 - b2))); 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    phoenix: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // phoenix mode
+        rb = min(r2, r) - max(r2, r) + 255; 
+        gb = min(g2, g) - max(g2, g) + 255; 
+        bb = min(b2, b) - max(b2, b) + 255; 
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    vividlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // vividlight mode
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = 0 === tmp ? tmp : max(0, (255 - ((255 - r2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = 255 === tmp ? tmp : min(255, ((r2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = 0 === tmp ? tmp : max(0, (255 - ((255 - g2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = 255 === tmp ? tmp : min(255, ((g2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = 0 === tmp ? tmp : max(0, (255 - ((255 - b2) << 8 ) / tmp));  //colorBurn(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            bb = 255 === tmp ? tmp : min(255, ((b2 << 8 ) / (255 - tmp)));  // colorDodge(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    pinlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // pinlight mode
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = tmp > r2 ? tmp : r2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = tmp > r2 ? r2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = tmp > g2 ? tmp : g2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            gb = tmp > g2 ? g2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = tmp > b2 ? tmp : b2;  //darken(a, 2 * b)
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = tmp > b2 ? b2 : tmp;  // lighten(a, (2 * (b - 128)))
+        }
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    },
+
+    hardmix: function(rgba1, rgba2, p1, p2, do_clamp) { 
+        var amount = rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb, tmp,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+    
+        // hardmix mode, blendModes.vividLight(a, b) < 128 ? 0 : 255;
+        if ( r < 128 )
+        {
+            tmp = 2*r;
+            rb = 0 === tmp ? tmp : max(0, (255 - ((255 - r2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (r-128);
+            rb = 255 === tmp ? tmp : min(255, ((r2 << 8 ) / (255 - tmp)));
+        }
+        rb = rb < 128 ? 0 : 255;
+        if ( g < 128 )
+        {
+            tmp = 2*g;
+            gb = 0 === tmp ? tmp : max(0, (255 - ((255 - g2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (g-128);
+            gb = 255 === tmp ? tmp : min(255, ((g2 << 8 ) / (255 - tmp)));
+        }
+        gb = gb < 128 ? 0 : 255;
+        if ( b < 128 )
+        {
+            tmp = 2*b;
+            bb = 0 === tmp ? tmp : max(0, (255 - ((255 - b2) << 8 ) / tmp));
+        }
+        else
+        {
+            tmp = 2 * (b-128);
+            bb = 255 === tmp ? tmp : min(255, ((b2 << 8 ) / (255 - tmp)));
+        }
+        bb = bb < 128 ? 0 : 255;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+    }
+};
+// aliases
+Color.Blend.lineardodge = Color.Blend.add;
+Color.Blend.linearburn = Color.Blend.subtract;
+ 
 }(FILTER);/**
 *
 * Canvas Proxy Class
@@ -1951,72 +3681,14 @@ var Color = FILTER.Color = FILTER.Class({
 !function(FILTER, undef){
 "use strict";
 
-var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
-    Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear
+var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.Image,
+    Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
+    get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill
 ;
-
-function get( D, W, H, x0, y0, x1, y1, orig )
-{
-    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
-    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
-    if ( (0 === x0) && (0 === y0) && (W === x1+1) && (H === y1+1) ) return true === orig ? D : new IMGcpy( D );
-    if ( !D.length || (x1 < x0) || (y1 < y0) ) return new IMG(0);
-    var x, y, i, I, w = x1-x0+1, h = y1-y0+1, size = (w*h) << 2, d = new IMG(size);
-    for(x=x0,y=y0,i=0; y<=y1; i+=4,x++)
-    {
-        if ( x>x1 ){ x=x0; y++; }
-        I = (y*W + x) << 2;
-        d[i  ] = D[I  ];
-        d[i+1] = D[I+1];
-        d[i+2] = D[I+2];
-        d[i+3] = D[I+3];
-    }
-    return d;
-}
-
-function set( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
-{
-    var i, I, x, y;
-    if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
-    x0 = Min(x0, w-1); y0 = Min(y0, h-1);
-    X0 = Min(X0, W-1); Y0 = Min(Y0, H-1);
-    x1 = Min(x1, w-1); y1 = Min(y1, h-1);
-    X0 -= x0; Y0 -= y0;
-    for(x=x0,y=y0; y<=y1; x++)
-    {
-        if ( x>x1 ) { x=x0; y++; }
-        if ( (y+Y0 >= H) || (x+X0 >= W) ) continue;
-        i = (y*w + x) << 2;
-        I = ((y+Y0)*W + x+X0) << 2;
-        D[I  ] = d[i  ];
-        D[I+1] = d[i+1];
-        D[I+2] = d[i+2];
-        D[I+3] = d[i+3];
-    }
-    return D;
-}
 
 function scale( d, w, h, nw, nh )
 {
     return (w === nw) && (h === nh) ? d : resize( d, w, h, nw, nh );
-}
-
-function fill( D, W, H, c, x0, y0, x1, y1 )
-{
-    x0 = Min(x0, W-1); y0 = Min(y0, H-1);
-    x1 = Min(x1, W-1); y1 = Min(y1, H-1);
-    if ( !D.length || (x1 < x0) || (y1 < y0) ) return D;
-    var x, y, i, r = c[0] & 255, g = c[1] & 255, b = c[2] & 255, a = 3 < c.length ? c[3] & 255 : 255;
-    for(x=x0,y=y0; y<=y1; x++)
-    {
-        if ( x>x1 ) { x=x0; y++; }
-        i = (y*W + x) << 2;
-        D[i  ] = r;
-        D[i+1] = g;
-        D[i+2] = b;
-        D[i+3] = a;
-    }
-    return D;
 }
 
 CanvasProxyCtx = FILTER.Class({
@@ -2198,12 +3870,11 @@ FILTER.Canvas = function( w, h ) {
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
+    ImageUtil = FILTER.Util.Image, Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
+    FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
     notSupportTyped = FILTER._notSupportTypedArrays,
     arrayset = FILTER.ArraySet, subarray = FILTER.ArraySubArray,
     Min = Math.min, Floor = Math.floor,
-    FORMAT = FILTER.FORMAT,
-    MIME = FILTER.MIME, ID = 0,
 
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
@@ -2213,16 +3884,15 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
 ;
 
 // auxilliary (private) methods
-function _getTmpCanvas( scope ) 
+function tmp_canvas( scope ) 
 {
-    var w = scope.width, h = scope.height,
-        cnv = Canvas(w, h);
+    var w = scope.width, h = scope.height, cnv = Canvas( w, h );
     cnv.width = w * devicePixelRatio;
     cnv.height = h * devicePixelRatio;
     return cnv;
 }
 
-function _setDimensions( scope, w, h, what ) 
+function set_dimensions( scope, w, h, what ) 
 {
     what = what || WIDTH_AND_HEIGHT;
     if ( what & WIDTH )
@@ -2260,7 +3930,7 @@ function _setDimensions( scope, w, h, what )
     return scope;
 }
 
-function _refreshData( scope, what ) 
+function refresh_data( scope, what ) 
 {
     var w = scope.width, h = scope.height;
     what = what || 255;
@@ -2278,7 +3948,7 @@ function _refreshData( scope, what )
     return scope;
 }
 
-function _refreshSelectedData( scope, what ) 
+function refresh_selected_data( scope, what ) 
 {
     if ( scope.selection )
     {
@@ -2322,9 +3992,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx = self.iCanvas.getContext('2d');
         self.octx = self.oCanvas.getContext('2d');
         self.webgl = null;
-        self._histogram = null;
-        self._integral = null;
-        self._spectrum = null;
+        self._histogram = [null, null, null, null];
+        self._integral = [null, null, null, null];
+        self._spectrum = [null, null, null, null];
+        self._histogramRefresh = [0, 0, 0, 0];
+        self._integralRefresh = [0, 0, 0, 0];
+        self._spectrumRefresh = [0, 0, 0, 0];
         // lazy
         self.selection = null;
         self._needsRefresh = 0;
@@ -2376,6 +4049,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._histogram = null;
         self._integral = null;
         self._spectrum = null;
+        self._histogramRefresh = null;
+        self._integralRefresh = null;
+        self._spectrumRefresh = null;
         self._needsRefresh = null;
         self._restorable = null;
         self._grayscale = null;
@@ -2461,6 +4137,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             self.octx.drawImage(self.iCanvas, 0, 0); 
             self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= OSEL;
         }
         return self;
@@ -2468,8 +4147,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,dimensions: function( w, h ) {
         var self = this;
-        _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -2480,7 +4162,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( 1==sx && 1==sy ) return self;
         
         // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
         var ctx = self.tmpCanvas.getContext('2d'),
             w = self.width, h = self.height;
         
@@ -2511,6 +4193,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         //ctx.restore();
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -2518,7 +4203,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,flipHorizontal: function( ) {
         var self = this;
         // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.translate(self.width, 0); 
@@ -2533,7 +4218,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._needsRefresh |= DATA | SAT | SPECTRUM;
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -2541,7 +4228,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,flipVertical: function( ) {
         var self = this;
         // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.translate(0, self.height); 
@@ -2556,7 +4243,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._needsRefresh |= DATA | SAT | SPECTRUM;
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
@@ -2574,6 +4263,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( self._restorable ) self.ictx.clearRect(0, 0, w, h);
             self.octx.clearRect(0, 0, w, h);
             self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= SEL;
         }
         return self;
@@ -2608,7 +4300,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         
         // lazy
-        self.tmpCanvas = self.tmpCanvas || _getTmpCanvas( self );
+        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.drawImage(self.oCanvas, 0, 0, W, H, x, y, w, h);
@@ -2632,6 +4324,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.tmpCanvas.height = self.oCanvas.height;
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (sel) self._needsRefresh |= SEL;
         return self;
     }
@@ -2674,6 +4369,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillRect(x, y, w, h);
         
         self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (sel) self._needsRefresh |= SEL;
         return self;
     }
@@ -2683,12 +4381,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, Data;
         if ( self._restorable )
         {
-        if (self._needsRefresh & IDATA) _refreshData( self, IDATA );
+        if (self._needsRefresh & IDATA) refresh_data( self, IDATA );
         Data = self.iData;
         }
         else
         {
-        if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
         Data = self.oData;
         }
         // clone it
@@ -2703,12 +4401,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if ( self._restorable )
             {
-            if (self._needsRefresh & ISEL) _refreshSelectedData( self, ISEL );
+            if (self._needsRefresh & ISEL) refresh_selected_data( self, ISEL );
             sel = self.iDataSel;
             }
             else
             {
-            if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
             sel = self.oDataSel;
             }
         }
@@ -2716,12 +4414,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if ( self._restorable )
             {
-            if (self._needsRefresh & IDATA) _refreshData( self, IDATA );
+            if (self._needsRefresh & IDATA) refresh_data( self, IDATA );
             sel = self.iData;
             }
             else
             {
-            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
             }
         }
@@ -2732,7 +4430,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // get processed data array
     ,getProcessedData: function( ) {
         var self = this;
-        if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
         // clone it
         return new IMGcpy( self.oData.data );
     }
@@ -2743,12 +4441,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         if (self.selection)  
         {
-            if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
             sel = self.oDataSel;
         }
         else
         {
-            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
         }
         // clone it
@@ -2758,10 +4456,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // set direct data array
     ,setData: function(a) {
         var self = this;
-        if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
         arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
         self.octx.putImageData(self.oData, 0, 0); 
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
@@ -2773,24 +4474,27 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             var sel = self.selection, ow = self.width-1, oh = self.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
-            if (self._needsRefresh & OSEL) _refreshSelectedData( self, OSEL );
+            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
             arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
             self._needsRefresh |= ODATA;
         }
         else
         {
-            if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
             arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oData, 0, 0); 
         }
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         return self;
     }
     
     ,createImageData: function( w, h ) {
         var self = this, ictx, octx;
-        _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         if ( self._restorable ) 
         {
         ictx = self.ictx = self.iCanvas.getContext('2d');
@@ -2829,7 +4533,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         if ( isImage || isCanvas || isVideo ) 
         {
-            _setDimensions(self, w, h, WIDTH_AND_HEIGHT);
+            set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
             if ( self._restorable ) 
             {
             ictx = self.ictx = self.iCanvas.getContext('2d');
@@ -2844,7 +4548,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( !self.oData ) 
             {
                 self.createImageData(w, h);
-                _refreshData(self, DATA);
+                refresh_data(self, DATA);
             }
             
             if ( self._restorable )
@@ -2861,13 +4565,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
         self._needsRefresh |= HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= SEL;
         return self;
     }
     
     ,getPixel: function( x, y ) {
         var self = this;
-        if (self._needsRefresh & ODATA) _refreshData( self, ODATA );
+        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
         var off = (~~(y*self.width+x+0.5))<<2, im = self.oData.data;
         return {
             r: im[off], 
@@ -2881,13 +4588,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self.octx.putImageData(new IMG([r&255, g&255, b&255, a&255]), x, y); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
     
     // get the imageData object
     ,getPixelData: function( ) {
-        if (this._needsRefresh & ODATA) _refreshData( this, ODATA );
+        if (this._needsRefresh & ODATA) refresh_data( this, ODATA );
         return this.oData;
     }
     
@@ -2896,54 +4606,107 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self.octx.putImageData(data, 0, 0); 
         self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._histogramRefresh = [1, 1, 1, 1];
+        self._integralRefresh = [1, 1, 1, 1];
+        self._spectrumRefresh = [1, 1, 1, 1];
         if (self.selection) self._needsRefresh |= OSEL;
         return self;
     }
     
-    ,integral: function( ) {
-        var self = this;
-        if (self._needsRefresh & SAT) 
+    ,integral: function( channel ) {
+        var self = this, integral = ImageUtil.integral, grayscale = self._grayscale;
+        if ( null == channel )
         {
-            self._integral = FilterImage.integral(self.getPixelData().data, self.width, self.height, self._grayscale);
-            self._needsRefresh &= CLEAR_SAT;
+            if ( self._needsRefresh & SAT )
+            {
+                var data = self.getPixelData().data, w = self.width, h = self.height,
+                    i0 = integral(data, w, h, 0);
+                self._integral = [
+                    i0,
+                    grayscale ? i0 : integral(data, w, h, 1),
+                    grayscale ? i0 : integral(data, w, h, 2),
+                    integral(data, w, h, 3)
+                ];
+                self._integralRefresh = [0, 0, 0, 0];
+                self._needsRefresh &= CLEAR_SAT;
+            }
         }
-        return self._integral;
+        else
+        {
+            channel = channel || 0;
+            if ( (self._needsRefresh & SAT) || self._integralRefresh[channel] )
+            {
+                if ( grayscale && !self._integralRefresh[0] )
+                    self._integral[channel] = self._integral[0];
+                else
+                    self._integral[channel] = integral(self.getPixelData().data, self.width, self.height, channel);
+                self._integralRefresh[channel] = 0;
+                self._needsRefresh &= CLEAR_SAT;
+            }
+        }
+        return null == channel ? self._integral : self._integral[channel||0];
     }
     
-    ,histogram: function( ) {
-        var self = this;
-        if (self._needsRefresh & HIST) 
+    ,histogram: function( channel ) {
+        var self = this, hist = ImageUtil.histogram, grayscale = self._grayscale;
+        if ( null == channel )
         {
-            self._histogram = FilterImage.histogram(self.getPixelData().data, self.width, self.height, self._grayscale);
-            self._needsRefresh &= CLEAR_HIST;
+            if ( self._needsRefresh & HIST )
+            {
+                var data = self.getPixelData().data, w = self.width, h = self.height,
+                    h0 = hist(data, w, h, 0);
+                self._histogram = [
+                    h0,
+                    grayscale ? h0 : hist(data, w, h, 1),
+                    grayscale ? h0 : hist(data, w, h, 2),
+                    null//hist(data, w, h, 3)
+                ];
+                self._histogramRefresh = [0, 0, 0, 0];
+                self._needsRefresh &= CLEAR_HIST;
+            }
         }
-        return self._histogram;
+        else
+        {
+            channel = channel || 0;
+            if ( (self._needsRefresh & HIST) || self._histogramRefresh[channel] )
+            {
+                if ( grayscale && !self._histogramRefresh[0] )
+                    self._histogram[channel] = self._histogram[0];
+                else
+                    self._histogram[channel] = hist(self.getPixelData().data, self.width, self.height, channel);
+                self._histogramRefresh[channel] = 0;
+                self._needsRefresh &= CLEAR_HIST;
+            }
+        }
+        return null == channel ? self._histogram : self._histogram[channel||0];
     }
     
     // TODO
-    ,spectrum: function( ) {
-        var self = this;
+    ,spectrum: function( channel ) {
+        var self = this, spec = ImageUtil.spectrum;
         /*
         if (self._needsRefresh & SPECTRUM) 
         {
-            self._spectrum = FilterImage.spectrum(self.getPixelData().data, self.width, self.height, self._grayscale);
+                channel = channel || 0;
+            var data = self.getPixelData().data, w = self.width, h = self.height;
+            self._spectrum[channel] = spec(data, w, h, channel);
             self._needsRefresh &= CLEAR_SPECTRUM;
         }
         */
-        return self._spectrum;
+        return null == channel ? self._spectrum : self._spectrum[channel||0];
     }
     
     ,toImage: function( format ) {
         var canvas = this.oCanvas, uri, quality = 1.0;
-        if ( format & FORMAT.JPG )
+        if ( FORMAT.JPG === (format & 16) )
         {
             uri = canvas.toDataURL( MIME.JPG, quality );
         }
-        else if ( format & FORMAT.GIF )
+        else if ( FORMAT.GIF === (format & 16) )
         {
             uri = canvas.toDataURL( MIME.GIF, quality );
         }
-        else/* if( format & FORMAT.PNG )*/
+        else/* if( FORMAT.PNG === (format & 16) )*/
         {
             uri = canvas.toDataURL( MIME.PNG, quality );
         }
@@ -2966,23 +4729,28 @@ FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 
 // static
+FilterImage.Gradient = function Gradient( w, h, colors, stops, angle, interpolate ) {
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
+    Grad.setData( ImageUtil.gradient( Grad.getData(), w, h, c[0], c[1], angle, interpolate||ImageUtil.lerp ) );
+    return Grad;
+};
+FilterImage.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
+    Grad.setData( ImageUtil.radial_gradient( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||ImageUtil.lerp ) );
+    return Grad;
+};
+FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var perlinNoise = new FilterImage().restorable(false).createImageData(w, h);
+    if ( ImageUtil.perlin )
+    {
+        if ( seed ) ImageUtil.perlin.seed( seed );
+        perlinNoise.setData( ImageUtil.perlin(perlinNoise.getData(), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
+    }
+    return perlinNoise;
+};
+
 // resize/scale/interpolate image data
-FilterImage.scale = FilterImage.resize = FILTER.Interpolation.bilinear;
-
-// crop image data
-FilterImage.crop = FILTER.Interpolation.crop;
-
-// pad image data
-FilterImage.pad = FILTER.Interpolation.pad;
-
-// compute integral image (summed area table, SAT)
-FilterImage.integral = FILTER.Math.integral;
-
-// compute image histogram
-FilterImage.histogram = FILTER.Math.histogram;
-
-// compute image spectrum
-FilterImage.spectrum = FILTER.Math.spectrum;
+ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
 
 //
 // Scaled Image (Proxy) Class
@@ -3055,7 +4823,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         {
             sw = ~~(sx*w + 0.5);
             sh = ~~(sy*h + 0.5);
-            _setDimensions(self, sw, sh, WIDTH_AND_HEIGHT);
+            set_dimensions(self, sw, sh, WIDTH_AND_HEIGHT);
             if ( self._restorable ) 
             {
             ictx = self.ictx = self.iCanvas.getContext('2d');
@@ -3064,6 +4832,9 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0, w, h, 0, 0, sw, sh);
             self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
+            self._histogramRefresh = [1, 1, 1, 1];
+            self._integralRefresh = [1, 1, 1, 1];
+            self._spectrumRefresh = [1, 1, 1, 1];
             if (self.selection) self._needsRefresh |= SEL;
         }
         //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
@@ -3188,153 +4959,6 @@ FILTER.IO.Writer = FILTER.Class({
 
 }(FILTER);/**
 *
-* Filter Fx, gradient, radial-gradient
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var Image = FILTER.Image, floor = Math.floor, sqrt = Math.sqrt,
-    abs = Math.abs, sin =Math.sin, cos = Math.cos,
-    pi = Math.PI, pi2 = 2*pi, pi_2 = pi/2, pi_32 = 3*pi_2, min = Math.min;
-
-Image.Gradient = function Gradient( w, h, colors, stops, angle ) {
-    var Grad = new Image().restorable(false).createImageData(w, h),
-        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
-        t, invt, px, py, c1, c2, stop1, stop2, sn, cs, r;
-    stops = stops ? stops.slice() : stops;
-    colors = colors ? colors.slice() : colors;
-    angle = angle || 0.0;
-    if ( 0 > angle ) angle += pi2;
-    if ( pi2 < angle ) angle -= pi2;
-    sn = abs(sin(angle)); cs = abs(cos(angle));
-    r = cs*w + sn*h;
-    if ( !stops )
-    {
-        if ( 1 === cl )
-        {
-            stops = [1.0];
-        }
-        else
-        {
-            stops = new Array(cl);
-            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
-        }
-    }
-    else if ( stops.length < cl )
-    {
-        var cstoplen = stops.length, cstop = stops[cstoplen-1];
-        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
-    }
-    if ( 1.0 != stops[stops.length-1] )
-    {
-        stops.push( 1.0 );
-        colors.push( colors[colors.length-1] );
-    }
-    for(x=0,y=0,i=0; i<size; i+=4,x++)
-    {
-        if ( x >= w ) { x=0; y++; }
-        if ( (pi_2 < angle) && (angle <= pi) )
-        {
-            px = w-1-x; py = y;
-        }
-        else if ( (pi < angle) && (angle <= pi_32) )
-        {
-            px = w-1-x; py = h-1-y;
-        }
-        else if ( (pi_32 < angle) && (angle < pi2) )
-        {
-            px = x; py = h-1-y;
-        }
-        else //if ( (0 <= angle) && (angle <= pi_2) )
-        {
-            px = x; py = y;
-        }
-        t = min(1.0, (cs*px + sn*py) / r);
-        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-        stop1 = 0 === stop2 ? 0 : stop2-1;
-        c1 = colors[stop1]; c2 = colors[stop2];
-        // warp the value if needed, between stop ranges
-        t = stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t;
-        invt = 1.0-t;
-        g[i  ] = (~~(c1[0]*invt + c2[0]*t)) & 255;
-        g[i+1] = (~~(c1[1]*invt + c2[1]*t)) & 255;
-        g[i+2] = (~~(c1[2]*invt + c2[2]*t)) & 255;
-        g[i+3] = (~~(c1[3]*invt + c2[3]*t)) & 255;
-    }
-    Grad.setData( g );
-    return Grad;
-};
-
-Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY ) {
-    var Grad = new Image().restorable(false).createImageData(w, h),
-        g = Grad.getData(), cl = colors.length, i, x, y, size = g.length,
-        t, invt, px, py, c1, c2, stop1, stop2;
-    centerX = centerX || 0; centerY = centerY || 0;
-    radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
-    //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
-    if ( radiusY > radiusX )
-    {
-        radiusX = radiusX/radiusY;
-        radiusY = 1.0;
-    }
-    else if ( radiusX > radiusY )
-    {
-        radiusY = radiusY/radiusX;
-        radiusX = 1.0;
-    }
-    else
-    {
-        radiusY = 1.0;
-        radiusX = 1.0;
-    }
-    stops = stops ? stops.slice() : stops;
-    colors = colors ? colors.slice() : colors;
-    if ( !stops )
-    {
-        if ( 1 === cl )
-        {
-            stops = [1.0];
-        }
-        else
-        {
-            stops = new Array(cl);
-            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
-        }
-    }
-    else if ( stops.length < cl )
-    {
-        var cstoplen = stops.length, cstop = stops[cstoplen-1];
-        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
-    }
-    if ( 1.0 != stops[stops.length-1] )
-    {
-        stops.push( 1.0 );
-        colors.push( colors[colors.length-1] );
-    }
-    for(x=0,y=0,i=0; i<size; i+=4,x++)
-    {
-        if ( x >= w ) { x=0; y++; }
-        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
-        t = min(1.0, sqrt(px*px + py*py));
-        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-        stop1 = 0 === stop2 ? 0 : stop2-1;
-        c1 = colors[stop1]; c2 = colors[stop2];
-        // warp the value if needed, between stop ranges
-        t = stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t;
-        invt = 1.0-t;
-        g[i  ] = (~~(c1[0]*invt + c2[0]*t)) & 255;
-        g[i+1] = (~~(c1[1]*invt + c2[1]*t)) & 255;
-        g[i+2] = (~~(c1[2]*invt + c2[2]*t)) & 255;
-        g[i+3] = (~~(c1[3]*invt + c2[3]*t)) & 255;
-    }
-    Grad.setData( g );
-    return Grad;
-};
-
-}(FILTER);/**
-*
 * Filter Fx, perlin/simplex noise
 * @package FILTER.js
 *
@@ -3342,7 +4966,7 @@ Image.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, ce
 !function(FILTER, undef){
 "use strict";
 
-var Image = FILTER.Image, FLOOR = Math.floor,
+var ImageUtil = FILTER.Util.Image, Image = FILTER.Image, FLOOR = Math.floor,
     sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  
 // adapted from:
@@ -3672,12 +5296,11 @@ function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets,
 {
 }*/
 
-Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var perlin = new Image().restorable(false).createImageData(w, h),
-        invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
+ImageUtil.perlin = function perlin( n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+    var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
         noise = use_perlin ? perlin2 : simplex2,
         generate = grayscale ? octaved : octaved_rgb,
-        n = perlin.getData(), x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
+        x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
     scale = scale || 1.0; roughness = roughness || 0.5;
     octaves = octaves || 1; offsets = offsets || [[0,0]];
     if ( seamless )
@@ -3710,10 +5333,9 @@ Image.PerlinNoise = function PerlinNoise( w, h, seamless, grayscale, baseX, base
             generate(n, i, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
         }
     }
-    perlin.setData( n );
-    return perlin;
+    return n;
 };
-Image.PerlinNoise.seed = seed;
+ImageUtil.perlin.seed = seed;
 
 }(FILTER);
 /* main code ends here */

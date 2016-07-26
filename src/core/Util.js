@@ -10,6 +10,8 @@
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
+    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
     Log = Math.log, Sin = Math.sin, Cos = Math.cos,
     Min = Math.min, Max = Math.max, Abs = Math.abs,
@@ -159,7 +161,7 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     return padded;
 }
 
-function get( D, W, H, x0, y0, x1, y1, orig )
+function get_data( D, W, H, x0, y0, x1, y1, orig )
 {
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
@@ -178,7 +180,7 @@ function get( D, W, H, x0, y0, x1, y1, orig )
     return d;
 }
 
-function set( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
+function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 {
     var i, I, x, y;
     if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
@@ -200,7 +202,7 @@ function set( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
     return D;
 }
 
-function fill( im, W, H, c, x0, y0, x1, y1 )
+function fill_data( D, W, H, c, x0, y0, x1, y1 )
 {
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
@@ -345,7 +347,7 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat
+        r, g, b, r2, g2, b2, repeat, tmp
     ;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
@@ -360,7 +362,7 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
     integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-    dst = new IMG(imLen); integral = new A32F(integralLen);
+    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
     
     numRepeats = numRepeats||1;
     
@@ -373,7 +375,8 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
-            
+            tmp = im; im = dst; dst = tmp;
+
             // compute integral of image in one pass
             
             // first row
@@ -446,7 +449,6 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
             }
             
             // do another pass??
-            im = dst;
         }
     }
     else
@@ -457,6 +459,7 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
             
             // compute integral of image in one pass
             
@@ -525,7 +528,6 @@ function integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1,
             }
             
             // do another pass??
-            im = dst;
         }
     }
     return dst;
@@ -537,7 +539,7 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2, t3,
-        r, g, b, a, r2, g2, b2, a2, repeat
+        r, g, b, a, r2, g2, b2, a2, repeat, tmp
     ;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
@@ -552,7 +554,7 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
     integralLen = imLen;  rowLen = w<<2;
-    dst = new IMG(imLen); integral = new A32F(integralLen);
+    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
     
     numRepeats = numRepeats||1;
     
@@ -565,6 +567,7 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
             
             // compute integral of image in one pass
             
@@ -638,7 +641,6 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
             }
             
             // do another pass??
-            im = dst;
         }
     }
     else
@@ -649,6 +651,7 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
+            tmp = im; im = dst; dst = tmp;
             
             // compute integral of image in one pass
             
@@ -716,7 +719,6 @@ function integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1
             }
             
             // do another pass??
-            im = dst;
         }
     }
     return dst;
@@ -737,7 +739,7 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2,
         xOff, yOff, bx, by, t0, t1, t2, t3, wt,
-        r, g, b, a, coeff, numPasses
+        r, g, b, a, coeff, numPasses, tmp
     ;
     
     // pre-compute indices, 
@@ -756,11 +758,11 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
     indices = ind1;
     coeff = coeff1;
     imageIndices = imageIndices1;
-    dst = new IMG(imLen);
+    dst = im; im = new IMG(imLen);
     
     while (numPasses--)
     {
-        //dst = new IMG(imLen);
+        tmp = im; im = dst; dst = tmp;
         matArea = mat.length;
         matArea2 = indices.length;
         
@@ -849,7 +851,6 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
         }
         
         // do another pass??
-        im = dst;
         mat = matrix2;
         indices = ind2;
         coeff = coeff2;
@@ -1020,9 +1021,9 @@ function esc( s )
     return s.replace(esc_re, '\\$1');
 }
 
-FILTER.MathUtil.clamp = clamp;
-FILTER.MathUtil.closest_power2 = closest_power_of_two;
-FILTER.MathUtil.Geometry = {
+MathUtil.clamp = clamp;
+MathUtil.closest_power2 = closest_power_of_two;
+MathUtil.Geometry = {
      Point2: point2
     ,Point3: point3
     ,enorm2: enorm2
@@ -1032,25 +1033,25 @@ FILTER.MathUtil.Geometry = {
     ,interpolate3: interpolate3
 };
 
-FILTER.StringUtil.esc = esc;
-FILTER.StringUtil.trim = String.prototype.trim 
+StringUtil.esc = esc;
+StringUtil.trim = String.prototype.trim 
 ? function( s ){ return s.trim(); }
 : function( s ){ return s.replace(trim_re, ''); };
 
-FILTER.ImageUtil.crop = FILTER.Interpolation.crop = crop;
-FILTER.ImageUtil.pad = FILTER.Interpolation.pad = pad;
-FILTER.ImageUtil.get = get;
-FILTER.ImageUtil.set = set;
-FILTER.ImageUtil.fill = fill;
-FILTER.ImageUtil.integral = integral;
-FILTER.ImageUtil.histogram = histogram;
-FILTER.ImageUtil.spectrum = spectrum;
-FILTER.ImageUtil.gradient = gradient;
-FILTER.ImageUtil.radial_gradient = radial_gradient;
-FILTER.ImageUtil.lerp = lerp;
-FILTER.ImageUtil.colors_stops = colors_stops;
+ImageUtil.crop = FILTER.Interpolation.crop = crop;
+ImageUtil.pad = FILTER.Interpolation.pad = pad;
+ImageUtil.get_data = get_data;
+ImageUtil.set_data = set_data;
+ImageUtil.fill = fill_data;
+ImageUtil.integral = integral;
+ImageUtil.histogram = histogram;
+ImageUtil.spectrum = spectrum;
+ImageUtil.gradient = gradient;
+ImageUtil.radial_gradient = radial_gradient;
+ImageUtil.lerp = lerp;
+ImageUtil.colors_stops = colors_stops;
 
-FILTER.FilterUtil.integral_convolution = integral_convolution;
-FILTER.FilterUtil.separable_convolution = separable_convolution;
+FilterUtil.integral_convolution = integral_convolution;
+FilterUtil.separable_convolution = separable_convolution;
 
 }(FILTER);

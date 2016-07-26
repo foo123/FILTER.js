@@ -15,7 +15,8 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( )
-    ,isThread = Async.isThread( null, true )//, isInstantiatedThread = Async.isThread( null, true )
+    ,isThread = Async.isThread( null, true )
+    ,isInsideThread = Async.isThread( )
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
@@ -30,7 +31,7 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
         };
     }
     
-    ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isThread ? window.devicePixelRatio : 1) || 1
+    ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
     
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
     ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
@@ -39,13 +40,13 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
 ;
 
 //
-//
 // Browser Sniffing support
 var Browser = FILTER.Browser = {
 // http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
 isNode                  : isNode,
 isBrowser               : isBrowser,
 isWorker                : isThread,
+isInsideWorker          : isInsideThread,
 supportsWorker          : supportsThread,
 isPhantom               : /PhantomJS/.test(userAgent),
 
@@ -76,8 +77,8 @@ isQtWebkit              : false
 };
 Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
 Browser.isMac = Browser.isIOS || /Mac/.test(platform);
-Browser.isIE_lt8 = Browser.isIE  && !isThread && (null == document.documentMode || document.documentMode < 8);
-Browser.isIE_lt9 = Browser.isIE && !isThread && (null == document.documentMode || document.documentMode < 9);
+Browser.isIE_lt8 = Browser.isIE  && !isInsideThread && (null == document.documentMode || document.documentMode < 8);
+Browser.isIE_lt9 = Browser.isIE && !isInsideThread && (null == document.documentMode || document.documentMode < 9);
 Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
 
 FILTER.getPath = Async.path;
@@ -129,6 +130,56 @@ FILTER.TypedArray = isNode
     : function( a, A ) { return a; }
 ;
 
+//
+// Constants
+FILTER.CHANNEL = {
+    R: 0, G: 1, B: 2, A: 3,
+    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3
+};
+FILTER.MODE = {
+    IGNORE: 0, WRAP: 1, CLAMP: 2,
+    COLOR: 3, TILE: 4, STRETCH: 5
+};
+FILTER.LUMA = new FILTER.Array32F([
+    0.212671, 0.71516, 0.072169
+]);
+FILTER.FORMAT = {
+    IMAGE: 1024, DATA: 2048,
+    PNG: 2, JPG: 3, JPEG: 4,
+    GIF: 5, BMP: 6, TGA: 7, RGBE: 8
+};
+FILTER.MIME = {
+     PNG    : "image/png"
+    ,JPG    : "image/jpeg"
+    ,JPEG   : "image/jpeg"
+    ,GIF    : "image/gif"
+    ,BMP    : "image/bmp"
+};
+FILTER.CONSTANTS = FILTER.CONST = {
+     X: 0, Y: 1, Z: 2
+    
+    ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
+    ,toRad: Math.PI/180, toDeg: 180/Math.PI
+    
+    ,SQRT2: Math.SQRT2
+    ,LN2: Math.LN2
+};
+
+// packages
+FILTER.IO = { };
+FILTER.Codec = { };
+FILTER.Interpolation = { };
+FILTER.Transform = { };
+FILTER.MachineLearning = FILTER.ML = { };
+// utilities
+FILTER.Util = {
+    Math    : { },
+    String  : { },
+    IO      : { },
+    Filter  : { },
+    Image   : { }
+};
+
 // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
 /*if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
 {
@@ -150,75 +201,8 @@ FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
 FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
 //
-// Constants
-FILTER.CHANNEL = {
-     RED:   0
-    ,GREEN: 1
-    ,BLUE:  2
-    ,ALPHA: 3
-};
-FILTER.MODE = {
-     IGNORE:    0
-    ,WRAP:      1
-    ,CLAMP:     2
-    ,COLOR:     4
-    ,TILE:      8
-    ,STRETCH:   16
-};
-FILTER.LUMA = new FILTER.Array32F([ 
-     0.212671
-    ,0.71516 
-    ,0.072169 
-]);
-FILTER.FORMAT = {
-     IMAGE:     1
-    ,DATA:      4
-    ,PNG:       8
-    ,JPG:       16
-    ,GIF:       32
-    ,BMP:       64
-    ,TGA:       128
-    ,RGBE:      256
-};
-FILTER.MIME = {
-     PNG:       "image/png"
-    ,JPG:       "image/jpeg"
-    ,GIF:       "image/gif"
-    ,BMP:       "image/bmp"
-};
-// aliases
-FILTER.FORMAT.JPEG = FILTER.FORMAT.JPG;
-FILTER.MIME.JPEG = FILTER.MIME.JPG;
-
-//
-// Constants
-FILTER.CONSTANTS = FILTER.CONST = {
-     PI:    Math.PI
-    ,PI2:   2*Math.PI
-    ,PI_2:  Math.PI/2
-    ,SQRT2: Math.SQRT2
-    ,LN2: Math.LN2
-    ,toRad: Math.PI/180
-    ,toDeg: 180/Math.PI
-    ,X: 0
-    ,Y: 1
-    ,Z: 2
-};
-
-FILTER.MathUtil = { };
-FILTER.StringUtil = { };
-FILTER.FilterUtil = { };
-FILTER.ImageUtil = { };
-FILTER.Util = { };
-FILTER.IO = { };
-FILTER.Codec = { };
-FILTER.Interpolation = { };
-FILTER.Transform = { };
-FILTER.MachineLearning = FILTER.ML = { };
-
-//
 // logging
-log = FILTER.log = isThread ? Async.log : (console && console.log ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ });
+log = FILTER.log = isThread ? Async.log : (("undefine" !== typeof console) && console.log ? function( s ) { console.log(s); } : function( s ) { /* do nothing*/ });
 FILTER.warning = function( s ) { log( 'WARNING: ' + s ); }; 
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
@@ -227,8 +211,9 @@ var
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
         
-        path: FILTERPath
+         path: FILTERPath
         ,name: null
+        ,_listener: null
         
         ,constructor: function( ) {
             var self = this, filter = null;
@@ -283,20 +268,38 @@ var
             }
         }
         
+        ,dispose: function( explicit ) {
+            var self = this;
+            self.path = null;
+            self.name = null;
+            if ( self._listener )
+            {
+                self._listener.cb = null;
+                self._listener = null;
+            }
+            self.$super('dispose', explicit);
+            return self;
+        }
+        
         // activate or de-activate thread/worker filter
-        ,thread: function( enable ) {
+        ,thread: function( enable, imports ) {
             var self = this;
             if ( !arguments.length ) enable = true;
             enable = !!enable;
             // activate worker
             if ( enable && !self.$thread ) 
             {
-                self.fork( 'FILTER.FilterThread', (FILTERPath.file !== self.path.file) ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                if ( imports && imports.length )
+                    self.send('import', {'import': imports.join ? imports.join(',') : imports});
                 self.send('load', {filter: self.name});
+                self.listen( 'apply', self._listener=function l( data ) { l.cb && l.cb( data ); } );
             }
             // de-activate worker (if was activated before)
             else if ( !enable && self.$thread )
             {
+                self._listener.cb = null;
+                self._listener = null;
                 self.unfork( );
             }
             return self;
@@ -324,22 +327,6 @@ var
             if ( scripts.length ) this.send('import', {'import': scripts.join( ',' )});
             return this;
         }
-        
-        // @override
-        ,serialize: function( ) {
-            var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, params: {} };
-        }
-        
-        // @override
-        ,unserialize: function( json ) {
-            var self = this;
-            if ( json && self.name === json.filter )
-            {
-                self._isOn = !!json._isOn;
-            }
-            return self;
-        }
     }),
     
     //
@@ -348,7 +335,7 @@ var
         name: "Filter"
         
         ,constructor: function( ) {
-            var self = this;
+            //var self = this;
             //self.$super('constructor', 100, false);
         }
         
@@ -373,6 +360,23 @@ var
         
         // alias of thread method
         ,worker: FilterThread[PROTO].thread
+        
+        
+        // @override
+        ,serialize: function( ) {
+            var self = this;
+            return { filter: self.name, _isOn: !!self._isOn, params: {} };
+        }
+        
+        // @override
+        ,unserialize: function( json ) {
+            var self = this;
+            if ( json && self.name === json.filter )
+            {
+                self._isOn = !!json._isOn;
+            }
+            return self;
+        }
         
         ,complete: function( f ) {
             this._onComplete = f || null;
@@ -437,57 +441,51 @@ var
         
         // generic apply a filter from an image (src) to another image (dest)
         // with optional callback (cb)
-        ,apply: function( src, dest, cb ) {
+        ,apply: function( src, dst, cb ) {
             var self = this, im, im2;
             
             if ( !self.canRun( ) ) return src;
             
             if ( arguments.length < 3 )
             {
-                if ( dest && dest.setSelectedData ) 
+                if ( dst && dst.setSelectedData ) 
                 {
                     // dest is an image and no callback
                     cb = null;
                 }
-                else if ( 'function' === typeof(dest) )
+                else if ( 'function' === typeof dst )
                 {
-                    // dest is callback, dest is same as src
-                    cb = dest;
-                    dest = src;
+                    // dst is callback, dst is same as src
+                    cb = dst;
+                    dst = src;
                 }
                 else
                 {
-                    dest = src;
+                    dst = src;
                     cb = null;
                 }
             }
             
-            if ( src && dest )
+            if ( src && dst )
             {
                 cb = cb || self._onComplete;
                 im = src.getSelectedData( );
                 if ( self.$thread )
                 {
-                    self
-                        // listen for metadata if needed
-                        /*.listen( 'meta', function( data ) { 
-                            self.unlisten( 'meta' );
-                            self.setMeta( data );
-                        })*/
-                        .listen( 'apply', function( data ) { 
-                            self/*.unlisten( 'meta' )*/.unlisten( 'apply' );
-                            if ( data ) 
-                            {
-                                // listen for metadata if needed
-                                //if ( null != data.update ) self._update = !!data.update;
-                                if ( data.meta ) self.setMeta( data.meta );
-                                if ( data.im/*self._update*/ ) dest.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
-                            }
-                            if ( cb ) cb.call( self );
-                        })
-                        // process request
-                        .send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} )
-                    ;
+                    self._listener.cb = function( data ) { 
+                        //self.unlisten( 'apply' );
+                        self._listener.cb = null;
+                        if ( data ) 
+                        {
+                            // listen for metadata if needed
+                            //if ( null != data.update ) self._update = !!data.update;
+                            if ( data.meta ) self.setMeta( data.meta );
+                            if ( data.im/*self._update*/ ) dst.setSelectedData( FILTER.TypedArray( data.im, FILTER.ImArray ) );
+                        }
+                        if ( cb ) cb.call( self );
+                    };
+                    // process request
+                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
                 }
                 else
                 {
@@ -496,7 +494,7 @@ var
                     // some filters do not actually change the image data
                     // but instead process information from the data,
                     // no need to update in such a case
-                    if ( self._update ) dest.setSelectedData( im2 );
+                    if ( self._update ) dst.setSelectedData( im2 );
                     if ( cb ) cb.call( self );
                 }
             }
