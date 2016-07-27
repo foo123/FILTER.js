@@ -636,9 +636,9 @@ __Included Plugins__ (see examples for how to use)
 * `Equalize` : apply fast histogram equalization
 * `GrayscaleEqualize` : apply faster histogram equalization only for grayscale images
 * `RGBEqualize` : apply fast histogram equalization per separate color channel
-* `Pixelate` : fast pixelate the image to the given scale
+* `Pixelate` : fast (rectangular) pixelate the image to the given scale
 * `TriangularPixelate` : fast triangular pixelate the image to the given scale
-* `HexagonalPixelate` : fast hexagonal pixelate the image to the given scale (TODO)
+* `HexagonalPixelate` : fast hexagonal pixelate the image to the given scale (TO BE ADDED)
 * `Halftone` : create a halftone/dithered black-white or colored image from target image
 * `Bokeh` : apply a fast Bokeh (Depth-of-Field) effect to an image
 * `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
@@ -649,13 +649,13 @@ __Included Plugins__ (see examples for how to use)
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
 * `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
 * `SeamlessTile` : create a seamless tileable pattern from target image
-* `HSVConverter` : convert the image to `HSV` color space
+* `HSVConverter` : convert the image to `HSV` color space or Hue only converted to grayscale
 * `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
-* `Threshold` : apply general (full `32bit` thresholds) thresholding to an image
-* `HueExtractor` : extract a range of hues from the image
+* `Threshold` : apply general (full `32bit` thresholds) thresholding to an image based on `Color`, `Intensity` or `Hue` mode
+* `HueExtractor` : extract a range of hues from the image (same functionality has been added to general `ThresholdFilter` see above)
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
-* `HaarDetector` : detect features in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* `ConnectedComponents` : extract the connected components of an image (and their bounding boxes)
+* `HaarDetector` : detect features and their bounding boxes in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
+* `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
 
 

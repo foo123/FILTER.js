@@ -38,7 +38,7 @@ FILTER.Create({
             ,params: {
                  minHue: self.minHue
                 ,maxHue: self.maxHue
-                ,background: self.background||0
+                ,background: self.background
             }
         };
     }
@@ -53,7 +53,7 @@ FILTER.Create({
             
             self.minHue = params.minHue;
             self.maxHue = params.maxHue;
-            self.background = params.background||0;
+            self.background = params.background;
         }
         return self;
     }

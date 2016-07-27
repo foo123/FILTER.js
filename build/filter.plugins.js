@@ -143,7 +143,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var perlin_noise = FILTER.Util.Image.perlin;
+var perlin_noise = FILTER.Util.Image.perlin, MODE = FILTER.MODE;
 
 // an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
@@ -155,7 +155,7 @@ FILTER.Create({
     ,_baseY: 1
     ,_octaves: 1
     ,_offsets: null
-    ,_colors: false
+    ,_mode: MODE.GRAY
     ,_seed: 0
     ,_stitch: false
     ,_fractal: true
@@ -167,6 +167,7 @@ FILTER.Create({
     // constructor
     ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, seed, use_perlin ) {
         var self = this;
+        self._mode = MODE.GRAY;
         self._baseX = baseX || 1;
         self._baseY = baseY || 1;
         self._seed = seed || 0;
@@ -198,7 +199,7 @@ FILTER.Create({
     
     ,colors: function( enabled ) {
         if ( !arguments.length ) enabled = true;
-        this._colors = !!enabled;
+        this._mode = !!enabled ? MODE.COLOR : MODE.GRAY;
         return this;
     }
     
@@ -231,7 +232,7 @@ FILTER.Create({
                 ,_offsets: self._offsets
                 ,_seed: self._seed || 0
                 ,_stitch: self._stitch
-                ,_colors: self._colors
+                ,_mode: self._mode
                 ,_fractal: self._fractal
                 ,_perlin: self._perlin
             }
@@ -252,7 +253,7 @@ FILTER.Create({
             self._offsets = params._offsets;
             self._seed = params._seed || 0;
             self._stitch = params._stitch;
-            self._colors = params._colors;
+            self._mode = params._mode;
             self._fractal = params._fractal;
             self._perlin = params._perlin;
         }
@@ -268,7 +269,7 @@ FILTER.Create({
             perlin_noise.seed( self._seed );
             self._seed = 0;
         }
-        return perlin_noise( im, w, h, self._stitch, !self._colors, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+        return perlin_noise( im, w, h, self._stitch, MODE.COLOR !== self._mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
     }
 });
 
@@ -281,7 +282,7 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var ImageUtil = FILTER.Util.Image, TypedArray = FILTER.Util.Array.typed;
+var ImageUtil = FILTER.Util.Image, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
 
 FILTER.Create({
      name: "GradientFilter"
@@ -363,8 +364,8 @@ FILTER.Create({
     // parameters
     ,colors: null
     ,stops: null
-    ,centerX: 0
-    ,centerY: 0
+    ,centerX: 0.0
+    ,centerY: 0.0
     ,radiusX: 1.0
     ,radiusY: 1.0
     
@@ -372,8 +373,8 @@ FILTER.Create({
     ,init: function( colors, stops, centerX, centerY, radiusX, radiusY ) {
         var self = this;
         self.setColors( colors, stops );
-        self.centerX = centerX||0;
-        self.centerY = centerY||0;
+        self.centerX = centerX||0.0;
+        self.centerY = centerY||0.0;
         self.radiusX = radiusX||1.0;
         self.radiusY = radiusY||1.0;
     }
@@ -425,8 +426,8 @@ FILTER.Create({
             
             params = json.params;
             
-            self.centerX = params.centerX || 0;
-            self.centerY = params.centerY || 0;
+            self.centerX = params.centerX || 0.0;
+            self.centerY = params.centerY || 0.0;
             self.radiusX = params.radiusX || 1.0;
             self.radiusY = params.radiusY || 1.0;
             self.colors = TypedArray( params.colors, Array );
@@ -439,7 +440,9 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
         if ( !self._isOn || !self.colors ) return im;
-        return ImageUtil.radial_gradient( im, w, h, self.colors, self.stops, self.centerX, self.centerY, self.radiusX, self.radiusY, ImageUtil.lerp );
+        
+        // make center relative
+        return ImageUtil.radial_gradient( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, ImageUtil.lerp );
     }
 });
 
@@ -452,8 +455,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor = Math.floor,
-    R = FILTER.CHANNEL.RED, G = FILTER.CHANNEL.GREEN, B = FILTER.CHANNEL.BLUE, A = FILTER.CHANNEL.ALPHA;
+var Min = Math.min, Floor = Math.floor, CHANNEL = FILTER.CHANNEL;
 
 // a plugin to copy a channel of an image to a channel of another image
 FILTER.Create({
@@ -464,8 +466,8 @@ FILTER.Create({
     ,srcImg: null
     ,centerX: 0
     ,centerY: 0
-    ,srcChannel: 0
-    ,dstChannel: 0
+    ,srcChannel: CHANNEL.RED
+    ,dstChannel: CHANNEL.RED
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -475,8 +477,8 @@ FILTER.Create({
         var self = this;
         self._srcImg = null;
         self.srcImg = null;
-        self.srcChannel = srcChannel || R;
-        self.dstChannel = dstChannel || R;
+        self.srcChannel = srcChannel || CHANNEL.RED;
+        self.dstChannel = dstChannel || CHANNEL.RED;
         self.centerX = centerX || 0;
         self.centerY = centerY || 0;
         if ( srcImg ) self.setSrc( srcImg );
@@ -484,6 +486,10 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
+        self.srcChannel = null;
+        self.dstChannel = null;
+        self.centerX = null;
+        self.centerY = null;
         self.srcImg = null;
         self._srcImg = null;
         self.$super('dispose');
@@ -589,7 +595,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
+var notSupportClamp = FILTER._notSupportClamp, CHANNEL = FILTER.CHANNEL, Min = Math.min, Floor=Math.floor;
 
 // a plugin to mask an image using the alpha channel of another image
 FILTER.Create({
@@ -600,15 +606,17 @@ FILTER.Create({
     ,alphaMask: null
     ,centerX: 0
     ,centerY: 0
+    ,channel: CHANNEL.ALPHA
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( alphaMask, centerX, centerY ) {
+    ,init: function( alphaMask, centerX, centerY, channel ) {
         var self = this;
         self.centerX = centerX||0;
         self.centerY = centerY||0;
+        self.channel = null == channel ? CHANNEL.ALPHA : (channel||CHANNEL.RED);
         self._alphaMask = null;
         self.alphaMask = null;
         if ( alphaMask ) self.setMask( alphaMask );
@@ -616,6 +624,9 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
+        self.centerX = null;
+        self.centerY = null;
+        self.channel = null;
         self.alphaMask = null;
         self._alphaMask = null;
         self.$super('dispose');
@@ -642,6 +653,7 @@ FILTER.Create({
                 _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
+                ,channel: self.channel
             }
         };
     }
@@ -659,6 +671,7 @@ FILTER.Create({
             if ( self._alphaMask ) self._alphaMask.data = FILTER.Util.Array.typed( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
+            self.channel = params.channel;
         }
         return self;
     }
@@ -677,9 +690,10 @@ FILTER.Create({
         
         var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
             alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
-            i, l = im.length, l2 = alpha.length, 
+            i, l = im.length, l2 = alpha.length,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  
+            channel = null==self.channel?CHANNEL.ALPHA:(self.channel||CHANNEL.RED),
             cX = self.centerX||0, cY = self.centerY||0, 
             cX2 = (w2>>1), cY2 = (h2>>1)
         ;
@@ -697,9 +711,9 @@ FILTER.Create({
             xc = x - cX; yc = y - cY;
             if (xc>=0 && xc<wm && yc>=0 && yc<hm)
             {
-                // copy alpha channel
+                // copy (alpha) channel
                 off = (xc + yc*w2)<<2;
-                im[i+3] = alpha[off+3];
+                im[i+3] = alpha[off+channel];
             }
             else
             {
@@ -724,7 +738,7 @@ FILTER.Create({
 
 var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
     //RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB,
-    Min = Math.min, Max = Math.max, subarray = FILTER.Util.Array.subarray
+    MODE = FILTER.MODE, Min = Math.min, Max = Math.max, subarray = FILTER.Util.Array.subarray
 ;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -733,292 +747,40 @@ FILTER.Create({
     
     ,path: FILTER_PLUGINS_PATH
     
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
+    ,mode: MODE.COLOR
+    
+    ,init: function( mode ) {
         var self = this;
-        if ( !self._isOn ) return im;
-        var r, g, b, y, cb, cr, range, max = 0, min = 255,
-            cdf, accum, i, l=im.length, l2=l>>2, n=1.0/(l2)
-        ;
-        
-        // initialize the arrays
-        cdf = new A32F( 256 );
-        /*for (i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            cdf[i   ]=0;
-            cdf[i+1 ]=0;
-            cdf[i+2 ]=0;
-            cdf[i+3 ]=0;
-            cdf[i+4 ]=0;
-            cdf[i+5 ]=0;
-            cdf[i+6 ]=0;
-            cdf[i+7 ]=0;
-            cdf[i+8 ]=0;
-            cdf[i+9 ]=0;
-            cdf[i+10]=0;
-            cdf[i+11]=0;
-            cdf[i+12]=0;
-            cdf[i+13]=0;
-            cdf[i+14]=0;
-            cdf[i+15]=0;
-            cdf[i+16]=0;
-            cdf[i+17]=0;
-            cdf[i+18]=0;
-            cdf[i+19]=0;
-            cdf[i+20]=0;
-            cdf[i+21]=0;
-            cdf[i+22]=0;
-            cdf[i+23]=0;
-            cdf[i+24]=0;
-            cdf[i+25]=0;
-            cdf[i+26]=0;
-            cdf[i+27]=0;
-            cdf[i+28]=0;
-            cdf[i+29]=0;
-            cdf[i+30]=0;
-            cdf[i+31]=0;
-        }*/
-        
-        // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
-        {
-            //ycbcr = RGB2YCbCr(subarray(im,i,i+3));
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-            cb = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-            cr = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
-            // clamp them manually
-            cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-            y = y<0 ? 0 : (y>255 ? 255 : y);
-            cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-            im[i] = cr; im[i+1] = y; im[i+2] = cb;
-            cdf[ y ] += n;
-            max = Max(y, max);
-            min = Min(y, min);
-        }
-        
-        // compute cdf
-        for (accum=0,i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            accum += cdf[i   ]; cdf[i   ] = accum;
-            accum += cdf[i+1 ]; cdf[i+1 ] = accum;
-            accum += cdf[i+2 ]; cdf[i+2 ] = accum;
-            accum += cdf[i+3 ]; cdf[i+3 ] = accum;
-            accum += cdf[i+4 ]; cdf[i+4 ] = accum;
-            accum += cdf[i+5 ]; cdf[i+5 ] = accum;
-            accum += cdf[i+6 ]; cdf[i+6 ] = accum;
-            accum += cdf[i+7 ]; cdf[i+7 ] = accum;
-            accum += cdf[i+8 ]; cdf[i+8 ] = accum;
-            accum += cdf[i+9 ]; cdf[i+9 ] = accum;
-            accum += cdf[i+10]; cdf[i+10] = accum;
-            accum += cdf[i+11]; cdf[i+11] = accum;
-            accum += cdf[i+12]; cdf[i+12] = accum;
-            accum += cdf[i+13]; cdf[i+13] = accum;
-            accum += cdf[i+14]; cdf[i+14] = accum;
-            accum += cdf[i+15]; cdf[i+15] = accum;
-            accum += cdf[i+16]; cdf[i+16] = accum;
-            accum += cdf[i+17]; cdf[i+17] = accum;
-            accum += cdf[i+18]; cdf[i+18] = accum;
-            accum += cdf[i+19]; cdf[i+19] = accum;
-            accum += cdf[i+20]; cdf[i+20] = accum;
-            accum += cdf[i+21]; cdf[i+21] = accum;
-            accum += cdf[i+22]; cdf[i+22] = accum;
-            accum += cdf[i+23]; cdf[i+23] = accum;
-            accum += cdf[i+24]; cdf[i+24] = accum;
-            accum += cdf[i+25]; cdf[i+25] = accum;
-            accum += cdf[i+26]; cdf[i+26] = accum;
-            accum += cdf[i+27]; cdf[i+27] = accum;
-            accum += cdf[i+28]; cdf[i+28] = accum;
-            accum += cdf[i+29]; cdf[i+29] = accum;
-            accum += cdf[i+30]; cdf[i+30] = accum;
-            accum += cdf[i+31]; cdf[i+31] = accum;
-        }
-        
-        // equalize only the intesity channel
-        range = max-min;
-        if (notSupportClamp)
-        {   
-            for (i=0; i<l; i+=4)
-            { 
-                //rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
-                y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
-                r = ~~( y                      + 1.402   * (cr-128) );
-                g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                b = ~~( y + 1.772   * (cb-128) );
-                // clamp them manually
-                r = r<0 ? 0 : (r>255 ? 255 : r);
-                g = g<0 ? 0 : (g>255 ? 255 : g);
-                b = b<0 ? 0 : (b>255 ? 255 : b);
-                im[i] = r; im[i+1] = g; im[i+2] = b; 
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            { 
-                //rgba = YCbCr2RGB([cdf[im[i+1]]*range + min, im[i+2], im[i]]);
-                y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
-                r = ~~( y                      + 1.402   * (cr-128) );
-                g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                b = ~~( y + 1.772   * (cb-128) );
-                im[i] = r; im[i+1] = g; im[i+2] = b; 
-            }
-        }
-        
-        // return the new image data
-        return im;
+        self.mode = mode || MODE.COLOR;
     }
-});
-
-// a simple grayscale histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-FILTER.Create({
-    name: "GrayscaleHistogramEqualizeFilter"
     
-    ,path: FILTER_PLUGINS_PATH
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
+    ,serialize: function( ) {
         var self = this;
-        if ( !self._isOn ) return im;
-        var c, g, range, max = 0, min = 255,
-            cdf, accum, t0, t1, t2,
-            i, l = im.length, l2=l>>2, n=1.0/(l2)
-        ;
-        
-        // initialize the arrays
-        cdf = new A32F( 256 );
-        /*for (i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            cdf[i   ]=0;
-            cdf[i+1 ]=0;
-            cdf[i+2 ]=0;
-            cdf[i+3 ]=0;
-            cdf[i+4 ]=0;
-            cdf[i+5 ]=0;
-            cdf[i+6 ]=0;
-            cdf[i+7 ]=0;
-            cdf[i+8 ]=0;
-            cdf[i+9 ]=0;
-            cdf[i+10]=0;
-            cdf[i+11]=0;
-            cdf[i+12]=0;
-            cdf[i+13]=0;
-            cdf[i+14]=0;
-            cdf[i+15]=0;
-            cdf[i+16]=0;
-            cdf[i+17]=0;
-            cdf[i+18]=0;
-            cdf[i+19]=0;
-            cdf[i+20]=0;
-            cdf[i+21]=0;
-            cdf[i+22]=0;
-            cdf[i+23]=0;
-            cdf[i+24]=0;
-            cdf[i+25]=0;
-            cdf[i+26]=0;
-            cdf[i+27]=0;
-            cdf[i+28]=0;
-            cdf[i+29]=0;
-            cdf[i+30]=0;
-            cdf[i+31]=0;
-        }*/
-        
-        // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
-        {
-            c = im[i];  // image is already grayscale
-            cdf[c] += n;
-            max = Max(c, max);
-            min = Min(c, min);
-        }
-        
-        // compute cdf
-        for (accum=0,i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            accum += cdf[i   ]; cdf[i   ] = accum;
-            accum += cdf[i+1 ]; cdf[i+1 ] = accum;
-            accum += cdf[i+2 ]; cdf[i+2 ] = accum;
-            accum += cdf[i+3 ]; cdf[i+3 ] = accum;
-            accum += cdf[i+4 ]; cdf[i+4 ] = accum;
-            accum += cdf[i+5 ]; cdf[i+5 ] = accum;
-            accum += cdf[i+6 ]; cdf[i+6 ] = accum;
-            accum += cdf[i+7 ]; cdf[i+7 ] = accum;
-            accum += cdf[i+8 ]; cdf[i+8 ] = accum;
-            accum += cdf[i+9 ]; cdf[i+9 ] = accum;
-            accum += cdf[i+10]; cdf[i+10] = accum;
-            accum += cdf[i+11]; cdf[i+11] = accum;
-            accum += cdf[i+12]; cdf[i+12] = accum;
-            accum += cdf[i+13]; cdf[i+13] = accum;
-            accum += cdf[i+14]; cdf[i+14] = accum;
-            accum += cdf[i+15]; cdf[i+15] = accum;
-            accum += cdf[i+16]; cdf[i+16] = accum;
-            accum += cdf[i+17]; cdf[i+17] = accum;
-            accum += cdf[i+18]; cdf[i+18] = accum;
-            accum += cdf[i+19]; cdf[i+19] = accum;
-            accum += cdf[i+20]; cdf[i+20] = accum;
-            accum += cdf[i+21]; cdf[i+21] = accum;
-            accum += cdf[i+22]; cdf[i+22] = accum;
-            accum += cdf[i+23]; cdf[i+23] = accum;
-            accum += cdf[i+24]; cdf[i+24] = accum;
-            accum += cdf[i+25]; cdf[i+25] = accum;
-            accum += cdf[i+26]; cdf[i+26] = accum;
-            accum += cdf[i+27]; cdf[i+27] = accum;
-            accum += cdf[i+28]; cdf[i+28] = accum;
-            accum += cdf[i+29]; cdf[i+29] = accum;
-            accum += cdf[i+30]; cdf[i+30] = accum;
-            accum += cdf[i+31]; cdf[i+31] = accum;
-        }
-        
-        // equalize the grayscale/intesity channels
-        range = max-min;
-        if (notSupportClamp)
-        {   
-            for (i=0; i<l; i+=4)
-            { 
-                c = im[i]; // grayscale image has same value in all channels
-                g = cdf[c]*range + min;
-                // clamp them manually
-                g = g<0 ? 0 : (g>255 ? 255 : g);
-                g = ~~g;
-                im[i] = g; im[i+1] = g; im[i+2] = g; 
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                 mode: self.mode
             }
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            { 
-                c = im[i]; // grayscale image has same value in all channels
-                g = ~~( cdf[c]*range + min );
-                im[i] = g; im[i+1] = g; im[i+2] = g; 
-            }
-        }
-        
-        // return the new image data
-        return im;
+        };
     }
-});
-
-// a sample RGB histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-// used for illustration purposes on how to create a plugin filter
-FILTER.Create({
-    name: "RGBHistogramEqualizeFilter"
     
-    ,path: FILTER_PLUGINS_PATH
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.mode = params.mode;
+        }
+        return self;
+    }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,_apply_rgb: function(im, w, h/*, image*/) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
@@ -1282,21 +1044,199 @@ FILTER.Create({
         // return the new image data
         return im;
     }
+    
+    ,apply: function(im, w, h/*, image*/) {
+        // im is a copy of the image data as an image array
+        // w is image width, h is image height
+        // image is the original image instance reference, generally not needed
+        // for this filter, no need to clone the image data, operate in-place
+        var self = this;
+        if ( !self._isOn ) return im;
+        
+        if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
+        
+        var r, g, b, y, cb, cr, range, max = 0, min = 255,
+            cdf, accum, i, l=im.length, l2=l>>2, n=1.0/(l2),
+            is_grayscale = MODE.GRAY === self.mode
+        ;
+        
+        // initialize the arrays
+        cdf = new A32F( 256 );
+        /*for (i=0; i<256; i+=32)
+        { 
+            // partial loop unrolling
+            cdf[i   ]=0;
+            cdf[i+1 ]=0;
+            cdf[i+2 ]=0;
+            cdf[i+3 ]=0;
+            cdf[i+4 ]=0;
+            cdf[i+5 ]=0;
+            cdf[i+6 ]=0;
+            cdf[i+7 ]=0;
+            cdf[i+8 ]=0;
+            cdf[i+9 ]=0;
+            cdf[i+10]=0;
+            cdf[i+11]=0;
+            cdf[i+12]=0;
+            cdf[i+13]=0;
+            cdf[i+14]=0;
+            cdf[i+15]=0;
+            cdf[i+16]=0;
+            cdf[i+17]=0;
+            cdf[i+18]=0;
+            cdf[i+19]=0;
+            cdf[i+20]=0;
+            cdf[i+21]=0;
+            cdf[i+22]=0;
+            cdf[i+23]=0;
+            cdf[i+24]=0;
+            cdf[i+25]=0;
+            cdf[i+26]=0;
+            cdf[i+27]=0;
+            cdf[i+28]=0;
+            cdf[i+29]=0;
+            cdf[i+30]=0;
+            cdf[i+31]=0;
+        }*/
+        
+        // compute pdf and maxima/minima
+        if ( is_grayscale )
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
+                cb = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
+                cr = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i] = cr; im[i+1] = y; im[i+2] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+            }
+        }
+        
+        // compute cdf
+        for (accum=0,i=0; i<256; i+=32)
+        { 
+            // partial loop unrolling
+            accum += cdf[i   ]; cdf[i   ] = accum;
+            accum += cdf[i+1 ]; cdf[i+1 ] = accum;
+            accum += cdf[i+2 ]; cdf[i+2 ] = accum;
+            accum += cdf[i+3 ]; cdf[i+3 ] = accum;
+            accum += cdf[i+4 ]; cdf[i+4 ] = accum;
+            accum += cdf[i+5 ]; cdf[i+5 ] = accum;
+            accum += cdf[i+6 ]; cdf[i+6 ] = accum;
+            accum += cdf[i+7 ]; cdf[i+7 ] = accum;
+            accum += cdf[i+8 ]; cdf[i+8 ] = accum;
+            accum += cdf[i+9 ]; cdf[i+9 ] = accum;
+            accum += cdf[i+10]; cdf[i+10] = accum;
+            accum += cdf[i+11]; cdf[i+11] = accum;
+            accum += cdf[i+12]; cdf[i+12] = accum;
+            accum += cdf[i+13]; cdf[i+13] = accum;
+            accum += cdf[i+14]; cdf[i+14] = accum;
+            accum += cdf[i+15]; cdf[i+15] = accum;
+            accum += cdf[i+16]; cdf[i+16] = accum;
+            accum += cdf[i+17]; cdf[i+17] = accum;
+            accum += cdf[i+18]; cdf[i+18] = accum;
+            accum += cdf[i+19]; cdf[i+19] = accum;
+            accum += cdf[i+20]; cdf[i+20] = accum;
+            accum += cdf[i+21]; cdf[i+21] = accum;
+            accum += cdf[i+22]; cdf[i+22] = accum;
+            accum += cdf[i+23]; cdf[i+23] = accum;
+            accum += cdf[i+24]; cdf[i+24] = accum;
+            accum += cdf[i+25]; cdf[i+25] = accum;
+            accum += cdf[i+26]; cdf[i+26] = accum;
+            accum += cdf[i+27]; cdf[i+27] = accum;
+            accum += cdf[i+28]; cdf[i+28] = accum;
+            accum += cdf[i+29]; cdf[i+29] = accum;
+            accum += cdf[i+30]; cdf[i+30] = accum;
+            accum += cdf[i+31]; cdf[i+31] = accum;
+        }
+        
+        // equalize only the intesity channel
+        range = max-min;
+        if (notSupportClamp)
+        {   
+            if ( is_grayscale )
+            {
+                for (i=0; i<l; i+=4)
+                { 
+                    r = ~~(cdf[im[i]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i] = r; im[i+1] = r; im[i+2] = r; 
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                { 
+                    y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i] = r; im[i+1] = g; im[i+2] = b; 
+                }
+            }
+        }
+        else
+        {
+            if ( is_grayscale )
+            {
+                for (i=0; i<l; i+=4)
+                { 
+                    r = ~~(cdf[im[i]]*range + min);
+                    im[i] = r; im[i+1] = r; im[i+2] = r; 
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                { 
+                    y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i] = r; im[i+1] = g; im[i+2] = b; 
+                }
+            }
+        }
+        
+        // return the new image data
+        return im;
+    }
 });
 
 }(FILTER);/**
 *
-* Pixelate Plugin
+* Rectangular Pixelate Filter, Triangular Pixelate Filter, Hexagonal Pixelate Filter Plugins
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var Sqrt = Math.sqrt, notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
+var IMG = FILTER.ImArray, sqrt = Math.sqrt, min = Math.min, max = Math.max, SQRT_3 = sqrt(3.0);
 
-
-// a sample fast pixelate filter
+// a simple fast Rectangular Pixelate filter
 FILTER.Create({
     name: "PixelateFilter"
     
@@ -1339,155 +1279,55 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
         var self = this;
-        if (!self._isOn || self.scale<=1) return im;
-        if (self.scale>100) self.scale=100;
+        if ( !self._isOn || self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
         
-        var imLen = im.length, imArea = (imLen>>>2),
-            step, stepw, hstep, wstep, hstepw, wRem, hRem,
-            inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
-            inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
-            integral, colR, colG, colB,
-            rowLen = (w<<1) + w, imageIndicesX, imageIndicesY,
-            i, j, x, y, yw, px, py, pyw, pi,
-            xOff1, yOff1, xOff2, yOff2, 
-            bx1, by1, bx2, by2, 
-            p1, p2, p3, p4, r, g, b
+        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, p4,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4
         ;
         
-        step = ~~(Sqrt(imArea)*self.scale*0.01);
-        stepw = w*step; hstep = h%step; wstep = w%step; hstepw = (hstep-1)*w;
-        inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
-        inv_sizes = inv_size1; inv_sizew = inv_size1w; inv_sizeh = inv_size1h; inv_sizewh = inv_size1hw;
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01);
+        stepx = step-1; stepy = w*stepx;
         
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        imageIndicesX = step-1; imageIndicesY = (step-1)*w;
-        bx1=0; bx2=w-1; by1=0; by2=imArea-w;
-        
-        // compute integral image in one pass
-        integral = new A32F(imArea*3);
-        // first row
-        i=0; j=0; x=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j+=3)
-        {
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j] = colR; integral[j+1] = colG; integral[j+2] = colB;
-        }
-        // other rows
-        j=0; x=0; colR=colG=colB=0;
-        for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j+rowLen] = integral[j] + colR; 
-            integral[j+rowLen+1] = integral[j+1] + colG;  
-            integral[j+rowLen+2] = integral[j+2] + colB;
-        }
-        
-        // first block
-        x=0; y=0; yw=0;
-        // calculate the weighed sum of the source image pixels that
-        // fall under the pixelate convolution matrix
-        xOff1 = x; yOff1 = yw;  
-        xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
-        
-        // fix borders
-        xOff2 = xOff2>bx2 ? bx2 : xOff2;
-        yOff2 = yOff2>by2 ? by2 : yOff2;
-        
-        // compute integral positions
-        p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
-        p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-        
-        // compute matrix sum of these elements
-        // maybe using a gaussian average could be better (but more computational) ??
-        inv_size = inv_sizes;
-        r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-        g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-        b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-        
-        if (notSupportClamp)
-        {   
-            // clamp them manually
-            r = r<0 ? 0 : (r>255 ? 255 : r);
-            g = g<0 ? 0 : (g>255 ? 255 : g);
-            b = b<0 ? 0 : (b>255 ? 255 : b);
-        }
-        r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
-        
-        // do direct pixelate convolution
-        px=0; py=0; pyw=0;
+        // do pixelation via interpolation on 4 points of a certain rectangle
+        x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
-            // output
-            // replace the area equal to the given pixelate size
-            // with the average color, computed in previous step
-            pi = (px+x + pyw+yw)<<2;
-            im[pi] = r;  im[pi+1] = g;  im[pi+2] = b; 
+            pxa = x-sx; pya = yw-syw;
+            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            
+            // these edge conditions create the rectangular pattern
+            p1 = (pxa + pya) << 2;
+            p2 = (pxa + pyb) << 2;
+            p3 = (pxb + pya) << 2;
+            p4 = (pxb + pyb) << 2;
+            
+            // compute rectangular interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
+            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             
             // next pixel
-            px++; if ( px+x >= w || px >= step ) { px=0; py++; pyw+=w; }
-            
-            // next block
-            if (py+y >= h || py >= step)
-            {
-                // update image coordinates
-                x+=step; if ( x>=w ) { x=0; y+=step; yw+=stepw; }
-                px=0; py=0; pyw=0;
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the pixelate convolution matrix
-                xOff1 = x; yOff1 = yw;  
-                xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
-                
-                // fix borders
-                xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // get correct area size
-                wRem = wstep+xOff1===xOff2+1;
-                hRem = hstepw+yOff1===yOff2;
-                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
-                
-                // compute matrix sum of these elements
-                r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                }
-                r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy >= step ) { sy=0; syw=0; }
             }
+            if ( sx >= step ) { sx=0; }
         }
         
         // return the pixelated image data
-        return im;
+        return dst;
     }
 });
-
-}(FILTER);/**
-*
-* Triangular Pixelate Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var Sqrt = Math.sqrt, sqrt2 = Math.SQRT2, Min = Math.min,
-    notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
 
 // a simple fast Triangular Pixelate filter
 FILTER.Create({
@@ -1532,267 +1372,82 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
         
-        var imLen = im.length, imArea = (imLen>>>2), 
-            step, step_2, step_1, stepw, hstep, wstep, hstepw, wRem, hRem,
-            inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
-            inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
-            integral, colR, colG, colB,
-            rowLen = (w<<1)+w, imageIndicesX, imageIndicesY,
-            i, j, x, yw, px, py,
-            xOff1, yOff1, xOff2, yOff2, 
-            bx1, by1, bx2, by2, 
-            p1, p2, p3, p4, 
-            r, g, b, r1, g1, b1, r2, g2, b2
+        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, 
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3
         ;
         
-    
-        step = ~~(Sqrt(imArea)*self.scale*0.01);
-        step_2 = step>>1; step_1 = step-1;
-        stepw = w*step; hstep = h%step; wstep = w%step; hstepw = (hstep-1)*w;
-        inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
-        inv_sizes = 2*inv_size1; inv_sizew = 2*inv_size1w; inv_sizeh = 2*inv_size1h; inv_sizewh = 2*inv_size1hw;
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01);
+        stepx = step-1; stepy = w*stepx;
         
-        // pre-compute indices, 
-        imageIndicesX = step_1; imageIndicesY = step_1*w;
-        // borders
-        bx1=0; bx2=w-1; by1=0; by2=imArea-w;
-        
-        // compute integral image in one pass (enables fast pixelation in linear time)
-        integral = new A32F(imArea*3);
-        
-        // first row
-        i=0; j=0; x=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j+=3)
-        {
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j] = colR; integral[j+1] = colG; integral[j+2] = colB;
-        }
-        // other rows
-        j=0; x=0; colR=colG=colB=0;
-        for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j+rowLen] = integral[j] + colR; 
-            integral[j+rowLen+1] = integral[j+1] + colG;  
-            integral[j+rowLen+2] = integral[j+2] + colB;
-        }
-        
-        // first block
-        x = 0; yw = 0;
-        // calculate the weighed sum of the source image pixels that
-        // fall under the pixelate convolution matrix
-        
-        // first triangle
-        xOff1 = x; yOff1 = yw;
-        xOff2 = x-step_2 + imageIndicesX; yOff2 = yw+imageIndicesY;
-        
-        // fix borders
-        xOff2 = xOff2>bx2 ? bx2 : xOff2;
-        yOff2 = yOff2>by2 ? by2 : yOff2;
-        
-        // compute integral positions
-        p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
-        p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
-        
-        inv_size = inv_sizes;
-        // compute matrix sum of these elements
-        r1 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-        g1 = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-        b1 = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-        
-        // second triangle
-        xOff1 = x+step_2;
-        xOff2 = x+imageIndicesX;
-        
-        // fix borders
-        xOff2 = xOff2>bx2 ? bx2 : xOff2;
-        
-        // compute integral positions
-        p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
-        p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
-        
-        // compute matrix sum of these elements
-        r2 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-        g2 = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-        b2 = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-        
-        if (notSupportClamp)
-        {   
-            // clamp them manually
-            r1 = r1<0 ? 0 : (r1>255 ? 255 : r1);
-            g1 = g1<0 ? 0 : (g1>255 ? 255 : g1);
-            b1 = b1<0 ? 0 : (b1>255 ? 255 : b1);
-            r2 = r2<0 ? 0 : (r2>255 ? 255 : r2);
-            g2 = g2<0 ? 0 : (g2>255 ? 255 : g2);
-            b2 = b2<0 ? 0 : (b2>255 ? 255 : b2);
-        }
-        r1 = ~~r1;  g1 = ~~g1;  b1 = ~~b1; // alpha channel is not transformed
-        r2 = ~~r2;  g2 = ~~g2;  b2 = ~~b2; // alpha channel is not transformed
-        
-        // render first triangle
-        r = r1; g = g1; b = b1;
-        
-        // do direct pixelate convolution
-        px = 0; py = 0;
+        // do pixelation via interpolation on 3 points of a certain triangle
+        x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
-            // output
-            // replace the area equal to the given pixelate size
-            // with the average color, computed in previous step
-            im[i] = r; im[i+1] = g; im[i+2] = b; 
+            pxa = x-sx; pya = yw-syw;
+            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            
+            // these edge conditions create the various triangular patterns
+            if ( sx+sy > stepx ) 
+            { 
+                // second triangle
+                p1 = (pxb + pya) << 2;
+                p2 = (pxb + pyb) << 2;
+                p3 = (pxa + pya) << 2;
+            }
+            else
+            {
+                // first triangle
+                p1 = (pxa + pya) << 2;
+                p2 = (pxa + pyb) << 2;
+                p3 = (pxb + pya) << 2;
+            }
+            
+            // compute triangular interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r = ~~((r1+r2+r3)/3); g = ~~((g1+g2+g3)/3); b = ~~((b1+b2+b3)/3);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             
             // next pixel
-            x++; px++; 
+            x++; sx++; 
             if ( x >= w ) 
             { 
-                px=0; x=0; py++; yw+=w;
-                if ( py >= step ) py=0;
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy >= step ) { sy=0; syw=0; }
             }
-            if ( px >= step ) 
-            { 
-                px=0;
-            }
-            // next block
-            if (0 === px)
-            {
-                // calculate the weighed sum of the source image pixels that
-                // fall under the pixelate convolution matrix
-                
-                // first triangle
-                xOff1 = x; yOff1 = yw;  
-                xOff2 = x - step_2 + imageIndicesX; yOff2 = yw + imageIndicesY;
-                
-                // fix borders
-                xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
-                p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
-                
-                // get correct area size
-                wRem = wstep+xOff1===xOff2+step_2+1;
-                hRem = yOff1+hstepw===yOff2;
-                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
-                
-                // compute matrix sum of these elements
-                r1 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                g1 = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                b1 = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-                
-                // second triangle
-                xOff1 = x + step_2;
-                xOff2 = x + imageIndicesX;
-                
-                // fix borders
-                xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                
-                // compute integral positions
-                p1 = (xOff1 + yOff1); p4 = (xOff2+yOff2); p2 = (xOff2 + yOff1); p3 = (xOff1 + yOff2);
-                p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
-                
-                // get correct area size
-                wRem = wstep+xOff1===xOff2+step_2+1;
-                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
-                
-                // compute matrix sum of these elements
-                r2 = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                g2 = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                b2 = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-                
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    r1 = r1<0 ? 0 : (r1>255 ? 255 : r1);
-                    g1 = g1<0 ? 0 : (g1>255 ? 255 : g1);
-                    b1 = b1<0 ? 0 : (b1>255 ? 255 : b1);
-                    r2 = r2<0 ? 0 : (r2>255 ? 255 : r2);
-                    g2 = g2<0 ? 0 : (g2>255 ? 255 : g2);
-                    b2 = b2<0 ? 0 : (b2>255 ? 255 : b2);
-                }
-                r1 = ~~r1;  g1 = ~~g1;  b1 = ~~b1; // alpha channel is not transformed
-                r2 = ~~r2;  g2 = ~~g2;  b2 = ~~b2; // alpha channel is not transformed
-                
-                // render first triangle
-                r = r1; g = g1; b = b1;
-            }
-            // these edge conditions create the various triangular patterns
-            if ( px+py > step_1 ) 
-            { 
-                // render second triangle
-                r = r2; g = g2; b = b2;
-            }
-            /*else
-            {
-                 // render first triangle
-                r = r1; g = g1; b = b1;
-            }*/
+            if ( sx >= step ) { sx=0; }
         }
         
         // return the pixelated image data
-        return im;
+        return dst;
     }
 });
 
-}(FILTER);/**
-*
-* Halftone Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
-    A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
-    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
-
-// http://en.wikipedia.org/wiki/Halftone
-// http://en.wikipedia.org/wiki/Error_diffusion
-// http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
-// http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+/*
+TO BE ADDED
+// a simple fast Hexagonal Pixelate filter
 FILTER.Create({
-    name: "HalftoneFilter"
+    name: "HexagonalPixelateFilter"
     
     // parameters
-    ,_threshold: 0.4
-    ,_size: 1
-    ,_grayscale: false
+    ,scale: 1
     
     // this is the filter constructor
-    ,init: function( size, threshold, grayscale ) {
+    ,init: function( scale ) {
         var self = this;
-        self._size = size || 1;
-        self._threshold = clamp(undef === threshold ? 0.4 : threshold,0,1);
-        self._grayscale = !!grayscale;
+        self.scale = scale || 1;
     }
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
-    
-    ,size: function( s ) {
-        this._size = s;
-        return this;
-    }
-    
-    ,threshold: function( t ) {
-        this._threshold = clamp(t,0,1);
-        return this;
-    }
-    
-    ,grayscale: function( bool ) {
-        if ( !arguments.length ) bool = true;
-        this._grayscale = !!bool;
-        return this;
-    }
     
     ,serialize: function( ) {
         var self = this;
@@ -1801,9 +1456,7 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                _size: self._size
-                ,_threshold: self._threshold
-                ,_grayscale: self._grayscale
+                scale: self.scale
             }
         };
     }
@@ -1816,9 +1469,168 @@ FILTER.Create({
             
             params = json.params;
             
-            self._size = params._size;
-            self._threshold = params._threshold;
-            self._grayscale = params._grayscale;
+            self.scale = params.scale;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image* /) {
+        var self = this;
+        if ( !self._isOn || self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
+        
+        var dst, imLen = im.length, imArea = (imLen>>>2),
+            step, step_1, step_2, stepx, stepy, stepx_2, stepy_2,
+            bx = w-1, by = imArea-w,
+            p1, p2, p3, p4, p5, p6, d,
+            i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3,
+            r4, g4, b4, r5, g5, b5, r6, g6, b6
+        ;
+        
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01); d = ~~(step/SQRT_3);
+        step_1 = step-1; step_2 = step >>> 1;
+        stepx_2 = (step/*+d+d* /) >>> 1; stepx = step_1/*+d+d* /;
+        stepy_2 = w*step_2; stepy = w*step_1;
+        
+        // do pixelation via interpolation on 4 points of a certain ractangle
+        x=yw=0; sx=sy=syw=0;
+        for (i=0; i<imLen; i+=4)
+        {
+            // these edge conditions create the various hexagonal patterns
+            if ( 2*(step_2-sy) > SQRT_3*sx ) 
+            { 
+                // top left hexagon
+                pxa = max(0, x-sx-stepx); pya = max(0, yw-syw-stepy_2);
+            }
+            else if ( 2*sy > SQRT_3*sx ) 
+            { 
+                // bottom left hexagon
+                pxa = max(0, x-sx-stepx); pya = min(by, yw-syw+stepy_2);
+            }
+            else if ( 2*(step_2-sy) > SQRT_3*(stepx+d+d-sx) ) 
+            { 
+                // top right hexagon
+                pxa = min(bx, x-sx+stepx); pya = max(0, yw-syw-stepy_2);
+            }
+            else if ( 2*sy > SQRT_3*(stepx+d+d-sx) ) 
+            { 
+                // bottom right hexagon
+                pxa = min(bx, x-sx+stepx); pya = min(by, yw-syw+stepy_2);
+            }
+            else
+            { 
+                // center hexagon
+                pxa = min(bx, x-sx); pya = max(0, yw-syw);
+            }
+            
+            pxb = min(bx, pxa+step_1); pyb = min(by, pya+stepy);
+            
+            p1 = (pxa + pya) << 2;
+            p2 = (pxb + pya) << 2;
+            p3 = (pxb + pyb) << 2;
+            p4 = (pxa + pyb) << 2;
+            
+            // compute hexagonal interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
+            //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
+            //r6 = im[p6  ]; g6 = im[p6+1]; b6 = im[p6+2];
+            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            
+            // next pixel
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy > step_1 ) { sy=0; syw=0; }
+            }
+            if ( sx > stepx ) { sx=0; }
+        }
+        
+        // return the pixelated image data
+        return dst;
+    }
+});*/
+
+}(FILTER);/**
+*
+* Halftone Plugin
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
+    MODE = FILTER.MODE,
+    A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
+    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
+
+// http://en.wikipedia.org/wiki/Halftone
+// http://en.wikipedia.org/wiki/Error_diffusion
+// http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
+// http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+FILTER.Create({
+    name: "HalftoneFilter"
+    
+    // parameters
+    ,size: 1
+    ,thresh: 0.4
+    ,mode: MODE.GRAY
+    
+    // this is the filter constructor
+    ,init: function( size, threshold, mode ) {
+        var self = this;
+        self.size = size || 1;
+        self.thresh = clamp(null == threshold ? 0.4 : threshold,0,1);
+        self.mode = mode || MODE.GRAY;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER_PLUGINS_PATH
+    
+    ,threshold: function( t ) {
+        this.thresh = clamp(t,0,1);
+        return this;
+    }
+    
+    ,grayscale: function( bool ) {
+        if ( !arguments.length ) bool = true;
+        this.mode = !!bool ? MODE.GRAY : MODE.RGB;
+        return this;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                 size: self.size
+                ,thresh: self.thresh
+                ,mode: self.mode
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.size = params.size;
+            self.thresh = params.thresh;
+            self.mode = params.mode;
         }
         return self;
     }
@@ -1827,9 +1639,9 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this, l = im.length, imSize = l>>>2,
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
-            size = self._size, area = size*size, invarea = 1.0/area,
-            threshold = 255*self._threshold, size2 = size2<<1,
-            colored = !self._grayscale,
+            size = self.size, area = size*size, invarea = 1.0/area,
+            threshold = 255*self.thresh, size2 = size2<<1,
+            colored = MODE.RGB === self.mode,
             x, y, yw, sw = size*w, i, j, jw, 
             sum_r, sum_g, sum_b, qr, qg, qb
             ,f11 = /*area**/f1, f22 = /*area**/f2
@@ -1964,9 +1776,9 @@ FILTER.Create({
     name: "BlendFilter"
     
     // parameters
-    ,_blendMode: null
     ,_blendImage: null
     ,blendImage: null
+    ,mode: null
     ,startX: 0
     ,startY: 0
     
@@ -1974,22 +1786,22 @@ FILTER.Create({
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( blendImage, blendMode ) { 
+    ,init: function( blendImage, mode ) { 
         var self = this;
         self.startX = 0;
         self.startY = 0;
         self._blendImage = null;
         self.blendImage = null;
-        self._blendMode = null;
+        self.mode = null;
         if ( blendImage ) self.setImage( blendImage );
-        if ( blendMode ) self.setMode( blendMode );
+        if ( mode ) self.setMode( mode );
     }
     
     ,dispose: function( ) {
         var self = this;
         self.blendImage = null;
         self._blendImage = null;
-        self._blendMode = null;
+        self.mode = null;
         self.$super('dispose');
         return self;
     }
@@ -2006,16 +1818,16 @@ FILTER.Create({
     }
     
     // set blend mode auxiliary method
-    ,setMode: function( blendMode ) {
+    ,setMode: function( mode ) {
         var self = this;
-        if ( blendMode )
+        if ( mode )
         {
-            self._blendMode = (''+blendMode).toLowerCase();
-            if ( !blend_function[HAS](self._blendMode) ) self._blendMode = null;
+            self.mode = (''+mode).toLowerCase();
+            if ( !blend_function[HAS](self.mode) ) self.mode = null;
         }
         else
         {
-            self._blendMode = null;
+            self.mode = null;
         }
         return self;
     }
@@ -2028,7 +1840,7 @@ FILTER.Create({
             
             ,params: {
                 _blendImage: self._blendImage || (bImg ? { data: bImg.getData( ), width: bImg.width, height: bImg.height } : null)
-                ,_blendMode: self._blendMode
+                ,mode: self.mode
                 ,startX: self.startX
                 ,startY: self.startY
             }
@@ -2048,7 +1860,7 @@ FILTER.Create({
             self.blendImage = null;
             self._blendImage = params._blendImage;
             if ( self._blendImage ) self._blendImage.data = FILTER.Util.Array.typed( self._blendImage.data, FILTER.ImArray );
-            self.setMode( params._blendMode );
+            self.setMode( params.mode );
         }
         return self;
     }
@@ -2057,14 +1869,14 @@ FILTER.Create({
         var self = this;
         self.startX = 0;
         self.startY = 0;
-        self._blendMode = null;
+        self.mode = null;
         return self;
     }
     
     // main apply routine
     ,apply: function(im, w, h/*, image*/) {
         var self = this, bImg = self.blendImage;
-        if ( !self._isOn || !self._blendMode || !(bImg || self._blendImage) ) return im;
+        if ( !self._isOn || !self.mode || !(bImg || self._blendImage) ) return im;
         
         //self._blendImage = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height };
         
@@ -2072,7 +1884,7 @@ FILTER.Create({
             startX = self.startX||0, startY = self.startY||0, 
             startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
             W1, W2, start, end, x, y, x2, y2,
-            pix2, blend = blend_function[ self._blendMode ]
+            pix2, blend = blend_function[ self.mode ]
         ;
         
         //if ( !blend ) return im;
@@ -2095,17 +1907,12 @@ FILTER.Create({
         x = startX; y = startY*w;
         x2 = startX2; y2 = startY2*w2;
         W1 = startX+W; W2 = startX2+W;
-        start = 0; end = H*W;
-        while (start<end)
+        for(start=0,end=H*W; start<end; start++)
         {
             pix2 = (x2 + y2)<<2;
             // blend only if im2 has opacity in this point
-            if ( im2[pix2+3] ) 
-                // calculate and assign blended color
-                blend(im, im2, (x + y)<<2, pix2, notSupportClamp);
-            
+            if ( 0 < im2[pix2+3] ) blend(im, im2, (x + y)<<2, pix2, notSupportClamp);
             // next pixels
-            start++;
             x++; if (x>=W1) { x = startX; y += w; }
             x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
         }
@@ -2287,16 +2094,16 @@ FILTER.Create({
     name: "BokehFilter"
     
     // parameters
-    ,centerX: 0
-    ,centerY: 0
+    ,centerX: 0.0
+    ,centerY: 0.0
     ,radius: 10
     ,amount: 10
     
     // this is the filter constructor
     ,init: function( centerX, centerY, radius, amount ) {
         var self = this;
-        self.centerX = centerX || 0;
-        self.centerY = centerY || 0;
+        self.centerX = centerX || 0.0;
+        self.centerY = centerY || 0.0;
         self.radius = radius || 10;
         self.amount = amount || 10;
     }
@@ -2402,9 +2209,9 @@ FILTER.Create({
             
             // calculate amount(radius) of blurring 
             // depending on distance from focus center
-            blur = (d>r) ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
+            blur = d>r ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
             
-            if (blur>0)
+            if ( blur > 0 )
             {
                  blurw = blur*w; wt = 0.25/(blur*blur);
                  
@@ -2464,12 +2271,12 @@ FILTER.Create({
 FILTER.Create({
     name: "SeamlessTileFilter"
     
-    ,type: 0 // 0 radial, 1 linear 1, 2 linear 2
+    ,type: 2 // 0 radial, 1 linear 1, 2 linear 2
     
     // constructor
-    ,init: function( tiling_type ) {
+    ,init: function( mode ) {
         var self = this;
-        self.type = tiling_type || 0;
+        self.type = null == mode ? 2 : (mode||0);
     }
     
     // support worker serialize/unserialize interface
@@ -2507,7 +2314,8 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         var self = this, masktype = self.type,
-            resize = FILTER.Interpolation.bilinear, IMG = FILTER.ImArray,
+            resize = FILTER.Interpolation.bilinear,
+            IMG = FILTER.ImArray, A8U = FILTER.Array8U,
             //needed arrays
             diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
             index, N, N2, size, imSize, sqrt = Math.sqrt;
@@ -2520,56 +2328,72 @@ FILTER.Create({
         size = N*N; imSize = im.length;
         diagonal = new IMG(imSize);
         tile = new IMG(imSize);
-        mask = new FILTER.Array8U(size);
+        mask = new A8U(size);
 
         for (i=0,j=0,k=0; k<imSize; k+=4,i++)
         {
             if ( i >= N ) {i=0; j++;}
             index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
-            diagonal[ index   ] = im[ k ];
-            diagonal[ index+1 ] = im[ k+1 ];
-            diagonal[ index+2 ] = im[ k+2 ];
-            diagonal[ index+3 ] = im[ k+3 ];
+            diagonal[index  ] = im[k  ];
+            diagonal[index+1] = im[k+1];
+            diagonal[index+2] = im[k+2];
+            diagonal[index+3] = im[k+3];
         }
 
         //try to make your own masktypes here
-        //Create the mask
-        for (i=0,j=0; i<N2; j++)
+        if ( 0 === masktype ) //RADIAL
         {
-            if ( j >= N2 ) { j=0; i++; }
-            switch(masktype)
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
             {
-                case 0://RADIAL
-                d = sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
-                break;
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2);
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
 
-                case 1://LINEAR 1
-                if ( (N2-i) < (N2-j) )
-                    d = (j-N2)/N2;
-
-                else //if ( (N2-i) >= (N2-j) )
-                    d = (i-N/2)/N2;
-                break;
-
-                case 2://LINEAR 2
-                default:
-                if ( (N2-i) < (N2-j) )
-                    d = sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
-
-                else //if ( (N2-i)>=(N2-j) )
-                    d = sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
-                break;
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
             }
-            //Scale d To range from 1 To 255
-            d = 255 - (255 * d);
-            if (d < 1) d = 1;
-            else if (d > 255) d = 255;
+        }
+        else if ( 1 === masktype ) //LINEAR 1
+        {
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
+            {
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * (N2+j < N2+i ? (j-N2)/N2 : (i-N/2)/N2));
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
 
-            //Form the mask in Each quadrant
-            mask [i     + j*N      ] = d;
-            mask [i     + (N-1-j)*N] = d;
-            mask [N-1-i + j*N      ] = d;
-            mask [N-1-i + (N-1-j)*N] = d;
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
+            }
+        }
+        else //if ( 2 === masktype ) //LINEAR 2
+        {
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
+            {
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * (N2+j < N2+i ? sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N) : sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N)));
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
+
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
+            }
         }
 
         //Create the tile
@@ -2579,7 +2403,7 @@ FILTER.Create({
             index = i+j*N;
             a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
             a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-            tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
+            tile[index  ] = ~~(a1*im[index  ] + a2*diagonal[index  ]);
             tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
             tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
             tile[index+3] = im[index+3];
@@ -2605,8 +2429,7 @@ FILTER.Create({
 
 var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
     min = Math.min, max = Math.max, ceil = Math.ceil,
-    TILE = FILTER.MODE.TILE, STRETCH = FILTER.MODE.STRETCH,
-    Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
+    MODE = FILTER.MODE, Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
     
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
@@ -2850,7 +2673,7 @@ FILTER.Create({
     ,tolerance: 0.0
     ,pattern: null
     ,_pattern: null
-    ,mode: TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
+    ,mode: MODE.TILE
     ,borderColor: null
     
     ,path: FILTER_PLUGINS_PATH
@@ -2862,7 +2685,7 @@ FILTER.Create({
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
         if ( pattern ) self.setPattern( pattern );
-        self.mode = mode || TILE;
+        self.mode = mode || MODE.TILE;
         self.tolerance = tolerance || 0.0;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
@@ -2946,7 +2769,8 @@ FILTER.Create({
             OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone
+            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone,
+            STRETCH = MODE.STRETCH
         ;
         
         if ( 0 > px0 ) px0 += pw;
@@ -3165,13 +2989,46 @@ FILTER.Create({
 "use strict";
 
 //toCol = 0.70833333333333333333333333333333 // 255/360
-var notSupportClamp = FILTER._notSupportClamp, RGB2HSV = FILTER.Color.RGB2HSV, subarray = FILTER.Util.Array.subarray;
+var notSupportClamp = FILTER._notSupportClamp, MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
+    HUE = FILTER.Color.hue, RGB2HSV = FILTER.Color.RGB2HSV, subarray = FILTER.Util.Array.subarray;
 
 // a plugin to convert an RGB Image to an HSV Image
 FILTER.Create({
     name: "HSVConverterFilter"
     
     ,path: FILTER_PLUGINS_PATH
+    
+    ,mode: MODE.HSV
+    
+    ,init: function( mode ) {
+        var self = this;
+        self.mode = mode || MODE.HSV;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                 mode: self.mode
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.mode = params.mode;
+        }
+        return self;
+    }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -3181,30 +3038,55 @@ FILTER.Create({
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
         if ( !self._isOn ) return im;
-        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2;
+        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2, mode = self.mode,
+            H = CHANNEL.H, S = CHANNEL.S, V = CHANNEL.V;
         
         if ( notSupportClamp )
         {   
-            for (i=0; i<l; i+=4)
+            if ( MODE.HUE === mode )
             {
-                //r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV(subarray(im,i,i+3));
-                t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                for (i=0; i<l; i+=4)
+                {
+                    hsv = ~~(HUE(im[i],im[i+1],im[i+2])*0.70833333333333333333333333333333);
+                    // clamp them manually
+                    hsv = hsv<0 ? 0 : (hsv>255 ? 255 : hsv);
+                    im[i] = hsv; im[i+1] = hsv; im[i+2] = hsv; 
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    //r = im[i]; g = im[i+1]; b = im[i+2];
+                    hsv = RGB2HSV(subarray(im,i,i+3));
+                    t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    im[i+H] = ~~t0; im[i+S] = ~~t1; im[i+V] = ~~t2; 
+                }
             }
         }
         else
         {
-            for (i=0; i<l; i+=4)
+            if ( MODE.HUE === mode )
             {
-                //r = im[i]; g = im[i+1]; b = im[i+2];
-                hsv = RGB2HSV(subarray(im,i,i+3));
-                t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                for (i=0; i<l; i+=4)
+                {
+                    hsv = ~~(HUE(im[i],im[i+1],im[i+2])*0.70833333333333333333333333333333);
+                    im[i] = hsv; im[i+1] = hsv; im[i+2] = hsv; 
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    //r = im[i]; g = im[i+1]; b = im[i+2];
+                    hsv = RGB2HSV(subarray(im,i,i+3));
+                    t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
+                    im[i+H] = ~~t0; im[i+S] = ~~t1; im[i+V] = ~~t2; 
+                }
             }
         }
         // return the new image data
@@ -3221,7 +3103,8 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.Util.Array.typed, HUE = FILTER.Color.hue;
+var TypedArray = FILTER.Util.Array.typed, MODE = FILTER.MODE,
+    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
 
 // a plugin to apply a general threshold filtering to an image
 FILTER.Create({
@@ -3231,14 +3114,14 @@ FILTER.Create({
     ,thresholds: null
     // NOTE: quantizedColors should contain 1 more element than thresholds
     ,quantizedColors: null
-    ,asHue: false
+    ,mode: MODE.COLOR
     
     // constructor
-    ,init: function( thresholds, quantizedColors, asHue ) {
+    ,init: function( thresholds, quantizedColors, mode ) {
         var self = this;
         self.thresholds = thresholds;
         self.quantizedColors = quantizedColors || null;
-        self.asHue = !!asHue;
+        self.mode = mode || MODE.COLOR;
     }
     
     // support worker serialize/unserialize interface
@@ -3253,7 +3136,7 @@ FILTER.Create({
             ,params: {
                  thresholds: self.thresholds
                 ,quantizedColors: self.quantizedColors
-                ,asHue: self.asHue
+                ,mode: self.mode
             }
         };
     }
@@ -3268,7 +3151,7 @@ FILTER.Create({
             
             self.thresholds = TypedArray( params.thresholds, Array );
             self.quantizedColors = TypedArray( params.quantizedColors, Array );
-            self.asHue = params.asHue;
+            self.mode = params.mode;
         }
         return self;
     }
@@ -3283,31 +3166,44 @@ FILTER.Create({
         if (!self._isOn || !self.thresholds || !self.thresholds.length || 
             !self.quantizedColors || !self.quantizedColors.length) return im;
         
-        var color, hue, i, j, l=im.length,
+        var color, v, i, j, l=im.length, mode = self.mode||MODE.COLOR,
             thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
         ;
         
-        if ( self.asHue )
+        if ( MODE.HUE === mode )
         {
             for (i=0; i<l; i+=4)
             {
                 if ( 0 === im[i+3] ) continue;
-                hue = HUE(im[i], im[i+1], im[i+2]);
+                v = HUE(im[i], im[i+1], im[i+2]);
                 // maybe use sth faster here ??
-                j=0; while (j<tl && hue>thresholds[j]) j++;
+                j=0; while (j<tl && v>thresholds[j]) j++;
                 color = j < cl ? colors[j] : 0xffffff;
                 im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
                 //im[i+3] = (color >>> 24) & 255;
             }
         }
-        else
+        else if ( MODE.INTENSITY === mode )
         {
             for (i=0; i<l; i+=4)
             {
                 if ( 0 === im[i+3] ) continue;
-                color = /*(im[i+3] << 24) |*/ (im[i] << 16) | (im[i+1] << 8) | (im[i+2]&255);
+                v = INTENSITY(im[i], im[i+1], im[i+2]);
                 // maybe use sth faster here ??
-                j=0; while (j<tl && color>thresholds[j]) j++;
+                j=0; while (j<tl && v>thresholds[j]) j++;
+                color = j < cl ? colors[j] : 0xffffff;
+                im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
+                //im[i+3] = (color >>> 24) & 255;
+            }
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if ( 0 === im[i+3] ) continue;
+                v = /*(im[i+3] << 24) |*/ (im[i] << 16) | (im[i+1] << 8) | (im[i+2]&255);
+                // maybe use sth faster here ??
+                j=0; while (j<tl && v>thresholds[j]) j++;
                 color = j < cl ? colors[j] : 0xffffff;
                 im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
                 //im[i+3] = (color >>> 24) & 255;
@@ -3359,7 +3255,7 @@ FILTER.Create({
             ,params: {
                  minHue: self.minHue
                 ,maxHue: self.maxHue
-                ,background: self.background||0
+                ,background: self.background
             }
         };
     }
@@ -3374,7 +3270,7 @@ FILTER.Create({
             
             self.minHue = params.minHue;
             self.maxHue = params.maxHue;
-            self.background = params.background||0;
+            self.background = params.background;
         }
         return self;
     }
@@ -4574,35 +4470,19 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var A32U = FILTER.Array32U, NUM_LABELS = 20;
+var A32U = FILTER.Array32U, MODE = FILTER.MODE,
+    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity,
+    min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
-
-/*
-function Similarity( id, sameas, tag )
-{
-    /*var self = this;
-    self.id = id;
-    self.sameas = sameas || null;
-    self.tag = tag || null;* /
-    return [id, sameas || null, tag || null];
-}
-function is_root_label( id, labels )
-{
-    return labels[id][1] === id;
-}
-function is_equivalent( id, sameas, labels )
-{
-    return root_of(id, labels) === root_of(sameas, labels);
-}
-*/
 
 function root_of( id, labels )
 {
     while( labels[id][1] !== id )
     {
-        // link this node to its parent's parent, just to shorten
-        // the tree.
+        // link this node to its parent's parent, just to shorten the tree.
+        //merge_box( labels[id][1], labels[labels[id][1]][1], labels );
+        //merge_box( id, labels[id][1], labels );
         labels[id][1] = labels[labels[id][1]][1];
         id = labels[id][1];
     }
@@ -4615,41 +4495,115 @@ function merge( id1, id2, labels )
     if ( r1 !== r2 )
     {
         labels[r1][1] = r2;
-        //return false;
+        //merge_box( r1, r2, labels );
     }
-    //return true;
 }
 
-function new_label( labels )
+/*function merge_box( id1, id2, labels )
 {
-    var current = labels.highest;
+    var x1 = min(labels[id1][3],labels[id2][3]),
+        y1 = min(labels[id1][4],labels[id2][4]),
+        x2 = max(labels[id1][5],labels[id2][5]),
+        y2 = max(labels[id1][6],labels[id2][6]);
+
+    labels[id1][3] = x1;
+    labels[id1][4] = y1;
+    labels[id1][5] = x2;
+    labels[id1][6] = y2;
+    
+    labels[id2][3] = x1;
+    labels[id2][4] = y1;
+    labels[id2][5] = x2;
+    labels[id2][6] = y2;
+}*/
+
+function new_label( x, y, labels )
+{
+    var current = labels.next;
     if ( current+1 > labels.length )
     {
         //if ( labels.highest > 0 ) labels.length = highest_label*2;
         //else labels.length = labels.highest+10;
         Array.prototype.push.apply(labels, new Array(NUM_LABELS));
     }
-    //labels.length = labels.highest+1;
-    labels[current] = [current, current/*, null*/]; //Similarity( labels.highest );
-    ++labels.highest;
+    labels[current] = [current, current, 0/*, x, y, x, y*/];
+    ++labels.next;
     return current;
 }
 
-function SAME( im, p1, p2 )
+function copy_label( id, x, y, labels )
 {
-    return (0===im[p1+3] && 0===im[p2+3]) || ((im[p1]===im[p2]) && (im[p1+1]===im[p2+1]) && (im[p1+2]===im[p2+2]) && (im[p1+3]===im[p2+3]));
+    /*labels[id][3] = min(labels[id][3],x);
+    labels[id][4] = min(labels[id][4],y);
+    labels[id][5] = max(labels[id][5],x);
+    labels[id][6] = max(labels[id][6],y);*/
+    return id;
 }
 
+function similar_color( im, p1, p2, delta, memo )
+{
+    return (0===im[p1+3] && 0===im[p2+3]) || (abs(im[p1]-im[p2])<=delta && abs(im[p1+1]-im[p2+1])<=delta && abs(im[p1+2]-im[p2+2])<=delta);
+}
+
+function similar_to_color( col, im, p1, delta, memo )
+{
+    return abs(im[p1]-col[0])<=delta && abs(im[p1+1]-col[1])<=delta && abs(im[p1+2]-col[2])<=delta;
+}
+
+function similar_intensity( im, p1, p2, delta, memo )
+{
+    if ( 0===im[p1+3] && 0===im[p2+3] ) return true;
+    var i1 = p1 >>> 2, i2 = p2 >>> 2;
+    if ( null == memo[i1] ) memo[i1] = INTENSITY(im[p1],im[p1+1],im[p1+2]);
+    if ( null == memo[i2] ) memo[i2] = INTENSITY(im[p2],im[p2+1],im[p2+2]);
+    return abs(memo[i1],memo[i2])<=delta;
+}
+
+function similar_to_intensity( col, im, p1, delta, memo )
+{
+    var i1 = p1 >>> 2;
+    if ( null == memo[i1] ) memo[i1] = INTENSITY(im[p1],im[p1+1],im[p1+2]);
+    return abs(memo[i1],col)<=delta;
+}
+
+function similar_hue( im, p1, p2, delta, memo )
+{
+    if ( 0===im[p1+3] && 0===im[p2+3] ) return true;
+    var i1 = p1 >>> 2, i2 = p2 >>> 2;
+    if ( null == memo[i1] ) memo[i1] = HUE(im[p1],im[p1+1],im[p1+2]);
+    if ( null == memo[i2] ) memo[i2] = HUE(im[p2],im[p2+1],im[p2+2]);
+    return abs(memo[i1],memo[i2])<=delta;
+}
+
+function similar_to_hue( col, im, p1, delta, memo )
+{
+    var i1 = p1 >>> 2;
+    if ( null == memo[i1] ) memo[i1] = HUE(im[p1],im[p1+1],im[p1+2]);
+    return abs(memo[i1],col)<=delta;
+}
+
+// TODO: add bounding boxes, so it can be used as connected color/hue detector/tracker as well efficiently
 FILTER.Create({
     name: "ConnectedComponentsFilter"
     
     // parameters
     ,connectivity: 4
+    ,tolerance: 0.0
+    ,mode: MODE.COLOR
+    ,color: null
+    ,invert: false
+    ,box: null
+    
+    //,hasMeta: true
     
     // this is the filter constructor
-    ,init: function( connectivity ) {
+    ,init: function( connectivity, tolerance, mode, color, invert ) {
         var self = this;
         self.connectivity = 8 === connectivity ? 8 : 4;
+        self.tolerance = tolerance || 0.0;
+        self.mode = mode || MODE.COLOR;
+        self.color = null == color ? null : color;
+        self.invert = !!invert;
     }
     
     // support worker serialize/unserialize interface
@@ -4662,7 +4616,11 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                connectivity: self.connectivity
+                 connectivity: self.connectivity
+                ,tolerance: self.tolerance
+                ,mode: self.mode
+                ,color: self.color
+                ,invert: self.invert
             }
         };
     }
@@ -4676,9 +4634,22 @@ FILTER.Create({
             params = json.params;
             
             self.connectivity = params.connectivity;
+            self.tolerance = params.tolerance;
+            self.mode = params.mode;
+            self.color = params.color;
+            self.invert = params.invert;
         }
         return self;
     }
+    
+    /*,getMeta: function( ) {
+        return this.box;
+    }
+    
+    ,setMeta: function( boxes ) {
+        this.box = boxes;
+        return this;
+    }*/
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -4686,57 +4657,125 @@ FILTER.Create({
         if ( !self._isOn ) return im;
         
         var i, j, k, imLen = im.length, imSize = imLen>>>2, w4 = w<<2,
+            mode = self.mode||MODE.COLOR, invert = self.invert, color = self.color,
+            tolerance = min(0.999, max(0.0, self.tolerance||0.0)),
             connectivity = 8 === self.connectivity ? 8 : 4,
-            K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = d0*4,
-            mylab, last_row = 0, c, r, d, row, id, labels, labelimg, tag;
+            K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = d0<<2,
+            mylab, c, r, d, row, labels, labelimg,
+            SIMILAR = null, memo = null, SIMILAR_TO = null, background_label = null,
+            need_match = null != color, highest, tag//, box
+        ;
         
-        labels = new Array(NUM_LABELS); labels.highest = 0;
+        labels = new Array(NUM_LABELS);
+        labels.next = 0;
         labelimg = new A32U(imSize);
         
-        labelimg[0] = new_label( labels );
-
+        if ( MODE.HUE === mode )
+        {
+            tolerance *= 360;
+            SIMILAR = similar_hue;
+            memo = new Array(imSize);
+            if ( need_match ) SIMILAR_TO = similar_to_hue;
+        }
+        else if ( MODE.INTENSITY === mode )
+        {
+            tolerance *= 255;
+            SIMILAR = similar_intensity;
+            memo = new Array(imSize);
+            if ( need_match ) SIMILAR_TO = similar_to_intensity;
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            tolerance *= 255;
+            SIMILAR = similar_color;
+            if ( need_match )
+            {
+                color = [(color >>> 16)&255, (color >>> 8)&255, color&255];
+                SIMILAR_TO = similar_to_color;
+            }
+        }
+        background_label = need_match ? new_label(0, 0, labels) : null;
+        
+        labelimg[0] = need_match && !SIMILAR_TO(color, im, 0, tolerance, memo) ? background_label : new_label(0, 0, labels);
+        
         // label the first row.
-        for(c=1,i=4; c<w; c++,i+4) labelimg[c] = SAME(im, i, i-4) ? labelimg[c-1] : new_label( labels );
+        for(c=1,i=4; c<w; c++,i+4)
+            labelimg[c] = need_match && !SIMILAR_TO(color, im, i, tolerance, memo) ? background_label : (SIMILAR(im, i, i-4, tolerance, memo) ? copy_label(labelimg[c-1], c, 0, labels) : new_label(c, 0, labels));
 
         // label subsequent rows.
         for(r=1,row=w,i=w4; r<h; r++,row+=w,i+=w4)
         {
             // label the first pixel on this row.
-            labelimg[row] = SAME(im, i, i-w4) ? labelimg[row-w] : new_label( labels );
+            labelimg[row] = need_match && !SIMILAR_TO(color, im, i, tolerance, memo) ? background_label : (SIMILAR(im, i, i-w4, tolerance, memo) ? copy_label(labelimg[row-w], 0, r, labels) : new_label(0, r, labels));
 
             // label subsequent pixels on this row.
             for(c=1,j=4; c<w; c++,j+=4)
             {
+                if ( need_match && !SIMILAR_TO(color, im, i+j, tolerance, memo) )
+                {
+                    labelimg[row+c] = background_label;
+                    continue;
+                }
                 // inherit label from pixel on the left if we're in the same blob.
-                mylab = SAME(im, i+j, i+j-4) ? labelimg[row+c-1] : -1;
+                mylab = background_label === labelimg[row+c-1] ? -1 : (SIMILAR(im, i+j, i+j-4, tolerance, memo) ? copy_label(labelimg[row+c-1], c, r, labels) : -1);
 
                 for(d=d0,k=k0; d<1; d++,k+=4)
                 {
                     // if we're in the same blob, inherit value from above pixel.
                     // if we've already been assigned, merge its label with ours.
-                    if( SAME(im, i+j, i-w4+j+k) )
+                    if( (background_label !== labelimg[row-w+c+d]) && SIMILAR(im, i+j, i-w4+j+k, tolerance, memo) )
                     {
-                        if( mylab >= 0 ) merge( mylab, labelimg[row-w+c+d], labels );
-                        else mylab = labelimg[row-w+c+d];
+                        if( mylab >= 0 ) merge(mylab, labelimg[row-w+c+d], labels);
+                        else mylab = copy_label(labelimg[row-w+c+d], c+d, r, labels);
                     }
                 }
-                labelimg[row+c] = mylab >= 0 ? mylab : new_label( labels );
+                labelimg[row+c] = mylab >= 0 ? copy_label(mylab, c, r, labels) : new_label(c, r, labels);
 
-                if( K8_CONNECTIVITY && SAME(im, i+j-4, i-w4+j) )
-                    merge( labelimg[row+c-1], labelimg[row-w+c], labels );
+                if( K8_CONNECTIVITY && 
+                    (background_label !== labelimg[row+c-1]) && 
+                    (background_label !== labelimg[row-w+c]) && 
+                    SIMILAR(im, i+j-4, i-w4+j, tolerance, memo)
+                )
+                    merge(labelimg[row+c-1], labelimg[row-w+c], labels);
             }
         }
         
         // relabel image
-        //for(id=0; id<sl; ++id) if(is_root_label(id)) labels[id].tag = newtag++;
-        var highest = labels.highest > 0 ? labels.highest-1 : 1;
-        for(c=0,i=0; i<imLen; i+=4,c++)
+        if ( 0 === background_label )
         {
-            tag = ~~(255-255*labels[root_of(labelimg[c], labels)][0]/highest);
-            im[i] = tag; im[i+1] = tag; im[i+2] = tag; im[i+3] = 255;
+            for(i=0,highest=labels.next,tag=0; i<highest; i++)
+                if ( i === labels[i][1] ) labels[i][2] = 0 === labels[i][1] ? 0 : ++tag;
+        }
+        else
+        {
+            for(i=0,highest=labels.next,tag=0; i<highest; i++)
+                if ( i === labels[i][1] ) labels[i][2] = tag++;
         }
 
-        // return the labeled image data
+        //box = {};
+        tag = tag > 0 ? tag : 1;
+        if ( invert )
+        {
+            for(c=0,i=0; i<imLen; i+=4,c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = ~~(255-255*color/tag);
+                im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
+        }
+        else
+        {
+            for(c=0,i=0; i<imLen; i+=4,c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = ~~(255*color/tag);
+                im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
+        }
+        
+        // return the connected image data
         return im;
     }
 });

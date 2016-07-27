@@ -7,7 +7,8 @@
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.Util.Array.typed, HUE = FILTER.Color.hue;
+var TypedArray = FILTER.Util.Array.typed, MODE = FILTER.MODE,
+    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
 
 // a plugin to apply a general threshold filtering to an image
 FILTER.Create({
@@ -17,14 +18,14 @@ FILTER.Create({
     ,thresholds: null
     // NOTE: quantizedColors should contain 1 more element than thresholds
     ,quantizedColors: null
-    ,asHue: false
+    ,mode: MODE.COLOR
     
     // constructor
-    ,init: function( thresholds, quantizedColors, asHue ) {
+    ,init: function( thresholds, quantizedColors, mode ) {
         var self = this;
         self.thresholds = thresholds;
         self.quantizedColors = quantizedColors || null;
-        self.asHue = !!asHue;
+        self.mode = mode || MODE.COLOR;
     }
     
     // support worker serialize/unserialize interface
@@ -39,7 +40,7 @@ FILTER.Create({
             ,params: {
                  thresholds: self.thresholds
                 ,quantizedColors: self.quantizedColors
-                ,asHue: self.asHue
+                ,mode: self.mode
             }
         };
     }
@@ -54,7 +55,7 @@ FILTER.Create({
             
             self.thresholds = TypedArray( params.thresholds, Array );
             self.quantizedColors = TypedArray( params.quantizedColors, Array );
-            self.asHue = params.asHue;
+            self.mode = params.mode;
         }
         return self;
     }
@@ -69,31 +70,44 @@ FILTER.Create({
         if (!self._isOn || !self.thresholds || !self.thresholds.length || 
             !self.quantizedColors || !self.quantizedColors.length) return im;
         
-        var color, hue, i, j, l=im.length,
+        var color, v, i, j, l=im.length, mode = self.mode||MODE.COLOR,
             thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
         ;
         
-        if ( self.asHue )
+        if ( MODE.HUE === mode )
         {
             for (i=0; i<l; i+=4)
             {
                 if ( 0 === im[i+3] ) continue;
-                hue = HUE(im[i], im[i+1], im[i+2]);
+                v = HUE(im[i], im[i+1], im[i+2]);
                 // maybe use sth faster here ??
-                j=0; while (j<tl && hue>thresholds[j]) j++;
+                j=0; while (j<tl && v>thresholds[j]) j++;
                 color = j < cl ? colors[j] : 0xffffff;
                 im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
                 //im[i+3] = (color >>> 24) & 255;
             }
         }
-        else
+        else if ( MODE.INTENSITY === mode )
         {
             for (i=0; i<l; i+=4)
             {
                 if ( 0 === im[i+3] ) continue;
-                color = /*(im[i+3] << 24) |*/ (im[i] << 16) | (im[i+1] << 8) | (im[i+2]&255);
+                v = INTENSITY(im[i], im[i+1], im[i+2]);
                 // maybe use sth faster here ??
-                j=0; while (j<tl && color>thresholds[j]) j++;
+                j=0; while (j<tl && v>thresholds[j]) j++;
+                color = j < cl ? colors[j] : 0xffffff;
+                im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
+                //im[i+3] = (color >>> 24) & 255;
+            }
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if ( 0 === im[i+3] ) continue;
+                v = /*(im[i+3] << 24) |*/ (im[i] << 16) | (im[i+1] << 8) | (im[i+2]&255);
+                // maybe use sth faster here ??
+                j=0; while (j<tl && v>thresholds[j]) j++;
                 color = j < cl ? colors[j] : 0xffffff;
                 im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
                 //im[i+3] = (color >>> 24) & 255;

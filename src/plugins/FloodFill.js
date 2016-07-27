@@ -9,8 +9,7 @@
 
 var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
     min = Math.min, max = Math.max, ceil = Math.ceil,
-    TILE = FILTER.MODE.TILE, STRETCH = FILTER.MODE.STRETCH,
-    Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
+    MODE = FILTER.MODE, Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
     
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
@@ -254,7 +253,7 @@ FILTER.Create({
     ,tolerance: 0.0
     ,pattern: null
     ,_pattern: null
-    ,mode: TILE // FILTER.MODE.TILE, FILTER.MODE.STRETCH
+    ,mode: MODE.TILE
     ,borderColor: null
     
     ,path: FILTER_PLUGINS_PATH
@@ -266,7 +265,7 @@ FILTER.Create({
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
         if ( pattern ) self.setPattern( pattern );
-        self.mode = mode || TILE;
+        self.mode = mode || MODE.TILE;
         self.tolerance = tolerance || 0.0;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
@@ -350,7 +349,8 @@ FILTER.Create({
             OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone
+            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone,
+            STRETCH = MODE.STRETCH
         ;
         
         if ( 0 > px0 ) px0 += pw;

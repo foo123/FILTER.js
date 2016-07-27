@@ -199,7 +199,7 @@ var Color = FILTER.Color = FILTER.Class({
         
         hue: function( r, g, b ) {
             var M = max( r, g, b );
-            return (0 === M) || (r === g && g === b)
+            return r === g && g === b
             ? 0
             : (r === M
             ? 60 * abs( g - b ) / (M - min( r, g, b ))
@@ -207,6 +207,11 @@ var Color = FILTER.Color = FILTER.Class({
             ? 120 + 60 * abs( b - r ) / (M - min( r, g, b ))
             : 240 + 60 * abs( r - g ) / (M - min( r, g, b ))))
             ;
+        },
+        
+        saturation: function( r, g, b ) {
+            var M = max( r, g, b );
+            return r === g && g === b ? 0 : 255 * (M-min( r, g, b )) / M;
         },
         
         distance: function( rgb1, rgb2 ) {
@@ -261,27 +266,25 @@ var Color = FILTER.Color = FILTER.Class({
 
             r=rgb[0]; g=rgb[1]; b=rgb[2];
             
-            m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
+            M = max( r, g, b );
             v = M;                // v
 
-            if ( (0 === M) || ( r === g && g === b) )
+            if ( r === g && g === b )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
                 return [h, s, v];
             }
-            else 
-            {
-                s = delta / M;        // s
-            }
+            m = min( r, g, b );
+            delta = M - m;
+            s = delta / M;        // s
 
-            if( r === M )    h = 60 * abs( g - b ) / delta;        // between yellow & magenta
-            else if ( g === M )  h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
-            else   h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
+            if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
+            else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
+            else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
 
             //h *= 60;                // degrees
             //if( h < 0 )  h += 360;
-            
             return [h, s, v];
         },
         
@@ -302,7 +305,9 @@ var Color = FILTER.Color = FILTER.Class({
             h /= 60;            // sector 0 to 5
             i = ~~h;
             f = h - i;          // fractional part of h
-            p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
+            p = v * ( 1 - s );
+            q = v * ( 1 - s * f );
+            t = v * ( 1 - s * ( 1 - f ) );
 
             if ( 0 === i )      { r = v; g = t; b = p; }
             else if ( 1 === i ) { r = q;  g = v; b = p; }

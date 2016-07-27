@@ -16,16 +16,16 @@ FILTER.Create({
     name: "BokehFilter"
     
     // parameters
-    ,centerX: 0
-    ,centerY: 0
+    ,centerX: 0.0
+    ,centerY: 0.0
     ,radius: 10
     ,amount: 10
     
     // this is the filter constructor
     ,init: function( centerX, centerY, radius, amount ) {
         var self = this;
-        self.centerX = centerX || 0;
-        self.centerY = centerY || 0;
+        self.centerX = centerX || 0.0;
+        self.centerY = centerY || 0.0;
         self.radius = radius || 10;
         self.amount = amount || 10;
     }
@@ -131,9 +131,9 @@ FILTER.Create({
             
             // calculate amount(radius) of blurring 
             // depending on distance from focus center
-            blur = (d>r) ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
+            blur = d>r ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
             
-            if (blur>0)
+            if ( blur > 0 )
             {
                  blurw = blur*w; wt = 0.25/(blur*blur);
                  

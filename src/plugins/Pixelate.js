@@ -1,16 +1,15 @@
 /**
 *
-* Pixelate Plugin
+* Rectangular Pixelate Filter, Triangular Pixelate Filter, Hexagonal Pixelate Filter Plugins
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var Sqrt = Math.sqrt, notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F;
+var IMG = FILTER.ImArray, sqrt = Math.sqrt, min = Math.min, max = Math.max, SQRT_3 = sqrt(3.0);
 
-
-// a sample fast pixelate filter
+// a simple fast Rectangular Pixelate filter
 FILTER.Create({
     name: "PixelateFilter"
     
@@ -53,142 +52,283 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
         var self = this;
-        if (!self._isOn || self.scale<=1) return im;
-        if (self.scale>100) self.scale=100;
+        if ( !self._isOn || self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
         
-        var imLen = im.length, imArea = (imLen>>>2),
-            step, stepw, hstep, wstep, hstepw, wRem, hRem,
-            inv_size, inv_size1, inv_size1w, inv_size1h, inv_size1hw, 
-            inv_sizes, inv_sizew, inv_sizeh, inv_sizewh,
-            integral, colR, colG, colB,
-            rowLen = (w<<1) + w, imageIndicesX, imageIndicesY,
-            i, j, x, y, yw, px, py, pyw, pi,
-            xOff1, yOff1, xOff2, yOff2, 
-            bx1, by1, bx2, by2, 
-            p1, p2, p3, p4, r, g, b
+        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, p4,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4
         ;
         
-        step = ~~(Sqrt(imArea)*self.scale*0.01);
-        stepw = w*step; hstep = h%step; wstep = w%step; hstepw = (hstep-1)*w;
-        inv_size1 = 1.0/(step*step); inv_size1w = 1.0/(wstep*step); inv_size1h = 1.0/(hstep*step); inv_size1hw = 1.0/(wstep*hstep);
-        inv_sizes = inv_size1; inv_sizew = inv_size1w; inv_sizeh = inv_size1h; inv_sizewh = inv_size1hw;
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01);
+        stepx = step-1; stepy = w*stepx;
         
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        imageIndicesX = step-1; imageIndicesY = (step-1)*w;
-        bx1=0; bx2=w-1; by1=0; by2=imArea-w;
-        
-        // compute integral image in one pass
-        integral = new A32F(imArea*3);
-        // first row
-        i=0; j=0; x=0; colR=colG=colB=0;
-        for (x=0; x<w; x++, i+=4, j+=3)
-        {
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j] = colR; integral[j+1] = colG; integral[j+2] = colB;
-        }
-        // other rows
-        j=0; x=0; colR=colG=colB=0;
-        for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
-        {
-            if (x>=w) { x=0; colR=colG=colB=0; }
-            colR += im[i]; colG += im[i+1]; colB += im[i+2];
-            integral[j+rowLen] = integral[j] + colR; 
-            integral[j+rowLen+1] = integral[j+1] + colG;  
-            integral[j+rowLen+2] = integral[j+2] + colB;
-        }
-        
-        // first block
-        x=0; y=0; yw=0;
-        // calculate the weighed sum of the source image pixels that
-        // fall under the pixelate convolution matrix
-        xOff1 = x; yOff1 = yw;  
-        xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
-        
-        // fix borders
-        xOff2 = xOff2>bx2 ? bx2 : xOff2;
-        yOff2 = yOff2>by2 ? by2 : yOff2;
-        
-        // compute integral positions
-        p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
-        p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-        
-        // compute matrix sum of these elements
-        // maybe using a gaussian average could be better (but more computational) ??
-        inv_size = inv_sizes;
-        r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-        g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-        b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-        
-        if (notSupportClamp)
-        {   
-            // clamp them manually
-            r = r<0 ? 0 : (r>255 ? 255 : r);
-            g = g<0 ? 0 : (g>255 ? 255 : g);
-            b = b<0 ? 0 : (b>255 ? 255 : b);
-        }
-        r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
-        
-        // do direct pixelate convolution
-        px=0; py=0; pyw=0;
+        // do pixelation via interpolation on 4 points of a certain rectangle
+        x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
-            // output
-            // replace the area equal to the given pixelate size
-            // with the average color, computed in previous step
-            pi = (px+x + pyw+yw)<<2;
-            im[pi] = r;  im[pi+1] = g;  im[pi+2] = b; 
+            pxa = x-sx; pya = yw-syw;
+            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            
+            // these edge conditions create the rectangular pattern
+            p1 = (pxa + pya) << 2;
+            p2 = (pxa + pyb) << 2;
+            p3 = (pxb + pya) << 2;
+            p4 = (pxb + pyb) << 2;
+            
+            // compute rectangular interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
+            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             
             // next pixel
-            px++; if ( px+x >= w || px >= step ) { px=0; py++; pyw+=w; }
-            
-            // next block
-            if (py+y >= h || py >= step)
-            {
-                // update image coordinates
-                x+=step; if ( x>=w ) { x=0; y+=step; yw+=stepw; }
-                px=0; py=0; pyw=0;
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the pixelate convolution matrix
-                xOff1 = x; yOff1 = yw;  
-                xOff2 = xOff1 + imageIndicesX; yOff2 = yOff1 + imageIndicesY;
-                
-                // fix borders
-                xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=(xOff1 + yOff1); p4=(xOff2+yOff2); p2=(xOff2 + yOff1); p3=(xOff1 + yOff2);
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // get correct area size
-                wRem = wstep+xOff1===xOff2+1;
-                hRem = hstepw+yOff1===yOff2;
-                inv_size = wRem && hRem ? inv_sizewh : (wRem ? inv_sizew : (hRem ? inv_sizeh : inv_sizes));
-                
-                // compute matrix sum of these elements
-                r = inv_size * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                g = inv_size * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                b = inv_size * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                }
-                r = ~~r;  g = ~~g;  b = ~~b; // alpha channel is not transformed
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy >= step ) { sy=0; syw=0; }
             }
+            if ( sx >= step ) { sx=0; }
         }
         
         // return the pixelated image data
-        return im;
+        return dst;
     }
 });
+
+// a simple fast Triangular Pixelate filter
+FILTER.Create({
+    name: "TriangularPixelateFilter"
+    
+    // parameters
+    ,scale: 1
+    
+    // this is the filter constructor
+    ,init: function( scale ) {
+        var self = this;
+        self.scale = scale || 1;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER_PLUGINS_PATH
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                scale: self.scale
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.scale = params.scale;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image*/) {
+        var self = this;
+        if ( !self._isOn || self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
+        
+        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, 
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3
+        ;
+        
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01);
+        stepx = step-1; stepy = w*stepx;
+        
+        // do pixelation via interpolation on 3 points of a certain triangle
+        x=yw=sx=sy=syw=0;
+        for (i=0; i<imLen; i+=4)
+        {
+            pxa = x-sx; pya = yw-syw;
+            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            
+            // these edge conditions create the various triangular patterns
+            if ( sx+sy > stepx ) 
+            { 
+                // second triangle
+                p1 = (pxb + pya) << 2;
+                p2 = (pxb + pyb) << 2;
+                p3 = (pxa + pya) << 2;
+            }
+            else
+            {
+                // first triangle
+                p1 = (pxa + pya) << 2;
+                p2 = (pxa + pyb) << 2;
+                p3 = (pxb + pya) << 2;
+            }
+            
+            // compute triangular interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r = ~~((r1+r2+r3)/3); g = ~~((g1+g2+g3)/3); b = ~~((b1+b2+b3)/3);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            
+            // next pixel
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy >= step ) { sy=0; syw=0; }
+            }
+            if ( sx >= step ) { sx=0; }
+        }
+        
+        // return the pixelated image data
+        return dst;
+    }
+});
+
+/*
+TO BE ADDED
+// a simple fast Hexagonal Pixelate filter
+FILTER.Create({
+    name: "HexagonalPixelateFilter"
+    
+    // parameters
+    ,scale: 1
+    
+    // this is the filter constructor
+    ,init: function( scale ) {
+        var self = this;
+        self.scale = scale || 1;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER_PLUGINS_PATH
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                scale: self.scale
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.scale = params.scale;
+        }
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h/*, image* /) {
+        var self = this;
+        if ( !self._isOn || self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
+        
+        var dst, imLen = im.length, imArea = (imLen>>>2),
+            step, step_1, step_2, stepx, stepy, stepx_2, stepy_2,
+            bx = w-1, by = imArea-w,
+            p1, p2, p3, p4, p5, p6, d,
+            i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3,
+            r4, g4, b4, r5, g5, b5, r6, g6, b6
+        ;
+        
+        dst = new IMG(imLen);
+        step = ~~(sqrt(imArea)*self.scale*0.01); d = ~~(step/SQRT_3);
+        step_1 = step-1; step_2 = step >>> 1;
+        stepx_2 = (step/*+d+d* /) >>> 1; stepx = step_1/*+d+d* /;
+        stepy_2 = w*step_2; stepy = w*step_1;
+        
+        // do pixelation via interpolation on 4 points of a certain ractangle
+        x=yw=0; sx=sy=syw=0;
+        for (i=0; i<imLen; i+=4)
+        {
+            // these edge conditions create the various hexagonal patterns
+            if ( 2*(step_2-sy) > SQRT_3*sx ) 
+            { 
+                // top left hexagon
+                pxa = max(0, x-sx-stepx); pya = max(0, yw-syw-stepy_2);
+            }
+            else if ( 2*sy > SQRT_3*sx ) 
+            { 
+                // bottom left hexagon
+                pxa = max(0, x-sx-stepx); pya = min(by, yw-syw+stepy_2);
+            }
+            else if ( 2*(step_2-sy) > SQRT_3*(stepx+d+d-sx) ) 
+            { 
+                // top right hexagon
+                pxa = min(bx, x-sx+stepx); pya = max(0, yw-syw-stepy_2);
+            }
+            else if ( 2*sy > SQRT_3*(stepx+d+d-sx) ) 
+            { 
+                // bottom right hexagon
+                pxa = min(bx, x-sx+stepx); pya = min(by, yw-syw+stepy_2);
+            }
+            else
+            { 
+                // center hexagon
+                pxa = min(bx, x-sx); pya = max(0, yw-syw);
+            }
+            
+            pxb = min(bx, pxa+step_1); pyb = min(by, pya+stepy);
+            
+            p1 = (pxa + pya) << 2;
+            p2 = (pxb + pya) << 2;
+            p3 = (pxb + pyb) << 2;
+            p4 = (pxa + pyb) << 2;
+            
+            // compute hexagonal interpolation
+            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
+            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
+            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
+            //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
+            //r6 = im[p6  ]; g6 = im[p6+1]; b6 = im[p6+2];
+            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
+            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            
+            // next pixel
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy > step_1 ) { sy=0; syw=0; }
+            }
+            if ( sx > stepx ) { sx=0; }
+        }
+        
+        // return the pixelated image data
+        return dst;
+    }
+});*/
 
 }(FILTER);

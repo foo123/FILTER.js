@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var perlin_noise = FILTER.Util.Image.perlin;
+var perlin_noise = FILTER.Util.Image.perlin, MODE = FILTER.MODE;
 
 // an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
@@ -19,7 +19,7 @@ FILTER.Create({
     ,_baseY: 1
     ,_octaves: 1
     ,_offsets: null
-    ,_colors: false
+    ,_mode: MODE.GRAY
     ,_seed: 0
     ,_stitch: false
     ,_fractal: true
@@ -31,6 +31,7 @@ FILTER.Create({
     // constructor
     ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, seed, use_perlin ) {
         var self = this;
+        self._mode = MODE.GRAY;
         self._baseX = baseX || 1;
         self._baseY = baseY || 1;
         self._seed = seed || 0;
@@ -62,7 +63,7 @@ FILTER.Create({
     
     ,colors: function( enabled ) {
         if ( !arguments.length ) enabled = true;
-        this._colors = !!enabled;
+        this._mode = !!enabled ? MODE.COLOR : MODE.GRAY;
         return this;
     }
     
@@ -95,7 +96,7 @@ FILTER.Create({
                 ,_offsets: self._offsets
                 ,_seed: self._seed || 0
                 ,_stitch: self._stitch
-                ,_colors: self._colors
+                ,_mode: self._mode
                 ,_fractal: self._fractal
                 ,_perlin: self._perlin
             }
@@ -116,7 +117,7 @@ FILTER.Create({
             self._offsets = params._offsets;
             self._seed = params._seed || 0;
             self._stitch = params._stitch;
-            self._colors = params._colors;
+            self._mode = params._mode;
             self._fractal = params._fractal;
             self._perlin = params._perlin;
         }
@@ -132,7 +133,7 @@ FILTER.Create({
             perlin_noise.seed( self._seed );
             self._seed = 0;
         }
-        return perlin_noise( im, w, h, self._stitch, !self._colors, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+        return perlin_noise( im, w, h, self._stitch, MODE.COLOR !== self._mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
     }
 });
 

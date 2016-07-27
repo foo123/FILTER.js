@@ -67,7 +67,7 @@ function parse_args( args )
 var path = require('path'), F = require('../../build/filter.bundle'),
     image = F.Image().restorable(false).fill(0, 0, 0, 200, 200),
     shadow = new F.CompositeFilter([
-        new F.RadialGradientFilter( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 80, 80 ),
+        new F.RadialGradientFilter( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 0.4, 0.4 ),
         new F.DropShadowFilter( 10, 10, 0x0, 0.5, 1 )
     ])
 ;

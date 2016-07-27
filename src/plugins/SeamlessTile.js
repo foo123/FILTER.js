@@ -12,12 +12,12 @@
 FILTER.Create({
     name: "SeamlessTileFilter"
     
-    ,type: 0 // 0 radial, 1 linear 1, 2 linear 2
+    ,type: 2 // 0 radial, 1 linear 1, 2 linear 2
     
     // constructor
-    ,init: function( tiling_type ) {
+    ,init: function( mode ) {
         var self = this;
-        self.type = tiling_type || 0;
+        self.type = null == mode ? 2 : (mode||0);
     }
     
     // support worker serialize/unserialize interface
@@ -55,7 +55,8 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         var self = this, masktype = self.type,
-            resize = FILTER.Interpolation.bilinear, IMG = FILTER.ImArray,
+            resize = FILTER.Interpolation.bilinear,
+            IMG = FILTER.ImArray, A8U = FILTER.Array8U,
             //needed arrays
             diagonal, tile, mask, a1, a2, a3, d, i, j, k, 
             index, N, N2, size, imSize, sqrt = Math.sqrt;
@@ -68,56 +69,72 @@ FILTER.Create({
         size = N*N; imSize = im.length;
         diagonal = new IMG(imSize);
         tile = new IMG(imSize);
-        mask = new FILTER.Array8U(size);
+        mask = new A8U(size);
 
         for (i=0,j=0,k=0; k<imSize; k+=4,i++)
         {
             if ( i >= N ) {i=0; j++;}
             index = ((i+N2)%N + ((j+N2)%N)*N)<<2;
-            diagonal[ index   ] = im[ k ];
-            diagonal[ index+1 ] = im[ k+1 ];
-            diagonal[ index+2 ] = im[ k+2 ];
-            diagonal[ index+3 ] = im[ k+3 ];
+            diagonal[index  ] = im[k  ];
+            diagonal[index+1] = im[k+1];
+            diagonal[index+2] = im[k+2];
+            diagonal[index+3] = im[k+3];
         }
 
         //try to make your own masktypes here
-        //Create the mask
-        for (i=0,j=0; i<N2; j++)
+        if ( 0 === masktype ) //RADIAL
         {
-            if ( j >= N2 ) { j=0; i++; }
-            switch(masktype)
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
             {
-                case 0://RADIAL
-                d = sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2;
-                break;
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * sqrt((i-N2)*(i-N2) + (j-N2)*(j-N2)) / N2);
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
 
-                case 1://LINEAR 1
-                if ( (N2-i) < (N2-j) )
-                    d = (j-N2)/N2;
-
-                else //if ( (N2-i) >= (N2-j) )
-                    d = (i-N/2)/N2;
-                break;
-
-                case 2://LINEAR 2
-                default:
-                if ( (N2-i) < (N2-j) )
-                    d = sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N);
-
-                else //if ( (N2-i)>=(N2-j) )
-                    d = sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N);
-                break;
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
             }
-            //Scale d To range from 1 To 255
-            d = 255 - (255 * d);
-            if (d < 1) d = 1;
-            else if (d > 255) d = 255;
+        }
+        else if ( 1 === masktype ) //LINEAR 1
+        {
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
+            {
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * (N2+j < N2+i ? (j-N2)/N2 : (i-N/2)/N2));
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
 
-            //Form the mask in Each quadrant
-            mask [i     + j*N      ] = d;
-            mask [i     + (N-1-j)*N] = d;
-            mask [N-1-i + j*N      ] = d;
-            mask [N-1-i + (N-1-j)*N] = d;
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
+            }
+        }
+        else //if ( 2 === masktype ) //LINEAR 2
+        {
+            //Create the mask
+            for (i=0,j=0; i<N2; j++)
+            {
+                if ( j >= N2 ) { j=0; i++; }
+                
+                //Scale d To range from 1 To 255
+                d = 255 - (255 * (N2+j < N2+i ? sqrt((j-N)*(j-N) + (i-N)*(i-N)) / (1.13*N) : sqrt((i-N)*(i-N) + (j-N)*(j-N)) / (1.13*N)));
+                d = d < 1 ? 1 : (d > 255 ? 255 : d);
+
+                //Form the mask in Each quadrant
+                mask [i     + j*N      ] = d;
+                mask [i     + (N-1-j)*N] = d;
+                mask [N-1-i + j*N      ] = d;
+                mask [N-1-i + (N-1-j)*N] = d;
+            }
         }
 
         //Create the tile
@@ -127,7 +144,7 @@ FILTER.Create({
             index = i+j*N;
             a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
             a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-            tile[index  ] = ~~(a1*im[index]   + a2*diagonal[index]);
+            tile[index  ] = ~~(a1*im[index  ] + a2*diagonal[index  ]);
             tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
             tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
             tile[index+3] = im[index+3];

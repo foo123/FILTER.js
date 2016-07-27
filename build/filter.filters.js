@@ -396,7 +396,7 @@ var Sin = Math.sin, Cos = Math.cos,
     // Color Matrix
     CM = FILTER.Array32F, TypedArray = FILTER.Util.Array.typed,
     toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    notSupportClamp = FILTER._notSupportClamp
+    CHANNEL = FILTER.CHANNEL, notSupportClamp = FILTER._notSupportClamp
 ;
 
 //
@@ -466,11 +466,10 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // get the image color channel as a new image
     ,channel: function( ch, asGray ) {
-        asGray = ( asGray === undef ) ? false : asGray;
-        var f = ( asGray ) ? 1 : 0;
+        var f = !!asGray ? 1 : 0;
         switch(ch)
         {
-            case FILTER.CHANNEL.ALPHA:
+            case CHANNEL.ALPHA:
                 return this.set([
                         0, 0, 0, 1, 0, 
                         0, 0, 0, 1, 0, 
@@ -479,7 +478,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     ]);
                 break;
             
-            case FILTER.CHANNEL.BLUE:
+            case CHANNEL.BLUE:
                 return this.set([
                         0, 0, f, 0, 0, 
                         0, 0, f, 0, 0, 
@@ -488,7 +487,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     ]);
                 break;
             
-            case FILTER.CHANNEL.GREEN:
+            case CHANNEL.GREEN:
                 return this.set([
                         0, f, 0, 0, 0, 
                         0, 1, 0, 0, 0, 
@@ -497,7 +496,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                     ]);
                 break;
             
-            case FILTER.CHANNEL.RED:
+            case CHANNEL.RED:
             default:
                 return this.set([
                         1, 0, 0, 0, 0, 
@@ -512,32 +511,32 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     // aliases
     // get the image red channel as a new image
     ,redChannel: function( asGray ) {
-        return this.channel(FILTER.CHANNEL.RED, asGray);
+        return this.channel(CHANNEL.RED, asGray);
     }
     
     // get the image green channel as a new image
     ,greenChannel: function( asGray ) {
-        return this.channel(FILTER.CHANNEL.GREEN, asGray);
+        return this.channel(CHANNEL.GREEN, asGray);
     }
     
     // get the image blue channel as a new image
     ,blueChannel: function( asGray ) {
-        return this.channel(FILTER.CHANNEL.BLUE, asGray);
+        return this.channel(CHANNEL.BLUE, asGray);
     }
     
     // get the image alpha channel as a new image
     ,alphaChannel: function( asGray ) {
-        return this.channel(FILTER.CHANNEL.ALPHA, true);
+        return this.channel(CHANNEL.ALPHA, true);
     }
     
     ,maskChannel: function( ch ) {
         switch( ch )
         {
-            case FILTER.CHANNEL.ALPHA:
+            case CHANNEL.ALPHA:
                 return this;
                 break;
             
-            case FILTER.CHANNEL.BLUE:
+            case CHANNEL.BLUE:
                 return this.set([
                     1, 0, 0, 0, 0, 
                     0, 1, 0, 0, 0, 
@@ -546,7 +545,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 ]);
                 break;
             
-            case FILTER.CHANNEL.GREEN:
+            case CHANNEL.GREEN:
                 return this.set([
                     1, 0, 0, 0, 0, 
                     0, 0, 0, 0, 0, 
@@ -555,7 +554,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 ]);
                 break;
             
-            case FILTER.CHANNEL.RED:
+            case CHANNEL.RED:
             default:
                 return this.set([
                     0, 0, 0, 0, 0, 
@@ -570,14 +569,14 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,swapChannels: function( ch1, ch2 ) {
         switch( ch1 )
         {
-            case FILTER.CHANNEL.ALPHA:
+            case CHANNEL.ALPHA:
                 switch( ch2 )
                 {
-                    case FILTER.CHANNEL.ALPHA:
+                    case CHANNEL.ALPHA:
                         return this;
                         break;
                     
-                    case FILTER.CHANNEL.BLUE:
+                    case CHANNEL.BLUE:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 1, 0, 0, 0, 
@@ -586,7 +585,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.GREEN:
+                    case CHANNEL.GREEN:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 0, 0, 1, 0, 
@@ -595,7 +594,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.RED:
+                    case CHANNEL.RED:
                     default:
                         return this.set([
                                 0, 0, 0, 1, 0, 
@@ -607,10 +606,10 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 }
                 break;
             
-            case FILTER.CHANNEL.BLUE:
+            case CHANNEL.BLUE:
                 switch( ch2 )
                 {
-                    case FILTER.CHANNEL.ALPHA:
+                    case CHANNEL.ALPHA:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 1, 0, 0, 0, 
@@ -619,11 +618,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.BLUE:
+                    case CHANNEL.BLUE:
                         return this;
                         break;
                     
-                    case FILTER.CHANNEL.GREEN:
+                    case CHANNEL.GREEN:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 0, 1, 0, 0, 
@@ -632,7 +631,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.RED:
+                    case CHANNEL.RED:
                     default:
                         return this.set([
                                 0, 0, 1, 0, 0, 
@@ -644,10 +643,10 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 }
                 break;
             
-            case FILTER.CHANNEL.GREEN:
+            case CHANNEL.GREEN:
                 switch( ch2 )
                 {
-                    case FILTER.CHANNEL.ALPHA:
+                    case CHANNEL.ALPHA:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 0, 0, 1, 0, 
@@ -656,7 +655,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.BLUE:
+                    case CHANNEL.BLUE:
                         return this.set([
                                 1, 0, 0, 0, 0, 
                                 0, 0, 1, 0, 0, 
@@ -665,11 +664,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.GREEN:
+                    case CHANNEL.GREEN:
                         return this;
                         break;
                     
-                    case FILTER.CHANNEL.RED:
+                    case CHANNEL.RED:
                     default:
                         return this.set([
                                 0, 1, 0, 0, 0, 
@@ -681,11 +680,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                 }
                 break;
             
-            case FILTER.CHANNEL.RED:
+            case CHANNEL.RED:
             default:
                 switch( ch2 )
                 {
-                    case FILTER.CHANNEL.ALPHA:
+                    case CHANNEL.ALPHA:
                         return this.set([
                                 0, 0, 0, 1, 0, 
                                 0, 1, 0, 0, 0, 
@@ -694,7 +693,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.BLUE:
+                    case CHANNEL.BLUE:
                         return this.set([
                                 0, 0, 1, 0, 0, 
                                 0, 1, 0, 0, 0, 
@@ -703,7 +702,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.GREEN:
+                    case CHANNEL.GREEN:
                         return this.set([
                                 0, 1, 0, 0, 0, 
                                 1, 0, 0, 0, 0, 
@@ -712,7 +711,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
                             ]);
                         break;
                     
-                    case FILTER.CHANNEL.RED:
+                    case CHANNEL.RED:
                     default:
                         return this;
                         break;
@@ -904,22 +903,36 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
-        return this.set([
-            0.5, -0.418688, -0.081312, 0, 128,  // Cr component in RED channel
-            0.299, 0.587, 0.114, 0, 0,   // Y component in GREEN channel
-            -0.168736, -0.331264, 0.5, 0, 128,  // Cb component in BLUE channel
-            0, 0, 0, 1, 0
-        ]);
+        var m = [
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 1, 0
+            ], 
+            R = CHANNEL.R, G = CHANNEL.G, B = CHANNEL.B,
+            Y = CHANNEL.Y, CB = CHANNEL.CB, CR = CHANNEL.CR
+        ;
+        m[Y*5+R] = 0.299; m[Y*5+G] = 0.587; m[Y*5+B] = 0.114; m[Y*5+3] = 0; m[Y*5+4] = 0;
+        m[CB*5+R] = -0.168736; m[CB*5+G] = -0.331264; m[CB*5+B] = 0.5; m[CB*5+3] = 0; m[CB*5+4] = 128;
+        m[CR*5+R] = 0.5; m[CR*5+G] = -0.418688; m[CR*5+B] = -0.081312; m[CR*5+3] = 0; m[CR*5+4] = 128;
+        return this.set(m);
     }
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
-        return this.set([
-            1.402, 1, 0, 0, -179.456,  
-            -0.71414, 1, -0.34414, 0, 135.45984,
-            0, 1, 1.772, 0, -226.816,
-            0, 0, 0, 1, 0
-        ]);
+        var m = [
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 1, 0
+            ],
+            R = CHANNEL.R, G = CHANNEL.G, B = CHANNEL.B,
+            Y = CHANNEL.Y, CB = CHANNEL.CB, CR = CHANNEL.CR
+        ;
+        m[R*5+Y] = 1; m[R*5+CB] = 0; m[R*5+CR] = 1.402; m[R*5+3] = 0; m[R*5+4] = -179.456;
+        m[G*5+Y] = 1; m[G*5+CB] = -0.34414; m[G*5+CR] = -0.71414; m[G*5+3] = 0; m[G*5+4] = 135.45984;
+        m[B*5+Y] = 1; m[B*5+CB] = 1.772; m[B*5+CR] = 0; m[B*5+3] = 0; m[B*5+4] = -226.816;
+        return this.set(m);
     }
     
     // blend with another filter
@@ -3280,7 +3293,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices
-            ;
+        ;
         
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
         if (mat2) // allow to compute a second matrix in-parallel in same pass
@@ -3311,9 +3324,11 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;  a += im[srcOff+3] * wt;
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
                         // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;  a2 += im[srcOff+3] * wt2;
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        //a2 += im[srcOff+3] * wt2;
                     }
                 }
                 
@@ -3334,17 +3349,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
                     if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         else
@@ -3376,7 +3391,8 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt; a += im[srcOff+3] * wt;
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -3390,17 +3406,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff1*a + coeff2;
                     if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         return dst;

@@ -435,7 +435,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices
-            ;
+        ;
         
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
         if (mat2) // allow to compute a second matrix in-parallel in same pass
@@ -466,9 +466,11 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;  a += im[srcOff+3] * wt;
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
                         // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;  a2 += im[srcOff+3] * wt2;
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        //a2 += im[srcOff+3] * wt2;
                     }
                 }
                 
@@ -489,17 +491,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
                     if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         else
@@ -531,7 +533,8 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                     {
                         srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt; a += im[srcOff+3] * wt;
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
                     }
                 }
                 
@@ -545,17 +548,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                if ( rgba )
+                /*if ( rgba )
                 {
                     t3 = coeff1*a + coeff2;
                     if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
                     dst[i+3] = ~~t3;
                 }
                 else
-                {
+                {*/
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                }
+                /*}*/
             }
         }
         return dst;

@@ -3,15 +3,22 @@
 __0.9.5__
 
 * fix any nodejs portability emulation and parallel threads issues
-* fix some typos in Color utility and plugins
+* fix some typos in `Color` utility and plugins
 * restructure utiltiies and folders (e.g Math, String, Array, Image, Filter utils ..)
-* new effects utiltiies and plugins `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter,Image`
+* new effects utiltiies and plugins `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter.Image`
 * new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
 * new plugin `DropShadowFilter` (analogous to ActionScript filter)
 * new plugin `ConnectedComponentsFilter`
+* new and faster approximate algorithm for `Pixelate`, `TriangularPixelate`, `HexagonalPixelate`, all included in `Pixelate` plugin file
+* add `channel` parameter to `AlphaMask` filter so any channel can serve as the `ALPHA` channel (default is `ALPHA` channel)
+* `Threshold` filter can operate in `color`, `intensity` or `hue` mode (e.g similar to `HueExtractor` filter)
+* `HSVConverter` can operate in (faster) `onlyHue`, mode i.e generate grayscale image which encodes only the `hue` channel
+* make histogram equalisation faster, some convolutions faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
+* histogram equalize filter is now one filter with mode parameter (defined in FILTER.MODE) for type of equalisation (i.e MODE.COLOR, MODE.GRAY, MODE.RGB)
+* a number of filters have been combined or extended to support various modes of operation defined in FILTER.MODE (see examples)
+* add extra static utilities in `Color` class (`.intensity`, `.hue`, `.saturation`)
+* make parallel thread calls faster (both browser and nodejs), update asynchronous
 * heavy refactoring and optimisations
-* make paralle thread calls faster (both browser and nodejs), update asynchronous
-* make histogram equalisation faster, some convolutions faster and fix some typos, pixelation faster, hue extraction faster, .. (up to consistent 60 fps processing)
 * update examples (both live browser and nodejs)
 
 

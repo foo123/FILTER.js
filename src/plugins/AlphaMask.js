@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor=Math.floor;
+var notSupportClamp = FILTER._notSupportClamp, CHANNEL = FILTER.CHANNEL, Min = Math.min, Floor=Math.floor;
 
 // a plugin to mask an image using the alpha channel of another image
 FILTER.Create({
@@ -18,15 +18,17 @@ FILTER.Create({
     ,alphaMask: null
     ,centerX: 0
     ,centerY: 0
+    ,channel: CHANNEL.ALPHA
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( alphaMask, centerX, centerY ) {
+    ,init: function( alphaMask, centerX, centerY, channel ) {
         var self = this;
         self.centerX = centerX||0;
         self.centerY = centerY||0;
+        self.channel = null == channel ? CHANNEL.ALPHA : (channel||CHANNEL.RED);
         self._alphaMask = null;
         self.alphaMask = null;
         if ( alphaMask ) self.setMask( alphaMask );
@@ -34,6 +36,9 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
+        self.centerX = null;
+        self.centerY = null;
+        self.channel = null;
         self.alphaMask = null;
         self._alphaMask = null;
         self.$super('dispose');
@@ -60,6 +65,7 @@ FILTER.Create({
                 _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
                 ,centerX: self.centerX
                 ,centerY: self.centerY
+                ,channel: self.channel
             }
         };
     }
@@ -77,6 +83,7 @@ FILTER.Create({
             if ( self._alphaMask ) self._alphaMask.data = FILTER.Util.Array.typed( self._alphaMask.data, FILTER.ImArray );
             self.centerX = params.centerX;
             self.centerY = params.centerY;
+            self.channel = params.channel;
         }
         return self;
     }
@@ -95,9 +102,10 @@ FILTER.Create({
         
         var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
             alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
-            i, l = im.length, l2 = alpha.length, 
+            i, l = im.length, l2 = alpha.length,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  
+            channel = null==self.channel?CHANNEL.ALPHA:(self.channel||CHANNEL.RED),
             cX = self.centerX||0, cY = self.centerY||0, 
             cX2 = (w2>>1), cY2 = (h2>>1)
         ;
@@ -115,9 +123,9 @@ FILTER.Create({
             xc = x - cX; yc = y - cY;
             if (xc>=0 && xc<wm && yc>=0 && yc<hm)
             {
-                // copy alpha channel
+                // copy (alpha) channel
                 off = (xc + yc*w2)<<2;
-                im[i+3] = alpha[off+3];
+                im[i+3] = alpha[off+channel];
             }
             else
             {

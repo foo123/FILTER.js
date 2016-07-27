@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-26 14:24:06
+*   @built on 2016-07-28 00:22:26
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-26 14:24:06
+*   @built on 2016-07-28 00:22:26
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -149,11 +149,16 @@ FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 // Constants
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
-    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3
+    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
+    Y: 1, CB: 2, CR: 0,
+    H: 0, S: 1, V: 2, I: 2,
+    HUE: 0, SATURATION: 1, INTENSITY: 2
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
-    COLOR: 3, TILE: 4, STRETCH: 5
+    COLOR: 3, TILE: 4, STRETCH: 5,
+    INTENSITY: 6, HUE: 7, SATURATION: 8,
+    GRAY: 9, RGB: 10, HSV: 11
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -2105,7 +2110,7 @@ var Color = FILTER.Color = FILTER.Class({
         
         hue: function( r, g, b ) {
             var M = max( r, g, b );
-            return (0 === M) || (r === g && g === b)
+            return r === g && g === b
             ? 0
             : (r === M
             ? 60 * abs( g - b ) / (M - min( r, g, b ))
@@ -2113,6 +2118,11 @@ var Color = FILTER.Color = FILTER.Class({
             ? 120 + 60 * abs( b - r ) / (M - min( r, g, b ))
             : 240 + 60 * abs( r - g ) / (M - min( r, g, b ))))
             ;
+        },
+        
+        saturation: function( r, g, b ) {
+            var M = max( r, g, b );
+            return r === g && g === b ? 0 : 255 * (M-min( r, g, b )) / M;
         },
         
         distance: function( rgb1, rgb2 ) {
@@ -2167,27 +2177,25 @@ var Color = FILTER.Color = FILTER.Class({
 
             r=rgb[0]; g=rgb[1]; b=rgb[2];
             
-            m = min( r, g, b );  M = max( r, g, b );  delta = M - m;
+            M = max( r, g, b );
             v = M;                // v
 
-            if ( (0 === M) || ( r === g && g === b) )
+            if ( r === g && g === b )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0;  h = 0; //h = -1;
                 return [h, s, v];
             }
-            else 
-            {
-                s = delta / M;        // s
-            }
+            m = min( r, g, b );
+            delta = M - m;
+            s = delta / M;        // s
 
-            if( r === M )    h = 60 * abs( g - b ) / delta;        // between yellow & magenta
-            else if ( g === M )  h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
-            else   h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
+            if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
+            else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
+            else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
 
             //h *= 60;                // degrees
             //if( h < 0 )  h += 360;
-            
             return [h, s, v];
         },
         
@@ -2208,7 +2216,9 @@ var Color = FILTER.Color = FILTER.Class({
             h /= 60;            // sector 0 to 5
             i = ~~h;
             f = h - i;          // fractional part of h
-            p = v * ( 1 - s );   q = v * ( 1 - s * f );  t = v * ( 1 - s * ( 1 - f ) );
+            p = v * ( 1 - s );
+            q = v * ( 1 - s * f );
+            t = v * ( 1 - s * ( 1 - f ) );
 
             if ( 0 === i )      { r = v; g = t; b = p; }
             else if ( 1 === i ) { r = q;  g = v; b = p; }

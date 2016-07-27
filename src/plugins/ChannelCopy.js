@@ -7,8 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, Min = Math.min, Floor = Math.floor,
-    R = FILTER.CHANNEL.RED, G = FILTER.CHANNEL.GREEN, B = FILTER.CHANNEL.BLUE, A = FILTER.CHANNEL.ALPHA;
+var Min = Math.min, Floor = Math.floor, CHANNEL = FILTER.CHANNEL;
 
 // a plugin to copy a channel of an image to a channel of another image
 FILTER.Create({
@@ -19,8 +18,8 @@ FILTER.Create({
     ,srcImg: null
     ,centerX: 0
     ,centerY: 0
-    ,srcChannel: 0
-    ,dstChannel: 0
+    ,srcChannel: CHANNEL.RED
+    ,dstChannel: CHANNEL.RED
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -30,8 +29,8 @@ FILTER.Create({
         var self = this;
         self._srcImg = null;
         self.srcImg = null;
-        self.srcChannel = srcChannel || R;
-        self.dstChannel = dstChannel || R;
+        self.srcChannel = srcChannel || CHANNEL.RED;
+        self.dstChannel = dstChannel || CHANNEL.RED;
         self.centerX = centerX || 0;
         self.centerY = centerY || 0;
         if ( srcImg ) self.setSrc( srcImg );
@@ -39,6 +38,10 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
+        self.srcChannel = null;
+        self.dstChannel = null;
+        self.centerX = null;
+        self.centerY = null;
         self.srcImg = null;
         self._srcImg = null;
         self.$super('dispose');

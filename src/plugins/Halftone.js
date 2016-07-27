@@ -8,6 +8,7 @@
 "use strict";
 
 var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
+    MODE = FILTER.MODE,
     A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
     RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
 
@@ -19,34 +20,29 @@ FILTER.Create({
     name: "HalftoneFilter"
     
     // parameters
-    ,_threshold: 0.4
-    ,_size: 1
-    ,_grayscale: false
+    ,size: 1
+    ,thresh: 0.4
+    ,mode: MODE.GRAY
     
     // this is the filter constructor
-    ,init: function( size, threshold, grayscale ) {
+    ,init: function( size, threshold, mode ) {
         var self = this;
-        self._size = size || 1;
-        self._threshold = clamp(undef === threshold ? 0.4 : threshold,0,1);
-        self._grayscale = !!grayscale;
+        self.size = size || 1;
+        self.thresh = clamp(null == threshold ? 0.4 : threshold,0,1);
+        self.mode = mode || MODE.GRAY;
     }
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
-    ,size: function( s ) {
-        this._size = s;
-        return this;
-    }
-    
     ,threshold: function( t ) {
-        this._threshold = clamp(t,0,1);
+        this.thresh = clamp(t,0,1);
         return this;
     }
     
     ,grayscale: function( bool ) {
         if ( !arguments.length ) bool = true;
-        this._grayscale = !!bool;
+        this.mode = !!bool ? MODE.GRAY : MODE.RGB;
         return this;
     }
     
@@ -57,9 +53,9 @@ FILTER.Create({
             ,_isOn: !!self._isOn
             
             ,params: {
-                _size: self._size
-                ,_threshold: self._threshold
-                ,_grayscale: self._grayscale
+                 size: self.size
+                ,thresh: self.thresh
+                ,mode: self.mode
             }
         };
     }
@@ -72,9 +68,9 @@ FILTER.Create({
             
             params = json.params;
             
-            self._size = params._size;
-            self._threshold = params._threshold;
-            self._grayscale = params._grayscale;
+            self.size = params.size;
+            self.thresh = params.thresh;
+            self.mode = params.mode;
         }
         return self;
     }
@@ -83,9 +79,9 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this, l = im.length, imSize = l>>>2,
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
-            size = self._size, area = size*size, invarea = 1.0/area,
-            threshold = 255*self._threshold, size2 = size2<<1,
-            colored = !self._grayscale,
+            size = self.size, area = size*size, invarea = 1.0/area,
+            threshold = 255*self.thresh, size2 = size2<<1,
+            colored = MODE.RGB === self.mode,
             x, y, yw, sw = size*w, i, j, jw, 
             sum_r, sum_g, sum_b, qr, qg, qb
             ,f11 = /*area**/f1, f22 = /*area**/f2

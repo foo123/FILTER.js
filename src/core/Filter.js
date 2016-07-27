@@ -108,11 +108,16 @@ FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 // Constants
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
-    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3
+    RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
+    Y: 1, CB: 2, CR: 0,
+    H: 0, S: 1, V: 2, I: 2,
+    HUE: 0, SATURATION: 1, INTENSITY: 2
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
-    COLOR: 3, TILE: 4, STRETCH: 5
+    COLOR: 3, TILE: 4, STRETCH: 5,
+    INTENSITY: 6, HUE: 7, SATURATION: 8,
+    GRAY: 9, RGB: 10, HSV: 11
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
