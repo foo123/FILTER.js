@@ -16,6 +16,7 @@ __0.9.5__
 * make histogram equalisation faster, some convolutions faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
 * histogram equalize filter is now one filter with mode parameter (defined in FILTER.MODE) for type of equalisation (i.e MODE.COLOR, MODE.GRAY, MODE.RGB)
 * color space conversions made faster and more generic
+* add custom `selection` option plus `tolerance` to `HaarDetector` plugin so it can detect in a region of image instead of whole (useful for combining detectors to detect different feaures consecutively, where one detects in region detected previously..)
 * a number of filters have been combined or extended to support various modes of operation defined in FILTER.MODE (see examples)
 * add extra static utilities in `Color` class (`.intensity`, `.hue`, `.saturation`)
 * make parallel thread calls faster (both browser and nodejs), update asynchronous
