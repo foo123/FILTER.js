@@ -15,6 +15,7 @@ __0.9.5__
 * `HSVConverter` can operate in (faster) `onlyHue`, mode i.e generate grayscale image which encodes only the `hue` channel
 * make histogram equalisation faster, some convolutions faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
 * histogram equalize filter is now one filter with mode parameter (defined in FILTER.MODE) for type of equalisation (i.e MODE.COLOR, MODE.GRAY, MODE.RGB)
+* color space conversions made faster and more generic
 * a number of filters have been combined or extended to support various modes of operation defined in FILTER.MODE (see examples)
 * add extra static utilities in `Color` class (`.intensity`, `.hue`, `.saturation`)
 * make parallel thread calls faster (both browser and nodejs), update asynchronous

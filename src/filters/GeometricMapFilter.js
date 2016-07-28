@@ -18,7 +18,9 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
     Sin = Math.sin, Cos = Math.cos, 
     Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
     Asin = Math.asin, Tan = Math.tan, Abs = Math.abs, Max = Math.max,
-    Maps
+    Maps, FilterUtil = FILTER.Util.Filter, generic_transform = FilterUtil.generic_transform,
+    affine_transform = FilterUtil.affine_transform, cyclic_shift = FilterUtil.cyclic_shift,
+    flip_x = FilterUtil.flip_x, flip_y = FilterUtil.flip_y, flip_xy = FilterUtil.flip_xy
 ;
 
 
@@ -212,16 +214,16 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,polar: function( centerX, centerY ) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "polar";  
-        self._map = Maps.polar; 
+        self._mapName = null;//"polar";  
+        self._map = null; 
         return self;
     }
     
     ,cartesian: function( centerX, centerY ) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "cartesian";  
-        self._map = Maps.cartesian; 
+        self._mapName = null;//"cartesian";  
+        self._map = null; 
         return self;
     }
     
@@ -244,11 +246,11 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     
     ,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
         var self = this;
-        self.radius = (radius!==undef) ? radius : 50; 
+        self.radius = radius!==undef ? radius : 50; 
         self.centerX = centerX||0; 
         self.centerY = centerY||0;
-        self.wavelength = (wavelength!==undef) ? wavelength : 16; 
-        self.amplitude = (amplitude!==undef) ? amplitude : 10; 
+        self.wavelength = wavelength!==undef ? wavelength : 16; 
+        self.amplitude = amplitude!==undef ? amplitude : 10; 
         self.phase = phase||0;
         self._mapName = "ripple";  
         self._map = Maps.ripple; 
@@ -257,8 +259,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     
     ,shift: function( dx, dy ) {
         var self = this;
-        self.dx = (dx!==undef) ? dx : 0; 
-        self.dy = (dy!==undef) ? dy : self.dx; 
+        self.dx = dx!==undef ? dx : 0; 
+        self.dy = dy!==undef ? dy : self.dx; 
         self._mapName = "shift";  
         self._map = Maps.shift; 
         return self;
@@ -303,148 +305,27 @@ GeometricMapFilter.prototype.translate = GeometricMapFilter.prototype.shift;
 /*function trivialMap(im, w, h) { return im; },*/
 Maps = {
     "generic": function( self, im, w, h )  {
-        var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
-            invTransform=self.inverseTransform, mode=self.mode,
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            t, tx, ty
-        ;
-        
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            t = invTransform([x, y], w, h); tx = ~~(t[0]); ty = ~~(t[1]);
-            if (0>tx || tx>=w || 0>ty || ty>=h)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (ty>=h) ty-=h;
-                        else if (ty<0) ty+=h;
-                        if (tx>=w) tx-=w;
-                        else if (tx<0)  tx+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (ty>=h)  ty=h-1;
-                        else if (ty<0) ty=0;
-                        if (tx>=w) tx=w-1;
-                        else if (tx<0) tx=0;
-                        break;
-                }
-            }
-            j = (tx + ty*w)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return generic_transform( im, w, h, self.inverseTransform, self.mode );
     }
 
     ,"affine": function( self, im, w, h ) {
-        var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
-            tyw, cw, dw, mode=self.mode,
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            nx, ny, bx=w-1, by=imArea-w
-        ;
-        
-        x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
-            if (0>nx || nx>bx || 0>ny || ny>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (ny>by) ny-=imArea;
-                        else if (ny<0) ny+=imArea;
-                        if (nx>=w) nx-=w;
-                        else if (nx<0)  nx+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (ny>by)  ny=by;
-                        else if (ny<0) ny=0;
-                        if (nx>bx) nx=bx;
-                        else if (nx<0) nx=0;
-                        break;
-                }
-            }
-            j = (nx + ny)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return affine_transform( im, w, h, self.matrix[0], self.matrix[1], self.matrix[3], self.matrix[4], self.matrix[2], self.matrix[5], self.mode );
     }
 
     ,"shift": function( self, im, w, h ) {
-        var x, y, yw, i, j, l=im.length, dst=new IMG(l),
-            dx = -self.dx, dy = -self.dy;
-        
-        if ( dx < 0 ) dx += w;
-        if ( dy < 0 ) dy += h;
-        
-        x=0; y=0; yw=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; }
-            
-            j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return cyclic_shift( im, w, h, -self.dx, -self.dy );
     }
     
     ,"flipX": function( self, im, w, h ) {
-        var x, y, yw, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; }
-            
-            j = (w-1-x+yw)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_x( im, w, h );
     }
     
     ,"flipY": function flipYMap( self, im, w, h ) {
-        var x, y, yw2, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw2=(h-1)*w;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw2-=w; }
-            
-            j = (x+yw2)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_y( im, w, h );
     }
     
     ,"flipXY": function( self, im, w, h )  {
-        var x, y, yw, yw2, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw2=(h-1)*w;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; yw2-=w; }
-            
-            j = (w-1-x+yw2)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_xy( im, w, h );
     }
     
     ,"rotateCW": function( self, im, w, h )  {
@@ -505,24 +386,21 @@ Maps = {
             {
                 theta = Atan2(ty, tx) + fact*(radius-d);
                 tx = ~~(cX + d*Cos(theta));  ty = ~~(cY + d*Sin(theta));
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -560,30 +438,27 @@ Maps = {
             tx = x - cX;  ty = y - cY;
             tx2 = tx*tx; ty2 = ty*ty;
             r2 = tx2 + ty2;
-            if (r2 < radius2)
+            if ( r2 < radius2 )
             {
                 d2 = radius2 - r2; ds = Sqrt(d2);
                 thetax = Asin(tx / Sqrt(tx2 + d2)) * invrefraction;
                 thetay = Asin(ty / Sqrt(ty2 + d2)) * invrefraction;
                 tx = ~~(x - ds * Tan(thetax));  ty = ~~(y - ds * Tan(thetay));
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -630,24 +505,21 @@ Maps = {
                 if (d)  amount *= wavelength/d;
                 tx = ~~(x + tx*amount);  ty = ~~(y + ty*amount);
                 
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -714,181 +586,6 @@ Maps = {
         return im;
     }
     */
-    ,"polar": function( self, im, w, h ) {
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            tx, ty, ix, iy, ip,
-            bx = w-1, by = h-1, 
-            theta, r=0, radius, cX, cY, 
-            mode = self.mode
-        ;
-        
-        cX = ~~(0.5*w + 0.5);
-        cY = ~~(0.5*h + 0.5);
-        radius = Max(cY, cX);
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x-cX;
-            ty = y-cY;
-            theta = 0;
-            
-            if (tx >= 0) 
-            {
-                if (ty > 0) 
-                {
-                    theta = PI - Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else if (ty < 0) 
-                {
-                    theta = Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else 
-                {
-                    theta = HalfPI;
-                    r = tx;
-                }
-            } 
-            else if (tx < 0) 
-            {
-                if (ty < 0) 
-                {
-                    theta = DoublePI - Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else if (ty > 0) 
-                {
-                    theta = PI + Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else 
-                {
-                    theta = ThreePI2;
-                    r = -tx;
-                }
-            }
-            // inverse transform
-            ix = (w-1) - (w-1)/DoublePI * theta;
-            iy = (h * r / radius);
-            ix = Round(ix); iy = Round(iy);
-            if (0>ix || ix>bx || 0>iy || iy>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (iy>by) iy-=h;
-                        else if (iy<0) iy+=h;
-                        if (ix>bx) ix-=w;
-                        else if (ix<0)  ix+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (iy>by)  iy=by;
-                        else if (iy<0) iy=0;
-                        if (ix>bx) ix=bx;
-                        else if (ix<0) ix=0;
-                        break;
-                }
-            }
-            ip = ( ix + iy*w ) << 2;
-            im[i] = imcopy[ ip ];
-            im[i+1] = imcopy[ ip+1 ];
-            im[i+2] = imcopy[ ip+2 ];
-            im[i+3] = imcopy[ ip+3 ];
-        }
-        return im;
-    }
-    
-    // adapted from http://www.jhlabs.com/ip/filters/
-    ,"cartesian": function( self, im, w, h ) {
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            ix, iy, ip, nx, ny,
-            bx = w-1, by = h-1, 
-            theta, theta2, r=0, radius, cX, cY, 
-            mode = self.mode
-        ;
-        
-        cX = ~~(0.5*w + 0.5);
-        cY = ~~(0.5*h + 0.5);
-        radius = Max(cY, cX);
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            theta = x / w * DoublePI;
-
-            if (theta >= ThreePI2)
-                theta2 = DoublePI - theta;
-            else if (theta >= PI)
-                theta2 = theta - PI;
-            else if (theta >= HalfPI)
-                theta2 = PI - theta;
-            else
-                theta2 = theta;
-            r = radius * (y / h);
-
-            nx = -r * Sin(theta2);
-            ny = r * Cos(theta2);
-            
-            if (theta >= ThreePI2) 
-            {
-                ix = cX - nx;
-                iy = cY - ny;
-            } 
-            else if (theta >= PI) 
-            {
-                ix = cX - nx;
-                iy = cY + ny;
-            } 
-            else if (theta >= HalfPI) 
-            {
-                ix = cX + nx;
-                iy = cY + ny;
-            } 
-            else 
-            {
-                ix = cX + nx;
-                iy = cY - ny;
-            }
-            // inverse transform
-            ix = Round(ix); iy = Round(iy);
-            if (0>ix || ix>bx || 0>iy || iy>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (iy>by) iy-=h;
-                        else if (iy<0) iy+=h;
-                        if (ix>bx) ix-=w;
-                        else if (ix<0)  ix+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (iy>by)  iy=by;
-                        else if (iy<0) iy=0;
-                        if (ix>bx) ix=bx;
-                        else if (ix<0) ix=0;
-                        break;
-                }
-            }
-            ip = ( ix + iy*w ) << 2;
-            im[i] = imcopy[ ip ];
-            im[i+1] = imcopy[ ip+1 ];
-            im[i+2] = imcopy[ ip+2 ];
-            im[i+3] = imcopy[ ip+3 ];
-        }
-        return im;
-    }
 };
 
 }(FILTER);

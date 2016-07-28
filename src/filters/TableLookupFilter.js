@@ -15,19 +15,8 @@
 "use strict";
 
 // color table
-var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-    TypedArray = FILTER.Util.Array.typed,
-    eye = function( ) {
-        var t=new CT(256), i;
-        for(i=0; i<256; i++) t[i]=i;
-        return t;
-    },
-
-    inv_eye = function( ) {
-        var t=new CT(256), i;
-        for(i=0; i<256; i++) t[i]=255-i;
-        return t;
-    },
+var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
+    FilterUtil = FILTER.Util.Filter, eye = FilterUtil.ct_eye, ct_mult = FilterUtil.ct_multiply,
 
     val = function(col) {
         var t=new CT(256), i;
@@ -36,11 +25,12 @@ var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
     },
     
     clone = function(t) {
-        if (t) return new CT(t);
-        return null;
+        return t ? new CT(t) : null;
     },
     
-    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255
+    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
+    
+    TypedArray = FILTER.Util.Array.typed
 ;
 
 //
@@ -52,29 +42,25 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,constructor: function( tR, tG, tB, tA ) {
         var self = this;
         self.$super('constructor');
-        self._tableR = tR || null;
-        self._tableG = tG || self._tableR;
-        self._tableB = tB || self._tableG;
-        self._tableA = tA || null;
+        self._table = [null, null, null, null];
+        tR = tR || null;
+        tG = tG || tR;
+        tB = tB || tG;
+        tA = tA || null;
+        self._table[CHANNEL.R] = tR;
+        self._table[CHANNEL.G] = tG;
+        self._table[CHANNEL.B] = tB;
+        self._table[CHANNEL.A] = tA;
     }
     
     ,path: FILTER_FILTERS_PATH
     // parameters
-    ,_tableR: null
-    ,_tableG: null
-    ,_tableB: null
-    ,_tableA: null
+    ,_table: null
     
     ,dispose: function( ) {
         var self = this;
-        
         self.$super('dispose');
-        
-        self._tableR = null;
-        self._tableG = null;
-        self._tableB = null;
-        self._tableA = null;
-        
+        self._table = null;
         return self;
     }
     
@@ -85,10 +71,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,_isOn: !!self._isOn
             
             ,params: {
-                _tableR: self._tableR
-                ,_tableG: self._tableG
-                ,_tableB: self._tableB
-                ,_tableA: self._tableA
+                 _tableR: self._table[CHANNEL.R]
+                ,_tableG: self._table[CHANNEL.G]
+                ,_tableB: self._table[CHANNEL.B]
+                ,_tableA: self._table[CHANNEL.A]
             }
         };
     }
@@ -101,10 +87,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._tableR = TypedArray(params._tableR, CT);
-            self._tableG = TypedArray(params._tableG, CT);
-            self._tableB = TypedArray(params._tableB, CT);
-            self._tableA = TypedArray(params._tableA, CT);
+            self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
+            self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
+            self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
+            self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
         }
         return self;
     }
@@ -173,17 +159,17 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,channel: function( channel ) {
         if ( null == channel ) return this;
         var tR, tG, tB;
-        switch(channel)
+        switch(channel || CHANNEL.R)
         {
-            case FILTER.CHANNEL.BLUE: 
+            case CHANNEL.B: 
                 tR = val(0); tG = val(0); tB = eye(); 
                 break;
             
-            case FILTER.CHANNEL.GREEN: 
+            case CHANNEL.G: 
                 tR = val(0); tG = eye(); tB = val(0); 
                 break;
             
-            case FILTER.CHANNEL.RED: 
+            case CHANNEL.R: 
             default:
                 tR = eye(); tG = val(0); tB = val(0); 
                 break;
@@ -193,15 +179,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,redChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.RED );
+        return this.channel( CHANNEL.R );
     }
     
     ,greenChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.GREEN );
+        return this.channel( CHANNEL.G );
     }
     
     ,blueChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.BLUE );
+        return this.channel( CHANNEL.B );
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
@@ -250,14 +236,13 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,invert: function( ) {
-        return this.set(inv_eye());
+        return this.set(eye(-1));
     }
     
     // apply a binary mask to the image color channels
     ,mask: function( mask ) {
         var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
-            tR=new CT(256), tG=new CT(256), tB=new CT(256)
-            ;
+            tR=new CT(256), tG=new CT(256), tB=new CT(256);
         for(i=0; i<256; i++)
         { 
             tR[i]=clamp(i & maskR); 
@@ -270,11 +255,9 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     // replace a color with another
     ,replace: function( color, replacecolor ) {
         if (color==replacecolor) return this;
-        var  
-            c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
+        var c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
             c2R=(replacecolor>>16)&255, c2G=(replacecolor>>8)&255, c2B=(replacecolor)&255, 
-            tR=eye(), tG=eye(), tB=eye()
-            ;
+            tR=eye(), tG=eye(), tB=eye();
             tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
         return this.set(tR, tG, tB);
     }
@@ -282,26 +265,22 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     // extract a range of color values from a specific color channel and set the rest to background color
     ,extract: function( channel, range, background ) {
         if (!range || !range.length) return this;
-        
         background=background||0;
-        var  
-            bR=(background>>16)&255, bG=(background>>8)&255, bB=(background)&255, 
-            tR=val(bR), tG=val(bG), tB=val(bB),
-            s, f
-            ;
-        switch(channel)
+        var bR = (background>>>16)&255, bG = (background>>>8)&255, bB = background&255, 
+            tR=val(bR), tG=val(bG), tB=val(bB), s, f;
+        switch(channel || CHANNEL.R)
         {
-            case FILTER.CHANNEL.BLUE: 
+            case CHANNEL.B:
                 s=range[0]; f=range[1];
                 while (s<=f) { tB[s]=clamp(s); s++; }
                 break;
             
-            case FILTER.CHANNEL.GREEN: 
+            case CHANNEL.G:
                 s=range[0]; f=range[1];
                 while (s<=f) { tG[s]=clamp(s); s++; }
                 break;
             
-            case FILTER.CHANNEL.RED: 
+            case CHANNEL.R:
             default:
                 s=range[0]; f=range[1];
                 while (s<=f) { tR[s]=clamp(s); s++; }
@@ -341,82 +320,55 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         return this.set(t);
     }
     
-    ,set: function( _tR, _tG, _tB, _tA ) {
-        if ( !_tR ) return this;
+    ,set: function( tR, tG, tB, tA ) {
+        if ( !tR ) return this;
         
-        _tG=_tG || _tR; _tB=_tB || _tG;
-        var 
-            tR=this._tableR || eye(), tG, tB, tA,
-            tR2=clone(tR), tG2, tB2, tA2,
-            i;
+        var i, T = this._table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        tG = tG || tR; tB = tB || tG;
         
-        if (_tG && _tB)
+        if ( tG || tB )
         {
-            tG=this._tableG || clone(tR); tB=this._tableB || clone(tG);
-            tG2=clone(tG); tB2=clone(tB);
-            // concat/compose the filter's tables, same as composing the filters
-            for(i=0; i<256; i++)
-            { 
-                tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-                tG[i]=clamp( _tG[clamp( tG2[i] )] ); 
-                tB[i]=clamp( _tB[clamp( tB2[i] )] ); 
-            }
-            this._tableR=tR; this._tableG=tG; this._tableB=tB;
+            tG = tG || tR; tB = tB || tG;
+            G = T[CHANNEL.G] || R; B = T[CHANNEL.B] || G;
+            T[CHANNEL.R] = ct_mult( tR, R );
+            T[CHANNEL.G] = ct_mult( tG, G );
+            T[CHANNEL.B] = ct_mult( tB, B );
         }
         else
         {
-            // concat/compose the filter's tables, same as composing the filters
-            for(i=0; i<256; i++)
-            { 
-                tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-            }
-            this._tableR=tR; this._tableG=this._tableR; this._tableB=this._tableR;
+            T[CHANNEL.R] = ct_mult( tR, R );
+            T[CHANNEL.G] = T[CHANNEL.R];
+            T[CHANNEL.B] = T[CHANNEL.R];
         }
-        
         return this;
     }
     
     ,reset: function( ) {
-        this._tableR = this._tableG = this._tableB = this._tableA = null; 
+        this._table = [null, null, null, null]; 
         return this;
     }
     
     ,combineWith: function( filt ) {
-        return this.set(filt.getTable(0), filt.getTable(1), filt.getTable(2));
+        return this.set(filt.getTable(CHANNEL.R), filt.getTable(CHANNEL.G), filt.getTable(CHANNEL.B));
     }
     
     ,getTable: function ( channel ) {
-        channel = channel || FILTER.CHANNEL.RED;
-        switch (channel)
-        {
-            case FILTER.CHANNEL.ALPHA: return this._tableA;
-            case FILTER.CHANNEL.BLUE: return this._tableB;
-            case FILTER.CHANNEL.GREEN: return this._tableG;
-            case FILTER.CHANNEL.RED: 
-            default: return this._tableR;
-        }
+        return this._table[channel || CHANNEL.R] || null;
     }
     
     ,setTable: function ( table, channel ) {
-        channel = channel || FILTER.CHANNEL.RED;
-        switch (channel)
-        {
-            case FILTER.CHANNEL.ALPHA: this._tableA=table; return this;
-            case FILTER.CHANNEL.BLUE: this._tableB=table; return this;
-            case FILTER.CHANNEL.GREEN: this._tableG=table; return this;
-            case FILTER.CHANNEL.RED: 
-            default: this._tableR=table; return this;
-        }
+        this._table[channel || CHANNEL.R] = table || null;
+        return this;
     }
     
     // used for internal purposes
     ,_apply: function(im, w, h/*, image*/) {
-        var self = this;
-        if ( !self._isOn || !self._tableR ) return im;
+        var self = this, T = self._table;
+        if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var l=im.length, rem = (l>>2)%4,
-            i, r, g, b, a,
-            tR=self._tableR, tG=self._tableG, tB=self._tableB, tA=self._tableA;
+        var l=im.length, rem = (l>>>2)%4,
+            tR = T[CHANNEL.R], tG = T[CHANNEL.G], tB = T[CHANNEL.B], tA = T[CHANNEL.A],
+            i, r, g, b, a;
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( tA )
@@ -438,8 +390,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             // loop unrolling remainder
             if ( rem )
             {
-                rem <<= 2;
-                for (i=l-rem; i<l; i+=4)
+                for (i=l-(rem<<2); i<l; i+=4)
                 {
                     r = im[i]; g = im[i+1]; b = im[i+2]; a = im[i+3];
                     im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b]; im[i+3] = tA[a];
@@ -465,8 +416,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             // loop unrolling remainder
             if ( rem )
             {
-                rem <<= 2;
-                for (i=l-rem; i<l; i+=4)
+                for (i=l-(rem<<2); i<l; i+=4)
                 {
                     r = im[i]; g = im[i+1]; b = im[i+2];
                     im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b];
@@ -477,7 +427,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._tableR;
+        return this._isOn && this._table && this._table[CHANNEL.R];
     }
 });
 // aliases

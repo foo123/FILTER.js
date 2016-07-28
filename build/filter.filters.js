@@ -392,12 +392,44 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
 !function(FILTER, undef){
 "use strict";
 
-var Sin = Math.sin, Cos = Math.cos,
-    // Color Matrix
-    CM = FILTER.Array32F, TypedArray = FILTER.Util.Array.typed,
-    toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    CHANNEL = FILTER.CHANNEL, notSupportClamp = FILTER._notSupportClamp
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, eye = FILTER.Util.Filter.cm_eye,
+    cm_mult = FILTER.Util.Filter.cm_multiply, rechannel = FILTER.Util.Filter.cm_rechannel,
+    Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
 ;
+
+function cm_blend( m1, m2, amount )
+{
+    var m = new CM(20);
+    
+    // unroll the loop completely
+    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
+    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
+    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
+    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
+    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
+
+    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
+    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
+    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
+    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
+    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
+    
+    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
+    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
+    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
+    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
+    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
+    
+    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
+    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
+    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
+    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
+    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
+    
+    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+    return m;
+}
 
 //
 //
@@ -465,270 +497,84 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // get the image color channel as a new image
-    ,channel: function( ch, asGray ) {
-        var f = !!asGray ? 1 : 0;
-        switch(ch)
-        {
-            case CHANNEL.ALPHA:
-                return this.set([
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 1, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
-                break;
-            
-            case CHANNEL.BLUE:
-                return this.set([
-                        0, 0, f, 0, 0, 
-                        0, 0, f, 0, 0, 
-                        0, 0, 1, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
-                break;
-            
-            case CHANNEL.GREEN:
-                return this.set([
-                        0, f, 0, 0, 0, 
-                        0, 1, 0, 0, 0, 
-                        0, f, 0, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
-                break;
-            
-            case CHANNEL.RED:
-            default:
-                return this.set([
-                        1, 0, 0, 0, 0, 
-                        f, 0, 0, 0, 0, 
-                        f, 0, 0, 0, 0, 
-                        0, 0, 0, 0, 255
-                    ]);
-                break;
-        }
+    ,channel: function( channel, grayscale ) {
+        channel = channel || 0;
+        var m = [
+                0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 255
+            ], f = (CHANNEL.A === channel) || grayscale ? 1 : 0;
+        m[CHANNEL.R*5+channel] = CHANNEL.R === channel ? 1 : f;
+        m[CHANNEL.G*5+channel] = CHANNEL.G === channel ? 1 : f;
+        m[CHANNEL.B*5+channel] = CHANNEL.B === channel ? 1 : f;
+        return this.set(m);
     }
     
     // aliases
     // get the image red channel as a new image
-    ,redChannel: function( asGray ) {
-        return this.channel(CHANNEL.RED, asGray);
+    ,redChannel: function( grayscale ) {
+        return this.channel(CHANNEL.R, grayscale);
     }
     
     // get the image green channel as a new image
-    ,greenChannel: function( asGray ) {
-        return this.channel(CHANNEL.GREEN, asGray);
+    ,greenChannel: function( grayscale ) {
+        return this.channel(CHANNEL.G, grayscale);
     }
     
     // get the image blue channel as a new image
-    ,blueChannel: function( asGray ) {
-        return this.channel(CHANNEL.BLUE, asGray);
+    ,blueChannel: function( grayscale ) {
+        return this.channel(CHANNEL.B, grayscale);
     }
     
     // get the image alpha channel as a new image
-    ,alphaChannel: function( asGray ) {
-        return this.channel(CHANNEL.ALPHA, true);
+    ,alphaChannel: function( grayscale ) {
+        return this.channel(CHANNEL.A, true);
     }
     
-    ,maskChannel: function( ch ) {
-        switch( ch )
-        {
-            case CHANNEL.ALPHA:
-                return this;
-                break;
-            
-            case CHANNEL.BLUE:
-                return this.set([
-                    1, 0, 0, 0, 0, 
-                    0, 1, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 
-                    0, 0, 0, 1, 0
-                ]);
-                break;
-            
-            case CHANNEL.GREEN:
-                return this.set([
-                    1, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 
-                    0, 0, 1, 0, 0, 
-                    0, 0, 0, 1, 0
-                ]);
-                break;
-            
-            case CHANNEL.RED:
-            default:
-                return this.set([
-                    0, 0, 0, 0, 0, 
-                    0, 1, 0, 0, 0, 
-                    0, 0, 1, 0, 0, 
-                    0, 0, 0, 1, 0
-                ]);
-                break;
-        }
+    ,maskChannel: function( channel ) {
+        channel = channel || 0;
+        if ( CHANNEL.A === channel ) return this;
+        var m = [
+                1, 0, 0, 0, 0, 
+                0, 1, 0, 0, 0, 
+                0, 0, 1, 0, 0, 
+                0, 0, 0, 1, 0
+            ];
+        m[channel*5+channel] = 0;
+        return this.set(m);
     }
     
-    ,swapChannels: function( ch1, ch2 ) {
-        switch( ch1 )
-        {
-            case CHANNEL.ALPHA:
-                switch( ch2 )
-                {
-                    case CHANNEL.ALPHA:
-                        return this;
-                        break;
-                    
-                    case CHANNEL.BLUE:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 0, 1, 0, 
-                                0, 0, 1, 0, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.GREEN:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 0, 0, 1, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.RED:
-                    default:
-                        return this.set([
-                                0, 0, 0, 1, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                1, 0, 0, 0, 0
-                            ]);
-                        break;
-                }
-                break;
-            
-            case CHANNEL.BLUE:
-                switch( ch2 )
-                {
-                    case CHANNEL.ALPHA:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 0, 1, 0, 
-                                0, 0, 1, 0, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.BLUE:
-                        return this;
-                        break;
-                    
-                    case CHANNEL.GREEN:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.RED:
-                    default:
-                        return this.set([
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                }
-                break;
-            
-            case CHANNEL.GREEN:
-                switch( ch2 )
-                {
-                    case CHANNEL.ALPHA:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 0, 0, 1, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.BLUE:
-                        return this.set([
-                                1, 0, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.GREEN:
-                        return this;
-                        break;
-                    
-                    case CHANNEL.RED:
-                    default:
-                        return this.set([
-                                0, 1, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                }
-                break;
-            
-            case CHANNEL.RED:
-            default:
-                switch( ch2 )
-                {
-                    case CHANNEL.ALPHA:
-                        return this.set([
-                                0, 0, 0, 1, 0, 
-                                0, 1, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                1, 0, 0, 0, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.BLUE:
-                        return this.set([
-                                0, 0, 1, 0, 0, 
-                                0, 1, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.GREEN:
-                        return this.set([
-                                0, 1, 0, 0, 0, 
-                                1, 0, 0, 0, 0, 
-                                0, 0, 1, 0, 0, 
-                                0, 0, 0, 1, 0
-                            ]);
-                        break;
-                    
-                    case CHANNEL.RED:
-                    default:
-                        return this;
-                        break;
-                }
-                break;
-        }
+    ,swapChannels: function( channel1, channel2 ) {
+        if ( channel1 === channel2 ) return this;
+        var m = [
+            1, 0, 0, 0, 0, 
+            0, 1, 0, 0, 0, 
+            0, 0, 1, 0, 0, 
+            0, 0, 0, 1, 0
+        ];
+        m[channel1*5+channel1] = 0;
+        m[channel2*5+channel2] = 0;
+        m[channel1*5+channel2] = 1;
+        m[channel2*5+channel1] = 1;
+        /*swap = m[channel1*5+channel2];
+        m[channel1*5+channel2] = m[channel2*5+channel1];
+        m[channel2*5+channel1] = swap;*/
+        return this.set(m);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,desaturate: function( ) {
         var L = FILTER.LUMA;
-        return this.set([
+        return this.set(rechannel([
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -739,31 +585,40 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         g = (((rgb >> 8) & 255) * 0.0039215686274509803921568627451);  // / 255
         b = ((rgb & 255) * 0.0039215686274509803921568627451);  // / 255
         inv_amount = 1 - amount;
-        return this.set([
+        return this.set(rechannel([
             (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
             ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
             ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
-                0, 0, 0, 1, 0
-            ]);
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,invert: function( ) {
-        return this.set([
+        return this.set(rechannel([
             -1, 0,  0, 0, 255,
             0, -1,  0, 0, 255,
             0,  0, -1, 0, 255,
             0,  0,  0, 1,   0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     ,invertAlpha: function( ) {
-        return this.set([
+        return this.set(rechannel([
             1,  0,  0, 0, 0,
             0,  1,  0, 0, 0,
             0,  0,  1, 0, 0,
             0,  0,  0, -1, 255
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -771,12 +626,15 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         var sInv, irlum, iglum, iblum, L = FILTER.LUMA;
         sInv = 1 - s;  irlum = sInv * L[0];
         iglum = sInv * L[1];  iblum = sInv * L[2];
-        return this.set([
+        return this.set(rechannel([
             (irlum + s), iglum, iblum, 0, 0, 
             irlum, (iglum + s), iblum, 0, 0, 
             irlum, iglum, (iblum + s), 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -784,36 +642,45 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( g === undef )  g = r;
         if ( b === undef )  b = r;
         r += 1.0; g += 1.0; b += 1.0;
-        return this.set([
+        return this.set(rechannel([
             r, 0, 0, 0, (128 * (1 - r)), 
             0, g, 0, 0, (128 * (1 - g)), 
             0, 0, b, 0, (128 * (1 - b)), 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,brightness: function( r, g, b ) {
         if ( g === undef )  g = r;
         if ( b === undef )  b = r;
-        return this.set([
+        return this.set(rechannel([
             1, 0, 0, 0, r, 
             0, 1, 0, 0, g, 
             0, 0, 1, 0, b, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,adjustHue: function( degrees ) {
         degrees *= toRad;
         var cos = Cos(degrees), sin = Sin(degrees), L = FILTER.LUMA;
-        return this.set([
+        return this.set(rechannel([
             ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * -((1 - L[0])))), ((L[1] + (cos * -(L[1]))) + (sin * L[1])), ((L[2] + (cos * (1 - L[2]))) + (sin * L[2])), 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -821,22 +688,28 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( r === undef ) r = 0.3333;
         if ( g === undef ) g = 0.3333;
         if ( b === undef ) b = 0.3334;
-        return this.set([
+        return this.set(rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     ,quickContrastCorrection: function( contrast ) {
         if ( contrast === undef ) contrast = 1.2;
-        return this.set([
+        return this.set(rechannel([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
             0, 0, contrast, 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from glfx.js
@@ -846,12 +719,15 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( amount === undef ) amount = 0.5;
         if ( amount > 1 ) amount = 1;
         else if ( amount < 0 ) amount = 0;
-        return this.set([
+        return this.set(rechannel([
             1.0 - (0.607 * amount), 0.769 * amount, 0.189 * amount, 0, 0, 
             0.349 * amount, 1.0 - (0.314 * amount), 0.168 * amount, 0, 0, 
             0.272 * amount, 0.534 * amount, 1.0 - (0.869 * amount), 0, 0, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     ,sepia2: function( amount ) {
@@ -859,90 +735,94 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
         var L = FILTER.LUMA;
-        return this.set([
+        return this.set(rechannel([
             L[0], L[1], L[2], 0, 40, 
             L[0], L[1], L[2], 0, 20, 
             L[0], L[1], L[2], 0, -amount, 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
         var L = FILTER.LUMA;
-        return this.set([
+        return this.set(rechannel([
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,threshold_rgb: function( threshold, factor ) {
         if ( factor === undef )  factor = 256;
-        return this.set([
+        return this.set(rechannel([
             factor, 0, 0, 0, (-(factor-1) * threshold), 
             0, factor, 0, 0, (-(factor-1) * threshold), 
             0,  0, factor, 0, (-(factor-1) * threshold), 
             0, 0, 0, 1, 0
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     ,threshold_alpha: function( threshold, factor ) {
         if ( threshold === undef )  threshold = 0.5;
         if ( factor === undef ) factor = 256;
-        return this.set([
+        return this.set(rechannel([
             1, 0, 0, 0, 0, 
             0, 1, 0, 0, 0, 
             0, 0, 1, 0, 0, 
             0, 0, 0, factor, (-factor * threshold)
-        ]);
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
-        var m = [
-                1, 0, 0, 0, 0,
-                0, 1, 0, 0, 0,
-                0, 0, 1, 0, 0,
-                0, 0, 0, 1, 0
-            ], 
-            R = CHANNEL.R, G = CHANNEL.G, B = CHANNEL.B,
-            Y = CHANNEL.Y, CB = CHANNEL.CB, CR = CHANNEL.CR
-        ;
-        m[Y*5+R] = 0.299; m[Y*5+G] = 0.587; m[Y*5+B] = 0.114; m[Y*5+3] = 0; m[Y*5+4] = 0;
-        m[CB*5+R] = -0.168736; m[CB*5+G] = -0.331264; m[CB*5+B] = 0.5; m[CB*5+3] = 0; m[CB*5+4] = 128;
-        m[CR*5+R] = 0.5; m[CR*5+G] = -0.418688; m[CR*5+B] = -0.081312; m[CR*5+3] = 0; m[CR*5+4] = 128;
-        return this.set(m);
+        return this.set(rechannel([
+            0.299, 0.587, 0.114, 0, 0,
+            -0.168736, -0.331264, 0.5, 0, 128,
+            0.5, -0.418688, -0.081312, 0, 128,
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.Y, CHANNEL.CB, CHANNEL.CR, CHANNEL.A
+        ));
     }
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
-        var m = [
-                1, 0, 0, 0, 0,
-                0, 1, 0, 0, 0,
-                0, 0, 1, 0, 0,
-                0, 0, 0, 1, 0
-            ],
-            R = CHANNEL.R, G = CHANNEL.G, B = CHANNEL.B,
-            Y = CHANNEL.Y, CB = CHANNEL.CB, CR = CHANNEL.CR
-        ;
-        m[R*5+Y] = 1; m[R*5+CB] = 0; m[R*5+CR] = 1.402; m[R*5+3] = 0; m[R*5+4] = -179.456;
-        m[G*5+Y] = 1; m[G*5+CB] = -0.34414; m[G*5+CR] = -0.71414; m[G*5+3] = 0; m[G*5+4] = 135.45984;
-        m[B*5+Y] = 1; m[B*5+CB] = 1.772; m[B*5+CR] = 0; m[B*5+3] = 0; m[B*5+4] = -226.816;
-        return this.set(m);
+        return this.set(rechannel([
+            1, 0, 1.402, 0, -179.456,
+            1, -0.34414, -0.71414, 0, 135.45984,
+            1, 1.772, 0, 0, -226.816,
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.Y, CHANNEL.CB, CHANNEL.CR, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
     }
     
     // blend with another filter
     ,blend: function( filt, amount ) {
-        this._matrix = ( this._matrix ) ? CMblend(this._matrix, filt.getMatrix(), amount) : new CM(filt.getMatrix());
+        this._matrix = this._matrix ? cm_blend(this._matrix, filt.getMatrix(), amount) : new CM(filt.getMatrix());
         return this;
     }
     
     ,set: function( mat ) {
-        this._matrix = this._matrix ? CMconcat(this._matrix, new CM(mat)) : new CM(mat);
+        this._matrix = this._matrix ? cm_mult(this._matrix, new CM(mat)) : new CM(mat);
         return this;
     }
     
@@ -966,161 +846,149 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // used for internal purposes
     ,_apply: notSupportClamp
-    ? function(p, w, h/*, image*/) {
-        var self = this;
-        if ( self._isOn && self._matrix )
+    ? function( im, w, h/*, image*/ ) {
+        var self = this, m = self._matrix;
+        if ( !self._isOn || !m ) return im;
+        
+        var imLen = im.length, i, rem = (imLen>>>2)%4,
+            p0, p1, p2, p3, p4, p5, p6, p7, 
+            p8, p9, p10, p11,  p12, p13, p14, p15,
+            t0, t1, t2, t3;
+
+        // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+        // linearize array
+        // partial loop unrolling (quarter iterations)
+        for (i=0; i<imLen; i+=16)
         {
-            var pl = p.length, m = self._matrix,
-                i, rem = (pl>>2)%4,
-                p0, p1, p2, p3, 
-                p4, p5, p6, p7, 
-                p8, p9, p10, p11,
-                p12, p13, p14, p15,
-                t0, t1, t2, t3
-            ;
+            t0   =  im[i  ]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
+            p0   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p1   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p2   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p3   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+4]; t1 = im[i+5]; t2 = im[i+6]; t3 = im[i+7];
+            p4   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p5   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p6   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p7   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+8]; t1 = im[i+9]; t2 = im[i+10]; t3 = im[i+11];
+            p8   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p9   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+12]; t1 = im[i+13]; t2 = im[i+14]; t3 = im[i+15];
+            p12  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p13  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
             
-            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-            // linearize array
-            // partial loop unrolling (quarter iterations)
-            for (i=0; i<pl; i+=16)
+            // clamp them manually
+            p0 = p0<0 ? 0 : (p0>255 ? 255 : p0);
+            p1 = p1<0 ? 0 : (p1>255 ? 255 : p1);
+            p2 = p2<0 ? 0 : (p2>255 ? 255 : p2);
+            p3 = p3<0 ? 0 : (p3>255 ? 255 : p3);
+            p4 = p4<0 ? 0 : (p4>255 ? 255 : p4);
+            p5 = p5<0 ? 0 : (p5>255 ? 255 : p5);
+            p6 = p6<0 ? 0 : (p6>255 ? 255 : p6);
+            p7 = p7<0 ? 0 : (p7>255 ? 255 : p7);
+            p8 = p8<0 ? 0 : (p8>255 ? 255 : p8);
+            p9 = p9<0 ? 0 : (p9>255 ? 255 : p9);
+            p10 = p10<0 ? 0 : (p10>255 ? 255 : p10);
+            p11 = p11<0 ? 0 : (p11>255 ? 255 : p11);
+            p12 = p12<0 ? 0 : (p12>255 ? 255 : p12);
+            p13 = p13<0 ? 0 : (p13>255 ? 255 : p13);
+            p14 = p14<0 ? 0 : (p14>255 ? 255 : p14);
+            p15 = p15<0 ? 0 : (p15>255 ? 255 : p15);
+            
+            im[i   ] = ~~p0;  im[i+1 ] = ~~p1;  im[i+2 ] = ~~p2;  im[i+3 ] = ~~p3;
+            im[i+4 ] = ~~p4;  im[i+5 ] = ~~p5;  im[i+6 ] = ~~p6;  im[i+7 ] = ~~p7;
+            im[i+8 ] = ~~p8;  im[i+9 ] = ~~p9;  im[i+10] = ~~p10; im[i+11] = ~~p11;
+            im[i+12] = ~~p12; im[i+13] = ~~p13; im[i+14] = ~~p14; im[i+15] = ~~p15;
+        }
+
+        // loop unrolling remainder
+        if ( rem )
+        {
+            for (i=imLen-(rem<<2); i<imLen; i+=4)
             {
-                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                t0  =  im[i]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
+                p0  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4];
+                p1  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9];
                 p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
                 p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
                 
                 // clamp them manually
-                p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                p4 = (p4<0) ? 0 : ((p4>255) ? 255 : p4);
-                p5 = (p5<0) ? 0 : ((p5>255) ? 255 : p5);
-                p6 = (p6<0) ? 0 : ((p6>255) ? 255 : p6);
-                p7 = (p7<0) ? 0 : ((p7>255) ? 255 : p7);
-                p8 = (p8<0) ? 0 : ((p8>255) ? 255 : p8);
-                p9 = (p9<0) ? 0 : ((p9>255) ? 255 : p9);
-                p10 = (p10<0) ? 0 : ((p10>255) ? 255 : p10);
-                p11 = (p11<0) ? 0 : ((p11>255) ? 255 : p11);
-                p12 = (p12<0) ? 0 : ((p12>255) ? 255 : p12);
-                p13 = (p13<0) ? 0 : ((p13>255) ? 255 : p13);
-                p14 = (p14<0) ? 0 : ((p14>255) ? 255 : p14);
-                p15 = (p15<0) ? 0 : ((p15>255) ? 255 : p15);
+                p0 = p0<0 ? 0 : (p0>255 ? 255 : p0);
+                p1 = p1<0 ? 0 : (p1>255 ? 255 : p1);
+                p2 = p2<0 ? 0 : (p2>255 ? 255 : p2);
+                p3 = p3<0 ? 0 : (p3>255 ? 255 : p3);
                 
-                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
-                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
-                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
-                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-            }
-            
-            // loop unrolling remainder
-            if (rem)
-            {
-                rem <<= 2;
-                for (i=pl-rem; i<pl; i+=4)
-                {
-                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                    
-                    // clamp them manually
-                    p0 = (p0<0) ? 0 : ((p0>255) ? 255 : p0);
-                    p1 = (p1<0) ? 0 : ((p1>255) ? 255 : p1);
-                    p2 = (p2<0) ? 0 : ((p2>255) ? 255 : p2);
-                    p3 = (p3<0) ? 0 : ((p3>255) ? 255 : p3);
-                    
-                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                }
+                im[i  ] = ~~p0; im[i+1] = ~~p1; im[i+2] = ~~p2; im[i+3] = ~~p3;
             }
         }
-        return p;
+        return im;
     }
-    : function(p, w, h/*, image*/) {
-        var self = this;
-        if ( self._isOn && self._matrix )
+    : function( im, w, h/*, image*/ ) {
+        var self = this, m = self._matrix;
+        if ( !self._isOn || !m ) return im;
+        
+        var imLen = im.length, i, rem = (imLen>>>2)%4,
+            p0, p1, p2, p3, p4, p5, p6, p7, 
+            p8, p9, p10, p11,  p12, p13, p14, p15,
+            t0, t1, t2, t3;
+
+        // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
+        // linearize array
+        // partial loop unrolling (quarter iterations)
+        for (i=0; i<imLen; i+=16)
         {
-            var pl = p.length, m = self._matrix,
-                i, rem = (pl>>2)%4,
-                p0, p1, p2, p3, 
-                p4, p5, p6, p7, 
-                p8, p9, p10, p11,
-                p12, p13, p14, p15,
-                t0, t1, t2, t3
-            ;
-            
-            // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-            // linearize array
-            // partial loop unrolling (quarter iterations)
-            for (i=0; i<pl; i+=16)
+            t0   =  im[i  ]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
+            p0   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p1   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p2   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p3   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+4]; t1 = im[i+5]; t2 = im[i+6]; t3 = im[i+7];
+            p4   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p5   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p6   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p7   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+8]; t1 = im[i+9]; t2 = im[i+10]; t3 = im[i+11];
+            p8   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p9   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            t0   =  im[i+12]; t1 = im[i+13]; t2 = im[i+14]; t3 = im[i+15];
+            p12  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
+            p13  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
+            p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
+            p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+
+            im[i   ] = ~~p0;  im[i+1 ] = ~~p1;  im[i+2 ] = ~~p2;  im[i+3 ] = ~~p3;
+            im[i+4 ] = ~~p4;  im[i+5 ] = ~~p5;  im[i+6 ] = ~~p6;  im[i+7 ] = ~~p7;
+            im[i+8 ] = ~~p8;  im[i+9 ] = ~~p9;  im[i+10] = ~~p10; im[i+11] = ~~p11;
+            im[i+12] = ~~p12; im[i+13] = ~~p13; im[i+14] = ~~p14; im[i+15] = ~~p15;
+        }
+
+        // loop unrolling remainder
+        if ( rem )
+        {
+            for (i=imLen-(rem<<2); i<imLen; i+=4)
             {
-                t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
+                t0  =  im[i]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
+                p0  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4];
+                p1  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9];
                 p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
                 p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+4]; t1 = p[i+5]; t2 = p[i+6]; t3 = p[i+7];
-                p4  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p5  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p6  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p7  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+8]; t1 = p[i+9]; t2 = p[i+10]; t3 = p[i+11];
-                p8  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p9  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                t0 = p[i+12]; t1 = p[i+13]; t2 = p[i+14]; t3 = p[i+15];
-                p12  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                p13  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                
-                p[i   ] = ~~p0;  p[i+1 ] = ~~p1;  p[i+2 ] = ~~p2;  p[i+3 ] = ~~p3;
-                p[i+4 ] = ~~p4;  p[i+5 ] = ~~p5;  p[i+6 ] = ~~p6;  p[i+7 ] = ~~p7;
-                p[i+8 ] = ~~p8;  p[i+9 ] = ~~p9;  p[i+10] = ~~p10; p[i+11] = ~~p11;
-                p[i+12] = ~~p12; p[i+13] = ~~p13; p[i+14] = ~~p14; p[i+15] = ~~p15;
-            }
-            
-            // loop unrolling remainder
-            if (rem)
-            {
-                rem <<= 2;
-                for (i=pl-rem; i<pl; i+=4)
-                {
-                    t0 = p[i]; t1 = p[i+1]; t2 = p[i+2]; t3 = p[i+3];
-                    p0  =  m[0]*t0  +  m[1]*t1  +  m[2]*t2  +  m[3]*t3  +  m[4];
-                    p1  =  m[5]*t0  +  m[6]*t1  +  m[7]*t2  +  m[8]*t3  +  m[9];
-                    p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                    p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-                    
-                    p[i] = ~~p0; p[i+1] = ~~p1; p[i+2] = ~~p2; p[i+3] = ~~p3;
-                }
+
+                im[i  ] = ~~p0; im[i+1] = ~~p1; im[i+2] = ~~p2; im[i+3] = ~~p3;
             }
         }
-        return p;
+        return im;
     }
         
     ,canRun: function( ) {
@@ -1132,98 +1000,7 @@ ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
 ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
 ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
-
-//
-//
-// private methods
-function eye()
-{
-    return new CM([
-        1,0,0,0,0,
-        0,1,0,0,0,
-        0,0,1,0,0,
-        0,0,0,1,0
-    ]);
-}
- 
- // concatenate 2 Color Matrices (kind of Color Matrix multiplication)
- function CMconcat(tm, mat) 
- {
-    var t=new CM(20), m0, m1, m2, m3, m4;
-    
-    // unroll the loop completely
-    // i=0
-    m0=mat[0]; m1=mat[1]; m2=mat[2]; m3=mat[3]; m4=mat[4];
-    t[ 0 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-    t[ 1 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-    t[ 2 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-    t[ 3 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-    t[ 4 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-
-    // i=5
-    m0=mat[5]; m1=mat[6]; m2=mat[7]; m3=mat[8]; m4=mat[9];
-    t[ 5 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-    t[ 6 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-    t[ 7 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-    t[ 8 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-    t[ 9 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-    
-    // i=10
-    m0=mat[10]; m1=mat[11]; m2=mat[12]; m3=mat[13]; m4=mat[14];
-    t[ 10 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-    t[ 11 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-    t[ 12 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-    t[ 13 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-    t[ 14 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-    
-    // i=15
-    m0=mat[15]; m1=mat[16]; m2=mat[17]; m3=mat[18]; m4=mat[19];
-    t[ 15 ] = m0*tm[0] + m1*tm[5] + m2*tm[10] + m3*tm[15];
-    t[ 16 ] = m0*tm[1] + m1*tm[6] + m2*tm[11] + m3*tm[16];
-    t[ 17 ] = m0*tm[2] + m1*tm[7] + m2*tm[12] + m3*tm[17];
-    t[ 18 ] = m0*tm[3] + m1*tm[8] + m2*tm[13] + m3*tm[18];
-    t[ 19 ] = m0*tm[4] + m1*tm[9] + m2*tm[14] + m3*tm[19] + m4;
-    
-    return t;
-}
-
-function CMblend(m1, m2, amount)
-{
-    var m=new CM(20);
-    
-    // unroll the loop completely
-    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
-    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
-    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
-    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
-    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
-
-    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
-    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
-    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
-    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
-    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
-    
-    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
-    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
-    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
-    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
-    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
-    
-    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
-    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
-    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
-    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
-    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
-    
-    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-    
-    return m;
-}
-
-ColorMatrixFilter.multiply = CMconcat;
-ColorMatrixFilter.blend = CMblend;
-ColorMatrixFilter.eye = eye;
+ColorMatrixFilter.blend = cm_blend;
 
 }(FILTER);/**
 *
@@ -1242,19 +1019,8 @@ ColorMatrixFilter.eye = eye;
 "use strict";
 
 // color table
-var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
-    TypedArray = FILTER.Util.Array.typed,
-    eye = function( ) {
-        var t=new CT(256), i;
-        for(i=0; i<256; i++) t[i]=i;
-        return t;
-    },
-
-    inv_eye = function( ) {
-        var t=new CT(256), i;
-        for(i=0; i<256; i++) t[i]=255-i;
-        return t;
-    },
+var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
+    FilterUtil = FILTER.Util.Filter, eye = FilterUtil.ct_eye, ct_mult = FilterUtil.ct_multiply,
 
     val = function(col) {
         var t=new CT(256), i;
@@ -1263,11 +1029,12 @@ var CT = FILTER.ImArrayCopy, clamp = FILTER.Color.clampPixel,
     },
     
     clone = function(t) {
-        if (t) return new CT(t);
-        return null;
+        return t ? new CT(t) : null;
     },
     
-    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255
+    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
+    
+    TypedArray = FILTER.Util.Array.typed
 ;
 
 //
@@ -1279,29 +1046,25 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,constructor: function( tR, tG, tB, tA ) {
         var self = this;
         self.$super('constructor');
-        self._tableR = tR || null;
-        self._tableG = tG || self._tableR;
-        self._tableB = tB || self._tableG;
-        self._tableA = tA || null;
+        self._table = [null, null, null, null];
+        tR = tR || null;
+        tG = tG || tR;
+        tB = tB || tG;
+        tA = tA || null;
+        self._table[CHANNEL.R] = tR;
+        self._table[CHANNEL.G] = tG;
+        self._table[CHANNEL.B] = tB;
+        self._table[CHANNEL.A] = tA;
     }
     
     ,path: FILTER_FILTERS_PATH
     // parameters
-    ,_tableR: null
-    ,_tableG: null
-    ,_tableB: null
-    ,_tableA: null
+    ,_table: null
     
     ,dispose: function( ) {
         var self = this;
-        
         self.$super('dispose');
-        
-        self._tableR = null;
-        self._tableG = null;
-        self._tableB = null;
-        self._tableA = null;
-        
+        self._table = null;
         return self;
     }
     
@@ -1312,10 +1075,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             ,_isOn: !!self._isOn
             
             ,params: {
-                _tableR: self._tableR
-                ,_tableG: self._tableG
-                ,_tableB: self._tableB
-                ,_tableA: self._tableA
+                 _tableR: self._table[CHANNEL.R]
+                ,_tableG: self._table[CHANNEL.G]
+                ,_tableB: self._table[CHANNEL.B]
+                ,_tableA: self._table[CHANNEL.A]
             }
         };
     }
@@ -1328,10 +1091,10 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._tableR = TypedArray(params._tableR, CT);
-            self._tableG = TypedArray(params._tableG, CT);
-            self._tableB = TypedArray(params._tableB, CT);
-            self._tableA = TypedArray(params._tableA, CT);
+            self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
+            self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
+            self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
+            self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
         }
         return self;
     }
@@ -1400,17 +1163,17 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     ,channel: function( channel ) {
         if ( null == channel ) return this;
         var tR, tG, tB;
-        switch(channel)
+        switch(channel || CHANNEL.R)
         {
-            case FILTER.CHANNEL.BLUE: 
+            case CHANNEL.B: 
                 tR = val(0); tG = val(0); tB = eye(); 
                 break;
             
-            case FILTER.CHANNEL.GREEN: 
+            case CHANNEL.G: 
                 tR = val(0); tG = eye(); tB = val(0); 
                 break;
             
-            case FILTER.CHANNEL.RED: 
+            case CHANNEL.R: 
             default:
                 tR = eye(); tG = val(0); tB = val(0); 
                 break;
@@ -1420,15 +1183,15 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,redChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.RED );
+        return this.channel( CHANNEL.R );
     }
     
     ,greenChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.GREEN );
+        return this.channel( CHANNEL.G );
     }
     
     ,blueChannel: function( ) {
-        return this.channel( FILTER.CHANNEL.BLUE );
+        return this.channel( CHANNEL.B );
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
@@ -1477,14 +1240,13 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,invert: function( ) {
-        return this.set(inv_eye());
+        return this.set(eye(-1));
     }
     
     // apply a binary mask to the image color channels
     ,mask: function( mask ) {
         var i=0, maskR=(mask>>16)&255, maskG=(mask>>8)&255, maskB=mask&255;
-            tR=new CT(256), tG=new CT(256), tB=new CT(256)
-            ;
+            tR=new CT(256), tG=new CT(256), tB=new CT(256);
         for(i=0; i<256; i++)
         { 
             tR[i]=clamp(i & maskR); 
@@ -1497,11 +1259,9 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     // replace a color with another
     ,replace: function( color, replacecolor ) {
         if (color==replacecolor) return this;
-        var  
-            c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
+        var c1R=(color>>16)&255, c1G=(color>>8)&255, c1B=(color)&255, 
             c2R=(replacecolor>>16)&255, c2G=(replacecolor>>8)&255, c2B=(replacecolor)&255, 
-            tR=eye(), tG=eye(), tB=eye()
-            ;
+            tR=eye(), tG=eye(), tB=eye();
             tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
         return this.set(tR, tG, tB);
     }
@@ -1509,26 +1269,22 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     // extract a range of color values from a specific color channel and set the rest to background color
     ,extract: function( channel, range, background ) {
         if (!range || !range.length) return this;
-        
         background=background||0;
-        var  
-            bR=(background>>16)&255, bG=(background>>8)&255, bB=(background)&255, 
-            tR=val(bR), tG=val(bG), tB=val(bB),
-            s, f
-            ;
-        switch(channel)
+        var bR = (background>>>16)&255, bG = (background>>>8)&255, bB = background&255, 
+            tR=val(bR), tG=val(bG), tB=val(bB), s, f;
+        switch(channel || CHANNEL.R)
         {
-            case FILTER.CHANNEL.BLUE: 
+            case CHANNEL.B:
                 s=range[0]; f=range[1];
                 while (s<=f) { tB[s]=clamp(s); s++; }
                 break;
             
-            case FILTER.CHANNEL.GREEN: 
+            case CHANNEL.G:
                 s=range[0]; f=range[1];
                 while (s<=f) { tG[s]=clamp(s); s++; }
                 break;
             
-            case FILTER.CHANNEL.RED: 
+            case CHANNEL.R:
             default:
                 s=range[0]; f=range[1];
                 while (s<=f) { tR[s]=clamp(s); s++; }
@@ -1568,82 +1324,55 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         return this.set(t);
     }
     
-    ,set: function( _tR, _tG, _tB, _tA ) {
-        if ( !_tR ) return this;
+    ,set: function( tR, tG, tB, tA ) {
+        if ( !tR ) return this;
         
-        _tG=_tG || _tR; _tB=_tB || _tG;
-        var 
-            tR=this._tableR || eye(), tG, tB, tA,
-            tR2=clone(tR), tG2, tB2, tA2,
-            i;
+        var i, T = this._table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        tG = tG || tR; tB = tB || tG;
         
-        if (_tG && _tB)
+        if ( tG || tB )
         {
-            tG=this._tableG || clone(tR); tB=this._tableB || clone(tG);
-            tG2=clone(tG); tB2=clone(tB);
-            // concat/compose the filter's tables, same as composing the filters
-            for(i=0; i<256; i++)
-            { 
-                tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-                tG[i]=clamp( _tG[clamp( tG2[i] )] ); 
-                tB[i]=clamp( _tB[clamp( tB2[i] )] ); 
-            }
-            this._tableR=tR; this._tableG=tG; this._tableB=tB;
+            tG = tG || tR; tB = tB || tG;
+            G = T[CHANNEL.G] || R; B = T[CHANNEL.B] || G;
+            T[CHANNEL.R] = ct_mult( tR, R );
+            T[CHANNEL.G] = ct_mult( tG, G );
+            T[CHANNEL.B] = ct_mult( tB, B );
         }
         else
         {
-            // concat/compose the filter's tables, same as composing the filters
-            for(i=0; i<256; i++)
-            { 
-                tR[i]=clamp( _tR[clamp( tR2[i] )] ); 
-            }
-            this._tableR=tR; this._tableG=this._tableR; this._tableB=this._tableR;
+            T[CHANNEL.R] = ct_mult( tR, R );
+            T[CHANNEL.G] = T[CHANNEL.R];
+            T[CHANNEL.B] = T[CHANNEL.R];
         }
-        
         return this;
     }
     
     ,reset: function( ) {
-        this._tableR = this._tableG = this._tableB = this._tableA = null; 
+        this._table = [null, null, null, null]; 
         return this;
     }
     
     ,combineWith: function( filt ) {
-        return this.set(filt.getTable(0), filt.getTable(1), filt.getTable(2));
+        return this.set(filt.getTable(CHANNEL.R), filt.getTable(CHANNEL.G), filt.getTable(CHANNEL.B));
     }
     
     ,getTable: function ( channel ) {
-        channel = channel || FILTER.CHANNEL.RED;
-        switch (channel)
-        {
-            case FILTER.CHANNEL.ALPHA: return this._tableA;
-            case FILTER.CHANNEL.BLUE: return this._tableB;
-            case FILTER.CHANNEL.GREEN: return this._tableG;
-            case FILTER.CHANNEL.RED: 
-            default: return this._tableR;
-        }
+        return this._table[channel || CHANNEL.R] || null;
     }
     
     ,setTable: function ( table, channel ) {
-        channel = channel || FILTER.CHANNEL.RED;
-        switch (channel)
-        {
-            case FILTER.CHANNEL.ALPHA: this._tableA=table; return this;
-            case FILTER.CHANNEL.BLUE: this._tableB=table; return this;
-            case FILTER.CHANNEL.GREEN: this._tableG=table; return this;
-            case FILTER.CHANNEL.RED: 
-            default: this._tableR=table; return this;
-        }
+        this._table[channel || CHANNEL.R] = table || null;
+        return this;
     }
     
     // used for internal purposes
     ,_apply: function(im, w, h/*, image*/) {
-        var self = this;
-        if ( !self._isOn || !self._tableR ) return im;
+        var self = this, T = self._table;
+        if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var l=im.length, rem = (l>>2)%4,
-            i, r, g, b, a,
-            tR=self._tableR, tG=self._tableG, tB=self._tableB, tA=self._tableA;
+        var l=im.length, rem = (l>>>2)%4,
+            tR = T[CHANNEL.R], tG = T[CHANNEL.G], tB = T[CHANNEL.B], tA = T[CHANNEL.A],
+            i, r, g, b, a;
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( tA )
@@ -1665,8 +1394,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             // loop unrolling remainder
             if ( rem )
             {
-                rem <<= 2;
-                for (i=l-rem; i<l; i+=4)
+                for (i=l-(rem<<2); i<l; i+=4)
                 {
                     r = im[i]; g = im[i+1]; b = im[i+2]; a = im[i+3];
                     im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b]; im[i+3] = tA[a];
@@ -1692,8 +1420,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
             // loop unrolling remainder
             if ( rem )
             {
-                rem <<= 2;
-                for (i=l-rem; i<l; i+=4)
+                for (i=l-(rem<<2); i<l; i+=4)
                 {
                     r = im[i]; g = im[i+1]; b = im[i+2];
                     im[i] = tR[r]; im[i+1] = tG[g]; im[i+2] = tB[b];
@@ -1704,7 +1431,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._tableR;
+        return this._isOn && this._table && this._table[CHANNEL.R];
     }
 });
 // aliases
@@ -1983,7 +1710,9 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
     Sin = Math.sin, Cos = Math.cos, 
     Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
     Asin = Math.asin, Tan = Math.tan, Abs = Math.abs, Max = Math.max,
-    Maps
+    Maps, FilterUtil = FILTER.Util.Filter, generic_transform = FilterUtil.generic_transform,
+    affine_transform = FilterUtil.affine_transform, cyclic_shift = FilterUtil.cyclic_shift,
+    flip_x = FilterUtil.flip_x, flip_y = FilterUtil.flip_y, flip_xy = FilterUtil.flip_xy
 ;
 
 
@@ -2177,16 +1906,16 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,polar: function( centerX, centerY ) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "polar";  
-        self._map = Maps.polar; 
+        self._mapName = null;//"polar";  
+        self._map = null; 
         return self;
     }
     
     ,cartesian: function( centerX, centerY ) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "cartesian";  
-        self._map = Maps.cartesian; 
+        self._mapName = null;//"cartesian";  
+        self._map = null; 
         return self;
     }
     
@@ -2209,11 +1938,11 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     
     ,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
         var self = this;
-        self.radius = (radius!==undef) ? radius : 50; 
+        self.radius = radius!==undef ? radius : 50; 
         self.centerX = centerX||0; 
         self.centerY = centerY||0;
-        self.wavelength = (wavelength!==undef) ? wavelength : 16; 
-        self.amplitude = (amplitude!==undef) ? amplitude : 10; 
+        self.wavelength = wavelength!==undef ? wavelength : 16; 
+        self.amplitude = amplitude!==undef ? amplitude : 10; 
         self.phase = phase||0;
         self._mapName = "ripple";  
         self._map = Maps.ripple; 
@@ -2222,8 +1951,8 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     
     ,shift: function( dx, dy ) {
         var self = this;
-        self.dx = (dx!==undef) ? dx : 0; 
-        self.dy = (dy!==undef) ? dy : self.dx; 
+        self.dx = dx!==undef ? dx : 0; 
+        self.dy = dy!==undef ? dy : self.dx; 
         self._mapName = "shift";  
         self._map = Maps.shift; 
         return self;
@@ -2268,148 +1997,27 @@ GeometricMapFilter.prototype.translate = GeometricMapFilter.prototype.shift;
 /*function trivialMap(im, w, h) { return im; },*/
 Maps = {
     "generic": function( self, im, w, h )  {
-        var x, y, i, j, imLen=im.length, dst=new IMG(imLen),
-            invTransform=self.inverseTransform, mode=self.mode,
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            t, tx, ty
-        ;
-        
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            t = invTransform([x, y], w, h); tx = ~~(t[0]); ty = ~~(t[1]);
-            if (0>tx || tx>=w || 0>ty || ty>=h)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (ty>=h) ty-=h;
-                        else if (ty<0) ty+=h;
-                        if (tx>=w) tx-=w;
-                        else if (tx<0)  tx+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (ty>=h)  ty=h-1;
-                        else if (ty<0) ty=0;
-                        if (tx>=w) tx=w-1;
-                        else if (tx<0) tx=0;
-                        break;
-                }
-            }
-            j = (tx + ty*w)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return generic_transform( im, w, h, self.inverseTransform, self.mode );
     }
 
     ,"affine": function( self, im, w, h ) {
-        var x, y, yw, i, j, imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            mat=self.matrix, a=mat[0], b=mat[1], c=mat[3], d=mat[4], tx=mat[2], ty=mat[5], 
-            tyw, cw, dw, mode=self.mode,
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            nx, ny, bx=w-1, by=imArea-w
-        ;
-        
-        x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
-            if (0>nx || nx>bx || 0>ny || ny>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (ny>by) ny-=imArea;
-                        else if (ny<0) ny+=imArea;
-                        if (nx>=w) nx-=w;
-                        else if (nx<0)  nx+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (ny>by)  ny=by;
-                        else if (ny<0) ny=0;
-                        if (nx>bx) nx=bx;
-                        else if (nx<0) nx=0;
-                        break;
-                }
-            }
-            j = (nx + ny)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return affine_transform( im, w, h, self.matrix[0], self.matrix[1], self.matrix[3], self.matrix[4], self.matrix[2], self.matrix[5], self.mode );
     }
 
     ,"shift": function( self, im, w, h ) {
-        var x, y, yw, i, j, l=im.length, dst=new IMG(l),
-            dx = -self.dx, dy = -self.dy;
-        
-        if ( dx < 0 ) dx += w;
-        if ( dy < 0 ) dy += h;
-        
-        x=0; y=0; yw=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; }
-            
-            j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return cyclic_shift( im, w, h, -self.dx, -self.dy );
     }
     
     ,"flipX": function( self, im, w, h ) {
-        var x, y, yw, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; }
-            
-            j = (w-1-x+yw)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_x( im, w, h );
     }
     
     ,"flipY": function flipYMap( self, im, w, h ) {
-        var x, y, yw2, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw2=(h-1)*w;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw2-=w; }
-            
-            j = (x+yw2)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_y( im, w, h );
     }
     
     ,"flipXY": function( self, im, w, h )  {
-        var x, y, yw, yw2, i, j, l=im.length, dst=new IMG(l);
-        
-        x=0; y=0; yw2=(h-1)*w;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; yw+=w; yw2-=w; }
-            
-            j = (w-1-x+yw2)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
+        return flip_xy( im, w, h );
     }
     
     ,"rotateCW": function( self, im, w, h )  {
@@ -2470,24 +2078,21 @@ Maps = {
             {
                 theta = Atan2(ty, tx) + fact*(radius-d);
                 tx = ~~(cX + d*Cos(theta));  ty = ~~(cY + d*Sin(theta));
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -2525,30 +2130,27 @@ Maps = {
             tx = x - cX;  ty = y - cY;
             tx2 = tx*tx; ty2 = ty*ty;
             r2 = tx2 + ty2;
-            if (r2 < radius2)
+            if ( r2 < radius2 )
             {
                 d2 = radius2 - r2; ds = Sqrt(d2);
                 thetax = Asin(tx / Sqrt(tx2 + d2)) * invrefraction;
                 thetay = Asin(ty / Sqrt(ty2 + d2)) * invrefraction;
                 tx = ~~(x - ds * Tan(thetax));  ty = ~~(y - ds * Tan(thetay));
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -2595,24 +2197,21 @@ Maps = {
                 if (d)  amount *= wavelength/d;
                 tx = ~~(x + tx*amount);  ty = ~~(y + ty*amount);
                 
-                if (0>tx || tx>bx || 0>ty || ty>by)
+                if ( 0>tx || tx>bx || 0>ty || ty>by )
                 {
-                    switch(mode)
+                    if ( _Wrap === mode )
                     {
-                        case _Wrap:
-                            if (ty>by) ty-=h;
-                            else if (ty<0) ty+=h;
-                            if (tx>bx) tx-=w;
-                            else if (tx<0)  tx+=w;
-                            break;
-                            
-                        case _Clamp:
-                        default:
-                            if (ty>by)  ty=by;
-                            else if (ty<0) ty=0;
-                            if (tx>bx) tx=bx;
-                            else if (tx<0) tx=0;
-                            break;
+                        if (ty>by) ty-=h;
+                        else if (ty<0) ty+=h;
+                        if (tx>bx) tx-=w;
+                        else if (tx<0)  tx+=w;
+                    }
+                    else //if ( _Clamp === mode )
+                    {
+                        if (ty>by)  ty=by;
+                        else if (ty<0) ty=0;
+                        if (tx>bx) tx=bx;
+                        else if (tx<0) tx=0;
                     }
                 }
                 j = (tx + ty*w)<<2;
@@ -2679,181 +2278,6 @@ Maps = {
         return im;
     }
     */
-    ,"polar": function( self, im, w, h ) {
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            tx, ty, ix, iy, ip,
-            bx = w-1, by = h-1, 
-            theta, r=0, radius, cX, cY, 
-            mode = self.mode
-        ;
-        
-        cX = ~~(0.5*w + 0.5);
-        cY = ~~(0.5*h + 0.5);
-        radius = Max(cY, cX);
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x-cX;
-            ty = y-cY;
-            theta = 0;
-            
-            if (tx >= 0) 
-            {
-                if (ty > 0) 
-                {
-                    theta = PI - Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else if (ty < 0) 
-                {
-                    theta = Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else 
-                {
-                    theta = HalfPI;
-                    r = tx;
-                }
-            } 
-            else if (tx < 0) 
-            {
-                if (ty < 0) 
-                {
-                    theta = DoublePI - Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else if (ty > 0) 
-                {
-                    theta = PI + Atan(tx/ty);
-                    r = Sqrt(tx*tx + ty*ty);
-                } 
-                else 
-                {
-                    theta = ThreePI2;
-                    r = -tx;
-                }
-            }
-            // inverse transform
-            ix = (w-1) - (w-1)/DoublePI * theta;
-            iy = (h * r / radius);
-            ix = Round(ix); iy = Round(iy);
-            if (0>ix || ix>bx || 0>iy || iy>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (iy>by) iy-=h;
-                        else if (iy<0) iy+=h;
-                        if (ix>bx) ix-=w;
-                        else if (ix<0)  ix+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (iy>by)  iy=by;
-                        else if (iy<0) iy=0;
-                        if (ix>bx) ix=bx;
-                        else if (ix<0) ix=0;
-                        break;
-                }
-            }
-            ip = ( ix + iy*w ) << 2;
-            im[i] = imcopy[ ip ];
-            im[i+1] = imcopy[ ip+1 ];
-            im[i+2] = imcopy[ ip+2 ];
-            im[i+3] = imcopy[ ip+3 ];
-        }
-        return im;
-    }
-    
-    // adapted from http://www.jhlabs.com/ip/filters/
-    ,"cartesian": function( self, im, w, h ) {
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            ix, iy, ip, nx, ny,
-            bx = w-1, by = h-1, 
-            theta, theta2, r=0, radius, cX, cY, 
-            mode = self.mode
-        ;
-        
-        cX = ~~(0.5*w + 0.5);
-        cY = ~~(0.5*h + 0.5);
-        radius = Max(cY, cX);
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            theta = x / w * DoublePI;
-
-            if (theta >= ThreePI2)
-                theta2 = DoublePI - theta;
-            else if (theta >= PI)
-                theta2 = theta - PI;
-            else if (theta >= HalfPI)
-                theta2 = PI - theta;
-            else
-                theta2 = theta;
-            r = radius * (y / h);
-
-            nx = -r * Sin(theta2);
-            ny = r * Cos(theta2);
-            
-            if (theta >= ThreePI2) 
-            {
-                ix = cX - nx;
-                iy = cY - ny;
-            } 
-            else if (theta >= PI) 
-            {
-                ix = cX - nx;
-                iy = cY + ny;
-            } 
-            else if (theta >= HalfPI) 
-            {
-                ix = cX + nx;
-                iy = cY + ny;
-            } 
-            else 
-            {
-                ix = cX + nx;
-                iy = cY - ny;
-            }
-            // inverse transform
-            ix = Round(ix); iy = Round(iy);
-            if (0>ix || ix>bx || 0>iy || iy>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (iy>by) iy-=h;
-                        else if (iy<0) iy+=h;
-                        if (ix>bx) ix-=w;
-                        else if (ix<0)  ix+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (iy>by)  iy=by;
-                        else if (iy<0) iy=0;
-                        if (ix>bx) ix=bx;
-                        else if (ix<0) ix=0;
-                        break;
-                }
-            }
-            ip = ( ix + iy*w ) << 2;
-            im[i] = imcopy[ ip ];
-            im[i+1] = imcopy[ ip+1 ];
-            im[i+2] = imcopy[ ip+2 ];
-            im[i+3] = imcopy[ ip+3 ];
-        }
-        return im;
-    }
 };
 
 }(FILTER);/**
@@ -2870,16 +2294,16 @@ Maps = {
 !function(FILTER, undef){
 "use strict";
 
-var 
-    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
-    TypedArray = FILTER.Util.Array.typed, FilterUtil = FILTER.Util.Filter,
-    notSupportClamp = FILTER._notSupportClamp,
+var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
+    IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
-    // Convolution Matrix
-    CM = FILTER.Array32F, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
-    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    
+    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
     
     // hardcode Pascal numbers, used for binomial kernels
     _pascal=[

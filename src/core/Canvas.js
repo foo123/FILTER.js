@@ -47,7 +47,7 @@ CanvasProxyCtx = FILTER.Class({
         if ( null == h ) h = H;
         if ( fillStyle === +fillStyle )
         {
-            col = Color.Color2RGBA( fillStyle );
+            col = Color.Color2RGBA( fillStyle, [0,0,0,0], 0 );
         }
         else if ( fillStyle && fillStyle.substr )
         {

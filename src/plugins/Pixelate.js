@@ -57,33 +57,37 @@ FILTER.Create({
         if ( self.scale > 100 ) self.scale = 100;
         
         var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
-            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4
+            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc,
+            r, g, b, r1, g1, b1, r2, g2, b2,
+            r3, g3, b3, r4, g4, b4, r5, g5, b5
         ;
         
         dst = new IMG(imLen);
         step = ~~(sqrt(imArea)*self.scale*0.01);
         stepx = step-1; stepy = w*stepx;
         
-        // do pixelation via interpolation on 4 points of a certain rectangle
+        // do pixelation via interpolation on 5 points of a certain rectangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
             pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            //pxc = min(bx, pxa+(stepx>>>1)); pyc = min(by, pya+(stepy>>>1));
             
             // these edge conditions create the rectangular pattern
             p1 = (pxa + pya) << 2;
             p2 = (pxa + pyb) << 2;
             p3 = (pxb + pya) << 2;
             p4 = (pxb + pyb) << 2;
+            //p5 = (pxc + pyc) << 2;
             
             // compute rectangular interpolation
             r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
             r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
             r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
             r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
+            //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
             r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
             dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             
@@ -150,42 +154,48 @@ FILTER.Create({
         if ( self.scale > 100 ) self.scale = 100;
         
         var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, 
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb,
-            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3
+            bx = w-1, by = imArea-w, p1, p2, p3, p4,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc,
+            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4
         ;
         
         dst = new IMG(imLen);
         step = ~~(sqrt(imArea)*self.scale*0.01);
         stepx = step-1; stepy = w*stepx;
         
-        // do pixelation via interpolation on 3 points of a certain triangle
+        // do pixelation via interpolation on 4 points of a certain triangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
             pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            pxc = min(bx, pxa+(stepx>>>1));
             
             // these edge conditions create the various triangular patterns
             if ( sx+sy > stepx ) 
             { 
                 // second triangle
+                //pyc = min(by, ~~(pya+0.66*stepy));
                 p1 = (pxb + pya) << 2;
                 p2 = (pxb + pyb) << 2;
                 p3 = (pxa + pya) << 2;
+                //p4 = (pxc + pyc) << 2;
             }
             else
             {
                 // first triangle
+                //pyc = min(by, ~~(pya+0.33*stepy));
                 p1 = (pxa + pya) << 2;
                 p2 = (pxa + pyb) << 2;
                 p3 = (pxb + pya) << 2;
+                //p4 = (pxc + pyc) << 2;
             }
             
             // compute triangular interpolation
             r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
             r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
             r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
+            //r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
             r = ~~((r1+r2+r3)/3); g = ~~((g1+g2+g3)/3); b = ~~((b1+b2+b3)/3);
             dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             
@@ -256,10 +266,10 @@ FILTER.Create({
         var dst, imLen = im.length, imArea = (imLen>>>2),
             step, step_1, step_2, stepx, stepy, stepx_2, stepy_2,
             bx = w-1, by = imArea-w,
-            p1, p2, p3, p4, p5, p6, d,
+            p1, p2, p3, p4, p5, p6, p7, d,
             i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd,
             r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3,
-            r4, g4, b4, r5, g5, b5, r6, g6, b6
+            r4, g4, b4, r5, g5, b5, r6, g6, b6, r7, g7, b7
         ;
         
         dst = new IMG(imLen);
@@ -313,6 +323,7 @@ FILTER.Create({
             r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
             //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
             //r6 = im[p6  ]; g6 = im[p6+1]; b6 = im[p6+2];
+            //r7 = im[p7  ]; g7 = im[p7+1]; b7 = im[p7+2];
             r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
             dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
             

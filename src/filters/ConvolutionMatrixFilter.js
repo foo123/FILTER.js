@@ -12,16 +12,16 @@
 !function(FILTER, undef){
 "use strict";
 
-var 
-    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
-    TypedArray = FILTER.Util.Array.typed, FilterUtil = FILTER.Util.Filter,
-    notSupportClamp = FILTER._notSupportClamp,
+var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
+    IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
-    // Convolution Matrix
-    CM = FILTER.Array32F, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
-    A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    
+    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
     
     // hardcode Pascal numbers, used for binomial kernels
     _pascal=[

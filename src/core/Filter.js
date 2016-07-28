@@ -103,6 +103,9 @@ FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
+FILTER.ColorTable = FILTER.ImArrayCopy;
+FILTER.ColorMatrix = FILTER.Array32F;
+FILTER.ConvolutionMatrix = FILTER.Array32F;
 
 //
 // Constants

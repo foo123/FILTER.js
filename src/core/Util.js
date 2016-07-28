@@ -10,6 +10,7 @@
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix, //ConvolutionMatrix = FILTER.ConvolutionMatrix,
     MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
     ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
@@ -19,7 +20,7 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
     arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
-    notSupportClamp = FILTER._notSupportClamp,
+    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
 ;
 
@@ -219,6 +220,313 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
     }
     return D;
 }
+
+function generic_transform( im, w, h, T, mode )
+{
+    var x, y, i, j, imLen=im.length, dst=new IMG(imLen), t, tx, ty,
+        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
+    mode = mode || CLAMP;
+
+    x=0; y=0;
+    for (i=0; i<imLen; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; }
+        
+        t = T([x, y], w, h); tx = ~~(t[0]); ty = ~~(t[1]);
+        if ( 0>tx || tx>=w || 0>ty || ty>=h )
+        {
+            if ( WRAP === mode )
+            {
+                if ( ty >= h ) ty -= h;
+                else if ( ty < 0 ) ty += h;
+                if ( tx >= w ) tx -= w;
+                else if ( tx < 0 )  tx += w;
+            }
+            else //if ( CLAMP === mode )
+            {
+                if ( ty >= h )  ty = h-1;
+                else if ( ty < 0 ) ty = 0;
+                if ( tx >= w ) tx = w-1;
+                else if ( tx < 0 ) tx = 0;
+            }
+        }
+        j = (tx + ty*w) << 2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+function affine_transform( im, w, h, a, b, c, d, tx, ty, mode )
+{
+    var x, y, yw, i, j, imLen=im.length, imArea=imLen>>>2, dst=new IMG(imLen),
+        tyw, cw, dw, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, nx, ny, bx=w-1, by=imArea-w
+    ;
+    mode = mode || CLAMP;
+    
+    x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
+    for (i=0; i<imLen; i+=4,x++)
+    {
+        if (x>=w) { x=0; y++; }
+        
+        nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
+        if ( 0>nx || nx>bx || 0>ny || ny>by )
+        {
+            if ( WRAP === mode )
+            {
+                if ( ny > by ) ny -= imArea;
+                else if ( ny < 0 ) ny += imArea;
+                if ( nx >= w ) nx -= w;
+                else if ( nx < 0 )  nx += w;
+            }
+            else //if ( CLAMP === mode )
+            {
+                if ( ny > by )  ny = by;
+                else if ( ny < 0 ) ny = 0;
+                if ( nx > bx ) nx = bx;
+                else if ( nx < 0 ) nx = 0;
+            }
+        }
+        j = (nx + ny) << 2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+function cyclic_shift( im, w, h, dx, dy )
+{
+    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
+    
+    if ( dx < 0 ) dx += w;
+    if ( dy < 0 ) dy += h;
+    
+    x=0; y=0; yw=0;
+    for (i=0; i<l; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; yw+=w; }
+        
+        j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+function flip_x( im, w, h )
+{
+    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
+    
+    x=0; y=0; yw=0;
+    for (i=0; i<l; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; yw+=w; }
+        
+        j = (w-1-x+yw)<<2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+function flip_y( im, w, h )
+{
+    var x, y, yw2, i, j, l = im.length, dst = new IMG(l);
+    
+    x=0; y=0; yw2=(h-1)*w;
+    for (i=0; i<l; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; yw2-=w; }
+        
+        j = (x+yw2)<<2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+function flip_xy( im, w, h )
+{
+    var x, y, yw, yw2, i, j, l = im.length, dst = new IMG(l);
+    
+    x=0; y=0; yw2=(h-1)*w;
+    for (i=0; i<l; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; yw+=w; yw2-=w; }
+        
+        j = (w-1-x+yw2)<<2;
+        dst[i] = im[j];   dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+    }
+    return dst;
+}
+/*
+// adapted from http://www.jhlabs.com/ip/filters/
+function polar_transform( im, w, h, mode )
+{
+    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
+        tx, ty, ix, iy, ip, bx = w-1, by = h-1, theta, r=0, radius, cX, cY,
+        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
+    mode = mode || CLAMP;
+    
+    cX = ~~(0.5*w + 0.5);
+    cY = ~~(0.5*h + 0.5);
+    radius = Max(cY, cX);
+        
+    x=0; y=0;
+    for (i=0; i<imLen; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; }
+        
+        tx = x-cX;
+        ty = y-cY;
+        theta = 0;
+        
+        if (tx >= 0) 
+        {
+            if (ty > 0) 
+            {
+                theta = PI - Atan(tx/ty);
+                r = Sqrt(tx*tx + ty*ty);
+            } 
+            else if (ty < 0) 
+            {
+                theta = Atan(tx/ty);
+                r = Sqrt(tx*tx + ty*ty);
+            } 
+            else 
+            {
+                theta = HalfPI;
+                r = tx;
+            }
+        } 
+        else if (tx < 0) 
+        {
+            if (ty < 0) 
+            {
+                theta = DoublePI - Atan(tx/ty);
+                r = Sqrt(tx*tx + ty*ty);
+            } 
+            else if (ty > 0) 
+            {
+                theta = PI + Atan(tx/ty);
+                r = Sqrt(tx*tx + ty*ty);
+            } 
+            else 
+            {
+                theta = ThreePI2;
+                r = -tx;
+            }
+        }
+        // inverse transform
+        ix = (w-1) - (w-1)/DoublePI * theta;
+        iy = (h * r / radius);
+        ix = Round(ix); iy = Round(iy);
+        if (0>ix || ix>bx || 0>iy || iy>by)
+        {
+            switch(mode)
+            {
+                case WRAP:
+                    if (iy>by) iy-=h;
+                    else if (iy<0) iy+=h;
+                    if (ix>bx) ix-=w;
+                    else if (ix<0)  ix+=w;
+                    break;
+                    
+                case CLAMP:
+                default:
+                    if (iy>by)  iy=by;
+                    else if (iy<0) iy=0;
+                    if (ix>bx) ix=bx;
+                    else if (ix<0) ix=0;
+                    break;
+            }
+        }
+        ip = ( ix + iy*w ) << 2;
+        im[i] = imcopy[ ip ];
+        im[i+1] = imcopy[ ip+1 ];
+        im[i+2] = imcopy[ ip+2 ];
+        im[i+3] = imcopy[ ip+3 ];
+    }
+    return im;
+}
+function cartesian( im, w, h, mode )
+{
+    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
+        ix, iy, ip, nx, ny, bx = w-1, by = h-1, 
+        theta, theta2, r=0, radius, cX, cY, 
+        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
+    mode = mode || CLAMP;
+    
+    cX = ~~(0.5*w + 0.5);
+    cY = ~~(0.5*h + 0.5);
+    radius = Max(cY, cX);
+        
+    x=0; y=0;
+    for (i=0; i<imLen; i+=4, x++)
+    {
+        if (x>=w) { x=0; y++; }
+        
+        theta = x / w * DoublePI;
+
+        if (theta >= ThreePI2)
+            theta2 = DoublePI - theta;
+        else if (theta >= PI)
+            theta2 = theta - PI;
+        else if (theta >= HalfPI)
+            theta2 = PI - theta;
+        else
+            theta2 = theta;
+        r = radius * (y / h);
+
+        nx = -r * Sin(theta2);
+        ny = r * Cos(theta2);
+        
+        if (theta >= ThreePI2) 
+        {
+            ix = cX - nx;
+            iy = cY - ny;
+        } 
+        else if (theta >= PI) 
+        {
+            ix = cX - nx;
+            iy = cY + ny;
+        } 
+        else if (theta >= HalfPI) 
+        {
+            ix = cX + nx;
+            iy = cY + ny;
+        } 
+        else 
+        {
+            ix = cX + nx;
+            iy = cY - ny;
+        }
+        // inverse transform
+        ix = Round(ix); iy = Round(iy);
+        if (0>ix || ix>bx || 0>iy || iy>by)
+        {
+            switch(mode)
+            {
+                case WRAP:
+                    if (iy>by) iy-=h;
+                    else if (iy<0) iy+=h;
+                    if (ix>bx) ix-=w;
+                    else if (ix<0)  ix+=w;
+                    break;
+                    
+                case CLAMP:
+                default:
+                    if (iy>by)  iy=by;
+                    else if (iy<0) iy=0;
+                    if (ix>bx) ix=bx;
+                    else if (ix<0) ix=0;
+                    break;
+            }
+        }
+        ip = ( ix + iy*w ) << 2;
+        im[i] = imcopy[ ip ];
+        im[i+1] = imcopy[ ip+1 ];
+        im[i+2] = imcopy[ ip+2 ];
+        im[i+3] = imcopy[ ip+3 ];
+    }
+    return im;
+}*/
 
 // compute integral image (Summed Area Table, SAT) (for a given channel)
 function integral( im, w, h, channel ) 
@@ -858,6 +1166,134 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
     }
     return dst;
 }
+// multiply/concatenate 2 Color Tables, like functional composition
+function ct_eye( inverse )
+{
+    var i, t = new ColorTable(256);
+    if ( inverse )
+    {
+        for(i=0; i<256; i+=16)
+        {
+            t[i   ] = 255-i;
+            t[i+1 ] = 255-i-1;
+            t[i+2 ] = 255-i-2;
+            t[i+3 ] = 255-i-3;
+            t[i+4 ] = 255-i-4;
+            t[i+5 ] = 255-i-5;
+            t[i+6 ] = 255-i-6;
+            t[i+7 ] = 255-i-7;
+            t[i+8 ] = 255-i-8;
+            t[i+9 ] = 255-i-9;
+            t[i+10] = 255-i-10;
+            t[i+11] = 255-i-11;
+            t[i+12] = 255-i-12;
+            t[i+13] = 255-i-13;
+            t[i+14] = 255-i-14;
+            t[i+15] = 255-i-15;
+        }
+    }
+    else
+    {
+        for(i=0; i<256; i+=16)
+        {
+            t[i   ] = i;
+            t[i+1 ] = i+1;
+            t[i+2 ] = i+2;
+            t[i+3 ] = i+3;
+            t[i+4 ] = i+4;
+            t[i+5 ] = i+5;
+            t[i+6 ] = i+6;
+            t[i+7 ] = i+7;
+            t[i+8 ] = i+8;
+            t[i+9 ] = i+9;
+            t[i+10] = i+10;
+            t[i+11] = i+11;
+            t[i+12] = i+12;
+            t[i+13] = i+13;
+            t[i+14] = i+14;
+            t[i+15] = i+15;
+        }
+    }
+    return t;
+}
+function ct_multiply( ct2, ct1 )
+{
+    var i, ct12 = new ColorTable(256);
+    for(i=0; i<256; i+=16)
+    { 
+        ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255); 
+        ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255); 
+        ct12[i+2 ] = clamp(ct2[ clamp(ct1[i+2 ],0,255) ],0,255); 
+        ct12[i+3 ] = clamp(ct2[ clamp(ct1[i+3 ],0,255) ],0,255); 
+        ct12[i+4 ] = clamp(ct2[ clamp(ct1[i+4 ],0,255) ],0,255); 
+        ct12[i+5 ] = clamp(ct2[ clamp(ct1[i+5 ],0,255) ],0,255); 
+        ct12[i+6 ] = clamp(ct2[ clamp(ct1[i+6 ],0,255) ],0,255); 
+        ct12[i+7 ] = clamp(ct2[ clamp(ct1[i+7 ],0,255) ],0,255); 
+        ct12[i+8 ] = clamp(ct2[ clamp(ct1[i+8 ],0,255) ],0,255); 
+        ct12[i+9 ] = clamp(ct2[ clamp(ct1[i+9 ],0,255) ],0,255); 
+        ct12[i+10] = clamp(ct2[ clamp(ct1[i+10],0,255) ],0,255); 
+        ct12[i+11] = clamp(ct2[ clamp(ct1[i+11],0,255) ],0,255); 
+        ct12[i+12] = clamp(ct2[ clamp(ct1[i+12],0,255) ],0,255); 
+        ct12[i+13] = clamp(ct2[ clamp(ct1[i+13],0,255) ],0,255); 
+        ct12[i+14] = clamp(ct2[ clamp(ct1[i+14],0,255) ],0,255); 
+        ct12[i+15] = clamp(ct2[ clamp(ct1[i+15],0,255) ],0,255); 
+    }
+    return ct12;
+}
+// multiply/concatenate 2 Color Matrices (kind of Color Matrix multiplication)
+function cm_eye( )
+{
+    return new ColorMatrix([
+    1,0,0,0,0,
+    0,1,0,0,0,
+    0,0,1,0,0,
+    0,0,0,1,0
+    ]);
+}
+function cm_multiply(cm1, cm2) 
+{
+    var cm12 = new ColorMatrix(20);
+
+    // unroll the loop completely
+    // i=0
+    cm12[ 0 ] = cm2[0]*cm1[0] + cm2[1]*cm1[5] + cm2[2]*cm1[10] + cm2[3]*cm1[15];
+    cm12[ 1 ] = cm2[0]*cm1[1] + cm2[1]*cm1[6] + cm2[2]*cm1[11] + cm2[3]*cm1[16];
+    cm12[ 2 ] = cm2[0]*cm1[2] + cm2[1]*cm1[7] + cm2[2]*cm1[12] + cm2[3]*cm1[17];
+    cm12[ 3 ] = cm2[0]*cm1[3] + cm2[1]*cm1[8] + cm2[2]*cm1[13] + cm2[3]*cm1[18];
+    cm12[ 4 ] = cm2[0]*cm1[4] + cm2[1]*cm1[9] + cm2[2]*cm1[14] + cm2[3]*cm1[19] + cm2[4];
+
+    // i=5
+    cm12[ 5 ] = cm2[5]*cm1[0] + cm2[6]*cm1[5] + cm2[7]*cm1[10] + cm2[8]*cm1[15];
+    cm12[ 6 ] = cm2[5]*cm1[1] + cm2[6]*cm1[6] + cm2[7]*cm1[11] + cm2[8]*cm1[16];
+    cm12[ 7 ] = cm2[5]*cm1[2] + cm2[6]*cm1[7] + cm2[7]*cm1[12] + cm2[8]*cm1[17];
+    cm12[ 8 ] = cm2[5]*cm1[3] + cm2[6]*cm1[8] + cm2[7]*cm1[13] + cm2[8]*cm1[18];
+    cm12[ 9 ] = cm2[5]*cm1[4] + cm2[6]*cm1[9] + cm2[7]*cm1[14] + cm2[8]*cm1[19] + cm2[9];
+
+    // i=10
+    cm12[ 10 ] = cm2[10]*cm1[0] + cm2[11]*cm1[5] + cm2[12]*cm1[10] + cm2[13]*cm1[15];
+    cm12[ 11 ] = cm2[10]*cm1[1] + cm2[11]*cm1[6] + cm2[12]*cm1[11] + cm2[13]*cm1[16];
+    cm12[ 12 ] = cm2[10]*cm1[2] + cm2[11]*cm1[7] + cm2[12]*cm1[12] + cm2[13]*cm1[17];
+    cm12[ 13 ] = cm2[10]*cm1[3] + cm2[11]*cm1[8] + cm2[12]*cm1[13] + cm2[13]*cm1[18];
+    cm12[ 14 ] = cm2[10]*cm1[4] + cm2[11]*cm1[9] + cm2[12]*cm1[14] + cm2[13]*cm1[19] + cm2[14];
+
+    // i=15
+    cm12[ 15 ] = cm2[15]*cm1[0] + cm2[16]*cm1[5] + cm2[17]*cm1[10] + cm2[18]*cm1[15];
+    cm12[ 16 ] = cm2[15]*cm1[1] + cm2[16]*cm1[6] + cm2[17]*cm1[11] + cm2[18]*cm1[16];
+    cm12[ 17 ] = cm2[15]*cm1[2] + cm2[16]*cm1[7] + cm2[17]*cm1[12] + cm2[18]*cm1[17];
+    cm12[ 18 ] = cm2[15]*cm1[3] + cm2[16]*cm1[8] + cm2[17]*cm1[13] + cm2[18]*cm1[18];
+    cm12[ 19 ] = cm2[15]*cm1[4] + cm2[16]*cm1[9] + cm2[17]*cm1[14] + cm2[18]*cm1[19] + cm2[19];
+
+    return cm12;
+}
+function cm_rechannel( m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao )
+{
+    var cm = new ColorMatrix(20);
+    cm[Ro*5+Ri] = m[0 ]; cm[Ro*5+Gi] = m[1 ]; cm[Ro*5+Bi] = m[2 ]; cm[Ro*5+Ai] = m[3 ]; cm[Ro*5+4] = m[4 ];
+    cm[Go*5+Ri] = m[5 ]; cm[Go*5+Gi] = m[6 ]; cm[Go*5+Bi] = m[7 ]; cm[Go*5+Ai] = m[8 ]; cm[Go*5+4] = m[9 ];
+    cm[Bo*5+Ri] = m[10]; cm[Bo*5+Gi] = m[11]; cm[Bo*5+Bi] = m[12]; cm[Bo*5+Ai] = m[13]; cm[Bo*5+4] = m[14];
+    cm[Ao*5+Ri] = m[15]; cm[Ao*5+Gi] = m[16]; cm[Ao*5+Bi] = m[17]; cm[Ao*5+Ai] = m[18]; cm[Ao*5+4] = m[19];
+    return cm;
+}
 
 function lerp( data, index, c1, c2, t )
 {
@@ -1051,7 +1487,19 @@ ImageUtil.radial_gradient = radial_gradient;
 ImageUtil.lerp = lerp;
 ImageUtil.colors_stops = colors_stops;
 
+FilterUtil.ct_eye = ct_eye;
+FilterUtil.ct_multiply = ct_multiply;
+FilterUtil.cm_eye = cm_eye;
+FilterUtil.cm_multiply = cm_multiply;
+//FilterUtil.cm_apply = cm_apply;
+FilterUtil.cm_rechannel = cm_rechannel;
 FilterUtil.integral_convolution = integral_convolution_rgb;
 FilterUtil.separable_convolution = separable_convolution;
+FilterUtil.generic_transform = generic_transform;
+FilterUtil.affine_transform = affine_transform;
+FilterUtil.cyclic_shift = cyclic_shift;
+FilterUtil.flip_x = flip_x;
+FilterUtil.flip_y = flip_y;
+FilterUtil.flip_xy = flip_xy;
 
 }(FILTER);

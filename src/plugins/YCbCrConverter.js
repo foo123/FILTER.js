@@ -31,7 +31,7 @@ FILTER.Create({
             for (i=0; i<l; i+=4)
             {
                 //r = im[i]; g = im[i+1]; b = im[i+2];
-                ycbcr = RGB2YCBCR(subarray(im,i,i+3));
+                ycbcr = RGB2YCBCR([im[i],im[i+1],im[i+2]],0);
                 t0 = ycbcr[2]; t1 = ycbcr[0]; t2 = ycbcr[1];
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
@@ -45,7 +45,7 @@ FILTER.Create({
             for (i=0; i<l; i+=4)
             {
                 //r = im[i]; g = im[i+1]; b = im[i+2];
-                ycbcr = RGB2YCBCR(subarray(im,i,i+3));
+                ycbcr = RGB2YCBCR([im[i],im[i+1],im[i+2]],0);
                 im[i+Y] = ycbcr[0]; im[i+CB] = ycbcr[1]; im[i+CR] = ycbcr[2];
             }
         }

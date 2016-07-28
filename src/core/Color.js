@@ -16,7 +16,8 @@ var // utils
     esc = FILTER.Util.String.esc,
     trim = FILTER.Util.String.trim,
     
-    LUMA = FILTER.LUMA,
+    LUMA = FILTER.LUMA, CHANNEL = FILTER.CHANNEL,
+    //RED = CHANNEL.RED, GREEN = CHANNEL.GREEN, BLUE = CHANNEL.BLUE, ALPHA = CHANNEL.ALPHA,
     C2F = 1/255, C2P = 100/255, P2C = 2.55,
 
     Keywords = {
@@ -214,57 +215,58 @@ var Color = FILTER.Color = FILTER.Class({
             return r === g && g === b ? 0 : 255 * (M-min( r, g, b )) / M;
         },
         
-        distance: function( rgb1, rgb2 ) {
-            var dr=rgb1[0]-rgb2[0], dg=rgb1[1]-rgb2[1], db=rgb1[2]-rgb2[2];
-            return Sqrt(dr*dr + dg*dg + db*db);
+        dist: function( ccc1, ccc2, p1, p2 ) {
+            //p1 = p1 || 0; p2 = p2 || 0;
+            var d0 = ccc1[p1+0]-ccc2[p2+0], d1 = ccc1[p1+1]-ccc2[p2+1], d2 = ccc1[p1+2]-ccc2[p2+2];
+            return Sqrt(d0*d0 + d1*d1 + d2*d2);
         },
         
-        RGB2Color: function( rgb ) {
-            return ((rgb[0] << 16) | (rgb[1] << 8) | (rgb[2])&255);
+        RGB2Color: function( rgb, p ) {
+            //p = p || 0;
+            return ((rgb[p+0]&255) << 16) | ((rgb[p+1]&255) << 8) | (rgb[p+2]&255);
         },
         
         RGBA2Color: function( rgba ) {
-            return (rgba[3] << 24) | (rgba[0] << 16) | (rgba[1] << 8) | (rgba[2]&255);
+            //p = p || 0;
+            return ((rgba[p+3]&255) << 24) | ((rgba[p+0]&255) << 16) | ((rgba[p+1]&255) << 8) | (rgba[p+2]&255);
         },
         
-        Color2RGBA: function( c ) {
-            c = ~~c;
-            return [
-                (c >>> 16) & 255,
-                (c >>> 8) & 255,
-                (c & 255),
-                (c >>> 24) & 255
-            ];
+        Color2RGBA: function( c, rgba, p ) {
+            /*p = p || 0;*/ c = ~~c;
+            rgba[p+0] = (c >>> 16) & 255;
+            rgba[p+1] = (c >>> 8) & 255;
+            rgba[p+2] = (c & 255);
+            rgba[p+3] = (c >>> 24) & 255;
+            return rgba;
         },
 
         // http://en.wikipedia.org/wiki/YCbCr
-        RGB2YCbCr: function( rgb ) {
-            var r=rgb[0], g=rgb[1], b=rgb[2];
+        RGB2YCbCr: function( ccc, p ) {
+            //p = p || 0;
+            var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2];
             // each take full range from 0-255
-            return [
-                ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    ),
-                ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      ),
-                ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b )
-            ];
+            ccc[p+0] = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
+            ccc[p+1] = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
+            ccc[p+2] = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+            return ccc;
         },
         
         // http://en.wikipedia.org/wiki/YCbCr
-        YCbCr2RGB: function( ycbcr ) {
-            var y=ycbcr[0], cb=ycbcr[1], cr=ycbcr[2];
+        YCbCr2RGB: function( ccc, p ) {
+            //p = p || 0;
+            var y = ccc[p+0], cb = ccc[p+1], cr = ccc[p+2];
             // each take full range from 0-255
-            return [
-                ~~( y                      + 1.402   * (cr-128) ),
-                ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) ),
-                ~~( y + 1.772   * (cb-128) )
-            ];
+            ccc[p+0] = ~~( y                      + 1.402   * (cr-128) );
+            ccc[p+1] = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+            ccc[p+2] = ~~( y + 1.772   * (cb-128) );
+            return ccc;
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/colo
-        RGB2HSV: function( rgb )  {
-            var m, M, delta, r, g, b, h, s, v;
-
-            r=rgb[0]; g=rgb[1]; b=rgb[2];
+        RGB2HSV: function( ccc, p )  {
+            //p = p || 0;
+            var m, M, delta, r = ccc[p+0], g = ccc[p+1], b = ccc[p+2], h, s, v;
             
             M = max( r, g, b );
             v = M;                // v
@@ -272,51 +274,53 @@ var Color = FILTER.Color = FILTER.Class({
             if ( r === g && g === b )
             {
                 // r = g = b = 0        // s = 0, v is undefined
-                s = 0;  h = 0; //h = -1;
-                return [h, s, v];
+                s = 0; h = 0; //h = -1;
             }
-            m = min( r, g, b );
-            delta = M - m;
-            s = delta / M;        // s
+            else
+            {
+                m = min( r, g, b );
+                delta = M - m;
+                s = delta / M;        // s
 
-            if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
-            else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
-            else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
-
-            //h *= 60;                // degrees
-            //if( h < 0 )  h += 360;
-            return [h, s, v];
+                if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
+                else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
+                else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
+                //h *= 60;                // degrees
+                //if( h < 0 )  h += 360;
+            }
+            ccc[p+0] = h; ccc[p+1] = s; ccc[p+2] = v
+            return ccc;
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
-        HSV2RGB: function( hsv ) {
-            var i, f, p, q, t, r, g, b, h, s, v;
-            
-            h=hsv[0]; s=hsv[1]; v=hsv[2];
+        HSV2RGB: function( ccc, p ) {
+            //p = p || 0;
+            var i, f, o, q, t, r, g, b, h = ccc[p+0], s = ccc[p+1], v = ccc[p+2];
             
             if( 0 === s ) 
             {
                 // achromatic (grey)
                 r = g = b = v;
-                return [r, g, b];
             }
+            else
+            {
+                h /= 60;            // sector 0 to 5
+                i = ~~h;
+                f = h - i;          // fractional part of h
+                o = v * ( 1 - s );
+                q = v * ( 1 - s * f );
+                t = v * ( 1 - s * ( 1 - f ) );
 
-            h /= 60;            // sector 0 to 5
-            i = ~~h;
-            f = h - i;          // fractional part of h
-            p = v * ( 1 - s );
-            q = v * ( 1 - s * f );
-            t = v * ( 1 - s * ( 1 - f ) );
-
-            if ( 0 === i )      { r = v; g = t; b = p; }
-            else if ( 1 === i ) { r = q;  g = v; b = p; }
-            else if ( 2 === i ) { r = p; g = v; b = t; }
-            else if ( 3 === i ) { r = p; g = q; b = v; }
-            else if ( 4 === i ) { r = t; g = p; b = v; }
-            else /* case 5: */  { r = v; g = p; b = q; }
-            
-            return [r, g, b];
+                if ( 0 === i )      { r = v; g = t; b = o; }
+                else if ( 1 === i ) { r = q;  g = v; b = o; }
+                else if ( 2 === i ) { r = o; g = v; b = t; }
+                else if ( 3 === i ) { r = o; g = q; b = v; }
+                else if ( 4 === i ) { r = t; g = o; b = v; }
+                else /* case 5: */  { r = v; g = o; b = q; }
+            }
+            ccc[p+0] = r; ccc[p+1] = g; ccc[p+2] = b;
+            return ccc;
         },
         
         toString: function() {

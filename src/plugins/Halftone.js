@@ -103,14 +103,14 @@ FILTER.Create({
                 if ( i>=size ) {i=0; j++; jw+=w;}
             }
             sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
-            ycbcr = colored ? RGB2YCbCr([sum_r, sum_g, sum_b]) : [sum_r, sum_g, sum_b];
+            ycbcr = colored ? RGB2YCbCr([sum_r, sum_g, sum_b],0) : [sum_r, sum_g, sum_b];
             t = ycbcr[0];
             if ( t > threshold )
             {
                 if ( colored ) 
                 {
                     ycbcr[0] = /*255;*/clamp(~~t, 0, 255);
-                    rgb = YCbCr2RGB(ycbcr);
+                    rgb = YCbCr2RGB(ycbcr,0);
                 }
                 else
                 {                    
