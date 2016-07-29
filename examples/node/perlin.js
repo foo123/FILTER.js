@@ -64,7 +64,7 @@ function parse_args( args )
     return {flags: Flags, options: Options, params: Params};
 }
 
-var path = require('path'), F = require('../../build/filter.bundle'),
+var path = require('path'), F = require('../../build/filter.bundle.js'),
     perlin
 ;
 

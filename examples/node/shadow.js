@@ -64,7 +64,7 @@ function parse_args( args )
     return {flags: Flags, options: Options, params: Params};
 }
 
-var path = require('path'), F = require('../../build/filter.bundle'),
+var path = require('path'), F = require('../../build/filter.bundle.js'),
     image = F.Image().restorable(false).fill(0, 0, 0, 200, 200),
     shadow = new F.CompositeFilter([
         new F.RadialGradientFilter( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 0.4, 0.4 ),

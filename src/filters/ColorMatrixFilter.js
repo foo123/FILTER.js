@@ -123,11 +123,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,channel: function( channel, grayscale ) {
         channel = channel || 0;
         var m = [
-                0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 255
-            ], f = (CHANNEL.A === channel) || grayscale ? 1 : 0;
+            0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 0, 
+            0, 0, 0, 0, 255
+        ], f = (CHANNEL.A === channel) || grayscale ? 1 : 0;
         m[CHANNEL.R*5+channel] = CHANNEL.R === channel ? 1 : f;
         m[CHANNEL.G*5+channel] = CHANNEL.G === channel ? 1 : f;
         m[CHANNEL.B*5+channel] = CHANNEL.B === channel ? 1 : f;
@@ -159,11 +159,11 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         channel = channel || 0;
         if ( CHANNEL.A === channel ) return this;
         var m = [
-                1, 0, 0, 0, 0, 
-                0, 1, 0, 0, 0, 
-                0, 0, 1, 0, 0, 
-                0, 0, 0, 1, 0
-            ];
+            1, 0, 0, 0, 0, 
+            0, 1, 0, 0, 0, 
+            0, 0, 1, 0, 0, 
+            0, 0, 0, 1, 0
+        ];
         m[channel*5+channel] = 0;
         return this.set(m);
     }
@@ -180,43 +180,37 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         m[channel2*5+channel2] = 0;
         m[channel1*5+channel2] = 1;
         m[channel2*5+channel1] = 1;
-        /*swap = m[channel1*5+channel2];
-        m[channel1*5+channel2] = m[channel2*5+channel1];
-        m[channel2*5+channel1] = swap;*/
         return this.set(m);
     }
     
-    // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,desaturate: function( ) {
-        var L = FILTER.LUMA;
-        return this.set(rechannel([
-            L[0], L[1], L[2], 0, 0, 
-            L[0], L[1], L[2], 0, 0, 
-            L[0], L[1], L[2], 0, 0, 
+    ,invertChannel: function( channel ) {
+        channel = channel || 0;
+        if ( CHANNEL.A === channel ) return this;
+        var m = [
+            1, 0, 0, 0, 0, 
+            0, 1, 0, 0, 0, 
+            0, 0, 1, 0, 0, 
             0, 0, 0, 1, 0
-        ],
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
-        ));
+        ];
+        m[channel*5+channel] = -1;
+        m[channel*5+4] = 255;
+        return this.set(m);
     }
     
-    // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,colorize: function( rgb, amount ) {
-        var r, g, b, inv_amount, L = FILTER.LUMA;
-        if ( amount === undef ) amount = 1;
-        r = (((rgb >> 16) & 255) * 0.0039215686274509803921568627451);  // / 255
-        g = (((rgb >> 8) & 255) * 0.0039215686274509803921568627451);  // / 255
-        b = ((rgb & 255) * 0.0039215686274509803921568627451);  // / 255
-        inv_amount = 1 - amount;
-        return this.set(rechannel([
-            (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
-            ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
-            ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
-            0, 0, 0, 1, 0
-        ],
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
-        ));
+    ,invertRed: function( ) {
+        return this.invertChannel(CHANNEL.R);
+    }
+    
+    ,invertGreen: function( ) {
+        return this.invertChannel(CHANNEL.G);
+    }
+    
+    ,invertBlue: function( ) {
+        return this.invertChannel(CHANNEL.B);
+    }
+    
+    ,invertAlpha: function( ) {
+        return this.invertChannel(CHANNEL.A);
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
@@ -232,12 +226,14 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         ));
     }
     
-    ,invertAlpha: function( ) {
+    // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
+    ,desaturate: function( ) {
+        var L = FILTER.LUMA;
         return this.set(rechannel([
-            1,  0,  0, 0, 0,
-            0,  1,  0, 0, 0,
-            0,  0,  1, 0, 0,
-            0,  0,  0, -1, 255
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            L[0], L[1], L[2], 0, 0, 
+            0, 0, 0, 1, 0
         ],
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
@@ -261,9 +257,28 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
+    ,colorize: function( rgb, amount ) {
+        var r, g, b, inv_amount, L = FILTER.LUMA;
+        if ( null == amount ) amount = 1;
+        r = (((rgb >> 16) & 255) * 0.0039215686274509803921568627451);  // / 255
+        g = (((rgb >> 8) & 255) * 0.0039215686274509803921568627451);  // / 255
+        b = ((rgb & 255) * 0.0039215686274509803921568627451);  // / 255
+        inv_amount = 1 - amount;
+        return this.set(rechannel([
+            (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
+            ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
+            ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
+    }
+    
+    // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,contrast: function( r, g, b ) {
-        if ( g === undef )  g = r;
-        if ( b === undef )  b = r;
+        if ( null == g ) g = r;
+        if ( null == b ) b = r;
         r += 1.0; g += 1.0; b += 1.0;
         return this.set(rechannel([
             r, 0, 0, 0, (128 * (1 - r)), 
@@ -278,8 +293,8 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,brightness: function( r, g, b ) {
-        if ( g === undef )  g = r;
-        if ( b === undef )  b = r;
+        if ( null == g ) g = r;
+        if ( null == b ) b = r;
         return this.set(rechannel([
             1, 0, 0, 0, r, 
             0, 1, 0, 0, g, 
@@ -308,9 +323,9 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,average: function( r, g, b ) {
-        if ( r === undef ) r = 0.3333;
-        if ( g === undef ) g = 0.3333;
-        if ( b === undef ) b = 0.3334;
+        if ( null == r ) r = 0.3333;
+        if ( null == g ) g = 0.3333;
+        if ( null == b ) b = 0.3334;
         return this.set(rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
@@ -323,7 +338,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,quickContrastCorrection: function( contrast ) {
-        if ( contrast === undef ) contrast = 1.2;
+        if ( null == contrast ) contrast = 1.2;
         return this.set(rechannel([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
@@ -339,7 +354,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     // Gives the image a reddish-brown monochrome tint that imitates an old photograph.
     // 0 to 1 (0 for no effect, 1 for full sepia coloring)
     ,sepia: function( amount ) {
-        if ( amount === undef ) amount = 0.5;
+        if ( null == amount ) amount = 0.5;
         if ( amount > 1 ) amount = 1;
         else if ( amount < 0 ) amount = 0;
         return this.set(rechannel([
@@ -354,7 +369,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     ,sepia2: function( amount ) {
-        if ( amount === undef ) amount = 10;
+        if ( null == amount ) amount = 10;
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
         var L = FILTER.LUMA;
@@ -370,24 +385,17 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,threshold: function( threshold, factor ) {
-        if ( factor === undef )  factor = 256;
+    ,threshold: function( threshold, factor, lumia ) {
+        if ( null == factor ) factor = 256;
         var L = FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(rechannel(false !== lumia
+        ? [
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             0, 0, 0, 1, 0
-        ],
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
-        ));
-    }
-    
-    // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,threshold_rgb: function( threshold, factor ) {
-        if ( factor === undef )  factor = 256;
-        return this.set(rechannel([
+        ]
+        : [
             factor, 0, 0, 0, (-(factor-1) * threshold), 
             0, factor, 0, 0, (-(factor-1) * threshold), 
             0,  0, factor, 0, (-(factor-1) * threshold), 
@@ -398,18 +406,54 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         ));
     }
     
-    ,threshold_alpha: function( threshold, factor ) {
-        if ( threshold === undef )  threshold = 0.5;
-        if ( factor === undef ) factor = 256;
-        return this.set(rechannel([
+    ,thresholdRGB: function( threshold, factor ) {
+        return this.threshold(threshold, factor, false);
+    }
+    
+    ,thresholdChannel: function( channel, threshold, factor, lumia ) {
+        if ( null == factor ) factor = 256;
+        var m = [
             1, 0, 0, 0, 0, 
             0, 1, 0, 0, 0, 
             0, 0, 1, 0, 0, 
-            0, 0, 0, factor, (-factor * threshold)
-        ],
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
-            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
-        ));
+            0, 0, 0, 1, 0
+        ], L = FILTER.LUMA;
+        if ( CHANNEL.A === channel )
+        {
+            m[channel*5+channel] = factor;
+            m[channel*5+4] = -factor * threshold;
+        }
+        else if ( false !== lumia )
+        {
+            m[channel*5+CHANNEL.R] = L[0] * factor;
+            m[channel*5+CHANNEL.G] = L[1] * factor;
+            m[channel*5+CHANNEL.B] = L[2] * factor;
+            m[channel*5+4] = -(factor-1) * threshold;
+        }
+        else
+        {
+            m[channel*5+CHANNEL.R] = factor;
+            m[channel*5+CHANNEL.G] = factor;
+            m[channel*5+CHANNEL.B] = factor;
+            m[channel*5+4] = -(factor-1) * threshold;
+        }
+        return this.set(m);
+    }
+    
+    ,thresholdRed: function( threshold, factor, lumia ) {
+        return this.thresholdChannel(CHANNEL.R, threshold, factor, lumia);
+    }
+    
+    ,thresholdGreen: function( threshold, factor, lumia ) {
+        return this.thresholdChannel(CHANNEL.G, threshold, factor, lumia);
+    }
+    
+    ,thresholdBlue: function( threshold, factor, lumia ) {
+        return this.thresholdChannel(CHANNEL.B, threshold, factor, lumia);
+    }
+    
+    ,thresholdAlpha: function( threshold, factor, lumia ) {
+        return this.thresholdChannel(CHANNEL.A, threshold, factor, lumia);
     }
     
     // RGB to YCbCr
@@ -621,8 +665,8 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
 // aliases
 ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
 ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
-ColorMatrixFilter.prototype.thresholdRgb = ColorMatrixFilter.prototype.threshold_rgb;
-ColorMatrixFilter.prototype.thresholdAlpha = ColorMatrixFilter.prototype.threshold_alpha;
+ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
+ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
 ColorMatrixFilter.blend = cm_blend;
 
 }(FILTER);

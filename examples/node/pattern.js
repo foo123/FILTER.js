@@ -65,7 +65,7 @@ function parse_args( args )
 }
 
 
-var path = require('path'), F = require('../../build/filter.bundle'),
+var path = require('path'), F = require('../../build/filter.bundle.js'),
     pattern1 = F.Image.PerlinNoise(
         100 /* width */, 100 /* height */,
         0,

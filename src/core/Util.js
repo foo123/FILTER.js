@@ -1166,60 +1166,53 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
     }
     return dst;
 }
-// multiply/concatenate 2 Color Tables, like functional composition
-function ct_eye( inverse )
+function ct_eye( c1, c0 )
 {
+    if ( null == c0 ) c0 = 0;
+    if ( null == c1 ) c1 = 1;
     var i, t = new ColorTable(256);
-    if ( inverse )
+    for(i=0; i<256; i+=32)
     {
-        for(i=0; i<256; i+=16)
-        {
-            t[i   ] = 255-i;
-            t[i+1 ] = 255-i-1;
-            t[i+2 ] = 255-i-2;
-            t[i+3 ] = 255-i-3;
-            t[i+4 ] = 255-i-4;
-            t[i+5 ] = 255-i-5;
-            t[i+6 ] = 255-i-6;
-            t[i+7 ] = 255-i-7;
-            t[i+8 ] = 255-i-8;
-            t[i+9 ] = 255-i-9;
-            t[i+10] = 255-i-10;
-            t[i+11] = 255-i-11;
-            t[i+12] = 255-i-12;
-            t[i+13] = 255-i-13;
-            t[i+14] = 255-i-14;
-            t[i+15] = 255-i-15;
-        }
-    }
-    else
-    {
-        for(i=0; i<256; i+=16)
-        {
-            t[i   ] = i;
-            t[i+1 ] = i+1;
-            t[i+2 ] = i+2;
-            t[i+3 ] = i+3;
-            t[i+4 ] = i+4;
-            t[i+5 ] = i+5;
-            t[i+6 ] = i+6;
-            t[i+7 ] = i+7;
-            t[i+8 ] = i+8;
-            t[i+9 ] = i+9;
-            t[i+10] = i+10;
-            t[i+11] = i+11;
-            t[i+12] = i+12;
-            t[i+13] = i+13;
-            t[i+14] = i+14;
-            t[i+15] = i+15;
-        }
+        t[i   ] = c0 + c1*(i   );
+        t[i+1 ] = c0 + c1*(i+1 );
+        t[i+2 ] = c0 + c1*(i+2 );
+        t[i+3 ] = c0 + c1*(i+3 );
+        t[i+4 ] = c0 + c1*(i+4 );
+        t[i+5 ] = c0 + c1*(i+5 );
+        t[i+6 ] = c0 + c1*(i+6 );
+        t[i+7 ] = c0 + c1*(i+7 );
+        t[i+8 ] = c0 + c1*(i+8 );
+        t[i+9 ] = c0 + c1*(i+9 );
+        t[i+10] = c0 + c1*(i+10);
+        t[i+11] = c0 + c1*(i+11);
+        t[i+12] = c0 + c1*(i+12);
+        t[i+13] = c0 + c1*(i+13);
+        t[i+14] = c0 + c1*(i+14);
+        t[i+15] = c0 + c1*(i+15);
+        t[i+16] = c0 + c1*(i+16);
+        t[i+17] = c0 + c1*(i+17);
+        t[i+18] = c0 + c1*(i+18);
+        t[i+19] = c0 + c1*(i+19);
+        t[i+20] = c0 + c1*(i+20);
+        t[i+21] = c0 + c1*(i+21);
+        t[i+22] = c0 + c1*(i+22);
+        t[i+23] = c0 + c1*(i+23);
+        t[i+24] = c0 + c1*(i+24);
+        t[i+25] = c0 + c1*(i+25);
+        t[i+26] = c0 + c1*(i+26);
+        t[i+27] = c0 + c1*(i+27);
+        t[i+28] = c0 + c1*(i+28);
+        t[i+29] = c0 + c1*(i+29);
+        t[i+30] = c0 + c1*(i+30);
+        t[i+31] = c0 + c1*(i+31);
     }
     return t;
 }
+// multiply (functionaly compose) 2 Color Tables
 function ct_multiply( ct2, ct1 )
 {
     var i, ct12 = new ColorTable(256);
-    for(i=0; i<256; i+=16)
+    for(i=0; i<256; i+=32)
     { 
         ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255); 
         ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255); 
@@ -1237,10 +1230,25 @@ function ct_multiply( ct2, ct1 )
         ct12[i+13] = clamp(ct2[ clamp(ct1[i+13],0,255) ],0,255); 
         ct12[i+14] = clamp(ct2[ clamp(ct1[i+14],0,255) ],0,255); 
         ct12[i+15] = clamp(ct2[ clamp(ct1[i+15],0,255) ],0,255); 
+        ct12[i+16] = clamp(ct2[ clamp(ct1[i+16],0,255) ],0,255); 
+        ct12[i+17] = clamp(ct2[ clamp(ct1[i+17],0,255) ],0,255); 
+        ct12[i+18] = clamp(ct2[ clamp(ct1[i+18],0,255) ],0,255); 
+        ct12[i+19] = clamp(ct2[ clamp(ct1[i+19],0,255) ],0,255); 
+        ct12[i+20] = clamp(ct2[ clamp(ct1[i+20],0,255) ],0,255); 
+        ct12[i+21] = clamp(ct2[ clamp(ct1[i+21],0,255) ],0,255); 
+        ct12[i+22] = clamp(ct2[ clamp(ct1[i+22],0,255) ],0,255); 
+        ct12[i+23] = clamp(ct2[ clamp(ct1[i+23],0,255) ],0,255); 
+        ct12[i+24] = clamp(ct2[ clamp(ct1[i+24],0,255) ],0,255); 
+        ct12[i+25] = clamp(ct2[ clamp(ct1[i+25],0,255) ],0,255); 
+        ct12[i+26] = clamp(ct2[ clamp(ct1[i+26],0,255) ],0,255); 
+        ct12[i+27] = clamp(ct2[ clamp(ct1[i+27],0,255) ],0,255); 
+        ct12[i+28] = clamp(ct2[ clamp(ct1[i+28],0,255) ],0,255); 
+        ct12[i+29] = clamp(ct2[ clamp(ct1[i+29],0,255) ],0,255); 
+        ct12[i+30] = clamp(ct2[ clamp(ct1[i+30],0,255) ],0,255); 
+        ct12[i+31] = clamp(ct2[ clamp(ct1[i+31],0,255) ],0,255); 
     }
     return ct12;
 }
-// multiply/concatenate 2 Color Matrices (kind of Color Matrix multiplication)
 function cm_eye( )
 {
     return new ColorMatrix([
@@ -1250,6 +1258,7 @@ function cm_eye( )
     0,0,0,1,0
     ]);
 }
+// multiply (functionaly compose, matrix multiply) 2 Color Matrices
 function cm_multiply(cm1, cm2) 
 {
     var cm12 = new ColorMatrix(20);

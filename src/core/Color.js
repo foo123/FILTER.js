@@ -226,7 +226,7 @@ var Color = FILTER.Color = FILTER.Class({
             return ((rgb[p+0]&255) << 16) | ((rgb[p+1]&255) << 8) | (rgb[p+2]&255);
         },
         
-        RGBA2Color: function( rgba ) {
+        RGBA2Color: function( rgba, p ) {
             //p = p || 0;
             return ((rgba[p+3]&255) << 24) | ((rgba[p+0]&255) << 16) | ((rgba[p+1]&255) << 8) | (rgba[p+2]&255);
         },

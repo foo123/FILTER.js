@@ -65,7 +65,7 @@ function parse_args( args )
 }
 
 
-var path = require('path'), F = require('../../build/filter.bundle'),
+var path = require('path'), F = require('../../build/filter.bundle.js'),
     parallel = !!parse_args().options['parallel'];
 
 console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + '"');

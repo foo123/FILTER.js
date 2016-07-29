@@ -653,9 +653,11 @@ __Included Plugins__ (see examples for how to use)
 * `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
 * `Threshold` : apply general (full `32bit` thresholds) thresholding to an image based on `Color`, `Intensity` or `Hue` mode
 * `HueExtractor` : extract a range of hues from the image (same functionality has been added to general `ThresholdFilter` see above)
-* `CannyEdges` : an efficient Canny Edges Detector/Extractor
-* `HaarDetector` : detect features and their bounding boxes in image using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
 * `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 
+* `CannyEdges` : an efficient Canny Edges Detector/Extractor
+* `HaarDetector` : detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
+* `ColorDetector` : fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)
+* `ActiveShapeExtractor` : adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
 
 

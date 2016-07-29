@@ -64,29 +64,26 @@ function parse_args( args )
     return {flags: Flags, options: Options, params: Params};
 }
 
-var path = require('path'), F = require('../../build/filter.bundle.js'),
-    radial = !!parse_args().options['radial'], gradient
-;
 
-console.log('Generating '+(radial?'radial':'linear')+' gradient..');
-gradient = radial
-? F.Image.RadialGradient(
-    200, 200, /* width,height */
-    [[255,0,0,255],[0,255,0,255],[0,0,255,255]], /* colors rgba */
-    [0, 0.2, 1], /* color stops, leave empty/null for uniform stops */
-    100, 100, /* centerX,centerY, default 0,0 */
-    0.5, 1 /* radiusX,radiusY, default 1,1 */
-)
-: F.Image.Gradient(
-    200, 200, /* width,height */
-    [[255,0,0,255],[0,255,0,255],[0,0,255,255]], /* colors rgba */
-    [0, 0.7, 1], /* color stops, leave empty/null for uniform stops */
-    -Math.PI/4 /* angle 0 - 2Math.PI, default 0 */
-);
-console.log('Saving gradient..');
-F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./gradient.jpg'), gradient,
-function( file ){
-    console.log('gradient image saved to: ' + './gradient.jpg');
-}, function( err ){
-    console.log('error while saving image: ' + err);
+var path = require('path'), F = require('../../build/filter.bundle.js'),
+    parallel = !!parse_args().options['parallel'],
+    haarcascade_frontalface_alt = require('./haarcascade_frontalface_alt.js'),
+    face_detector = new F.HaarDetectorFilter(haarcascade_frontalface_alt);
+
+console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
+if ( parallel ) face_detector.worker( true );
+console.log('Loading image..');
+F.IO.BinaryReader( F.Codec.JPG.decoder ).load(path.join(__dirname,'./che.jpg'), function( che ){
+    console.log('./che.jpg' + ' loaded with dims: ' + che.width + ',' + che.height);
+    console.log('Detecting..');
+    face_detector.apply( che, function( ){
+        if ( parallel ) face_detector.worker( false );
+        console.log('Detection completed');
+        var features = face_detector.objects;
+        console.log(features.length + (1 === features.length ? ' feature was found' : ' features were found'));
+        if ( features.length )
+        {
+            console.log('1st feature is found at x1:' + features[0].x1 + ',y1:' + features[0].y1 + ',x2:' + features[0].x2 + ',y2:' + features[0].y2);
+        }
+    });
 });
