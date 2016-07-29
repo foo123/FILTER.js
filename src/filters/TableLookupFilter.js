@@ -391,14 +391,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var self = this, T = self._table;
         if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var i, l=im.length, rem = (l>>>2)%8, R = T[0], G = T[1], B = T[2], A = T[3];
+        var i, l=im.length, rem = (l>>>2)%16, R = T[0], G = T[1], B = T[2], A = T[3];
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( A )
         {
             // array linearization
-            // partial loop unrolling (eighth iterations)
-            for (i=0; i<l; i+=32)
+            // partial loop unrolling (4 iterations)
+            for (i=0; i<l; i+=64)
             {
                 im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]]; im[i+3 ] = A[im[i+3 ]];
                 im[i+4 ] = R[im[i+4 ]]; im[i+5 ] = G[im[i+5 ]]; im[i+6 ] = B[im[i+6 ]]; im[i+7 ] = A[im[i+7 ]];
@@ -408,6 +408,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
                 im[i+20] = R[im[i+20]]; im[i+21] = G[im[i+21]]; im[i+22] = B[im[i+22]]; im[i+23] = A[im[i+23]];
                 im[i+24] = R[im[i+24]]; im[i+25] = G[im[i+25]]; im[i+26] = B[im[i+26]]; im[i+27] = A[im[i+27]];
                 im[i+28] = R[im[i+28]]; im[i+29] = G[im[i+29]]; im[i+30] = B[im[i+30]]; im[i+31] = A[im[i+31]];
+                im[i+32] = R[im[i+32]]; im[i+33] = G[im[i+33]]; im[i+34] = B[im[i+34]]; im[i+35] = A[im[i+35]];
+                im[i+36] = R[im[i+36]]; im[i+37] = G[im[i+37]]; im[i+38] = B[im[i+38]]; im[i+39] = A[im[i+39]];
+                im[i+40] = R[im[i+40]]; im[i+41] = G[im[i+41]]; im[i+42] = B[im[i+42]]; im[i+43] = A[im[i+43]];
+                im[i+44] = R[im[i+44]]; im[i+45] = G[im[i+45]]; im[i+46] = B[im[i+46]]; im[i+47] = A[im[i+47]];
+                im[i+48] = R[im[i+48]]; im[i+49] = G[im[i+49]]; im[i+50] = B[im[i+50]]; im[i+51] = A[im[i+51]];
+                im[i+52] = R[im[i+52]]; im[i+53] = G[im[i+53]]; im[i+54] = B[im[i+54]]; im[i+55] = A[im[i+55]];
+                im[i+56] = R[im[i+56]]; im[i+57] = G[im[i+57]]; im[i+58] = B[im[i+58]]; im[i+59] = A[im[i+59]];
+                im[i+60] = R[im[i+60]]; im[i+61] = G[im[i+61]]; im[i+62] = B[im[i+62]]; im[i+63] = A[im[i+63]];
             }
             // loop unrolling remainder
             if ( rem )
@@ -419,8 +427,8 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         else
         {
             // array linearization
-            // partial loop unrolling (eighth iterations)
-            for (i=0; i<l; i+=32)
+            // partial loop unrolling (4 iterations)
+            for (i=0; i<l; i+=64)
             {
                 im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]];
                 im[i+4 ] = R[im[i+4 ]]; im[i+5 ] = G[im[i+5 ]]; im[i+6 ] = B[im[i+6 ]];
@@ -430,6 +438,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
                 im[i+20] = R[im[i+20]]; im[i+21] = G[im[i+21]]; im[i+22] = B[im[i+22]];
                 im[i+24] = R[im[i+24]]; im[i+25] = G[im[i+25]]; im[i+26] = B[im[i+26]];
                 im[i+28] = R[im[i+28]]; im[i+29] = G[im[i+29]]; im[i+30] = B[im[i+30]];
+                im[i+32] = R[im[i+32]]; im[i+33] = G[im[i+33]]; im[i+34] = B[im[i+34]];
+                im[i+36] = R[im[i+36]]; im[i+37] = G[im[i+37]]; im[i+38] = B[im[i+38]];
+                im[i+40] = R[im[i+40]]; im[i+41] = G[im[i+41]]; im[i+42] = B[im[i+42]];
+                im[i+44] = R[im[i+44]]; im[i+45] = G[im[i+45]]; im[i+46] = B[im[i+46]];
+                im[i+48] = R[im[i+48]]; im[i+49] = G[im[i+49]]; im[i+50] = B[im[i+50]];
+                im[i+52] = R[im[i+52]]; im[i+53] = G[im[i+53]]; im[i+54] = B[im[i+54]];
+                im[i+56] = R[im[i+56]]; im[i+57] = G[im[i+57]]; im[i+58] = B[im[i+58]];
+                im[i+60] = R[im[i+60]]; im[i+61] = G[im[i+61]]; im[i+62] = B[im[i+62]];
             }
             // loop unrolling remainder
             if ( rem )

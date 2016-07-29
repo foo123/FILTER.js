@@ -392,7 +392,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, eye = FILTER.Util.Filter.cm_eye,
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, eye = FILTER.Util.Filter.cm_eye,
     cm_mult = FILTER.Util.Filter.cm_multiply, rechannel = FILTER.Util.Filter.cm_rechannel,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
@@ -894,82 +894,123 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         var self = this, m = self._matrix;
         if ( !self._isOn || !m ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%4,
-            p0, p1, p2, p3, p4, p5, p6, p7, 
-            p8, p9, p10, p11,  p12, p13, p14, p15,
-            t0, t1, t2, t3;
+        var imLen = im.length, i, rem = (imLen>>>2)%8,
+            p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
-        // partial loop unrolling (quarter iterations)
-        for (i=0; i<imLen; i+=16)
+        // partial loop unrolling (1/8 iterations)
+        for (i=0; i<imLen; i+=32)
         {
-            t0   =  im[i  ]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
-            p0   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p1   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p2   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p3   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+4]; t1 = im[i+5]; t2 = im[i+6]; t3 = im[i+7];
-            p4   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p5   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p6   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p7   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
+            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+8]; t1 = im[i+9]; t2 = im[i+10]; t3 = im[i+11];
-            p8   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p9   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
+            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+12]; t1 = im[i+13]; t2 = im[i+14]; t3 = im[i+15];
-            p12  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p13  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
+            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            
+            t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
+            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+
+            t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
+            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+
+            t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
+            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+
+            t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
+            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
             
             // clamp them manually
-            p0 = p0<0 ? 0 : (p0>255 ? 255 : p0);
-            p1 = p1<0 ? 0 : (p1>255 ? 255 : p1);
-            p2 = p2<0 ? 0 : (p2>255 ? 255 : p2);
-            p3 = p3<0 ? 0 : (p3>255 ? 255 : p3);
-            p4 = p4<0 ? 0 : (p4>255 ? 255 : p4);
-            p5 = p5<0 ? 0 : (p5>255 ? 255 : p5);
-            p6 = p6<0 ? 0 : (p6>255 ? 255 : p6);
-            p7 = p7<0 ? 0 : (p7>255 ? 255 : p7);
-            p8 = p8<0 ? 0 : (p8>255 ? 255 : p8);
-            p9 = p9<0 ? 0 : (p9>255 ? 255 : p9);
-            p10 = p10<0 ? 0 : (p10>255 ? 255 : p10);
-            p11 = p11<0 ? 0 : (p11>255 ? 255 : p11);
-            p12 = p12<0 ? 0 : (p12>255 ? 255 : p12);
-            p13 = p13<0 ? 0 : (p13>255 ? 255 : p13);
-            p14 = p14<0 ? 0 : (p14>255 ? 255 : p14);
-            p15 = p15<0 ? 0 : (p15>255 ? 255 : p15);
+            p[0 ] = p[0 ]<0 ? 0 : (p[0 ]>255 ? 255 : p[0 ]);
+            p[1 ] = p[1 ]<0 ? 0 : (p[1 ]>255 ? 255 : p[1 ]);
+            p[2 ] = p[2 ]<0 ? 0 : (p[2 ]>255 ? 255 : p[2 ]);
+            p[3 ] = p[3 ]<0 ? 0 : (p[3 ]>255 ? 255 : p[3 ]);
+            p[4 ] = p[4 ]<0 ? 0 : (p[4 ]>255 ? 255 : p[4 ]);
+            p[5 ] = p[5 ]<0 ? 0 : (p[5 ]>255 ? 255 : p[5 ]);
+            p[6 ] = p[6 ]<0 ? 0 : (p[6 ]>255 ? 255 : p[6 ]);
+            p[7 ] = p[7 ]<0 ? 0 : (p[7 ]>255 ? 255 : p[7 ]);
+            p[8 ] = p[8 ]<0 ? 0 : (p[8 ]>255 ? 255 : p[8 ]);
+            p[9 ] = p[9 ]<0 ? 0 : (p[9 ]>255 ? 255 : p[9 ]);
+            p[10] = p[10]<0 ? 0 : (p[10]>255 ? 255 : p[10]);
+            p[11] = p[11]<0 ? 0 : (p[11]>255 ? 255 : p[11]);
+            p[12] = p[12]<0 ? 0 : (p[12]>255 ? 255 : p[12]);
+            p[13] = p[13]<0 ? 0 : (p[13]>255 ? 255 : p[13]);
+            p[14] = p[14]<0 ? 0 : (p[14]>255 ? 255 : p[14]);
+            p[15] = p[15]<0 ? 0 : (p[15]>255 ? 255 : p[15]);
+            p[16] = p[16]<0 ? 0 : (p[16]>255 ? 255 : p[16]);
+            p[17] = p[17]<0 ? 0 : (p[17]>255 ? 255 : p[17]);
+            p[18] = p[18]<0 ? 0 : (p[18]>255 ? 255 : p[18]);
+            p[19] = p[19]<0 ? 0 : (p[19]>255 ? 255 : p[19]);
+            p[20] = p[20]<0 ? 0 : (p[20]>255 ? 255 : p[20]);
+            p[21] = p[21]<0 ? 0 : (p[21]>255 ? 255 : p[21]);
+            p[22] = p[22]<0 ? 0 : (p[22]>255 ? 255 : p[22]);
+            p[23] = p[23]<0 ? 0 : (p[23]>255 ? 255 : p[23]);
+            p[24] = p[24]<0 ? 0 : (p[24]>255 ? 255 : p[24]);
+            p[25] = p[25]<0 ? 0 : (p[25]>255 ? 255 : p[25]);
+            p[26] = p[26]<0 ? 0 : (p[26]>255 ? 255 : p[26]);
+            p[27] = p[27]<0 ? 0 : (p[27]>255 ? 255 : p[27]);
+            p[28] = p[28]<0 ? 0 : (p[28]>255 ? 255 : p[28]);
+            p[29] = p[29]<0 ? 0 : (p[29]>255 ? 255 : p[29]);
+            p[30] = p[30]<0 ? 0 : (p[30]>255 ? 255 : p[30]);
+            p[31] = p[31]<0 ? 0 : (p[31]>255 ? 255 : p[31]);
             
-            im[i   ] = ~~p0;  im[i+1 ] = ~~p1;  im[i+2 ] = ~~p2;  im[i+3 ] = ~~p3;
-            im[i+4 ] = ~~p4;  im[i+5 ] = ~~p5;  im[i+6 ] = ~~p6;  im[i+7 ] = ~~p7;
-            im[i+8 ] = ~~p8;  im[i+9 ] = ~~p9;  im[i+10] = ~~p10; im[i+11] = ~~p11;
-            im[i+12] = ~~p12; im[i+13] = ~~p13; im[i+14] = ~~p14; im[i+15] = ~~p15;
+            im[i   ] = ~~p[0 ]; im[i+1 ] = ~~p[1 ]; im[i+2 ] = ~~p[2 ]; im[i+3 ] = ~~p[3 ];
+            im[i+4 ] = ~~p[4 ]; im[i+5 ] = ~~p[5 ]; im[i+6 ] = ~~p[6 ]; im[i+7 ] = ~~p[7 ];
+            im[i+8 ] = ~~p[8 ]; im[i+9 ] = ~~p[9 ]; im[i+10] = ~~p[10]; im[i+11] = ~~p[11];
+            im[i+12] = ~~p[12]; im[i+13] = ~~p[13]; im[i+14] = ~~p[14]; im[i+15] = ~~p[15];
+            im[i+16] = ~~p[16]; im[i+17] = ~~p[17]; im[i+18] = ~~p[18]; im[i+19] = ~~p[19];
+            im[i+20] = ~~p[20]; im[i+21] = ~~p[21]; im[i+22] = ~~p[22]; im[i+23] = ~~p[23];
+            im[i+24] = ~~p[24]; im[i+25] = ~~p[25]; im[i+26] = ~~p[26]; im[i+27] = ~~p[27];
+            im[i+28] = ~~p[28]; im[i+29] = ~~p[29]; im[i+30] = ~~p[30]; im[i+31] = ~~p[31];
         }
-
         // loop unrolling remainder
         if ( rem )
         {
             for (i=imLen-(rem<<2); i<imLen; i+=4)
             {
-                t0  =  im[i]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
-                p0  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4];
-                p1  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9];
-                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
+                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
+                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
                 
                 // clamp them manually
-                p0 = p0<0 ? 0 : (p0>255 ? 255 : p0);
-                p1 = p1<0 ? 0 : (p1>255 ? 255 : p1);
-                p2 = p2<0 ? 0 : (p2>255 ? 255 : p2);
-                p3 = p3<0 ? 0 : (p3>255 ? 255 : p3);
+                pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
+                pr[1] = pr[1]<0 ? 0 : (pr[1]>255 ? 255 : pr[1]);
+                pr[2] = pr[2]<0 ? 0 : (pr[2]>255 ? 255 : pr[2]);
+                pr[3] = pr[3]<0 ? 0 : (pr[3]>255 ? 255 : pr[3]);
                 
-                im[i  ] = ~~p0; im[i+1] = ~~p1; im[i+2] = ~~p2; im[i+3] = ~~p3;
+                im[i  ] = ~~pr[0]; im[i+1] = ~~pr[1]; im[i+2] = ~~pr[2]; im[i+3] = ~~pr[3];
             }
         }
         return im;
@@ -978,58 +1019,83 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         var self = this, m = self._matrix;
         if ( !self._isOn || !m ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%4,
-            p0, p1, p2, p3, p4, p5, p6, p7, 
-            p8, p9, p10, p11,  p12, p13, p14, p15,
-            t0, t1, t2, t3;
+        var imLen = im.length, i, rem = (imLen>>>2)%8,
+            p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
-        // partial loop unrolling (quarter iterations)
-        for (i=0; i<imLen; i+=16)
+        // partial loop unrolling (1/8 iterations)
+        for (i=0; i<imLen; i+=32)
         {
-            t0   =  im[i  ]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
-            p0   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p1   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p2   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p3   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+4]; t1 = im[i+5]; t2 = im[i+6]; t3 = im[i+7];
-            p4   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p5   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p6   =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p7   =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
+            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+8]; t1 = im[i+9]; t2 = im[i+10]; t3 = im[i+11];
-            p8   =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p9   =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p10  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p11  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
+            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            t0   =  im[i+12]; t1 = im[i+13]; t2 = im[i+14]; t3 = im[i+15];
-            p12  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4 ];
-            p13  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9 ];
-            p14  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-            p15  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
+            t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
+            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            
+            t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
+            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
 
-            im[i   ] = ~~p0;  im[i+1 ] = ~~p1;  im[i+2 ] = ~~p2;  im[i+3 ] = ~~p3;
-            im[i+4 ] = ~~p4;  im[i+5 ] = ~~p5;  im[i+6 ] = ~~p6;  im[i+7 ] = ~~p7;
-            im[i+8 ] = ~~p8;  im[i+9 ] = ~~p9;  im[i+10] = ~~p10; im[i+11] = ~~p11;
-            im[i+12] = ~~p12; im[i+13] = ~~p13; im[i+14] = ~~p14; im[i+15] = ~~p15;
+            t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
+            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+
+            t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
+            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+
+            t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
+            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
+            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
+            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            
+            im[i   ] = ~~p[0 ]; im[i+1 ] = ~~p[1 ]; im[i+2 ] = ~~p[2 ]; im[i+3 ] = ~~p[3 ];
+            im[i+4 ] = ~~p[4 ]; im[i+5 ] = ~~p[5 ]; im[i+6 ] = ~~p[6 ]; im[i+7 ] = ~~p[7 ];
+            im[i+8 ] = ~~p[8 ]; im[i+9 ] = ~~p[9 ]; im[i+10] = ~~p[10]; im[i+11] = ~~p[11];
+            im[i+12] = ~~p[12]; im[i+13] = ~~p[13]; im[i+14] = ~~p[14]; im[i+15] = ~~p[15];
+            im[i+16] = ~~p[16]; im[i+17] = ~~p[17]; im[i+18] = ~~p[18]; im[i+19] = ~~p[19];
+            im[i+20] = ~~p[20]; im[i+21] = ~~p[21]; im[i+22] = ~~p[22]; im[i+23] = ~~p[23];
+            im[i+24] = ~~p[24]; im[i+25] = ~~p[25]; im[i+26] = ~~p[26]; im[i+27] = ~~p[27];
+            im[i+28] = ~~p[28]; im[i+29] = ~~p[29]; im[i+30] = ~~p[30]; im[i+31] = ~~p[31];
         }
-
         // loop unrolling remainder
         if ( rem )
         {
             for (i=imLen-(rem<<2); i<imLen; i+=4)
             {
-                t0  =  im[i]; t1 = im[i+1]; t2 = im[i+2]; t3 = im[i+3];
-                p0  =  m[0 ]*t0 +  m[1 ]*t1 +  m[2 ]*t2 +  m[3 ]*t3 +  m[4];
-                p1  =  m[5 ]*t0 +  m[6 ]*t1 +  m[7 ]*t2 +  m[8 ]*t3 +  m[9];
-                p2  =  m[10]*t0 +  m[11]*t1 +  m[12]*t2 +  m[13]*t3 +  m[14];
-                p3  =  m[15]*t0 +  m[16]*t1 +  m[17]*t2 +  m[18]*t3 +  m[19];
-
-                im[i  ] = ~~p0; im[i+1] = ~~p1; im[i+2] = ~~p2; im[i+3] = ~~p3;
+                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
+                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
+                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
+                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+                
+                im[i  ] = ~~pr[0]; im[i+1] = ~~pr[1]; im[i+2] = ~~pr[2]; im[i+3] = ~~pr[3];
             }
         }
         return im;
@@ -1439,14 +1505,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         var self = this, T = self._table;
         if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var i, l=im.length, rem = (l>>>2)%8, R = T[0], G = T[1], B = T[2], A = T[3];
+        var i, l=im.length, rem = (l>>>2)%16, R = T[0], G = T[1], B = T[2], A = T[3];
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( A )
         {
             // array linearization
-            // partial loop unrolling (eighth iterations)
-            for (i=0; i<l; i+=32)
+            // partial loop unrolling (4 iterations)
+            for (i=0; i<l; i+=64)
             {
                 im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]]; im[i+3 ] = A[im[i+3 ]];
                 im[i+4 ] = R[im[i+4 ]]; im[i+5 ] = G[im[i+5 ]]; im[i+6 ] = B[im[i+6 ]]; im[i+7 ] = A[im[i+7 ]];
@@ -1456,6 +1522,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
                 im[i+20] = R[im[i+20]]; im[i+21] = G[im[i+21]]; im[i+22] = B[im[i+22]]; im[i+23] = A[im[i+23]];
                 im[i+24] = R[im[i+24]]; im[i+25] = G[im[i+25]]; im[i+26] = B[im[i+26]]; im[i+27] = A[im[i+27]];
                 im[i+28] = R[im[i+28]]; im[i+29] = G[im[i+29]]; im[i+30] = B[im[i+30]]; im[i+31] = A[im[i+31]];
+                im[i+32] = R[im[i+32]]; im[i+33] = G[im[i+33]]; im[i+34] = B[im[i+34]]; im[i+35] = A[im[i+35]];
+                im[i+36] = R[im[i+36]]; im[i+37] = G[im[i+37]]; im[i+38] = B[im[i+38]]; im[i+39] = A[im[i+39]];
+                im[i+40] = R[im[i+40]]; im[i+41] = G[im[i+41]]; im[i+42] = B[im[i+42]]; im[i+43] = A[im[i+43]];
+                im[i+44] = R[im[i+44]]; im[i+45] = G[im[i+45]]; im[i+46] = B[im[i+46]]; im[i+47] = A[im[i+47]];
+                im[i+48] = R[im[i+48]]; im[i+49] = G[im[i+49]]; im[i+50] = B[im[i+50]]; im[i+51] = A[im[i+51]];
+                im[i+52] = R[im[i+52]]; im[i+53] = G[im[i+53]]; im[i+54] = B[im[i+54]]; im[i+55] = A[im[i+55]];
+                im[i+56] = R[im[i+56]]; im[i+57] = G[im[i+57]]; im[i+58] = B[im[i+58]]; im[i+59] = A[im[i+59]];
+                im[i+60] = R[im[i+60]]; im[i+61] = G[im[i+61]]; im[i+62] = B[im[i+62]]; im[i+63] = A[im[i+63]];
             }
             // loop unrolling remainder
             if ( rem )
@@ -1467,8 +1541,8 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
         else
         {
             // array linearization
-            // partial loop unrolling (eighth iterations)
-            for (i=0; i<l; i+=32)
+            // partial loop unrolling (4 iterations)
+            for (i=0; i<l; i+=64)
             {
                 im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]];
                 im[i+4 ] = R[im[i+4 ]]; im[i+5 ] = G[im[i+5 ]]; im[i+6 ] = B[im[i+6 ]];
@@ -1478,6 +1552,14 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
                 im[i+20] = R[im[i+20]]; im[i+21] = G[im[i+21]]; im[i+22] = B[im[i+22]];
                 im[i+24] = R[im[i+24]]; im[i+25] = G[im[i+25]]; im[i+26] = B[im[i+26]];
                 im[i+28] = R[im[i+28]]; im[i+29] = G[im[i+29]]; im[i+30] = B[im[i+30]];
+                im[i+32] = R[im[i+32]]; im[i+33] = G[im[i+33]]; im[i+34] = B[im[i+34]];
+                im[i+36] = R[im[i+36]]; im[i+37] = G[im[i+37]]; im[i+38] = B[im[i+38]];
+                im[i+40] = R[im[i+40]]; im[i+41] = G[im[i+41]]; im[i+42] = B[im[i+42]];
+                im[i+44] = R[im[i+44]]; im[i+45] = G[im[i+45]]; im[i+46] = B[im[i+46]];
+                im[i+48] = R[im[i+48]]; im[i+49] = G[im[i+49]]; im[i+50] = B[im[i+50]];
+                im[i+52] = R[im[i+52]]; im[i+53] = G[im[i+53]]; im[i+54] = B[im[i+54]];
+                im[i+56] = R[im[i+56]]; im[i+57] = G[im[i+57]]; im[i+58] = B[im[i+58]];
+                im[i+60] = R[im[i+60]]; im[i+61] = G[im[i+61]]; im[i+62] = B[im[i+62]];
             }
             // loop unrolling remainder
             if ( rem )
