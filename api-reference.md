@@ -590,12 +590,12 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 ###GLSL Filter
 
-glsl-based filters for `webgl`/`node-gl` (todp)
+glsl-based filters for `webgl`/`node-gl` (todo)
 
 
 ###SVG Filter
 
-svg-based filters for `svg` (todp)
+svg-based filters for `svg` (todo)
 
 
 ###Plugins and Inline Filters

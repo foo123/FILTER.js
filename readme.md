@@ -102,6 +102,7 @@ Some image processing/computer vision theory, basics and tutorials:
 * [(Blind) Source Separation](https://en.wikipedia.org/wiki/Blind_signal_separation)
 * [Independent Component Analysis](https://en.wikipedia.org/wiki/Independent_component_analysis)
 * [OpenCV, open source computer vision](http://opencv.org/)
+* [General-purpose GPU Scientific Computation](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) (..moving towards)
 
 
 Advanced references:
