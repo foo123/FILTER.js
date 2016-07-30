@@ -1,6 +1,6 @@
 /**
 *
-* Filter Machine Learning MeanShift
+* Filter Machine Learning CamShift (adaptive meanshift)
 * @package FILTER.js
 *
 **/
@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.ML.meanshift = function(){};
+FILTER.ML.camshift = function(){};
 
 }(FILTER);

@@ -1,6 +1,6 @@
 /**
 *
-* WebGLFilter Classes
+* GLSL Generic Filter Classes
 * @package FILTER.js
 *
 **/
@@ -30,7 +30,7 @@ var browserPrefixes = [
 //
 //
 // Generic WebGL Program Class
-var WebGLProgram = FILTER.WebGLProgram = FILTER.Class({
+var WebGLProgram = FILTER.GLSL.Program = FILTER.Class({
 
     constructor : function(webgl, id, program, attributes, uniforms, textures)  {
         var self = this;
@@ -299,7 +299,7 @@ var WebGLProgram = FILTER.WebGLProgram = FILTER.Class({
 //
 //
 // Generic WebGL Class
-var WebGL = FILTER.WebGL = FILTER.Class({
+var WebGL = FILTER.GLSL.WebGL = FILTER.Class({
     
     constructor: function(canvas, options)  {
         canvas = canvas || createCanvas();
@@ -906,9 +906,9 @@ WebGL.getExtensionWithKnownPrefixes = function(gl, name)  {
 //
 //
 // Generic WebGL Filter
-var WebGLFilter = FILTER.WebGLFilter = FILTER.Class( FILTER.Filter, {
+var WebGLFilter = FILTER.GLSL.Filter = FILTER.Class( FILTER.Filter, {
     
-    name : "WebGLFilter",
+    name : "GLSL.Filter",
     
     path: FILTER_WEBGL_PATH,
     
@@ -971,57 +971,6 @@ var WebGLFilter = FILTER.WebGLFilter = FILTER.Class( FILTER.Filter, {
     }
 });
 
-
-//
-//
-// GLSL Shaders
-/*
-FILTER.Shaders={
-    
-    tableLookup: {
-        
-        attributes: null,
-        
-        uniforms: null,
-            
-        textures: [
-            {name: "u_image", image: null, texture: null},
-            // these need to be textures most probably as their size is > 128
-            // http://www.john-smith.me/hassles-with-array-access-in-webgl--and-a-couple-of-workarounds
-            {name: "u_TR", image: null, texture: null},
-            {name: "u_TG", image: null, texture: null},
-            {name: "u_TB", image: null, texture: null}
-        ],
-        
-        vertex: null,
-        
-        fragment: {
-            type: "fragment",
-            
-            source: "\
-                precision mediump float;\
-                \
-                // our texture\
-                uniform sampler2D u_image;\
-                // lookup tables as textures\
-                uniform sampler2D u_TR;\
-                uniform sampler2D u_TG;\
-                uniform sampler2D u_TB;\
-                \
-                // the texCoords passed in from the vertex shader.\
-                varying vec2 v_texCoord;\
-                \
-                void main() {\
-                   vec4 rgba =texture2D(u_image, v_texCoord);\
-                   float tR =texture2D(u_TR, vec2(rgba.r, 0.0)).r;\
-                   float tG =texture2D(u_TG, vec2(rgba.g, 0.0)).g;\
-                   float tB =texture2D(u_TB, vec2(rgba.b, 0.0)).b;\
-                   gl_FragColor = vec4(tR, tG, tB, rgba.a);\
-                 }"
-        }
-    }
-};
-*/
 
 var _canvas, _isInit=false;
 function webGLInit()

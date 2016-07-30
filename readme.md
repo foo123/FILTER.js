@@ -130,33 +130,34 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a Color Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 8 generic Filter types plus various Plugins (with support for parallel processing transparently both for browser and nodejs)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a numbe of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 9 generic Filter types (some having `glsl`/`svg` analogs) plus various Plugins (with support for parallel processing transparently both for browser and nodejs)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
-1. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
-2. [__TableLookupFilter__](/api-reference.md#table-lookup-filter) 
-3. [__ConvolutionMatrixFilter__](/api-reference.md#convolution-matrix-filter) (analogous to the ActionScript filter)
-4. [__DisplacementMapFilter__](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
-5. [__GeometricMapFilter__](/api-reference.md#geometric-map-filter)
+1. [__ColorTableFilter__](/api-reference.md#color-table-filter) 
+2. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
+3. [__DisplacementMapFilter__](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
+4. [__GeometricMapFilter__](/api-reference.md#geometric-map-filter)
+5. [__ConvolutionMatrixFilter__](/api-reference.md#convolution-matrix-filter) (analogous to the ActionScript filter)
 6. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
 7. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called `NonLinearFilter`)
-8. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
-9. [__CombinatorFilter__](/api-reference.md#combinator-filter) (combine/blend multiple processed inputs into one output)
+8. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
+9. [__InlineFilter__](/api-reference.md#plugins-and-inline-filters) (create dynamic filters inline using your custom functions)
+10. [__CombinatorFilter__](/api-reference.md#combinator-filter) (combine/blend multiple processed inputs into one output)
+11. [__Plugins__](/api-reference.md#plugins-and-inline-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
+12. __GLSLFilter__ glsl-based (webgl/node-gl) filters (todo)
+13. __SVGFilter__ svg-based filters (todo)
+
+
+Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
 
 
 __Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
 
 
-The filters, and the way they operate, naturaly represent a system of interconnected nodes which process and interchange (image) data (not necesarily synchronously), a.k.a *a signal processing graph system*. The result is a streamlined flow for image processing and computer vision in JavaScript.
-
-
-[__Extension by Plugins / Inline Filters__](/api-reference.md#plugins-and-inline-filters) 
-
-
 __Image Blending Modes__ (analogous to PhotoShop blend modes)
 
 
-Each generic filter is prototype but it also includes basic implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , and so on..
+The filters, and the way they operate, naturaly represent a system of interconnected nodes which process and interchange (image) data (not necesarily synchronously), a.k.a *a signal processing graph system*. The result is a streamlined flow for image processing and computer vision in JavaScript.
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
@@ -166,19 +167,19 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add full support for `Node.js` [DONE]
-* add `WebGL` support for various pre-built and custom Filters (todo, in progress)
-* add `SVG` Filters interface support for various pre-built and custom Filters (todo, in progress)
-* add `CSS` Filters interface support for various pre-built and custom Filters (todo, in progress)
-* add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]
-* add `2d-fft` routines, frequency-domain filtering [DONE partially]
-* add image segmentation/classification algorithms (e.g `kmeans`, `em`, `meanshift`) (todo)
-* add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE partially]
+* add `GLSL` support for various pre-built and inline Filters (todo, in progress)
+* add `SVG`, `CSS` Filters interface support for various pre-built and custom Filters (todo, in progress)
+* add `2d-fft` routines, frequency-domain filtering (todo, in progress)
+* add active-shape geometric filters, color/histogram-detector filters, .. (todo, in progress)
+* add needed graph node filters (eg `hub`, `switch`, `combine` etc..)
+* add image segmentation/classification algorithms (e.g `svd`, `kmeans`, `em`, `camshift`) (todo)
 * make convolutions/statistics faster [DONE partially]
-* use fixed-point arithmetic, micro-optimizations where possible [DONE partially]
-* add caching of filter parameters where applicable [DONE partially]
-* add more filters/plugins (eg `split`/`combine`/`adaptive`/`nonlinear` etc..) [DONE partially]
-* increase support/performance for `Opera`, `IE`  [DONE partially]
+* add full support for `Node.js` [DONE]
+* add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]
+* add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE]
+* use fixed-point arithmetic, micro-optimizations where possible [DONE]
+* add caching of filter parameters where applicable [DONE]
+* increase performance for `Opera`, `IE`  [DONE partially]
 
 
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  

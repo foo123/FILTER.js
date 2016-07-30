@@ -1,6 +1,6 @@
 /**
 *
-* Filter Machine Learning Singular Value Decomposition (SVD)
+* Filter Machine Learning SVD (Singular Value Decomposition)
 * @package FILTER.js
 *
 **/

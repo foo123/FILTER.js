@@ -1,6 +1,6 @@
 /**
 *
-* Filter Machine Learning KMeans
+* Filter Machine Learning K-Means
 * @package FILTER.js
 *
 **/

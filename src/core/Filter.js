@@ -153,6 +153,8 @@ FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
 FILTER.MachineLearning = FILTER.ML = { };
+FILTER.GLSL = { };
+FILTER.SVG = { };
 // utilities
 FILTER.Util = {
     Math    : { },

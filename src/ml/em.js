@@ -1,6 +1,6 @@
 /**
 *
-* Filter Machine Learning Expectation-Maximisation (EM)
+* Filter Machine Learning EM (Expectation-Maximisation)
 * @package FILTER.js
 *
 **/

@@ -22,6 +22,7 @@ __0.9.5__
 * make parallel thread calls faster (both browser and nodejs), update asynchronous
 * heavy refactoring and optimisations
 * update examples (both live browser and nodejs)
+* prepare support for glsl-based filters (`webgl`/`node-gl`) and svg-based filters
 
 
 __0.9.0__

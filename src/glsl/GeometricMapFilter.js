@@ -1,6 +1,6 @@
 /**
 *
-* WebGL Geometric Map Filter
+* GLSL Geometric Map Filter
 * @package FILTER.js
 *
 **/
@@ -332,10 +332,10 @@ texture={name: "u_image", image: null, location: null, texture: null}
 
 //
 //
-// GeometricMap WebGL Filter  (IN PROGRESS!!)
-var WebGLGeometricMapFilter = FILTER.WebGLGeometricMapFilter = FILTER.Class( FILTER.WebGLFilter, {
+// GeometricMap GLSL Filter  (IN PROGRESS!!)
+FILTER.GLSL.GeometricMapFilter = FILTER.Class( FILTER.GLSL.Filter, {
     
-    name : "WebGLGeometricMapFilter",
+    name : "GLSL.GeometricMapFilter",
     
     constructor : function(type) { 
         this.id='WGLGM8'; //FILTER.uuid();

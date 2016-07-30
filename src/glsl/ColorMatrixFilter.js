@@ -1,6 +1,6 @@
 /**
 *
-* WebGL Color Matrix Filter
+* GLSL Color Matrix Filter
 * @package FILTER.js
 *
 **/
@@ -78,10 +78,10 @@ texture={name: "u_image", image: null, location: null, texture: null}
     
 //
 //
-// ColorMatrix WebGL Filter  (IN PROGRESS!!)
-var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = FILTER.Class( FILTER.WebGLFilter, {
+// ColorMatrix GLSL Filter  (IN PROGRESS!!)
+FILTER.GLSL.ColorMatrixFilter = FILTER.Class( FILTER.GLSL.Filter, {
     
-    name : "WebGLColorMatrixFilter",
+    name : "GLSL.ColorMatrixFilter",
     
     constructor : function() { 
         this.id='WGLDM1'; //FILTER.uuid();
@@ -104,8 +104,5 @@ var WebGLColorMatrixFilter = FILTER.WebGLColorMatrixFilter = FILTER.Class( FILTE
         webgl.drawTriangles(this.triangles);
     }
 });
-
-// export an instance
-FILTER.WebGLColorMatrixFilterInstance=new WebGLColorMatrixFilter();
 
 }(FILTER);

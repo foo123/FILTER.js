@@ -1,6 +1,6 @@
 /**
 *
-* WebGL Displacement Map Filter
+* GLSL Displacement Map Filter
 * @package FILTER.js
 *
 **/
@@ -124,11 +124,10 @@ texture={name: "u_image", image: null, location: null, texture: null}
 
 //
 //
-// DisplacementMap WebGL Filter  (IN PROGRESS!!)
-var WebGLDisplacementMapFilter = FILTER.WebGLDisplacementMapFilter = FILTER.Class( FILTER.WebGLFilter,
-{
+// DisplacementMap GLSL Filter  (IN PROGRESS!!)
+FILTER.GLSL.DisplacementMapFilter = FILTER.Class( FILTER.GLSL.Filter, {
     
-    name : "WebGLDisplacementMapFilter",
+    name : "GLSL.DisplacementMapFilter",
     
     constructor : function() { 
         this.id='WGLDM4'; //FILTER.uuid();

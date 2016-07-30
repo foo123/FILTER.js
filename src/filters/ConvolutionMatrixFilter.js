@@ -17,6 +17,7 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
+    tensor_product = FILTER.Util.Math.tensor_product, convolveKernels = tensor_product,
     
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
@@ -582,7 +583,7 @@ ConvolutionMatrixFilter.prototype.grad = ConvolutionMatrixFilter.prototype.prewi
 //
 //  Private methods
 
-function addMatrix(m1, m2)
+/*function addMatrix(m1, m2)
 {
     var l=m1.length, i, m=new CM(m1.length);
     i=0; while (i<l) { m[i]=m1[i] + m2[i]; i++; }
@@ -598,11 +599,8 @@ function subtractMatrix(m1, m2)
 
 function multiplyScalar(m1, s)
 {
-    if (1==s) return new CM(m1);
-    var l=m1.length, i, m=new CM(m1.length);
-    i=0; while (i<l) { m[i]=m1[i]*s; i++; }
-    return m;
-}
+    return 1===s ? new CM(m1) : tensor_product(m1, [s], CM).prod;
+}*/
 
 function blendMatrix(m1, m2, a, b)
 {
@@ -610,13 +608,6 @@ function blendMatrix(m1, m2, a, b)
     a=a||1; b=b||1;
     i=0; while (i<l) { m[i]=a*m1[i] + b*m2[i]; i++; }
     return m;
-}
-
-function convolveKernels(k1, k2)
-{
-    var i, j, kl=k1.length, k, ker=[], sum=0;
-    for (i=0; i<kl; i++) { for (j=0; j<kl; j++) { k=k1[i]*k2[j];  sum+=k;  ker.push(k); } }
-    return {kernel:ker, sum:sum};
 }
 
 function identity1DKernel(d)

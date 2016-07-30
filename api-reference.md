@@ -17,14 +17,16 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Image](#image-class)
 * [Image Loader](#loader--binaryloader--htmlimageloader-classes)
 * [Abstract Filter](#generic-abstract-filter)
+* [Color Table Filter](#color-table-filter) 
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
-* [Table Lookup Filter](#table-lookup-filter) 
-* [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
 * [Displacement Map Filter](#displacement-map-filter) (analogous to ActionScript filter)
 * [Geometric Map Filter](#geometric-map-filter)
+* [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
 * [Morphological Filter](#morphological-filter)
-* [Statistical Filter](#statistical-filter)  (previously called NonLinearFilter)
+* [Statistical Filter](#statistical-filter)  (previously called `NonLinearFilter`)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
+* [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl)
+* [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Inline Filters](#plugins-and-inline-filters) 
 * [Codecs](#codecs) 
 
@@ -121,6 +123,62 @@ __Methods:__
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
 
+###Color Table Filter
+
+````javascript
+new FILTER.ColorTableFilter(colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray]);
+````
+
+The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
+
+The filter scans an image and changes the coloring of each pixel according to the color map table
+
+The class has various pre-defined filters which can be combined in any order.
+
+* `invert()` Inverts image colors to their complementary
+* `mask()` Apply a bit-mask to the image pixels
+* `replace()` Replace a color with another color
+* `extract()` Extract a color range from a specific color channel and set all rest to a background color
+* `gammaCorrection()` Apply gamma correction to image channels
+* `exposure()` Alter image exposure
+* `solarize()`  Apply a solarize effect
+* `solarize2()`  Apply alternative solarize effect
+* `posterize() / quantize()`  Quantize uniformly the image colors
+* `binarize()`  Quantize uniformly the image colors in 2 levels
+* `thresholds()`  Quantize non-uniformly the image colors according to given thresholds
+* `threshold()`  Quantize non-uniformly the image colors in 2 levels according to given threshold
+
+These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
+
+Color Table Filters can be combined very easily since they operate only **on a single color of a single pixel** at a time
+
+In order to use both an invert and a posterize filter use the following chaining:
+
+````javascript
+
+var invertPosterize = new FILTER.ColorTableFilter( ).invert( ).posterize( 4 );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+invertPosterize.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+invertPosterize.worker( false );
+
+````
+
+To apply the filter to an image do:
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+invertPosterize.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( invertPosterize );   // image is a FILTER.Image instance, see examples
+
+````
+
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
+
 
 ###Color Matrix Filter
 
@@ -158,7 +216,7 @@ The class has various pre-defined filters which can be combined in any order.
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
-Color Matrix Filters can be combined very easily since they operate only on a single pixel at a time
+Color Matrix Filters can be combined very easily since they operate only **on mixing the colors of a single pixel** at a time
 
 In order to use both a grayscale and a contrast filter use the following chaining:
 
@@ -188,139 +246,6 @@ image.apply( grc );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Table Lookup Filter
-
-````javascript
-new FILTER.TableLookupFilter(colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray]);
-````
-
-The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
-
-The filter scans an image and changes the coloring of each pixel according to the color map table
-
-The class has various pre-defined filters which can be combined in any order.
-
-* `invert()` Inverts image colors to their complementary
-* `mask()` Apply a bit-mask to the image pixels
-* `replace()` Replace a color with another color
-* `extract()` Extract a color range from a specific color channel and set all rest to a background color
-* `gammaCorrection()` Apply gamma correction to image channels
-* `exposure()` Alter image exposure
-* `solarize()`  Apply a solarize effect
-* `solarize2()`  Apply alternative solarize effect
-* `posterize() / quantize()`  Quantize uniformly the image colors
-* `binarize()`  Quantize uniformly the image colors in 2 levels
-* `thresholds()`  Quantize non-uniformly the image colors according to given thresholds
-* `threshold()`  Quantize non-uniformly the image colors in 2 levels according to given threshold
-
-These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
-
-Lookup Table Filters can be combined very easily since they operate only on a single pixel at a time
-
-In order to use both an invert and a posterize filter use the following chaining:
-
-````javascript
-
-var invertPosterize = new FILTER.TableLookupFilter( ).invert( ).posterize( 4 );
-
-// if you want to make this filter work in another thread in parallel through a worker, do:
-invertPosterize.worker( );
-
-// if you want to stop and dispose the worker for this filter, do:
-invertPosterize.worker( false );
-
-````
-
-To apply the filter to an image do:
-
-````javascript
-
-// this is same even if filter uses a parallel worker filter
-invertPosterize.apply( image );   // image is a FILTER.Image instance, see examples
-// this will also work:
-image.apply( invertPosterize );   // image is a FILTER.Image instance, see examples
-
-````
-
-NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
-
-
-###Convolution Matrix Filter
-
-````javascript
-new FILTER.ConvolutionMatrixFilter( weights:Array, factor:Number );
-````
-
-This filter is analogous to the ActionScript filter of same name. 
-The (optional) weights parameter is a square matrix of convolution coefficients represented as an array.
-The (optional) factor is the normalization factor for the convoltuon matrix. The matrix elements should sum up to 1,
-in order for the filtered image to have same brightness as original.
-
-The filter scans an image and changes the current pixel by mixing the RGBA channels of the pixel and the pixels in its neighborhood according to the convolution matrix.
-
-A convolution matrix with large dimesions (NxN) will use pixels from a larger neighborhood and hence it is slower.
-
-Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) This is related to the fact that the matrix must define a unique center
-element (ie. current pixel)  which only odd dimensions allow.
-
-The class has various pre-defined filters to use.
-
-* `fastGauss()`  A faster implementation of an arbitrary gaussian low pass filter
-* `lowPass() / boxBlur()`  Generic (box) fast lowpass filter (ie. box blur)
-* `highPass()` Generic fast high pass filter (derived from the associated low pass filter)
-* `binomialLowPass() / gaussBlur()` Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
-* `binomialHighPass()` Generic high pass filter (derived from the associated low pass filter)
-* `horizontalBlur()`  apply a fast blur only to horizontal direction
-* `verticalBlur()`  apply a fast blur only to vertical direction
-* `directionalBlur()`  apply a fast blur to an arbitrary direction (at present supports only horizontal/vertical and diagonal blurs)
-* `glow()`  apply a fast glow effect
-* `sharpen()`  Sharpen the image fast
-* `prewittX() / gradX()`  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
-* `prewittY() / gradY()`  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
-* `prewittDirectional() / gradDirectional()`  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
-* `prewitt() / grad()`  Total gradient of the image (similar to edges/prewitt operator)
-* `sobelX()`  X-gradient using Sobel operator (similar to horizontal edges)
-* `sobelY()`  Y-gradient using Sobel operator (similar to vertical edges)
-* `sobelDirectional()`  Directional-gradient using Sobel operator (similar to edges along a direction)
-* `sobel()`  Total gradient of the image using Sobel operator
-* `laplace()`  Total second gradient of the image (fast Laplacian)
-* `emboss()`   Apply emboss effect to the image
-* `edges()`  Apply an edge filter to the image
-* `motionblur()`  __deprecated__  (use `directionalBlur`)
-
-These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
-
-Convolution  Filters cannot be combined very easily since they operate on multiple pixels at a time. Using a composite filter,
-filters can be combined into a filter stack which apply one at a time (see below)
-
-In order to use an emboss filter do the following:
-
-````javascript
-
-var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
-
-// if you want to make this filter work in another thread in parallel through a worker, do:
-emboss.worker( );
-
-// if you want to stop and dispose the worker for this filter, do:
-emboss.worker( false );
-
-````
-
-To apply the filter to an image do:
-
-````javascript
-
-// this is same even if filter uses a parallel worker filter
-emboss.apply( image );   // image is a FILTER.Image instance, see examples
-// this will also work:
-image.apply( emboss );   // image is a FILTER.Image instance, see examples
-
-````
-
-NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
-
-
 ###Displacement Map Filter
 
 ````javascript
@@ -333,7 +258,7 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 The filter scans an image and changes the current pixel by displacing it according to the coloring of the displacement map image
 
 
-Displacement Map  Filters cannot be combined very easily. Use a composite filter (see below)
+Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels non-linearly**. Use a composite filter (see below)
 
 In order to use an displace filter do the following:
 
@@ -374,7 +299,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Geometric Map Filter
 
 ````javascript
-new FILTER.GeomatricMapFilter( geometricMapFunction:Function );
+new FILTER.GeometricMapFilter( inverseGeometricMap:Function );
 ````
 
 The filter scans an image and changes the current pixel by distorting it according to the geometric map function
@@ -396,7 +321,7 @@ The class has some pre-defined filters to use.
 * `polar( )`  Transform image to polar coords (TODO)
 * `cartesian( )`  Inverse of polar (TODO)
 
-Geometric Map  Filters cannot be combined very easily. Use a composite filter (see below)
+Geometric Map  Filters cannot be combined very easily since they operate **on mapping single pixels non-linearly**. Use a composite filter (see below)
 
 In order to use a geometric filter do the following:
 
@@ -426,6 +351,80 @@ image.apply( gF );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
+###Convolution Matrix Filter
+
+````javascript
+new FILTER.ConvolutionMatrixFilter( weights:Array, factor:Number );
+````
+
+This filter is analogous to the ActionScript filter of same name. 
+The (optional) weights parameter is a square matrix of convolution coefficients represented as an array.
+The (optional) factor is the normalization factor for the convoltuon matrix. The matrix elements should sum up to 1,
+in order for the filtered image to have same brightness as original.
+
+The filter scans an image and changes the current pixel by mixing the RGBA channels of the pixel and the pixels in its neighborhood according to the convolution matrix.
+
+A convolution matrix with large dimesions (NxN) will use pixels from a larger neighborhood and hence it is slower.
+
+Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) This is related to the fact that the matrix must define a unique center element (ie. current pixel)  which only odd dimensions allow.
+
+The class has various pre-defined filters to use.
+
+* `fastGauss()`  A fast implementation of an arbitrary gaussian low pass filter approximation
+* `lowPass() / boxBlur()`  Generic (box) fast lowpass filter (ie. box blur)
+* `highPass()` Generic fast high pass filter (derived from the associated low pass filter)
+* `binomialLowPass() / gaussBlur()` Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
+* `binomialHighPass()` Generic high pass filter (derived from the associated low pass filter)
+* `horizontalBlur()`  apply a fast blur only to horizontal direction
+* `verticalBlur()`  apply a fast blur only to vertical direction
+* `directionalBlur()`  apply a fast blur to an arbitrary direction (at present supports only horizontal/vertical and diagonal blurs)
+* `glow()`  apply a fast glow effect
+* `sharpen()`  Sharpen the image fast
+* `prewittX() / gradX()`  X-gradient of the image using the Prewitt Operator (similar to horizontal edges)
+* `prewittY() / gradY()`  Y-gradient of the image using the Prewitt Operator  (similar to vertical edges)
+* `prewittDirectional() / gradDirectional()`  Directional-gradient of the image using the Prewitt Operator  (similar to edges along a direction)
+* `prewitt() / grad()`  Total gradient of the image (similar to edges/prewitt operator)
+* `sobelX()`  X-gradient using Sobel operator (similar to horizontal edges)
+* `sobelY()`  Y-gradient using Sobel operator (similar to vertical edges)
+* `sobelDirectional()`  Directional-gradient using Sobel operator (similar to edges along a direction)
+* `sobel()`  Total gradient of the image using Sobel operator
+* `laplace()`  Total second gradient of the image (fast Laplacian)
+* `emboss()`   Apply emboss effect to the image
+* `edges()`  Apply an edge filter to the image
+* `motionblur()`  __deprecated__  (use `directionalBlur`)
+
+These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
+
+Convolution  Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time. Using a composite filter, filters can be combined into a filter stack which apply one at a time (see below)
+
+In order to use an emboss filter do the following:
+
+````javascript
+
+var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+emboss.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+emboss.worker( false );
+
+````
+
+To apply the filter to an image do:
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+emboss.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( emboss );   // image is a FILTER.Image instance, see examples
+
+````
+
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
+
+
 ###Morphological Filter
 
 ````javascript
@@ -441,7 +440,7 @@ The class has some pre-defined filters to use.
 * `opening( )` Apply opening operation
 * `closing( )` Apply closing operation
 
-Morphological Filters cannot be combined very easily since they operate on multiple pixels at a time with non-linear processing. Use a composite filter (see below)
+Morphological Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
 In order to use a dilate filter do the following:
 
@@ -491,7 +490,7 @@ The class has some pre-defined filters to use.
 * `minimum( )/erode( )` Apply minimum (erode) filter
 * `maximum( )/dilate( )` Apply maximum (dilate) filter
 
-Statistical Filters cannot be combined very easily since they operate on multiple pixels at a time. Use a composite filter (see below)
+Statistical Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
 In order to use a median filter do the following:
 
@@ -519,7 +518,6 @@ image.apply( median );   // image is a FILTER.Image instance, see examples
 ````
 
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
-
 
 
 ###Composite Filter
@@ -589,6 +587,15 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 *to be added*
 
+
+###GLSL Filter
+
+glsl-based filters for `webgl`/`node-gl` (todp)
+
+
+###SVG Filter
+
+svg-based filters for `svg` (todp)
 
 
 ###Plugins and Inline Filters

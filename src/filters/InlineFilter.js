@@ -16,7 +16,7 @@ var HAS = 'hasOwnProperty';
 //
 //  Inline Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
-var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FILTER.Filter, {
+var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     name: "InlineFilter"
     
     ,constructor: function( handler ) {
@@ -95,5 +95,6 @@ var InlineFilter = FILTER.InlineFilter = FILTER.CustomFilter = FILTER.Class( FIL
         return this._isOn && this._handler;
     }
 });
+FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);

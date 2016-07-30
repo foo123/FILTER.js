@@ -1,6 +1,6 @@
 /**
 *
-* WebGL Convolution Matrix Filter
+* GLSL Convolution Matrix Filter
 * @package FILTER.js
 *
 **/
@@ -136,10 +136,10 @@ texture={name: "u_image", image: null, location: null, texture: null}
 
 //
 //
-// ConvolutionMatrix WebGL Filter (IN PROGRESS!!)
-var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = FILTER.Class( FILTER.WebGLFilter, {
+// ConvolutionMatrix GLSL Filter (IN PROGRESS!!)
+FILTER.GLSL.ConvolutionMatrixFilter = FILTER.Class( FILTER.GLSL.Filter, {
     
-    name : "WebGLConvolutionMatrixFilter",
+    name : "GLSL.ConvolutionMatrixFilter",
     
     constructor : function() { 
         this.id='WGLCM2'; //FILTER.uuid();
@@ -162,8 +162,5 @@ var WebGLConvolutionMatrixFilter = FILTER.WebGLConvolutionMatrixFilter = FILTER.
         webgl.drawTriangles(this.triangles);
     }
 });
-
-// export an instance
-FILTER.WebGLConvolutionMatrixFilterInstance=new WebGLConvolutionMatrixFilter();
 
 }(FILTER);

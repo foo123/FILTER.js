@@ -10,7 +10,7 @@
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A16I = FILTER.Array16I, A8U = FILTER.Array8U,
-    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix, //ConvolutionMatrix = FILTER.ConvolutionMatrix,
+    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
     MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
     ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
@@ -1304,6 +1304,21 @@ function cm_rechannel( m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao )
     return cm;
 }
 
+function tensor_product( m1, m2, matrix )
+{
+    matrix = matrix || Array/*ConvolutionMatrix*/;
+    if ( m2 === +m2 ) m2 = [m2];
+    var i, j, p, s, d1 = m1.length, d2 = m2.length, m12 = new matrix(d1*d2);
+    for (s=0,i=0,j=0; i<d1; j++)
+    {
+        if ( j >= d2 ){ j=0; i++; }
+        p = m1[i]*m2[j];
+        m12[i*d2+j] = p;
+        s += p;
+    }
+    return {kernel:m12, sum:s};
+}
+
 function lerp( data, index, c1, c2, t )
 {
     data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
@@ -1468,6 +1483,7 @@ function esc( s )
 
 MathUtil.clamp = clamp;
 MathUtil.closest_power2 = closest_power_of_two;
+MathUtil.tensor_product = tensor_product;
 MathUtil.Geometry = {
      Point2: point2
     ,Point3: point3

@@ -23,9 +23,9 @@ var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clamp
 
 //
 //
-// TableLookupFilter
-var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, {
-    name: "TableLookupFilter"
+// ColorTableFilter
+var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
+    name: "ColorTableFilter"
     
     ,constructor: function( tR, tG, tB, tA ) {
         var self = this;
@@ -462,6 +462,7 @@ var TableLookupFilter = FILTER.TableLookupFilter = FILTER.Class( FILTER.Filter, 
     }
 });
 // aliases
-TableLookupFilter.prototype.posterize = TableLookupFilter.prototype.levels = TableLookupFilter.prototype.quantize;
+ColorTableFilter.prototype.posterize = ColorTableFilter.prototype.levels = ColorTableFilter.prototype.quantize;
+FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 
 }(FILTER);

@@ -1,6 +1,6 @@
 /**
 *
-* Filter Machine Learning Deterministic Annealing (DA)
+* Filter Machine Learning DA (Deterministic Annealing)
 * @package FILTER.js
 *
 **/

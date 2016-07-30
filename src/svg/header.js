@@ -1,6 +1,6 @@
 /**
 *
-*   FILTER.js SVG/CSS Filters
+*   FILTER.js SVG / CSS Filters
 *   @version: @@VERSION@@
 *   @dependencies: Filter.js
 *
