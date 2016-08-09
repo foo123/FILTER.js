@@ -9,5 +9,5 @@
 *
 **/
 "use strict";
-var FILTER_WEBGL_PATH = FILTER.getPath( ModuleFactory__FILTER_WEBGL.moduleUri );
+var FILTER_GLSL_PATH = FILTER.getPath( ModuleFactory__FILTER_GLSL.moduleUri );
 

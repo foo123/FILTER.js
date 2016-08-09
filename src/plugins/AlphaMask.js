@@ -107,7 +107,7 @@ FILTER.Create({
             wm = Min(w, w2), hm = Min(h, h2),  
             channel = null==self.channel?CHANNEL.ALPHA:(self.channel||CHANNEL.RED),
             cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
+            cX2 = w2>>>1, cY2 = h2>>>1
         ;
         
         
@@ -130,6 +130,9 @@ FILTER.Create({
             else
             {
                 // better to remove the alpha channel if mask dimensions are different??
+                im[i] = 0;
+                im[i+1] = 0;
+                im[i+2] = 0;
                 im[i+3] = 0;
             }
         }

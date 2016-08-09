@@ -23,6 +23,9 @@ __0.9.5__
 * heavy refactoring and optimisations
 * update examples (both live browser and nodejs)
 * prepare support for glsl-based filters (`webgl`/`node-gl`) and svg-based filters
+* filters and created plugins automaticaly support the `constructor-factory` pattern to be able to be instantiated without the explicit `new AFilter()` operator instead simply using `AFilter()`, see updated examples
+* two new generic filters (which replace multiple plugins, see updated examples) `AffineMatrixFilter` (i.e linear geometric map filtering) and `ColorMapFilter` (i.e non-linear color transformation filtering) instead of having multiple filters and plugins with similar functionalities scattered around, plus dynamicaly optimise them, parametrise them and also have GLSL analogs more easily
+* fix `tensor_product` utility from previous update (produced incorrect convolution kernels)
 
 
 __0.9.0__

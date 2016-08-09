@@ -12,11 +12,6 @@ var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.I
     get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill
 ;
 
-function scale( d, w, h, nw, nh )
-{
-    return (w === nw) && (h === nh) ? d : resize( d, w, h, nw, nh );
-}
-
 CanvasProxyCtx = FILTER.Class({
     constructor: function CanvasProxyCtx( canvas ) {
         var self = this;
@@ -85,11 +80,17 @@ CanvasProxyCtx = FILTER.Class({
         {
             dx = sx; dy = sy;
             dw = sw; dh = sh;
-            set( self._data, W, H, scale( idata, w, h, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            if ( (w === dw) && (h === dh) )
+                set( self._data, W, H, idata, dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            else
+                set( self._data, W, H, resize( idata, w, h, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
         }
         else
         {
-            set( self._data, W, H, scale( get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), sw, sh, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            if ( (sw === dw) && (sh === dh) )
+                set( self._data, W, H, get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            else
+                set( self._data, W, H, resize( get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), sw, sh, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
         }
     },
     
@@ -143,7 +144,7 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
         self.width = w || 0;
         self.height = h || 0;
         self.style = { };
-        self._ctx = new CanvasProxyCtx( self );
+        self._ctx = null;
     },
     
     _ctx: null,
@@ -156,13 +157,19 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
         self.width = null;
         self.height = null;
         self.style = null;
-        self._ctx.dispose( );
-        self._ctx = null;
+        if ( self._ctx )
+        {
+            self._ctx.dispose( );
+            self._ctx = null;
+        }
         return self;
     },
     
-    getContext: function( context ) {
-        return this._ctx;
+    getContext: function( ctx, options ) {
+        var self = this;
+        if ( -1 < ctx.indexOf("webgl") ) return FILTER.GL( self, options );
+        if ( !self._ctx ) self._ctx = new CanvasProxyCtx( self );
+        return self._ctx;
     },
     
     toDataURL: function( mime ) {
@@ -183,6 +190,42 @@ FILTER.Canvas = function( w, h ) {
     canvas.height = h * FILTER.devicePixelRatio;
     
     return canvas;
+};
+//
+// glsl (webgl/node-gl) support, override this for node-gl support
+var GLExt = null;
+FILTER.GL = FILTER.Browser.isNode
+? function( canvas, options ){ return null; }
+: function( canvas, options ){
+    options = options || {
+        depth: false,
+        alpha: true,
+        premultipliedAlpha: false,
+        antialias: true,
+        stencil: false,
+        preserveDrawingBuffer: false
+    };
+    var gl = null;
+    if ( !GLExt )
+    {
+        var names = ["webgl2", "experimental-webgl2", "webgl", "experimental-webgl", "webkit-3d", "moz-webgl"],
+            nl = names.length, i;
+
+        for(i=0; i<nl; ++i) 
+        {
+            try {
+                gl = canvas.getContext(names[i], options);
+            } catch(e) {
+                gl = null;
+            }
+            if ( gl )  { GLExt = names[i]; break; }
+        }
+    }
+    else
+    {
+        gl = canvas.getContext(GLExt, options);
+    }
+    return gl;
 };
 
 }(FILTER);

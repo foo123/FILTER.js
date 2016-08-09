@@ -41,7 +41,7 @@ var FILTER_FILTERS_PATH = FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUr
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = AP.slice, splice = AP.splice, concat = AP.concat
+    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get
 ;
 
 //
@@ -49,10 +49,11 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
 var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     name: "CompositeFilter"
     
-    ,constructor: function( filters ) { 
+    ,constructor: function CompositeFilter( filters ) { 
         var self = this;
+        if ( !(self instanceof CompositeFilter) ) return new CompositeFilter(filters);
         self.$super('constructor');
-        self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
+        self._stack = filters && filters.length ? filters.slice( ) : [ ];
     }
     
     ,path: FILTER_FILTERS_PATH
@@ -62,8 +63,6 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     ,dispose: function( withFilters ) {
         var self = this, i, stack = self._stack;
-        
-        self.$super('dispose');
         
         if ( true === withFilters )
         {
@@ -75,16 +74,14 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         }
         self._stack = null;
         self._meta = null;
-        
+        self.$super('dispose');
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this, json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, filters: [ ] }, i, stack = self._stack;
-        for (i=0; i<stack.length; i++)
-        {
-            json.filters.push( stack[ i ].serialize( ) );
-        }
+        var self = this, i, stack = self._stack,
+            json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, _update: self._update, filters: [ ] };
+        for (i=0; i<stack.length; i++) json.filters.push( stack[ i ].serialize( ) );
         return json;
     }
     
@@ -92,13 +89,13 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         var self = this, i, l, ls, filters, filter, stack = self._stack;
         if ( json && self.name === json.filter )
         {
-            self._isOn = !!json._isOn;
-            self._stable = !!json._stable;
+            self._isOn = json._isOn;
+            self._update = json._update;
+            self._stable = json._stable;
             
             filters = json.filters || [ ];
-            l = filters.length;
-            ls = stack.length;
-            if ( l !== ls || !self._stable )
+            l = filters.length; ls = stack.length;
+            if ( (l !== ls) || (!self._stable) )
             {
                 // dispose any prev filters
                 for (i=0; i<ls; i++)
@@ -110,7 +107,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                 
                 for (i=0; i<l; i++)
                 {
-                    filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
+                    filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
                     if ( filter )
                     {
                         stack.push( new filter( ).unserialize( filters[ i ] ) );
@@ -121,16 +118,12 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                         return;
                     }
                 }
+                self._stack = stack;
             }
             else
             {
-                for (i=0; i<l; i++)
-                {
-                    stack[ i ] = stack[ i ].unserialize( filters[ i ] );
-                }
+                for (i=0; i<l; i++) stack[ i ].unserialize( filters[ i ] );
             }
-            
-            self._stack = stack;
         }
         return self;
     }
@@ -142,9 +135,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     ,setMeta: function( meta ) {
         var self = this, stack = self._stack, i, l;
         if ( meta && (l=meta.length) && stack.length )
-        {
-            for (i=0; i<l; i++) stack[meta[i][0]].setMeta(meta[i][1]);
-        }
+            for (i=0; i<l; i++) stack[ meta[i][0] ].setMeta( meta[i][1] );
         return self;
     }
     
@@ -165,11 +156,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,push: function(/* variable args here.. */) {
-        var args = slice.call(arguments), argslen = args.length;
-        if ( argslen )
-        {
-            this._stack = concat.apply( this._stack, args );
-        }
+        if ( arguments.length ) concat.apply(this._stack, arguments);
         return this;
     }
     
@@ -182,16 +169,12 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,unshift: function(/* variable args here.. */) {
-        var args = slice.call(arguments), argslen = args.length;
-        if ( argslen )
-        {
-            splice.apply( this._stack, [0, 0].concat( args ) );
-        }
+        if ( arguments.length ) splice.apply(this._stack, concat.apply([0, 0], arguments));
         return this;
     }
     
     ,getAt: function( i ) {
-        return ( this._stack.length > i ) ? this._stack[ i ] : null;
+        return this._stack.length > i ? this._stack[ i ] : null;
     }
     
     ,setAt: function( i, filter ) {
@@ -231,25 +214,23 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
-        var self = this/*, cache = {}*/, update = false;
-        self.hasMeta = false; self._meta = [];
+        var self = this, scratchpad = {}/*, update = false*/;
+        self._meta = [];
         if ( self._isOn && self._stack.length )
         {
-            var _filterstack = self._stack, _stacklength = _filterstack.length, 
-                fi, filter;
-                
-            for ( fi=0; fi<_stacklength; fi++ )
+            var filterstack = self._stack, stacklength = filterstack.length, fi, filter;
+            for (fi=0; fi<stacklength; fi++)
             {
-                filter = _filterstack[fi]; 
+                filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    im = filter._apply(im, w, h, image/*, cache*/);
-                    update = update || filter._update;
+                    im = filter._apply(im, w, h, image, scratchpad);
                     if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
+                    //update = update || filter._update;
                 }
             }
         }
-        self._update = update;
+        //self._update = update;
         self.hasMeta = self._meta.length > 0;
         return im;
     }
@@ -259,21 +240,17 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,toString: function( ) {
-        var tab = arguments.length && arguments[0].substr ? arguments[0] : "  ",
-            tab_tab = tab + tab, s = this._stack,
-            out = [], i, l = s.length
-        ;
-        for (i=0; i<l; i++) out.push(s[i].toString(tab_tab));
+        var tab = "  ", s = this._stack, out = [], i, l = s.length;
+        for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
         return [
              "[FILTER: " + this.name + "]"
-             ,"["
-             ,"  " + out.join("\n  ")
-             ,"]"
-             ,""
+             ,"[",out.join( "\n" ),"]",""
          ].join("\n");
     }
 });
 // aliases
+CompositeFilter.prototype.get = CompositeFilter.prototype.getAt;
+CompositeFilter.prototype.set = CompositeFilter.prototype.setAt;
 CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
 CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 
@@ -306,8 +283,9 @@ var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clamp
 var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
     name: "ColorTableFilter"
     
-    ,constructor: function( tR, tG, tB, tA ) {
+    ,constructor: function ColorTableFilter( tR, tG, tB, tA ) {
         var self = this;
+        if ( !(self instanceof ColorTableFilter) ) return new ColorTableFilter(tR, tG, tB, tA);
         self.$super('constructor');
         self._table = [null, null, null, null];
         tR = tR || null;
@@ -670,7 +648,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
         var self = this, T = self._table;
         if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var i, l=im.length, rem = (l>>>2)%16, R = T[0], G = T[1], B = T[2], A = T[3];
+        var i, l=im.length, l2=l>>>2, rem=(l2&15)<<2, R = T[0], G = T[1], B = T[2], A = T[3];
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( A )
@@ -699,7 +677,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
             // loop unrolling remainder
             if ( rem )
             {
-                for (i=l-(rem<<2); i<l; i+=4)
+                for (i=l-rem; i<l; i+=4)
                     im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]]; im[i+3 ] = A[im[i+3 ]];
             }
         }
@@ -729,7 +707,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
             // loop unrolling remainder
             if ( rem )
             {
-                for (i=l-(rem<<2); i<l; i+=4)
+                for (i=l-rem; i<l; i+=4)
                     im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]];
             }
         }
@@ -761,44 +739,11 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, eye = FILTER.Util.Filter.cm_eye,
-    cm_mult = FILTER.Util.Filter.cm_multiply, rechannel = FILTER.Util.Filter.cm_rechannel,
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
+    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, rechannel = FUtil.cm_rechannel,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
 ;
-
-function cm_blend( m1, m2, amount )
-{
-    var m = new CM(20);
-    
-    // unroll the loop completely
-    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
-    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
-    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
-    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
-    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
-
-    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
-    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
-    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
-    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
-    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
-    
-    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
-    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
-    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
-    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
-    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
-    
-    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
-    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
-    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
-    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
-    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
-    
-    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-    return m;
-}
 
 //
 //
@@ -806,37 +751,20 @@ function cm_blend( m1, m2, amount )
 var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ColorMatrixFilter"
     
-    ,constructor: function( matrix ) {
+    ,constructor: function ColorMatrixFilter( matrix ) {
         var self = this;
+        if ( !(self instanceof ColorMatrixFilter) ) return new ColorMatrixFilter(matrix);
         self.$super('constructor');
-        if ( matrix && matrix.length )
-        {
-            self._matrix = new CM(matrix);
-        }    
-        else
-        {
-            // identity matrix
-            self._matrix = null;
-        }
-        
-        /*if ( FILTER.useWebGL )
-        {
-            self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
-        }*/
+        self.matrix = matrix && matrix.length ? new CM(matrix) : null;
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_matrix: null
-    ,_webglInstance: null
+    ,matrix: null
     
     ,dispose: function( ) {
         var self = this;
-        
         self.$super('dispose');
-        
-        self._webglInstance = null;
-        self._matrix = null;
-        
+        self.matrix = null;
         return self;
     }
     
@@ -847,7 +775,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             ,_isOn: !!self._isOn
             
             ,params: {
-                _matrix: self._matrix
+                matrix: self.matrix
             }
         };
     }
@@ -860,7 +788,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._matrix = TypedArray( params._matrix, CM );
+            self.matrix = TypedArray( params.matrix, CM );
         }
         return self;
     }
@@ -1230,40 +1158,32 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // blend with another filter
     ,blend: function( filt, amount ) {
-        this._matrix = this._matrix ? cm_blend(this._matrix, filt.getMatrix(), amount) : new CM(filt.getMatrix());
+        this.matrix = this.matrix ? cm_blend(this.matrix, filt.matrix, amount) : new CM(filt.matrix);
         return this;
     }
     
-    ,set: function( mat ) {
-        this._matrix = this._matrix ? cm_mult(this._matrix, new CM(mat)) : new CM(mat);
-        return this;
+    ,set: function( matrix ) {
+        var self = this;
+        self.matrix = self.matrix ? mult(self.matrix, matrix) : new CM(matrix); 
+        return self;
     }
     
     ,reset: function( ) {
-        this._matrix = null; 
+        this.matrix = null; 
         return this;
     }
     
     ,combineWith: function( filt ) {
-        return this.set( filt.getMatrix() );
-    }
-    
-    ,getMatrix: function( ) {
-        return this._matrix;
-    }
-    
-    ,setMatrix: function( m ) {
-        this._matrix = new CM(m); 
-        return this;
+        return this.set( filt.matrix );
     }
     
     // used for internal purposes
     ,_apply: notSupportClamp
     ? function( im, w, h/*, image*/ ) {
-        var self = this, m = self._matrix;
-        if ( !self._isOn || !m ) return im;
+        var self = this, M = self.matrix;
+        if ( !self._isOn || !M ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%8,
+        var imLen = im.length, i, imArea = imLen>>>2, rem = (imArea&7)<<2,
             p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
@@ -1272,52 +1192,52 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         for (i=0; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[1 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[2 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[3 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
-            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[4 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[5 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[6 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[7 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
-            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[8 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[9 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[10]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[11]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
-            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[12]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[13]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[14]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[15]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
-            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[16]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[17]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[18]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[19]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
-            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[20]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[21]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[22]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[23]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
-            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[24]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[25]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[26]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[27]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
-            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[28]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[29]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[30]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[31]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             // clamp them manually
             p[0 ] = p[0 ]<0 ? 0 : (p[0 ]>255 ? 255 : p[0 ]);
@@ -1365,13 +1285,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         // loop unrolling remainder
         if ( rem )
         {
-            for (i=imLen-(rem<<2); i<imLen; i+=4)
+            for (i=imLen-rem; i<imLen; i+=4)
             {
                 t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
-                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
-                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
                 
                 // clamp them manually
                 pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
@@ -1385,10 +1305,10 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         return im;
     }
     : function( im, w, h/*, image*/ ) {
-        var self = this, m = self._matrix;
-        if ( !self._isOn || !m ) return im;
+        var self = this, M = self.matrix;
+        if ( !self._isOn || !M ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%8,
+        var imLen = im.length, i, imArea = imLen>>>2, rem = (imArea&7)<<2,
             p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
@@ -1397,52 +1317,52 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         for (i=0; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[1 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[2 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[3 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
-            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[4 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[5 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[6 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[7 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
-            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[8 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[9 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[10]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[11]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
-            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[12]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[13]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[14]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[15]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
-            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[16]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[17]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[18]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[19]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
-            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[20]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[21]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[22]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[23]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
-            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[24]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[25]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[26]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[27]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
-            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[28]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[29]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[30]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[31]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             im[i   ] = ~~p[0 ]; im[i+1 ] = ~~p[1 ]; im[i+2 ] = ~~p[2 ]; im[i+3 ] = ~~p[3 ];
             im[i+4 ] = ~~p[4 ]; im[i+5 ] = ~~p[5 ]; im[i+6 ] = ~~p[6 ]; im[i+7 ] = ~~p[7 ];
@@ -1456,13 +1376,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         // loop unrolling remainder
         if ( rem )
         {
-            for (i=imLen-(rem<<2); i<imLen; i+=4)
+            for (i=imLen-rem; i<imLen; i+=4)
             {
                 t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
-                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
-                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
                 
                 im[i  ] = ~~pr[0]; im[i+1] = ~~pr[1]; im[i+2] = ~~pr[2]; im[i+3] = ~~pr[3];
             }
@@ -1471,7 +1391,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._matrix;
+        return this._isOn && this.matrix;
     }
 });
 // aliases
@@ -1480,6 +1400,636 @@ ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
 ColorMatrixFilter.blend = cm_blend;
+
+function cm_blend( m1, m2, amount )
+{
+    var m = new CM(20);
+    
+    // unroll the loop completely
+    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
+    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
+    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
+    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
+    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
+
+    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
+    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
+    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
+    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
+    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
+    
+    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
+    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
+    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
+    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
+    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
+    
+    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
+    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
+    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
+    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
+    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
+    
+    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+    return m;
+}
+
+}(FILTER);/**
+*
+* Color Map Filter(s)
+*
+* Changes target coloring combining current pixel color values according to non-linear color map
+*
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, Maps,
+    function_body = FILTER.Util.String.function_body;
+
+//
+//
+// ColorMapFilter
+var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
+    name: "ColorMapFilter"
+    
+    ,constructor: function ColorMapFilter( M, init ) {
+        var self = this;
+        if ( !(self instanceof ColorMapFilter) ) return new ColorMapFilter(M, init);
+        self.$super('constructor');
+        if ( M ) self.set( M, init );
+    }
+    
+    ,path: FILTER_FILTERS_PATH
+    ,_map: null
+    ,_mapInit: null
+    ,_mapName: null
+    ,_mapChanged: false
+    // parameters
+    ,thresholds: null
+    // NOTE: quantizedColors should contain 1 more element than thresholds
+    ,quantizedColors: null
+    ,mode: MODE.COLOR
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.$super('dispose');
+        
+        self._map = null;
+        self._mapInit = null;
+        self._mapName = null;
+        self._mapChanged = null;
+        
+        self.thresholds = null;
+        self.quantizedColors = null;
+        return self;
+    }
+    
+    ,serialize: function( ) {
+        var self = this, json;
+        json = {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                _mapName: self._mapName || null
+                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+                ,thresholds: self.thresholds
+                ,quantizedColors: self.quantizedColors
+                ,mode: self.mode
+            }
+        };
+        self._mapChanged = false;
+        return json;
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.mode = params.mode;
+            self.thresholds = TypedArray( params.thresholds, Array );
+            self.quantizedColors = TypedArray( params.quantizedColors, Array );
+            
+            //self._mapName = params._mapName;
+            //self._map = params._map;
+            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+            {
+                self.set(params._mapName);
+            }
+            else if ( params._map && ("generic" === params._mapName) )
+            {
+                // using bind makes the code become [native code] and thus unserializable
+                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+                if ( params._mapInit )
+                    self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+                self.set(params._map, params._mapInit||null, 1);
+            }
+            /*else
+            {
+                self._map = null;
+            }*/
+        }
+        return self;
+    }
+    
+    ,RGB2HSV: function( ) {
+        return this.set("rgb2hsv");
+    }
+    
+    ,HSV2RGB: function( ) {
+        return this.set("hsv2rgb");
+    }
+    
+    ,RGB2CMYK: function( ) {
+        return this.set("rgb2cmyk");
+    }
+    
+    ,hue: function( ) {
+        return this.set("hue");
+    }
+    
+    ,saturation: function( ) {
+        return this.set("saturation");
+    }
+    
+    ,quantize: function( thresholds, quantizedColors ) {
+        var self = this;
+        self.thresholds = thresholds;
+        self.quantizedColors = quantizedColors;
+        return self.set("quantize");
+    }
+    
+    ,mask: function( min, max, background ) {
+        var self = this;
+        self.thresholds = [min, max];
+        self.quantizedColors = [background || 0];
+        return self.set("mask");
+    }
+    
+    ,set: function( M, preample, precompiled ) {
+        var self = this;
+        if ( precompiled || ("function" === typeof M) )
+        {
+            self._mapName = "generic"; 
+            self._map = T;
+            self._mapInit = preample || null;
+            self._apply = apply__( self._map, self._mapInit );
+            self._mapChanged = precompiled ? false : true;
+        }
+        else if ( M && Maps.hasOwnProperty(String(M)) && (self._mapName !== String(M)) )
+        {
+            self._mapName = String(M);
+            self._map = Maps[self._mapName];
+            self._mapInit = Maps["init__"+self._mapName];
+            self._apply = apply__( self._map, self._mapInit );
+            self._mapChanged = false;
+        }
+        return self;
+    }
+    
+    ,reset: function( ) {
+        var self = this;
+        self._mapName = null; 
+        self._map = null; 
+        self._mapInit = null; 
+        self._mapChanged = false;
+        return self;
+    }
+    
+    // used for internal purposes
+    /*,_apply: apply*/
+        
+    ,canRun: function( ) {
+        return this._isOn && this._map;
+    }
+});
+// aliases
+ColorMapFilter.prototype.threshold = ColorMapFilter.prototype.quantize;
+ColorMapFilter.prototype.extract = ColorMapFilter.prototype.mask;
+
+function apply__( map, preample )
+{
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
+        __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
+    return new Function("FILTER", "return function( im, w, h ){\
+    var self = this;\
+    if ( !self._isOn || !self._map ) return im;\
+    var x, y, i, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
+\
+    "+__INIT__+";\
+    \
+    for (x=0,y=0,i=0; i<imLen; i+=32)\
+    {\
+        c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = ~~c[0]; im[i+1] = ~~c[1]; im[i+2] = ~~c[2]; im[i+3] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+4]; c[1] = im[i+5]; c[2] = im[i+6]; c[3] = im[i+7];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+4] = ~~c[0]; im[i+5] = ~~c[1]; im[i+6] = ~~c[2]; im[i+7] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+8]; c[1] = im[i+9]; c[2] = im[i+10]; c[3] = im[i+11];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+8] = ~~c[0]; im[i+9] = ~~c[1]; im[i+10] = ~~c[2]; im[i+11] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+12]; c[1] = im[i+13]; c[2] = im[i+14]; c[3] = im[i+15];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+12] = ~~c[0]; im[i+13] = ~~c[1]; im[i+14] = ~~c[2]; im[i+15] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+16]; c[1] = im[i+17]; c[2] = im[i+18]; c[3] = im[i+19];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+16] = ~~c[0]; im[i+17] = ~~c[1]; im[i+18] = ~~c[2]; im[i+19] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+20]; c[1] = im[i+21]; c[2] = im[i+22]; c[3] = im[i+23];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+20] = ~~c[0]; im[i+21] = ~~c[1]; im[i+22] = ~~c[2]; im[i+23] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+24]; c[1] = im[i+25]; c[2] = im[i+26]; c[3] = im[i+27];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+24] = ~~c[0]; im[i+25] = ~~c[1]; im[i+26] = ~~c[2]; im[i+27] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+        c[0] = im[i+28]; c[1] = im[i+29]; c[2] = im[i+30]; c[3] = im[i+31];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i+28] = ~~c[0]; im[i+29] = ~~c[1]; im[i+30] = ~~c[2]; im[i+31] = ~~c[3];\
+        \
+        if (++x>=w) {x=0; y++;}\
+    }\
+    if ( rem )\
+    {\
+        for (i=imLen-rem; i<imLen; i+=4,x++)\
+        {\
+            if (x>=w) {x=0; y++;}\
+            c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+            "+__APPLY__+";\
+            "+__CLAMP__+";\
+            im[i] = ~~c[0]; im[i+1] = ~~c[1]; im[i+2] = ~~c[2]; im[i+3] = ~~c[3];\
+        }\
+    }\
+    return im;\
+};")( FILTER );
+}
+
+
+//
+// private color maps
+Maps = {
+    
+    "rgb2hsv": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            RGB2HSV(c, 0);\
+            C0 = c[0]; C1 = c[1]; C2 = c[2];\
+            c[CH] = C0; c[CS] = C1; c[CV] = C2;\
+        }\
+    }"
+    ,"init__rgb2hsv": "function( ){\
+        var C0, C1, C2, CH = FILTER.CHANNEL.H, CS = FILTER.CHANNEL.S, CV = FILTER.CHANNEL.V, RGB2HSV = FILTER.Color.RGB2HSV;\
+    }"
+    
+    ,"hsv2rgb": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            C0 = c[CH]; C1 = c[CS]; C2 = c[CV];\
+            c[0] = C0; c[1] = C1; c[2] = C2;\
+            HSV2RGB(c, 0);\
+        }\
+    }"
+    ,"init__hsv2rgb": "function( ){\
+        var C0, C1, C2, CH = FILTER.CHANNEL.H, CS = FILTER.CHANNEL.S, CV = FILTER.CHANNEL.V, HSV2RGB = FILTER.Color.HSV2RGB;\
+    }"
+    
+    ,"rgb2cmyk": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            RGB2CMYK(c, 0);\
+            C0 = c[0]; C1 = c[1]; C2 = c[2];\
+            c[CY] = C0; c[MA] = C1; c[YE] = C2;\
+        }\
+    }"
+    ,"init__rgb2cmyk": "function( ){\
+        var C0, C1, C2, CY = FILTER.CHANNEL.CY, MA = FILTER.CHANNEL.MA, YE = FILTER.CHANNEL.YE, RGB2CMYK = FILTER.Color.RGB2CMYK;\
+    }"
+    
+    ,"hue": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            HHH = HUE(c[0], c[1], c[2])*0.70833333333333333333333333333333;\
+            c[0] = HHH; c[1] = HHH; c[2] = HHH;\
+        }\
+    }"
+    ,"init__hue": "function( ){\
+        var HUE = FILTER.Color.hue, HHH;\
+    }"
+    
+    ,"saturation": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            SSS = SATURATION(c[0], c[1], c[2]);\
+            c[0] = SSS; c[1] = SSS; c[2] = SSS;\
+        }\
+    }"
+    ,"init__saturation": "function( ){\
+        var SATURATION = FILTER.Color.saturation, SSS;\
+    }"
+    
+    ,"quantize": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            J = 0; V = VALUE(c[0], c[1], c[2]);\
+            while (J<THRESH_LEN && V>THRESH[J]) J++;\
+            COLVAL = J < COLORS_LEN ? COLORS[j] : 0xffffff;\
+            c[0] = (COLVAL >>> 16) & 255; c[1] = (COLVAL >>> 8) & 255; c[2] = COLVAL & 255;\
+        }\
+    }"
+    ,"init__quantize": "function( ){\
+        var VALUE = FILTER.MODE.HUE === self.mode ? FILTER.Color.hue : (FILTER.MODE.SATURATION === self.mode ? FILTER.Color.saturation : (FILTER.MODE.INTENSITY === self.mode ? FILTER.Color.intensity : FILTER.Color.color24)),\
+            THRESH = self.thresholds, THRESH_LEN = THRESH.length,\
+            COLORS = self.quantizedColors, COLORS_LEN = COLORS.length, J, COLVAL, V;\
+    }"
+    
+    ,"mask": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            V = VALUE(c[0], c[1], c[2]);\
+            if ( (V < MIN_VALUE) || (V > MAX_VALUE) )\
+            {\
+                c[0] = COLVAL[0];\
+                c[1] = COLVAL[1];\
+                c[2] = COLVAL[2];\
+                c[3] = COLVAL[3];\
+            }\
+        }\
+    }"
+    ,"init__mask": "function( ){\
+        var VALUE = FILTER.MODE.HUE === self.mode ? FILTER.Color.hue : (FILTER.MODE.SATURATION === self.mode ? FILTER.Color.saturation : (FILTER.MODE.INTENSITY === self.mode ? FILTER.Color.intensity : FILTER.Color.color24)),\
+            MIN_VALUE = self.thresholds[0], MAX_VALUE = self.thresholds[self.thresholds.length-1],\
+            COLVAL = [(self.quantizedColors[0] >>> 16) & 255, (self.quantizedColors[0] >>> 8) & 255, self.quantizedColors[0] & 255, (self.quantizedColors[0] >>> 24) & 255], V;\
+    }"
+};
+
+}(FILTER);/**
+*
+* Affine Matrix Filter
+*
+* Distorts the target image according to an linear affine matrix mapping function
+*
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
+    FUtil = FILTER.Util.Filter, eye = FUtil.am_eye, mult = FUtil.am_multiply,
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan
+;
+
+//
+// AffineMatrixFilter
+var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter, {
+    name: "AffineMatrixFilter"
+    
+    ,constructor: function AffineMatrixFilter( matrix ) {
+        var self = this;
+        if ( !(self instanceof AffineMatrixFilter) ) return new AffineMatrixFilter(matrix);
+        self.$super('constructor');
+        self.matrix = matrix && matrix.length ? new AM(matrix) : null;
+    }
+    
+    ,path: FILTER_FILTERS_PATH
+    // parameters
+    ,matrix: null
+    ,mode: MODE.CLAMP
+    ,color: 0
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.$super('dispose');
+        self.matrix = null;
+        self.color = null;
+        return self;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            filter: self.name
+            ,_isOn: !!self._isOn
+            
+            ,params: {
+                 matrix: self.matrix
+                ,mode: self.mode
+                ,color: self.color
+            }
+        };
+    }
+    
+    ,unserialize: function( json ) {
+        var self = this, params;
+        if ( json && self.name === json.filter )
+        {
+            self._isOn = !!json._isOn;
+            
+            params = json.params;
+            
+            self.matrix = TypedArray( params.matrix, AM );
+            self.mode = params.mode;
+            self.color = params.color;
+        }
+        return self;
+    }
+    
+    ,flipX: function( ) {
+        return this.set([
+            -1, 0, 0, 1,
+            0, 1, 0, 0
+        ]);
+    }
+    
+    ,flipY: function( ) {
+        return this.set([
+            1, 0, 0, 0,
+            0, -1, 0, 1
+        ]);
+    }
+    
+    ,flipXY: function( ) {
+        return this.set([
+            -1, 0, 0, 1,
+            0, -1, 0, 1
+        ]);
+    }
+    
+    ,translate: function( tx, ty, rel ) {
+        return this.set(rel
+        ? [
+            1, 0, 0, tx,
+            0, 1, 0, ty
+        ]
+        : [
+            1, 0, tx, 0,
+            0, 1, ty, 0
+        ]);
+    }
+    
+    ,rotate: function( theta ) {
+        var s = Sin(theta), c = Cos(theta);
+        return this.set([
+            c, -s, 0, 0,
+            s, c, 0, 0
+        ]);
+    }
+    
+    ,scale: function( sx, sy ) {
+        return this.set([
+            sx, 0, 0, 0,
+            0, sy, 0, 0
+        ]);
+    }
+    
+    ,skew: function( thetax, thetay ) {
+        return this.set([
+            1, thetax ? Tan(thetax) : 0, 0, 0,
+            thetay ? Tan(thetay) : 0, 1, 0, 0
+        ]);
+    }
+    
+    ,set: function( matrix ) {
+        var self = this;
+        self.matrix = self.matrix ? mult(self.matrix, matrix) : new AM(matrix); 
+        return self;
+    }
+    
+    ,reset: function( ) {
+        this.matrix = null; 
+        return this;
+    }
+    
+    ,combineWith: function( filt ) {
+        return this.set( filt.matrix );
+    }
+    
+    // used for internal purposes
+    ,_apply: function( im, w, h ) {
+        var self = this, T = self.matrix;
+        if ( !self._isOn || !T ) return im;
+        var x, y, yw, nx, ny, i, j, imLen = im.length,
+            imArea = imLen>>>2, bx = w-1, by = imArea-w,
+            dst = new IMG(imLen), color = self.color||0, r, g, b, a,
+            COLOR = MODE.COLOR, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, IGNORE = MODE.IGNORE,
+            Ta = T[0], Tb = T[1], Tx = T[2]+T[3]*bx,
+            Tcw = T[4]*w, Td = T[5], Tyw = T[6]*w+T[7]*by,
+            mode = self.mode || CLAMP
+        ;
+        
+        if ( COLOR === mode )
+        {
+            a = (color >>> 24)&255;
+            r = (color >>> 16)&255;
+            g = (color >>> 8)&255;
+            b = (color)&255;
+            
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; y++; yw+=w; }
+                
+                nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
+                if ( 0>nx || nx>bx || 0>ny || ny>by )
+                {
+                    // color
+                    dst[i] = r;   dst[i+1] = g;
+                    dst[i+2] = b;  dst[i+3] = a;
+                    continue;
+                }
+                j = (~~nx + ~~ny) << 2;
+                dst[i] = im[j];   dst[i+1] = im[j+1];
+                dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+            }
+        }
+        else if ( IGNORE === mode )
+        {
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; y++; yw+=w; }
+                
+                nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
+                
+                // ignore
+                ny = ny > by || ny < 0 ? yw : ny;
+                nx = nx > bx || nx < 0 ? x : nx;
+                
+                j = (~~nx + ~~ny) << 2;
+                dst[i] = im[j];   dst[i+1] = im[j+1];
+                dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+            }
+        }
+        else if ( WRAP === mode )
+        {
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; y++; yw+=w; }
+                
+                nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
+                
+                // wrap
+                ny = ny > by ? ny-imArea : (ny < 0 ? ny+imArea : ny);
+                nx = nx > bx ? nx-w : (nx < 0 ? nx+w : nx);
+                
+                j = (~~nx + ~~ny) << 2;
+                dst[i] = im[j];   dst[i+1] = im[j+1];
+                dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+            }
+        }
+        else //if ( CLAMP === mode )
+        {
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; y++; yw+=w; }
+                
+                nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
+                
+                // clamp
+                ny = ny > by ? by : (ny < 0 ? 0 : ny);
+                nx = nx > bx ? bx : (nx < 0 ? 0 : nx);
+                
+                j = (~~nx + ~~ny) << 2;
+                dst[i] = im[j];   dst[i+1] = im[j+1];
+                dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
+            }
+        }
+        return dst;
+    }
+        
+    ,canRun: function( ) {
+        return this._isOn && this.matrix;
+    }
+});
+// aliases
+AffineMatrixFilter.prototype.shift = AffineMatrixFilter.prototype.translate;
 
 }(FILTER);/**
 *
@@ -1504,8 +2054,9 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
 var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.Filter, {
     name: "DisplacementMapFilter"
     
-    ,constructor: function( displacemap ) {
+    ,constructor: function DisplacementMapFilter( displacemap ) {
         var self = this;
+        if ( !(self instanceof DisplacementMapFilter) ) return new DisplacementMapFilter(displacemap);
         self.$super('constructor');
         if ( displacemap ) self.setMap( displacemap );
     }
@@ -1521,10 +2072,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,componentX: 0
     ,componentY: 0
     ,color: 0
-    ,red: 0
-    ,green: 0
-    ,blue: 0
-    ,alpha: 0
     ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
@@ -1541,11 +2088,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         self.componentX = null;
         self.componentY = null;
         self.color = null;
-        self.red = null;
-        self.green = null;
-        self.blue = null;
-        self.alpha = null;
-        self.mode = null;
         
         return self;
     }
@@ -1565,10 +2107,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
                 ,componentX: self.componentX
                 ,componentY: self.componentY
                 ,color: self.color
-                ,red: self.red
-                ,green: self.green
-                ,blue: self.blue
-                ,alpha: self.alpha
                 ,mode: self.mode
             }
         };
@@ -1592,10 +2130,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             self.componentX = params.componentX;
             self.componentY = params.componentY;
             self.color = params.color;
-            self.red = params.red;
-            self.green = params.green;
-            self.blue = params.blue;
-            self.alpha = params.alpha;
             self.mode = params.mode;
         }
         return self;
@@ -1622,16 +2156,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         return self;
     }
     
-    ,setColor: function( c ) {
-        var self = this;
-        self.color = c;
-        self.alpha = (c >> 24) & 255; 
-        self.red = (c >> 16) & 255; 
-        self.green = (c >> 8) & 255; 
-        self.blue = c & 255;
-        return self;
-    }
-    
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
         var self = this, Map = self.map;
@@ -1641,90 +2165,183 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         
         var _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
             map, mapW, mapH, mapArea, displace, ww, hh,
-            sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
-            comx = self.componentX, comy = self.componentY, 
-            alpha = self.alpha, red = self.red, 
-            green = self.green, blue = self.blue, mode = self.mode,
-            sty, stx, styw, bx0, by0, bx, by,
+            color = self.color||0, alpha, red, green, blue,
+            sty, stx, styw, bx0, by0, bx, by, bxx = w-1, byy = h-1, rem,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
-            applyArea, imArea, imLen, imcopy, srcx, srcy,
-            _Ignore = MODE.IGNORE, _Clamp = MODE.CLAMP, _Color = MODE.COLOR, _Wrap = MODE.WRAP
+            SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
+            applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
+            IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
+            mode = self.mode||CLAMP
         ;
         
         map = _map.data;
         mapW = _map.width; mapH = _map.height; 
-        mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
-        imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
+        mapLen = map.length; mapArea = mapLen>>>2;
+        ww = Min(mapW, w); hh = Min(mapH, h);
+        imLen = im.length; applyArea = (ww*hh)<<2; imArea = imLen>>>2;
         
         // make start relative
-        stx = Floor(self.startX*(w-1));
-        sty = Floor(self.startY*(h-1));
+        //bxx = w-1; byy = h-1;
+        stx = Floor(self.startX*bxx);
+        sty = Floor(self.startY*byy);
         styw = sty*w;
-        bx0 = -stx; by0 = -sty; bx = w-stx-1; by = h-sty-1;
+        bx0 = -stx; by0 = -sty;
+        bx = bxx-stx; by = byy-sty;
         
         displace = new A16I(mapArea<<1);
-        imcopy = new IMGcopy(im);
+        imcpy = new IMGcopy(im);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main application loop (faster)
         // this is faster if mapArea <= imArea, else a reverse algorithm may be needed (todo)
-        j=0; x=0; y=0; ty=0;
-        for (i=0; i<mapArea; i++, j+=2, x++)
+        rem = (mapArea&15)<<2;
+        for (j=0,i=0; i<mapLen; i+=64)
         { 
-            if (x>=mapW) { x=0; y++; ty+=mapW; }
-            mapOff = (x + ty)<<2;
-            displace[j] = Floor( ( map[mapOff+comx] - 128 ) * sx ); 
-            displace[j+1] = Floor( ( map[mapOff+comy] - 128 ) * sy );
-        } 
+            displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+4 +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+4 +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+8 +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+8 +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+12+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+12+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+16+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+16+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+20+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+20+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+24+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+24+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+28+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+28+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+32+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+32+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+36+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+36+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+40+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+40+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+44+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+44+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+48+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+48+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+52+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+52+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+56+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+56+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+60+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+60+Y] - 128 ) * SY );
+        }
+        if ( rem )
+        {
+            for (i=mapLen-rem; i<mapLen; i+=4)
+            { 
+                displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+                displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+            }
+        }
         
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-        x=0; y=0; ty=0; ty2=0;
-        for (i=0; i<applyArea; i+=4, x++)
+        if ( COLOR === mode )
         {
-            // update image coordinates
-            if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
-            
-            // if inside the application area
-            if (y<by0 || y>by || x<bx0 || x>bx) continue;
-            
-            xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
-            
-            j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
-            
-            if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
+            alpha = (color >>> 24) & 255; 
+            red = (color >>> 16) & 255; 
+            green = (color >>> 8) & 255; 
+            blue = color & 255;
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
             {
-                if (mode == _Ignore) 
-                {
-                    continue;
-                }
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
                 
-                else if (mode == _Color)
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // color
+                if (srcy>byy || srcy<0 || srcx>bxx || srcx<0)
                 {
                     im[dstOff] = red;  im[dstOff+1] = green;
                     im[dstOff+2] = blue;  im[dstOff+3] = alpha;
                     continue;
                 }
-                    
-                else if (mode == _Wrap)
-                {
-                    if (srcy>by) srcy-=h;
-                    else if (srcy<0) srcy+=h;
-                    if (srcx>bx) srcx-=w;
-                    else if (srcx<0)  srcx+=w;
-                }
-                    
-                else
-                {
-                    if (srcy>by)  srcy=by;
-                    else if (srcy<0) srcy=0;
-                    if (srcx>bx) srcx=bx;
-                    else if (srcx<0) srcx=0;
-                }
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
             }
-            srcOff = (srcx + srcy*w)<<2;
-            // new pixel values
-            im[dstOff] = imcopy[srcOff];   im[dstOff+1] = imcopy[srcOff+1];
-            im[dstOff+2] = imcopy[srcOff+2];  im[dstOff+3] = imcopy[srcOff+3];
+        }
+        else if ( IGNORE === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // ignore
+                if (srcy>byy || srcy<0 || srcx>bxx || srcx<0) continue;
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
+        }
+        else if ( WRAP === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // wrap
+                srcy = srcy>byy ? srcy-h : (srcy<0 ? srcy+h : srcy);
+                srcx = srcx>bxx ? srcx-w : (srcx<0 ? srcx+w : srcx);
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
+        }
+        else //if ( CLAMP === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // clamp
+                srcy = srcy>byy ? byy : (srcy<0 ? 0 : srcy);
+                srcx = srcx>bxx ? bxx : (srcx<0 ? 0 : srcx);
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
         }
         return im;
     }
@@ -1747,17 +2364,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
-    PI = FILTER.CONST.PI, DoublePI = FILTER.CONST.PI2, HalfPI = FILTER.CONST.PI_2,
-    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, ThreePI2 = 1.5 * PI,
-    Sqrt = Math.sqrt, Atan2 = Math.atan2, Atan = Math.atan,
-    Sin = Math.sin, Cos = Math.cos, 
-    Floor = Math.floor, Round = Math.round, //Ceil=Math.ceil,
-    Asin = Math.asin, Tan = Math.tan, Abs = Math.abs, Max = Math.max,
-    Maps, FilterUtil = FILTER.Util.Filter, generic_transform = FilterUtil.generic_transform,
-    affine_transform = FilterUtil.affine_transform, cyclic_shift = FilterUtil.cyclic_shift,
-    flip_x = FilterUtil.flip_x, flip_y = FilterUtil.flip_y, flip_xy = FilterUtil.flip_xy
-;
+var MODE = FILTER.MODE, Maps, function_body = FILTER.Util.String.function_body;
 
 
 //
@@ -1766,32 +2373,27 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
 var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter, {
     name: "GeometricMapFilter"
     
-    ,constructor: function( inverseTransform ) {
+    ,constructor: function GeometricMapFilter( T, init ) {
         var self = this;
+        if ( !(self instanceof GeometricMapFilter) ) return new GeometricMapFilter(T, init);
         self.$super('constructor');
-        if ( inverseTransform ) self.generic( inverseTransform );
+        if ( T ) self.set( T, init );
     }
     
     ,path: FILTER_FILTERS_PATH
-    // parameters
     ,_map: null
+    ,_mapInit: null
     ,_mapName: null
-    
-    ,inverseTransform: null
-    ,matrix: null
+    ,_mapChanged: false
+    // parameters
+    ,color: 0
     ,centerX: 0
     ,centerY: 0
-    ,dx: 0
-    ,dy: 0
     ,angle: 0
     ,radius: 0
-    ,wavelength: 0
-    ,amplitude: 0
-    ,phase: 0
-    ,xAmplitude: 0
-    ,yAmplitude: 0
-    ,xWavelength: 0
-    ,yWavelength: 0
+    //,wavelength: 0
+    //,amplitude: 0
+    //,phase: 0
     ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
@@ -1800,54 +2402,45 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         self.$super('dispose');
         
         self._map = null;
+        self._mapInit = null;
         self._mapName = null;
+        self._mapChanged = null;
         
-        self.inverseTransform = null;
-        self.matrix = null;
+        self.color = 0;
         self.centerX = null;
         self.centerY = null;
-        self.dx = null;
-        self.dy = null;
         self.angle = null;
         self.radius = null;
-        self.wavelength = null;
-        self.amplitude = null;
-        self.phase = null;
-        self.xAmplitude = null;
-        self.yAmplitude = null;
-        self.xWavelength = null;
-        self.yWavelength = null;
-        self.mode = null;
+        //self.wavelength = null;
+        //self.amplitude = null;
+        //self.phase = null;
         
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this;
-        return {
+        var self = this, json;
+        json = {
             filter: self.name
             ,_isOn: !!self._isOn
             
             ,params: {
-                _mapName: self._mapName
-                ,inverseTransform: self.inverseTransform ? self.inverseTransform.toString( ) : null
-                ,matrix: self.matrix
+                _mapName: self._mapName || null
+                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+                ,color: self.color
                 ,centerX: self.centerX
                 ,centerY: self.centerY
-                ,dx: self.dx
-                ,dy: self.dy
                 ,angle: self.angle
                 ,radius: self.radius
-                ,wavelength: self.wavelength
-                ,amplitude: self.amplitude
-                ,phase: self.phase
-                ,xAmplitude: self.xAmplitude
-                ,yAmplitude: self.yAmplitude
-                ,xWavelength: self.xWavelength
-                ,yWavelength: self.yWavelength
+                //,wavelength: self.wavelength
+                //,amplitude: self.amplitude
+                //,phase: self.phase
                 ,mode: self.mode
             }
         };
+        self._mapChanged = false;
+        return json;
     }
     
     ,unserialize: function( json ) {
@@ -1858,129 +2451,60 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
             
             params = json.params;
             
-            self.inverseTransform = null;
-            
-            self.matrix = TypedArray( params.matrix, Array );
+            self.color = params.color;
             self.centerX = params.centerX;
             self.centerY = params.centerY;
-            self.dx = params.dx;
-            self.dy = params.dy;
             self.angle = params.angle;
             self.radius = params.radius;
-            self.wavelength = params.wavelength;
-            self.amplitude = params.amplitude;
-            self.phase = params.phase;
-            self.xAmplitude = params.xAmplitude;
-            self.yAmplitude = params.yAmplitude;
-            self.xWavelength = params.xWavelength;
-            self.yWavelength = params.yWavelength;
+            //self.wavelength = params.wavelength;
+            //self.amplitude = params.amplitude;
+            //self.phase = params.phase;
             self.mode = params.mode;
             
-            if ( params.inverseTransform )
+            //self._mapName = params._mapName;
+            //self._map = params._map;
+            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+            {
+                self.set(params._mapName);
+            }
+            else if ( params._map && ("generic" === params._mapName) )
             {
                 // using bind makes the code become [native code] and thus unserializable
-                self.inverseTransform = new Function("FILTER", '"use strict"; return ' + params.inverseTransform)( FILTER );
+                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+                if ( params._mapInit )
+                self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+                self.set(params._map, params._mapInit||null, 1);
             }
-            
-            self._mapName = params._mapName;
-            self._map = null;
-            if ( self._mapName && Maps[ self._mapName ] )
-                self._map = Maps[ self._mapName ];
+            /*else
+            {
+                self._map = null;
+            }*/
         }
-        return self;
-    }
-    
-    ,generic: function( inverseTransform ) {
-        var self = this;
-        if ( inverseTransform )
-        {
-            self.inverseTransform = inverseTransform;
-            self._mapName = "generic"; 
-            self._map = Maps.generic; 
-        }
-        return self;
-    }
-    
-    ,affine: function( matrix ) {
-        var self = this;
-        if ( matrix )
-        {
-            self.matrix = matrix; 
-            self._mapName = "affine";  
-            self._map = Maps.affine; 
-        }
-        return self;
-    }
-    
-    ,flipX: function( ) {
-        var self = this;
-        self._mapName = "flipX";  
-        self._map = Maps.flipX; 
-        return self;
-    }
-    
-    ,flipY: function( ) {
-        var self = this;
-        self._mapName = "flipY";  
-        self._map = Maps.flipY; 
-        return self;
-    }
-    
-    ,flipXY: function( ) {
-        var self = this;
-        self._mapName = "flipXY";  
-        self._map = Maps.flipXY; 
-        return self;
-    }
-    
-    ,rotateCW: function( ) {
-        var self = this;
-        self._mapName = "rotateCW";  
-        self._map = Maps.rotateCW; 
-        return self;
-    }
-    
-    ,rotateCCW: function( ) {
-        var self = this;
-        self._mapName = "rotateCCW";  
-        self._map = Maps.rotateCCW; 
         return self;
     }
     
     ,polar: function( centerX, centerY ) {
-        var self = this;
-        self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = null;//"polar";  
-        self._map = null; 
-        return self;
+        return this;
     }
     
     ,cartesian: function( centerX, centerY ) {
-        var self = this;
-        self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = null;//"cartesian";  
-        self._map = null; 
-        return self;
+        return this;
     }
     
     ,twirl: function( angle, radius, centerX, centerY ) {
         var self = this;
         self.angle = angle||0; self.radius = radius||0;
         self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "twirl";  
-        self._map = Maps.twirl; 
-        return self;
+        return self.set("twirl");
     }
     
     ,sphere: function( radius, centerX, centerY ) {
         var self = this;
         self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
-        self._mapName = "sphere";  
-        self._map = Maps.sphere; 
-        return self;
+        return self.set("sphere");
     }
     
-    ,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
+    /*,ripple: function( radius, wavelength, amplitude, phase, centerX, centerY ) {
         var self = this;
         self.radius = radius!==undef ? radius : 50; 
         self.centerX = centerX||0; 
@@ -1988,17 +2512,27 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         self.wavelength = wavelength!==undef ? wavelength : 16; 
         self.amplitude = amplitude!==undef ? amplitude : 10; 
         self.phase = phase||0;
-        self._mapName = "ripple";  
-        self._map = Maps.ripple; 
-        return self;
-    }
+        return self.set("ripple");
+    }*/
     
-    ,shift: function( dx, dy ) {
+    ,set: function( T, preample, precompiled ) {
         var self = this;
-        self.dx = dx!==undef ? dx : 0; 
-        self.dy = dy!==undef ? dy : self.dx; 
-        self._mapName = "shift";  
-        self._map = Maps.shift; 
+        if ( precompiled || ("function" === typeof T) )
+        {
+            self._mapName = "generic"; 
+            self._map = T;
+            self._mapInit = preample || null;
+            self._apply = apply__( self._map, self._mapInit );
+            self._mapChanged = precompiled ? false : true;
+        }
+        else if ( T && Maps.hasOwnProperty(String(T)) && (self._mapName !== String(T)) )
+        {
+            self._mapName = String(T);
+            self._map = Maps[self._mapName];
+            self._mapInit = Maps["init__"+self._mapName];
+            self._apply = apply__( self._map, self._mapInit );
+            self._mapChanged = false;
+        }
         return self;
     }
     
@@ -2006,322 +2540,184 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         var self = this;
         self._mapName = null; 
         self._map = null; 
-        return self;
-    }
-    
-    ,getMap: function( ) {
-        return this._map;
-    }
-    
-    ,setMap: function( map ) {
-        var self = this;
-        self._mapName = null; 
-        self._map = map; 
+        self._mapInit = null; 
+        self._mapChanged = false;
         return self;
     }
     
     // used for internal purposes
-    ,_apply: function( im, w, h, image ) {
-        var self = this;
-        if ( !self._isOn || !self._map ) return im;
-        return self._map( self, im, w, h, image );
-    }
+    /*,_apply: apply*/
         
     ,canRun: function( ) {
         return this._isOn && this._map;
     }
 });
-// aliases
-GeometricMapFilter.prototype.translate = GeometricMapFilter.prototype.shift;
 
-//
+function apply__( map, preample )
+{
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
+    return new Function("FILTER", "return function( im, w, h ){\
+    var self = this;\
+    if ( !self._isOn || !self._map ) return im;\
+    var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\
+        COLOR = FILTER.MODE.COLOR, CLAMP = FILTER.MODE.CLAMP, WRAP = FILTER.MODE.WRAP, IGNORE = FILTER.MODE.IGNORE,\
+        mode = self.mode||CLAMP, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
+\
+    "+__INIT__+";\
+    \
+    if ( COLOR === mode )\
+    {\
+        a = (color >>> 24)&255;\
+        r = (color >>> 16)&255;\
+        g = (color >>> 8)&255;\
+        b = (color)&255;\
+    \
+        for (x=0,y=0,i=0; i<imLen; i+=4,x++)\
+        {\
+            if (x>=w) { x=0; y++; }\
+            \
+            t[0] = x; t[1] = y;\
+            \
+            "+__APPLY__+";\
+            \
+            if ( 0>t[0] || t[0]>bx || 0>t[1] || t[1]>by )\
+            {\
+                /* color */\
+                dst[i] = r;   dst[i+1] = g;\
+                dst[i+2] = b;  dst[i+3] = a;\
+                continue;\
+            }\
+            \
+            j = (~~t[0] + (~~t[1])*w) << 2;\
+            dst[i] = im[j];   dst[i+1] = im[j+1];\
+            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
+        }\
+    }\
+    else if ( IGNORE === mode )\
+    {\
+        for (x=0,y=0,i=0; i<imLen; i+=4,x++)\
+        {\
+            if (x>=w) { x=0; y++; }\
+            \
+            t[0] = x; t[1] = y;\
+            \
+            "+__APPLY__+";\
+            \
+            /* ignore */\
+            t[1] = t[1] > by || t[1] < 0 ? y : t[1];\
+            t[0] = t[0] > bx || t[0] < 0 ? x : t[0];\
+            \
+            j = (~~t[0] + (~~t[1])*w) << 2;\
+            dst[i] = im[j];   dst[i+1] = im[j+1];\
+            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
+        }\
+    }\
+    else if ( WRAP === mode )\
+    {\
+        for (x=0,y=0,i=0; i<imLen; i+=4,x++)\
+        {\
+            if (x>=w) { x=0; y++; }\
+            \
+            t[0] = x; t[1] = y;\
+            \
+            "+__APPLY__+";\
+            \
+            /* wrap */\
+            t[1] = t[1] > by ? t[1]-h : (t[1] < 0 ? t[1]+h : t[1]);\
+            t[0] = t[0] > bx ? t[0]-w : (t[0] < 0 ? t[0]+w : t[0]);\
+            \
+            j = (~~t[0] + (~~t[1])*w) << 2;\
+            dst[i] = im[j];   dst[i+1] = im[j+1];\
+            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
+        }\
+    }\
+    else /*if ( CLAMP === mode )*/\
+    {\
+        for (x=0,y=0,i=0; i<imLen; i+=4,x++)\
+        {\
+            if (x>=w) { x=0; y++; }\
+            \
+            t[0] = x; t[1] = y;\
+            \
+            "+__APPLY__+";\
+            \
+            /* clamp */\
+            t[1] = t[1] > by ? by : (t[1] < 0 ? 0 : t[1]);\
+            t[0] = t[0] > bx ? bx : (t[0] < 0 ? 0 : t[0]);\
+            \
+            j = (~~t[0] + (~~t[1])*w) << 2;\
+            dst[i] = im[j];   dst[i+1] = im[j+1];\
+            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
+        }\
+    }\
+    return dst;\
+};")( FILTER );
+}
+
 //
 // private geometric maps
-
-/*function trivialMap(im, w, h) { return im; },*/
 Maps = {
-    "generic": function( self, im, w, h )  {
-        return generic_transform( im, w, h, self.inverseTransform, self.mode );
-    }
-
-    ,"affine": function( self, im, w, h ) {
-        return affine_transform( im, w, h, self.matrix[0], self.matrix[1], self.matrix[3], self.matrix[4], self.matrix[2], self.matrix[5], self.mode );
-    }
-
-    ,"shift": function( self, im, w, h ) {
-        return cyclic_shift( im, w, h, -self.dx, -self.dy );
-    }
-    
-    ,"flipX": function( self, im, w, h ) {
-        return flip_x( im, w, h );
-    }
-    
-    ,"flipY": function flipYMap( self, im, w, h ) {
-        return flip_y( im, w, h );
-    }
-    
-    ,"flipXY": function( self, im, w, h )  {
-        return flip_xy( im, w, h );
-    }
-    
-    ,"rotateCW": function( self, im, w, h )  {
-        var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
-            hw=(l>>2);
-        
-        x=0; y=0; xw=hw-1;
-        for (i=0; i<l; i+=4, x++, xw-=w)
-        {
-            if (x>=w) { x=0; xw=hw-1; y++; }
-            
-            j = (y + xw)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
-    }
-    
-    ,"rotateCCW": function( self, im, w, h ) {
-        var x, y, yw, xw, i, j, l=im.length, dst=new IMG(l),
-            hw=(l>>2);
-        
-        x=0; y=0; xw=0;
-        for (i=0; i<l; i+=4, x++, xw+=w)
-        {
-            if (x>=w) { x=0; xw=0; y++; }
-            
-            j = (w-1-y + xw)<<2;
-            dst[i] = im[j];   dst[i+1] = im[j+1];
-            dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-        }
-        return dst;
-    }
     
     // adapted from http://je2050.de/imageprocessing/ TwirlMap
-    ,"twirl": function( self, im, w, h )  {
-        if ( 0 >= self.radius ) return im;
-        
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im), // in Opera this is by-reference, hence the previous discrepancies
-            cX=self.centerX, cY=self.centerY, angle=self.angle, radius=self.radius, mode=self.mode, 
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            d, tx, ty, theta, fact=angle/radius,
-            bx=w-1, by=h-1
-        ;
-        
-        // make center relative
-        cX = Floor(cX*(w-1));
-        cY = Floor(cY*(h-1));
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x-cX; ty = y-cY; 
-            d = Sqrt(tx*tx + ty*ty);
-            if (d < radius)
-            {
-                theta = Atan2(ty, tx) + fact*(radius-d);
-                tx = ~~(cX + d*Cos(theta));  ty = ~~(cY + d*Sin(theta));
-                if ( 0>tx || tx>bx || 0>ty || ty>by )
-                {
-                    if ( _Wrap === mode )
-                    {
-                        if (ty>by) ty-=h;
-                        else if (ty<0) ty+=h;
-                        if (tx>bx) tx-=w;
-                        else if (tx<0)  tx+=w;
-                    }
-                    else //if ( _Clamp === mode )
-                    {
-                        if (ty>by)  ty=by;
-                        else if (ty<0) ty=0;
-                        if (tx>bx) tx=bx;
-                        else if (tx<0) tx=0;
-                    }
-                }
-                j = (tx + ty*w)<<2;
-                // swaping the arrays of input/output (together with Uint8Array for Opera)
-                // solves the problem in all browsers (FF24, Chrome, Opera 12, IE10+)
-                im[i] = imcopy[j];   im[i+1] = imcopy[j+1];
-                im[i+2] = imcopy[j+2];  im[i+3] = imcopy[j+3];
-            }
-        }
-        return im;
-    }
+     "twirl": "function( ){\
+        TX = t[0]-CX; TY = t[1]-CY;\
+        D = Sqrt(TX*TX + TY*TY);\
+        if ( D < R )\
+        {\
+            theta = Atan2(TY, TX) + fact*(R-D);\
+            t[0] = CX + D*Cos(theta);  t[1] = CY + D*Sin(theta);\
+        }\
+    }"
+    ,"init__twirl": "function( ){\
+        var Sqrt = Math.sqrt, Atan2 = Math.atan2, Sin = Math.sin, Cos = Math.cos,\
+            CX = self.centerX*(w-1), CY = self.centerY*(h-1),\
+            angle = self.angle, R = self.radius, fact = angle/R,\
+            D, TX, TY, theta;\
+    }"
     
     // adapted from http://je2050.de/imageprocessing/ SphereMap
-    ,"sphere": function( self, im, w, h )  {
-        if (0>=self.radius) return im;
-        
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            d, tx, ty, theta, radius2=radius*radius,
-            refraction = 0.555556, invrefraction=1-refraction,
-            r2, thetax, thetay, d2, ds, tx2, ty2,
-            bx=w-1, by=h-1
-        ;
-        
-        // make center relative
-        cX = Floor(cX*(w-1));
-        cY = Floor(cY*(h-1));
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x - cX;  ty = y - cY;
-            tx2 = tx*tx; ty2 = ty*ty;
-            r2 = tx2 + ty2;
-            if ( r2 < radius2 )
-            {
-                d2 = radius2 - r2; ds = Sqrt(d2);
-                thetax = Asin(tx / Sqrt(tx2 + d2)) * invrefraction;
-                thetay = Asin(ty / Sqrt(ty2 + d2)) * invrefraction;
-                tx = ~~(x - ds * Tan(thetax));  ty = ~~(y - ds * Tan(thetay));
-                if ( 0>tx || tx>bx || 0>ty || ty>by )
-                {
-                    if ( _Wrap === mode )
-                    {
-                        if (ty>by) ty-=h;
-                        else if (ty<0) ty+=h;
-                        if (tx>bx) tx-=w;
-                        else if (tx<0)  tx+=w;
-                    }
-                    else //if ( _Clamp === mode )
-                    {
-                        if (ty>by)  ty=by;
-                        else if (ty<0) ty=0;
-                        if (tx>bx) tx=bx;
-                        else if (tx<0) tx=0;
-                    }
-                }
-                j = (tx + ty*w)<<2;
-                im[i] = imcopy[j];   im[i+1] = imcopy[j+1];
-                im[i+2] = imcopy[j+2];  im[i+3] = imcopy[j+3];
-            }
-        }
-        return im;
-    }
-    
-    // adapted from https://github.com/JoelBesada/JSManipulate
-    ,"ripple": function( self, im, w, h ) {
-        if (0>=self.radius) return im;
-        
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            d, tx, ty, amount, 
-            r2, d2, ds, tx2, ty2,
-            bx=w-1, by=h-1,
-            cX=self.centerX, cY=self.centerY, radius=self.radius, mode=self.mode, 
-            radius2=radius*radius,
-            wavelength = self.wavelength,
-            amplitude = self.amplitude,
-            phase = self.phase
-        ;
-        
-        // make center relative
-        cX = Floor(cX*(w-1));
-        cY = Floor(cY*(h-1));
-            
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x - cX;  ty = y - cY;
-            tx2 = tx*tx; ty2 = ty*ty;
-            d2 = tx2 + ty2;
-            if (d2 < radius2)
-            {
-                d = Sqrt(d2);
-                amount = amplitude * Sin(d/wavelength * Math.PI * 2 - phase);
-                amount *= (radius-d)/radius;
-                if (d)  amount *= wavelength/d;
-                tx = ~~(x + tx*amount);  ty = ~~(y + ty*amount);
-                
-                if ( 0>tx || tx>bx || 0>ty || ty>by )
-                {
-                    if ( _Wrap === mode )
-                    {
-                        if (ty>by) ty-=h;
-                        else if (ty<0) ty+=h;
-                        if (tx>bx) tx-=w;
-                        else if (tx<0)  tx+=w;
-                    }
-                    else //if ( _Clamp === mode )
-                    {
-                        if (ty>by)  ty=by;
-                        else if (ty<0) ty=0;
-                        if (tx>bx) tx=bx;
-                        else if (tx<0) tx=0;
-                    }
-                }
-                j = (tx + ty*w)<<2;
-                im[i] = imcopy[j];   im[i+1] = imcopy[j+1];
-                im[i+2] = imcopy[j+2];  im[i+3] = imcopy[j+3];
-            }
-        }
-        return im;
-    }
-    
-    // adapted from http://www.jhlabs.com/ip/filters/
+    ,"sphere": "function( ){\
+        TX = t[0]-CX;  TY = t[1]-CY;\
+        TX2 = TX*TX; TY2 = TY*TY;\
+        D2 = TX2 + TY2;\
+        if ( D2 < R2 )\
+        {\
+            D2 = R2 - D2; D = Sqrt(D2);\
+            thetax = Asin(TX / Sqrt(TX2 + D2)) * invrefraction;\
+            thetay = Asin(TY / Sqrt(TY2 + D2)) * invrefraction;\
+            t[0] = t[0] - D * Tan(thetax);  t[1] = t[1] - D * Tan(thetay);\
+        }\
+    }"
+    ,"init__sphere": "function( ){\
+        var Sqrt = Math.sqrt, Asin = Math.asin, Tan = Math.tan,\
+            CX = self.centerX*(w-1), CY = self.centerY*(h-1),\
+            invrefraction = 1-0.555556,\
+            R = self.radius, R2 = R*R,\
+            D, TX, TY, TX2, TY2, R2, D2, thetax, thetay;\
+    }"
     /*
-    ,"circle": function( self, im, w, h ) {
-        var x, y, i, j, imLen=im.length, imcopy=new IMGcopy(im),
-            _Clamp=MODE.CLAMP, _Wrap=MODE.WRAP,
-            tx, ty, ix, iy, ip, d2,
-            bx = w-1, by = h-1, 
-            cX, cY, cX2, cY2,
-            mode = this.mode
-        ;
-        
-        cX = ~~(0.5*w + 0.5);
-        cY = ~~(0.5*h + 0.5);
-        cX2 = cX*cX;
-        cY2 = cY*cY;
-        
-        x=0; y=0;
-        for (i=0; i<imLen; i+=4, x++)
+    // adapted from https://github.com/JoelBesada/JSManipulate
+    ,"ripple": function( t ) {
+        TX = t[0]-CX;  TY = t[1]-CY;
+        TX2 = TX*TX; TY2 = TY*TY;
+        D2 = TX2 + TY2;
+        if ( D2 < R2 )
         {
-            if (x>=w) { x=0; y++; }
-            
-            tx = x-cX;
-            ty = y-cY;
-            d2 = tx*tx + ty*ty;
-            ix = cX + cX2 * tx/d2;
-            iy = cY + cY2 * ty/d2;
-            // inverse transform
-            if (0>ix || ix>bx || 0>iy || iy>by)
-            {
-                switch(mode)
-                {
-                    case _Wrap:
-                        if (iy>by) iy-=h;
-                        else if (iy<0) iy+=h;
-                        if (ix>bx) ix-=w;
-                        else if (ix<0)  ix+=w;
-                        break;
-                        
-                    case _Clamp:
-                    default:
-                        if (iy>by)  iy=by;
-                        else if (iy<0) iy=0;
-                        if (ix>bx) ix=bx;
-                        else if (ix<0) ix=0;
-                        break;
-                }
-            }
-            ip = ( ~~(ix+0.5) + ~~(iy+0.5) )<<2;
-            im[i] = imcopy[ ip ];
-            im[i+1] = imcopy[ ip+1 ];
-            im[i+2] = imcopy[ ip+2 ];
-            im[i+3] = imcopy[ ip+3 ];
+            D = Sqrt(D2);
+            amount = amplitude * Sin(D/wavelength * twoPI - phase);
+            amount *= (R-D)/R;
+            if ( D )  amount *= wavelength/D;
+            t[0] = t[0] + TX*amount;  t[1] = t[1] + TY*amount;
         }
-        return im;
     }
-    */
+    ,"init__ripple": function( )  {
+        var Sqrt = Math.sqrt, Sin = Math.asin, twoPI = 2*Math.PI,
+            CX = self.centerX*(w-1), CY = self.centerY*(h-1),
+            invrefraction = 1-0.555556,
+            R = self.radius, R2 = R*R, amount,
+            wavelength = self.wavelength, amplitude = self.amplitude, phase = self.phase,
+            D, TX, TY, TX2, TY2, D2;
+    }*/
 };
 
 }(FILTER);/**
@@ -2343,7 +2739,7 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
-    tensor_product = FILTER.Util.Math.tensor_product, convolveKernels = tensor_product,
+    tensor_product = FILTER.Util.Math.tensor_product,
     
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
@@ -2370,8 +2766,9 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
 var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ConvolutionMatrixFilter"
     
-    ,constructor: function( weights, factor, bias, rgba ) {
+    ,constructor: function ConvolutionMatrixFilter( weights, factor, bias, rgba ) {
         var self = this;
+        if ( !(self instanceof ConvolutionMatrixFilter) ) return new ConvolutionMatrixFilter(weights, factor, bias, rgba);
         self.$super('constructor');
         self._coeff = new CM([1.0, 0.0]);
         
@@ -2386,10 +2783,6 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         self._matrix2 = null;  self._dim2 = 0;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         self._rgba = !!rgba;
-        /*if ( FILTER.useWebGL ) 
-        {
-            self._webglInstance = FILTER.WebGLConvolutionMatrixFilterInstance || null;
-        }*/
     }
     
     ,path: FILTER_FILTERS_PATH
@@ -2408,14 +2801,12 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,_indicesf: null
     ,_indicesf2: null
     ,_rgba: false
-    ,_webglInstance: null
     
     ,dispose: function( ) {
         var self = this;
         
         self.$super('dispose');
         
-        self._webglInstance = null;
         self._dim = null;
         self._dim2 = null;
         self._matrix = null;
@@ -2503,54 +2894,53 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     // generic low-pass filter
     ,lowPass: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         this.set(ones(d), d, 1/(d*d), 0.0);
         this._doIntegral = 1; return this;
     }
 
     // generic high-pass filter (I-LP)
     ,highPass: function( d, f ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        f = ( f === undef ) ? 1 : f;
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        f = f === undef ? 1 : f;
         // HighPass Filter = I - (respective)LowPass Filter
-        var size=d*d, fact=-f/size, w=ones(d, fact, 1+fact);
-        this.set(w, d, 1.0, 0.0);
+        var fact=-f/(d*d);
+        this.set(ones(d, fact, 1+fact), d, 1.0, 0.0);
         this._doIntegral = 1; return this;
     }
 
     ,glow: function( f, d ) { 
-        f = ( f === undef ) ? 0.5 : f;  
+        f = f === undef ? 0.5 : f;  
         return this.highPass(d, -f); 
     }
     
     ,sharpen: function( f, d ) { 
-        f = ( f === undef ) ? 0.5 : f;  
+        f = f === undef ? 0.5 : f;  
         return this.highPass(d, f); 
     }
     
     ,verticalBlur: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        this.set(average1DKernel(d), 1, 1/d, 0.0); 
-        this._dim2 = d; this._doIntegral = 1; return this;
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        this.set(average1(d), 1, 1/d, 0.0, null, d); 
+        this._doIntegral = 1; return this;
     }
     
     ,horizontalBlur: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        this.set(average1DKernel(d), d, 1/d, 0.0); 
-        this._dim2 = 1; this._doIntegral = 1; return this;
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        this.set(average1(d), d, 1/d, 0.0, null, 1); 
+        this._doIntegral = 1; return this;
     }
     
     // supports only vertical, horizontal, diagonal
     ,directionalBlur: function( theta, d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        var c = Cos(theta), s = -Sin(theta), filt = twos2(d, c, s, 1/d);
-        return this.set(filt, d, 1.0, 0.0);
+        return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, 1.0, 0.0);
     }
     
     // fast gauss filter
     ,fastGauss: function( quality, d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         quality = ~~(quality||1);
         if ( quality < 1 ) quality = 1;
         else if ( quality > 3 ) quality = 3;
@@ -2560,114 +2950,101 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     // generic binomial(quasi-gaussian) low-pass filter
     ,binomialLowPass: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        /*var filt=gaussKernel(d);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        /*var filt=binomial(d);
         return this.set(filt.kernel, d, 1/filt.sum); */
-        var kernel = binomial1DKernel(d), sum=1<<(d-1), fact=1/sum;
-        this.set(kernel, d, fact, fact);
-        this._matrix2 = new CM(kernel);
-        var tmp = this._computeIndices(this._matrix2, this._dim2);
-        this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
+        var kernel = binomial1(d), fact=1/(1<<(d-1));
+        this.set(kernel, d, fact, fact, kernel, d);
         this._doSeparable = true; return this;
     }
 
     // generic binomial(quasi-gaussian) high-pass filter
     ,binomialHighPass: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var filt = gaussKernel(d);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        var filt = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
         return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
     }
     
     // X-gradient, partial X-derivative (Prewitt)
     ,prewittX: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var filt = prewittKernel(d, 0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        return this.set(filt.kernel, d, 1.0, 0.0);
+        //return this.set(prewitt(d, 0).kernel, d, 1.0, 0.0);
+        this.set(average1(d), d, 1.0, 0.0, derivative1(d,0), d);
+        this._doSeparable = true; return this;
     }
     
     // Y-gradient, partial Y-derivative (Prewitt)
     ,prewittY: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var filt = prewittKernel(d, 1);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        return this.set(filt.kernel, d, 1.0, 0.0);
+        //return this.set(prewitt(d, 1).kernel, d, 1.0, 0.0);
+        this.set(derivative1(d,1), d, 1.0, 0.0, average1(d), d);
+        this._doSeparable = true; return this;
     }
     
     // directional gradient (Prewitt)
     ,prewittDirectional: function( theta, d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        theta*=toRad;
-        var c = Cos(theta), s = Sin(theta), gradx = prewittKernel(d, 0), grady = prewittKernel(d, 1);
-        return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        theta *= toRad;
+        return this.set(blendMatrix(new CM(prewitt(d, 0).kernel), new CM(prewitt(d, 1).kernel), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     
     // gradient magnitude (Prewitt)
     ,prewitt: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var gradx = prewittKernel(d, 0), grady = prewittKernel(d, 1);
-        this.set(gradx.kernel, d, 1.0, 0.0);
-        this._isGrad = true;
-        this._matrix2 = new CM(grady.kernel);
-        var tmp = this._computeIndices(this._matrix2, this._dim2);
-        this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
-        return this;
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        this.set(prewitt(d, 0).kernel, d, 1.0, 0.0, prewitt(d, 1).kernel, d);
+        this._isGrad = true; return this;
     }
     
     // partial X-derivative (Sobel)
     ,sobelX: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var filt = sobelKernel(d, 0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        return this.set(filt.kernel, d, 1.0, 0.0);
+        //return this.set(sobel(d, 0).kernel, d, 1.0, 0.0);
+        this.set(binomial1(d), d, 1.0, 0.0, derivative1(d,0), d);
+        this._doSeparable = true; return this;
     }
     
     // partial Y-derivative (Sobel)
     ,sobelY: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var filt = sobelKernel(d, 1);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        return this.set(filt.kernel, d, 1.0, 0.0);
+        //return this.set(sobel(d, 1).kernel, d, 1.0, 0.0);
+        this.set(derivative1(d,1), d, 1.0, 0.0, binomial1(d), d);
+        this._doSeparable = true; return this;
     }
     
     // directional gradient (Sobel)
     ,sobelDirectional: function( theta, d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        theta*=toRad;
-        var c = Cos(theta), s = Sin(theta), gradx = sobelKernel(d, 0), grady = sobelKernel(d, 1);
-        return this.set(blendMatrix(new CM(gradx.kernel), new CM(grady.kernel), c, s), d, 1.0, 0.0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        theta *= toRad;
+        return this.set(blendMatrix(new CM(sobel(d, 0).kernel), new CM(sobel(d, 1).kernel), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     
     // gradient magnitude (Sobel)
     ,sobel: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var gradx = sobelKernel(d, 0), grady = sobelKernel(d, 1);
-        this.set(gradx.kernel, d, 1.0, 0.0);
-        this._matrix2 = new CM(grady.kernel);
-        var tmp = this._computeIndices(this._matrix2, this._dim2);
-        this._indices2 = tmp[0]; this._indicesf2 = tmp[1]; this._mat2 = tmp[2];
-        this._isGrad = true;
-        return this;
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        this.set(sobel(d, 0).kernel, d, 1.0, 0.0, sobel(d, 1).kernel, d);
+        this._isGrad = true; return this;
     }
     
     ,laplace: function( d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        var size = d*d, laplacian = ones(d, -1, size-1);
-        this.set(laplacian, d, 1.0, 0.0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        this.set(ones(d, -1, d*d-1), d, 1.0, 0.0);
         this._doIntegral = 1; return this;
     }
     
     ,emboss: function( angle, amount, d ) {
-        d = ( d === undef ) ? 3 : ((d%2) ? d : d+1);
-        angle = ( angle === undef ) ? (-0.25*Math.PI) : (angle*toRad);
-        amount = amount||1;
-        var dx = amount*Cos(angle), dy = -amount*Sin(angle), filt = twos(d, dx, dy, 1);
-        return this.set(filt, d, 1.0, 0.0);
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        angle = angle === undef ? -0.25*Math.PI : angle*toRad;
+        amount = amount || 1;
+        return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, 1.0, 0.0);
     }
     
     ,edges: function( m ) {
-        m = m||1;
+        m = m || 1;
         return this.set([
             0,   m,   0,
             m,  -4*m, m,
@@ -2675,34 +3052,28 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
          ], 3, 1.0, 0.0);
     }
     
-    ,set: function( m, d, f, b ) {
-        var self = this;
-        self._matrix2 = null; self._dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+    ,set: function( m, d, f, b, m2, d2 ) {
+        var self = this, tmp;
+        
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+        self._matrix2 = null; self._dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+        
         self._matrix = new CM(m); self._dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
-        var tmp  = self._computeIndices(self._matrix, self._dim);
+        tmp  = computeIndices(self._matrix, self._dim);
         self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
-        return self;
-    }
-    
-    ,_computeIndices: function( m, d ) {
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = (matRadius>>1);
-        x=0; y=0; k=0;
-        while (k<matArea)
-        { 
-            indices2.push(x-matHalfSide); 
-            indices2.push(y-matHalfSide);
-            if (m[k])
-            {
-                indices.push(x-matHalfSide); 
-                indices.push(y-matHalfSide);
-                mat.push(m[k]);
-            }
-            k++; x++; if (x>=matRadius) { x=0; y++; }
+        
+        if ( m2 )
+        {
+            self._matrix2 = new CM(m2); self._dim = d2;
+            tmp  = computeIndices(self._matrix2, self._dim2);
+            self._indices2 = tmp[0]; self._indicesf2 = tmp[1]; self._mat2 = tmp[2];
         }
-        return [new A16I(indices), new A16I(indices2), new CM(mat)];
+        else if ( d2 )
+        {
+            self._dim = d2;
+        }
+        
+        return self;
     }
     
     ,reset: function( ) {
@@ -2726,40 +3097,29 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
     
     ,setMatrix: function( m, d ) {
-        return this.set(m, d);
+        return this.set( m, d );
     }
     
     // used for internal purposes
-    ,_apply: function(im, w, h/*, image*/) {
+    ,_apply: notSupportClamp
+    ? function(im, w, h/*, image*/) {
         var self = this, rgba = self._rgba;
         if ( !self._isOn || !self._matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self._matrix2
-            ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral)
-            : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral)
-            ;
+            return self._matrix2 ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
             return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
-        // handle some common cases fast
-        /*else if (3==this._dim)
-        {
-            return convolution3(im, w, h, this._matrix, this._matrix2, this._dim, this._dim, this._coeff[0], this._coeff[1], this._isGrad);
-        }*/
         
-        var imLen = im.length, imArea = (imLen>>2), 
-            dst = new IMG(imLen), 
-            t0, t1, t2, t3,
-            i, j, k, x, ty, ty2, 
-            xOff, yOff, srcOff, 
-            r, g, b, a, r2, g2, b2, a2,
-            bx = w-1, by = imArea-w,
-            coeff1 = self._coeff[0], coeff2 = self._coeff[1],
+        var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
+            t0, t1, t2, t3, i, j, k, x, ty, ty2, 
+            xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
+            bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices
         ;
@@ -2810,12 +3170,147 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 {
                     t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
-                if ( notSupportClamp )
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                /*if ( rgba )
+                {
+                    t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {*/
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                /*}*/
+            }
+        }
+        else
+        {
+            // pre-compute indices, 
+            // reduce redundant computations inside the main convolution loop (faster)
+            mArea = self._indices.length; 
+            imageIndices = new A16I(self._indices);
+            for (k=0; k<mArea; k+=2)
+            { 
+                imageIndices[k+1] *= w;
+            }
+            mat = self._mat;
+            matArea = mat.length;
+            
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                    }
+                }
+                
+                // output
+                t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                /*if ( rgba )
+                {
+                    t3 = coeff1*a + coeff2;
+                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = ~~t3;
+                }
+                else
+                {*/
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                /*}*/
+            }
+        }
+        return dst;
+    }
+    : function(im, w, h/*, image*/) {
+        var self = this, rgba = self._rgba;
+        if ( !self._isOn || !self._matrix ) return im;
+        
+        // do a faster convolution routine if possible
+        if ( self._doIntegral ) 
+        {
+            return self._matrix2 ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
+        }
+        else if ( self._doSeparable )
+        {
+            return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+        }
+        
+        var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
+            t0, t1, t2, t3, i, j, k, x, ty, ty2, 
+            xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
+            bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
+            mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
+            mArea, matArea, imageIndices
+        ;
+        
+        // apply filter (algorithm direct implementation based on filter definition with some optimizations)
+        if (mat2) // allow to compute a second matrix in-parallel in same pass
+        {
+            // pre-compute indices, 
+            // reduce redundant computations inside the main convolution loop (faster)
+            mArea = self._indicesf.length; 
+            imageIndices = new A16I(self._indicesf);
+            for (k=0; k<mArea; k+=2)
+            { 
+                imageIndices[k+1] *= w;
+            } 
+            matArea = mat.length;
+            
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=r2=g2=b2=a2=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; 
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        //a2 += im[srcOff+3] * wt2;
+                    }
+                }
+                
+                // output
+                if ( _isGrad )
+                {
+                    t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                }
+                else
+                {
+                    t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
                 }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 /*if ( rgba )
@@ -2867,13 +3362,6 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 
                 // output
                 t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 /*if ( rgba )
                 {
@@ -2908,27 +3396,27 @@ ConvolutionMatrixFilter.prototype.grad = ConvolutionMatrixFilter.prototype.prewi
 //
 //
 //  Private methods
-
-/*function addMatrix(m1, m2)
+function computeIndices( m, d )
 {
-    var l=m1.length, i, m=new CM(m1.length);
-    i=0; while (i<l) { m[i]=m1[i] + m2[i]; i++; }
-    return m;
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = matRadius>>>1;
+    x=0; y=0; k=0;
+    while (k<matArea)
+    { 
+        indices2.push(x-matHalfSide); 
+        indices2.push(y-matHalfSide);
+        if (m[k])
+        {
+            indices.push(x-matHalfSide); 
+            indices.push(y-matHalfSide);
+            mat.push(m[k]);
+        }
+        k++; x++; if (x>=matRadius) { x=0; y++; }
+    }
+    return [new A16I(indices), new A16I(indices2), new CM(mat)];
 }
-
-function subtractMatrix(m1, m2)
-{
-    var l=m1.length, i, m=new CM(m1.length);
-    i=0; while (i<l) { m[i]=m1[i]-m2[i]; i++; }
-    return m;
-}
-
-function multiplyScalar(m1, s)
-{
-    return 1===s ? new CM(m1) : tensor_product(m1, [s], CM).prod;
-}*/
-
-function blendMatrix(m1, m2, a, b)
+function blendMatrix( m1, m2, a, b )
 {
     var l=m1.length, i, m=new CM(m1.length);
     a=a||1; b=b||1;
@@ -2936,35 +3424,42 @@ function blendMatrix(m1, m2, a, b)
     return m;
 }
 
-function identity1DKernel(d)
+function identity1( d )
 {
-    var i, center=(d>>1), ker=new Array(d);
-    i=0; while (i<d) { ker[i]=0; i++; }
-    ker[center]=1;  return ker;
+    var i, ker = new Array(d);
+    for(i=0; i<d; i++) ker[i] = 0;
+    ker[d>>>1] = 1;
+    return ker;
 }
-
-function average1DKernel(d)
+function average1( d )
 {
-    var i, ker=new Array(d);
-    i=0; while (i<d) { ker[i]=1; i++; }
+    var i, ker = new Array(d);
+    for(i=0; i<d; i++) ker[i] = 1;
+    return ker;
+}
+function derivative1( d, rev )
+{
+    var i, half = d>>>1, ker = new Array(d);
+    if ( rev ) for(i=0; i<d; i++) ker[d-1-i] = i-half;
+    else for(i=0; i<d; i++) ker[i] = i-half;
     return ker;
 }
 
 // pascal numbers (binomial coefficients) are used to get coefficients for filters that resemble gaussian distributions
 // eg Sobel, Canny, gradients etc..
-function binomial1DKernel(d) 
+function binomial1( d )
 {
-    var l=_pascal.length, row, uprow, i, il;
+    var l = _pascal.length, row, uprow, i, il;
     d--;
-    if (d<l)
+    if (d < l)
     {
-        row=new CM(_pascal[d]);
+        row = new CM(_pascal[d]);
     }
     else
     {
         // else compute them iteratively
-        row=new CM(_pascal[l-1]);
-        while (l<=d)
+        row = new CM(_pascal[l-1]);
+        while ( l<=d )
         {
             uprow=row; row=new CM(uprow.length+1); row[0]=1;
             for (i=0, il=uprow.length-1; i<il; i++) { row[i+1]=(uprow[i]+uprow[i+1]); } row[uprow.length]=1;
@@ -2975,83 +3470,61 @@ function binomial1DKernel(d)
     return row;
 }
 
-function derivative1DKernel(d)
+function binomial2( d )
 {
-    var i, half=d>>1, k=-half, ker=new Array(d);
-    i=0; while (i<d) { ker[i] = k; k++; i++; }
-    return ker;
-}
-
-function gaussKernel(d)
-{
-    var binomial=binomial1DKernel(d);
+    var binomial = binomial1(d);
     // convolve with itself
-    return convolveKernels(binomial, binomial);
+    return tensor_product(binomial, binomial);
 }
 
-function verticalKernel(d)
+function vertical2( d )
 {
-    var eye=identity1DKernel(d), average=average1DKernel(d);
-    // convolve with itself
-    return convolveKernels(average, eye);
+    return tensor_product(average1(d), identity1(d));
 }
 
-function horizontalKernel(d)
+function horizontal2( d )
 {
-    var eye=identity1DKernel(d), average=average1DKernel(d);
-    // convolve with itself
-    return convolveKernels(eye, average);
+    return tensor_product(identity1(d), average1(d));
 }
 
-function sobelKernel(d, dir)
+function sobel( d, dir )
 {
-    var binomial=binomial1DKernel(d), derivative=derivative1DKernel(d);
-    if (1==dir) // y
-        return convolveKernels(derivative.reverse(), binomial);
-    else  // x
-        return convolveKernels(binomial, derivative);
+    return 1===dir ? /*y*/tensor_product(derivative1(d,1), binomial1(d)) : /*x*/tensor_product(binomial1(d), derivative1(d,0));
 }
 
-function prewittKernel(d, dir)
+function prewitt( d, dir )
 {
-    var average=average1DKernel(d), derivative=derivative1DKernel(d);
-    if (1==dir) // y
-        return convolveKernels(derivative.reverse(), average);
-    else // x
-        return convolveKernels(average, derivative);
+    return 1===dir ? /*y*/tensor_product(derivative1(d,1), average1(d)) : /*x*/tensor_product(average1(d), derivative1(d,0));
 }
 
-function ones(d, f, c) 
+function ones( d, f, c )
 { 
-    f=f||1; c=c||f;
-    var l=d*d, center=l>>1, i, o=new CM(l);
-    i=0; while(i<l) { o[i]=f; i++; } o[center]=c;
+    f = f||1; c = c||f;
+    var l = d*d, i, o = new CM(l);
+    for(i=0; i<d; i++) o[i] = f;
+    o[l>>>1] = c;
     return o;
 }
 
-function twos(d, dx, dy, c)
+function twos( d, dx, dy, c )
 {
-    var l=d*d, half=d>>1, center=l>>1, i, k, j, o=new CM(l), tx, ty;
-    tx = 0;
-    for (i=0; i<=half; i++)
+    var l=d*d, half=d>>>1, center=l>>>1, i, k, j, o=new CM(l), tx, ty;
+    for (tx=0,i=0; i<=half; i++,tx+=dx)
     {
-        k = 0; ty = 0;
-        for (j=0; j<=half; j++)
+        for (k=0,ty=0,j=0; j<=half; j++,k+=d,ty+=dy)
         {
             //tx=i*dx;  ty=j*dy;
             o[center + i + k]=   tx + ty;
             o[center - i - k]= - tx - ty;
             o[center - i + k]= - tx + ty;
             o[center + i - k]=   tx - ty;
-            k += d; ty += dy;
         }
-        tx += dx;
     }
     o[center] = c||1;
     return o;
 }
 
-function twos2(d, c, s, cf)
+function twos2( d, c, s, cf )
 {
     var l=d*d, half=d>>1, center=l>>1, i, j, k, 
         o=new CM(l), T=new CM(l), 
@@ -3115,8 +3588,9 @@ var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
 var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filter, {
     name: "MorphologicalFilter"
     
-    ,constructor: function( ) {
+    ,constructor: function MorphologicalFilter( ) {
         var self = this;
+        if ( !(self instanceof MorphologicalFilter) ) return new MorphologicalFilter();
         self.$super('constructor');
         self._filterName = null;
         self._filter = null;
@@ -3530,8 +4004,9 @@ var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array
 var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, {
     name: "StatisticalFilter"
     
-    ,constructor: function( ) {
+    ,constructor: function StatisticalFilter( ) {
         var self = this;
+        if ( !(self instanceof StatisticalFilter) ) return new StatisticalFilter();
         self.$super('constructor');
         self._dim = 0;
         self._indices = null;
@@ -3828,8 +4303,9 @@ var HAS = 'hasOwnProperty';
 var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     name: "InlineFilter"
     
-    ,constructor: function( handler ) {
+    ,constructor: function InlineFilter( handler ) {
         var self = this;
+        if ( !(self instanceof InlineFilter) ) return new InlineFilter(handler);
         self.$super('constructor');
         // using bind makes the code become [native code] and thus unserializable
         self._handler = handler && ('function' === typeof handler) ? handler : null;

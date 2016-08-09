@@ -20,8 +20,9 @@ var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array
 var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, {
     name: "StatisticalFilter"
     
-    ,constructor: function( ) {
+    ,constructor: function StatisticalFilter( ) {
         var self = this;
+        if ( !(self instanceof StatisticalFilter) ) return new StatisticalFilter();
         self.$super('constructor');
         self._dim = 0;
         self._indices = null;

@@ -84,7 +84,7 @@ FILTER.Create({
         
         if ( m<=0 ) return im;
         
-        imArea = (imLen>>2);
+        imArea = (imLen>>>2);
         bx1=0; bx2=w-1; by1=0; by2=imArea-w;
         
         // make center relative

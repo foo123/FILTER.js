@@ -282,7 +282,7 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var ImageUtil = FILTER.Util.Image, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
+var Gradient = FILTER.Color.Gradient, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
 
 FILTER.Create({
      name: "GradientFilter"
@@ -315,7 +315,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = ImageUtil.colors_stops( colors, stops );
+            var c = Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -354,7 +354,7 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
         if ( !self._isOn || !self.colors ) return im;
-        return ImageUtil.gradient( im, w, h, self.colors, self.stops, self.angle, ImageUtil.lerp );
+        return Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
     }
 });
 
@@ -395,7 +395,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = ImageUtil.colors_stops( colors, stops );
+            var c = Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -442,7 +442,7 @@ FILTER.Create({
         if ( !self._isOn || !self.colors ) return im;
         
         // make center relative
-        return ImageUtil.radial_gradient( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, ImageUtil.lerp );
+        return Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate );
     }
 });
 
@@ -559,7 +559,7 @@ FILTER.Create({
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w,w2), hm = Min(h, h2),  
             cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
+            cX2 = w2>>>1, cY2 = h2>>>1
         ;
         
         
@@ -695,7 +695,7 @@ FILTER.Create({
             wm = Min(w, w2), hm = Min(h, h2),  
             channel = null==self.channel?CHANNEL.ALPHA:(self.channel||CHANNEL.RED),
             cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
+            cX2 = w2>>>1, cY2 = h2>>>1
         ;
         
         
@@ -718,6 +718,9 @@ FILTER.Create({
             else
             {
                 // better to remove the alpha channel if mask dimensions are different??
+                im[i] = 0;
+                im[i+1] = 0;
+                im[i+2] = 0;
                 im[i+3] = 0;
             }
         }
@@ -737,8 +740,7 @@ FILTER.Create({
 "use strict";
 
 var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
-    //RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB,
-    MODE = FILTER.MODE, Min = Math.min, Max = Math.max, subarray = FILTER.Util.Array.subarray
+    MODE = FILTER.MODE, Min = Math.min, Max = Math.max
 ;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -747,11 +749,11 @@ FILTER.Create({
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,mode: MODE.COLOR
+    ,mode: MODE.INTENSITY
     
     ,init: function( mode ) {
         var self = this;
-        self.mode = mode || MODE.COLOR;
+        self.mode = mode || MODE.INTENSITY;
     }
     
     ,serialize: function( ) {
@@ -780,127 +782,23 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,_apply_rgb: function(im, w, h/*, image*/) {
+    ,_apply_rgb: function(im, w, h) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
-        if ( !self._isOn ) return im;
         var r,g,b, rangeR, rangeG, rangeB,
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
             cdfR, cdfG, cdfB,
             accumR, accumG, accumB, t0, t1, t2,
-            i, l=im.length, l2=l>>2, n=1.0/(l2)
+            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2, n=1.0/l2
         ;
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
-        /*for (i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            cdfR[i   ]=0;
-            cdfR[i+1 ]=0;
-            cdfR[i+2 ]=0;
-            cdfR[i+3 ]=0;
-            cdfR[i+4 ]=0;
-            cdfR[i+5 ]=0;
-            cdfR[i+6 ]=0;
-            cdfR[i+7 ]=0;
-            cdfR[i+8 ]=0;
-            cdfR[i+9 ]=0;
-            cdfR[i+10]=0;
-            cdfR[i+11]=0;
-            cdfR[i+12]=0;
-            cdfR[i+13]=0;
-            cdfR[i+14]=0;
-            cdfR[i+15]=0;
-            cdfR[i+16]=0;
-            cdfR[i+17]=0;
-            cdfR[i+18]=0;
-            cdfR[i+19]=0;
-            cdfR[i+20]=0;
-            cdfR[i+21]=0;
-            cdfR[i+22]=0;
-            cdfR[i+23]=0;
-            cdfR[i+24]=0;
-            cdfR[i+25]=0;
-            cdfR[i+26]=0;
-            cdfR[i+27]=0;
-            cdfR[i+28]=0;
-            cdfR[i+29]=0;
-            cdfR[i+30]=0;
-            cdfR[i+31]=0;
-        
-            cdfG[i   ]=0;
-            cdfG[i+1 ]=0;
-            cdfG[i+2 ]=0;
-            cdfG[i+3 ]=0;
-            cdfG[i+4 ]=0;
-            cdfG[i+5 ]=0;
-            cdfG[i+6 ]=0;
-            cdfG[i+7 ]=0;
-            cdfG[i+8 ]=0;
-            cdfG[i+9 ]=0;
-            cdfG[i+10]=0;
-            cdfG[i+11]=0;
-            cdfG[i+12]=0;
-            cdfG[i+13]=0;
-            cdfG[i+14]=0;
-            cdfG[i+15]=0;
-            cdfG[i+16]=0;
-            cdfG[i+17]=0;
-            cdfG[i+18]=0;
-            cdfG[i+19]=0;
-            cdfG[i+20]=0;
-            cdfG[i+21]=0;
-            cdfG[i+22]=0;
-            cdfG[i+23]=0;
-            cdfG[i+24]=0;
-            cdfG[i+25]=0;
-            cdfG[i+26]=0;
-            cdfG[i+27]=0;
-            cdfG[i+28]=0;
-            cdfG[i+29]=0;
-            cdfG[i+30]=0;
-            cdfG[i+31]=0;
-        
-            cdfB[i   ]=0;
-            cdfB[i+1 ]=0;
-            cdfB[i+2 ]=0;
-            cdfB[i+3 ]=0;
-            cdfB[i+4 ]=0;
-            cdfB[i+5 ]=0;
-            cdfB[i+6 ]=0;
-            cdfB[i+7 ]=0;
-            cdfB[i+8 ]=0;
-            cdfB[i+9 ]=0;
-            cdfB[i+10]=0;
-            cdfB[i+11]=0;
-            cdfB[i+12]=0;
-            cdfB[i+13]=0;
-            cdfB[i+14]=0;
-            cdfB[i+15]=0;
-            cdfB[i+16]=0;
-            cdfB[i+17]=0;
-            cdfB[i+18]=0;
-            cdfB[i+19]=0;
-            cdfB[i+20]=0;
-            cdfB[i+21]=0;
-            cdfB[i+22]=0;
-            cdfB[i+23]=0;
-            cdfB[i+24]=0;
-            cdfB[i+25]=0;
-            cdfB[i+26]=0;
-            cdfB[i+27]=0;
-            cdfB[i+28]=0;
-            cdfB[i+29]=0;
-            cdfB[i+30]=0;
-            cdfB[i+31]=0;
-        }*/
-        
         // compute pdf and maxima/minima
-        for (i=0; i<l; i+=4)
+        for (i=0; i<l; i+=32)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
             cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
@@ -910,6 +808,76 @@ FILTER.Create({
             minR = Min(r, minR);
             minG = Min(g, minG);
             minB = Min(b, minB);
+            r = im[i+4]; g = im[i+5]; b = im[i+6];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+8]; g = im[i+9]; b = im[i+10];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+12]; g = im[i+13]; b = im[i+14];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+16]; g = im[i+17]; b = im[i+18];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+20]; g = im[i+21]; b = im[i+22];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+24]; g = im[i+25]; b = im[i+26];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+            r = im[i+28]; g = im[i+29]; b = im[i+30];
+            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            maxR = Max(r, maxR);
+            maxG = Max(g, maxG);
+            maxB = Max(b, maxB);
+            minR = Min(r, minR);
+            minG = Min(g, minG);
+            minB = Min(b, minB);
+        }
+        if ( rem )
+        {
+            for (i=l-rem; i<l; i+=4)
+            {
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+                maxR = Max(r, maxR);
+                maxG = Max(g, maxG);
+                maxB = Max(b, maxB);
+                minR = Min(r, minR);
+                minG = Min(g, minG);
+                minB = Min(b, minB);
+            }
         }
         
         // compute cdf
@@ -1020,7 +988,7 @@ FILTER.Create({
         rangeR=maxR-minR; rangeG=maxG-minG; rangeB=maxB-minB;
         if (notSupportClamp)
         {   
-            for (i=0; i<l; i+=4)
+            for (i=0; i<l; i+=32)
             { 
                 r = im[i]; g = im[i+1]; b = im[i+2]; 
                 t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
@@ -1029,15 +997,107 @@ FILTER.Create({
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                r = im[i+4]; g = im[i+5]; b = im[i+6]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+4] = ~~t0; im[i+5] = ~~t1; im[i+6] = ~~t2; 
+                r = im[i+8]; g = im[i+9]; b = im[i+10]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+8] = ~~t0; im[i+9] = ~~t1; im[i+10] = ~~t2; 
+                r = im[i+12]; g = im[i+13]; b = im[i+14]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+12] = ~~t0; im[i+13] = ~~t1; im[i+14] = ~~t2; 
+                r = im[i+16]; g = im[i+17]; b = im[i+18];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+16] = ~~t0; im[i+17] = ~~t1; im[i+18] = ~~t2; 
+                r = im[i+20]; g = im[i+21]; b = im[i+22];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+20] = ~~t0; im[i+21] = ~~t1; im[i+22] = ~~t2; 
+                r = im[i+24]; g = im[i+25]; b = im[i+26]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+24] = ~~t0; im[i+25] = ~~t1; im[i+26] = ~~t2;
+                r = im[i+28]; g = im[i+29]; b = im[i+30];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i+28] = ~~t0; im[i+29] = ~~t1; im[i+30] = ~~t2;
+            }
+            if ( rem )
+            {
+                for (i=l-rem; i<l; i+=4)
+                { 
+                    r = im[i]; g = im[i+1]; b = im[i+2]; 
+                    t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                }
             }
         }
         else
         {
-            for (i=0; i<l; i+=4)
+            for (i=0; i<l; i+=32)
             { 
                 r = im[i]; g = im[i+1]; b = im[i+2]; 
                 t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                r = im[i+4]; g = im[i+5]; b = im[i+6]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+4] = ~~t0; im[i+5] = ~~t1; im[i+6] = ~~t2; 
+                r = im[i+8]; g = im[i+9]; b = im[i+10]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+8] = ~~t0; im[i+9] = ~~t1; im[i+10] = ~~t2; 
+                r = im[i+12]; g = im[i+13]; b = im[i+14]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+12] = ~~t0; im[i+13] = ~~t1; im[i+14] = ~~t2; 
+                r = im[i+16]; g = im[i+17]; b = im[i+18];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+16] = ~~t0; im[i+17] = ~~t1; im[i+18] = ~~t2; 
+                r = im[i+20]; g = im[i+21]; b = im[i+22];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+20] = ~~t0; im[i+21] = ~~t1; im[i+22] = ~~t2; 
+                r = im[i+24]; g = im[i+25]; b = im[i+26]; 
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+24] = ~~t0; im[i+25] = ~~t1; im[i+26] = ~~t2;
+                r = im[i+28]; g = im[i+29]; b = im[i+30];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                im[i+28] = ~~t0; im[i+29] = ~~t1; im[i+30] = ~~t2;
+            }
+            if ( rem )
+            {
+                for (i=l-rem; i<l; i+=4)
+                { 
+                    r = im[i]; g = im[i+1]; b = im[i+2]; 
+                    t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                }
             }
         }
         
@@ -1056,68 +1116,69 @@ FILTER.Create({
         if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
         
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
-            cdf, accum, i, l=im.length, l2=l>>2, n=1.0/(l2),
-            is_grayscale = MODE.GRAY === self.mode
+            cdf, accum, i, l = im.length, l2 = l>>>2, n=1.0/l2,
+            is_grayscale = MODE.GRAY === self.mode, rem = (l2&7)<<2
         ;
         
         // initialize the arrays
         cdf = new A32F( 256 );
-        /*for (i=0; i<256; i+=32)
-        { 
-            // partial loop unrolling
-            cdf[i   ]=0;
-            cdf[i+1 ]=0;
-            cdf[i+2 ]=0;
-            cdf[i+3 ]=0;
-            cdf[i+4 ]=0;
-            cdf[i+5 ]=0;
-            cdf[i+6 ]=0;
-            cdf[i+7 ]=0;
-            cdf[i+8 ]=0;
-            cdf[i+9 ]=0;
-            cdf[i+10]=0;
-            cdf[i+11]=0;
-            cdf[i+12]=0;
-            cdf[i+13]=0;
-            cdf[i+14]=0;
-            cdf[i+15]=0;
-            cdf[i+16]=0;
-            cdf[i+17]=0;
-            cdf[i+18]=0;
-            cdf[i+19]=0;
-            cdf[i+20]=0;
-            cdf[i+21]=0;
-            cdf[i+22]=0;
-            cdf[i+23]=0;
-            cdf[i+24]=0;
-            cdf[i+25]=0;
-            cdf[i+26]=0;
-            cdf[i+27]=0;
-            cdf[i+28]=0;
-            cdf[i+29]=0;
-            cdf[i+30]=0;
-            cdf[i+31]=0;
-        }*/
-        
         // compute pdf and maxima/minima
         if ( is_grayscale )
         {
-            for (i=0; i<l; i+=4)
+            for (i=0; i<l; i+=32)
             {
                 r = im[i];
                 cdf[ r ] += n;
                 max = Max(r, max);
                 min = Min(r, min);
+                r = im[i+4];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+8];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+12];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+16];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+20];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+24];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+                r = im[i+28];
+                cdf[ r ] += n;
+                max = Max(r, max);
+                min = Min(r, min);
+            }
+            if ( rem )
+            {
+                for (i=l-rem; i<l; i+=4)
+                {
+                    r = im[i];
+                    cdf[ r ] += n;
+                    max = Max(r, max);
+                    min = Min(r, min);
+                }
             }
         }
         else
         {
-            for (i=0; i<l; i+=4)
+            for (i=0; i<l; i+=32)
             {
                 r = im[i]; g = im[i+1]; b = im[i+2];
-                y = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-                cb = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-                cr = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
                 // clamp them manually
                 cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
                 y = y<0 ? 0 : (y>255 ? 255 : y);
@@ -1126,6 +1187,108 @@ FILTER.Create({
                 cdf[ y ] += n;
                 max = Max(y, max);
                 min = Min(y, min);
+                r = im[i+4]; g = im[i+5]; b = im[i+6];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+4] = cr; im[i+5] = y; im[i+6] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+8]; g = im[i+9]; b = im[i+10];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+8] = cr; im[i+9] = y; im[i+10] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+12]; g = im[i+13]; b = im[i+14];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+12] = cr; im[i+13] = y; im[i+14] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+16]; g = im[i+17]; b = im[i+18];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+16] = cr; im[i+17] = y; im[i+18] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+20]; g = im[i+21]; b = im[i+22];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+20] = cr; im[i+21] = y; im[i+22] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+24]; g = im[i+25]; b = im[i+26];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+24] = cr; im[i+25] = y; im[i+26] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+                r = im[i+28]; g = im[i+29]; b = im[i+30];
+                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i+28] = cr; im[i+29] = y; im[i+30] = cb;
+                cdf[ y ] += n;
+                max = Max(y, max);
+                min = Min(y, min);
+            }
+            if ( rem )
+            {
+                for (i=l-rem; i<l; i+=4)
+                {
+                    r = im[i]; g = im[i+1]; b = im[i+2];
+                    y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
+                    cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                    cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                    // clamp them manually
+                    cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                    y = y<0 ? 0 : (y>255 ? 255 : y);
+                    cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                    im[i] = cr; im[i+1] = y; im[i+2] = cb;
+                    cdf[ y ] += n;
+                    max = Max(y, max);
+                    min = Min(y, min);
+                }
             }
         }
         
@@ -1173,17 +1336,55 @@ FILTER.Create({
         {   
             if ( is_grayscale )
             {
-                for (i=0; i<l; i+=4)
+                for (i=0; i<l; i+=32)
                 { 
                     r = ~~(cdf[im[i]]*range + min);
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    r = ~~(cdf[im[i+4]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+4] = r; im[i+5] = r; im[i+6] = r; 
+                    r = ~~(cdf[im[i+8]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+8] = r; im[i+9] = r; im[i+10] = r; 
+                    r = ~~(cdf[im[i+12]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+12] = r; im[i+13] = r; im[i+14] = r; 
+                    r = ~~(cdf[im[i+16]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+16] = r; im[i+17] = r; im[i+18] = r;
+                    r = ~~(cdf[im[i+20]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+20] = r; im[i+21] = r; im[i+22] = r; 
+                    r = ~~(cdf[im[i+24]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+24] = r; im[i+25] = r; im[i+26] = r; 
+                    r = ~~(cdf[im[i+28]]*range + min);
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+28] = r; im[i+29] = r; im[i+30] = r; 
+                }
+                if ( rem )
+                {
+                    for (i=l-rem; i<l; i+=4)
+                    { 
+                        r = ~~(cdf[im[i]]*range + min);
+                        // clamp them manually
+                        r = r<0 ? 0 : (r>255 ? 255 : r);
+                        im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    }
                 }
             }
             else
             {
-                for (i=0; i<l; i+=4)
+                for (i=0; i<l; i+=32)
                 { 
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
@@ -1194,6 +1395,84 @@ FILTER.Create({
                     g = g<0 ? 0 : (g>255 ? 255 : g);
                     b = b<0 ? 0 : (b>255 ? 255 : b);
                     im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    y = cdf[im[i+5]]*range + min; cb = im[i+6]; cr = im[i+4];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+4] = r; im[i+5] = g; im[i+6] = b; 
+                    y = cdf[im[i+9]]*range + min; cb = im[i+10]; cr = im[i+8];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+8] = r; im[i+9] = g; im[i+10] = b; 
+                    y = cdf[im[i+13]]*range + min; cb = im[i+14]; cr = im[i+12];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+12] = r; im[i+13] = g; im[i+14] = b; 
+                    y = cdf[im[i+17]]*range + min; cb = im[i+18]; cr = im[i+16];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+16] = r; im[i+17] = g; im[i+18] = b; 
+                    y = cdf[im[i+21]]*range + min; cb = im[i+22]; cr = im[i+20];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+20] = r; im[i+21] = g; im[i+22] = b; 
+                    y = cdf[im[i+25]]*range + min; cb = im[i+26]; cr = im[i+24];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+24] = r; im[i+25] = g; im[i+26] = b; 
+                    y = cdf[im[i+29]]*range + min; cb = im[i+30]; cr = im[i+28];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i+28] = r; im[i+29] = g; im[i+30] = b; 
+                }
+                if ( rem )
+                {
+                    for (i=l-rem; i<l; i+=4)
+                    { 
+                        y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                        r = ~~( y                      + 1.402   * (cr-128) );
+                        g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                        b = ~~( y + 1.772   * (cb-128) );
+                        // clamp them manually
+                        r = r<0 ? 0 : (r>255 ? 255 : r);
+                        g = g<0 ? 0 : (g>255 ? 255 : g);
+                        b = b<0 ? 0 : (b>255 ? 255 : b);
+                        im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    }
                 }
             }
         }
@@ -1201,25 +1480,92 @@ FILTER.Create({
         {
             if ( is_grayscale )
             {
-                for (i=0; i<l; i+=4)
+                for (i=0; i<l; i+=32)
                 { 
                     r = ~~(cdf[im[i]]*range + min);
                     im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    r = ~~(cdf[im[i+4]]*range + min);
+                    im[i+4] = r; im[i+5] = r; im[i+6] = r; 
+                    r = ~~(cdf[im[i+8]]*range + min);
+                    im[i+8] = r; im[i+9] = r; im[i+10] = r; 
+                    r = ~~(cdf[im[i+12]]*range + min);
+                    im[i+12] = r; im[i+13] = r; im[i+14] = r; 
+                    r = ~~(cdf[im[i+16]]*range + min);
+                    im[i+16] = r; im[i+17] = r; im[i+18] = r;
+                    r = ~~(cdf[im[i+20]]*range + min);
+                    im[i+20] = r; im[i+21] = r; im[i+22] = r; 
+                    r = ~~(cdf[im[i+24]]*range + min);
+                    im[i+24] = r; im[i+25] = r; im[i+26] = r; 
+                    r = ~~(cdf[im[i+28]]*range + min);
+                    im[i+28] = r; im[i+29] = r; im[i+30] = r; 
+                }
+                if ( rem )
+                {
+                    for (i=l-rem; i<l; i+=4)
+                    { 
+                        r = ~~(cdf[im[i]]*range + min);
+                        im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    }
                 }
             }
             else
             {
-                for (i=0; i<l; i+=4)
+                for (i=0; i<l; i+=32)
                 { 
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
                     g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
                     b = ~~( y + 1.772   * (cb-128) );
                     im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    y = cdf[im[i+5]]*range + min; cb = im[i+6]; cr = im[i+4];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+4] = r; im[i+5] = g; im[i+6] = b; 
+                    y = cdf[im[i+9]]*range + min; cb = im[i+10]; cr = im[i+8];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+8] = r; im[i+9] = g; im[i+10] = b; 
+                    y = cdf[im[i+13]]*range + min; cb = im[i+14]; cr = im[i+12];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+12] = r; im[i+13] = g; im[i+14] = b; 
+                    y = cdf[im[i+17]]*range + min; cb = im[i+18]; cr = im[i+16];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+16] = r; im[i+17] = g; im[i+18] = b; 
+                    y = cdf[im[i+21]]*range + min; cb = im[i+22]; cr = im[i+20];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+20] = r; im[i+21] = g; im[i+22] = b; 
+                    y = cdf[im[i+25]]*range + min; cb = im[i+26]; cr = im[i+24];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+24] = r; im[i+25] = g; im[i+26] = b; 
+                    y = cdf[im[i+29]]*range + min; cb = im[i+30]; cr = im[i+28];
+                    r = ~~( y                      + 1.402   * (cr-128) );
+                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                    b = ~~( y + 1.772   * (cb-128) );
+                    im[i+28] = r; im[i+29] = g; im[i+30] = b; 
+                }
+                if ( rem )
+                {
+                    for (i=l-rem; i<l; i+=4)
+                    { 
+                        y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
+                        r = ~~( y                      + 1.402   * (cr-128) );
+                        g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
+                        b = ~~( y + 1.772   * (cb-128) );
+                        im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    }
                 }
             }
         }
-        
         // return the new image data
         return im;
     }
@@ -1283,11 +1629,10 @@ FILTER.Create({
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
         
-        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc,
-            r, g, b, r1, g1, b1, r2, g2, b2,
-            r3, g3, b3, r4, g4, b4, r5, g5, b5
+        var dst, imLen = im.length, imArea = imLen>>>2,
+            step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5, r, g, b,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc
         ;
         
         dst = new IMG(imLen);
@@ -1300,7 +1645,7 @@ FILTER.Create({
         {
             pxa = x-sx; pya = yw-syw;
             pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
-            //pxc = min(bx, pxa+(stepx>>>1)); pyc = min(by, pya+(stepy>>>1));
+            //pxc = (pxa>>>1)+(pxb>>>1); pyc = (pya>>>1)+(pyb>>>1);
             
             // these edge conditions create the rectangular pattern
             p1 = (pxa + pya) << 2;
@@ -1310,13 +1655,10 @@ FILTER.Create({
             //p5 = (pxc + pyc) << 2;
             
             // compute rectangular interpolation
-            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
-            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
-            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
-            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
-            //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
-            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
-            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]/*+im[p5  ]*/;
+            g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]/*+im[p5+1]*/;
+            b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]/*+im[p5+2]*/;
+            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1327,7 +1669,6 @@ FILTER.Create({
             }
             if ( sx >= step ) { sx=0; }
         }
-        
         // return the pixelated image data
         return dst;
     }
@@ -1380,10 +1721,10 @@ FILTER.Create({
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
         
-        var dst, imLen = im.length, imArea = (imLen>>>2), step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc,
-            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4
+        var dst, imLen = im.length, imArea = (imLen>>>2),
+            step, stepx, stepy,
+            bx = w-1, by = imArea-w, p1, p2, p3, p4, r, g, b,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc
         ;
         
         dst = new IMG(imLen);
@@ -1396,13 +1737,12 @@ FILTER.Create({
         {
             pxa = x-sx; pya = yw-syw;
             pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
-            pxc = min(bx, pxa+(stepx>>>1));
+            //pxc = (pxa>>>1)+(pxb>>>1); pyc = (pya>>>1)+(pyb>>>1);
             
             // these edge conditions create the various triangular patterns
             if ( sx+sy > stepx ) 
             { 
                 // second triangle
-                //pyc = min(by, ~~(pya+0.66*stepy));
                 p1 = (pxb + pya) << 2;
                 p2 = (pxb + pyb) << 2;
                 p3 = (pxa + pya) << 2;
@@ -1411,7 +1751,6 @@ FILTER.Create({
             else
             {
                 // first triangle
-                //pyc = min(by, ~~(pya+0.33*stepy));
                 p1 = (pxa + pya) << 2;
                 p2 = (pxa + pyb) << 2;
                 p3 = (pxb + pya) << 2;
@@ -1419,12 +1758,10 @@ FILTER.Create({
             }
             
             // compute triangular interpolation
-            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
-            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
-            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
-            //r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
-            r = ~~((r1+r2+r3)/3); g = ~~((g1+g2+g3)/3); b = ~~((b1+b2+b3)/3);
-            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            r = im[p1  ]+im[p2  ]+im[p3  ]/*+im[p4  ]*/;
+            g = im[p1+1]+im[p2+1]+im[p3+1]/*+im[p4+1]*/;
+            b = im[p1+2]+im[p2+2]+im[p3+2]/*+im[p4+2]*/;
+            dst[i] = ~~(0.333*r); dst[i+1] = ~~(0.333*g); dst[i+2] = ~~(0.333*b); dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1435,7 +1772,6 @@ FILTER.Create({
             }
             if ( sx >= step ) { sx=0; }
         }
-        
         // return the pixelated image data
         return dst;
     }
@@ -1493,10 +1829,8 @@ FILTER.Create({
         var dst, imLen = im.length, imArea = (imLen>>>2),
             step, step_1, step_2, stepx, stepy, stepx_2, stepy_2,
             bx = w-1, by = imArea-w,
-            p1, p2, p3, p4, p5, p6, p7, d,
-            i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd,
-            r, g, b, r1, g1, b1, r2, g2, b2, r3, g3, b3,
-            r4, g4, b4, r5, g5, b5, r6, g6, b6, r7, g7, b7
+            p1, p2, p3, p4, p5, p6, p7, d, r, g, b,
+            i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd
         ;
         
         dst = new IMG(imLen);
@@ -1544,15 +1878,10 @@ FILTER.Create({
             p4 = (pxa + pyb) << 2;
             
             // compute hexagonal interpolation
-            r1 = im[p1  ]; g1 = im[p1+1]; b1 = im[p1+2];
-            r2 = im[p2  ]; g2 = im[p2+1]; b2 = im[p2+2];
-            r3 = im[p3  ]; g3 = im[p3+1]; b3 = im[p3+2];
-            r4 = im[p4  ]; g4 = im[p4+1]; b4 = im[p4+2];
-            //r5 = im[p5  ]; g5 = im[p5+1]; b5 = im[p5+2];
-            //r6 = im[p6  ]; g6 = im[p6+1]; b6 = im[p6+2];
-            //r7 = im[p7  ]; g7 = im[p7+1]; b7 = im[p7+2];
-            r = ~~((r1+r2+r3+r4)/4); g = ~~((g1+g2+g3+g4)/4); b = ~~((b1+b2+b3+b4)/4);
-            dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = im[i+3];
+            r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ];
+            g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1];
+            b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2];
+            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1941,7 +2270,7 @@ FILTER.Create({
 "use strict";
 
 var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    boxKernel_3x3 = new FILTER.Array32F([
+    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9
@@ -2173,7 +2502,7 @@ FILTER.Create({
         
         if ( m<=0 ) return im;
         
-        imArea = (imLen>>2);
+        imArea = (imLen>>>2);
         bx1=0; bx2=w-1; by1=0; by2=imArea-w;
         
         // make center relative
@@ -2992,334 +3321,6 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* HSV Converter Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-//toCol = 0.70833333333333333333333333333333 // 255/360
-var notSupportClamp = FILTER._notSupportClamp, MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
-    HUE = FILTER.Color.hue, RGB2HSV = FILTER.Color.RGB2HSV, subarray = FILTER.Util.Array.subarray;
-
-// a plugin to convert an RGB Image to an HSV Image
-FILTER.Create({
-    name: "HSVConverterFilter"
-    
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,mode: MODE.HSV
-    
-    ,init: function( mode ) {
-        var self = this;
-        self.mode = mode || MODE.HSV;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 mode: self.mode
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mode = params.mode;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn ) return im;
-        var /*r,g,b,*/ i, l=im.length, hsv, t0, t1, t2, mode = self.mode,
-            H = CHANNEL.H, S = CHANNEL.S, V = CHANNEL.V;
-        
-        if ( notSupportClamp )
-        {   
-            if ( MODE.HUE === mode )
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    hsv = ~~(HUE(im[i],im[i+1],im[i+2])*0.70833333333333333333333333333333);
-                    // clamp them manually
-                    hsv = hsv<0 ? 0 : (hsv>255 ? 255 : hsv);
-                    im[i] = hsv; im[i+1] = hsv; im[i+2] = hsv; 
-                }
-            }
-            else
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    //r = im[i]; g = im[i+1]; b = im[i+2];
-                    hsv = RGB2HSV([im[i],im[i+1],im[i+2]],0);
-                    t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    im[i+H] = ~~t0; im[i+S] = ~~t1; im[i+V] = ~~t2; 
-                }
-            }
-        }
-        else
-        {
-            if ( MODE.HUE === mode )
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    hsv = ~~(HUE(im[i],im[i+1],im[i+2])*0.70833333333333333333333333333333);
-                    im[i] = hsv; im[i+1] = hsv; im[i+2] = hsv; 
-                }
-            }
-            else
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    //r = im[i]; g = im[i+1]; b = im[i+2];
-                    hsv = RGB2HSV([im[i],im[i+1],im[i+2]],0);
-                    t0 = hsv[0]*0.70833333333333333333333333333333; t2 = hsv[1]*255; t1 = hsv[2];
-                    im[i+H] = ~~t0; im[i+S] = ~~t1; im[i+V] = ~~t2; 
-                }
-            }
-        }
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Threshold Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var TypedArray = FILTER.Util.Array.typed, MODE = FILTER.MODE,
-    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
-
-// a plugin to apply a general threshold filtering to an image
-FILTER.Create({
-    name: "ThresholdFilter"
-    
-    // filter parameters
-    ,thresholds: null
-    // NOTE: quantizedColors should contain 1 more element than thresholds
-    ,quantizedColors: null
-    ,mode: MODE.COLOR
-    
-    // constructor
-    ,init: function( thresholds, quantizedColors, mode ) {
-        var self = this;
-        self.thresholds = thresholds;
-        self.quantizedColors = quantizedColors || null;
-        self.mode = mode || MODE.COLOR;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 thresholds: self.thresholds
-                ,quantizedColors: self.quantizedColors
-                ,mode: self.mode
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.thresholds = TypedArray( params.thresholds, Array );
-            self.quantizedColors = TypedArray( params.quantizedColors, Array );
-            self.mode = params.mode;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if (!self._isOn || !self.thresholds || !self.thresholds.length || 
-            !self.quantizedColors || !self.quantizedColors.length) return im;
-        
-        var color, v, i, j, l=im.length, mode = self.mode||MODE.COLOR,
-            thresholds=self.thresholds, tl=thresholds.length, colors=self.quantizedColors, cl=colors.length
-        ;
-        
-        if ( MODE.HUE === mode )
-        {
-            for (i=0; i<l; i+=4)
-            {
-                if ( 0 === im[i+3] ) continue;
-                v = HUE(im[i], im[i+1], im[i+2]);
-                // maybe use sth faster here ??
-                j=0; while (j<tl && v>thresholds[j]) j++;
-                color = j < cl ? colors[j] : 0xffffff;
-                im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
-                //im[i+3] = (color >>> 24) & 255;
-            }
-        }
-        else if ( MODE.INTENSITY === mode )
-        {
-            for (i=0; i<l; i+=4)
-            {
-                if ( 0 === im[i+3] ) continue;
-                v = INTENSITY(im[i], im[i+1], im[i+2]);
-                // maybe use sth faster here ??
-                j=0; while (j<tl && v>thresholds[j]) j++;
-                color = j < cl ? colors[j] : 0xffffff;
-                im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
-                //im[i+3] = (color >>> 24) & 255;
-            }
-        }
-        else //if ( MODE.COLOR === mode )
-        {
-            for (i=0; i<l; i+=4)
-            {
-                if ( 0 === im[i+3] ) continue;
-                v = /*(im[i+3] << 24) |*/ (im[i] << 16) | (im[i+1] << 8) | (im[i+2]&255);
-                // maybe use sth faster here ??
-                j=0; while (j<tl && v>thresholds[j]) j++;
-                color = j < cl ? colors[j] : 0xffffff;
-                im[i] = (color >>> 16) & 255; im[i+1] = (color >>> 8) & 255; im[i+2] = color & 255;
-                //im[i+3] = (color >>> 24) & 255;
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Hue Extractor Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var HUE = FILTER.Color.hue;
-
-// a plugin to extract regions based on a HUE range
-FILTER.Create({
-    name: "HueExtractorFilter"
-    
-    // filter parameters
-    ,minHue : 0
-    ,maxHue : 360
-    ,background : 0
-    
-    // constructor
-    ,init : function( minHue, maxHue, background ) {
-        var self = this;
-        self.minHue = minHue;
-        self.maxHue = maxHue;
-        self.background = background || 0;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 minHue: self.minHue
-                ,maxHue: self.maxHue
-                ,background: self.background
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.minHue = params.minHue;
-            self.maxHue = params.maxHue;
-            self.background = params.background;
-        }
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        if ( !self._isOn ) return im;
-        
-        var br, bg, bb, ba, background = self.background||0,
-            i, l=im.length, hue, minHue = self.minHue, maxHue = self.maxHue
-        ;
-        
-        br = (background >>> 16) & 255;
-        bg = (background >>> 8) & 255;
-        bb = background & 255;
-        ba = (background >>> 24) & 255;
-        
-        for (i=0; i<l; i+=4)
-        {
-            hue = HUE(im[i], im[i+1], im[i+2]);
-            if ( (hue<minHue) || (hue>maxHue) ) 
-            {  
-                im[i] = br; im[i+1] = bg; im[i+2] = bb; im[i+3] = ba; 
-            }
-        }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
 * Canny Edges Detector Plugin
 * @package FILTER.js
 *
@@ -3328,11 +3329,9 @@ FILTER.Create({
 "use strict";
 
 var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
-    GAUSSIAN_CUT_OFF = 0.005,
-    MAGNITUDE_SCALE = 100,
-    MAGNITUDE_LIMIT = 1000,
+    GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
+    LUMA = FILTER.LUMA, PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -3370,7 +3369,6 @@ hypot = Math.hypot
 
 function computeGradients(data, width, height, magnitude, kernelRadius, kernelWidth) 
 {
-    
     //generate the gaussian convolution masks
     var picsize = data.length,
         xConv = new Float32(picsize),
@@ -3401,59 +3399,51 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
     ;
     
     //perform convolution in x and y directions
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
+        if ( y >= maxY) { y=initY; x++; }
+        index = x + y;
+        sumX = data[index] * kernel[0];
+        sumY = sumX;
+        xOffset = 1;
+        yOffset = width;
+        for(; xOffset < kwidth ;) 
         {
-            index = x + y;
-            sumX = data[index] * kernel[0];
-            sumY = sumX;
-            xOffset = 1;
-            yOffset = width;
-            for(; xOffset < kwidth ;) 
-            {
-                sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
-                sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
-                yOffset += width;
-                xOffset++;
-            }
-            
-            yConv[index] = sumY;
-            xConv[index] = sumX;
+            sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
+            sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
+            yOffset += width;
+            xOffset++;
         }
+        
+        yConv[index] = sumY;
+        xConv[index] = sumX;
 
     }
 
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
-        {
-            sum = 0;
-            index = x + y;
-            for (i = 1; i < kwidth; i++)
-                sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
+        if ( y >= maxY) { y=initY; x++; }
+        sum = 0;
+        index = x + y;
+        for (i = 1; i < kwidth; i++) sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
 
-            xGradient[index] = sum;
-        }
-
+        xGradient[index] = sum;
     }
-
-    for (x = kwidth; x < width - kwidth; x++) 
+    
+    maxX = width - kwidth;
+    for (x=kwidth,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
+        if ( y >= maxY) { y=initY; x++; }
+        sum = 0.0;
+        index = x + y;
+        yOffset = width;
+        for (i = 1; i < kwidth; i++) 
         {
-            sum = 0.0;
-            index = x + y;
-            yOffset = width;
-            for (i = 1; i < kwidth; i++) 
-            {
-                sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
-                yOffset += width;
-            }
-
-            yGradient[index] = sum;
+            sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
+            yOffset += width;
         }
 
+        yGradient[index] = sum;
     }
 
     initX = kwidth;
@@ -3466,84 +3456,83 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         nMag, sMag, eMag, wMag,
         nwMag, neMag, swMag, seMag
     ;
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
-        {
-            index = x + y;
-            indexN = index - width;
-            indexS = index + width;
-            indexW = index - 1;
-            indexE = index + 1;
-            indexNW = indexN - 1;
-            indexNE = indexN + 1;
-            indexSW = indexS - 1;
-            indexSE = indexS + 1;
-            
-            xGrad = xGradient[index];
-            yGrad = yGradient[index];
-            gradMag = hypot(xGrad, yGrad);
+        if ( y >= maxY ) {y=initY; x++; }
+        
+        index = x + y;
+        indexN = index - width;
+        indexS = index + width;
+        indexW = index - 1;
+        indexE = index + 1;
+        indexNW = indexN - 1;
+        indexNE = indexN + 1;
+        indexSW = indexS - 1;
+        indexSE = indexS + 1;
+        
+        xGrad = xGradient[index];
+        yGrad = yGradient[index];
+        gradMag = abs(xGrad)+abs(yGrad);
 
-            //perform non-maximal supression
-            nMag = hypot(xGradient[indexN], yGradient[indexN]);
-            sMag = hypot(xGradient[indexS], yGradient[indexS]);
-            wMag = hypot(xGradient[indexW], yGradient[indexW]);
-            eMag = hypot(xGradient[indexE], yGradient[indexE]);
-            neMag = hypot(xGradient[indexNE], yGradient[indexNE]);
-            seMag = hypot(xGradient[indexSE], yGradient[indexSE]);
-            swMag = hypot(xGradient[indexSW], yGradient[indexSW]);
-            nwMag = hypot(xGradient[indexNW], yGradient[indexNW]);
-            //tmp;
-            /*
-             * An explanation of what's happening here, for those who want
-             * to understand the source: This performs the "non-maximal
-             * supression" phase of the Canny edge detection in which we
-             * need to compare the gradient magnitude to that in the
-             * direction of the gradient; only if the value is a local
-             * maximum do we consider the point as an edge candidate.
-             * 
-             * We need to break the comparison into a number of different
-             * cases depending on the gradient direction so that the
-             * appropriate values can be used. To avoid computing the
-             * gradient direction, we use two simple comparisons: first we
-             * check that the partial derivatives have the same sign (1)
-             * and then we check which is larger (2). As a consequence, we
-             * have reduced the problem to one of four identical cases that
-             * each test the central gradient magnitude against the values at
-             * two points with 'identical support'; what this means is that
-             * the geometry required to accurately interpolate the magnitude
-             * of gradient function at those points has an identical
-             * geometry (upto right-angled-rotation/reflection).
-             * 
-             * When comparing the central gradient to the two interpolated
-             * values, we avoid performing any divisions by multiplying both
-             * sides of each inequality by the greater of the two partial
-             * derivatives. The common comparand is stored in a temporary
-             * variable (3) and reused in the mirror case (4).
-             * 
-             */
-            if (xGrad * yGrad <= 0 /*(1)*/
-                ? abs(xGrad) >= abs(yGrad) /*(2)*/
-                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                        && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                    : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                        && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-                : abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                        && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                    : (tmp =abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                        && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
-            ) 
-            {
-                magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
-                //NOTE: The orientation of the edge is not employed by this
-                //implementation. It is a simple matter to compute it at
-                //this point as: Math.atan2(yGrad, xGrad);
-            } 
-            else 
-            {
-                magnitude[index] = 0;
-            }
+        //perform non-maximal supression
+        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
+        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
+        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
+        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
+        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
+        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
+        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
+        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
+        //tmp;
+        /*
+         * An explanation of what's happening here, for those who want
+         * to understand the source: This performs the "non-maximal
+         * supression" phase of the Canny edge detection in which we
+         * need to compare the gradient magnitude to that in the
+         * direction of the gradient; only if the value is a local
+         * maximum do we consider the point as an edge candidate.
+         * 
+         * We need to break the comparison into a number of different
+         * cases depending on the gradient direction so that the
+         * appropriate values can be used. To avoid computing the
+         * gradient direction, we use two simple comparisons: first we
+         * check that the partial derivatives have the same sign (1)
+         * and then we check which is larger (2). As a consequence, we
+         * have reduced the problem to one of four identical cases that
+         * each test the central gradient magnitude against the values at
+         * two points with 'identical support'; what this means is that
+         * the geometry required to accurately interpolate the magnitude
+         * of gradient function at those points has an identical
+         * geometry (upto right-angled-rotation/reflection).
+         * 
+         * When comparing the central gradient to the two interpolated
+         * values, we avoid performing any divisions by multiplying both
+         * sides of each inequality by the greater of the two partial
+         * derivatives. The common comparand is stored in a temporary
+         * variable (3) and reused in the mirror case (4).
+         * 
+         */
+        if (xGrad * yGrad <= 0 /*(1)*/
+            ? abs(xGrad) >= abs(yGrad) /*(2)*/
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
+                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
+                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
+            : abs(xGrad) >= abs(yGrad) /*(2)*/
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
+                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
+                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+        ) 
+        {
+            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
+            //NOTE: The orientation of the edge is not employed by this
+            //implementation. It is a simple matter to compute it at
+            //this point as: Math.atan2(yGrad, xGrad);
+        } 
+        else 
+        {
+            magnitude[index] = 0;
         }
     }
 }
@@ -3571,13 +3560,11 @@ function performHysteresis(data, width, height, magnitude, low, high)
 
 function follow(data, width, height, magnitude, x1, y1, i1, threshold) 
 {
-    var
-        x0 = x1 == 0 ? x1 : x1 - 1,
-        x2 = x1 == width - 1 ? x1 : x1 + 1,
-        y0 = y1 == 0 ? y1 : y1 - 1,
-        y2 = y1 == height -1 ? y1 : y1 + 1,
-        x, y, i2
-    ;
+    var x0 = x1 === 0 ? x1 : x1 - 1,
+        x2 = x1 === width - 1 ? x1 : x1 + 1,
+        y0 = y1 === 0 ? y1 : y1 - 1,
+        y2 = y1 === height -1 ? y1 : y1 + 1,
+        x, y, i2;
     
     data[i1] = magnitude[i1];
     x = x0, y = y0;
@@ -3604,7 +3591,7 @@ function follow(data, width, height, magnitude, x1, y1, i1, threshold)
 function readLuminance(im, data) 
 {
     var i, di, r, g, b, size = im.length, 
-        LR = FILTER.LUMA[0], LG = FILTER.LUMA[1], LB = FILTER.LUMA[2];
+        LR = LUMA[0], LG = LUMA[1], LB = LUMA[2];
     for (i=0,di=0; i<size; i+=4,di++) 
     {
         r = im[i]; g = im[i+1]; b = im[i+2];
@@ -3755,63 +3742,17 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push
+    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
+    integral_image = FILTER.Util.Filter.SAT
 ;
 
-// compute grayscale image, integral image (SAT) and squares image (Viola-Jones) and RSAT (Lienhart)
-function integral_image(im, w, h, gray, integral, squares, tilted) 
-{
-    var imLen=im.length, sum, sum2, i, j, k, y, g;
-    
-    // first row
-    for(j=0,i=0,sum=sum2=0; j<w; j++,i+=4)
-    {
-        // use fixed-point gray-scale transform, close to openCV transform
-        // https://github.com/mtschirs/js-objectdetect/issues/3
-        g = (((4899 * im[i] + 9617 * im[i + 1] + 1868 * im[i + 2]) + 8192) >>> 14) & 255;
-        
-        sum += g;  
-        sum2 += g*g;
-        
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        gray[j] = g;
-        integral[j] = sum;
-        squares[j] = sum2;
-        tilted[j] = g;
-    }
-    // other rows
-    for(k=0,y=1,j=w,i=w<<2,sum=sum2=0; i<imLen; i+=4,k++,j++)
-    {
-        if (k>=w) { k=0; y++; sum=sum2=0; }
-        // use fixed-point gray-scale transform, close to openCV transform
-        // https://github.com/mtschirs/js-objectdetect/issues/3
-        g = (((4899 * im[i] + 9617 * im[i + 1] + 1868 * im[i + 2]) + 8192) >>> 14) & 255;
-        
-        sum += g;  
-        sum2 += g*g;
-        
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        gray[j] = g;
-        integral[j] = integral[j-w] + sum;
-        squares[j] = squares[j-w] + sum2;
-        tilted[j] = tilted[j+1-w] + (g + gray[j-w]) + ((y>1) ? tilted[j-w-w] : 0) + ((k>0) ? tilted[j-1-w] : 0);
-    }
-}
-
 // compute integral of gradient edges on gray-scale image to speed up detection if possible with Canny pruning
-function integral_gradient(w, h, gray, canny) 
+function integral_gradient(im, w, h, canny) 
 {
     var i, j, k, sum, grad_x, grad_y,
-        ind0, ind1, ind2, ind_1, ind_2, count=gray.length, 
-        lowpass = new Array8U(count)
+        ind0, ind1, ind2, ind_1, ind_2, count=canny.length, 
+        lowpass = new Array8U(count),
+        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2
     ;
     
     // first, second rows, last, second-to-last rows
@@ -3819,7 +3760,6 @@ function integral_gradient(w, h, gray, canny)
     {
         lowpass[i]=0; lowpass[i+w]=0;
         lowpass[i+count-w]=0; lowpass[i+count-w-w]=0;
-        
         canny[i]=0; canny[i+count-w]=0;
     }
     // first, second columns, last, second-to-last columns
@@ -3827,88 +3767,74 @@ function integral_gradient(w, h, gray, canny)
     {
         lowpass[0+k]=0; lowpass[1+k]=0;
         lowpass[w-1+k]=0; lowpass[w-2+k]=0;
-        
         canny[0+k]=0; canny[w-1+k]=0;
     }
     // gauss lowpass
-    for (i=2; i<w-2; i++)
+    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
     {
-        for (j=2,k=(w<<1); j<h-2; j++,k+=w) 
-        {
-            ind0 = i+k; ind1 = ind0+w; ind2 = ind1+w; 
-            ind_1 = ind0-w; ind_2 = ind_1-w; 
-            
-            // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-            // http://stackoverflow.com/questions/11703599/unsigned-32-bit-integers-in-javascript
-            // http://stackoverflow.com/questions/6232939/is-there-a-way-to-correctly-multiply-two-32-bit-integers-in-javascript/6422061#6422061
-            // http://stackoverflow.com/questions/6798111/bitwise-operations-on-32-bit-unsigned-ints
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#%3E%3E%3E_%28Zero-fill_right_shift%29
-            sum = (0
-                    + (gray[ind_2-2] << 1) + (gray[ind_1-2] << 2) + (gray[ind0-2] << 2) + (gray[ind0-2])
-                    + (gray[ind1-2] << 2) + (gray[ind2-2] << 1) + (gray[ind_2-1] << 2) + (gray[ind_1-1] << 3)
-                    + (gray[ind_1-1]) + (gray[ind0-1] << 4) - (gray[ind0-1] << 2) + (gray[ind1-1] << 3)
-                    + (gray[ind1-1]) + (gray[ind2-1] << 2) + (gray[ind_2] << 2) + (gray[ind_2]) + (gray[ind_1] << 4)
-                    - (gray[ind_1] << 2) + (gray[ind0] << 4) - (gray[ind0]) + (gray[ind1] << 4) - (gray[ind1] << 2)
-                    + (gray[ind2] << 2) + (gray[ind2]) + (gray[ind_2+1] << 2) + (gray[ind_1+1] << 3) + (gray[ind_1+1])
-                    + (gray[ind0+1] << 4) - (gray[ind0+1] << 2) + (gray[ind1+1] << 3) + (gray[ind1+1]) + (gray[ind2+1] << 2)
-                    + (gray[ind_2+2] << 1) + (gray[ind_1+2] << 2) + (gray[ind0+2] << 2) + (gray[ind0+2])
-                    + (gray[ind1+2] << 2) + (gray[ind2+2] << 1)
-                    );
-            
-            lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
-        }
+        if ( j >= h_2 ){ j=2; k=w2; i++; }
+        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
+        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
+        
+        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
+        // http://stackoverflow.com/questions/11703599/unsigned-32-bit-integers-in-javascript
+        // http://stackoverflow.com/questions/6232939/is-there-a-way-to-correctly-multiply-two-32-bit-integers-in-javascript/6422061#6422061
+        // http://stackoverflow.com/questions/6798111/bitwise-operations-on-32-bit-unsigned-ints
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#%3E%3E%3E_%28Zero-fill_right_shift%29
+        sum =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
+                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
+                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
+                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
+                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
+                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
+                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
+                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
+                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
+        
+        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
     }
     
     // sobel gradient
-    for (i=1; i<w-1 ; i++)
+    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
     {
-        for (j=1, k=w; j<h-1; j++, k+=w) 
-        {
-            // compute coords using simple add/subtract arithmetic (faster)
-            ind0=k+i; ind1=ind0+w; ind_1=ind0-w; 
-            
-            grad_x = ((0
-                    - lowpass[ind_1-1] 
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind0-1] - lowpass[ind0-1]
-                    + lowpass[ind0+1] + lowpass[ind0+1]
-                    - lowpass[ind1-1] 
-                    + lowpass[ind1+1]
-                    ))
-                ;
-            grad_y = ((0
-                    + lowpass[ind_1-1] 
-                    + lowpass[ind_1] + lowpass[ind_1]
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind1-1] 
-                    - lowpass[ind1] - lowpass[ind1]
-                    - lowpass[ind1+1]
-                    ))
-                ;
-            
-            canny[ind0] = Abs(grad_x) + Abs(grad_y);
-        }
+        if ( j >= h_1 ){ j=1; k=w; i++; }
+        // compute coords using simple add/subtract arithmetic (faster)
+        ind0=k+i; ind1=ind0+w; ind_1=ind0-w; 
+        
+        grad_x = ((0
+                - lowpass[ind_1-1] 
+                + lowpass[ind_1+1] 
+                - lowpass[ind0-1] - lowpass[ind0-1]
+                + lowpass[ind0+1] + lowpass[ind0+1]
+                - lowpass[ind1-1] 
+                + lowpass[ind1+1]
+                ));
+        grad_y = ((0
+                + lowpass[ind_1-1] 
+                + lowpass[ind_1] + lowpass[ind_1]
+                + lowpass[ind_1+1] 
+                - lowpass[ind1-1] 
+                - lowpass[ind1] - lowpass[ind1]
+                - lowpass[ind1+1]
+                ));
+        
+        canny[ind0] = Abs(grad_x) + Abs(grad_y);
     }
     
     // integral gradient
     // first row
-    for(i=0,sum=0; i<w; i++)
-    {
-        sum += canny[i];
-        canny[i] = sum;
-    }
+    for(i=0,sum=0; i<w; i++) { sum += canny[i]; canny[i] = sum; }
     // other rows
     for(i=w,k=0,sum=0; i<count; i++,k++)
     {
         if (k>=w) { k=0; sum=0; }
-        sum += canny[i];
-        canny[i] = canny[i-w] + sum;
+        sum += canny[i]; canny[i] = canny[i-w] + sum;
     }
 }
 
-function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, integral, tilted, squares, canny, cL, cH)
+function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
 {
-    var doCanny = null != canny,
+    var doCannyEdges = null != EDGES,
         selw = sel_x2-sel_x1+1, selh = sel_y2-sel_y1+1,
         imSize = selw*selh, imArea1 = imSize-1,
         haar_stages = haar.stages, sl = haar_stages.length,
@@ -3955,19 +3881,19 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                 p2 = p2<0 ? 0 : (p2>imArea1 ? imArea1 : p2);
                 p3 = p3<0 ? 0 : (p3>imArea1 ? imArea1 : p3);
                 
-                if (doCanny) 
+                if (doCannyEdges) 
                 {
                     // avoid overflow
-                    edges_density = inv_area * (canny[p3] - canny[p2] - canny[p1] + canny[p0]);
+                    edges_density = inv_area * (EDGES[p3] - EDGES[p2] - EDGES[p1] + EDGES[p0]);
                     if (edges_density < cL || edges_density > cH) continue;
                 }
                 
                 // pre-compute some values for speed
                 
                 // avoid overflow
-                total_x = inv_area * (integral[p3] - integral[p2] - integral[p1] + integral[p0]);
+                total_x = inv_area * (SAT[p3] - SAT[p2] - SAT[p1] + SAT[p0]);
                 // avoid overflow
-                total_x2 = inv_area * (squares[p3] - squares[p2] - squares[p1] + squares[p0]);
+                total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
                 
                 vnorm = total_x2 - total_x * total_x;
                 vnorm = 1 < vnorm ? Sqrt(vnorm) : /*vnorm*/  1 ;  
@@ -4029,7 +3955,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     
                                     // RSAT(x-h+w, y+w+h-1) + RSAT(x, y-1) - RSAT(x-h, y+h-1) - RSAT(x+w, y+w-1)
                                     //        x4     y4            x1  y1          x3   y3            x2   y2
-                                    rect_sum += r[4] * (tilted[x4 + y4] - tilted[x3 + y3] - tilted[x2 + y2] + tilted[x1 + y1]);
+                                    rect_sum += r[4] * (RSAT[x4 + y4] - RSAT[x3 + y3] - RSAT[x2 + y2] + RSAT[x1 + y1]);
                                 }
                             }
                             else
@@ -4053,7 +3979,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     
                                     // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
                                     //      x1   y1         x2      y2          x1   y1            x2    y1
-                                    rect_sum += r[4] * (integral[x2 + y2]  - integral[x1 + y2] - integral[x2 + y1] + integral[x1 + y1]);
+                                    rect_sum += r[4] * (SAT[x2 + y2]  - SAT[x1 + y2] - SAT[x2 + y1] + SAT[x1 + y1]);
                                 }
                             }
                             
@@ -4307,6 +4233,7 @@ FILTER.Create({
         var json = {
             filter: self.name
             ,_isOn: !!self._isOn
+            ,_update: self._update
             
             ,params: {
                  //haardata: null
@@ -4334,7 +4261,8 @@ FILTER.Create({
         var self = this, params;
         if ( json && self.name === json.filter )
         {
-            self._isOn = !!json._isOn;
+            self._isOn = json._isOn;
+            self._update = json._update;
             
             params = json.params;
             
@@ -4363,14 +4291,13 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h, image, scratchpad) {
         var self = this;
         if ( !self._isOn || !self.haardata ) return im;
         
         var imSize = im.length>>>2,
             selection = self.selection || null,
-            gray=null, integral=null, squares=null,
-            tilted=null, canny=null, 
+            SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features;
         
         if ( selection )
@@ -4387,16 +4314,34 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
         
-        // pre-compute grayscale, integral image, tilted and squares image
-        integral_image(im, w, h,
-        gray=new Array8U(imSize), integral=new Array32F(imSize), squares=new Array32F(imSize), tilted=new Array32F(imSize));
+        if ( scratchpad && scratchpad.SAT )
+        {
+            SAT = scratchpad.SAT; SAT2 = scratchpad.SAT2; RSAT = scratchpad.RSAT;
+        }
+        else
+        {
+            // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
+            integral_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
+            if ( scratchpad ) { scratchpad.SAT = SAT; scratchpad.SAT2 = SAT2; scratchpad.RSAT = RSAT; }
+        }
         
         // pre-compute integral gradient edges if needed
-        if ( self.doCannyPruning ) integral_gradient(w, h, gray, canny=new Array32F(imSize));
+        if ( self.doCannyPruning )
+        {
+            if ( scratchpad && scratchpad.EDGES )
+            {
+                EDGES = scratchpad.EDGES;
+            }
+            else
+            {
+                integral_gradient(im, w, h, EDGES=new Array32F(imSize));
+                if ( scratchpad ) { scratchpad.EDGES = EDGES; }
+            }
+        }
         
         // synchronous detection loop
         features = new Array(MAX_FEATURES); features.count = 0;
-        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, integral, tilted, squares, canny, self.cannyLow, self.cannyHigh);
+        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, EDGES, self.cannyLow, self.cannyHigh);
         // truncate if needed
         if ( features.length > features.count ) features.length = features.count;
         

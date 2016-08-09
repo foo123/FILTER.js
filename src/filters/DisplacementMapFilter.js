@@ -21,8 +21,9 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
 var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.Filter, {
     name: "DisplacementMapFilter"
     
-    ,constructor: function( displacemap ) {
+    ,constructor: function DisplacementMapFilter( displacemap ) {
         var self = this;
+        if ( !(self instanceof DisplacementMapFilter) ) return new DisplacementMapFilter(displacemap);
         self.$super('constructor');
         if ( displacemap ) self.setMap( displacemap );
     }
@@ -38,10 +39,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,componentX: 0
     ,componentY: 0
     ,color: 0
-    ,red: 0
-    ,green: 0
-    ,blue: 0
-    ,alpha: 0
     ,mode: MODE.CLAMP
     
     ,dispose: function( ) {
@@ -58,11 +55,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         self.componentX = null;
         self.componentY = null;
         self.color = null;
-        self.red = null;
-        self.green = null;
-        self.blue = null;
-        self.alpha = null;
-        self.mode = null;
         
         return self;
     }
@@ -82,10 +74,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
                 ,componentX: self.componentX
                 ,componentY: self.componentY
                 ,color: self.color
-                ,red: self.red
-                ,green: self.green
-                ,blue: self.blue
-                ,alpha: self.alpha
                 ,mode: self.mode
             }
         };
@@ -109,10 +97,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             self.componentX = params.componentX;
             self.componentY = params.componentY;
             self.color = params.color;
-            self.red = params.red;
-            self.green = params.green;
-            self.blue = params.blue;
-            self.alpha = params.alpha;
             self.mode = params.mode;
         }
         return self;
@@ -139,16 +123,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         return self;
     }
     
-    ,setColor: function( c ) {
-        var self = this;
-        self.color = c;
-        self.alpha = (c >> 24) & 255; 
-        self.red = (c >> 16) & 255; 
-        self.green = (c >> 8) & 255; 
-        self.blue = c & 255;
-        return self;
-    }
-    
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
         var self = this, Map = self.map;
@@ -158,90 +132,183 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         
         var _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
             map, mapW, mapH, mapArea, displace, ww, hh,
-            sx = self.scaleX*0.00390625, sy = self.scaleY*0.00390625, 
-            comx = self.componentX, comy = self.componentY, 
-            alpha = self.alpha, red = self.red, 
-            green = self.green, blue = self.blue, mode = self.mode,
-            sty, stx, styw, bx0, by0, bx, by,
+            color = self.color||0, alpha, red, green, blue,
+            sty, stx, styw, bx0, by0, bx, by, bxx = w-1, byy = h-1, rem,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
-            applyArea, imArea, imLen, imcopy, srcx, srcy,
-            _Ignore = MODE.IGNORE, _Clamp = MODE.CLAMP, _Color = MODE.COLOR, _Wrap = MODE.WRAP
+            SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
+            applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
+            IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
+            mode = self.mode||CLAMP
         ;
         
         map = _map.data;
         mapW = _map.width; mapH = _map.height; 
-        mapArea = (map.length>>2); ww = Min(mapW, w); hh = Min(mapH, h);
-        imLen = im.length; applyArea = (ww*hh)<<2; imArea = (imLen>>2);
+        mapLen = map.length; mapArea = mapLen>>>2;
+        ww = Min(mapW, w); hh = Min(mapH, h);
+        imLen = im.length; applyArea = (ww*hh)<<2; imArea = imLen>>>2;
         
         // make start relative
-        stx = Floor(self.startX*(w-1));
-        sty = Floor(self.startY*(h-1));
+        //bxx = w-1; byy = h-1;
+        stx = Floor(self.startX*bxx);
+        sty = Floor(self.startY*byy);
         styw = sty*w;
-        bx0 = -stx; by0 = -sty; bx = w-stx-1; by = h-sty-1;
+        bx0 = -stx; by0 = -sty;
+        bx = bxx-stx; by = byy-sty;
         
         displace = new A16I(mapArea<<1);
-        imcopy = new IMGcopy(im);
+        imcpy = new IMGcopy(im);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main application loop (faster)
         // this is faster if mapArea <= imArea, else a reverse algorithm may be needed (todo)
-        j=0; x=0; y=0; ty=0;
-        for (i=0; i<mapArea; i++, j+=2, x++)
+        rem = (mapArea&15)<<2;
+        for (j=0,i=0; i<mapLen; i+=64)
         { 
-            if (x>=mapW) { x=0; y++; ty+=mapW; }
-            mapOff = (x + ty)<<2;
-            displace[j] = Floor( ( map[mapOff+comx] - 128 ) * sx ); 
-            displace[j+1] = Floor( ( map[mapOff+comy] - 128 ) * sy );
-        } 
+            displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+4 +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+4 +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+8 +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+8 +Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+12+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+12+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+16+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+16+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+20+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+20+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+24+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+24+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+28+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+28+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+32+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+32+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+36+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+36+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+40+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+40+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+44+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+44+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+48+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+48+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+52+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+52+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+56+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+56+Y] - 128 ) * SY );
+            displace[j++] = Floor( ( map[i+60+X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i+60+Y] - 128 ) * SY );
+        }
+        if ( rem )
+        {
+            for (i=mapLen-rem; i<mapLen; i+=4)
+            { 
+                displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+                displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+            }
+        }
         
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
-        x=0; y=0; ty=0; ty2=0;
-        for (i=0; i<applyArea; i+=4, x++)
+        if ( COLOR === mode )
         {
-            // update image coordinates
-            if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
-            
-            // if inside the application area
-            if (y<by0 || y>by || x<bx0 || x>bx) continue;
-            
-            xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
-            
-            j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
-            
-            if (srcy>=h || srcy<0 || srcx>=w || srcx<0)
+            alpha = (color >>> 24) & 255; 
+            red = (color >>> 16) & 255; 
+            green = (color >>> 8) & 255; 
+            blue = color & 255;
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
             {
-                if (mode == _Ignore) 
-                {
-                    continue;
-                }
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
                 
-                else if (mode == _Color)
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // color
+                if (srcy>byy || srcy<0 || srcx>bxx || srcx<0)
                 {
                     im[dstOff] = red;  im[dstOff+1] = green;
                     im[dstOff+2] = blue;  im[dstOff+3] = alpha;
                     continue;
                 }
-                    
-                else if (mode == _Wrap)
-                {
-                    if (srcy>by) srcy-=h;
-                    else if (srcy<0) srcy+=h;
-                    if (srcx>bx) srcx-=w;
-                    else if (srcx<0)  srcx+=w;
-                }
-                    
-                else
-                {
-                    if (srcy>by)  srcy=by;
-                    else if (srcy<0) srcy=0;
-                    if (srcx>bx) srcx=bx;
-                    else if (srcx<0) srcx=0;
-                }
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
             }
-            srcOff = (srcx + srcy*w)<<2;
-            // new pixel values
-            im[dstOff] = imcopy[srcOff];   im[dstOff+1] = imcopy[srcOff+1];
-            im[dstOff+2] = imcopy[srcOff+2];  im[dstOff+3] = imcopy[srcOff+3];
+        }
+        else if ( IGNORE === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // ignore
+                if (srcy>byy || srcy<0 || srcx>bxx || srcx<0) continue;
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
+        }
+        else if ( WRAP === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // wrap
+                srcy = srcy>byy ? srcy-h : (srcy<0 ? srcy+h : srcy);
+                srcx = srcx>bxx ? srcx-w : (srcx<0 ? srcx+w : srcx);
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
+        }
+        else //if ( CLAMP === mode )
+        {
+            for (x=0,y=0,ty=0,ty2=0,i=0; i<applyArea; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=ww) { x=0; y++; ty+=w; ty2+=mapW; }
+                
+                // if inside the application area
+                if (y<by0 || y>by || x<bx0 || x>bx) continue;
+                
+                xx = x + stx; yy = y + sty; dstOff = (xx + ty + styw)<<2;  
+                
+                j = (x + ty2)<<1; srcx = xx + displace[j];  srcy = yy + displace[j+1];
+                
+                // clamp
+                srcy = srcy>byy ? byy : (srcy<0 ? 0 : srcy);
+                srcx = srcx>bxx ? bxx : (srcx<0 ? 0 : srcx);
+                
+                srcOff = (srcx + srcy*w)<<2;
+                // new pixel values
+                im[dstOff] = imcpy[srcOff];   im[dstOff+1] = imcpy[srcOff+1];
+                im[dstOff+2] = imcpy[srcOff+2];  im[dstOff+3] = imcpy[srcOff+3];
+            }
         }
         return im;
     }

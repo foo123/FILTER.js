@@ -11,63 +11,17 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push
+    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
+    integral_image = FILTER.Util.Filter.SAT
 ;
 
-// compute grayscale image, integral image (SAT) and squares image (Viola-Jones) and RSAT (Lienhart)
-function integral_image(im, w, h, gray, integral, squares, tilted) 
-{
-    var imLen=im.length, sum, sum2, i, j, k, y, g;
-    
-    // first row
-    for(j=0,i=0,sum=sum2=0; j<w; j++,i+=4)
-    {
-        // use fixed-point gray-scale transform, close to openCV transform
-        // https://github.com/mtschirs/js-objectdetect/issues/3
-        g = (((4899 * im[i] + 9617 * im[i + 1] + 1868 * im[i + 2]) + 8192) >>> 14) & 255;
-        
-        sum += g;  
-        sum2 += g*g;
-        
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        gray[j] = g;
-        integral[j] = sum;
-        squares[j] = sum2;
-        tilted[j] = g;
-    }
-    // other rows
-    for(k=0,y=1,j=w,i=w<<2,sum=sum2=0; i<imLen; i+=4,k++,j++)
-    {
-        if (k>=w) { k=0; y++; sum=sum2=0; }
-        // use fixed-point gray-scale transform, close to openCV transform
-        // https://github.com/mtschirs/js-objectdetect/issues/3
-        g = (((4899 * im[i] + 9617 * im[i + 1] + 1868 * im[i + 2]) + 8192) >>> 14) & 255;
-        
-        sum += g;  
-        sum2 += g*g;
-        
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        gray[j] = g;
-        integral[j] = integral[j-w] + sum;
-        squares[j] = squares[j-w] + sum2;
-        tilted[j] = tilted[j+1-w] + (g + gray[j-w]) + ((y>1) ? tilted[j-w-w] : 0) + ((k>0) ? tilted[j-1-w] : 0);
-    }
-}
-
 // compute integral of gradient edges on gray-scale image to speed up detection if possible with Canny pruning
-function integral_gradient(w, h, gray, canny) 
+function integral_gradient(im, w, h, canny) 
 {
     var i, j, k, sum, grad_x, grad_y,
-        ind0, ind1, ind2, ind_1, ind_2, count=gray.length, 
-        lowpass = new Array8U(count)
+        ind0, ind1, ind2, ind_1, ind_2, count=canny.length, 
+        lowpass = new Array8U(count),
+        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2
     ;
     
     // first, second rows, last, second-to-last rows
@@ -75,7 +29,6 @@ function integral_gradient(w, h, gray, canny)
     {
         lowpass[i]=0; lowpass[i+w]=0;
         lowpass[i+count-w]=0; lowpass[i+count-w-w]=0;
-        
         canny[i]=0; canny[i+count-w]=0;
     }
     // first, second columns, last, second-to-last columns
@@ -83,88 +36,74 @@ function integral_gradient(w, h, gray, canny)
     {
         lowpass[0+k]=0; lowpass[1+k]=0;
         lowpass[w-1+k]=0; lowpass[w-2+k]=0;
-        
         canny[0+k]=0; canny[w-1+k]=0;
     }
     // gauss lowpass
-    for (i=2; i<w-2; i++)
+    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
     {
-        for (j=2,k=(w<<1); j<h-2; j++,k+=w) 
-        {
-            ind0 = i+k; ind1 = ind0+w; ind2 = ind1+w; 
-            ind_1 = ind0-w; ind_2 = ind_1-w; 
-            
-            // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-            // http://stackoverflow.com/questions/11703599/unsigned-32-bit-integers-in-javascript
-            // http://stackoverflow.com/questions/6232939/is-there-a-way-to-correctly-multiply-two-32-bit-integers-in-javascript/6422061#6422061
-            // http://stackoverflow.com/questions/6798111/bitwise-operations-on-32-bit-unsigned-ints
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#%3E%3E%3E_%28Zero-fill_right_shift%29
-            sum = (0
-                    + (gray[ind_2-2] << 1) + (gray[ind_1-2] << 2) + (gray[ind0-2] << 2) + (gray[ind0-2])
-                    + (gray[ind1-2] << 2) + (gray[ind2-2] << 1) + (gray[ind_2-1] << 2) + (gray[ind_1-1] << 3)
-                    + (gray[ind_1-1]) + (gray[ind0-1] << 4) - (gray[ind0-1] << 2) + (gray[ind1-1] << 3)
-                    + (gray[ind1-1]) + (gray[ind2-1] << 2) + (gray[ind_2] << 2) + (gray[ind_2]) + (gray[ind_1] << 4)
-                    - (gray[ind_1] << 2) + (gray[ind0] << 4) - (gray[ind0]) + (gray[ind1] << 4) - (gray[ind1] << 2)
-                    + (gray[ind2] << 2) + (gray[ind2]) + (gray[ind_2+1] << 2) + (gray[ind_1+1] << 3) + (gray[ind_1+1])
-                    + (gray[ind0+1] << 4) - (gray[ind0+1] << 2) + (gray[ind1+1] << 3) + (gray[ind1+1]) + (gray[ind2+1] << 2)
-                    + (gray[ind_2+2] << 1) + (gray[ind_1+2] << 2) + (gray[ind0+2] << 2) + (gray[ind0+2])
-                    + (gray[ind1+2] << 2) + (gray[ind2+2] << 1)
-                    );
-            
-            lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
-        }
+        if ( j >= h_2 ){ j=2; k=w2; i++; }
+        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
+        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
+        
+        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
+        // http://stackoverflow.com/questions/11703599/unsigned-32-bit-integers-in-javascript
+        // http://stackoverflow.com/questions/6232939/is-there-a-way-to-correctly-multiply-two-32-bit-integers-in-javascript/6422061#6422061
+        // http://stackoverflow.com/questions/6798111/bitwise-operations-on-32-bit-unsigned-ints
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#%3E%3E%3E_%28Zero-fill_right_shift%29
+        sum =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
+                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
+                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
+                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
+                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
+                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
+                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
+                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
+                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
+        
+        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
     }
     
     // sobel gradient
-    for (i=1; i<w-1 ; i++)
+    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
     {
-        for (j=1, k=w; j<h-1; j++, k+=w) 
-        {
-            // compute coords using simple add/subtract arithmetic (faster)
-            ind0=k+i; ind1=ind0+w; ind_1=ind0-w; 
-            
-            grad_x = ((0
-                    - lowpass[ind_1-1] 
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind0-1] - lowpass[ind0-1]
-                    + lowpass[ind0+1] + lowpass[ind0+1]
-                    - lowpass[ind1-1] 
-                    + lowpass[ind1+1]
-                    ))
-                ;
-            grad_y = ((0
-                    + lowpass[ind_1-1] 
-                    + lowpass[ind_1] + lowpass[ind_1]
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind1-1] 
-                    - lowpass[ind1] - lowpass[ind1]
-                    - lowpass[ind1+1]
-                    ))
-                ;
-            
-            canny[ind0] = Abs(grad_x) + Abs(grad_y);
-        }
+        if ( j >= h_1 ){ j=1; k=w; i++; }
+        // compute coords using simple add/subtract arithmetic (faster)
+        ind0=k+i; ind1=ind0+w; ind_1=ind0-w; 
+        
+        grad_x = ((0
+                - lowpass[ind_1-1] 
+                + lowpass[ind_1+1] 
+                - lowpass[ind0-1] - lowpass[ind0-1]
+                + lowpass[ind0+1] + lowpass[ind0+1]
+                - lowpass[ind1-1] 
+                + lowpass[ind1+1]
+                ));
+        grad_y = ((0
+                + lowpass[ind_1-1] 
+                + lowpass[ind_1] + lowpass[ind_1]
+                + lowpass[ind_1+1] 
+                - lowpass[ind1-1] 
+                - lowpass[ind1] - lowpass[ind1]
+                - lowpass[ind1+1]
+                ));
+        
+        canny[ind0] = Abs(grad_x) + Abs(grad_y);
     }
     
     // integral gradient
     // first row
-    for(i=0,sum=0; i<w; i++)
-    {
-        sum += canny[i];
-        canny[i] = sum;
-    }
+    for(i=0,sum=0; i<w; i++) { sum += canny[i]; canny[i] = sum; }
     // other rows
     for(i=w,k=0,sum=0; i<count; i++,k++)
     {
         if (k>=w) { k=0; sum=0; }
-        sum += canny[i];
-        canny[i] = canny[i-w] + sum;
+        sum += canny[i]; canny[i] = canny[i-w] + sum;
     }
 }
 
-function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, integral, tilted, squares, canny, cL, cH)
+function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
 {
-    var doCanny = null != canny,
+    var doCannyEdges = null != EDGES,
         selw = sel_x2-sel_x1+1, selh = sel_y2-sel_y1+1,
         imSize = selw*selh, imArea1 = imSize-1,
         haar_stages = haar.stages, sl = haar_stages.length,
@@ -211,19 +150,19 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                 p2 = p2<0 ? 0 : (p2>imArea1 ? imArea1 : p2);
                 p3 = p3<0 ? 0 : (p3>imArea1 ? imArea1 : p3);
                 
-                if (doCanny) 
+                if (doCannyEdges) 
                 {
                     // avoid overflow
-                    edges_density = inv_area * (canny[p3] - canny[p2] - canny[p1] + canny[p0]);
+                    edges_density = inv_area * (EDGES[p3] - EDGES[p2] - EDGES[p1] + EDGES[p0]);
                     if (edges_density < cL || edges_density > cH) continue;
                 }
                 
                 // pre-compute some values for speed
                 
                 // avoid overflow
-                total_x = inv_area * (integral[p3] - integral[p2] - integral[p1] + integral[p0]);
+                total_x = inv_area * (SAT[p3] - SAT[p2] - SAT[p1] + SAT[p0]);
                 // avoid overflow
-                total_x2 = inv_area * (squares[p3] - squares[p2] - squares[p1] + squares[p0]);
+                total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
                 
                 vnorm = total_x2 - total_x * total_x;
                 vnorm = 1 < vnorm ? Sqrt(vnorm) : /*vnorm*/  1 ;  
@@ -285,7 +224,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     
                                     // RSAT(x-h+w, y+w+h-1) + RSAT(x, y-1) - RSAT(x-h, y+h-1) - RSAT(x+w, y+w-1)
                                     //        x4     y4            x1  y1          x3   y3            x2   y2
-                                    rect_sum += r[4] * (tilted[x4 + y4] - tilted[x3 + y3] - tilted[x2 + y2] + tilted[x1 + y1]);
+                                    rect_sum += r[4] * (RSAT[x4 + y4] - RSAT[x3 + y3] - RSAT[x2 + y2] + RSAT[x1 + y1]);
                                 }
                             }
                             else
@@ -309,7 +248,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     
                                     // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
                                     //      x1   y1         x2      y2          x1   y1            x2    y1
-                                    rect_sum += r[4] * (integral[x2 + y2]  - integral[x1 + y2] - integral[x2 + y1] + integral[x1 + y1]);
+                                    rect_sum += r[4] * (SAT[x2 + y2]  - SAT[x1 + y2] - SAT[x2 + y1] + SAT[x1 + y1]);
                                 }
                             }
                             
@@ -563,6 +502,7 @@ FILTER.Create({
         var json = {
             filter: self.name
             ,_isOn: !!self._isOn
+            ,_update: self._update
             
             ,params: {
                  //haardata: null
@@ -590,7 +530,8 @@ FILTER.Create({
         var self = this, params;
         if ( json && self.name === json.filter )
         {
-            self._isOn = !!json._isOn;
+            self._isOn = json._isOn;
+            self._update = json._update;
             
             params = json.params;
             
@@ -619,14 +560,13 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h, image, scratchpad) {
         var self = this;
         if ( !self._isOn || !self.haardata ) return im;
         
         var imSize = im.length>>>2,
             selection = self.selection || null,
-            gray=null, integral=null, squares=null,
-            tilted=null, canny=null, 
+            SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features;
         
         if ( selection )
@@ -643,16 +583,34 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
         
-        // pre-compute grayscale, integral image, tilted and squares image
-        integral_image(im, w, h,
-        gray=new Array8U(imSize), integral=new Array32F(imSize), squares=new Array32F(imSize), tilted=new Array32F(imSize));
+        if ( scratchpad && scratchpad.SAT )
+        {
+            SAT = scratchpad.SAT; SAT2 = scratchpad.SAT2; RSAT = scratchpad.RSAT;
+        }
+        else
+        {
+            // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
+            integral_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
+            if ( scratchpad ) { scratchpad.SAT = SAT; scratchpad.SAT2 = SAT2; scratchpad.RSAT = RSAT; }
+        }
         
         // pre-compute integral gradient edges if needed
-        if ( self.doCannyPruning ) integral_gradient(w, h, gray, canny=new Array32F(imSize));
+        if ( self.doCannyPruning )
+        {
+            if ( scratchpad && scratchpad.EDGES )
+            {
+                EDGES = scratchpad.EDGES;
+            }
+            else
+            {
+                integral_gradient(im, w, h, EDGES=new Array32F(imSize));
+                if ( scratchpad ) { scratchpad.EDGES = EDGES; }
+            }
+        }
         
         // synchronous detection loop
         features = new Array(MAX_FEATURES); features.count = 0;
-        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, integral, tilted, squares, canny, self.cannyLow, self.cannyHigh);
+        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, EDGES, self.cannyLow, self.cannyHigh);
         // truncate if needed
         if ( features.length > features.count ) features.length = features.count;
         

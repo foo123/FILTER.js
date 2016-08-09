@@ -19,8 +19,10 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Abstract Filter](#generic-abstract-filter)
 * [Color Table Filter](#color-table-filter) 
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
-* [Displacement Map Filter](#displacement-map-filter) (analogous to ActionScript filter)
+* [Color Map Filter](#color-map-filter)
+* [Affine Matrix Filter](#affine-matrix-filter)
 * [Geometric Map Filter](#geometric-map-filter)
+* [Displacement Map Filter](#displacement-map-filter) (analogous to ActionScript filter)
 * [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
 * [Morphological Filter](#morphological-filter)
 * [Statistical Filter](#statistical-filter)  (previously called `NonLinearFilter`)
@@ -105,6 +107,9 @@ Use the `FILTER.IO.HTMLImageLoader` instead. In order to use the `FILTER.IO.Bina
 
 Each filter (and plugin) is an extension of the generic abstract filter, which provides some common methods.
 
+**Note:** Built-in and plugin filters implement the `constructor-factory` pattern meaning one can instantiate them without the explicit `new Filter()` operator.
+
+
 __Properties:__
 
 * `name`   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
@@ -131,7 +136,7 @@ new FILTER.ColorTableFilter(colorTable:ImageArray [, colorTableG:ImageArray, col
 
 The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
 
-The filter scans an image and changes the coloring of each pixel according to the color map table
+The filter scans an image and maps each pixel color according to the color table map per color
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -150,13 +155,15 @@ The class has various pre-defined filters which can be combined in any order.
 
 These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
 
-Color Table Filters can be combined very easily since they operate only **on a single color of a single pixel** at a time
+Color Table Filters can be combined very easily since they operate only **on mapping a single pixel color** at a time.
 
 In order to use both an invert and a posterize filter use the following chaining:
 
 ````javascript
 
 var invertPosterize = new FILTER.ColorTableFilter( ).invert( ).posterize( 4 );
+// this also works
+var invertPosterize = FILTER.ColorTableFilter( ).invert( ).posterize( 4 );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 invertPosterize.worker( );
@@ -190,7 +197,7 @@ This filter is analogous to the ActionScript filter of same name.
 The (optional) weights parameter is an array of 20 numbers which define the multipliers and bias terms
 for the RGBA components of each pixel in an image.
 
-The filter scans an image and changes the coloring of each pixel by mixing the RGBA channels of the pixel according to the matrix.
+The filter scans an image and maps each pixel colors linearly according to the color matrix.
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -216,13 +223,15 @@ The class has various pre-defined filters which can be combined in any order.
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
-Color Matrix Filters can be combined very easily since they operate only **on mixing the colors of a single pixel** at a time
+Color Matrix Filters can be combined very easily since they operate only **on mapping single pixel colors linearly**.
 
 In order to use both a grayscale and a contrast filter use the following chaining:
 
 ````javascript
 
 var grc = new FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
+// this also works
+var grc = FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 grc.worker( );
@@ -246,6 +255,153 @@ image.apply( grc );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
+###Color Map Filter
+
+````javascript
+new FILTER.ColorMapFilter( map:Function );
+````
+
+The filter scans an image and maps each pixel colors non-linearly according to the color mapping function.
+
+The class has various pre-defined filters which can be combined in any order.
+
+* `threshold/quantize(thresholds, quantizedcolors)`  applies a full 32-bit threshods to the image with quantized colors
+* `extract/mask(min, max, background)`  applies a color mask to (i.e extracts range of colors from) image
+* `RGB2HSV()`  transforms RGB to HSV color space
+* `HSV2RGB()`  transforms HSV to RGB color space
+* `RGB2CMYK()`  transforms RGB to CMY(K) color space
+* `hue()`  transforms to grayscale based on hue
+* `saturation()`  transforms to grayscale based on saturation
+
+These filters are pre-computed, however any custom filter can be created by setting the color mapping function manually (in the constructor).
+
+Color Map Filters cannot be combined very easily since they operate **on mapping single pixel colors non-linearly**.
+
+To apply the filter to an image do:
+
+````javascript
+
+var hsv = new FILTER.ColorMapFilter( ).RGB2HSV( );
+// this also works
+var hsv = FILTER.ColorMapFilter( ).RGB2HSV( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+hsv.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+hsv.worker( false );
+// this is same even if filter uses a parallel worker filter
+hsv.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( hsv );   // image is a FILTER.Image instance, see examples
+
+````
+
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
+
+
+###Affine Matrix Filter
+
+````javascript
+new FILTER.AffinematrixFilter( transformMatrix:Array );
+````
+
+The filter scans an image and maps each pixel position linearly according to the affine transformation matrix.
+
+The optional transformMatrix parameter is an array of numbers that defines the linear geometric mapping of pixels (see examples)
+
+The class has some pre-defined filters to use.
+
+* `flipX( )`  Flip the target image wrt to `X` axis
+* `flipY( )`  Flip the target image wrt to `Y` axis
+* `flipXY( )`  Flip the target image wrt to both `X` and `Y` axis
+* `translate( dx, dy, relative )`  Translate target image by `dx`, `dy` (relative) offsets
+* `rotate( theta )`  Rotate target image by `theta` radians
+* `scale( sx, sy )`  Scale target image by `sx, sy` amount
+* `skew( thetax, thetay )`  Skew target image by `thetax, thetay` amounts in each direction
+
+Affine Matrix Filters can be combined very easily since they operate **on mapping single pixels positions linearly**.
+
+In order to use an affine matrix filter do the following:
+
+````javascript
+
+var flipX = new FILTER.AffineMatrixFilter( ).flipX( );
+// this also works
+var flipX = FILTER.AffineMatrixFilter( ).flipX( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+flipX.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+flipX.worker( false );
+
+````
+
+To apply the filter to an image do:
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+flipX.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( flipX );   // image is a FILTER.Image instance, see examples
+
+````
+
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
+
+
+###Geometric Map Filter
+
+````javascript
+new FILTER.GeometricMapFilter( inverseGeometricMap:Function );
+````
+
+The filter scans an image and maps each pixel position non-linearly according to the geometric transformation map function.
+
+The optional geometricMap parameter is a function that implements a geometric mapping of pixels (see examples)
+
+The class has some pre-defined filters to use.
+
+* `generic( )` Apply a a user-defined generic geometric mapping to the image
+* `twirl( )`  Apply a twirling map
+* `sphere( )`  Apply a spherical map
+* `polar( )`  Transform image to polar coords (TODO)
+* `cartesian( )`  Inverse of polar (TODO)
+
+Geometric Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
+
+In order to use a geometric filter do the following:
+
+````javascript
+
+var twirl = new FILTER.GeometricMapFilter( ).twirl( );
+// this also works
+var twirl = FILTER.GeometricMapFilter( ).twirl( );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+twirl.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+twirl.worker( false );
+
+````
+
+To apply the filter to an image do:
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+twirl.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( twirl );   // image is a FILTER.Image instance, see examples
+
+````
+
+NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
+
+
 ###Displacement Map Filter
 
 ````javascript
@@ -255,24 +411,26 @@ new FILTER.DisplacementMapFilter( displaceMap:Image );
 This filter is analogous to the ActionScript filter of same name. 
 The displaceMap parameter is a (FILTER.Image instance) image that acts as the displacement Map. 
 
-The filter scans an image and changes the current pixel by displacing it according to the coloring of the displacement map image
+The filter scans an image and maps each pixel position non-linearly according to the (coloring of the) displacement map image.
 
 
-Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels non-linearly**. Use a composite filter (see below)
+Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
 In order to use an displace filter do the following:
 
 ````javascript
 
 var dF = new FILTER.DisplacementMapFilter( displaceMap );
+// this also works
+var dF = FILTER.DisplacementMapFilter( displaceMap );
 
 // set any filter parameters if needed
-dF.scaleX=100;  // amount of scaling in the x-direction
-dF.scaleY=100;  // amount of scaling in the y-direction
-df.startX=0; // x coordinate of filter application point
-df.startY=0; // y coordinate of filter application point
-df.componentX=FILTER.CHANNEL.GREEN; // use the map green channel for the x displacement
-dF.mode=FILTER.MODE.WRAP; // any values outside image should be wrapped around
+dF.scaleX = 100;  // amount of scaling in the x-direction
+dF.scaleY = 100;  // amount of scaling in the y-direction
+df.startX = 0; // x coordinate of filter application point
+df.startY = 0; // y coordinate of filter application point
+df.componentX = FILTER.CHANNEL.GREEN; // use the map green channel for the x displacement
+dF.mode = FILTER.MODE.WRAP; // any values outside image should be wrapped around
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 dF.worker( );
@@ -290,61 +448,6 @@ To apply the filter to an image do:
 dF.apply( image );   // image is a FILTER.Image instance, see examples
 // this will also work:
 image.apply( dF );   // image is a FILTER.Image instance, see examples
-
-````
-
-NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
-
-
-###Geometric Map Filter
-
-````javascript
-new FILTER.GeometricMapFilter( inverseGeometricMap:Function );
-````
-
-The filter scans an image and changes the current pixel by distorting it according to the geometric map function
-The optional geometricMap parameter is a function that implements a geometric mapping of pixels (see examples)
-
-The class has some pre-defined filters to use.
-
-* `flipX( )`  Flip the target image wrt to `X` axis
-* `flipY( )`  Flip the target image wrt to `Y` axis
-* `flipXY( )`  Flip the target image wrt to both `X` and `Y` axis
-* `rotateCW( )`  Rotate target image clockwise `90` degrees
-* `rotateCCW( )`  Rotate target image counter-clockwise `90` degrees
-* `generic( )` Apply a a user-defined generic geometric mapping to the image
-* `affine( )` Apply an affine transformation (using an affine transform matrix) to the target image
-* `twirl( )`  Apply a twirling map
-* `sphere( )`  Apply a spherical map
-* `ripple( )`  Apply a wave ripple map
-* `shift( )/translate( )`  Apply (circular) translation / shifting of target image by specified `dx` / `dy` offsets
-* `polar( )`  Transform image to polar coords (TODO)
-* `cartesian( )`  Inverse of polar (TODO)
-
-Geometric Map  Filters cannot be combined very easily since they operate **on mapping single pixels non-linearly**. Use a composite filter (see below)
-
-In order to use a geometric filter do the following:
-
-````javascript
-
-var gF = new FILTER.GeometricMapFilter( ).flipX( );
-
-// if you want to make this filter work in another thread in parallel through a worker, do:
-gF.worker( );
-
-// if you want to stop and dispose the worker for this filter, do:
-gF.worker( false );
-
-````
-
-To apply the filter to an image do:
-
-````javascript
-
-// this is same even if filter uses a parallel worker filter
-gF.apply( image );   // image is a FILTER.Image instance, see examples
-// this will also work:
-image.apply( gF );   // image is a FILTER.Image instance, see examples
 
 ````
 
@@ -402,6 +505,8 @@ In order to use an emboss filter do the following:
 ````javascript
 
 var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
+// this also works
+var emboss = FILTER.ConvolutionMatrixFilter( ).emboss( );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 emboss.worker( );
@@ -447,6 +552,12 @@ In order to use a dilate filter do the following:
 ````javascript
 
 var dilate = new FILTER.MorphologicalFilter( ).dilate([
+        0, 0, 1,
+        0, 1, 0,
+        1, 0, 0
+]);  // dilate with a 3x3 diagonal structure element
+// this also works
+var dilate = FILTER.MorphologicalFilter( ).dilate([
         0, 0, 1,
         0, 1, 0,
         1, 0, 0
@@ -497,6 +608,8 @@ In order to use a median filter do the following:
 ````javascript
 
 var median = new FILTER.StatisticalFilter( ).median( 3 );  // 3x3 median
+// this also works
+var median = FILTER.StatisticalFilter( ).median( 3 );  // 3x3 median
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 median.worker( );
@@ -553,6 +666,10 @@ In order to use a composite filter do the following:
 var grc = new FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
 var emboss = new FILTER.ConvolutionMatrixFilter( ).emboss( );
 var combo = new FILTER.CompositeFilter([ grc, emboss ]);
+// this also works
+var grc = FILTER.ColorMatrixFilter( ).grayscale( ).contrast( 1 );
+var emboss = FILTER.ConvolutionMatrixFilter( ).emboss( );
+var combo = FILTER.CompositeFilter([ grc, emboss ]);
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 // NOTE: a composite filter uses its own worker and all constituting filters will be accordingly transfered
@@ -590,7 +707,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 ###GLSL Filter
 
-glsl-based filters for `webgl`/`node-gl` (todo)
+glsl-based filters for `webgl`/`node-gl` (in progress)
 
 
 ###SVG Filter
@@ -616,7 +733,18 @@ Example:
 var inlinefilter = new FILTER.InlineFilter(function( inst, im, w, h ){
     // this is the inline filter apply method
     // do your stuff here..
-    // "inst"   is the (custom) filter instance
+    // "inst"   is the (inline) filter instance, useful if you need to use extra parameters
+    // "im"     is (a copy of) the image pixel data,
+    // "w"      is the image width, 
+    // "h"      is the image height
+    // make sure to return the data back
+    return im;
+});
+// this also works
+var inlinefilter = FILTER.InlineFilter(function( inst, im, w, h ){
+    // this is the inline filter apply method
+    // do your stuff here..
+    // "inst"   is the (inline) filter instance, useful if you need to use extra parameters
     // "im"     is (a copy of) the image pixel data,
     // "w"      is the image width, 
     // "h"      is the image height
@@ -656,10 +784,6 @@ __Included Plugins__ (see examples for how to use)
 * `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
 * `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
 * `SeamlessTile` : create a seamless tileable pattern from target image
-* `HSVConverter` : convert the image to `HSV` color space or Hue only converted to grayscale
-* `YCbCrConverter` : convert the image to `YCbCr` color space (similar filter exists in `ColorMatrixFilter`)
-* `Threshold` : apply general (full `32bit` thresholds) thresholding to an image based on `Color`, `Intensity` or `Hue` mode
-* `HueExtractor` : extract a range of hues from the image (same functionality has been added to general `ThresholdFilter` see above)
 * `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))

@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-30 06:56:35
+*   @built on 2016-08-10 02:39:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-07-30 06:56:35
+*   @built on 2016-08-10 02:39:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -55,28 +55,36 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
-    ,supportsThread = Async.supportsMultiThreading( )
-    ,isThread = Async.isThread( null, true )
-    ,isInsideThread = Async.isThread( )
+    ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( null, true ), isInsideThread = Async.isThread( )
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
     
-    ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
+    ,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
     ,constructorPlugin = function( init ) {
-        return function( ) {
-            this.$super('constructor');
-            init.apply( this, arguments );
+        return function PluginFilter( ) {
+            var self = this;
+            // factory/constructor pattern
+            if ( !(self instanceof PluginFilter) )
+            {
+                if ( arguments.length )
+                {
+                    arguments.__arguments__ = true;
+                    return new PluginFilter(arguments);
+                }
+                else
+                {
+                    return new PluginFilter();
+                }
+            }
+            self.$super('constructor');
+            init.apply( self, (1===arguments.length) && (true===arguments[0].__arguments__) ? arguments[0] : arguments );
         };
     }
-    
     ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
-    
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
-    
     ,TypedArray, log, _uuid = 0
 ;
 
@@ -145,8 +153,7 @@ FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 FILTER.ColorTable = FILTER.ImArrayCopy;
-FILTER.ColorMatrix = FILTER.Array32F;
-FILTER.ConvolutionMatrix = FILTER.Array32F;
+FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
 
 //
 // Constants
@@ -154,14 +161,21 @@ FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
     RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
     Y: 1, CB: 2, CR: 0,
-    H: 0, S: 1, V: 2, I: 2,
-    HUE: 0, SATURATION: 1, INTENSITY: 2
+    H: 0, S: 2, V: 1, I: 1,
+    HUE: 0, SATURATION: 2, INTENSITY: 1,
+    CY: 2, MA: 0, YE: 1, K: 3,
+    CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3
+};
+FILTER.STRIDE = {
+    CHANNEL: [0,0,1], X: [0,1,4], Y: [1,0,4],
+    RGB: [0,1,2], ARGB: [3,0,1,2], RGBA: [0,1,2,3],
+    BGR: [2,1,0], ABGR: [3,2,1,0], BGRA: [2,1,0,3]
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
     COLOR: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11
+    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -188,6 +202,36 @@ FILTER.CONSTANTS = FILTER.CONST = {
     ,LN2: Math.LN2
 };
 
+// utilities
+TypedArray = isNode
+? function( a, A ) {
+    if ( (null == a) || (a instanceof A) ) return a;
+    else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+    if ( null == a.length ) a.length = Object.keys( a ).length;
+    return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+}
+: function( a, A ) { return a; };
+notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
+FILTER.Util = {
+    Array   : {
+        // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
+         hasClampedArray: "undefined" !== typeof Uint8ClampedArray
+        ,hasArrayset: ("undefined" !== typeof Int16Array) && ("function" === typeof Int16Array[PROTO].set)
+        ,hasSubarray: "function" === typeof FILTER.Array32F[PROTO].subarray
+        ,typed: TypedArray
+        ,typed_obj: isNode
+            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
+            : function( o ) { return o; }
+    },
+    String  : { },
+    Math    : { },
+    IO      : { },
+    Filter  : { },
+    Image   : { },
+    GLSL    : { },
+    SVG     : { }
+};
+
 // packages
 FILTER.IO = { };
 FILTER.Codec = { };
@@ -196,57 +240,10 @@ FILTER.Transform = { };
 FILTER.MachineLearning = FILTER.ML = { };
 FILTER.GLSL = { };
 FILTER.SVG = { };
-// utilities
-FILTER.Util = {
-    Math    : { },
-    Array   : {
-        arrayset: no_typed_array_set
-            ? function( a, b, offset ) {
-                offset = offset || 0;
-                for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
-            }
-            : function( a, b, offset ){ a.set(b, offset||0); }
-
-        ,subarray: !FILTER.Array32F[PROTO].subarray
-            ? function( a, i1, i2 ){ return a.slice(i1, i2); }
-            : function( a, i1, i2 ){ return a.subarray(i1, i2); }
-        ,typed: TypedArray = (isNode
-            ? function( a, A ) {
-                if ( (null == a) || (a instanceof A) ) return a;
-                else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
-                if ( null == a.length ) a.length = Object.keys( a ).length;
-                return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-            }
-            : function( a, A ) { return a; })
-        ,typed_obj: isNode
-            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
-            : function( o ) { return o; }
-    },
-    String  : { },
-    IO      : { },
-    Filter  : { },
-    Image   : { }
-};
-
-// IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-/*if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
-{
-    // add the missing method to the array
-    CanvasPixelArray[PROTO].set = typed_array_set;
-}*/
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 FILTER.NotImplemented = function( method ) {
-    method = method || '';
-    return function( ) { throw new Error('Method '+method+' not Implemented!'); };
+    return method ? function( ) { throw new Error('Method "'+method+'" not Implemented!'); } : function( ) { throw new Error('Method not Implemented!'); };
 };
-
-//
-// webgl support
-FILTER.useWebGL = false;
-FILTER.useWebGLSharedResources = false;
-FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
 //
 // logging
@@ -337,7 +334,8 @@ var
             // activate worker
             if ( enable && !self.$thread ) 
             {
-                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                var T = isNode ? '' : '?'+new Date().getTime();
+                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file+T ] : self.path.file+T );
                 if ( imports && imports.length )
                     self.send('import', {'import': imports.join ? imports.join(',') : imports});
                 self.send('load', {filter: self.name});
@@ -395,6 +393,7 @@ var
         ,_update: true
         ,_onComplete: null
         ,hasMeta: false
+        ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
@@ -405,6 +404,7 @@ var
             self._update = null;
             self._onComplete = null;
             self.hasMeta = null;
+            self.mode = null;
             return self;
         }
         
@@ -415,7 +415,7 @@ var
         // @override
         ,serialize: function( ) {
             var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, params: {} };
+            return { filter: self.name, _isOn: !!self._isOn, _update: self._update, params: {} };
         }
         
         // @override
@@ -423,7 +423,8 @@ var
             var self = this;
             if ( json && self.name === json.filter )
             {
-                self._isOn = !!json._isOn;
+                self._isOn = json._isOn;
+                self._update = json._update;
             }
             return self;
         }
@@ -433,6 +434,15 @@ var
             return this;
         }
         
+        ,setMode: function( mode ) {
+            this.mode = mode;
+            return this;
+        }
+    
+        ,getMode: function( ) {
+            return this.mode;
+        }
+    
         // whether filter is ON
         ,isOn: function( ) {
             return this._isOn;
@@ -530,7 +540,7 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im/*self._update*/ ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im && self._update ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                         }
                         if ( cb ) cb.call( self );
                     };
@@ -557,6 +567,25 @@ var
     })
 ;
 
+FILTER.Filter.get = function( filterClass ) {
+    if ( !filterClass || !filterClass.length ) return null;
+    if ( -1 < filterClass.indexOf('.') )
+    {
+        filterClass = filterClass.split('.');
+        var i, l = filterClass.length, part, F = FILTER;
+        for(i=0; i<l; i++)
+        {
+            part = filterClass[i];
+            if ( !F[part] ) return null;
+            F = F[part];
+        }
+        return F;
+    }
+    else
+    {
+        return FILTER[filterClass] || null;
+    }
+};
 //
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
@@ -585,8 +614,9 @@ FILTER.Create = function( methods ) {
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A16I = FILTER.Array16I, A8U = FILTER.Array8U,
-    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
-    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
+    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
+    AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
+    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String, ArrayUtil = FILTER.Util.Array,
     ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
     Log = Math.log, Sin = Math.sin, Cos = Math.cos,
@@ -594,10 +624,59 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
-    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
-    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
-    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
-;
+    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArraySet = FILTER._noTypedArraySet,
+    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
+    func_body_re = /^function[^{]+{([\s\S]*)}$/;
+
+function function_body( func )
+{
+    return func.toString( ).match( func_body_re )[ 1 ] || '';
+}
+
+function arrayset( a, b, offset )
+{
+    offset = offset || 0;
+    var i, n = b.length, rem = n&31;
+    for(i=0; i<n; i+=32)
+    {
+        a[ i   + offset ] = b[ i   ];
+        a[ i+ 1+ offset ] = b[ i+ 1];
+        a[ i+ 2+ offset ] = b[ i+ 2];
+        a[ i+ 3+ offset ] = b[ i+ 3];
+        a[ i+ 4+ offset ] = b[ i+ 4];
+        a[ i+ 5+ offset ] = b[ i+ 5];
+        a[ i+ 6+ offset ] = b[ i+ 6];
+        a[ i+ 7+ offset ] = b[ i+ 7];
+        a[ i+ 8+ offset ] = b[ i+ 8];
+        a[ i+ 9+ offset ] = b[ i+ 9];
+        a[ i+10+ offset ] = b[ i+10];
+        a[ i+11+ offset ] = b[ i+11];
+        a[ i+12+ offset ] = b[ i+12];
+        a[ i+13+ offset ] = b[ i+13];
+        a[ i+14+ offset ] = b[ i+14];
+        a[ i+15+ offset ] = b[ i+15];
+        a[ i+16+ offset ] = b[ i+16];
+        a[ i+17+ offset ] = b[ i+17];
+        a[ i+18+ offset ] = b[ i+18];
+        a[ i+19+ offset ] = b[ i+19];
+        a[ i+20+ offset ] = b[ i+20];
+        a[ i+21+ offset ] = b[ i+21];
+        a[ i+22+ offset ] = b[ i+22];
+        a[ i+23+ offset ] = b[ i+23];
+        a[ i+24+ offset ] = b[ i+24];
+        a[ i+25+ offset ] = b[ i+25];
+        a[ i+26+ offset ] = b[ i+26];
+        a[ i+27+ offset ] = b[ i+27];
+        a[ i+28+ offset ] = b[ i+28];
+        a[ i+29+ offset ] = b[ i+29];
+        a[ i+30+ offset ] = b[ i+30];
+        a[ i+31+ offset ] = b[ i+31];
+    }
+    if ( rem )
+    {
+        for(i=n-rem; i<n; i++) a[ i + offset ] = b[ i  ];
+    }
+}
 
 function clamp( x, m, M )
 { 
@@ -715,7 +794,22 @@ function crop( im, w, h, x1, y1, x2, y2 )
     for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = (yw+x1)<<2;
-        arrayset(cropped, subarray(im, pixel2, pixel2+nw4), pixel);
+        cropped.set(im.subarray(pixel2, pixel2+nw4), pixel);
+    }
+    return cropped;
+}
+
+function crop_shim( im, w, h, x1, y1, x2, y2 )
+{
+    x2 = Min(x2, w-1); y2 = Min(y2, h-1);
+    var nw = x2-x1+1, nh = y2-y1+1, 
+        croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
+        y, yw, nw4 = nw<<2, pixel, pixel2;
+
+    for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
+    {
+        pixel2 = (yw+x1)<<2;
+        arrayset(cropped, im.slice(pixel2, pixel2+nw4), pixel);
     }
     return cropped;
 }
@@ -732,7 +826,24 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = yw<<2;
-        arrayset(padded, subarray(im, pixel2, pixel2+w4), offleft+pixel);
+        padded.set(im.subarray(pixel2, pixel2+w4), offleft+pixel);
+    }
+    return padded;
+}
+
+function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
+{
+    pad_right = pad_right || 0; pad_bot = pad_bot || 0;
+    pad_left = pad_left || 0; pad_top = pad_top || 0;
+    var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
+        paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize), 
+        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+        offtop = pad_top*nw4, offleft = pad_left<<2;
+
+    for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
+    {
+        pixel2 = yw<<2;
+        arrayset(padded, im.slice(pixel2, pixel2+w4), offleft+pixel);
     }
     return padded;
 }
@@ -796,343 +907,142 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
     return D;
 }
 
-function generic_transform( im, w, h, T, mode )
-{
-    var x, y, i, j, imLen=im.length, dst=new IMG(imLen), t, tx, ty,
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        t = T([x, y], w, h); tx = ~~(t[0]); ty = ~~(t[1]);
-        if ( 0>tx || tx>=w || 0>ty || ty>=h )
-        {
-            if ( WRAP === mode )
-            {
-                if ( ty >= h ) ty -= h;
-                else if ( ty < 0 ) ty += h;
-                if ( tx >= w ) tx -= w;
-                else if ( tx < 0 )  tx += w;
-            }
-            else //if ( CLAMP === mode )
-            {
-                if ( ty >= h )  ty = h-1;
-                else if ( ty < 0 ) ty = 0;
-                if ( tx >= w ) tx = w-1;
-                else if ( tx < 0 ) tx = 0;
-            }
-        }
-        j = (tx + ty*w) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function affine_transform( im, w, h, a, b, c, d, tx, ty, mode )
-{
-    var x, y, yw, i, j, imLen=im.length, imArea=imLen>>>2, dst=new IMG(imLen),
-        tyw, cw, dw, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, nx, ny, bx=w-1, by=imArea-w
-    ;
-    mode = mode || CLAMP;
-    
-    x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
-    for (i=0; i<imLen; i+=4,x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
-        if ( 0>nx || nx>bx || 0>ny || ny>by )
-        {
-            if ( WRAP === mode )
-            {
-                if ( ny > by ) ny -= imArea;
-                else if ( ny < 0 ) ny += imArea;
-                if ( nx >= w ) nx -= w;
-                else if ( nx < 0 )  nx += w;
-            }
-            else //if ( CLAMP === mode )
-            {
-                if ( ny > by )  ny = by;
-                else if ( ny < 0 ) ny = 0;
-                if ( nx > bx ) nx = bx;
-                else if ( nx < 0 ) nx = 0;
-            }
-        }
-        j = (nx + ny) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function cyclic_shift( im, w, h, dx, dy )
-{
-    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
-    
-    if ( dx < 0 ) dx += w;
-    if ( dy < 0 ) dy += h;
-    
-    x=0; y=0; yw=0;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; }
-        
-        j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_x( im, w, h )
-{
-    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw=0;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; }
-        
-        j = (w-1-x+yw)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_y( im, w, h )
-{
-    var x, y, yw2, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw2=(h-1)*w;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw2-=w; }
-        
-        j = (x+yw2)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_xy( im, w, h )
-{
-    var x, y, yw, yw2, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw2=(h-1)*w;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; yw2-=w; }
-        
-        j = (w-1-x+yw2)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-/*
-// adapted from http://www.jhlabs.com/ip/filters/
-function polar_transform( im, w, h, mode )
-{
-    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
-        tx, ty, ix, iy, ip, bx = w-1, by = h-1, theta, r=0, radius, cX, cY,
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-    
-    cX = ~~(0.5*w + 0.5);
-    cY = ~~(0.5*h + 0.5);
-    radius = Max(cY, cX);
-        
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        tx = x-cX;
-        ty = y-cY;
-        theta = 0;
-        
-        if (tx >= 0) 
-        {
-            if (ty > 0) 
-            {
-                theta = PI - Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else if (ty < 0) 
-            {
-                theta = Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else 
-            {
-                theta = HalfPI;
-                r = tx;
-            }
-        } 
-        else if (tx < 0) 
-        {
-            if (ty < 0) 
-            {
-                theta = DoublePI - Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else if (ty > 0) 
-            {
-                theta = PI + Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else 
-            {
-                theta = ThreePI2;
-                r = -tx;
-            }
-        }
-        // inverse transform
-        ix = (w-1) - (w-1)/DoublePI * theta;
-        iy = (h * r / radius);
-        ix = Round(ix); iy = Round(iy);
-        if (0>ix || ix>bx || 0>iy || iy>by)
-        {
-            switch(mode)
-            {
-                case WRAP:
-                    if (iy>by) iy-=h;
-                    else if (iy<0) iy+=h;
-                    if (ix>bx) ix-=w;
-                    else if (ix<0)  ix+=w;
-                    break;
-                    
-                case CLAMP:
-                default:
-                    if (iy>by)  iy=by;
-                    else if (iy<0) iy=0;
-                    if (ix>bx) ix=bx;
-                    else if (ix<0) ix=0;
-                    break;
-            }
-        }
-        ip = ( ix + iy*w ) << 2;
-        im[i] = imcopy[ ip ];
-        im[i+1] = imcopy[ ip+1 ];
-        im[i+2] = imcopy[ ip+2 ];
-        im[i+3] = imcopy[ ip+3 ];
-    }
-    return im;
-}
-function cartesian( im, w, h, mode )
-{
-    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
-        ix, iy, ip, nx, ny, bx = w-1, by = h-1, 
-        theta, theta2, r=0, radius, cX, cY, 
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-    
-    cX = ~~(0.5*w + 0.5);
-    cY = ~~(0.5*h + 0.5);
-    radius = Max(cY, cX);
-        
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        theta = x / w * DoublePI;
-
-        if (theta >= ThreePI2)
-            theta2 = DoublePI - theta;
-        else if (theta >= PI)
-            theta2 = theta - PI;
-        else if (theta >= HalfPI)
-            theta2 = PI - theta;
-        else
-            theta2 = theta;
-        r = radius * (y / h);
-
-        nx = -r * Sin(theta2);
-        ny = r * Cos(theta2);
-        
-        if (theta >= ThreePI2) 
-        {
-            ix = cX - nx;
-            iy = cY - ny;
-        } 
-        else if (theta >= PI) 
-        {
-            ix = cX - nx;
-            iy = cY + ny;
-        } 
-        else if (theta >= HalfPI) 
-        {
-            ix = cX + nx;
-            iy = cY + ny;
-        } 
-        else 
-        {
-            ix = cX + nx;
-            iy = cY - ny;
-        }
-        // inverse transform
-        ix = Round(ix); iy = Round(iy);
-        if (0>ix || ix>bx || 0>iy || iy>by)
-        {
-            switch(mode)
-            {
-                case WRAP:
-                    if (iy>by) iy-=h;
-                    else if (iy<0) iy+=h;
-                    if (ix>bx) ix-=w;
-                    else if (ix<0)  ix+=w;
-                    break;
-                    
-                case CLAMP:
-                default:
-                    if (iy>by)  iy=by;
-                    else if (iy<0) iy=0;
-                    if (ix>bx) ix=bx;
-                    else if (ix<0) ix=0;
-                    break;
-            }
-        }
-        ip = ( ix + iy*w ) << 2;
-        im[i] = imcopy[ ip ];
-        im[i+1] = imcopy[ ip+1 ];
-        im[i+2] = imcopy[ ip+2 ];
-        im[i+3] = imcopy[ ip+3 ];
-    }
-    return im;
-}*/
-
 // compute integral image (Summed Area Table, SAT) (for a given channel)
 function integral( im, w, h, channel ) 
 {
-    var rowLen = w<<2, integ, sum,
-        imLen = im.length, count = imLen>>2, i, j, x
-    ;
+        channel = channel || 0;
+    var len = im.length, size = len>>>2, rowLen = w<<2,
+        rem = (w&31)<<2, integ = new A32F(size), sum, i, j, x;
+        
     // compute integral of image in one pass
-    channel = channel || 0;
-    integ = new A32F(count); 
     // first row
-    for (x=0,j=0,i=0,sum=0; x<w; x++, i+=4, j++)
+    for (j=0,sum=0,i=channel; i<rowlen; i+=128)
     {
-        sum+=im[i+channel]; integ[j]=sum; 
+        sum += im[i    ]; integ[j++] = sum;
+        sum += im[i+4  ]; integ[j++] = sum;
+        sum += im[i+8  ]; integ[j++] = sum;
+        sum += im[i+12 ]; integ[j++] = sum;
+        sum += im[i+16 ]; integ[j++] = sum;
+        sum += im[i+20 ]; integ[j++] = sum;
+        sum += im[i+24 ]; integ[j++] = sum;
+        sum += im[i+28 ]; integ[j++] = sum;
+        sum += im[i+32 ]; integ[j++] = sum;
+        sum += im[i+36 ]; integ[j++] = sum;
+        sum += im[i+40 ]; integ[j++] = sum;
+        sum += im[i+44 ]; integ[j++] = sum;
+        sum += im[i+48 ]; integ[j++] = sum;
+        sum += im[i+52 ]; integ[j++] = sum;
+        sum += im[i+56 ]; integ[j++] = sum;
+        sum += im[i+60 ]; integ[j++] = sum;
+        sum += im[i+64 ]; integ[j++] = sum;
+        sum += im[i+68 ]; integ[j++] = sum;
+        sum += im[i+72 ]; integ[j++] = sum;
+        sum += im[i+76 ]; integ[j++] = sum;
+        sum += im[i+80 ]; integ[j++] = sum;
+        sum += im[i+84 ]; integ[j++] = sum;
+        sum += im[i+88 ]; integ[j++] = sum;
+        sum += im[i+92 ]; integ[j++] = sum;
+        sum += im[i+96 ]; integ[j++] = sum;
+        sum += im[i+100]; integ[j++] = sum;
+        sum += im[i+104]; integ[j++] = sum;
+        sum += im[i+108]; integ[j++] = sum;
+        sum += im[i+112]; integ[j++] = sum;
+        sum += im[i+116]; integ[j++] = sum;
+        sum += im[i+120]; integ[j++] = sum;
+        sum += im[i+124]; integ[j++] = sum;
+    }
+    if ( rem )
+    {
+        for (i=rowlen-rem+channel; i<rowlen; i+=4,j++)
+        {
+            sum += im[i]; integ[j] = sum;
+        }
     }
     // other rows
-    for (x=0,j=0,sum=0,i=rowLen; i<imLen; i+=4, j++, x++)
+    for (x=0,j=0,sum=0,i=rowLen+channel; i<len; i+=128)
     {
-        if ( x >=w ) { x=0; sum=0; }
-        sum+=im[i+channel]; integ[j+w]=integ[j]+sum; 
+        sum += im[i    ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+4  ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+8  ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+12 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+16 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+20 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+24 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+28 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+32 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+36 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+40 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+44 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+48 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+52 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+56 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+60 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+64 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+68 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+72 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+76 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+80 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+84 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+88 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+92 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+96 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+100]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+104]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+108]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+112]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+116]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+120]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+124]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+    }
+    if ( rem )
+    {
+        for (i=len-rem+channel; i<len; i+=4,x++,j++)
+        {
+            if ( x >=w ) { x=0; sum=0; }
+            sum += im[i]; integ[j+w] = integ[j] + sum; 
+        }
     }
     return integ;
 }
-
 // compute image histogram (for a given channel)
-function histogram( im, w, h, channel ) 
+function histogram( im, w, h, channel, pdf ) 
 {
-    var i, l = im.length, cdf, accum, n = 1.0 / (l>>2);
+    channel = channel || 0;
+    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2, n = 1.0/l2;
     
     // initialize the arrays
-    channel = channel || 0;
     cdf = new A32F( 256 ); 
     /*for (i=0; i<256; i+=32) 
     { 
@@ -1170,14 +1080,52 @@ function histogram( im, w, h, channel )
         cdf[i+30]=0;
         cdf[i+31]=0;
     }*/
-    // compute pdf and maxima/minima
-    for (i=0; i<l; i+=4)
+    // compute pdf
+    for (i=channel; i<l; i+=128)
     {
-        cdf[ im[i+channel] ] += n;
+        // partial loop unrolling
+        cdf[ im[i    ] ] += n;
+        cdf[ im[i+4  ] ] += n;
+        cdf[ im[i+8  ] ] += n;
+        cdf[ im[i+12 ] ] += n;
+        cdf[ im[i+16 ] ] += n;
+        cdf[ im[i+20 ] ] += n;
+        cdf[ im[i+24 ] ] += n;
+        cdf[ im[i+28 ] ] += n;
+        cdf[ im[i+32 ] ] += n;
+        cdf[ im[i+36 ] ] += n;
+        cdf[ im[i+40 ] ] += n;
+        cdf[ im[i+44 ] ] += n;
+        cdf[ im[i+48 ] ] += n;
+        cdf[ im[i+52 ] ] += n;
+        cdf[ im[i+56 ] ] += n;
+        cdf[ im[i+60 ] ] += n;
+        cdf[ im[i+64 ] ] += n;
+        cdf[ im[i+68 ] ] += n;
+        cdf[ im[i+72 ] ] += n;
+        cdf[ im[i+76 ] ] += n;
+        cdf[ im[i+80 ] ] += n;
+        cdf[ im[i+84 ] ] += n;
+        cdf[ im[i+88 ] ] += n;
+        cdf[ im[i+92 ] ] += n;
+        cdf[ im[i+96 ] ] += n;
+        cdf[ im[i+100] ] += n;
+        cdf[ im[i+104] ] += n;
+        cdf[ im[i+108] ] += n;
+        cdf[ im[i+112] ] += n;
+        cdf[ im[i+116] ] += n;
+        cdf[ im[i+120] ] += n;
+        cdf[ im[i+124] ] += n;
     }
+    if ( rem )
+    {
+        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ] += n;
+    }
+    // return pdf NOT cdf
+    if ( true === pdf ) return cdf;
     
     // compute cdf
-    for (accum=0,i=0; i<256; i+=32) 
+    for (accum=0,i=0; i<256; i+=64) 
     { 
         // partial loop unrolling
         accum += cdf[i   ]; cdf[i   ] = accum;
@@ -1212,20 +1160,188 @@ function histogram( im, w, h, channel )
         accum += cdf[i+29]; cdf[i+29] = accum;
         accum += cdf[i+30]; cdf[i+30] = accum;
         accum += cdf[i+31]; cdf[i+31] = accum;
+        accum += cdf[i+32]; cdf[i+32] = accum;
+        accum += cdf[i+33]; cdf[i+33] = accum;
+        accum += cdf[i+34]; cdf[i+34] = accum;
+        accum += cdf[i+35]; cdf[i+35] = accum;
+        accum += cdf[i+36]; cdf[i+36] = accum;
+        accum += cdf[i+37]; cdf[i+37] = accum;
+        accum += cdf[i+38]; cdf[i+38] = accum;
+        accum += cdf[i+39]; cdf[i+39] = accum;
+        accum += cdf[i+40]; cdf[i+40] = accum;
+        accum += cdf[i+41]; cdf[i+41] = accum;
+        accum += cdf[i+42]; cdf[i+42] = accum;
+        accum += cdf[i+43]; cdf[i+43] = accum;
+        accum += cdf[i+44]; cdf[i+44] = accum;
+        accum += cdf[i+45]; cdf[i+45] = accum;
+        accum += cdf[i+46]; cdf[i+46] = accum;
+        accum += cdf[i+47]; cdf[i+47] = accum;
+        accum += cdf[i+48]; cdf[i+48] = accum;
+        accum += cdf[i+49]; cdf[i+49] = accum;
+        accum += cdf[i+50]; cdf[i+50] = accum;
+        accum += cdf[i+51]; cdf[i+51] = accum;
+        accum += cdf[i+52]; cdf[i+52] = accum;
+        accum += cdf[i+53]; cdf[i+53] = accum;
+        accum += cdf[i+54]; cdf[i+54] = accum;
+        accum += cdf[i+55]; cdf[i+55] = accum;
+        accum += cdf[i+56]; cdf[i+56] = accum;
+        accum += cdf[i+57]; cdf[i+57] = accum;
+        accum += cdf[i+58]; cdf[i+58] = accum;
+        accum += cdf[i+59]; cdf[i+59] = accum;
+        accum += cdf[i+60]; cdf[i+60] = accum;
+        accum += cdf[i+61]; cdf[i+61] = accum;
+        accum += cdf[i+62]; cdf[i+62] = accum;
+        accum += cdf[i+63]; cdf[i+63] = accum;
     }
     return cdf;
 }
-
 function spectrum( im, w, h, channel ) 
 {
     // TODO
     return null;
 }
 
+function integral2( im, w, h, sat, sat2, rsat ) 
+{
+    var len = im.length, size = len>>>2, rowLen = w<<2,
+        rem = (w&31)<<2, sum, sum2, c, i, j, x, y;
+        
+    // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
+    // first row
+    for (j=0,i=0,sum=sum2=0; i<rowLen; i+=128)
+    {
+        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+        
+        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+4  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+8  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+12 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+16 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+20 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+24 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+28 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+32 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+36 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+40 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+44 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+48 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+52 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+56 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+60 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+64 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+68 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+72 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+76 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+80 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+84 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+88 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+92 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+96 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+100]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+104]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+108]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+112]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+116]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+120]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+124]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+    }
+    if ( rem )
+    {
+        for (i=rowLen-rem; i<rowLen; i+=4,j++)
+        {
+            c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
+        }
+    }
+    // other rows
+    for (x=0,y=1,j=0,sum=0,sum2=0,i=rowLen; i<len; i+=128)
+    {
+        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+        
+        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+4  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+8  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+12 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+16 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+20 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+24 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+28 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+32 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+36 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+40 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+44 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+48 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+52 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+56 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+60 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+64 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+68 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+72 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+76 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+80 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+84 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+88 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+92 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+96 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+100]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+104]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+108]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+112]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+116]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+120]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+124]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+    }
+    if ( rem )
+    {
+        for (i=len-rem; i<len; i+=4,x++,j++)
+        {
+            if ( x >=w ) { x=0; y++; sum=sum2=0; }
+            c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
+        }
+    }
+}
+
 // speed-up convolution for special kernels like moving-average
 function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
-    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
+    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
@@ -1238,7 +1354,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
     matArea = matRadiusX*matRadiusY;
-    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    matHalfSideX = matRadiusX>>>1;  matHalfSideY = w*(matRadiusY>>>1);
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
@@ -1251,8 +1367,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     
     if (matrix2) // allow to compute a second matrix in-parallel
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
         
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -1319,13 +1435,6 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 
                 // output
                 t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
@@ -1336,7 +1445,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
     
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -1398,13 +1507,6 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 
                 // output
                 t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
@@ -1415,14 +1517,14 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     return dst;
 }
-/*function integral_convolution_rgba(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
-    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB, colA,
+    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
-        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2, t3,
-        r, g, b, a, r2, g2, b2, a2, repeat, tmp
+        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
+        r, g, b, r2, g2, b2, repeat, tmp
     ;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
@@ -1430,47 +1532,46 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
     matArea = matRadiusX*matRadiusY;
-    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    matHalfSideX = matRadiusX>>>1;  matHalfSideY = w*(matRadiusY>>>1);
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
-    integralLen = imLen;  rowLen = w<<2;
+    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
     dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
     
     numRepeats = numRepeats||1;
     
     if (matrix2) // allow to compute a second matrix in-parallel
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
         
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
             tmp = im; im = dst; dst = tmp;
-            
+
             // compute integral of image in one pass
             
             // first row
-            i=0; colR=colG=colB=colA=0;
-            for (x=0; x<w; x++, i+=4)
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
             }
             // other rows
-            x=0; colR=colG=colB=colA=0;
-            for (i=rowLen+w; i<imLen; i+=4, x++)
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
             {
-                if (x>=w) { x=0; colR=colG=colB=colA=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i+rowLen  ]=integral[i  ]+colR; 
-                integral[i+rowLen+1]=integral[i+1]+colG; 
-                integral[i+rowLen+2]=integral[i+2]+colB;
-                integral[i+rowLen+3]=integral[i+3]+colA;
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen]=integral[j]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
             }
             
             
@@ -1496,31 +1597,29 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                  yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
-                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
                 
                 // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                 // also fix the center element (in case it is different)
                 r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
                 g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
                 
                 r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                 g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
-                a2 = wt2 * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset2 * im[i+3]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;  t3 = coeff1*a + coeff2*a2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
             }
             
             // do another pass??
@@ -1528,7 +1627,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
     
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -1539,22 +1638,21 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
             // compute integral of image in one pass
             
             // first row
-            i=0; colR=colG=colB=colA=0;
-            for (x=0; x<w; x++, i+=4)
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
             }
             // other rows
-            x=0; colR=colG=colB=colA=0;
-            for (i=rowLen+w; i<imLen; i+=4, x++)
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
             {
-                if (x>=w) { x=0; colR=colG=colB=colA=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i+rowLen  ]=integral[i  ]+colR; 
-                integral[i+rowLen+1]=integral[i+1]+colG; 
-                integral[i+rowLen+2]=integral[i+2]+colB;
-                integral[i+rowLen+3]=integral[i+3]+colA;
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen  ]=integral[j  ]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
             }
             
             // now can compute any symmetric convolution kernel in constant time 
@@ -1579,26 +1677,25 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                  yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
-                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
                 
                 // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                 // also fix the center element (in case it is different)
                 r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
                 g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;  t3 = coeff1*a + coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
             }
             
             // do another pass??
@@ -1606,18 +1703,10 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     return dst;
 }
-function integral_convolution(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-{
-    return rgba
-    ? integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-    : integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-    ;
-}
-*/
 // speed-up convolution for separable kernels
 function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
-    var imLen=im.length, imArea=(imLen>>2),
+    var imLen=im.length, imArea=imLen>>>2,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2,
@@ -1650,87 +1739,125 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
         matArea2 = indices.length;
         
         // do direct convolution
-        if (notSupportClamp)
-        {   
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
-                {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
-                }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                /*if ( rgba )
-                {
-                    t3 = coeff * a;
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
-                }
-                else
-                {*/
-                    // alpha channel is not transformed
-                    dst[i+3] = im[i+3];
-                /*}*/
-            }
-        }
-        else
+        x=0; ty=0;
+        for (i=0; i<imLen; i+=4, x++)
         {
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            // update image coordinates
+            if (x>=w) { x=0; ty+=w; }
+            
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            r=g=b=a=0;
+            for (k=0, j=0; k<matArea; k++, j+=2)
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
                 }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                /*if ( rgba )
-                {
-                    t3 = coeff * a;
-                    dst[i+3] = ~~t3;
-                }
-                else
-                {*/
-                    // alpha channel is not transformed
-                    dst[i+3] = im[i+3];
-                /*}*/
             }
+            
+            // output
+            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            
+            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            /*if ( rgba )
+            {
+                t3 = coeff * a;
+                dst[i+3] = ~~t3;
+            }
+            else
+            {*/
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            /*}*/
+        }
+        
+        // do another pass??
+        mat = matrix2;
+        indices = ind2;
+        coeff = coeff2;
+        imageIndices = imageIndices2;
+    }
+    return dst;
+}
+function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+{
+    var imLen=im.length, imArea=imLen>>>2,
+        matArea, mat, indices, matArea2,
+        dst, imageIndices, imageIndices1, imageIndices2,
+        i, j, k, x, ty, ty2,
+        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        r, g, b, a, coeff, numPasses, tmp
+    ;
+    
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    bx = w-1; by = imArea-w;
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    imageIndices1 = new A16I(ind1);
+    for (k=0,matArea2=ind1.length; k<matArea2; k+=2) imageIndices1[k+1] *= w;
+    imageIndices2 = new A16I(ind2);
+    for (k=0,matArea2=ind2.length; k<matArea2; k+=2) imageIndices2[k+1] *= w;
+
+    // one horizontal and one vertical pass
+    numPasses = 2;
+    mat = matrix;
+    indices = ind1;
+    coeff = coeff1;
+    imageIndices = imageIndices1;
+    dst = im; im = new IMG(imLen);
+    
+    while (numPasses--)
+    {
+        tmp = im; im = dst; dst = tmp;
+        matArea = mat.length;
+        matArea2 = indices.length;
+        
+        // do direct convolution
+        x=0; ty=0;
+        for (i=0; i<imLen; i+=4, x++)
+        {
+            // update image coordinates
+            if (x>=w) { x=0; ty+=w; }
+            
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            r=g=b=a=0;
+            for (k=0, j=0; k<matArea; k++, j+=2)
+            {
+                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                {
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
+                }
+            }
+            
+            // output
+            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            
+            // clamp them manually
+            t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+            t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+            t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+            
+            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            /*if ( rgba )
+            {
+                t3 = coeff * a;
+                t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                dst[i+3] = ~~t3;
+            }
+            else
+            {*/
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            /*}*/
         }
         
         // do another pass??
@@ -1748,38 +1875,38 @@ function ct_eye( c1, c0 )
     var i, t = new ColorTable(256);
     for(i=0; i<256; i+=32)
     {
-        t[i   ] = c0 + c1*(i   );
-        t[i+1 ] = c0 + c1*(i+1 );
-        t[i+2 ] = c0 + c1*(i+2 );
-        t[i+3 ] = c0 + c1*(i+3 );
-        t[i+4 ] = c0 + c1*(i+4 );
-        t[i+5 ] = c0 + c1*(i+5 );
-        t[i+6 ] = c0 + c1*(i+6 );
-        t[i+7 ] = c0 + c1*(i+7 );
-        t[i+8 ] = c0 + c1*(i+8 );
-        t[i+9 ] = c0 + c1*(i+9 );
-        t[i+10] = c0 + c1*(i+10);
-        t[i+11] = c0 + c1*(i+11);
-        t[i+12] = c0 + c1*(i+12);
-        t[i+13] = c0 + c1*(i+13);
-        t[i+14] = c0 + c1*(i+14);
-        t[i+15] = c0 + c1*(i+15);
-        t[i+16] = c0 + c1*(i+16);
-        t[i+17] = c0 + c1*(i+17);
-        t[i+18] = c0 + c1*(i+18);
-        t[i+19] = c0 + c1*(i+19);
-        t[i+20] = c0 + c1*(i+20);
-        t[i+21] = c0 + c1*(i+21);
-        t[i+22] = c0 + c1*(i+22);
-        t[i+23] = c0 + c1*(i+23);
-        t[i+24] = c0 + c1*(i+24);
-        t[i+25] = c0 + c1*(i+25);
-        t[i+26] = c0 + c1*(i+26);
-        t[i+27] = c0 + c1*(i+27);
-        t[i+28] = c0 + c1*(i+28);
-        t[i+29] = c0 + c1*(i+29);
-        t[i+30] = c0 + c1*(i+30);
-        t[i+31] = c0 + c1*(i+31);
+        t[i   ] = ~~clamp(c0 + c1*(i   ),0,255);
+        t[i+1 ] = ~~clamp(c0 + c1*(i+1 ),0,255);
+        t[i+2 ] = ~~clamp(c0 + c1*(i+2 ),0,255);
+        t[i+3 ] = ~~clamp(c0 + c1*(i+3 ),0,255);
+        t[i+4 ] = ~~clamp(c0 + c1*(i+4 ),0,255);
+        t[i+5 ] = ~~clamp(c0 + c1*(i+5 ),0,255);
+        t[i+6 ] = ~~clamp(c0 + c1*(i+6 ),0,255);
+        t[i+7 ] = ~~clamp(c0 + c1*(i+7 ),0,255);
+        t[i+8 ] = ~~clamp(c0 + c1*(i+8 ),0,255);
+        t[i+9 ] = ~~clamp(c0 + c1*(i+9 ),0,255);
+        t[i+10] = ~~clamp(c0 + c1*(i+10),0,255);
+        t[i+11] = ~~clamp(c0 + c1*(i+11),0,255);
+        t[i+12] = ~~clamp(c0 + c1*(i+12),0,255);
+        t[i+13] = ~~clamp(c0 + c1*(i+13),0,255);
+        t[i+14] = ~~clamp(c0 + c1*(i+14),0,255);
+        t[i+15] = ~~clamp(c0 + c1*(i+15),0,255);
+        t[i+16] = ~~clamp(c0 + c1*(i+16),0,255);
+        t[i+17] = ~~clamp(c0 + c1*(i+17),0,255);
+        t[i+18] = ~~clamp(c0 + c1*(i+18),0,255);
+        t[i+19] = ~~clamp(c0 + c1*(i+19),0,255);
+        t[i+20] = ~~clamp(c0 + c1*(i+20),0,255);
+        t[i+21] = ~~clamp(c0 + c1*(i+21),0,255);
+        t[i+22] = ~~clamp(c0 + c1*(i+22),0,255);
+        t[i+23] = ~~clamp(c0 + c1*(i+23),0,255);
+        t[i+24] = ~~clamp(c0 + c1*(i+24),0,255);
+        t[i+25] = ~~clamp(c0 + c1*(i+25),0,255);
+        t[i+26] = ~~clamp(c0 + c1*(i+26),0,255);
+        t[i+27] = ~~clamp(c0 + c1*(i+27),0,255);
+        t[i+28] = ~~clamp(c0 + c1*(i+28),0,255);
+        t[i+29] = ~~clamp(c0 + c1*(i+29),0,255);
+        t[i+30] = ~~clamp(c0 + c1*(i+30),0,255);
+        t[i+31] = ~~clamp(c0 + c1*(i+31),0,255);
     }
     return t;
 }
@@ -1787,7 +1914,7 @@ function ct_eye( c1, c0 )
 function ct_multiply( ct2, ct1 )
 {
     var i, ct12 = new ColorTable(256);
-    for(i=0; i<256; i+=32)
+    for(i=0; i<256; i+=64)
     { 
         ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255); 
         ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255); 
@@ -1821,6 +1948,38 @@ function ct_multiply( ct2, ct1 )
         ct12[i+29] = clamp(ct2[ clamp(ct1[i+29],0,255) ],0,255); 
         ct12[i+30] = clamp(ct2[ clamp(ct1[i+30],0,255) ],0,255); 
         ct12[i+31] = clamp(ct2[ clamp(ct1[i+31],0,255) ],0,255); 
+        ct12[i+32] = clamp(ct2[ clamp(ct1[i+32],0,255) ],0,255); 
+        ct12[i+33] = clamp(ct2[ clamp(ct1[i+33],0,255) ],0,255); 
+        ct12[i+34] = clamp(ct2[ clamp(ct1[i+34],0,255) ],0,255); 
+        ct12[i+35] = clamp(ct2[ clamp(ct1[i+35],0,255) ],0,255); 
+        ct12[i+36] = clamp(ct2[ clamp(ct1[i+36],0,255) ],0,255); 
+        ct12[i+37] = clamp(ct2[ clamp(ct1[i+37],0,255) ],0,255); 
+        ct12[i+38] = clamp(ct2[ clamp(ct1[i+38],0,255) ],0,255); 
+        ct12[i+39] = clamp(ct2[ clamp(ct1[i+39],0,255) ],0,255); 
+        ct12[i+40] = clamp(ct2[ clamp(ct1[i+40],0,255) ],0,255); 
+        ct12[i+41] = clamp(ct2[ clamp(ct1[i+41],0,255) ],0,255); 
+        ct12[i+42] = clamp(ct2[ clamp(ct1[i+42],0,255) ],0,255); 
+        ct12[i+43] = clamp(ct2[ clamp(ct1[i+43],0,255) ],0,255); 
+        ct12[i+44] = clamp(ct2[ clamp(ct1[i+44],0,255) ],0,255); 
+        ct12[i+45] = clamp(ct2[ clamp(ct1[i+45],0,255) ],0,255); 
+        ct12[i+46] = clamp(ct2[ clamp(ct1[i+46],0,255) ],0,255); 
+        ct12[i+47] = clamp(ct2[ clamp(ct1[i+47],0,255) ],0,255); 
+        ct12[i+48] = clamp(ct2[ clamp(ct1[i+48],0,255) ],0,255); 
+        ct12[i+49] = clamp(ct2[ clamp(ct1[i+49],0,255) ],0,255); 
+        ct12[i+50] = clamp(ct2[ clamp(ct1[i+50],0,255) ],0,255); 
+        ct12[i+51] = clamp(ct2[ clamp(ct1[i+51],0,255) ],0,255); 
+        ct12[i+52] = clamp(ct2[ clamp(ct1[i+52],0,255) ],0,255); 
+        ct12[i+53] = clamp(ct2[ clamp(ct1[i+53],0,255) ],0,255); 
+        ct12[i+54] = clamp(ct2[ clamp(ct1[i+54],0,255) ],0,255); 
+        ct12[i+55] = clamp(ct2[ clamp(ct1[i+55],0,255) ],0,255); 
+        ct12[i+56] = clamp(ct2[ clamp(ct1[i+56],0,255) ],0,255); 
+        ct12[i+57] = clamp(ct2[ clamp(ct1[i+57],0,255) ],0,255); 
+        ct12[i+58] = clamp(ct2[ clamp(ct1[i+58],0,255) ],0,255); 
+        ct12[i+59] = clamp(ct2[ clamp(ct1[i+59],0,255) ],0,255); 
+        ct12[i+60] = clamp(ct2[ clamp(ct1[i+60],0,255) ],0,255); 
+        ct12[i+61] = clamp(ct2[ clamp(ct1[i+61],0,255) ],0,255); 
+        ct12[i+62] = clamp(ct2[ clamp(ct1[i+62],0,255) ],0,255); 
+        ct12[i+63] = clamp(ct2[ clamp(ct1[i+63],0,255) ],0,255); 
     }
     return ct12;
 }
@@ -1834,6 +1993,13 @@ function cm_eye( )
     ]);
 }
 // multiply (functionaly compose, matrix multiply) 2 Color Matrices
+/*
+[ rr rg rb ra roff
+  gr gg gb ga goff
+  br bg bb ba boff
+  ar ag ab aa aoff
+  0  0  0  0  1 ]
+*/
 function cm_multiply(cm1, cm2) 
 {
     var cm12 = new ColorMatrix(20);
@@ -1878,177 +2044,46 @@ function cm_rechannel( m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao )
     cm[Ao*5+Ri] = m[15]; cm[Ao*5+Gi] = m[16]; cm[Ao*5+Bi] = m[17]; cm[Ao*5+Ai] = m[18]; cm[Ao*5+4] = m[19];
     return cm;
 }
+/*
+[ 0xx 1xy 2xo 3xor
+  4yx 5yy 6yo 7yor
+  0   0   1   0
+  0   0   0   1 ]
+*/
+function am_multiply( am1, am2 )
+{
+    var am12 = new AffineMatrix(8);
+    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
+    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
+    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
+    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
+    
+    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
+    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
+    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
+    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
+    return am12;
+}
+function am_eye( )
+{
+    return new AffineMatrix([
+    1,0,0,0,
+    0,1,0,0
+    ]);
+}
 
 function tensor_product( m1, m2, matrix )
 {
     matrix = matrix || Array/*ConvolutionMatrix*/;
     if ( m2 === +m2 ) m2 = [m2];
     var i, j, p, s, d1 = m1.length, d2 = m2.length, m12 = new matrix(d1*d2);
-    for (s=0,i=0,j=0; i<d1; j++)
+    for (s=0,i=0,j=0; i<d1; )
     {
-        if ( j >= d2 ){ j=0; i++; }
         p = m1[i]*m2[j];
-        m12[i*d2+j] = p;
-        s += p;
+        s += p; m12[i*d2+j] = p;
+        if ( ++j >= d2 ){ j=0; i++; }
     }
     return {kernel:m12, sum:s};
-}
-
-function lerp( data, index, c1, c2, t )
-{
-    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
-    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
-    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
-    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
-}
-
-function colors_stops( colors, stops )
-{
-    stops = stops ? stops.slice() : stops;
-    colors = colors ? colors.slice() : colors;
-    var cl = colors.length, i;
-    if ( !stops )
-    {
-        if ( 1 === cl )
-        {
-            stops = [1.0];
-        }
-        else
-        {
-            stops = new Array(cl);
-            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
-        }
-    }
-    else if ( stops.length < cl )
-    {
-        var cstoplen = stops.length, cstop = stops[cstoplen-1];
-        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
-    }
-    if ( 1.0 != stops[stops.length-1] )
-    {
-        stops.push( 1.0 );
-        colors.push( colors[colors.length-1] );
-    }
-    return [colors, stops];
-}
-
-function gradient( g, w, h, colors, stops, angle, interpolate )
-{
-    var i, x, y, size = g.length, t, px, py, stop1, stop2, sin, cos, r;
-    //interpolate = interpolate || lerp;
-    angle = angle || 0.0;
-    if ( 0 > angle ) angle += pi2;
-    if ( pi2 < angle ) angle -= pi2;
-    sin = Abs(Sin(angle)); cos = Abs(Cos(angle));
-    r = cos*w + sin*h;
-    if ( (pi_2 < angle) && (angle <= pi) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = w-1-x; py = y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else if ( (pi < angle) && (angle <= pi_32) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = w-1-x; py = h-1-y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else if ( (pi_32 < angle) && (angle < pi2) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = x; py = h-1-y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else //if ( (0 <= angle) && (angle <= pi_2) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = x; py = y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    return g;
-}
-
-function radial_gradient( g, w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate )
-{
-    var i, x, y, size = g.length, t, px, py, stop1, stop2;
-    //interpolate = interpolate || lerp;
-    centerX = centerX || 0; centerY = centerY || 0;
-    radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
-    //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
-    if ( radiusY > radiusX )
-    {
-        radiusX = radiusX/radiusY;
-        radiusY = 1.0;
-    }
-    else if ( radiusX > radiusY )
-    {
-        radiusY = radiusY/radiusX;
-        radiusX = 1.0;
-    }
-    else
-    {
-        radiusY = 1.0;
-        radiusX = 1.0;
-    }
-    for(x=0,y=0,i=0; i<size; i+=4,x++)
-    {
-        if ( x >= w ) { x=0; y++; }
-        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
-        t = Min(1.0, Sqrt(px*px + py*py));
-        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-        stop1 = 0 === stop2 ? 0 : stop2-1;
-        interpolate(
-            g, i,
-            colors[stop1], colors[stop2],
-            // warp the value if needed, between stop ranges
-            stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-        );
-    }
-    return g;
 }
 
 function esc( s )
@@ -2069,38 +2104,34 @@ MathUtil.Geometry = {
     ,interpolate3: interpolate3
 };
 
+ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset;
+ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
+
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim 
 ? function( s ){ return s.trim(); }
 : function( s ){ return s.replace(trim_re, ''); };
+StringUtil.function_body = function_body;
 
-ImageUtil.crop = FILTER.Interpolation.crop = crop;
-ImageUtil.pad = FILTER.Interpolation.pad = pad;
+ImageUtil.crop = FILTER.Interpolation.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = FILTER.Interpolation.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.get_data = get_data;
 ImageUtil.set_data = set_data;
 ImageUtil.fill = fill_data;
 ImageUtil.integral = integral;
 ImageUtil.histogram = histogram;
 ImageUtil.spectrum = spectrum;
-ImageUtil.gradient = gradient;
-ImageUtil.radial_gradient = radial_gradient;
-ImageUtil.lerp = lerp;
-ImageUtil.colors_stops = colors_stops;
 
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
 FilterUtil.cm_eye = cm_eye;
 FilterUtil.cm_multiply = cm_multiply;
-//FilterUtil.cm_apply = cm_apply;
 FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.integral_convolution = integral_convolution_rgb;
-FilterUtil.separable_convolution = separable_convolution;
-FilterUtil.generic_transform = generic_transform;
-FilterUtil.affine_transform = affine_transform;
-FilterUtil.cyclic_shift = cyclic_shift;
-FilterUtil.flip_x = flip_x;
-FilterUtil.flip_y = flip_y;
-FilterUtil.flip_xy = flip_xy;
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_clamp : integral_convolution_rgb;
+FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+FilterUtil.SAT = integral2;
 
 }(FILTER);/**
 *
@@ -2175,9 +2206,9 @@ FILTER.Interpolation.nearest = function( im, w, h, nw, nh ) {
     i=0; j=0; x=0; y=0; yi=0; yw=0; yoff=0;
     for (index=0; index<size; index+=4,j++,x+=rx) 
     {
-        if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; yw=yi*w; yoff=y - yi<0.5 ? 0 : w4; }
+        if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; yw=yi*w; yoff=y - (yi<0.5 ? 0 : w4); }
         
-        xi = ~~x; xoff = x - xi<0.5 ? 0 : 4;
+        xi = ~~x; xoff = x - (xi<0.5 ? 0 : 4);
         
         pixel = ((yw + xi)<<2) + xoff + yoff;
 
@@ -2202,7 +2233,163 @@ var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F
     subarray = FILTER.Util.Array.subarray;
 
 // http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
-FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
+FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
+? function( im, w, h, nw, nh ) {
+    var size = (nw*nh)<<2, interpolated = new IMG(size),
+        rx = (w-1)/nw, ry = (h-1)/nh, 
+        i, j, x, y, xi, yi, pixel, index,
+        rgba = new IMG(4), 
+        rgba0 = new A32F(4), rgba1 = new A32F(4), 
+        rgba2 = new A32F(4), rgba3 = new A32F(4),
+        yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
+        B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
+        p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
+    ;
+    i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
+    for (index=0; index<size; index+=4,j++,x+=rx) 
+    {
+        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
+        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
+        
+        pixel = (yw + xi)<<2;
+        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
+        
+        // handle edge cases
+        C = im.subarray(pixel, pixel+4);
+        L = L_EDGE ? C : im.subarray(pixel-4, pixel);
+        R = R_EDGE ? C : im.subarray(pixel+4, pixel+8);
+        RR = R_EDGE ? C : im.subarray(pixel+8, pixel+12);
+        B = B_EDGE ? C : im.subarray(pixel+w4, pixel+w4+4);
+        BB = B_EDGE ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
+        BL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4-4, pixel+w4);
+        BR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+4, pixel+w4+8);
+        BRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+8, pixel+w4+12);
+        BBL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
+        BBR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
+        BBRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
+        T = T_EDGE ? C : im.subarray(pixel-w4, pixel-w4+4);
+        TL = T_EDGE||L_EDGE ? C : im.subarray(pixel-w4-4, pixel-w4);
+        TR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+4, pixel-w4+8);
+        TRR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+8, pixel-w4+12);
+        //interpolate_pixel(rgba0, TL, T, TR, TRR, dx);
+        p = (TRR[0] - TR[0]) - (TL[0] - T[0]);
+        q = (TL[0] - T[0]) - p;
+        r = TR[0] - TL[0];
+        s = T[0];
+        rgba0[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[1] - TR[1]) - (TL[1] - T[1]);
+        q = (TL[1] - T[1]) - p;
+        r = TR[1] - TL[1];
+        s = T[1];
+        rgba0[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[2] - TR[2]) - (TL[2] - T[2]);
+        q = (TL[2] - T[2]) - p;
+        r = TR[2] - TL[2];
+        s = T[2];
+        rgba0[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (TRR[3] - TR[3]) - (TL[3] - T[3]);
+        q = (TL[3] - T[3]) - p;
+        r = TR[3] - TL[3];
+        s = T[3];
+        rgba0[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba1, L, C, R, RR, dx);
+        p = (RR[0] - R[0]) - (L[0] - C[0]);
+        q = (L[0] - C[0]) - p;
+        r = R[0] - L[0];
+        s = C[0];
+        rgba1[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[1] - R[1]) - (L[1] - C[1]);
+        q = (L[1] - C[1]) - p;
+        r = R[1] - L[1];
+        s = C[1];
+        rgba1[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[2] - R[2]) - (L[2] - C[2]);
+        q = (L[2] - C[2]) - p;
+        r = R[2] - L[2];
+        s = C[2];
+        rgba1[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (RR[3] - R[3]) - (L[3] - C[3]);
+        q = (L[3] - C[3]) - p;
+        r = R[3] - L[3];
+        s = C[3];
+        rgba1[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba2, BL, B, BR, BRR, dx);
+        p = (BRR[0] - BR[0]) - (BL[0] - B[0]);
+        q = (BL[0] - B[0]) - p;
+        r = BR[0] - BL[0];
+        s = B[0];
+        rgba2[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[1] - BR[1]) - (BL[1] - B[1]);
+        q = (BL[1] - B[1]) - p;
+        r = BR[1] - BL[1];
+        s = B[1];
+        rgba2[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[2] - BR[2]) - (BL[2] - B[2]);
+        q = (BL[2] - B[2]) - p;
+        r = BR[2] - BL[2];
+        s = B[2];
+        rgba2[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BRR[3] - BR[3]) - (BL[3] - B[3]);
+        q = (BL[3] - B[3]) - p;
+        r = BR[3] - BL[3];
+        s = B[3];
+        rgba2[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        //interpolate_pixel(rgba3, BBL, BB, BBR, BBRR, dx);
+        p = (BBRR[0] - BBR[0]) - (BBL[0] - BB[0]);
+        q = (BBL[0] - BB[0]) - p;
+        r = BBR[0] - BBL[0];
+        s = BB[0];
+        rgba3[0] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[1] - BBR[1]) - (BBL[1] - BB[1]);
+        q = (BBL[1] - BB[1]) - p;
+        r = BBR[1] - BBL[1];
+        s = BB[1];
+        rgba3[1] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[2] - BBR[2]) - (BBL[2] - BB[2]);
+        q = (BBL[2] - BB[2]) - p;
+        r = BBR[2] - BBL[2];
+        s = BB[2];
+        rgba3[2] = p * dx3 + q * dx2 + r * dx + s;
+        p = (BBRR[3] - BBR[3]) - (BBL[3] - BB[3]);
+        q = (BBL[3] - BB[3]) - p;
+        r = BBR[3] - BBL[3];
+        s = BB[3];
+        rgba3[3] = p * dx3 + q * dx2 + r * dx + s;
+        
+        // Then we interpolate those 4 pixels to get a single pixel that is a composite of 4 * 4 pixels, 16 pixels
+        //interpolate_pixel(rgba, rgba0, rgba1, rgba2, rgba3, dy);
+        p = (rgba3[0] - rgba2[0]) - (rgba0[0] - rgba1[0]);
+        q = (rgba0[0] - rgba1[0]) - p;
+        r = rgba2[0] - rgba0[0];
+        s = rgba1[0];
+        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
+        q = (rgba0[1] - rgba1[1]) - p;
+        r = rgba2[1] - rgba0[1];
+        s = rgba1[1];
+        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
+        q = (rgba0[2] - rgba1[2]) - p;
+        r = rgba2[2] - rgba0[2];
+        s = rgba1[2];
+        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
+        q = (rgba0[3] - rgba1[3]) - p;
+        r = rgba2[3] - rgba0[3];
+        s = rgba1[3];
+        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        
+        interpolated[index]      = rgba[0];
+        interpolated[index+1]    = rgba[1];
+        interpolated[index+2]    = rgba[2];
+        interpolated[index+3]    = rgba[3];
+    }
+    return interpolated;
+}
+: function( im, w, h, nw, nh ) {
     var size = (nw*nh)<<2, interpolated = new IMG(size),
         rx = (w-1)/nw, ry = (h-1)/nh, 
         i, j, x, y, xi, yi, pixel, index,
@@ -2398,8 +2585,10 @@ FILTER.Interpolation.bicubic = function( im, w, h, nw, nh ) {
 
 // adapted from https://github.com/foo123/css-color
 var // utils
-    Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
+    sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
     min = Math.min, max = Math.max, abs = Math.abs,
+    sin = Math.sin, cos = Math.cos,
+    pi = Math.PI, pi2 = 2*pi, pi_2 = pi/2, pi_32 = 3*pi_2,
     //notSupportClamp = FILTER._notSupportClamp,
     clamp = FILTER.Util.Math.clamp,
     esc = FILTER.Util.String.esc,
@@ -2569,6 +2758,14 @@ var // utils
 // static Color Methods and Transforms
 // http://en.wikipedia.org/wiki/Color_space
 
+function lerp( data, index, c1, c2, t )
+{
+    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
+    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
+    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
+    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
+}
+
 //
 // Color Class and utils
 var Color = FILTER.Color = FILTER.Class({
@@ -2582,6 +2779,22 @@ var Color = FILTER.Color = FILTER.Class({
         clampPixel: function( v ) {
             return min(255, max(v, 0));
         },
+        
+        color24: function( r, g, b ) {
+            return ((r&255) << 16) | ((g&255) << 8) | (b&255);
+        }, 
+        
+        color32: function( r, g, b, a ) {
+            return ((a&255) << 24) | ((r&255) << 16) | ((g&255) << 8) | (b&255);
+        }, 
+        
+        rgb24: function( color ) {
+            return [(color >>> 16)&255, (color >>> 8)&255, color&255];
+        }, 
+        
+        rgba32: function( color ) {
+            return [(color >>> 16)&255, (color >>> 8)&255, color&255, (color >>> 24)&255];
+        }, 
         
         intensity: function( r, g, b ) {
             return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
@@ -2607,7 +2820,14 @@ var Color = FILTER.Color = FILTER.Class({
         dist: function( ccc1, ccc2, p1, p2 ) {
             //p1 = p1 || 0; p2 = p2 || 0;
             var d0 = ccc1[p1+0]-ccc2[p2+0], d1 = ccc1[p1+1]-ccc2[p2+1], d2 = ccc1[p1+2]-ccc2[p2+2];
-            return Sqrt(d0*d0 + d1*d1 + d2*d2);
+            return sqrt(d0*d0 + d1*d1 + d2*d2);
+        },
+        
+        RGB2Gray: function( rgb, p ) {
+            //p = p || 0;
+            var g = ~~(LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2]);
+            rgb[p+0] = g; rgb[p+1] = g; rgb[p+2] = g;
+            return rgb;
         },
         
         RGB2Color: function( rgb, p ) {
@@ -2677,7 +2897,7 @@ var Color = FILTER.Color = FILTER.Class({
                 //h *= 60;                // degrees
                 //if( h < 0 )  h += 360;
             }
-            ccc[p+0] = h; ccc[p+1] = s; ccc[p+2] = v
+            ccc[p+0] = h*0.70833333333333333333333333333333; ccc[p+1] = s*255; ccc[p+2] = v
             return ccc;
         },
         
@@ -2685,7 +2905,8 @@ var Color = FILTER.Color = FILTER.Class({
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
         HSV2RGB: function( ccc, p ) {
             //p = p || 0;
-            var i, f, o, q, t, r, g, b, h = ccc[p+0], s = ccc[p+1], v = ccc[p+2];
+            var i, f, o, q, t, r, g, b, h = ccc[p+0]*1.4117647058823529411764705882353,
+                s = ccc[p+1]*0.0039215686274509803921568627451, v = ccc[p+2];
             
             if( 0 === s ) 
             {
@@ -2709,6 +2930,27 @@ var Color = FILTER.Color = FILTER.Class({
                 else /* case 5: */  { r = v; g = o; b = q; }
             }
             ccc[p+0] = r; ccc[p+1] = g; ccc[p+2] = b;
+            return ccc;
+        },
+        
+        RGB2CMYK: function( ccc, p )  {
+            //p = p || 0;
+            var c = 0, m = 0, y = 0, k = 0, invCMY,
+                r = ccc[p+0], g = ccc[p+1], b = ccc[p+2];
+
+            // BLACK, k=255
+            if ( 0===r && 0===g && 0===b ) return ccc;
+
+            c = 255 - r;
+            m = 255 - g;
+            y = 255 - b;
+
+            k = min( c, m, y );
+            invCMY = 255 === k ? 0 : 255 / (255 - k);
+            ccc[p+0] = (c - k) * invCMY;
+            ccc[p+1] = (m - k) * invCMY;
+            ccc[p+2] = (y - k) * invCMY;
+
             return ccc;
         },
         
@@ -2750,12 +2992,8 @@ var Color = FILTER.Color = FILTER.Class({
                 b = clamp(round(b*P2C), 0, 255);
             }
             
-            // BLACK
-            if ( 0==r && 0==g && 0==b ) 
-            {
-                k = 1;
-                return [0, 0, 0, 1];
-            }
+            // BLACK, k=1
+            if ( 0===r && 0===g && 0===b ) return [0, 0, 0, 1];
 
             c = 1 - (r*C2F);
             m = 1 - (g*C2F);
@@ -2771,14 +3009,10 @@ var Color = FILTER.Color = FILTER.Class({
             return [c, m, y, k];
         },
         cmyk2rgb: function( c, m, y, k ) {
-            var r = 0, g = 0, b = 0, minCMY, invCMY
-            ;
+            var r = 0, g = 0, b = 0, minCMY, invCMY;
 
             // BLACK
-            if ( 0==c && 0==m && 0==y ) 
-            {
-                return [0, 0, 0];
-            }
+            if ( 0===c && 0===m && 0===y ) return [0, 0, 0];
             
             minCMY = k;
             invCMY = 1 - minCMY;
@@ -2804,16 +3038,10 @@ var Color = FILTER.Color = FILTER.Class({
                 g = clamp(round(g*P2C), 0, 255);
                 b = clamp(round(b*P2C), 0, 255);
             }
-            
-            r = ( r < 16 ) ? '0'+r.toString(16) : r.toString(16);
-            g = ( g < 16 ) ? '0'+g.toString(16) : g.toString(16);
-            b = ( b < 16 ) ? '0'+b.toString(16) : b.toString(16);
-            
-            if ( condenced && (r[0]==r[1] && g[0]==g[1] && b[0]==b[1]) )
-                hex = '#' + r[0] + g[0] + b[0];
-            else
-                hex = '#' + r + g + b;
-            
+            r = r < 16 ? '0'+r.toString(16) : r.toString(16);
+            g = g < 16 ? '0'+g.toString(16) : g.toString(16);
+            b = b < 16 ? '0'+b.toString(16) : b.toString(16);
+            hex = condenced && (r[0]===r[1] && g[0]===g[1] && b[0]===b[1]) ? ('#'+r[0]+g[0]+b[0]) : ('#'+r+g+b);
             return hex;
         },
         rgb2hexIE: function( r, g, b, a, asPercent ) { 
@@ -2826,31 +3054,26 @@ var Color = FILTER.Color = FILTER.Class({
                 a = clamp(round(a*P2C), 0, 255);
             }
             
-            r = ( r < 16 ) ? '0'+r.toString(16) : r.toString(16);
-            g = ( g < 16 ) ? '0'+g.toString(16) : g.toString(16);
-            b = ( b < 16 ) ? '0'+b.toString(16) : b.toString(16);
-            a = ( a < 16 ) ? '0'+a.toString(16) : a.toString(16);
+            r = r < 16 ? '0'+r.toString(16) : r.toString(16);
+            g = g < 16 ? '0'+g.toString(16) : g.toString(16);
+            b = b < 16 ? '0'+b.toString(16) : b.toString(16);
+            a = a < 16 ? '0'+a.toString(16) : a.toString(16);
             hex = '#' + a + r + g + b;
             
             return hex;
         },
         hex2rgb: function( h/*, asPercent*/ ) {  
-            if ( !h || 3 > h.length )
-                return [0, 0, 0];
+            if ( !h || 3 > h.length ) return [0, 0, 0];
                 
-            if ( 6 > h.length )
-                return [
-                    clamp( parseInt(h[0]+h[0], 16), 0, 255 ), 
-                    clamp( parseInt(h[1]+h[1], 16), 0, 255 ), 
-                    clamp( parseInt(h[2]+h[2], 16), 0, 255 )
-                ];
-            
-            else
-                return [
-                    clamp( parseInt(h[0]+h[1], 16), 0, 255 ), 
-                    clamp( parseInt(h[2]+h[3], 16), 0, 255 ), 
-                    clamp( parseInt(h[4]+h[5], 16), 0, 255 )
-                ];
+            return 6 > h.length ? [
+                clamp( parseInt(h[0]+h[0], 16), 0, 255 ), 
+                clamp( parseInt(h[1]+h[1], 16), 0, 255 ), 
+                clamp( parseInt(h[2]+h[2], 16), 0, 255 )
+            ] : [
+                clamp( parseInt(h[0]+h[1], 16), 0, 255 ), 
+                clamp( parseInt(h[2]+h[3], 16), 0, 255 ), 
+                clamp( parseInt(h[4]+h[5], 16), 0, 255 )
+            ];
             
             /*if ( asPercent )
                 rgb = [
@@ -2882,7 +3105,7 @@ var Color = FILTER.Color = FILTER.Class({
             s *= 0.01;
             l *= 0.01;
             
-            if ( 0 == s )
+            if ( 0 === s )
             {
                 // achromatic
                 r = 1;
@@ -2930,7 +3153,7 @@ var Color = FILTER.Color = FILTER.Class({
             m = min(r, g, b);
             l = 0.5*(M + m);
 
-            if ( M == m )
+            if ( M === m )
             {
                 h = s = 0; // achromatic
             }
@@ -3389,8 +3612,236 @@ var Color = FILTER.Color = FILTER.Class({
         return this.toHEX(1, false!==condenced, 'hexie' == format);
     }
 });
-
+// aliases and utilites
 Color.toGray = Color.intensity;
+
+// gradient, radial-gradient color generation and utilities
+Color.Gradient = {
+    
+    interpolate: lerp,
+    
+    stops: function colors_stops( colors, stops ){
+        stops = stops ? stops.slice() : stops;
+        colors = colors ? colors.slice() : colors;
+        var cl = colors.length, i;
+        if ( !stops )
+        {
+            if ( 1 === cl )
+            {
+                stops = [1.0];
+            }
+            else
+            {
+                stops = new Array(cl);
+                for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
+            }
+        }
+        else if ( stops.length < cl )
+        {
+            var cstoplen = stops.length, cstop = stops[cstoplen-1];
+            for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
+        }
+        if ( 1.0 != stops[stops.length-1] )
+        {
+            stops.push( 1.0 );
+            colors.push( colors[colors.length-1] );
+        }
+        return [colors, stops];
+    },
+    
+    linear: function gradient( g, w, h, colors, stops, angle, interpolate ){
+        var i, x, y, size = g.length, t, px, py, stop1, stop2, s, c, r;
+        //interpolate = interpolate || lerp;
+        angle = angle || 0.0;
+        if ( 0 > angle ) angle += pi2;
+        if ( pi2 < angle ) angle -= pi2;
+        s = abs(sin(angle)); c = abs(cos(angle));
+        r = c*w + s*h; s /= r; c /= r;
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = w-1-x; py = y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = w-1-x; py = h-1-y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = x; py = h-1-y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = x; py = y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        return g;
+    },
+    
+    linearPoint: function gradient_point( rgba, i, x, y, w, h, colors, stops, angle ){
+        var px, py, stop1, stop2, s, c, r;
+        s = abs(sin(angle)); c = abs(cos(angle));
+        r = c*w + s*h; s /= r; c /= r;
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            px = w-1-x; py = y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            px = w-1-x; py = h-1-y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            px = x; py = h-1-y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
+        {
+            px = x; py = y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        return rgba;
+    },
+    
+    radial: function radial_gradient( g, w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ){
+        var i, x, y, size = g.length, t, px, py, stop1, stop2;
+        //interpolate = interpolate || lerp;
+        centerX = centerX || 0; centerY = centerY || 0;
+        radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
+        //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
+        if ( radiusY > radiusX )
+        {
+            radiusX = radiusX/radiusY;
+            radiusY = 1.0;
+        }
+        else if ( radiusX > radiusY )
+        {
+            radiusY = radiusY/radiusX;
+            radiusX = 1.0;
+        }
+        else
+        {
+            radiusY = 1.0;
+            radiusX = 1.0;
+        }
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+            t = min(1.0, sqrt(px*px + py*py));
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        return g;
+    },
+    
+    radialPoint: function radial_gradient_point( rgba, i, x, y, w, h, colors, stops, centerX, centerY, radiusX, radiusY ){
+        var t, px, py, stop1, stop2;
+        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+        t = min(1.0, sqrt(px*px + py*py));
+        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+        stop1 = 0 === stop2 ? 0 : stop2-1;
+        lerp(
+            rgba, i,
+            colors[stop1], colors[stop2],
+            // warp the value if needed, between stop ranges
+            stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+        );
+        return rgba;
+    }
+};
+
+// color blending utilties
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
 Color.Blend = Color.Combine = {
@@ -4194,11 +4645,6 @@ var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.I
     get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill
 ;
 
-function scale( d, w, h, nw, nh )
-{
-    return (w === nw) && (h === nh) ? d : resize( d, w, h, nw, nh );
-}
-
 CanvasProxyCtx = FILTER.Class({
     constructor: function CanvasProxyCtx( canvas ) {
         var self = this;
@@ -4267,11 +4713,17 @@ CanvasProxyCtx = FILTER.Class({
         {
             dx = sx; dy = sy;
             dw = sw; dh = sh;
-            set( self._data, W, H, scale( idata, w, h, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            if ( (w === dw) && (h === dh) )
+                set( self._data, W, H, idata, dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            else
+                set( self._data, W, H, resize( idata, w, h, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
         }
         else
         {
-            set( self._data, W, H, scale( get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), sw, sh, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            if ( (sw === dw) && (sh === dh) )
+                set( self._data, W, H, get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
+            else
+                set( self._data, W, H, resize( get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), sw, sh, dw, dh ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
         }
     },
     
@@ -4325,7 +4777,7 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
         self.width = w || 0;
         self.height = h || 0;
         self.style = { };
-        self._ctx = new CanvasProxyCtx( self );
+        self._ctx = null;
     },
     
     _ctx: null,
@@ -4338,13 +4790,19 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
         self.width = null;
         self.height = null;
         self.style = null;
-        self._ctx.dispose( );
-        self._ctx = null;
+        if ( self._ctx )
+        {
+            self._ctx.dispose( );
+            self._ctx = null;
+        }
         return self;
     },
     
-    getContext: function( context ) {
-        return this._ctx;
+    getContext: function( ctx, options ) {
+        var self = this;
+        if ( -1 < ctx.indexOf("webgl") ) return FILTER.GL( self, options );
+        if ( !self._ctx ) self._ctx = new CanvasProxyCtx( self );
+        return self._ctx;
     },
     
     toDataURL: function( mime ) {
@@ -4366,6 +4824,42 @@ FILTER.Canvas = function( w, h ) {
     
     return canvas;
 };
+//
+// glsl (webgl/node-gl) support, override this for node-gl support
+var GLExt = null;
+FILTER.GL = FILTER.Browser.isNode
+? function( canvas, options ){ return null; }
+: function( canvas, options ){
+    options = options || {
+        depth: false,
+        alpha: true,
+        premultipliedAlpha: false,
+        antialias: true,
+        stencil: false,
+        preserveDrawingBuffer: false
+    };
+    var gl = null;
+    if ( !GLExt )
+    {
+        var names = ["webgl2", "experimental-webgl2", "webgl", "experimental-webgl", "webkit-3d", "moz-webgl"],
+            nl = names.length, i;
+
+        for(i=0; i<nl; ++i) 
+        {
+            try {
+                gl = canvas.getContext(names[i], options);
+            } catch(e) {
+                gl = null;
+            }
+            if ( gl )  { GLExt = names[i]; break; }
+        }
+    }
+    else
+    {
+        gl = canvas.getContext(GLExt, options);
+    }
+    return gl;
+};
 
 }(FILTER);/**
 *
@@ -4378,108 +4872,21 @@ FILTER.Canvas = function( w, h ) {
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    ImageUtil = FILTER.Util.Image, Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
-    FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
-    notSupportTyped = FILTER._notSupportTypedArrays,
-    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
+    CHANNEL = FILTER.CHANNEL, FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
+    Color = FILTER.Color, Gradient = Color.Gradient, ImageUtil = FILTER.Util.Image,
+    Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
+    ArrayUtil = FILTER.Util.Array, arrayset = ArrayUtil.arrayset, subarray = ArrayUtil.subarray,
     Min = Math.min, Floor = Math.floor,
 
+    RED = 1, GREEN = 2, BLUE = 4, ALPHA = 8, ALL_CHANNELS = RED|GREEN|BLUE|ALPHA,
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
-    WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
-    SEL = ISEL|OSEL, DATA = IDATA|ODATA,
-    CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL,
-    CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT, CLEAR_SPECTRUM = ~SPECTRUM
+    WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT, SEL = ISEL|OSEL, DATA = IDATA|ODATA,
+    CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL, CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT, CLEAR_SPECTRUM = ~SPECTRUM
 ;
 
-// auxilliary (private) methods
-function tmp_canvas( scope ) 
-{
-    var w = scope.width, h = scope.height, cnv = Canvas( w, h );
-    cnv.width = w * devicePixelRatio;
-    cnv.height = h * devicePixelRatio;
-    return cnv;
-}
+// resize/scale/interpolate image data
+ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
 
-function set_dimensions( scope, w, h, what ) 
-{
-    what = what || WIDTH_AND_HEIGHT;
-    if ( what & WIDTH )
-    {
-        scope.width = w;
-        scope.oCanvas.style.width = w + 'px';
-        scope.oCanvas.width = w * devicePixelRatio;
-        if ( scope._restorable ) 
-        {
-        scope.iCanvas.style.width = scope.oCanvas.style.width;
-        scope.iCanvas.width = scope.oCanvas.width;
-        }
-        if ( scope.tmpCanvas )
-        {
-            scope.tmpCanvas.style.width = scope.oCanvas.style.width;
-            scope.tmpCanvas.width = scope.oCanvas.width;
-        }
-    }
-    if ( what & HEIGHT )
-    {
-        scope.height = h;
-        scope.oCanvas.style.height = h + 'px';
-        scope.oCanvas.height = h * devicePixelRatio;
-        if ( scope._restorable ) 
-        {
-        scope.iCanvas.style.height = scope.oCanvas.style.height;
-        scope.iCanvas.height = scope.oCanvas.height;
-        }
-        if ( scope.tmpCanvas )
-        {
-            scope.tmpCanvas.style.height = scope.oCanvas.style.height;
-            scope.tmpCanvas.height = scope.oCanvas.height;
-        }
-    }
-    return scope;
-}
-
-function refresh_data( scope, what ) 
-{
-    var w = scope.width, h = scope.height;
-    what = what || 255;
-    if ( scope._restorable && (what & IDATA) && (scope._needsRefresh & IDATA) )
-    {
-        scope.iData = scope.ictx.getImageData(0, 0, w, h);
-        scope._needsRefresh &= ~IDATA;
-    }
-    if ( (what & ODATA) && (scope._needsRefresh & ODATA) )
-    {
-        scope.oData = scope.octx.getImageData(0, 0, w, h);
-        scope._needsRefresh &= ~ODATA;
-    }
-    //scope._needsRefresh &= CLEAR_DATA;
-    return scope;
-}
-
-function refresh_selected_data( scope, what ) 
-{
-    if ( scope.selection )
-    {
-        var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
-            xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
-            ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
-        ;
-        what = what || 255;
-        if ( scope._restorable && (what & ISEL) && (scope._needsRefresh & ISEL) )
-        {
-            scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
-            scope._needsRefresh &= ~ISEL;
-        }
-        if ( (what & OSEL) && (scope._needsRefresh & OSEL) )
-        {
-            scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
-            scope._needsRefresh &= ~OSEL;
-        }
-    }
-    //scope._needsRefresh &= CLEAR_SEL;
-    return scope;
-}
-    
 //
 // Image (Proxy) Class
 var FilterImage = FILTER.Image = FILTER.Class({
@@ -4491,26 +4898,26 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( !(self instanceof FilterImage) ) return new FilterImage(img);
         self.id = ++ID;
         self.width = w; self.height = h;
-        self.iData = null; self.iDataSel = null;
-        self.oData = null; self.oDataSel = null;
+        self.tmpCanvas = null;
         self.iCanvas = Canvas(w, h);
         self.oCanvas = Canvas(w, h);
-        self.tmpCanvas = null;
-        self.domElement = self.oCanvas;
+        self.iData = null; self.iDataSel = null;
+        self.oData = null; self.oDataSel = null;
         self.ictx = self.iCanvas.getContext('2d');
         self.octx = self.oCanvas.getContext('2d');
-        self.webgl = null;
+        self.domElement = self.oCanvas;
+        self._gl = null;
+        self._restorable = true;
+        self.gray = false;
+        self.selection = null;
         self._histogram = [null, null, null, null];
         self._integral = [null, null, null, null];
         self._spectrum = [null, null, null, null];
-        self._histogramRefresh = [0, 0, 0, 0];
-        self._integralRefresh = [0, 0, 0, 0];
-        self._spectrumRefresh = [0, 0, 0, 0];
         // lazy
-        self.selection = null;
-        self._needsRefresh = 0;
-        self._restorable = true;
-        self._grayscale = false;
+        self._refresh = 0;
+        self._hstRefresh = 0;
+        self._intRefresh = 0;
+        self._spcRefresh = 0;
         if ( img ) self.image( img );
     }
     
@@ -4518,10 +4925,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,id: null
     ,width: 0
     ,height: 0
+    ,gray: false
     ,selection: null
+    ,tmpCanvas: null
     ,iCanvas: null
     ,oCanvas: null
-    ,tmpCanvas: null
     ,ictx: null
     ,octx: null
     ,iData: null
@@ -4529,40 +4937,26 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,oData: null
     ,oDataSel: null
     ,domElement: null
-    ,webgl: null
+    ,_restorable: true
+    ,_gl: undef
     ,_histogram: null
     ,_integral: null
     ,_spectrum: null
-    ,_needsRefresh: 0
-    ,_restorable: true
-    ,_grayscale: false
+    ,_refresh: 0
+    ,_hstRefresh: 0
+    ,_intRefresh: 0
+    ,_spcRefresh: 0
     
     ,dispose: function( ) {
         var self = this;
         self.id = null;
-        self.width = null;
-        self.height = null;
-        self.selection = null;
-        self.ictx = null;
-        self.octx = null;
-        self.iData = null;
-        self.iDataSel = null;
-        self.oData = null;
-        self.oDataSel = null;
-        self.iCanvas = null;
-        self.oCanvas = null;
-        self.tmpCanvas = null;
-        self.domElement = null;
-        self.webgl = null;
-        self._histogram = null;
-        self._integral = null;
-        self._spectrum = null;
-        self._histogramRefresh = null;
-        self._integralRefresh = null;
-        self._spectrumRefresh = null;
-        self._needsRefresh = null;
-        self._restorable = null;
-        self._grayscale = null;
+        self.width = self.height = null;
+        self.selection = self.gray = null;
+        self.iData = self.iDataSel = self.oData = self.oDataSel = null;
+        self.domElement = self.tmpCanvas = self.iCanvas = self.oCanvas = self.ictx = self.octx = null;
+        self._restorable = self._gl = null;
+        self._histogram = self._integral = self._spectrum = null;
+        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = null;
         return self;
     }
     
@@ -4570,10 +4964,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return new FilterImage(true === original ? this.iCanvas : this.oCanvas);
     }
     
+    ,gl: function( options ) {
+        if ( undef === this._gl ) this._gl = FILTER.GL( this.oCanvas, options );
+        return this._gl;
+    }
+    
     ,grayscale: function( bool ) {
         var self = this;
-        if ( !arguments.length )  return self._grayscale;
-        self._grayscale = !!bool;
+        if ( !arguments.length )  return self.gray;
+        self.gray = !!bool;
         return self;
     }
     
@@ -4611,7 +5010,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             0 > x2 ? 0 : (1 < x2 ? 1 : x2),
             0 > y2 ? 0 : (1 < y2 ? 1 : y2)
         ];
-        self._needsRefresh |= SEL;
+        self._refresh |= SEL;
         return self;
     }
     
@@ -4620,7 +5019,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self.iDataSel = null;
         self.oDataSel = null;
-        self._needsRefresh &= CLEAR_SEL;
+        self._refresh &= CLEAR_SEL;
         return self;
     }
     
@@ -4631,8 +5030,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( self._restorable )
         {
             self.ictx.drawImage(self.oCanvas, 0, 0); 
-            self._needsRefresh |= IDATA;
-            if (self.selection) self._needsRefresh |= ISEL;
+            self._refresh |= IDATA;
+            if (self.selection) self._refresh |= ISEL;
         }
         return self;
     }
@@ -4644,11 +5043,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ( self._restorable )
         {
             self.octx.drawImage(self.iCanvas, 0, 0); 
-            self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
-            self._histogramRefresh = [1, 1, 1, 1];
-            self._integralRefresh = [1, 1, 1, 1];
-            self._spectrumRefresh = [1, 1, 1, 1];
-            if (self.selection) self._needsRefresh |= OSEL;
+            self._refresh |= ODATA | HIST | SAT | SPECTRUM;
+            self._hstRefresh = ALL_CHANNELS;
+            self._intRefresh = ALL_CHANNELS;
+            self._spcRefresh = ALL_CHANNELS;
+            if (self.selection) self._refresh |= OSEL;
         }
         return self;
     }
@@ -4656,23 +5055,22 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,dimensions: function( w, h ) {
         var self = this;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
     ,scale: function( sx, sy ) {
         var self = this;
         sx = sx||1; sy = sy||sx;
-        if ( 1==sx && 1==sy ) return self;
+        if ( (1==sx) && (1==sy) ) return self;
         
         // lazy
-        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
-        var ctx = self.tmpCanvas.getContext('2d'),
-            w = self.width, h = self.height;
+        self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
+        var ctx = self.tmpCanvas.getContext('2d'), w = self.width, h = self.height;
         
         //ctx.save();
         ctx.scale(sx, sy);
@@ -4700,18 +5098,18 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.tmpCanvas.height = self.oCanvas.height;
         //ctx.restore();
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
     ,flipHorizontal: function( ) {
         var self = this;
         // lazy
-        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
+        self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.translate(self.width, 0); 
@@ -4726,17 +5124,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | SAT | SPECTRUM;
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= DATA | SAT | SPECTRUM;
+        self._intRefresh = ALL_CHANNELS;
+        //self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
     ,flipVertical: function( ) {
         var self = this;
         // lazy
-        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
+        self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.translate(0, self.height); 
@@ -4751,10 +5149,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.ictx.drawImage(self.tmpCanvas, 0, 0);
         }
         
-        self._needsRefresh |= DATA | SAT | SPECTRUM;
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= DATA | SAT | SPECTRUM;
+        self._intRefresh = ALL_CHANNELS;
+        //self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
@@ -4770,11 +5168,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if ( self._restorable ) self.ictx.clearRect(0, 0, w, h);
             self.octx.clearRect(0, 0, w, h);
-            self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-            self._histogramRefresh = [1, 1, 1, 1];
-            self._integralRefresh = [1, 1, 1, 1];
-            self._spectrumRefresh = [1, 1, 1, 1];
-            if (self.selection) self._needsRefresh |= SEL;
+            self._refresh |= DATA | HIST | SAT | SPECTRUM;
+            self._hstRefresh = ALL_CHANNELS;
+            self._intRefresh = ALL_CHANNELS;
+            self._spcRefresh = ALL_CHANNELS;
+            if (self.selection) self._refresh |= SEL;
         }
         return self;
     }
@@ -4782,9 +5180,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // crop image region
     ,crop: function( x1, y1, x2, y2 ) {
         var self = this, sel = self.selection, 
-            W = self.width, H = self.height, xs, ys, ws, hs,
-            x, y, w, h
-        ;
+            W = self.width, H = self.height, xs, ys, ws, hs, x, y, w, h;
         if ( !arguments.length )
         {
             if (sel)
@@ -4808,7 +5204,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         
         // lazy
-        self.tmpCanvas = self.tmpCanvas || tmp_canvas( self );
+        self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
         var ctx = self.tmpCanvas.getContext('2d');
         
         ctx.drawImage(self.oCanvas, 0, 0, W, H, x, y, w, h);
@@ -4831,19 +5227,18 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.tmpCanvas.width = self.oCanvas.width;
         self.tmpCanvas.height = self.oCanvas.height;
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (sel) self._needsRefresh |= SEL;
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (sel) self._refresh |= SEL;
         return self;
     }
         
     // fill image region with a specific (background) color
     ,fill: function( color, x, y, w, h ) {
         var self = this, sel = self.selection, 
-            W = self.width, H = self.height, xs, ys, ws, hs
-        ;
+            W = self.width, H = self.height, xs, ys, ws, hs;
         if (sel)
         {
             xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
@@ -4876,11 +5271,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillStyle = color;  
         octx.fillRect(x, y, w, h);
         
-        self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (sel) self._needsRefresh |= SEL;
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (sel) self._refresh |= SEL;
         return self;
     }
     
@@ -4889,12 +5284,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, Data;
         if ( self._restorable )
         {
-        if (self._needsRefresh & IDATA) refresh_data( self, IDATA );
+        if (self._refresh & IDATA) refresh_data( self, IDATA );
         Data = self.iData;
         }
         else
         {
-        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+        if (self._refresh & ODATA) refresh_data( self, ODATA );
         Data = self.oData;
         }
         // clone it
@@ -4909,12 +5304,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if ( self._restorable )
             {
-            if (self._needsRefresh & ISEL) refresh_selected_data( self, ISEL );
+            if (self._refresh & ISEL) refresh_selected_data( self, ISEL );
             sel = self.iDataSel;
             }
             else
             {
-            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
+            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             sel = self.oDataSel;
             }
         }
@@ -4922,12 +5317,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if ( self._restorable )
             {
-            if (self._needsRefresh & IDATA) refresh_data( self, IDATA );
+            if (self._refresh & IDATA) refresh_data( self, IDATA );
             sel = self.iData;
             }
             else
             {
-            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+            if (self._refresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
             }
         }
@@ -4938,7 +5333,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // get processed data array
     ,getProcessedData: function( ) {
         var self = this;
-        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+        if (self._refresh & ODATA) refresh_data( self, ODATA );
         // clone it
         return new IMGcpy( self.oData.data );
     }
@@ -4949,12 +5344,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         if (self.selection)  
         {
-            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
+            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             sel = self.oDataSel;
         }
         else
         {
-            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+            if (self._refresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
         }
         // clone it
@@ -4962,43 +5357,77 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // set direct data array
-    ,setData: function(a) {
+    ,setData: ArrayUtil.hasArrayset ? function( a ) {
         var self = this;
-        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+        if (self._refresh & ODATA) refresh_data( self, ODATA );
+        self.oData.data.set(a);
+        self.octx.putImageData(self.oData, 0, 0); 
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= OSEL;
+        return self;
+    } : function( a ) {
+        var self = this;
+        if (self._refresh & ODATA) refresh_data( self, ODATA );
         arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
         self.octx.putImageData(self.oData, 0, 0); 
-        self._needsRefresh |= HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= OSEL;
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= OSEL;
         return self;
     }
     
     // set direct data array of selected part
-    ,setSelectedData: function(a) {
+    ,setSelectedData: ArrayUtil.hasArrayset ? function( a ) {
         var self = this;
         if (self.selection)
         {
             var sel = self.selection, ow = self.width-1, oh = self.height-1,
                 xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
-            if (self._needsRefresh & OSEL) refresh_selected_data( self, OSEL );
-            arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
+            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
+            self.oDataSel.data.set(a);
             self.octx.putImageData(self.oDataSel, xs, ys); 
-            self._needsRefresh |= ODATA;
+            self._refresh |= ODATA;
         }
         else
         {
-            if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
+            if (self._refresh & ODATA) refresh_data( self, ODATA );
+            self.oData.data.set(a);
+            self.octx.putImageData(self.oData, 0, 0); 
+        }
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        return self;
+    } : function( a ) {
+        var self = this;
+        if (self.selection)
+        {
+            var sel = self.selection, ow = self.width-1, oh = self.height-1,
+                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
+            arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
+            self.octx.putImageData(self.oDataSel, xs, ys); 
+            self._refresh |= ODATA;
+        }
+        else
+        {
+            if (self._refresh & ODATA) refresh_data( self, ODATA );
             arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oData, 0, 0); 
         }
-        self._needsRefresh |= HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
         return self;
     }
+    
     
     ,createImageData: function( w, h ) {
         var self = this, ictx, octx;
@@ -5010,12 +5439,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         octx = self.octx = self.oCanvas.getContext('2d');
         octx.createImageData(w, h);
-        self._needsRefresh |= DATA;
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= DATA;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
-    ,image: function( img ) {
+    ,image: ArrayUtil.hasArrayset ? function( img ) {
         if ( !img ) return this;
         
         var self = this, ictx, octx, w, h, 
@@ -5049,7 +5478,69 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0);
-            self._needsRefresh |= DATA;
+            self._refresh |= DATA;
+        }
+        else
+        {
+            if ( !self.oData ) 
+            {
+                self.createImageData(w, h);
+                refresh_data(self, DATA);
+            }
+            
+            if ( self._restorable )
+            {
+            ictx = self.ictx = self.iCanvas.getContext('2d');
+            self.iData.data.set(img.data);
+            ictx.putImageData(self.iData, 0, 0); 
+            }
+            
+            octx = self.octx = self.oCanvas.getContext('2d');
+            self.oData.data.set(img.data);
+            octx.putImageData(self.oData, 0, 0); 
+            //self._refresh &= CLEAR_DATA;
+        }
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
+        return self;
+    } : function( img ) {
+        if ( !img ) return this;
+        
+        var self = this, ictx, octx, w, h, 
+            isVideo, isCanvas, isImage//, isImageData
+        ;
+        
+        if ( img instanceof FilterImage ) img = img.oCanvas;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isImage = ("undefined" !== typeof Image) && (img instanceof Image);
+        //isImageData = img instanceof Object || "object" === typeof img;
+        
+        if ( isVideo )
+        {
+            w = img.videoWidth;
+            h = img.videoHeight;
+        }
+        else
+        {
+            w = img.width;
+            h = img.height;
+        }
+        
+        if ( isImage || isCanvas || isVideo ) 
+        {
+            set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
+            if ( self._restorable ) 
+            {
+            ictx = self.ictx = self.iCanvas.getContext('2d');
+            ictx.drawImage(img, 0, 0);
+            }
+            octx = self.octx = self.oCanvas.getContext('2d');
+            octx.drawImage(img, 0, 0);
+            self._refresh |= DATA;
         }
         else
         {
@@ -5069,43 +5560,40 @@ var FilterImage = FILTER.Image = FILTER.Class({
             octx = self.octx = self.oCanvas.getContext('2d');
             arrayset(self.oData.data, img.data); // not supported in Opera, IE, Safari
             octx.putImageData(self.oData, 0, 0); 
-            //self._needsRefresh &= CLEAR_DATA;
+            //self._refresh &= CLEAR_DATA;
         }
-        //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
-        self._needsRefresh |= HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= SEL;
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
         return self;
     }
     
     ,getPixel: function( x, y ) {
-        var self = this;
-        if (self._needsRefresh & ODATA) refresh_data( self, ODATA );
-        var off = (~~(y*self.width+x+0.5))<<2, im = self.oData.data;
-        return {
-            r: im[off], 
-            g: im[off+1], 
-            b: im[off+2], 
-            a: im[off+3]
-        };
+        var self = this, w = self.width, h = self.height, offset;
+        if ( 0 > x || x >= w || 0 > y || y >= h ) return null;
+        if (self._refresh & ODATA) refresh_data( self, ODATA );
+        offset = (~~(y*w+x))<<2;
+        return subarray(self.oData.data, offset, offset+4);
     }
     
-    ,setPixel: function( x, y, r, g, b, a ) {
-        var self = this;
-        self.octx.putImageData(new IMG([r&255, g&255, b&255, a&255]), x, y); 
-        self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= OSEL;
+    ,setPixel: function( x, y, rgba ) {
+        var self = this, w = self.width, h = self.height;
+        if ( 0 > x || x >= w || 0 > y || y >= h ) return self;
+        //p = new IMG(4); p[0] = r&255; p[1] = g&255; p[2] = b&255; p[3] = a&255;
+        self.octx.putImageData(rgba, x, y); 
+        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= OSEL;
         return self;
     }
     
     // get the imageData object
     ,getPixelData: function( ) {
-        if (this._needsRefresh & ODATA) refresh_data( this, ODATA );
+        if (this._refresh & ODATA) refresh_data( this, ODATA );
         return this.oData;
     }
     
@@ -5113,111 +5601,94 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setPixelData: function( data ) {
         var self = this;
         self.octx.putImageData(data, 0, 0); 
-        self._needsRefresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._histogramRefresh = [1, 1, 1, 1];
-        self._integralRefresh = [1, 1, 1, 1];
-        self._spectrumRefresh = [1, 1, 1, 1];
-        if (self.selection) self._needsRefresh |= OSEL;
+        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= OSEL;
         return self;
     }
     
     ,integral: function( channel ) {
-        var self = this, integral = ImageUtil.integral, grayscale = self._grayscale;
+        var self = this, gray = self.gray, CHANNEL,
+            integ = ImageUtil.integral, integral = self._integral;
         if ( null == channel )
         {
-            if ( self._needsRefresh & SAT )
+            if ( self._refresh & SAT )
             {
-                var data = self.getPixelData().data, w = self.width, h = self.height,
-                    i0 = integral(data, w, h, 0);
-                self._integral = [
-                    i0,
-                    grayscale ? i0 : integral(data, w, h, 1),
-                    grayscale ? i0 : integral(data, w, h, 2),
-                    integral(data, w, h, 3)
-                ];
-                self._integralRefresh = [0, 0, 0, 0];
-                self._needsRefresh &= CLEAR_SAT;
+                var data = self.getPixelData().data, w = self.width, h = self.height, i0;
+                integral[0] = i0 = integ(data, w, h, 0);
+                integral[1] = gray ? i0 : integ(data, w, h, 1);
+                integral[2] = gray ? i0 : integ(data, w, h, 2);
+                integral[3] = null;
+                self._intRefresh = 0; self._refresh &= CLEAR_SAT;
             }
         }
         else
         {
-            channel = channel || 0;
-            if ( (self._needsRefresh & SAT) || self._integralRefresh[channel] )
+            channel = channel || 0; CHANNEL = 1 << channel;
+            if ( (self._refresh & SAT) || (self._intRefresh & CHANNEL) )
             {
-                if ( grayscale && !self._integralRefresh[0] )
-                    self._integral[channel] = self._integral[0];
+                if ( gray && !(self._intRefresh & RED) )
+                    integral[channel] = integral[0];
+                else if ( gray && !(self._intRefresh & GREEN) )
+                    integral[channel] = integral[1];
+                else if ( gray && !(self._intRefresh & BLUE) )
+                    integral[channel] = integral[2];
                 else
-                    self._integral[channel] = integral(self.getPixelData().data, self.width, self.height, channel);
-                self._integralRefresh[channel] = 0;
-                self._needsRefresh &= CLEAR_SAT;
+                    integral[channel] = integ(self.getPixelData().data, self.width, self.height, channel);
+                self._intRefresh &= ~CHANNEL; self._refresh &= CLEAR_SAT;
             }
         }
-        return null == channel ? self._integral : self._integral[channel||0];
+        return null == channel ? integral : integral[channel||0];
     }
     
-    ,histogram: function( channel ) {
-        var self = this, hist = ImageUtil.histogram, grayscale = self._grayscale;
+    ,histogram: function( channel, pdf ) {
+        var self = this, gray = self.gray, CHANNEL,
+            hist = ImageUtil.histogram, histogram = self._histogram;
         if ( null == channel )
         {
-            if ( self._needsRefresh & HIST )
+            if ( self._refresh & HIST )
             {
-                var data = self.getPixelData().data, w = self.width, h = self.height,
-                    h0 = hist(data, w, h, 0);
-                self._histogram = [
-                    h0,
-                    grayscale ? h0 : hist(data, w, h, 1),
-                    grayscale ? h0 : hist(data, w, h, 2),
-                    null//hist(data, w, h, 3)
-                ];
-                self._histogramRefresh = [0, 0, 0, 0];
-                self._needsRefresh &= CLEAR_HIST;
+                var data = self.getPixelData().data, w = self.width, h = self.height, h0;
+                histogram[0] = h0 = hist(data, w, h, 0, pdf);
+                histogram[1] = gray ? h0 : hist(data, w, h, 1, pdf);
+                histogram[2] = gray ? h0 : hist(data, w, h, 2, pdf);
+                histogram[3] = null;
+                self._hstRefresh = 0; self._refresh &= CLEAR_HIST;
             }
         }
         else
         {
-            channel = channel || 0;
-            if ( (self._needsRefresh & HIST) || self._histogramRefresh[channel] )
+            channel = channel || 0; CHANNEL = 1 << channel;
+            if ( (self._refresh & HIST) || (self._hstRefresh & CHANNEL) )
             {
-                if ( grayscale && !self._histogramRefresh[0] )
-                    self._histogram[channel] = self._histogram[0];
+                if ( gray && !(self._hstRefresh & RED) )
+                    histogram[channel] = histogram[0];
+                else if ( gray && !(self._hstRefresh & GREEN) )
+                    histogram[channel] = histogram[1];
+                else if ( gray && !(self._hstRefresh & BLUE) )
+                    histogram[channel] = histogram[2];
                 else
-                    self._histogram[channel] = hist(self.getPixelData().data, self.width, self.height, channel);
-                self._histogramRefresh[channel] = 0;
-                self._needsRefresh &= CLEAR_HIST;
+                    histogram[channel] = hist(self.getPixelData().data, self.width, self.height, channel, pdf);
+                self._hstRefresh &= ~CHANNEL; self._refresh &= CLEAR_HIST;
             }
         }
-        return null == channel ? self._histogram : self._histogram[channel||0];
+        return null == channel ? histogram : histogram[channel||0];
     }
     
     // TODO
     ,spectrum: function( channel ) {
-        var self = this, spec = ImageUtil.spectrum;
-        /*
-        if (self._needsRefresh & SPECTRUM) 
-        {
-                channel = channel || 0;
-            var data = self.getPixelData().data, w = self.width, h = self.height;
-            self._spectrum[channel] = spec(data, w, h, channel);
-            self._needsRefresh &= CLEAR_SPECTRUM;
-        }
-        */
-        return null == channel ? self._spectrum : self._spectrum[channel||0];
+        var self = this, /*spec = ImageUtil.spectrum,*/ spectrum = self._spectrum;
+        return null == channel ? spectrum : spectrum[channel||0];
     }
     
-    ,toImage: function( format ) {
-        var canvas = this.oCanvas, uri, quality = 1.0;
-        if ( FORMAT.JPG === (format & 16) )
-        {
-            uri = canvas.toDataURL( MIME.JPG, quality );
-        }
-        else if ( FORMAT.GIF === (format & 16) )
-        {
-            uri = canvas.toDataURL( MIME.GIF, quality );
-        }
-        else/* if( FORMAT.PNG === (format & 16) )*/
-        {
-            uri = canvas.toDataURL( MIME.PNG, quality );
-        }
+    ,toImage: function( format, quality ) {
+        format = format || 0; quality = quality || 1;
+        var canvas = this.oCanvas, uri = null, CODEC = format & 16;
+        if ( FORMAT.JPG === CODEC )         uri = canvas.toDataURL( MIME.JPG, quality );
+        else if ( FORMAT.GIF === CODEC )    uri = canvas.toDataURL( MIME.GIF, quality );
+        else/* if( FORMAT.PNG === CODEC )*/ uri = canvas.toDataURL( MIME.PNG, quality );
         if ( format & FORMAT.IMAGE )
         {
             var img = new Image( );
@@ -5231,20 +5702,18 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return "[" + "FILTER Image: " + this.name + "]";
     }
 });
-//
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
-
 // static
-FilterImage.Gradient = function Gradient( w, h, colors, stops, angle, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
-    Grad.setData( ImageUtil.gradient( Grad.getData(), w, h, c[0], c[1], angle, interpolate||ImageUtil.lerp ) );
+FilterImage.Gradient = function LinearGradient( w, h, colors, stops, angle, interpolate ) {
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
+    Grad.setData( Gradient.linear( Grad.getData(), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
     return Grad;
 };
 FilterImage.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = ImageUtil.colors_stops( colors, stops );
-    Grad.setData( ImageUtil.radial_gradient( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||ImageUtil.lerp ) );
+    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
+    Grad.setData( Gradient.radial( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
     return Grad;
 };
 FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
@@ -5256,9 +5725,6 @@ FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale,
     }
     return perlinNoise;
 };
-
-// resize/scale/interpolate image data
-ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
 
 //
 // Scaled Image (Proxy) Class
@@ -5339,18 +5805,96 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
             }
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0, w, h, 0, 0, sw, sh);
-            self._needsRefresh |= DATA | HIST | SAT | SPECTRUM;
-            self._histogramRefresh = [1, 1, 1, 1];
-            self._integralRefresh = [1, 1, 1, 1];
-            self._spectrumRefresh = [1, 1, 1, 1];
-            if (self.selection) self._needsRefresh |= SEL;
+            self._refresh |= DATA | HIST | SAT | SPECTRUM;
+            self._hstRefresh = ALL_CHANNELS;
+            self._intRefresh = ALL_CHANNELS;
+            self._spcRefresh = ALL_CHANNELS;
+            if (self.selection) self._refresh |= SEL;
         }
-        //self.webgl = FILTER.useWebGL ? new FILTER.WebGL(self.domElement) : null;
         return self;
     }
 });
 // aliases
 FilterScaledImage[PROTO].setImage = FilterScaledImage[PROTO].image;
+
+// auxilliary (private) methods
+function set_dimensions( scope, w, h, what ) 
+{
+    what = what || WIDTH_AND_HEIGHT;
+    if ( what & WIDTH )
+    {
+        scope.width = w;
+        scope.oCanvas.style.width = w + 'px';
+        scope.oCanvas.width = w * devicePixelRatio;
+        if ( scope._restorable ) 
+        {
+        scope.iCanvas.style.width = scope.oCanvas.style.width;
+        scope.iCanvas.width = scope.oCanvas.width;
+        }
+        if ( scope.tmpCanvas )
+        {
+            scope.tmpCanvas.style.width = scope.oCanvas.style.width;
+            scope.tmpCanvas.width = scope.oCanvas.width;
+        }
+    }
+    if ( what & HEIGHT )
+    {
+        scope.height = h;
+        scope.oCanvas.style.height = h + 'px';
+        scope.oCanvas.height = h * devicePixelRatio;
+        if ( scope._restorable ) 
+        {
+        scope.iCanvas.style.height = scope.oCanvas.style.height;
+        scope.iCanvas.height = scope.oCanvas.height;
+        }
+        if ( scope.tmpCanvas )
+        {
+            scope.tmpCanvas.style.height = scope.oCanvas.style.height;
+            scope.tmpCanvas.height = scope.oCanvas.height;
+        }
+    }
+    return scope;
+}
+function refresh_data( scope, what ) 
+{
+    var w = scope.width, h = scope.height;
+    what = what || 255;
+    if ( scope._restorable && (what & IDATA) && (scope._refresh & IDATA) )
+    {
+        scope.iData = scope.ictx.getImageData(0, 0, w, h);
+        scope._refresh &= ~IDATA;
+    }
+    if ( (what & ODATA) && (scope._refresh & ODATA) )
+    {
+        scope.oData = scope.octx.getImageData(0, 0, w, h);
+        scope._refresh &= ~ODATA;
+    }
+    //scope._refresh &= CLEAR_DATA;
+    return scope;
+}
+function refresh_selected_data( scope, what ) 
+{
+    if ( scope.selection )
+    {
+        var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
+            xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
+            ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
+        ;
+        what = what || 255;
+        if ( scope._restorable && (what & ISEL) && (scope._refresh & ISEL) )
+        {
+            scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
+            scope._refresh &= ~ISEL;
+        }
+        if ( (what & OSEL) && (scope._refresh & OSEL) )
+        {
+            scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
+            scope._refresh &= ~OSEL;
+        }
+    }
+    //scope._refresh &= CLEAR_SEL;
+    return scope;
+}
 
 }(FILTER);/**
 *

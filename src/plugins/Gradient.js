@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var ImageUtil = FILTER.Util.Image, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
+var Gradient = FILTER.Color.Gradient, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
 
 FILTER.Create({
      name: "GradientFilter"
@@ -40,7 +40,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = ImageUtil.colors_stops( colors, stops );
+            var c = Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -79,7 +79,7 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
         if ( !self._isOn || !self.colors ) return im;
-        return ImageUtil.gradient( im, w, h, self.colors, self.stops, self.angle, ImageUtil.lerp );
+        return Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
     }
 });
 
@@ -120,7 +120,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = ImageUtil.colors_stops( colors, stops );
+            var c = Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -167,7 +167,7 @@ FILTER.Create({
         if ( !self._isOn || !self.colors ) return im;
         
         // make center relative
-        return ImageUtil.radial_gradient( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, ImageUtil.lerp );
+        return Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate );
     }
 });
 

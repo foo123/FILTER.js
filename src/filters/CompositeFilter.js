@@ -8,7 +8,7 @@
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = AP.slice, splice = AP.splice, concat = AP.concat
+    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get
 ;
 
 //
@@ -16,10 +16,11 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
 var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     name: "CompositeFilter"
     
-    ,constructor: function( filters ) { 
+    ,constructor: function CompositeFilter( filters ) { 
         var self = this;
+        if ( !(self instanceof CompositeFilter) ) return new CompositeFilter(filters);
         self.$super('constructor');
-        self._stack = ( filters && filters.length ) ? filters.slice( ) : [ ];
+        self._stack = filters && filters.length ? filters.slice( ) : [ ];
     }
     
     ,path: FILTER_FILTERS_PATH
@@ -29,8 +30,6 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     ,dispose: function( withFilters ) {
         var self = this, i, stack = self._stack;
-        
-        self.$super('dispose');
         
         if ( true === withFilters )
         {
@@ -42,16 +41,14 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         }
         self._stack = null;
         self._meta = null;
-        
+        self.$super('dispose');
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this, json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, filters: [ ] }, i, stack = self._stack;
-        for (i=0; i<stack.length; i++)
-        {
-            json.filters.push( stack[ i ].serialize( ) );
-        }
+        var self = this, i, stack = self._stack,
+            json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, _update: self._update, filters: [ ] };
+        for (i=0; i<stack.length; i++) json.filters.push( stack[ i ].serialize( ) );
         return json;
     }
     
@@ -59,13 +56,13 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         var self = this, i, l, ls, filters, filter, stack = self._stack;
         if ( json && self.name === json.filter )
         {
-            self._isOn = !!json._isOn;
-            self._stable = !!json._stable;
+            self._isOn = json._isOn;
+            self._update = json._update;
+            self._stable = json._stable;
             
             filters = json.filters || [ ];
-            l = filters.length;
-            ls = stack.length;
-            if ( l !== ls || !self._stable )
+            l = filters.length; ls = stack.length;
+            if ( (l !== ls) || (!self._stable) )
             {
                 // dispose any prev filters
                 for (i=0; i<ls; i++)
@@ -77,7 +74,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                 
                 for (i=0; i<l; i++)
                 {
-                    filter = (filters[ i ] && filters[ i ].filter) ? FILTER[ filters[ i ].filter ] : null;
+                    filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
                     if ( filter )
                     {
                         stack.push( new filter( ).unserialize( filters[ i ] ) );
@@ -88,16 +85,12 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                         return;
                     }
                 }
+                self._stack = stack;
             }
             else
             {
-                for (i=0; i<l; i++)
-                {
-                    stack[ i ] = stack[ i ].unserialize( filters[ i ] );
-                }
+                for (i=0; i<l; i++) stack[ i ].unserialize( filters[ i ] );
             }
-            
-            self._stack = stack;
         }
         return self;
     }
@@ -109,9 +102,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     ,setMeta: function( meta ) {
         var self = this, stack = self._stack, i, l;
         if ( meta && (l=meta.length) && stack.length )
-        {
-            for (i=0; i<l; i++) stack[meta[i][0]].setMeta(meta[i][1]);
-        }
+            for (i=0; i<l; i++) stack[ meta[i][0] ].setMeta( meta[i][1] );
         return self;
     }
     
@@ -132,11 +123,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,push: function(/* variable args here.. */) {
-        var args = slice.call(arguments), argslen = args.length;
-        if ( argslen )
-        {
-            this._stack = concat.apply( this._stack, args );
-        }
+        if ( arguments.length ) concat.apply(this._stack, arguments);
         return this;
     }
     
@@ -149,16 +136,12 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,unshift: function(/* variable args here.. */) {
-        var args = slice.call(arguments), argslen = args.length;
-        if ( argslen )
-        {
-            splice.apply( this._stack, [0, 0].concat( args ) );
-        }
+        if ( arguments.length ) splice.apply(this._stack, concat.apply([0, 0], arguments));
         return this;
     }
     
     ,getAt: function( i ) {
-        return ( this._stack.length > i ) ? this._stack[ i ] : null;
+        return this._stack.length > i ? this._stack[ i ] : null;
     }
     
     ,setAt: function( i, filter ) {
@@ -198,25 +181,23 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
-        var self = this/*, cache = {}*/, update = false;
-        self.hasMeta = false; self._meta = [];
+        var self = this, scratchpad = {}/*, update = false*/;
+        self._meta = [];
         if ( self._isOn && self._stack.length )
         {
-            var _filterstack = self._stack, _stacklength = _filterstack.length, 
-                fi, filter;
-                
-            for ( fi=0; fi<_stacklength; fi++ )
+            var filterstack = self._stack, stacklength = filterstack.length, fi, filter;
+            for (fi=0; fi<stacklength; fi++)
             {
-                filter = _filterstack[fi]; 
+                filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    im = filter._apply(im, w, h, image/*, cache*/);
-                    update = update || filter._update;
+                    im = filter._apply(im, w, h, image, scratchpad);
                     if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
+                    //update = update || filter._update;
                 }
             }
         }
-        self._update = update;
+        //self._update = update;
         self.hasMeta = self._meta.length > 0;
         return im;
     }
@@ -226,21 +207,17 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,toString: function( ) {
-        var tab = arguments.length && arguments[0].substr ? arguments[0] : "  ",
-            tab_tab = tab + tab, s = this._stack,
-            out = [], i, l = s.length
-        ;
-        for (i=0; i<l; i++) out.push(s[i].toString(tab_tab));
+        var tab = "  ", s = this._stack, out = [], i, l = s.length;
+        for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
         return [
              "[FILTER: " + this.name + "]"
-             ,"["
-             ,"  " + out.join("\n  ")
-             ,"]"
-             ,""
+             ,"[",out.join( "\n" ),"]",""
          ].join("\n");
     }
 });
 // aliases
+CompositeFilter.prototype.get = CompositeFilter.prototype.getAt;
+CompositeFilter.prototype.set = CompositeFilter.prototype.setAt;
 CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
 CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 

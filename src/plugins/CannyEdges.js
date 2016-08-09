@@ -8,11 +8,9 @@
 "use strict";
 
 var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
-    GAUSSIAN_CUT_OFF = 0.005,
-    MAGNITUDE_SCALE = 100,
-    MAGNITUDE_LIMIT = 1000,
+    GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
+    LUMA = FILTER.LUMA, PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
     hypot
 ;
 
@@ -50,7 +48,6 @@ hypot = Math.hypot
 
 function computeGradients(data, width, height, magnitude, kernelRadius, kernelWidth) 
 {
-    
     //generate the gaussian convolution masks
     var picsize = data.length,
         xConv = new Float32(picsize),
@@ -81,59 +78,51 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
     ;
     
     //perform convolution in x and y directions
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
+        if ( y >= maxY) { y=initY; x++; }
+        index = x + y;
+        sumX = data[index] * kernel[0];
+        sumY = sumX;
+        xOffset = 1;
+        yOffset = width;
+        for(; xOffset < kwidth ;) 
         {
-            index = x + y;
-            sumX = data[index] * kernel[0];
-            sumY = sumX;
-            xOffset = 1;
-            yOffset = width;
-            for(; xOffset < kwidth ;) 
-            {
-                sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
-                sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
-                yOffset += width;
-                xOffset++;
-            }
-            
-            yConv[index] = sumY;
-            xConv[index] = sumX;
+            sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
+            sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
+            yOffset += width;
+            xOffset++;
         }
+        
+        yConv[index] = sumY;
+        xConv[index] = sumX;
 
     }
 
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
-        {
-            sum = 0;
-            index = x + y;
-            for (i = 1; i < kwidth; i++)
-                sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
+        if ( y >= maxY) { y=initY; x++; }
+        sum = 0;
+        index = x + y;
+        for (i = 1; i < kwidth; i++) sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
 
-            xGradient[index] = sum;
-        }
-
+        xGradient[index] = sum;
     }
-
-    for (x = kwidth; x < width - kwidth; x++) 
+    
+    maxX = width - kwidth;
+    for (x=kwidth,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
+        if ( y >= maxY) { y=initY; x++; }
+        sum = 0.0;
+        index = x + y;
+        yOffset = width;
+        for (i = 1; i < kwidth; i++) 
         {
-            sum = 0.0;
-            index = x + y;
-            yOffset = width;
-            for (i = 1; i < kwidth; i++) 
-            {
-                sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
-                yOffset += width;
-            }
-
-            yGradient[index] = sum;
+            sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
+            yOffset += width;
         }
 
+        yGradient[index] = sum;
     }
 
     initX = kwidth;
@@ -146,84 +135,83 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         nMag, sMag, eMag, wMag,
         nwMag, neMag, swMag, seMag
     ;
-    for (x = initX; x < maxX; x++) 
+    for (x=initX,y=initY; x<maxX; y+=width) 
     {
-        for (y = initY; y < maxY; y += width) 
-        {
-            index = x + y;
-            indexN = index - width;
-            indexS = index + width;
-            indexW = index - 1;
-            indexE = index + 1;
-            indexNW = indexN - 1;
-            indexNE = indexN + 1;
-            indexSW = indexS - 1;
-            indexSE = indexS + 1;
-            
-            xGrad = xGradient[index];
-            yGrad = yGradient[index];
-            gradMag = hypot(xGrad, yGrad);
+        if ( y >= maxY ) {y=initY; x++; }
+        
+        index = x + y;
+        indexN = index - width;
+        indexS = index + width;
+        indexW = index - 1;
+        indexE = index + 1;
+        indexNW = indexN - 1;
+        indexNE = indexN + 1;
+        indexSW = indexS - 1;
+        indexSE = indexS + 1;
+        
+        xGrad = xGradient[index];
+        yGrad = yGradient[index];
+        gradMag = abs(xGrad)+abs(yGrad);
 
-            //perform non-maximal supression
-            nMag = hypot(xGradient[indexN], yGradient[indexN]);
-            sMag = hypot(xGradient[indexS], yGradient[indexS]);
-            wMag = hypot(xGradient[indexW], yGradient[indexW]);
-            eMag = hypot(xGradient[indexE], yGradient[indexE]);
-            neMag = hypot(xGradient[indexNE], yGradient[indexNE]);
-            seMag = hypot(xGradient[indexSE], yGradient[indexSE]);
-            swMag = hypot(xGradient[indexSW], yGradient[indexSW]);
-            nwMag = hypot(xGradient[indexNW], yGradient[indexNW]);
-            //tmp;
-            /*
-             * An explanation of what's happening here, for those who want
-             * to understand the source: This performs the "non-maximal
-             * supression" phase of the Canny edge detection in which we
-             * need to compare the gradient magnitude to that in the
-             * direction of the gradient; only if the value is a local
-             * maximum do we consider the point as an edge candidate.
-             * 
-             * We need to break the comparison into a number of different
-             * cases depending on the gradient direction so that the
-             * appropriate values can be used. To avoid computing the
-             * gradient direction, we use two simple comparisons: first we
-             * check that the partial derivatives have the same sign (1)
-             * and then we check which is larger (2). As a consequence, we
-             * have reduced the problem to one of four identical cases that
-             * each test the central gradient magnitude against the values at
-             * two points with 'identical support'; what this means is that
-             * the geometry required to accurately interpolate the magnitude
-             * of gradient function at those points has an identical
-             * geometry (upto right-angled-rotation/reflection).
-             * 
-             * When comparing the central gradient to the two interpolated
-             * values, we avoid performing any divisions by multiplying both
-             * sides of each inequality by the greater of the two partial
-             * derivatives. The common comparand is stored in a temporary
-             * variable (3) and reused in the mirror case (4).
-             * 
-             */
-            if (xGrad * yGrad <= 0 /*(1)*/
-                ? abs(xGrad) >= abs(yGrad) /*(2)*/
-                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                        && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                    : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                        && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-                : abs(xGrad) >= Math.abs(yGrad) /*(2)*/
-                    ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                        && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                    : (tmp =abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                        && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
-            ) 
-            {
-                magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
-                //NOTE: The orientation of the edge is not employed by this
-                //implementation. It is a simple matter to compute it at
-                //this point as: Math.atan2(yGrad, xGrad);
-            } 
-            else 
-            {
-                magnitude[index] = 0;
-            }
+        //perform non-maximal supression
+        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
+        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
+        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
+        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
+        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
+        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
+        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
+        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
+        //tmp;
+        /*
+         * An explanation of what's happening here, for those who want
+         * to understand the source: This performs the "non-maximal
+         * supression" phase of the Canny edge detection in which we
+         * need to compare the gradient magnitude to that in the
+         * direction of the gradient; only if the value is a local
+         * maximum do we consider the point as an edge candidate.
+         * 
+         * We need to break the comparison into a number of different
+         * cases depending on the gradient direction so that the
+         * appropriate values can be used. To avoid computing the
+         * gradient direction, we use two simple comparisons: first we
+         * check that the partial derivatives have the same sign (1)
+         * and then we check which is larger (2). As a consequence, we
+         * have reduced the problem to one of four identical cases that
+         * each test the central gradient magnitude against the values at
+         * two points with 'identical support'; what this means is that
+         * the geometry required to accurately interpolate the magnitude
+         * of gradient function at those points has an identical
+         * geometry (upto right-angled-rotation/reflection).
+         * 
+         * When comparing the central gradient to the two interpolated
+         * values, we avoid performing any divisions by multiplying both
+         * sides of each inequality by the greater of the two partial
+         * derivatives. The common comparand is stored in a temporary
+         * variable (3) and reused in the mirror case (4).
+         * 
+         */
+        if (xGrad * yGrad <= 0 /*(1)*/
+            ? abs(xGrad) >= abs(yGrad) /*(2)*/
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
+                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
+                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
+            : abs(xGrad) >= abs(yGrad) /*(2)*/
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
+                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
+                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+        ) 
+        {
+            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
+            //NOTE: The orientation of the edge is not employed by this
+            //implementation. It is a simple matter to compute it at
+            //this point as: Math.atan2(yGrad, xGrad);
+        } 
+        else 
+        {
+            magnitude[index] = 0;
         }
     }
 }
@@ -251,13 +239,11 @@ function performHysteresis(data, width, height, magnitude, low, high)
 
 function follow(data, width, height, magnitude, x1, y1, i1, threshold) 
 {
-    var
-        x0 = x1 == 0 ? x1 : x1 - 1,
-        x2 = x1 == width - 1 ? x1 : x1 + 1,
-        y0 = y1 == 0 ? y1 : y1 - 1,
-        y2 = y1 == height -1 ? y1 : y1 + 1,
-        x, y, i2
-    ;
+    var x0 = x1 === 0 ? x1 : x1 - 1,
+        x2 = x1 === width - 1 ? x1 : x1 + 1,
+        y0 = y1 === 0 ? y1 : y1 - 1,
+        y2 = y1 === height -1 ? y1 : y1 + 1,
+        x, y, i2;
     
     data[i1] = magnitude[i1];
     x = x0, y = y0;
@@ -284,7 +270,7 @@ function follow(data, width, height, magnitude, x1, y1, i1, threshold)
 function readLuminance(im, data) 
 {
     var i, di, r, g, b, size = im.length, 
-        LR = FILTER.LUMA[0], LG = FILTER.LUMA[1], LB = FILTER.LUMA[2];
+        LR = LUMA[0], LG = LUMA[1], LB = LUMA[2];
     for (i=0,di=0; i<size; i+=4,di++) 
     {
         r = im[i]; g = im[i+1]; b = im[i+2];

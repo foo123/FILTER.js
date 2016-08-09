@@ -14,28 +14,36 @@ var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PR
     ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
-    ,supportsThread = Async.supportsMultiThreading( )
-    ,isThread = Async.isThread( null, true )
-    ,isInsideThread = Async.isThread( )
+    ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( null, true ), isInsideThread = Async.isThread( )
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
     
-    ,toStringPlugin = function( ) { return "[FILTER Plugin: " + this.name + "]"; }
+    ,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
     ,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
     ,constructorPlugin = function( init ) {
-        return function( ) {
-            this.$super('constructor');
-            init.apply( this, arguments );
+        return function PluginFilter( ) {
+            var self = this;
+            // factory/constructor pattern
+            if ( !(self instanceof PluginFilter) )
+            {
+                if ( arguments.length )
+                {
+                    arguments.__arguments__ = true;
+                    return new PluginFilter(arguments);
+                }
+                else
+                {
+                    return new PluginFilter();
+                }
+            }
+            self.$super('constructor');
+            init.apply( self, (1===arguments.length) && (true===arguments[0].__arguments__) ? arguments[0] : arguments );
         };
     }
-    
     ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
-    
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,no_typed_array_set = ("undefined" === typeof Int16Array) || ("function" !== typeof Int16Array[PROTO].set)
-    
     ,TypedArray, log, _uuid = 0
 ;
 
@@ -104,8 +112,7 @@ FILTER.ImArray = notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 // however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
 FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 FILTER.ColorTable = FILTER.ImArrayCopy;
-FILTER.ColorMatrix = FILTER.Array32F;
-FILTER.ConvolutionMatrix = FILTER.Array32F;
+FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
 
 //
 // Constants
@@ -113,14 +120,21 @@ FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
     RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
     Y: 1, CB: 2, CR: 0,
-    H: 0, S: 1, V: 2, I: 2,
-    HUE: 0, SATURATION: 1, INTENSITY: 2
+    H: 0, S: 2, V: 1, I: 1,
+    HUE: 0, SATURATION: 2, INTENSITY: 1,
+    CY: 2, MA: 0, YE: 1, K: 3,
+    CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3
+};
+FILTER.STRIDE = {
+    CHANNEL: [0,0,1], X: [0,1,4], Y: [1,0,4],
+    RGB: [0,1,2], ARGB: [3,0,1,2], RGBA: [0,1,2,3],
+    BGR: [2,1,0], ABGR: [3,2,1,0], BGRA: [2,1,0,3]
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
     COLOR: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11
+    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -147,6 +161,36 @@ FILTER.CONSTANTS = FILTER.CONST = {
     ,LN2: Math.LN2
 };
 
+// utilities
+TypedArray = isNode
+? function( a, A ) {
+    if ( (null == a) || (a instanceof A) ) return a;
+    else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+    if ( null == a.length ) a.length = Object.keys( a ).length;
+    return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+}
+: function( a, A ) { return a; };
+notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
+FILTER.Util = {
+    Array   : {
+        // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
+         hasClampedArray: "undefined" !== typeof Uint8ClampedArray
+        ,hasArrayset: ("undefined" !== typeof Int16Array) && ("function" === typeof Int16Array[PROTO].set)
+        ,hasSubarray: "function" === typeof FILTER.Array32F[PROTO].subarray
+        ,typed: TypedArray
+        ,typed_obj: isNode
+            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
+            : function( o ) { return o; }
+    },
+    String  : { },
+    Math    : { },
+    IO      : { },
+    Filter  : { },
+    Image   : { },
+    GLSL    : { },
+    SVG     : { }
+};
+
 // packages
 FILTER.IO = { };
 FILTER.Codec = { };
@@ -155,57 +199,10 @@ FILTER.Transform = { };
 FILTER.MachineLearning = FILTER.ML = { };
 FILTER.GLSL = { };
 FILTER.SVG = { };
-// utilities
-FILTER.Util = {
-    Math    : { },
-    Array   : {
-        arrayset: no_typed_array_set
-            ? function( a, b, offset ) {
-                offset = offset || 0;
-                for(var i=0,n=b.length; i<n; i++) a[ i + offset ] = b[ i ];
-            }
-            : function( a, b, offset ){ a.set(b, offset||0); }
-
-        ,subarray: !FILTER.Array32F[PROTO].subarray
-            ? function( a, i1, i2 ){ return a.slice(i1, i2); }
-            : function( a, i1, i2 ){ return a.subarray(i1, i2); }
-        ,typed: TypedArray = (isNode
-            ? function( a, A ) {
-                if ( (null == a) || (a instanceof A) ) return a;
-                else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
-                if ( null == a.length ) a.length = Object.keys( a ).length;
-                return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-            }
-            : function( a, A ) { return a; })
-        ,typed_obj: isNode
-            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
-            : function( o ) { return o; }
-    },
-    String  : { },
-    IO      : { },
-    Filter  : { },
-    Image   : { }
-};
-
-// IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
-/*if ( notSupportClamp && ("undefined" !== typeof CanvasPixelArray) && ("function" !== CanvasPixelArray[PROTO].set) )
-{
-    // add the missing method to the array
-    CanvasPixelArray[PROTO].set = typed_array_set;
-}*/
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
 FILTER.NotImplemented = function( method ) {
-    method = method || '';
-    return function( ) { throw new Error('Method '+method+' not Implemented!'); };
+    return method ? function( ) { throw new Error('Method "'+method+'" not Implemented!'); } : function( ) { throw new Error('Method not Implemented!'); };
 };
-
-//
-// webgl support
-FILTER.useWebGL = false;
-FILTER.useWebGLSharedResources = false;
-FILTER.useWebGLIfAvailable = function( bool ) { /* do nothing, override */  };
-FILTER.useWebGLSharedResourcesIfAvailable = function( bool ) { /* do nothing, override */  };
 
 //
 // logging
@@ -296,7 +293,8 @@ var
             // activate worker
             if ( enable && !self.$thread ) 
             {
-                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file ] : self.path.file );
+                var T = isNode ? '' : '?'+new Date().getTime();
+                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file+T ] : self.path.file+T );
                 if ( imports && imports.length )
                     self.send('import', {'import': imports.join ? imports.join(',') : imports});
                 self.send('load', {filter: self.name});
@@ -354,6 +352,7 @@ var
         ,_update: true
         ,_onComplete: null
         ,hasMeta: false
+        ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
@@ -364,6 +363,7 @@ var
             self._update = null;
             self._onComplete = null;
             self.hasMeta = null;
+            self.mode = null;
             return self;
         }
         
@@ -374,7 +374,7 @@ var
         // @override
         ,serialize: function( ) {
             var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, params: {} };
+            return { filter: self.name, _isOn: !!self._isOn, _update: self._update, params: {} };
         }
         
         // @override
@@ -382,7 +382,8 @@ var
             var self = this;
             if ( json && self.name === json.filter )
             {
-                self._isOn = !!json._isOn;
+                self._isOn = json._isOn;
+                self._update = json._update;
             }
             return self;
         }
@@ -392,6 +393,15 @@ var
             return this;
         }
         
+        ,setMode: function( mode ) {
+            this.mode = mode;
+            return this;
+        }
+    
+        ,getMode: function( ) {
+            return this.mode;
+        }
+    
         // whether filter is ON
         ,isOn: function( ) {
             return this._isOn;
@@ -489,7 +499,7 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im/*self._update*/ ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im && self._update ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                         }
                         if ( cb ) cb.call( self );
                     };
@@ -516,6 +526,25 @@ var
     })
 ;
 
+FILTER.Filter.get = function( filterClass ) {
+    if ( !filterClass || !filterClass.length ) return null;
+    if ( -1 < filterClass.indexOf('.') )
+    {
+        filterClass = filterClass.split('.');
+        var i, l = filterClass.length, part, F = FILTER;
+        for(i=0; i<l; i++)
+        {
+            part = filterClass[i];
+            if ( !F[part] ) return null;
+            F = F[part];
+        }
+        return F;
+    }
+    else
+    {
+        return FILTER[filterClass] || null;
+    }
+};
 //
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {

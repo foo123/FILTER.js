@@ -19,8 +19,9 @@ var HAS = 'hasOwnProperty';
 var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     name: "InlineFilter"
     
-    ,constructor: function( handler ) {
+    ,constructor: function InlineFilter( handler ) {
         var self = this;
+        if ( !(self instanceof InlineFilter) ) return new InlineFilter(handler);
         self.$super('constructor');
         // using bind makes the code become [native code] and thus unserializable
         self._handler = handler && ('function' === typeof handler) ? handler : null;

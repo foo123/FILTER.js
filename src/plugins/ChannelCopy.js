@@ -111,7 +111,7 @@ FILTER.Create({
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w,w2), hm = Min(h, h2),  
             cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = (w2>>1), cY2 = (h2>>1)
+            cX2 = w2>>>1, cY2 = h2>>>1
         ;
         
         

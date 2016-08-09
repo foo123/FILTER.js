@@ -8,7 +8,7 @@
 "use strict";
 
 var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    boxKernel_3x3 = new FILTER.Array32F([
+    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9

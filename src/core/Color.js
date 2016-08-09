@@ -9,8 +9,10 @@
 
 // adapted from https://github.com/foo123/css-color
 var // utils
-    Sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
+    sqrt = Math.sqrt, round = Math.round, floor = Math.floor, 
     min = Math.min, max = Math.max, abs = Math.abs,
+    sin = Math.sin, cos = Math.cos,
+    pi = Math.PI, pi2 = 2*pi, pi_2 = pi/2, pi_32 = 3*pi_2,
     //notSupportClamp = FILTER._notSupportClamp,
     clamp = FILTER.Util.Math.clamp,
     esc = FILTER.Util.String.esc,
@@ -180,6 +182,14 @@ var // utils
 // static Color Methods and Transforms
 // http://en.wikipedia.org/wiki/Color_space
 
+function lerp( data, index, c1, c2, t )
+{
+    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
+    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
+    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
+    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
+}
+
 //
 // Color Class and utils
 var Color = FILTER.Color = FILTER.Class({
@@ -193,6 +203,22 @@ var Color = FILTER.Color = FILTER.Class({
         clampPixel: function( v ) {
             return min(255, max(v, 0));
         },
+        
+        color24: function( r, g, b ) {
+            return ((r&255) << 16) | ((g&255) << 8) | (b&255);
+        }, 
+        
+        color32: function( r, g, b, a ) {
+            return ((a&255) << 24) | ((r&255) << 16) | ((g&255) << 8) | (b&255);
+        }, 
+        
+        rgb24: function( color ) {
+            return [(color >>> 16)&255, (color >>> 8)&255, color&255];
+        }, 
+        
+        rgba32: function( color ) {
+            return [(color >>> 16)&255, (color >>> 8)&255, color&255, (color >>> 24)&255];
+        }, 
         
         intensity: function( r, g, b ) {
             return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
@@ -218,7 +244,14 @@ var Color = FILTER.Color = FILTER.Class({
         dist: function( ccc1, ccc2, p1, p2 ) {
             //p1 = p1 || 0; p2 = p2 || 0;
             var d0 = ccc1[p1+0]-ccc2[p2+0], d1 = ccc1[p1+1]-ccc2[p2+1], d2 = ccc1[p1+2]-ccc2[p2+2];
-            return Sqrt(d0*d0 + d1*d1 + d2*d2);
+            return sqrt(d0*d0 + d1*d1 + d2*d2);
+        },
+        
+        RGB2Gray: function( rgb, p ) {
+            //p = p || 0;
+            var g = ~~(LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2]);
+            rgb[p+0] = g; rgb[p+1] = g; rgb[p+2] = g;
+            return rgb;
         },
         
         RGB2Color: function( rgb, p ) {
@@ -288,7 +321,7 @@ var Color = FILTER.Color = FILTER.Class({
                 //h *= 60;                // degrees
                 //if( h < 0 )  h += 360;
             }
-            ccc[p+0] = h; ccc[p+1] = s; ccc[p+2] = v
+            ccc[p+0] = h*0.70833333333333333333333333333333; ccc[p+1] = s*255; ccc[p+2] = v
             return ccc;
         },
         
@@ -296,7 +329,8 @@ var Color = FILTER.Color = FILTER.Class({
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
         HSV2RGB: function( ccc, p ) {
             //p = p || 0;
-            var i, f, o, q, t, r, g, b, h = ccc[p+0], s = ccc[p+1], v = ccc[p+2];
+            var i, f, o, q, t, r, g, b, h = ccc[p+0]*1.4117647058823529411764705882353,
+                s = ccc[p+1]*0.0039215686274509803921568627451, v = ccc[p+2];
             
             if( 0 === s ) 
             {
@@ -320,6 +354,27 @@ var Color = FILTER.Color = FILTER.Class({
                 else /* case 5: */  { r = v; g = o; b = q; }
             }
             ccc[p+0] = r; ccc[p+1] = g; ccc[p+2] = b;
+            return ccc;
+        },
+        
+        RGB2CMYK: function( ccc, p )  {
+            //p = p || 0;
+            var c = 0, m = 0, y = 0, k = 0, invCMY,
+                r = ccc[p+0], g = ccc[p+1], b = ccc[p+2];
+
+            // BLACK, k=255
+            if ( 0===r && 0===g && 0===b ) return ccc;
+
+            c = 255 - r;
+            m = 255 - g;
+            y = 255 - b;
+
+            k = min( c, m, y );
+            invCMY = 255 === k ? 0 : 255 / (255 - k);
+            ccc[p+0] = (c - k) * invCMY;
+            ccc[p+1] = (m - k) * invCMY;
+            ccc[p+2] = (y - k) * invCMY;
+
             return ccc;
         },
         
@@ -361,12 +416,8 @@ var Color = FILTER.Color = FILTER.Class({
                 b = clamp(round(b*P2C), 0, 255);
             }
             
-            // BLACK
-            if ( 0==r && 0==g && 0==b ) 
-            {
-                k = 1;
-                return [0, 0, 0, 1];
-            }
+            // BLACK, k=1
+            if ( 0===r && 0===g && 0===b ) return [0, 0, 0, 1];
 
             c = 1 - (r*C2F);
             m = 1 - (g*C2F);
@@ -382,14 +433,10 @@ var Color = FILTER.Color = FILTER.Class({
             return [c, m, y, k];
         },
         cmyk2rgb: function( c, m, y, k ) {
-            var r = 0, g = 0, b = 0, minCMY, invCMY
-            ;
+            var r = 0, g = 0, b = 0, minCMY, invCMY;
 
             // BLACK
-            if ( 0==c && 0==m && 0==y ) 
-            {
-                return [0, 0, 0];
-            }
+            if ( 0===c && 0===m && 0===y ) return [0, 0, 0];
             
             minCMY = k;
             invCMY = 1 - minCMY;
@@ -415,16 +462,10 @@ var Color = FILTER.Color = FILTER.Class({
                 g = clamp(round(g*P2C), 0, 255);
                 b = clamp(round(b*P2C), 0, 255);
             }
-            
-            r = ( r < 16 ) ? '0'+r.toString(16) : r.toString(16);
-            g = ( g < 16 ) ? '0'+g.toString(16) : g.toString(16);
-            b = ( b < 16 ) ? '0'+b.toString(16) : b.toString(16);
-            
-            if ( condenced && (r[0]==r[1] && g[0]==g[1] && b[0]==b[1]) )
-                hex = '#' + r[0] + g[0] + b[0];
-            else
-                hex = '#' + r + g + b;
-            
+            r = r < 16 ? '0'+r.toString(16) : r.toString(16);
+            g = g < 16 ? '0'+g.toString(16) : g.toString(16);
+            b = b < 16 ? '0'+b.toString(16) : b.toString(16);
+            hex = condenced && (r[0]===r[1] && g[0]===g[1] && b[0]===b[1]) ? ('#'+r[0]+g[0]+b[0]) : ('#'+r+g+b);
             return hex;
         },
         rgb2hexIE: function( r, g, b, a, asPercent ) { 
@@ -437,31 +478,26 @@ var Color = FILTER.Color = FILTER.Class({
                 a = clamp(round(a*P2C), 0, 255);
             }
             
-            r = ( r < 16 ) ? '0'+r.toString(16) : r.toString(16);
-            g = ( g < 16 ) ? '0'+g.toString(16) : g.toString(16);
-            b = ( b < 16 ) ? '0'+b.toString(16) : b.toString(16);
-            a = ( a < 16 ) ? '0'+a.toString(16) : a.toString(16);
+            r = r < 16 ? '0'+r.toString(16) : r.toString(16);
+            g = g < 16 ? '0'+g.toString(16) : g.toString(16);
+            b = b < 16 ? '0'+b.toString(16) : b.toString(16);
+            a = a < 16 ? '0'+a.toString(16) : a.toString(16);
             hex = '#' + a + r + g + b;
             
             return hex;
         },
         hex2rgb: function( h/*, asPercent*/ ) {  
-            if ( !h || 3 > h.length )
-                return [0, 0, 0];
+            if ( !h || 3 > h.length ) return [0, 0, 0];
                 
-            if ( 6 > h.length )
-                return [
-                    clamp( parseInt(h[0]+h[0], 16), 0, 255 ), 
-                    clamp( parseInt(h[1]+h[1], 16), 0, 255 ), 
-                    clamp( parseInt(h[2]+h[2], 16), 0, 255 )
-                ];
-            
-            else
-                return [
-                    clamp( parseInt(h[0]+h[1], 16), 0, 255 ), 
-                    clamp( parseInt(h[2]+h[3], 16), 0, 255 ), 
-                    clamp( parseInt(h[4]+h[5], 16), 0, 255 )
-                ];
+            return 6 > h.length ? [
+                clamp( parseInt(h[0]+h[0], 16), 0, 255 ), 
+                clamp( parseInt(h[1]+h[1], 16), 0, 255 ), 
+                clamp( parseInt(h[2]+h[2], 16), 0, 255 )
+            ] : [
+                clamp( parseInt(h[0]+h[1], 16), 0, 255 ), 
+                clamp( parseInt(h[2]+h[3], 16), 0, 255 ), 
+                clamp( parseInt(h[4]+h[5], 16), 0, 255 )
+            ];
             
             /*if ( asPercent )
                 rgb = [
@@ -493,7 +529,7 @@ var Color = FILTER.Color = FILTER.Class({
             s *= 0.01;
             l *= 0.01;
             
-            if ( 0 == s )
+            if ( 0 === s )
             {
                 // achromatic
                 r = 1;
@@ -541,7 +577,7 @@ var Color = FILTER.Color = FILTER.Class({
             m = min(r, g, b);
             l = 0.5*(M + m);
 
-            if ( M == m )
+            if ( M === m )
             {
                 h = s = 0; // achromatic
             }
@@ -1000,8 +1036,236 @@ var Color = FILTER.Color = FILTER.Class({
         return this.toHEX(1, false!==condenced, 'hexie' == format);
     }
 });
-
+// aliases and utilites
 Color.toGray = Color.intensity;
+
+// gradient, radial-gradient color generation and utilities
+Color.Gradient = {
+    
+    interpolate: lerp,
+    
+    stops: function colors_stops( colors, stops ){
+        stops = stops ? stops.slice() : stops;
+        colors = colors ? colors.slice() : colors;
+        var cl = colors.length, i;
+        if ( !stops )
+        {
+            if ( 1 === cl )
+            {
+                stops = [1.0];
+            }
+            else
+            {
+                stops = new Array(cl);
+                for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
+            }
+        }
+        else if ( stops.length < cl )
+        {
+            var cstoplen = stops.length, cstop = stops[cstoplen-1];
+            for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
+        }
+        if ( 1.0 != stops[stops.length-1] )
+        {
+            stops.push( 1.0 );
+            colors.push( colors[colors.length-1] );
+        }
+        return [colors, stops];
+    },
+    
+    linear: function gradient( g, w, h, colors, stops, angle, interpolate ){
+        var i, x, y, size = g.length, t, px, py, stop1, stop2, s, c, r;
+        //interpolate = interpolate || lerp;
+        angle = angle || 0.0;
+        if ( 0 > angle ) angle += pi2;
+        if ( pi2 < angle ) angle -= pi2;
+        s = abs(sin(angle)); c = abs(cos(angle));
+        r = c*w + s*h; s /= r; c /= r;
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = w-1-x; py = y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = w-1-x; py = h-1-y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = x; py = h-1-y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
+        {
+            for(x=0,y=0,i=0; i<size; i+=4,x++)
+            {
+                if ( x >= w ) { x=0; y++; }
+                px = x; py = y;
+                t = min(1.0, c*px + s*py);
+                stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+                stop1 = 0 === stop2 ? 0 : stop2-1;
+                interpolate(
+                    g, i,
+                    colors[stop1], colors[stop2],
+                    // warp the value if needed, between stop ranges
+                    stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+                );
+            }
+        }
+        return g;
+    },
+    
+    linearPoint: function gradient_point( rgba, i, x, y, w, h, colors, stops, angle ){
+        var px, py, stop1, stop2, s, c, r;
+        s = abs(sin(angle)); c = abs(cos(angle));
+        r = c*w + s*h; s /= r; c /= r;
+        if ( (pi_2 < angle) && (angle <= pi) )
+        {
+            px = w-1-x; py = y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else if ( (pi < angle) && (angle <= pi_32) )
+        {
+            px = w-1-x; py = h-1-y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else if ( (pi_32 < angle) && (angle < pi2) )
+        {
+            px = x; py = h-1-y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        else //if ( (0 <= angle) && (angle <= pi_2) )
+        {
+            px = x; py = y;
+            t = min(1.0, c*px + s*py);
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            lerp(
+                rgba, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        return rgba;
+    },
+    
+    radial: function radial_gradient( g, w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ){
+        var i, x, y, size = g.length, t, px, py, stop1, stop2;
+        //interpolate = interpolate || lerp;
+        centerX = centerX || 0; centerY = centerY || 0;
+        radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
+        //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
+        if ( radiusY > radiusX )
+        {
+            radiusX = radiusX/radiusY;
+            radiusY = 1.0;
+        }
+        else if ( radiusX > radiusY )
+        {
+            radiusY = radiusY/radiusX;
+            radiusX = 1.0;
+        }
+        else
+        {
+            radiusY = 1.0;
+            radiusX = 1.0;
+        }
+        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        {
+            if ( x >= w ) { x=0; y++; }
+            px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+            t = min(1.0, sqrt(px*px + py*py));
+            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+            stop1 = 0 === stop2 ? 0 : stop2-1;
+            interpolate(
+                g, i,
+                colors[stop1], colors[stop2],
+                // warp the value if needed, between stop ranges
+                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+            );
+        }
+        return g;
+    },
+    
+    radialPoint: function radial_gradient_point( rgba, i, x, y, w, h, colors, stops, centerX, centerY, radiusX, radiusY ){
+        var t, px, py, stop1, stop2;
+        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
+        t = min(1.0, sqrt(px*px + py*py));
+        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
+        stop1 = 0 === stop2 ? 0 : stop2-1;
+        lerp(
+            rgba, i,
+            colors[stop1], colors[stop2],
+            // warp the value if needed, between stop ranges
+            stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
+        );
+        return rgba;
+    }
+};
+
+// color blending utilties
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
 Color.Blend = Color.Combine = {

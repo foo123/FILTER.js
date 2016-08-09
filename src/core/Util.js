@@ -10,8 +10,9 @@
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A16I = FILTER.Array16I, A8U = FILTER.Array8U,
-    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
-    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String,
+    ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
+    AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
+    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String, ArrayUtil = FILTER.Util.Array,
     ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
     Log = Math.log, Sin = Math.sin, Cos = Math.cos,
@@ -19,10 +20,59 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
-    arrayset = FILTER.Util.Array.arrayset, subarray = FILTER.Util.Array.subarray,
-    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
-    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g
-;
+    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArraySet = FILTER._noTypedArraySet,
+    esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
+    func_body_re = /^function[^{]+{([\s\S]*)}$/;
+
+function function_body( func )
+{
+    return func.toString( ).match( func_body_re )[ 1 ] || '';
+}
+
+function arrayset( a, b, offset )
+{
+    offset = offset || 0;
+    var i, n = b.length, rem = n&31;
+    for(i=0; i<n; i+=32)
+    {
+        a[ i   + offset ] = b[ i   ];
+        a[ i+ 1+ offset ] = b[ i+ 1];
+        a[ i+ 2+ offset ] = b[ i+ 2];
+        a[ i+ 3+ offset ] = b[ i+ 3];
+        a[ i+ 4+ offset ] = b[ i+ 4];
+        a[ i+ 5+ offset ] = b[ i+ 5];
+        a[ i+ 6+ offset ] = b[ i+ 6];
+        a[ i+ 7+ offset ] = b[ i+ 7];
+        a[ i+ 8+ offset ] = b[ i+ 8];
+        a[ i+ 9+ offset ] = b[ i+ 9];
+        a[ i+10+ offset ] = b[ i+10];
+        a[ i+11+ offset ] = b[ i+11];
+        a[ i+12+ offset ] = b[ i+12];
+        a[ i+13+ offset ] = b[ i+13];
+        a[ i+14+ offset ] = b[ i+14];
+        a[ i+15+ offset ] = b[ i+15];
+        a[ i+16+ offset ] = b[ i+16];
+        a[ i+17+ offset ] = b[ i+17];
+        a[ i+18+ offset ] = b[ i+18];
+        a[ i+19+ offset ] = b[ i+19];
+        a[ i+20+ offset ] = b[ i+20];
+        a[ i+21+ offset ] = b[ i+21];
+        a[ i+22+ offset ] = b[ i+22];
+        a[ i+23+ offset ] = b[ i+23];
+        a[ i+24+ offset ] = b[ i+24];
+        a[ i+25+ offset ] = b[ i+25];
+        a[ i+26+ offset ] = b[ i+26];
+        a[ i+27+ offset ] = b[ i+27];
+        a[ i+28+ offset ] = b[ i+28];
+        a[ i+29+ offset ] = b[ i+29];
+        a[ i+30+ offset ] = b[ i+30];
+        a[ i+31+ offset ] = b[ i+31];
+    }
+    if ( rem )
+    {
+        for(i=n-rem; i<n; i++) a[ i + offset ] = b[ i  ];
+    }
+}
 
 function clamp( x, m, M )
 { 
@@ -140,7 +190,22 @@ function crop( im, w, h, x1, y1, x2, y2 )
     for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = (yw+x1)<<2;
-        arrayset(cropped, subarray(im, pixel2, pixel2+nw4), pixel);
+        cropped.set(im.subarray(pixel2, pixel2+nw4), pixel);
+    }
+    return cropped;
+}
+
+function crop_shim( im, w, h, x1, y1, x2, y2 )
+{
+    x2 = Min(x2, w-1); y2 = Min(y2, h-1);
+    var nw = x2-x1+1, nh = y2-y1+1, 
+        croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
+        y, yw, nw4 = nw<<2, pixel, pixel2;
+
+    for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
+    {
+        pixel2 = (yw+x1)<<2;
+        arrayset(cropped, im.slice(pixel2, pixel2+nw4), pixel);
     }
     return cropped;
 }
@@ -157,7 +222,24 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = yw<<2;
-        arrayset(padded, subarray(im, pixel2, pixel2+w4), offleft+pixel);
+        padded.set(im.subarray(pixel2, pixel2+w4), offleft+pixel);
+    }
+    return padded;
+}
+
+function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
+{
+    pad_right = pad_right || 0; pad_bot = pad_bot || 0;
+    pad_left = pad_left || 0; pad_top = pad_top || 0;
+    var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
+        paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize), 
+        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+        offtop = pad_top*nw4, offleft = pad_left<<2;
+
+    for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
+    {
+        pixel2 = yw<<2;
+        arrayset(padded, im.slice(pixel2, pixel2+w4), offleft+pixel);
     }
     return padded;
 }
@@ -221,343 +303,142 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
     return D;
 }
 
-function generic_transform( im, w, h, T, mode )
-{
-    var x, y, i, j, imLen=im.length, dst=new IMG(imLen), t, tx, ty,
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        t = T([x, y], w, h); tx = ~~(t[0]); ty = ~~(t[1]);
-        if ( 0>tx || tx>=w || 0>ty || ty>=h )
-        {
-            if ( WRAP === mode )
-            {
-                if ( ty >= h ) ty -= h;
-                else if ( ty < 0 ) ty += h;
-                if ( tx >= w ) tx -= w;
-                else if ( tx < 0 )  tx += w;
-            }
-            else //if ( CLAMP === mode )
-            {
-                if ( ty >= h )  ty = h-1;
-                else if ( ty < 0 ) ty = 0;
-                if ( tx >= w ) tx = w-1;
-                else if ( tx < 0 ) tx = 0;
-            }
-        }
-        j = (tx + ty*w) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function affine_transform( im, w, h, a, b, c, d, tx, ty, mode )
-{
-    var x, y, yw, i, j, imLen=im.length, imArea=imLen>>>2, dst=new IMG(imLen),
-        tyw, cw, dw, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, nx, ny, bx=w-1, by=imArea-w
-    ;
-    mode = mode || CLAMP;
-    
-    x=0; y=0; tyw=ty*w; cw=c*w; dw=d*w;
-    for (i=0; i<imLen; i+=4,x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        nx = ~~(a*x + b*y + tx); ny = ~~(cw*x + dw*y + tyw);
-        if ( 0>nx || nx>bx || 0>ny || ny>by )
-        {
-            if ( WRAP === mode )
-            {
-                if ( ny > by ) ny -= imArea;
-                else if ( ny < 0 ) ny += imArea;
-                if ( nx >= w ) nx -= w;
-                else if ( nx < 0 )  nx += w;
-            }
-            else //if ( CLAMP === mode )
-            {
-                if ( ny > by )  ny = by;
-                else if ( ny < 0 ) ny = 0;
-                if ( nx > bx ) nx = bx;
-                else if ( nx < 0 ) nx = 0;
-            }
-        }
-        j = (nx + ny) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function cyclic_shift( im, w, h, dx, dy )
-{
-    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
-    
-    if ( dx < 0 ) dx += w;
-    if ( dy < 0 ) dy += h;
-    
-    x=0; y=0; yw=0;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; }
-        
-        j = ( (x+dx) % w + ((y+dy) % h) * w ) << 2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_x( im, w, h )
-{
-    var x, y, yw, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw=0;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; }
-        
-        j = (w-1-x+yw)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_y( im, w, h )
-{
-    var x, y, yw2, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw2=(h-1)*w;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw2-=w; }
-        
-        j = (x+yw2)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-function flip_xy( im, w, h )
-{
-    var x, y, yw, yw2, i, j, l = im.length, dst = new IMG(l);
-    
-    x=0; y=0; yw2=(h-1)*w;
-    for (i=0; i<l; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; yw+=w; yw2-=w; }
-        
-        j = (w-1-x+yw2)<<2;
-        dst[i] = im[j];   dst[i+1] = im[j+1];
-        dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
-    }
-    return dst;
-}
-/*
-// adapted from http://www.jhlabs.com/ip/filters/
-function polar_transform( im, w, h, mode )
-{
-    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
-        tx, ty, ix, iy, ip, bx = w-1, by = h-1, theta, r=0, radius, cX, cY,
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-    
-    cX = ~~(0.5*w + 0.5);
-    cY = ~~(0.5*h + 0.5);
-    radius = Max(cY, cX);
-        
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        tx = x-cX;
-        ty = y-cY;
-        theta = 0;
-        
-        if (tx >= 0) 
-        {
-            if (ty > 0) 
-            {
-                theta = PI - Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else if (ty < 0) 
-            {
-                theta = Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else 
-            {
-                theta = HalfPI;
-                r = tx;
-            }
-        } 
-        else if (tx < 0) 
-        {
-            if (ty < 0) 
-            {
-                theta = DoublePI - Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else if (ty > 0) 
-            {
-                theta = PI + Atan(tx/ty);
-                r = Sqrt(tx*tx + ty*ty);
-            } 
-            else 
-            {
-                theta = ThreePI2;
-                r = -tx;
-            }
-        }
-        // inverse transform
-        ix = (w-1) - (w-1)/DoublePI * theta;
-        iy = (h * r / radius);
-        ix = Round(ix); iy = Round(iy);
-        if (0>ix || ix>bx || 0>iy || iy>by)
-        {
-            switch(mode)
-            {
-                case WRAP:
-                    if (iy>by) iy-=h;
-                    else if (iy<0) iy+=h;
-                    if (ix>bx) ix-=w;
-                    else if (ix<0)  ix+=w;
-                    break;
-                    
-                case CLAMP:
-                default:
-                    if (iy>by)  iy=by;
-                    else if (iy<0) iy=0;
-                    if (ix>bx) ix=bx;
-                    else if (ix<0) ix=0;
-                    break;
-            }
-        }
-        ip = ( ix + iy*w ) << 2;
-        im[i] = imcopy[ ip ];
-        im[i+1] = imcopy[ ip+1 ];
-        im[i+2] = imcopy[ ip+2 ];
-        im[i+3] = imcopy[ ip+3 ];
-    }
-    return im;
-}
-function cartesian( im, w, h, mode )
-{
-    var x, y, i, j, imLen=im.length, imcopy=new IMGcpy(im),
-        ix, iy, ip, nx, ny, bx = w-1, by = h-1, 
-        theta, theta2, r=0, radius, cX, cY, 
-        CLAMP = MODE.CLAMP, WRAP = MODE.WRAP;
-    mode = mode || CLAMP;
-    
-    cX = ~~(0.5*w + 0.5);
-    cY = ~~(0.5*h + 0.5);
-    radius = Max(cY, cX);
-        
-    x=0; y=0;
-    for (i=0; i<imLen; i+=4, x++)
-    {
-        if (x>=w) { x=0; y++; }
-        
-        theta = x / w * DoublePI;
-
-        if (theta >= ThreePI2)
-            theta2 = DoublePI - theta;
-        else if (theta >= PI)
-            theta2 = theta - PI;
-        else if (theta >= HalfPI)
-            theta2 = PI - theta;
-        else
-            theta2 = theta;
-        r = radius * (y / h);
-
-        nx = -r * Sin(theta2);
-        ny = r * Cos(theta2);
-        
-        if (theta >= ThreePI2) 
-        {
-            ix = cX - nx;
-            iy = cY - ny;
-        } 
-        else if (theta >= PI) 
-        {
-            ix = cX - nx;
-            iy = cY + ny;
-        } 
-        else if (theta >= HalfPI) 
-        {
-            ix = cX + nx;
-            iy = cY + ny;
-        } 
-        else 
-        {
-            ix = cX + nx;
-            iy = cY - ny;
-        }
-        // inverse transform
-        ix = Round(ix); iy = Round(iy);
-        if (0>ix || ix>bx || 0>iy || iy>by)
-        {
-            switch(mode)
-            {
-                case WRAP:
-                    if (iy>by) iy-=h;
-                    else if (iy<0) iy+=h;
-                    if (ix>bx) ix-=w;
-                    else if (ix<0)  ix+=w;
-                    break;
-                    
-                case CLAMP:
-                default:
-                    if (iy>by)  iy=by;
-                    else if (iy<0) iy=0;
-                    if (ix>bx) ix=bx;
-                    else if (ix<0) ix=0;
-                    break;
-            }
-        }
-        ip = ( ix + iy*w ) << 2;
-        im[i] = imcopy[ ip ];
-        im[i+1] = imcopy[ ip+1 ];
-        im[i+2] = imcopy[ ip+2 ];
-        im[i+3] = imcopy[ ip+3 ];
-    }
-    return im;
-}*/
-
 // compute integral image (Summed Area Table, SAT) (for a given channel)
 function integral( im, w, h, channel ) 
 {
-    var rowLen = w<<2, integ, sum,
-        imLen = im.length, count = imLen>>2, i, j, x
-    ;
+        channel = channel || 0;
+    var len = im.length, size = len>>>2, rowLen = w<<2,
+        rem = (w&31)<<2, integ = new A32F(size), sum, i, j, x;
+        
     // compute integral of image in one pass
-    channel = channel || 0;
-    integ = new A32F(count); 
     // first row
-    for (x=0,j=0,i=0,sum=0; x<w; x++, i+=4, j++)
+    for (j=0,sum=0,i=channel; i<rowlen; i+=128)
     {
-        sum+=im[i+channel]; integ[j]=sum; 
+        sum += im[i    ]; integ[j++] = sum;
+        sum += im[i+4  ]; integ[j++] = sum;
+        sum += im[i+8  ]; integ[j++] = sum;
+        sum += im[i+12 ]; integ[j++] = sum;
+        sum += im[i+16 ]; integ[j++] = sum;
+        sum += im[i+20 ]; integ[j++] = sum;
+        sum += im[i+24 ]; integ[j++] = sum;
+        sum += im[i+28 ]; integ[j++] = sum;
+        sum += im[i+32 ]; integ[j++] = sum;
+        sum += im[i+36 ]; integ[j++] = sum;
+        sum += im[i+40 ]; integ[j++] = sum;
+        sum += im[i+44 ]; integ[j++] = sum;
+        sum += im[i+48 ]; integ[j++] = sum;
+        sum += im[i+52 ]; integ[j++] = sum;
+        sum += im[i+56 ]; integ[j++] = sum;
+        sum += im[i+60 ]; integ[j++] = sum;
+        sum += im[i+64 ]; integ[j++] = sum;
+        sum += im[i+68 ]; integ[j++] = sum;
+        sum += im[i+72 ]; integ[j++] = sum;
+        sum += im[i+76 ]; integ[j++] = sum;
+        sum += im[i+80 ]; integ[j++] = sum;
+        sum += im[i+84 ]; integ[j++] = sum;
+        sum += im[i+88 ]; integ[j++] = sum;
+        sum += im[i+92 ]; integ[j++] = sum;
+        sum += im[i+96 ]; integ[j++] = sum;
+        sum += im[i+100]; integ[j++] = sum;
+        sum += im[i+104]; integ[j++] = sum;
+        sum += im[i+108]; integ[j++] = sum;
+        sum += im[i+112]; integ[j++] = sum;
+        sum += im[i+116]; integ[j++] = sum;
+        sum += im[i+120]; integ[j++] = sum;
+        sum += im[i+124]; integ[j++] = sum;
+    }
+    if ( rem )
+    {
+        for (i=rowlen-rem+channel; i<rowlen; i+=4,j++)
+        {
+            sum += im[i]; integ[j] = sum;
+        }
     }
     // other rows
-    for (x=0,j=0,sum=0,i=rowLen; i<imLen; i+=4, j++, x++)
+    for (x=0,j=0,sum=0,i=rowLen+channel; i<len; i+=128)
     {
-        if ( x >=w ) { x=0; sum=0; }
-        sum+=im[i+channel]; integ[j+w]=integ[j]+sum; 
+        sum += im[i    ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+4  ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+8  ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+12 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+16 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+20 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+24 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+28 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+32 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+36 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+40 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+44 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+48 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+52 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+56 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+60 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+64 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+68 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+72 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+76 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+80 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+84 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+88 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+92 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+96 ]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+100]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+104]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+108]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+112]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+116]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+120]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        sum += im[i+124]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+    }
+    if ( rem )
+    {
+        for (i=len-rem+channel; i<len; i+=4,x++,j++)
+        {
+            if ( x >=w ) { x=0; sum=0; }
+            sum += im[i]; integ[j+w] = integ[j] + sum; 
+        }
     }
     return integ;
 }
-
 // compute image histogram (for a given channel)
-function histogram( im, w, h, channel ) 
+function histogram( im, w, h, channel, pdf ) 
 {
-    var i, l = im.length, cdf, accum, n = 1.0 / (l>>2);
+    channel = channel || 0;
+    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2, n = 1.0/l2;
     
     // initialize the arrays
-    channel = channel || 0;
     cdf = new A32F( 256 ); 
     /*for (i=0; i<256; i+=32) 
     { 
@@ -595,14 +476,52 @@ function histogram( im, w, h, channel )
         cdf[i+30]=0;
         cdf[i+31]=0;
     }*/
-    // compute pdf and maxima/minima
-    for (i=0; i<l; i+=4)
+    // compute pdf
+    for (i=channel; i<l; i+=128)
     {
-        cdf[ im[i+channel] ] += n;
+        // partial loop unrolling
+        cdf[ im[i    ] ] += n;
+        cdf[ im[i+4  ] ] += n;
+        cdf[ im[i+8  ] ] += n;
+        cdf[ im[i+12 ] ] += n;
+        cdf[ im[i+16 ] ] += n;
+        cdf[ im[i+20 ] ] += n;
+        cdf[ im[i+24 ] ] += n;
+        cdf[ im[i+28 ] ] += n;
+        cdf[ im[i+32 ] ] += n;
+        cdf[ im[i+36 ] ] += n;
+        cdf[ im[i+40 ] ] += n;
+        cdf[ im[i+44 ] ] += n;
+        cdf[ im[i+48 ] ] += n;
+        cdf[ im[i+52 ] ] += n;
+        cdf[ im[i+56 ] ] += n;
+        cdf[ im[i+60 ] ] += n;
+        cdf[ im[i+64 ] ] += n;
+        cdf[ im[i+68 ] ] += n;
+        cdf[ im[i+72 ] ] += n;
+        cdf[ im[i+76 ] ] += n;
+        cdf[ im[i+80 ] ] += n;
+        cdf[ im[i+84 ] ] += n;
+        cdf[ im[i+88 ] ] += n;
+        cdf[ im[i+92 ] ] += n;
+        cdf[ im[i+96 ] ] += n;
+        cdf[ im[i+100] ] += n;
+        cdf[ im[i+104] ] += n;
+        cdf[ im[i+108] ] += n;
+        cdf[ im[i+112] ] += n;
+        cdf[ im[i+116] ] += n;
+        cdf[ im[i+120] ] += n;
+        cdf[ im[i+124] ] += n;
     }
+    if ( rem )
+    {
+        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ] += n;
+    }
+    // return pdf NOT cdf
+    if ( true === pdf ) return cdf;
     
     // compute cdf
-    for (accum=0,i=0; i<256; i+=32) 
+    for (accum=0,i=0; i<256; i+=64) 
     { 
         // partial loop unrolling
         accum += cdf[i   ]; cdf[i   ] = accum;
@@ -637,20 +556,188 @@ function histogram( im, w, h, channel )
         accum += cdf[i+29]; cdf[i+29] = accum;
         accum += cdf[i+30]; cdf[i+30] = accum;
         accum += cdf[i+31]; cdf[i+31] = accum;
+        accum += cdf[i+32]; cdf[i+32] = accum;
+        accum += cdf[i+33]; cdf[i+33] = accum;
+        accum += cdf[i+34]; cdf[i+34] = accum;
+        accum += cdf[i+35]; cdf[i+35] = accum;
+        accum += cdf[i+36]; cdf[i+36] = accum;
+        accum += cdf[i+37]; cdf[i+37] = accum;
+        accum += cdf[i+38]; cdf[i+38] = accum;
+        accum += cdf[i+39]; cdf[i+39] = accum;
+        accum += cdf[i+40]; cdf[i+40] = accum;
+        accum += cdf[i+41]; cdf[i+41] = accum;
+        accum += cdf[i+42]; cdf[i+42] = accum;
+        accum += cdf[i+43]; cdf[i+43] = accum;
+        accum += cdf[i+44]; cdf[i+44] = accum;
+        accum += cdf[i+45]; cdf[i+45] = accum;
+        accum += cdf[i+46]; cdf[i+46] = accum;
+        accum += cdf[i+47]; cdf[i+47] = accum;
+        accum += cdf[i+48]; cdf[i+48] = accum;
+        accum += cdf[i+49]; cdf[i+49] = accum;
+        accum += cdf[i+50]; cdf[i+50] = accum;
+        accum += cdf[i+51]; cdf[i+51] = accum;
+        accum += cdf[i+52]; cdf[i+52] = accum;
+        accum += cdf[i+53]; cdf[i+53] = accum;
+        accum += cdf[i+54]; cdf[i+54] = accum;
+        accum += cdf[i+55]; cdf[i+55] = accum;
+        accum += cdf[i+56]; cdf[i+56] = accum;
+        accum += cdf[i+57]; cdf[i+57] = accum;
+        accum += cdf[i+58]; cdf[i+58] = accum;
+        accum += cdf[i+59]; cdf[i+59] = accum;
+        accum += cdf[i+60]; cdf[i+60] = accum;
+        accum += cdf[i+61]; cdf[i+61] = accum;
+        accum += cdf[i+62]; cdf[i+62] = accum;
+        accum += cdf[i+63]; cdf[i+63] = accum;
     }
     return cdf;
 }
-
 function spectrum( im, w, h, channel ) 
 {
     // TODO
     return null;
 }
 
+function integral2( im, w, h, sat, sat2, rsat ) 
+{
+    var len = im.length, size = len>>>2, rowLen = w<<2,
+        rem = (w&31)<<2, sum, sum2, c, i, j, x, y;
+        
+    // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
+    // first row
+    for (j=0,i=0,sum=sum2=0; i<rowLen; i+=128)
+    {
+        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+        
+        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+4  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+8  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+12 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+16 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+20 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+24 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+28 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+32 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+36 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+40 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+44 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+48 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+52 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+56 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+60 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+64 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+68 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+72 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+76 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+80 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+84 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+88 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+92 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+96 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+100]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+104]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+108]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+112]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+116]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+120]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c=im[i+124]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+    }
+    if ( rem )
+    {
+        for (i=rowLen-rem; i<rowLen; i+=4,j++)
+        {
+            c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
+        }
+    }
+    // other rows
+    for (x=0,y=1,j=0,sum=0,sum2=0,i=rowLen; i<len; i+=128)
+    {
+        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+        
+        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+4  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+8  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+12 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+16 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+20 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+24 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+28 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+32 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+36 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+40 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+44 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+48 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+52 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+56 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+60 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+64 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+68 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+72 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+76 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+80 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+84 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+88 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+92 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+96 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+100]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+104]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+108]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+112]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+116]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+120]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+        c=im[i+124]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+    }
+    if ( rem )
+    {
+        for (i=len-rem; i<len; i+=4,x++,j++)
+        {
+            if ( x >=w ) { x=0; y++; sum=sum2=0; }
+            c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
+        }
+    }
+}
+
 // speed-up convolution for special kernels like moving-average
 function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
-    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB,
+    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
@@ -663,7 +750,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
     matArea = matRadiusX*matRadiusY;
-    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    matHalfSideX = matRadiusX>>>1;  matHalfSideY = w*(matRadiusY>>>1);
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
@@ -676,8 +763,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     
     if (matrix2) // allow to compute a second matrix in-parallel
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
         
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -744,13 +831,6 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 
                 // output
                 t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
@@ -761,7 +841,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
     
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -823,13 +903,6 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 
                 // output
                 t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                }
                 dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
@@ -840,14 +913,14 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     return dst;
 }
-/*function integral_convolution_rgba(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
-    var imLen=im.length, imArea=(imLen>>2), integral, integralLen, colR, colG, colB, colA,
+    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
-        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2, t3,
-        r, g, b, a, r2, g2, b2, a2, repeat, tmp
+        xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
+        r, g, b, r2, g2, b2, repeat, tmp
     ;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
@@ -855,47 +928,46 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
     matArea = matRadiusX*matRadiusY;
-    matHalfSideX = matRadiusX>>1;  matHalfSideY = w*(matRadiusY>>1);
+    matHalfSideX = matRadiusX>>>1;  matHalfSideY = w*(matRadiusY>>>1);
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
-    integralLen = imLen;  rowLen = w<<2;
+    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
     dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
     
     numRepeats = numRepeats||1;
     
     if (matrix2) // allow to compute a second matrix in-parallel
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>1]; centerOffset2 = wtCenter2-wt2;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
         
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
         {
             //dst = new IMG(imLen); integral = new A32F(integralLen);
             tmp = im; im = dst; dst = tmp;
-            
+
             // compute integral of image in one pass
             
             // first row
-            i=0; colR=colG=colB=colA=0;
-            for (x=0; x<w; x++, i+=4)
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
             }
             // other rows
-            x=0; colR=colG=colB=colA=0;
-            for (i=rowLen+w; i<imLen; i+=4, x++)
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
             {
-                if (x>=w) { x=0; colR=colG=colB=colA=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i+rowLen  ]=integral[i  ]+colR; 
-                integral[i+rowLen+1]=integral[i+1]+colG; 
-                integral[i+rowLen+2]=integral[i+2]+colB;
-                integral[i+rowLen+3]=integral[i+3]+colA;
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen]=integral[j]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
             }
             
             
@@ -921,31 +993,29 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                  yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
-                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
                 
                 // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                 // also fix the center element (in case it is different)
                 r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
                 g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
                 
                 r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                 g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
-                a2 = wt2 * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset2 * im[i+3]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;  t3 = coeff1*a + coeff2*a2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
             }
             
             // do another pass??
@@ -953,7 +1023,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>1]; centerOffset = wtCenter-wt;
+        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
     
         // do this multiple times??
         for(repeat=0; repeat<numRepeats; repeat++)
@@ -964,22 +1034,21 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
             // compute integral of image in one pass
             
             // first row
-            i=0; colR=colG=colB=colA=0;
-            for (x=0; x<w; x++, i+=4)
+            i=0; j=0; colR=colG=colB=0;
+            for (x=0; x<w; x++, i+=4, j+=3)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i]=colR; integral[i+1]=colG; integral[i+2]=colB; integral[i+3]=colA;
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
             }
             // other rows
-            x=0; colR=colG=colB=colA=0;
-            for (i=rowLen+w; i<imLen; i+=4, x++)
+            j=0; x=0; colR=colG=colB=0;
+            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
             {
-                if (x>=w) { x=0; colR=colG=colB=colA=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2]; colA+=im[i+3];
-                integral[i+rowLen  ]=integral[i  ]+colR; 
-                integral[i+rowLen+1]=integral[i+1]+colG; 
-                integral[i+rowLen+2]=integral[i+2]+colB;
-                integral[i+rowLen+3]=integral[i+3]+colA;
+                if (x>=w) { x=0; colR=colG=colB=0; }
+                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                integral[j+rowLen  ]=integral[j  ]+colR; 
+                integral[j+rowLen+1]=integral[j+1]+colG; 
+                integral[j+rowLen+2]=integral[j+2]+colB;
             }
             
             // now can compute any symmetric convolution kernel in constant time 
@@ -1004,26 +1073,25 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                  yOff2 = yOff2>by2 ? by2 : yOff2;
                 
                 // compute integral positions
-                p1=(xOff1 + yOff1)<<2; p4=(xOff2 + yOff2)<<2; p2=(xOff2 + yOff1)<<2; p3=(xOff1 + yOff2)<<2;
+                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
                 
                 // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                 // also fix the center element (in case it is different)
                 r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
                 g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                a = wt * (integral[p4+3] - integral[p2+3] - integral[p3+3] + integral[p1+3])  +  (centerOffset * im[i+3]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;  t3 = coeff1*a + coeff2;
-                if (notSupportClamp)
-                {   
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;  dst[i+3] = ~~t3;
+                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
             }
             
             // do another pass??
@@ -1031,18 +1099,10 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     }
     return dst;
 }
-function integral_convolution(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-{
-    return rgba
-    ? integral_convolution_rgba(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-    : integral_convolution_rgb(im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
-    ;
-}
-*/
 // speed-up convolution for separable kernels
 function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
-    var imLen=im.length, imArea=(imLen>>2),
+    var imLen=im.length, imArea=imLen>>>2,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2,
@@ -1075,87 +1135,125 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
         matArea2 = indices.length;
         
         // do direct convolution
-        if (notSupportClamp)
-        {   
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
-                {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
-                }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                /*if ( rgba )
-                {
-                    t3 = coeff * a;
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
-                }
-                else
-                {*/
-                    // alpha channel is not transformed
-                    dst[i+3] = im[i+3];
-                /*}*/
-            }
-        }
-        else
+        x=0; ty=0;
+        for (i=0; i<imLen; i+=4, x++)
         {
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            // update image coordinates
+            if (x>=w) { x=0; ty+=w; }
+            
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            r=g=b=a=0;
+            for (k=0, j=0; k<matArea; k++, j+=2)
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
                 }
-                
-                // output
-                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
-                
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
-                /*if ( rgba )
-                {
-                    t3 = coeff * a;
-                    dst[i+3] = ~~t3;
-                }
-                else
-                {*/
-                    // alpha channel is not transformed
-                    dst[i+3] = im[i+3];
-                /*}*/
             }
+            
+            // output
+            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            
+            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            /*if ( rgba )
+            {
+                t3 = coeff * a;
+                dst[i+3] = ~~t3;
+            }
+            else
+            {*/
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            /*}*/
+        }
+        
+        // do another pass??
+        mat = matrix2;
+        indices = ind2;
+        coeff = coeff2;
+        imageIndices = imageIndices2;
+    }
+    return dst;
+}
+function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+{
+    var imLen=im.length, imArea=imLen>>>2,
+        matArea, mat, indices, matArea2,
+        dst, imageIndices, imageIndices1, imageIndices2,
+        i, j, k, x, ty, ty2,
+        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        r, g, b, a, coeff, numPasses, tmp
+    ;
+    
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    bx = w-1; by = imArea-w;
+    // pre-compute indices, 
+    // reduce redundant computations inside the main convolution loop (faster)
+    imageIndices1 = new A16I(ind1);
+    for (k=0,matArea2=ind1.length; k<matArea2; k+=2) imageIndices1[k+1] *= w;
+    imageIndices2 = new A16I(ind2);
+    for (k=0,matArea2=ind2.length; k<matArea2; k+=2) imageIndices2[k+1] *= w;
+
+    // one horizontal and one vertical pass
+    numPasses = 2;
+    mat = matrix;
+    indices = ind1;
+    coeff = coeff1;
+    imageIndices = imageIndices1;
+    dst = im; im = new IMG(imLen);
+    
+    while (numPasses--)
+    {
+        tmp = im; im = dst; dst = tmp;
+        matArea = mat.length;
+        matArea2 = indices.length;
+        
+        // do direct convolution
+        x=0; ty=0;
+        for (i=0; i<imLen; i+=4, x++)
+        {
+            // update image coordinates
+            if (x>=w) { x=0; ty+=w; }
+            
+            // calculate the weighed sum of the source image pixels that
+            // fall under the convolution matrix
+            r=g=b=a=0;
+            for (k=0, j=0; k<matArea; k++, j+=2)
+            {
+                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                {
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
+                }
+            }
+            
+            // output
+            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            
+            // clamp them manually
+            t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+            t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+            t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+            
+            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            /*if ( rgba )
+            {
+                t3 = coeff * a;
+                t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                dst[i+3] = ~~t3;
+            }
+            else
+            {*/
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            /*}*/
         }
         
         // do another pass??
@@ -1173,38 +1271,38 @@ function ct_eye( c1, c0 )
     var i, t = new ColorTable(256);
     for(i=0; i<256; i+=32)
     {
-        t[i   ] = c0 + c1*(i   );
-        t[i+1 ] = c0 + c1*(i+1 );
-        t[i+2 ] = c0 + c1*(i+2 );
-        t[i+3 ] = c0 + c1*(i+3 );
-        t[i+4 ] = c0 + c1*(i+4 );
-        t[i+5 ] = c0 + c1*(i+5 );
-        t[i+6 ] = c0 + c1*(i+6 );
-        t[i+7 ] = c0 + c1*(i+7 );
-        t[i+8 ] = c0 + c1*(i+8 );
-        t[i+9 ] = c0 + c1*(i+9 );
-        t[i+10] = c0 + c1*(i+10);
-        t[i+11] = c0 + c1*(i+11);
-        t[i+12] = c0 + c1*(i+12);
-        t[i+13] = c0 + c1*(i+13);
-        t[i+14] = c0 + c1*(i+14);
-        t[i+15] = c0 + c1*(i+15);
-        t[i+16] = c0 + c1*(i+16);
-        t[i+17] = c0 + c1*(i+17);
-        t[i+18] = c0 + c1*(i+18);
-        t[i+19] = c0 + c1*(i+19);
-        t[i+20] = c0 + c1*(i+20);
-        t[i+21] = c0 + c1*(i+21);
-        t[i+22] = c0 + c1*(i+22);
-        t[i+23] = c0 + c1*(i+23);
-        t[i+24] = c0 + c1*(i+24);
-        t[i+25] = c0 + c1*(i+25);
-        t[i+26] = c0 + c1*(i+26);
-        t[i+27] = c0 + c1*(i+27);
-        t[i+28] = c0 + c1*(i+28);
-        t[i+29] = c0 + c1*(i+29);
-        t[i+30] = c0 + c1*(i+30);
-        t[i+31] = c0 + c1*(i+31);
+        t[i   ] = ~~clamp(c0 + c1*(i   ),0,255);
+        t[i+1 ] = ~~clamp(c0 + c1*(i+1 ),0,255);
+        t[i+2 ] = ~~clamp(c0 + c1*(i+2 ),0,255);
+        t[i+3 ] = ~~clamp(c0 + c1*(i+3 ),0,255);
+        t[i+4 ] = ~~clamp(c0 + c1*(i+4 ),0,255);
+        t[i+5 ] = ~~clamp(c0 + c1*(i+5 ),0,255);
+        t[i+6 ] = ~~clamp(c0 + c1*(i+6 ),0,255);
+        t[i+7 ] = ~~clamp(c0 + c1*(i+7 ),0,255);
+        t[i+8 ] = ~~clamp(c0 + c1*(i+8 ),0,255);
+        t[i+9 ] = ~~clamp(c0 + c1*(i+9 ),0,255);
+        t[i+10] = ~~clamp(c0 + c1*(i+10),0,255);
+        t[i+11] = ~~clamp(c0 + c1*(i+11),0,255);
+        t[i+12] = ~~clamp(c0 + c1*(i+12),0,255);
+        t[i+13] = ~~clamp(c0 + c1*(i+13),0,255);
+        t[i+14] = ~~clamp(c0 + c1*(i+14),0,255);
+        t[i+15] = ~~clamp(c0 + c1*(i+15),0,255);
+        t[i+16] = ~~clamp(c0 + c1*(i+16),0,255);
+        t[i+17] = ~~clamp(c0 + c1*(i+17),0,255);
+        t[i+18] = ~~clamp(c0 + c1*(i+18),0,255);
+        t[i+19] = ~~clamp(c0 + c1*(i+19),0,255);
+        t[i+20] = ~~clamp(c0 + c1*(i+20),0,255);
+        t[i+21] = ~~clamp(c0 + c1*(i+21),0,255);
+        t[i+22] = ~~clamp(c0 + c1*(i+22),0,255);
+        t[i+23] = ~~clamp(c0 + c1*(i+23),0,255);
+        t[i+24] = ~~clamp(c0 + c1*(i+24),0,255);
+        t[i+25] = ~~clamp(c0 + c1*(i+25),0,255);
+        t[i+26] = ~~clamp(c0 + c1*(i+26),0,255);
+        t[i+27] = ~~clamp(c0 + c1*(i+27),0,255);
+        t[i+28] = ~~clamp(c0 + c1*(i+28),0,255);
+        t[i+29] = ~~clamp(c0 + c1*(i+29),0,255);
+        t[i+30] = ~~clamp(c0 + c1*(i+30),0,255);
+        t[i+31] = ~~clamp(c0 + c1*(i+31),0,255);
     }
     return t;
 }
@@ -1212,7 +1310,7 @@ function ct_eye( c1, c0 )
 function ct_multiply( ct2, ct1 )
 {
     var i, ct12 = new ColorTable(256);
-    for(i=0; i<256; i+=32)
+    for(i=0; i<256; i+=64)
     { 
         ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255); 
         ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255); 
@@ -1246,6 +1344,38 @@ function ct_multiply( ct2, ct1 )
         ct12[i+29] = clamp(ct2[ clamp(ct1[i+29],0,255) ],0,255); 
         ct12[i+30] = clamp(ct2[ clamp(ct1[i+30],0,255) ],0,255); 
         ct12[i+31] = clamp(ct2[ clamp(ct1[i+31],0,255) ],0,255); 
+        ct12[i+32] = clamp(ct2[ clamp(ct1[i+32],0,255) ],0,255); 
+        ct12[i+33] = clamp(ct2[ clamp(ct1[i+33],0,255) ],0,255); 
+        ct12[i+34] = clamp(ct2[ clamp(ct1[i+34],0,255) ],0,255); 
+        ct12[i+35] = clamp(ct2[ clamp(ct1[i+35],0,255) ],0,255); 
+        ct12[i+36] = clamp(ct2[ clamp(ct1[i+36],0,255) ],0,255); 
+        ct12[i+37] = clamp(ct2[ clamp(ct1[i+37],0,255) ],0,255); 
+        ct12[i+38] = clamp(ct2[ clamp(ct1[i+38],0,255) ],0,255); 
+        ct12[i+39] = clamp(ct2[ clamp(ct1[i+39],0,255) ],0,255); 
+        ct12[i+40] = clamp(ct2[ clamp(ct1[i+40],0,255) ],0,255); 
+        ct12[i+41] = clamp(ct2[ clamp(ct1[i+41],0,255) ],0,255); 
+        ct12[i+42] = clamp(ct2[ clamp(ct1[i+42],0,255) ],0,255); 
+        ct12[i+43] = clamp(ct2[ clamp(ct1[i+43],0,255) ],0,255); 
+        ct12[i+44] = clamp(ct2[ clamp(ct1[i+44],0,255) ],0,255); 
+        ct12[i+45] = clamp(ct2[ clamp(ct1[i+45],0,255) ],0,255); 
+        ct12[i+46] = clamp(ct2[ clamp(ct1[i+46],0,255) ],0,255); 
+        ct12[i+47] = clamp(ct2[ clamp(ct1[i+47],0,255) ],0,255); 
+        ct12[i+48] = clamp(ct2[ clamp(ct1[i+48],0,255) ],0,255); 
+        ct12[i+49] = clamp(ct2[ clamp(ct1[i+49],0,255) ],0,255); 
+        ct12[i+50] = clamp(ct2[ clamp(ct1[i+50],0,255) ],0,255); 
+        ct12[i+51] = clamp(ct2[ clamp(ct1[i+51],0,255) ],0,255); 
+        ct12[i+52] = clamp(ct2[ clamp(ct1[i+52],0,255) ],0,255); 
+        ct12[i+53] = clamp(ct2[ clamp(ct1[i+53],0,255) ],0,255); 
+        ct12[i+54] = clamp(ct2[ clamp(ct1[i+54],0,255) ],0,255); 
+        ct12[i+55] = clamp(ct2[ clamp(ct1[i+55],0,255) ],0,255); 
+        ct12[i+56] = clamp(ct2[ clamp(ct1[i+56],0,255) ],0,255); 
+        ct12[i+57] = clamp(ct2[ clamp(ct1[i+57],0,255) ],0,255); 
+        ct12[i+58] = clamp(ct2[ clamp(ct1[i+58],0,255) ],0,255); 
+        ct12[i+59] = clamp(ct2[ clamp(ct1[i+59],0,255) ],0,255); 
+        ct12[i+60] = clamp(ct2[ clamp(ct1[i+60],0,255) ],0,255); 
+        ct12[i+61] = clamp(ct2[ clamp(ct1[i+61],0,255) ],0,255); 
+        ct12[i+62] = clamp(ct2[ clamp(ct1[i+62],0,255) ],0,255); 
+        ct12[i+63] = clamp(ct2[ clamp(ct1[i+63],0,255) ],0,255); 
     }
     return ct12;
 }
@@ -1259,6 +1389,13 @@ function cm_eye( )
     ]);
 }
 // multiply (functionaly compose, matrix multiply) 2 Color Matrices
+/*
+[ rr rg rb ra roff
+  gr gg gb ga goff
+  br bg bb ba boff
+  ar ag ab aa aoff
+  0  0  0  0  1 ]
+*/
 function cm_multiply(cm1, cm2) 
 {
     var cm12 = new ColorMatrix(20);
@@ -1303,177 +1440,46 @@ function cm_rechannel( m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao )
     cm[Ao*5+Ri] = m[15]; cm[Ao*5+Gi] = m[16]; cm[Ao*5+Bi] = m[17]; cm[Ao*5+Ai] = m[18]; cm[Ao*5+4] = m[19];
     return cm;
 }
+/*
+[ 0xx 1xy 2xo 3xor
+  4yx 5yy 6yo 7yor
+  0   0   1   0
+  0   0   0   1 ]
+*/
+function am_multiply( am1, am2 )
+{
+    var am12 = new AffineMatrix(8);
+    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
+    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
+    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
+    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
+    
+    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
+    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
+    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
+    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
+    return am12;
+}
+function am_eye( )
+{
+    return new AffineMatrix([
+    1,0,0,0,
+    0,1,0,0
+    ]);
+}
 
 function tensor_product( m1, m2, matrix )
 {
     matrix = matrix || Array/*ConvolutionMatrix*/;
     if ( m2 === +m2 ) m2 = [m2];
     var i, j, p, s, d1 = m1.length, d2 = m2.length, m12 = new matrix(d1*d2);
-    for (s=0,i=0,j=0; i<d1; j++)
+    for (s=0,i=0,j=0; i<d1; )
     {
-        if ( j >= d2 ){ j=0; i++; }
         p = m1[i]*m2[j];
-        m12[i*d2+j] = p;
-        s += p;
+        s += p; m12[i*d2+j] = p;
+        if ( ++j >= d2 ){ j=0; i++; }
     }
     return {kernel:m12, sum:s};
-}
-
-function lerp( data, index, c1, c2, t )
-{
-    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
-    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
-    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
-    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
-}
-
-function colors_stops( colors, stops )
-{
-    stops = stops ? stops.slice() : stops;
-    colors = colors ? colors.slice() : colors;
-    var cl = colors.length, i;
-    if ( !stops )
-    {
-        if ( 1 === cl )
-        {
-            stops = [1.0];
-        }
-        else
-        {
-            stops = new Array(cl);
-            for(i=0; i<cl; i++) stops[i] = i+1 === cl ? 1.0 : i/(cl-1);
-        }
-    }
-    else if ( stops.length < cl )
-    {
-        var cstoplen = stops.length, cstop = stops[cstoplen-1];
-        for(i=cstoplen; i<cl; i++) stops.push( i+1 === cl ? 1.0 : cstop+(i-cstoplen+1)/(cl-1) );
-    }
-    if ( 1.0 != stops[stops.length-1] )
-    {
-        stops.push( 1.0 );
-        colors.push( colors[colors.length-1] );
-    }
-    return [colors, stops];
-}
-
-function gradient( g, w, h, colors, stops, angle, interpolate )
-{
-    var i, x, y, size = g.length, t, px, py, stop1, stop2, sin, cos, r;
-    //interpolate = interpolate || lerp;
-    angle = angle || 0.0;
-    if ( 0 > angle ) angle += pi2;
-    if ( pi2 < angle ) angle -= pi2;
-    sin = Abs(Sin(angle)); cos = Abs(Cos(angle));
-    r = cos*w + sin*h;
-    if ( (pi_2 < angle) && (angle <= pi) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = w-1-x; py = y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else if ( (pi < angle) && (angle <= pi_32) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = w-1-x; py = h-1-y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else if ( (pi_32 < angle) && (angle < pi2) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = x; py = h-1-y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    else //if ( (0 <= angle) && (angle <= pi_2) )
-    {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
-        {
-            if ( x >= w ) { x=0; y++; }
-            px = x; py = y;
-            t = Min(1.0, (cos*px + sin*py) / r);
-            stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-            stop1 = 0 === stop2 ? 0 : stop2-1;
-            interpolate(
-                g, i,
-                colors[stop1], colors[stop2],
-                // warp the value if needed, between stop ranges
-                stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-            );
-        }
-    }
-    return g;
-}
-
-function radial_gradient( g, w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate )
-{
-    var i, x, y, size = g.length, t, px, py, stop1, stop2;
-    //interpolate = interpolate || lerp;
-    centerX = centerX || 0; centerY = centerY || 0;
-    radiusX = radiusX || 1.0; radiusY = radiusY || 1.0;
-    //relative radii to generate elliptical gradient instead of circular (rX=rY=1)
-    if ( radiusY > radiusX )
-    {
-        radiusX = radiusX/radiusY;
-        radiusY = 1.0;
-    }
-    else if ( radiusX > radiusY )
-    {
-        radiusY = radiusY/radiusX;
-        radiusX = 1.0;
-    }
-    else
-    {
-        radiusY = 1.0;
-        radiusX = 1.0;
-    }
-    for(x=0,y=0,i=0; i<size; i+=4,x++)
-    {
-        if ( x >= w ) { x=0; y++; }
-        px = radiusX*(x-centerX)/(w-centerX); py = radiusY*(y-centerY)/(h-centerY);
-        t = Min(1.0, Sqrt(px*px + py*py));
-        stop2 = 0; while ( t > stops[stop2] ) ++stop2;
-        stop1 = 0 === stop2 ? 0 : stop2-1;
-        interpolate(
-            g, i,
-            colors[stop1], colors[stop2],
-            // warp the value if needed, between stop ranges
-            stops[stop2] > stops[stop1] ? (t-stops[stop1]) / (stops[stop2]-stops[stop1]) : t
-        );
-    }
-    return g;
 }
 
 function esc( s )
@@ -1494,37 +1500,33 @@ MathUtil.Geometry = {
     ,interpolate3: interpolate3
 };
 
+ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset;
+ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
+
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim 
 ? function( s ){ return s.trim(); }
 : function( s ){ return s.replace(trim_re, ''); };
+StringUtil.function_body = function_body;
 
-ImageUtil.crop = FILTER.Interpolation.crop = crop;
-ImageUtil.pad = FILTER.Interpolation.pad = pad;
+ImageUtil.crop = FILTER.Interpolation.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = FILTER.Interpolation.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.get_data = get_data;
 ImageUtil.set_data = set_data;
 ImageUtil.fill = fill_data;
 ImageUtil.integral = integral;
 ImageUtil.histogram = histogram;
 ImageUtil.spectrum = spectrum;
-ImageUtil.gradient = gradient;
-ImageUtil.radial_gradient = radial_gradient;
-ImageUtil.lerp = lerp;
-ImageUtil.colors_stops = colors_stops;
 
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
 FilterUtil.cm_eye = cm_eye;
 FilterUtil.cm_multiply = cm_multiply;
-//FilterUtil.cm_apply = cm_apply;
 FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.integral_convolution = integral_convolution_rgb;
-FilterUtil.separable_convolution = separable_convolution;
-FilterUtil.generic_transform = generic_transform;
-FilterUtil.affine_transform = affine_transform;
-FilterUtil.cyclic_shift = cyclic_shift;
-FilterUtil.flip_x = flip_x;
-FilterUtil.flip_y = flip_y;
-FilterUtil.flip_xy = flip_xy;
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_clamp : integral_convolution_rgb;
+FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+FilterUtil.SAT = integral2;
 
 }(FILTER);

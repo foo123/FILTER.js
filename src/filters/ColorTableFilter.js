@@ -27,8 +27,9 @@ var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clamp
 var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
     name: "ColorTableFilter"
     
-    ,constructor: function( tR, tG, tB, tA ) {
+    ,constructor: function ColorTableFilter( tR, tG, tB, tA ) {
         var self = this;
+        if ( !(self instanceof ColorTableFilter) ) return new ColorTableFilter(tR, tG, tB, tA);
         self.$super('constructor');
         self._table = [null, null, null, null];
         tR = tR || null;
@@ -391,7 +392,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
         var self = this, T = self._table;
         if ( !self._isOn || !T || !T[CHANNEL.R] ) return im;
         
-        var i, l=im.length, rem = (l>>>2)%16, R = T[0], G = T[1], B = T[2], A = T[3];
+        var i, l=im.length, l2=l>>>2, rem=(l2&15)<<2, R = T[0], G = T[1], B = T[2], A = T[3];
         
         // apply filter (algorithm implemented directly based on filter definition)
         if ( A )
@@ -420,7 +421,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
             // loop unrolling remainder
             if ( rem )
             {
-                for (i=l-(rem<<2); i<l; i+=4)
+                for (i=l-rem; i<l; i+=4)
                     im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]]; im[i+3 ] = A[im[i+3 ]];
             }
         }
@@ -450,7 +451,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
             // loop unrolling remainder
             if ( rem )
             {
-                for (i=l-(rem<<2); i<l; i+=4)
+                for (i=l-rem; i<l; i+=4)
                     im[i   ] = R[im[i   ]]; im[i+1 ] = G[im[i+1 ]]; im[i+2 ] = B[im[i+2 ]];
             }
         }

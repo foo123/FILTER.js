@@ -32,8 +32,9 @@ var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
 var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filter, {
     name: "MorphologicalFilter"
     
-    ,constructor: function( ) {
+    ,constructor: function MorphologicalFilter( ) {
         var self = this;
+        if ( !(self instanceof MorphologicalFilter) ) return new MorphologicalFilter();
         self.$super('constructor');
         self._filterName = null;
         self._filter = null;

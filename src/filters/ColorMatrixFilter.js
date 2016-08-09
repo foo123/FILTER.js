@@ -15,44 +15,11 @@
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, eye = FILTER.Util.Filter.cm_eye,
-    cm_mult = FILTER.Util.Filter.cm_multiply, rechannel = FILTER.Util.Filter.cm_rechannel,
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
+    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, rechannel = FUtil.cm_rechannel,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
 ;
-
-function cm_blend( m1, m2, amount )
-{
-    var m = new CM(20);
-    
-    // unroll the loop completely
-    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
-    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
-    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
-    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
-    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
-
-    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
-    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
-    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
-    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
-    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
-    
-    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
-    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
-    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
-    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
-    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
-    
-    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
-    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
-    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
-    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
-    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
-    
-    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-    return m;
-}
 
 //
 //
@@ -60,37 +27,20 @@ function cm_blend( m1, m2, amount )
 var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ColorMatrixFilter"
     
-    ,constructor: function( matrix ) {
+    ,constructor: function ColorMatrixFilter( matrix ) {
         var self = this;
+        if ( !(self instanceof ColorMatrixFilter) ) return new ColorMatrixFilter(matrix);
         self.$super('constructor');
-        if ( matrix && matrix.length )
-        {
-            self._matrix = new CM(matrix);
-        }    
-        else
-        {
-            // identity matrix
-            self._matrix = null;
-        }
-        
-        /*if ( FILTER.useWebGL )
-        {
-            self._webglInstance = FILTER.WebGLColorMatrixFilterInstance || null;
-        }*/
+        self.matrix = matrix && matrix.length ? new CM(matrix) : null;
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_matrix: null
-    ,_webglInstance: null
+    ,matrix: null
     
     ,dispose: function( ) {
         var self = this;
-        
         self.$super('dispose');
-        
-        self._webglInstance = null;
-        self._matrix = null;
-        
+        self.matrix = null;
         return self;
     }
     
@@ -101,7 +51,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             ,_isOn: !!self._isOn
             
             ,params: {
-                _matrix: self._matrix
+                matrix: self.matrix
             }
         };
     }
@@ -114,7 +64,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             
             params = json.params;
             
-            self._matrix = TypedArray( params._matrix, CM );
+            self.matrix = TypedArray( params.matrix, CM );
         }
         return self;
     }
@@ -484,40 +434,32 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // blend with another filter
     ,blend: function( filt, amount ) {
-        this._matrix = this._matrix ? cm_blend(this._matrix, filt.getMatrix(), amount) : new CM(filt.getMatrix());
+        this.matrix = this.matrix ? cm_blend(this.matrix, filt.matrix, amount) : new CM(filt.matrix);
         return this;
     }
     
-    ,set: function( mat ) {
-        this._matrix = this._matrix ? cm_mult(this._matrix, new CM(mat)) : new CM(mat);
-        return this;
+    ,set: function( matrix ) {
+        var self = this;
+        self.matrix = self.matrix ? mult(self.matrix, matrix) : new CM(matrix); 
+        return self;
     }
     
     ,reset: function( ) {
-        this._matrix = null; 
+        this.matrix = null; 
         return this;
     }
     
     ,combineWith: function( filt ) {
-        return this.set( filt.getMatrix() );
-    }
-    
-    ,getMatrix: function( ) {
-        return this._matrix;
-    }
-    
-    ,setMatrix: function( m ) {
-        this._matrix = new CM(m); 
-        return this;
+        return this.set( filt.matrix );
     }
     
     // used for internal purposes
     ,_apply: notSupportClamp
     ? function( im, w, h/*, image*/ ) {
-        var self = this, m = self._matrix;
-        if ( !self._isOn || !m ) return im;
+        var self = this, M = self.matrix;
+        if ( !self._isOn || !M ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%8,
+        var imLen = im.length, i, imArea = imLen>>>2, rem = (imArea&7)<<2,
             p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
@@ -526,52 +468,52 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         for (i=0; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[1 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[2 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[3 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
-            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[4 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[5 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[6 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[7 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
-            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[8 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[9 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[10]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[11]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
-            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[12]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[13]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[14]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[15]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
-            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[16]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[17]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[18]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[19]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
-            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[20]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[21]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[22]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[23]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
-            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[24]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[25]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[26]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[27]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
-            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[28]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[29]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[30]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[31]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             // clamp them manually
             p[0 ] = p[0 ]<0 ? 0 : (p[0 ]>255 ? 255 : p[0 ]);
@@ -619,13 +561,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         // loop unrolling remainder
         if ( rem )
         {
-            for (i=imLen-(rem<<2); i<imLen; i+=4)
+            for (i=imLen-rem; i<imLen; i+=4)
             {
                 t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
-                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
-                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
                 
                 // clamp them manually
                 pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
@@ -639,10 +581,10 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         return im;
     }
     : function( im, w, h/*, image*/ ) {
-        var self = this, m = self._matrix;
-        if ( !self._isOn || !m ) return im;
+        var self = this, M = self.matrix;
+        if ( !self._isOn || !M ) return im;
         
-        var imLen = im.length, i, rem = (imLen>>>2)%8,
+        var imLen = im.length, i, imArea = imLen>>>2, rem = (imArea&7)<<2,
             p = new CM(32), t = new A8U(4), pr = new CM(4);
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
@@ -651,52 +593,52 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         for (i=0; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-            p[0 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[1 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[2 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[3 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[1 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[2 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[3 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+4]; t[1] = im[i+5]; t[2] = im[i+6]; t[3] = im[i+7];
-            p[4 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[5 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[6 ]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[7 ]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[4 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[5 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[6 ]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[7 ]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+8]; t[1] = im[i+9]; t[2] = im[i+10]; t[3] = im[i+11];
-            p[8 ]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[9 ]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[10]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[11]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[8 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[9 ]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[10]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[11]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+12]; t[1] = im[i+13]; t[2] = im[i+14]; t[3] = im[i+15];
-            p[12]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[13]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[14]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[15]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[12]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[13]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[14]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[15]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             t[0]   =  im[i+16]; t[1] = im[i+17]; t[2] = im[i+18]; t[3] = im[i+19];
-            p[16]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[17]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[18]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[19]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[16]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[17]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[18]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[19]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+20]; t[1] = im[i+21]; t[2] = im[i+22]; t[3] = im[i+23];
-            p[20]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[21]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[22]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[23]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[20]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[21]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[22]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[23]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+24]; t[1] = im[i+25]; t[2] = im[i+26]; t[3] = im[i+27];
-            p[24]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[25]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[26]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[27]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[24]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[25]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[26]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[27]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
 
             t[0]   =  im[i+28]; t[1] = im[i+29]; t[2] = im[i+30]; t[3] = im[i+31];
-            p[28]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4 ];
-            p[29]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9 ];
-            p[30]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-            p[31]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+            p[28]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
+            p[29]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9 ];
+            p[30]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            p[31]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
             
             im[i   ] = ~~p[0 ]; im[i+1 ] = ~~p[1 ]; im[i+2 ] = ~~p[2 ]; im[i+3 ] = ~~p[3 ];
             im[i+4 ] = ~~p[4 ]; im[i+5 ] = ~~p[5 ]; im[i+6 ] = ~~p[6 ]; im[i+7 ] = ~~p[7 ];
@@ -710,13 +652,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
         // loop unrolling remainder
         if ( rem )
         {
-            for (i=imLen-(rem<<2); i<imLen; i+=4)
+            for (i=imLen-rem; i<imLen; i+=4)
             {
                 t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  m[0 ]*t[0] +  m[1 ]*t[1] +  m[2 ]*t[2] +  m[3 ]*t[3] +  m[4];
-                pr[1]  =  m[5 ]*t[0] +  m[6 ]*t[1] +  m[7 ]*t[2] +  m[8 ]*t[3] +  m[9];
-                pr[2]  =  m[10]*t[0] +  m[11]*t[1] +  m[12]*t[2] +  m[13]*t[3] +  m[14];
-                pr[3]  =  m[15]*t[0] +  m[16]*t[1] +  m[17]*t[2] +  m[18]*t[3] +  m[19];
+                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
                 
                 im[i  ] = ~~pr[0]; im[i+1] = ~~pr[1]; im[i+2] = ~~pr[2]; im[i+3] = ~~pr[3];
             }
@@ -725,7 +667,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._matrix;
+        return this._isOn && this.matrix;
     }
 });
 // aliases
@@ -734,5 +676,38 @@ ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
 ColorMatrixFilter.blend = cm_blend;
+
+function cm_blend( m1, m2, amount )
+{
+    var m = new CM(20);
+    
+    // unroll the loop completely
+    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
+    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
+    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
+    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
+    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
+
+    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
+    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
+    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
+    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
+    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
+    
+    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
+    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
+    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
+    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
+    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
+    
+    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
+    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
+    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
+    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
+    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
+    
+    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
+    return m;
+}
 
 }(FILTER);
