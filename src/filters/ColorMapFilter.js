@@ -40,7 +40,6 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
     
     ,dispose: function( ) {
         var self = this;
-        self.$super('dispose');
         
         self._map = null;
         self._mapInit = null;
@@ -49,6 +48,8 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
         
         self.thresholds = null;
         self.quantizedColors = null;
+        self.$super('dispose');
+        
         return self;
     }
     

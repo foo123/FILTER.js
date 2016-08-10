@@ -19,51 +19,42 @@ var HAS = 'hasOwnProperty';
 var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     name: "InlineFilter"
     
-    ,constructor: function InlineFilter( handler ) {
+    ,constructor: function InlineFilter( filter, params ) {
         var self = this;
-        if ( !(self instanceof InlineFilter) ) return new InlineFilter(handler);
+        if ( !(self instanceof InlineFilter) ) return new InlineFilter(filter, params);
         self.$super('constructor');
-        // using bind makes the code become [native code] and thus unserializable
-        self._handler = handler && ('function' === typeof handler) ? handler : null;
         self._params = {};
+        self.set( filter, params );
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_handler: null
+    ,_filter: null
     ,_params: null
+    ,_changed: false
     
     ,dispose: function( ) {
         var self = this;
-        self.$super('dispose');
-        self._handler = null;
+        self._filter = null;
         self._params = null;
+        self._changed = null;
+        self.$super('dispose');
         return self;
     }
     
-    ,params: function( params ) {
-        var self = this;
-        if ( arguments.length )
-        {
-            for (var p in params)
-            {
-                if ( params[HAS](p) ) self._params[p] = params[p];
-            }
-            return self;
-        }
-        return self._params;
-    }
-    
     ,serialize: function( ) {
-        var self = this;
-        return {
+        var self = this, json;
+        json = {
             filter: self.name
             ,_isOn: !!self._isOn
+            ,_update: self._update
             
             ,params: {
-                _handler: self._handler ? self._handler.toString( ) : null
+                 _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString( ) : null)
                 ,_params: self._params
             }
         };
+        self._changed = false;
+        return json;
     }
     
     ,unserialize: function( json ) {
@@ -71,29 +62,56 @@ var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
         if ( json && self.name === json.filter )
         {
             self._isOn = !!json._isOn;
+            self._update = json._update;
             
             params = json.params;
             
-            self._handler = null;
-            if ( params._handler )
-            {
+            if ( null != params._filter )
                 // using bind makes the code become [native code] and thus unserializable
                 // make FILTER namespace accessible to the function code
-                self._handler = new Function( "FILTER", '"use strict"; return ' + params._handler + ';')( FILTER );
-            }
+                self._filter = false === params._filter ? null : new Function( "FILTER", '"use strict"; return ' + params._filter + ';')( FILTER );
             self._params = params._params || {};
+        }
+        return self;
+    }
+    
+    ,params: function( params ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            for (var p in params) if ( params[HAS](p) ) self._params[p] = params[p];
+            return self;
+        }
+        return self._params;
+    }
+    
+    ,set: function( filter, params ) {
+        var self = this;
+        if ( false === filter )
+        {
+            self._filter = false;
+            self._changed = true;
+        }
+        else
+        {
+            if ( "function" === typeof filter )
+            {
+                self._filter = filter;
+                self._changed = true;
+            }
+            if ( params ) self.params( params );
         }
         return self;
     }
     
     ,_apply: function( im, w, h, image ) {
         var self = this;
-        if ( !self._isOn || !self._handler ) return im;
-        return self._handler( self, im, w, h, image );
+        if ( !self._isOn || !self._filter ) return im;
+        return self._filter( self._params, im, w, h, image );
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._handler;
+        return this._isOn && this._filter;
     }
 });
 FILTER.CustomFilter = FILTER.InlineFilter;

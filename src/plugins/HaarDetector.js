@@ -12,94 +12,8 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    integral_image = FILTER.Util.Filter.SAT
+    sat_image = FILTER.Util.Filter.SAT, sat_gradient = FILTER.Util.Filter.GRAD
 ;
-
-// compute integral of gradient edges on gray-scale image to speed up detection if possible with Canny pruning
-function integral_gradient(im, w, h, canny) 
-{
-    var i, j, k, sum, grad_x, grad_y,
-        ind0, ind1, ind2, ind_1, ind_2, count=canny.length, 
-        lowpass = new Array8U(count),
-        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2
-    ;
-    
-    // first, second rows, last, second-to-last rows
-    for (i=0; i<w; i++)
-    {
-        lowpass[i]=0; lowpass[i+w]=0;
-        lowpass[i+count-w]=0; lowpass[i+count-w-w]=0;
-        canny[i]=0; canny[i+count-w]=0;
-    }
-    // first, second columns, last, second-to-last columns
-    for (j=0,k=0; j<h; j++,k+=w)
-    {
-        lowpass[0+k]=0; lowpass[1+k]=0;
-        lowpass[w-1+k]=0; lowpass[w-2+k]=0;
-        canny[0+k]=0; canny[w-1+k]=0;
-    }
-    // gauss lowpass
-    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
-    {
-        if ( j >= h_2 ){ j=2; k=w2; i++; }
-        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
-        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
-        
-        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-        // http://stackoverflow.com/questions/11703599/unsigned-32-bit-integers-in-javascript
-        // http://stackoverflow.com/questions/6232939/is-there-a-way-to-correctly-multiply-two-32-bit-integers-in-javascript/6422061#6422061
-        // http://stackoverflow.com/questions/6798111/bitwise-operations-on-32-bit-unsigned-ints
-        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#%3E%3E%3E_%28Zero-fill_right_shift%29
-        sum =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
-                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
-                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
-                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
-                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
-                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
-                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
-                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
-                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
-        
-        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
-    }
-    
-    // sobel gradient
-    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
-    {
-        if ( j >= h_1 ){ j=1; k=w; i++; }
-        // compute coords using simple add/subtract arithmetic (faster)
-        ind0=k+i; ind1=ind0+w; ind_1=ind0-w; 
-        
-        grad_x = ((0
-                - lowpass[ind_1-1] 
-                + lowpass[ind_1+1] 
-                - lowpass[ind0-1] - lowpass[ind0-1]
-                + lowpass[ind0+1] + lowpass[ind0+1]
-                - lowpass[ind1-1] 
-                + lowpass[ind1+1]
-                ));
-        grad_y = ((0
-                + lowpass[ind_1-1] 
-                + lowpass[ind_1] + lowpass[ind_1]
-                + lowpass[ind_1+1] 
-                - lowpass[ind1-1] 
-                - lowpass[ind1] - lowpass[ind1]
-                - lowpass[ind1+1]
-                ));
-        
-        canny[ind0] = Abs(grad_x) + Abs(grad_y);
-    }
-    
-    // integral gradient
-    // first row
-    for(i=0,sum=0; i<w; i++) { sum += canny[i]; canny[i] = sum; }
-    // other rows
-    for(i=w,k=0,sum=0; i<count; i++,k++)
-    {
-        if (k>=w) { k=0; sum=0; }
-        sum += canny[i]; canny[i] = canny[i-w] + sum;
-    }
-}
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
 {
@@ -498,8 +412,8 @@ FILTER.Create({
     }
     
     ,serialize: function( ) {
-        var self = this;
-        var json = {
+        var self = this, json;
+        json = {
             filter: self.name
             ,_isOn: !!self._isOn
             ,_update: self._update
@@ -583,6 +497,7 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
         
+        // NOTE: assume image is already grayscale
         if ( scratchpad && scratchpad.SAT )
         {
             SAT = scratchpad.SAT; SAT2 = scratchpad.SAT2; RSAT = scratchpad.RSAT;
@@ -590,7 +505,7 @@ FILTER.Create({
         else
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
-            integral_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
+            sat_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
             if ( scratchpad ) { scratchpad.SAT = SAT; scratchpad.SAT2 = SAT2; scratchpad.RSAT = RSAT; }
         }
         
@@ -603,7 +518,7 @@ FILTER.Create({
             }
             else
             {
-                integral_gradient(im, w, h, EDGES=new Array32F(imSize));
+                sat_gradient(im, w, h, EDGES=new Array32F(imSize), 1);
                 if ( scratchpad ) { scratchpad.EDGES = EDGES; }
             }
         }

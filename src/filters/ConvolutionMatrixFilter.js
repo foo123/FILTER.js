@@ -17,7 +17,7 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
-    tensor_product = FILTER.Util.Math.tensor_product,
+    blend = FilterUtil.cm_combine, convolve = FilterUtil.cm_convolve,
     
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
@@ -39,7 +39,6 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
 ;
 
 //
-//
 //  Convolution Matrix Filter
 var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
     name: "ConvolutionMatrixFilter"
@@ -49,25 +48,24 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         if ( !(self instanceof ConvolutionMatrixFilter) ) return new ConvolutionMatrixFilter(weights, factor, bias, rgba);
         self.$super('constructor');
         self._coeff = new CM([1.0, 0.0]);
-        
+        self.matrix2 = null;  self.dim2 = 0;
+        self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+        self._rgba = !!rgba;
         if ( weights && weights.length)
         {
             self.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
         }
         else 
         {
-            self._matrix = null; self._dim = 0;
+            self.matrix = null; self.dim = 0;
         }
-        self._matrix2 = null;  self._dim2 = 0;
-        self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
-        self._rgba = !!rgba;
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_dim: 0
-    ,_dim2: 0
-    ,_matrix: null
-    ,_matrix2: null
+    ,dim: 0
+    ,dim2: 0
+    ,matrix: null
+    ,matrix2: null
     ,_mat: null
     ,_mat2: null
     ,_coeff: null
@@ -83,12 +81,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,dispose: function( ) {
         var self = this;
         
-        self.$super('dispose');
-        
-        self._dim = null;
-        self._dim2 = null;
-        self._matrix = null;
-        self._matrix2 = null;
+        self.dim = null;
+        self.dim2 = null;
+        self.matrix = null;
+        self.matrix2 = null;
         self._mat = null;
         self._mat2 = null;
         self._coeff = null;
@@ -100,6 +96,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         self._indicesf = null;
         self._indicesf2 = null;
         self._rgba = null;
+        self.$super('dispose');
         
         return self;
     }
@@ -111,10 +108,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             ,_isOn: !!self._isOn
             
             ,params: {
-                _dim: self._dim
-                ,_dim2: self._dim2
-                ,_matrix: self._matrix
-                ,_matrix2: self._matrix2
+                 dim: self.dim
+                ,dim2: self.dim2
+                ,matrix: self.matrix
+                ,matrix2: self.matrix2
                 ,_mat: self._mat
                 ,_mat2: self._mat2
                 ,_coeff: self._coeff
@@ -138,10 +135,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             
             params = json.params;
             
-            self._dim = params._dim;
-            self._dim2 = params._dim2;
-            self._matrix = TypedArray( params._matrix, CM );
-            self._matrix2 = TypedArray( params._matrix2, CM );
+            self.dim = params.dim;
+            self.dim2 = params.dim2;
+            self.matrix = TypedArray( params.matrix, CM );
+            self.matrix2 = TypedArray( params.matrix2, CM );
             self._mat = TypedArray( params._mat, CM );
             self._mat2 = TypedArray( params._mat2, CM );
             self._coeff = TypedArray( params._coeff, CM );
@@ -170,19 +167,39 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         }
     }
     
-    // generic low-pass filter
+    // generic functional-based kernel filter
+    ,functional: function( f, d ) {
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        var kernel = functional1(d, f), fact = 1.0/summa(kernel);
+        // this can be separable
+        this.set(kernel, d, fact, fact, d, kernel);
+        this._doSeparable = true; return this;
+    }
+    
+    // fast gauss filter
+    ,fastGauss: function( quality, d ) {
+        d = d === undef ? 3 : (d&1 ? d : d+1);
+        quality = ~~(quality||1);
+        if ( quality < 1 ) quality = 1;
+        else if ( quality > 3 ) quality = 3;
+        this.set(ones(d), d, 1/(d*d), 0.0);
+        this._doIntegral = quality; return this;
+    }
+    
+    // generic box low-pass filter
     ,lowPass: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         this.set(ones(d), d, 1/(d*d), 0.0);
         this._doIntegral = 1; return this;
     }
+    ,boxBlur: null
 
-    // generic high-pass filter (I-LP)
+    // generic box high-pass filter (I-LP)
     ,highPass: function( d, f ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         f = f === undef ? 1 : f;
         // HighPass Filter = I - (respective)LowPass Filter
-        var fact=-f/(d*d);
+        var fact = -f/(d*d);
         this.set(ones(d, fact, 1+fact), d, 1.0, 0.0);
         this._doIntegral = 1; return this;
     }
@@ -199,13 +216,13 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     ,verticalBlur: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        this.set(average1(d), 1, 1/d, 0.0, null, d); 
+        this.set(average1(d), 1, 1/d, 0.0, d); 
         this._doIntegral = 1; return this;
     }
     
     ,horizontalBlur: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        this.set(average1(d), d, 1/d, 0.0, null, 1); 
+        this.set(average1(d), d, 1/d, 0.0, 1); 
         this._doIntegral = 1; return this;
     }
     
@@ -216,72 +233,67 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, 1.0, 0.0);
     }
     
-    // fast gauss filter
-    ,fastGauss: function( quality, d ) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
-        quality = ~~(quality||1);
-        if ( quality < 1 ) quality = 1;
-        else if ( quality > 3 ) quality = 3;
-        this.set(ones(d), d, 1/(d*d), 0.0);
-        this._doIntegral = quality; return this;
-    }
-    
     // generic binomial(quasi-gaussian) low-pass filter
     ,binomialLowPass: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         /*var filt=binomial(d);
         return this.set(filt.kernel, d, 1/filt.sum); */
-        var kernel = binomial1(d), fact=1/(1<<(d-1));
-        this.set(kernel, d, fact, fact, kernel, d);
+        var kernel = binomial1(d), fact = 1/(1<<(d-1));
+        this.set(kernel, d, fact, fact, d, kernel);
         this._doSeparable = true; return this;
     }
+    ,gaussBlur: null
 
     // generic binomial(quasi-gaussian) high-pass filter
     ,binomialHighPass: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        var filt = binomial2(d);
+        var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
-        return this.set(blendMatrix(ones(d), new CM(filt.kernel), 1, -1/filt.sum), d, 1.0, 0.0); 
+        return this.set(blend(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0); 
     }
     
     // X-gradient, partial X-derivative (Prewitt)
     ,prewittX: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        //return this.set(prewitt(d, 0).kernel, d, 1.0, 0.0);
-        this.set(average1(d), d, 1.0, 0.0, derivative1(d,0), d);
+        //return this.set(prewitt(d, 0), d, 1.0, 0.0);
+        this.set(average1(d), d, 1.0, 0.0, d, derivative1(d,0));
         this._doSeparable = true; return this;
     }
+    ,gradX: null
     
     // Y-gradient, partial Y-derivative (Prewitt)
     ,prewittY: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        //return this.set(prewitt(d, 1).kernel, d, 1.0, 0.0);
-        this.set(derivative1(d,1), d, 1.0, 0.0, average1(d), d);
+        //return this.set(prewitt(d, 1), d, 1.0, 0.0);
+        this.set(derivative1(d,1), d, 1.0, 0.0, d, average1(d));
         this._doSeparable = true; return this;
     }
+    ,gradY: null
     
     // directional gradient (Prewitt)
     ,prewittDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blendMatrix(new CM(prewitt(d, 0).kernel), new CM(prewitt(d, 1).kernel), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(blend(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
+    ,gradDirectional: null
     
     // gradient magnitude (Prewitt)
     ,prewitt: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        this.set(prewitt(d, 0).kernel, d, 1.0, 0.0, prewitt(d, 1).kernel, d);
+        this.set(prewitt(d, 0), d, 1.0, 0.0, d, prewitt(d, 1));
         this._isGrad = true; return this;
     }
+    ,grad: null
     
     // partial X-derivative (Sobel)
     ,sobelX: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        //return this.set(sobel(d, 0).kernel, d, 1.0, 0.0);
-        this.set(binomial1(d), d, 1.0, 0.0, derivative1(d,0), d);
+        //return this.set(sobel(d, 0), d, 1.0, 0.0);
+        this.set(binomial1(d), d, 1.0, 0.0, d, derivative1(d,0));
         this._doSeparable = true; return this;
     }
     
@@ -289,8 +301,8 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,sobelY: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         // this can be separable
-        //return this.set(sobel(d, 1).kernel, d, 1.0, 0.0);
-        this.set(derivative1(d,1), d, 1.0, 0.0, binomial1(d), d);
+        //return this.set(sobel(d, 1), d, 1.0, 0.0);
+        this.set(derivative1(d,1), d, 1.0, 0.0, d, binomial1(d));
         this._doSeparable = true; return this;
     }
     
@@ -298,13 +310,13 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,sobelDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blendMatrix(new CM(sobel(d, 0).kernel), new CM(sobel(d, 1).kernel), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(blend(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     
     // gradient magnitude (Sobel)
     ,sobel: function( d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        this.set(sobel(d, 0).kernel, d, 1.0, 0.0, sobel(d, 1).kernel, d);
+        this.set(sobel(d, 0), d, 1.0, 0.0, d, sobel(d, 1));
         this._isGrad = true; return this;
     }
     
@@ -320,6 +332,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
         amount = amount || 1;
         return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, 1.0, 0.0);
     }
+    ,bump: null
     
     ,edges: function( m ) {
         m = m || 1;
@@ -330,25 +343,25 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
          ], 3, 1.0, 0.0);
     }
     
-    ,set: function( m, d, f, b, m2, d2 ) {
+    ,set: function( m, d, f, b, d2, m2 ) {
         var self = this, tmp;
         
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
-        self._matrix2 = null; self._dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+        self.matrix2 = null; self.dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
         
-        self._matrix = new CM(m); self._dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
-        tmp  = computeIndices(self._matrix, self._dim);
+        self.matrix = new CM(m); self.dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
+        tmp  = indices(self.matrix, self.dim);
         self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
         
         if ( m2 )
         {
-            self._matrix2 = new CM(m2); self._dim = d2;
-            tmp  = computeIndices(self._matrix2, self._dim2);
+            self.matrix2 = new CM(m2); self.dim2 = d2;
+            tmp  = indices(self.matrix2, self.dim2);
             self._indices2 = tmp[0]; self._indicesf2 = tmp[1]; self._mat2 = tmp[2];
         }
         else if ( d2 )
         {
-            self._dim = d2;
+            self.dim2 = d2;
         }
         
         return self;
@@ -356,9 +369,9 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     
     ,reset: function( ) {
         var self = this;
-        self._matrix = self._matrix2 = null; 
+        self.matrix = self.matrix2 = null; 
+        self.dim = self.dim2 = 0;
         self._mat = self._mat2 = null; 
-        self._dim = self._dim2 = 0;
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         return self;
@@ -371,7 +384,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
     
     ,getMatrix: function( ) {
-        return this._matrix;
+        return this.matrix;
     }
     
     ,setMatrix: function( m, d ) {
@@ -382,12 +395,12 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,_apply: notSupportClamp
     ? function(im, w, h/*, image*/) {
         var self = this, rgba = self._rgba;
-        if ( !self._isOn || !self._matrix ) return im;
+        if ( !self._isOn || !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self._matrix2 ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? integral_convolution(rgba, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
@@ -398,7 +411,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             t0, t1, t2, t3, i, j, k, x, ty, ty2, 
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
-            mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
+            mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices
         ;
         
@@ -428,15 +441,13 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
-                        //a2 += im[srcOff+3] * wt2;
-                    }
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2; 
+                    wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
+                    // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                    wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                    //a2 += im[srcOff+3] * wt2;
                 }
                 
                 // output
@@ -492,12 +503,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
                 }
                 
                 // output
@@ -524,12 +533,12 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
     : function(im, w, h/*, image*/) {
         var self = this, rgba = self._rgba;
-        if ( !self._isOn || !self._matrix ) return im;
+        if ( !self._isOn || !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self._matrix2 ? integral_convolution(rgba, im, w, h, self._matrix, self._matrix2, self._dim, self._dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self._matrix, null, self._dim, self._dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? integral_convolution(rgba, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
@@ -540,7 +549,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
             t0, t1, t2, t3, i, j, k, x, ty, ty2, 
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
-            mat = self._matrix, mat2 = self._matrix2, wt, wt2, _isGrad = self._isGrad,
+            mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices
         ;
         
@@ -570,15 +579,13 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; 
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
-                        //a2 += im[srcOff+3] * wt2;
-                    }
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2; 
+                    wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
+                    // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                    wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                    //a2 += im[srcOff+3] * wt2;
                 }
                 
                 // output
@@ -630,12 +637,10 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 for (k=0, j=0; k<matArea; k++, j+=2)
                 {
                     xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                    {
-                        srcOff = (xOff + yOff)<<2; wt = mat[k];
-                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
-                    }
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2; wt = mat[k];
+                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                    //a += im[srcOff+3] * wt;
                 }
                 
                 // output
@@ -658,23 +663,27 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._matrix;
+        return this._isOn && this.matrix;
     }
 });
 // aliases
-ConvolutionMatrixFilter.prototype.bump = ConvolutionMatrixFilter.prototype.emboss;
-ConvolutionMatrixFilter.prototype.boxBlur = ConvolutionMatrixFilter.prototype.lowPass;
-ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.binomialLowPass;
 ConvolutionMatrixFilter.prototype.gradX = ConvolutionMatrixFilter.prototype.prewittX;
 ConvolutionMatrixFilter.prototype.gradY = ConvolutionMatrixFilter.prototype.prewittY;
 ConvolutionMatrixFilter.prototype.gradDirectional = ConvolutionMatrixFilter.prototype.prewittDirectional;
 ConvolutionMatrixFilter.prototype.grad = ConvolutionMatrixFilter.prototype.prewitt;
+ConvolutionMatrixFilter.prototype.bump = ConvolutionMatrixFilter.prototype.emboss;
+ConvolutionMatrixFilter.prototype.boxBlur = ConvolutionMatrixFilter.prototype.lowPass;
+ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.binomialLowPass;
 
 
-//
 //
 //  Private methods
-function computeIndices( m, d )
+function summa( kernel )
+{
+    for(var sum=0,i=0,l=kernel.length; i<l; i++) sum += kernel[i];
+    return sum;
+}
+function indices( m, d )
 {
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
@@ -694,14 +703,13 @@ function computeIndices( m, d )
     }
     return [new A16I(indices), new A16I(indices2), new CM(mat)];
 }
-function blendMatrix( m1, m2, a, b )
-{
-    var l=m1.length, i, m=new CM(m1.length);
-    a=a||1; b=b||1;
-    i=0; while (i<l) { m[i]=a*m1[i] + b*m2[i]; i++; }
-    return m;
-}
 
+function functional1( d, f )
+{
+    var i, ker = new Array(d);
+    for(i=0; i<d; i++) ker[i] = f(i);
+    return ker;
+}
 function identity1( d )
 {
     var i, ker = new Array(d);
@@ -748,33 +756,34 @@ function binomial1( d )
     return row;
 }
 
+function functional2( d, f )
+{
+    var functional = functional1(d, f);
+    // convolve with itself
+    return convolve(functional, functional);
+}
 function binomial2( d )
 {
     var binomial = binomial1(d);
     // convolve with itself
-    return tensor_product(binomial, binomial);
+    return convolve(binomial, binomial);
 }
-
 function vertical2( d )
 {
-    return tensor_product(average1(d), identity1(d));
+    return convolve(average1(d), identity1(d));
 }
-
 function horizontal2( d )
 {
-    return tensor_product(identity1(d), average1(d));
+    return convolve(identity1(d), average1(d));
 }
-
 function sobel( d, dir )
 {
-    return 1===dir ? /*y*/tensor_product(derivative1(d,1), binomial1(d)) : /*x*/tensor_product(binomial1(d), derivative1(d,0));
+    return 1===dir ? /*y*/convolve(derivative1(d,1), binomial1(d)) : /*x*/convolve(binomial1(d), derivative1(d,0));
 }
-
 function prewitt( d, dir )
 {
-    return 1===dir ? /*y*/tensor_product(derivative1(d,1), average1(d)) : /*x*/tensor_product(average1(d), derivative1(d,0));
+    return 1===dir ? /*y*/convolve(derivative1(d,1), average1(d)) : /*x*/convolve(average1(d), derivative1(d,0));
 }
-
 function ones( d, f, c )
 { 
     f = f||1; c = c||f;
@@ -783,7 +792,6 @@ function ones( d, f, c )
     o[l>>>1] = c;
     return o;
 }
-
 function twos( d, dx, dy, c )
 {
     var l=d*d, half=d>>>1, center=l>>>1, i, k, j, o=new CM(l), tx, ty;
@@ -801,7 +809,6 @@ function twos( d, dx, dy, c )
     o[center] = c||1;
     return o;
 }
-
 function twos2( d, c, s, cf )
 {
     var l=d*d, half=d>>1, center=l>>1, i, j, k, 

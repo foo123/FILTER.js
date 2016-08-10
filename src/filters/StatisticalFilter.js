@@ -39,12 +39,11 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     ,dispose: function( ) {
         var self = this;
         
-        self.$super('dispose');
-        
         self._dim = null;
         self._indices = null;
         self._filter = null;
         self._filterName = null;
+        self.$super('dispose');
         
         return self;
     }

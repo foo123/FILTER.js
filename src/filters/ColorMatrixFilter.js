@@ -39,8 +39,8 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     ,dispose: function( ) {
         var self = this;
-        self.$super('dispose');
         self.matrix = null;
+        self.$super('dispose');
         return self;
     }
     

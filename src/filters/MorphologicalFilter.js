@@ -53,13 +53,12 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
     ,dispose: function( ) {
         var self = this;
         
-        self.$super('dispose');
-        
         self._filterName = null;
         self._filter = null;
         self._dim = null;
         self._structureElement = null;
         self._indices = null;
+        self.$super('dispose');
         
         return self;
     }

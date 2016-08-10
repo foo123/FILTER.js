@@ -7,49 +7,39 @@
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I,
+var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, //gradient_xy = FILTER.Util.Filter.GRAD2,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
-    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    LUMA = FILTER.LUMA, PI2 = FILTER.CONST.PI2, abs = Math.abs, exp = Math.exp,
-    hypot
+    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
+    exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
 ;
 
 // private utility methods
-//NOTE: It is quite feasible to replace the implementation of this method
-//with one which only loosely approximates the hypot function. I've tested
-//simple approximations such as Math.abs(x) + Math.abs(y) and they work fine.
-hypot = Math.hypot 
-        ? Math.hypot 
-        : /*function( x, y ){
-            var absx = abs(x), 
-                absy = abs(y),
-                r, max;
-            // avoid overflows
-            if ( absx > absy )
-            {
-                max = absx;
-                r = absy / max;
-                
-            }
-            else
-            {
-                max = absy;
-                if ( 0 == max ) return 0;
-                r = absx / max;
-            }
-            return max*Math.sqrt(1.0 + r*r);
-        }*/
-        function(x, y){ return abs(x)+abs(y); };
-        
-/*function gaussian(x, sigma2) 
+function normalize_contrast( im )
 {
-    return exp(-(x * x) / (2 * sigma2)); //sigma * sigma
-}*/
+    var histogram = new Int32(256), remap = new Int32(256),
+        i, size = im.length, area = size>>>2, sum, j, k, target;
 
-function computeGradients(data, width, height, magnitude, kernelRadius, kernelWidth) 
+    for (i=0; i<size; i+=4) histogram[ im[i] ]++;
+
+    sum = 0; j = 0;
+    for (i = 0; i<256; i++) 
+    {
+        sum += histogram[ i ];
+        target = sum*255/area;
+        for (k = j+1; k <=target; k++) remap[ k ] = i;
+        j = target;
+    }
+    for (i=0; i<size; i+=4)
+    {
+        k = remap[ im[i] ];
+        im[i] = k; im[i+1] = k; im[i+2] = k;
+    }        
+}
+function gradient_and_non_maximal_supression( im, width, height, magnitude ) 
 {
     //generate the gaussian convolution masks
-    var picsize = data.length,
+    var kernelRadius = 2, kernelWidth = 14,
+        size = im.length, picsize = magnitude.length,
         xConv = new Float32(picsize),
         yConv = new Float32(picsize),
         xGradient = new Float32(picsize),
@@ -82,21 +72,18 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
     {
         if ( y >= maxY) { y=initY; x++; }
         index = x + y;
-        sumX = data[index] * kernel[0];
+        sumX = im[index<<2] * kernel[0];
         sumY = sumX;
         xOffset = 1;
         yOffset = width;
         for(; xOffset < kwidth ;) 
         {
-            sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
-            sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
-            yOffset += width;
-            xOffset++;
+            sumY += kernel[xOffset] * (im[(index - yOffset)<<2] + im[(index + yOffset)<<2]);
+            sumX += kernel[xOffset] * (im[(index - xOffset)<<2] + im[(index + xOffset)<<2]);
+            yOffset += width; xOffset++;
         }
-        
         yConv[index] = sumY;
         xConv[index] = sumX;
-
     }
 
     for (x=initX,y=initY; x<maxX; y+=width) 
@@ -105,7 +92,6 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         sum = 0;
         index = x + y;
         for (i = 1; i < kwidth; i++) sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
-
         xGradient[index] = sum;
     }
     
@@ -121,7 +107,6 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
             sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
             yOffset += width;
         }
-
         yGradient[index] = sum;
     }
 
@@ -204,7 +189,7 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
                     && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
         ) 
         {
-            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Math.floor(MAGNITUDE_SCALE * gradMag);
+            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : floor(MAGNITUDE_SCALE * gradMag);
             //NOTE: The orientation of the edge is not employed by this
             //implementation. It is a simple matter to compute it at
             //this point as: Math.atan2(yGrad, xGrad);
@@ -215,98 +200,39 @@ function computeGradients(data, width, height, magnitude, kernelRadius, kernelWi
         }
     }
 }
-
-function performHysteresis(data, width, height, magnitude, low, high) 
+function hysteresis_and_threshold( im, w, h, grad_magn, low, high )
 {
-    //NOTE: this implementation reuses the data array to store both
-    //luminance data from the image, and edge intensity from the processing.
-    //This is done for memory efficiency, other implementations may wish
-    //to separate these functions.
-    //Arrays.fill(data, 0);
-    var offset = 0, i, y, x, size = data.length;
-    for (i=0; i<size; i++) data[i] = 0;
+    var i, j, y, x, size = im.length, area = size >>> 2;
+    for (i=0; i<size; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
 
-    x = 0; y = 0;
-    for (offset=0; offset<size; offset++,x++) 
+    for (x=0,y=0,j=0,i=0; j<area; j++,i=j<<2,x++) 
     {
-        if ( x >= width ){x=0; y++;}
-        if ( 0 === data[offset] && magnitude[offset] >= high ) 
-        {
-            follow(data, width, height, magnitude, x, y, offset, low);
-        }
+        if ( x >= w ){ x=0; y++; }
+        if ( (0 === im[i]) && (grad_magn[j] >= high) )
+            follow_edge( im, w, h, grad_magn, x, y, i, low );
     }
 }
-
-function follow(data, width, height, magnitude, x1, y1, i1, threshold) 
+function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
 {
     var x0 = x1 === 0 ? x1 : x1 - 1,
-        x2 = x1 === width - 1 ? x1 : x1 + 1,
+        x2 = x1 === w - 1 ? x1 : x1 + 1,
         y0 = y1 === 0 ? y1 : y1 - 1,
-        y2 = y1 === height -1 ? y1 : y1 + 1,
-        x, y, i2;
+        y2 = y1 === h -1 ? y1 : y1 + 1,
+        x, y, y0w = y0*w, yw, i, j;
+
+    // threshold here
+    im[i1] = im[i1+1] = im[i1+2] = 255;
     
-    data[i1] = magnitude[i1];
-    x = x0, y = y0;
+    x = x0, y = y0; yw = y0w;
     while (x <= x2 && y <= y2)
     {
-        i2 = x + y * width;
-        if ((y != y1 || x != x1)
-            && 0 === data[i2]
-            && magnitude[i2] >= threshold
-        ) 
+        j = x + yw; i = j << 2;
+        if ( (y !== y1 || x !== x1) && (0 === im[i]) && (grad_magn[j] >= thresh) ) 
         {
-            follow(data, width, height, magnitude, x, y, i2, threshold);
+            follow_edge( im, w, h, grad_magn, x, y, i, thresh );
             return;
         }
-        y++; if ( y>y2 ){y=y0; x++;}
-    }
-}
-
-/*function luminance(r, g, b) 
-{
-    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-}*/
-
-function readLuminance(im, data) 
-{
-    var i, di, r, g, b, size = im.length, 
-        LR = LUMA[0], LG = LUMA[1], LB = LUMA[2];
-    for (i=0,di=0; i<size; i+=4,di++) 
-    {
-        r = im[i]; g = im[i+1]; b = im[i+2];
-        data[di] = ~~(LR * r + LG * g + LB * b + 0.5);//luminance(r, g, b);
-    }
-}
-
-function normalizeContrast(data) 
-{
-    var histogram = new Int32(256),
-        remap = new Int32(256),
-        i, size = data.length, 
-        sum, j, k, target;
-    
-    for (i=0; i<size; i++) histogram[data[i]]++;
-    
-    sum = 0; j = 0;
-    for (i = 0; i<256; i++) 
-    {
-        sum += histogram[i];
-        target = sum*255/size;
-        for (k = j+1; k <=target; k++) remap[k] = i;
-        j = target;
-    }
-    
-    for (i=0; i<size; i++) data[i] = remap[data[i]];
-}
-
-function thresholdEdges(im, data) 
-{
-    var i, di, size = im.length, v;
-    for (i=0,di=0; i<size; i+=4,di++) 
-    {
-        v = data[di] > 0 ? 255 : 0;
-        im[i] = im[i+1] = im[i+2] = v;
-        //im[i+3] = 255;
+        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
     }
 }
 
@@ -318,18 +244,14 @@ FILTER.Create({
     
     ,low: 2.5
     ,high: 7.5
-    ,gaussRadius: 2
-    ,gaussWidth: 16
     ,contrastNormalized: false
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold, gaussianKernelRadius, gaussianKernelWidth, contrastNormalized ) {
+    ,init: function( lowThreshold, highThreshold, contrastNormalized ) {
         var self = this;
 		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
 		self.high = arguments.length < 2 ? 7.5 : highThreshold;
-		self.gaussRadius = arguments.length < 3 ? 2 : gaussianKernelRadius;
-		self.gaussWidth = arguments.length < 4 ? 16 : gaussianKernelWidth;
         self.contrastNormalized = !!contrastNormalized;
     }
     
@@ -337,13 +259,6 @@ FILTER.Create({
         var self = this;
         self.low = low;
         self.high = high;
-        return self;
-    }
-    
-    ,kernel: function( radius, width ) {
-        var self = this;
-        self.gaussRadius = radius;
-        self.gaussWidth = width;
         return self;
     }
     
@@ -356,8 +271,6 @@ FILTER.Create({
             ,params: {
                  low: self.low
                 ,high: self.high
-                ,gaussRadius: self.gaussRadius
-                ,gaussWidth: self.gaussWidth
                 ,contrastNormalized: self.contrastNormalized
             }
         };
@@ -373,36 +286,19 @@ FILTER.Create({
             
             self.low = params.low;
             self.high = params.high;
-            self.gaussRadius = params.gaussRadius;
-            self.gaussWidth = params.gaussWidth;
             self.contrastNormalized = params.contrastNormalized;
         }
         return self;
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        var self = this, picsize = im.length>>2, 
-            low, high, data, magnitude;
+    ,apply: function(im, w, h) {
+        var self = this, area = im.length>>2, gradient_magnitude;
         
-        // init arrays
-        data = new Int32(picsize);
-        magnitude = new Int32(picsize);
-        low = Math.round( self.low * MAGNITUDE_SCALE );
-        high = Math.round( self.high * MAGNITUDE_SCALE );
-        
-        readLuminance( im, data );
-        
-        if ( self.contrastNormalized ) normalizeContrast( data );
-        
-        computeGradients( 
-            data, w, h, magnitude, 
-            self.gaussRadius, self.gaussWidth 
-        );
-        
-        performHysteresis( data, w, h, magnitude, low, high );
-        
-        thresholdEdges( im, data );
+        // NOTE: assume image is already grayscale
+        if ( self.contrastNormalized ) normalize_contrast( im );
+        gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
+        hysteresis_and_threshold( im, w, h, gradient_magnitude, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ) );
         
         return im;
     }

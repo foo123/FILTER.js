@@ -27,9 +27,11 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Morphological Filter](#morphological-filter)
 * [Statistical Filter](#statistical-filter)  (previously called `NonLinearFilter`)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
-* [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl)
+* [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, to be added)
+* [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
+* [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
 * [SVG Filter](#svg-filter) (svg-based filters)
-* [Plugins / Inline Filters](#plugins-and-inline-filters) 
+* [Plugins / Extra Filters](#plugins-and-extra-filters) 
 * [Codecs](#codecs) 
 
 
@@ -474,6 +476,7 @@ Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) Thi
 The class has various pre-defined filters to use.
 
 * `fastGauss()`  A fast implementation of an arbitrary gaussian low pass filter approximation
+* `functional(kernelFunc:Function)`  generic functional-based convolution kernel, e.g use a real gaussian kernel function etc..
 * `lowPass() / boxBlur()`  Generic (box) fast lowpass filter (ie. box blur)
 * `highPass()` Generic fast high pass filter (derived from the associated low pass filter)
 * `binomialLowPass() / gaussBlur()` Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
@@ -492,7 +495,7 @@ The class has various pre-defined filters to use.
 * `sobelDirectional()`  Directional-gradient using Sobel operator (similar to edges along a direction)
 * `sobel()`  Total gradient of the image using Sobel operator
 * `laplace()`  Total second gradient of the image (fast Laplacian)
-* `emboss()`   Apply emboss effect to the image
+* `emboss() / bump()`   Apply emboss effect to the image
 * `edges()`  Apply an edge filter to the image
 * `motionblur()`  __deprecated__  (use `directionalBlur`)
 
@@ -700,9 +703,60 @@ emboss.turnOn( false );    // turn off the emboss filter while on the chain with
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Combinator Filter
+###Algebraic Filter
 
 *to be added*
+
+````javascript
+new FILTER.AlgebraicFilter([ input1:Filter|Image, input2:Filter|Image, input3:Filter|Image /*, etc..*/ ]:Array);
+````
+
+This filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image
+
+
+###Inline Filter
+
+````javascript
+new FILTER.InlineFilter( dynamicFilter:Function );
+````
+
+This filter creates inline filters dynamicalty at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
+
+**NOTE** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literally at instantiation, so it can be serialized correctly)
+
+
+Example:
+
+````javascript
+
+var inlinefilter = new FILTER.InlineFilter(function( filterParameters, im, w, h ){
+    // this is the inline filter apply method
+    // do your stuff here..
+    // "filterParameters"  are custom parameters added to inline filter instance, useful if you need to use extra parameters
+    // for example extra/custom parameters are available as `filterParameters.myCustomColorParameter`
+    // "im"     is (a copy of) the image pixel data,
+    // "w"      is the image width, 
+    // "h"      is the image height
+    // make sure to return the data back
+    return im;
+});
+// this also works
+var inlinefilter = FILTER.InlineFilter(function( filterParameters, im, w, h ){
+    // this is the inline filter apply method
+    // do your stuff here..
+    // make sure to return the data back
+    return im;
+});
+
+// use it alone
+inlinefilter.apply( image );
+// or use it with any composite filter
+new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
+// this will also work:
+image.apply( inlinefilter );   // image is a FILTER.Image instance, see examples
+image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
+
+````
 
 
 ###GLSL Filter
@@ -715,52 +769,13 @@ glsl-based filters for `webgl`/`node-gl` (in progress)
 svg-based filters for `svg` (todo)
 
 
-###Plugins and Inline Filters
+###Plugins and Extra Filters
 
 The library can be extended by custom plugins which add new filters.
-A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at /src/plugins/Noise.js etc..)
+A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at `/src/plugins/Noise.js` etc..)
 
 **NOTE** Included Plugins **DO SUPPORT** parallel thread/worker filters (see code and examples)
 
-For creating Inline Filters a custom class is provided `FILTER.InlineFilter` .
-
-**NOTE2** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference external data so it can be serialized correctly)
-
-Example:
-
-````javascript
-
-var inlinefilter = new FILTER.InlineFilter(function( inst, im, w, h ){
-    // this is the inline filter apply method
-    // do your stuff here..
-    // "inst"   is the (inline) filter instance, useful if you need to use extra parameters
-    // "im"     is (a copy of) the image pixel data,
-    // "w"      is the image width, 
-    // "h"      is the image height
-    // make sure to return the data back
-    return im;
-});
-// this also works
-var inlinefilter = FILTER.InlineFilter(function( inst, im, w, h ){
-    // this is the inline filter apply method
-    // do your stuff here..
-    // "inst"   is the (inline) filter instance, useful if you need to use extra parameters
-    // "im"     is (a copy of) the image pixel data,
-    // "w"      is the image width, 
-    // "h"      is the image height
-    // make sure to return the data back
-    return im;
-});
-
-// use it alone
-inlinefilter.apply( image );
-// or use it with any composite filter
-new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
-// this will also work:
-image.apply( inlinefilter );   // image is a FILTER.Image instance, see examples
-image.apply(new FILTER.CompositeFilter([filter1, filter2, inlinefilter]);
-
-````
 
 __Included Plugins__ (see examples for how to use)
 
@@ -790,6 +805,7 @@ __Included Plugins__ (see examples for how to use)
 * `ColorDetector` : fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)
 * `ActiveShapeExtractor` : adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
+
 
 
 ###Codecs

@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-10 02:39:56
+*   @built on 2016-08-10 20:24:15
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-10 02:39:56
+*   @built on 2016-08-10 20:24:15
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1337,6 +1337,171 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
+function gradient( im, w, h, grad, integral )
+{
+    var i, j, k, sum, grad_x, grad_y,
+        ind0, ind1, ind2, ind_1, ind_2,
+        count = grad.length, lowpass = new A8U(count),
+        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
+    
+    // first, second rows, last, second-to-last rows
+    /*for (i=0; i<w; i++)
+    {
+        lowpass[i] = 0; lowpass[i+w] = 0;
+        lowpass[i+count-w] = 0; lowpass[i+count-w2] = 0;
+        grad[i] = 0; grad[i+count-w] = 0;
+    }
+    // first, second columns, last, second-to-last columns
+    for (i=0,k=0; i<h; i++,k+=w)
+    {
+        lowpass[k] = 0; lowpass[1+k] = 0;
+        lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
+        grad[k] = 0; grad[w_1+k]=0;
+    }*/
+    // gauss lowpass
+    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
+    {
+        if ( j >= h_2 ){ j=2; k=w2; i++; }
+        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
+        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
+        
+        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
+        sum =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
+                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
+                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
+                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
+                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
+                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
+                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
+                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
+                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
+        
+        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+    }
+    
+    // sobel gradient
+    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+    {
+        if ( j >= h_1 ){ j=1; k=w; i++; }
+        // compute coords using simple add/subtract arithmetic (faster)
+        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+        
+        grad_x = ((0
+                - lowpass[ind_1-1] 
+                + lowpass[ind_1+1] 
+                - lowpass[ind0-1] - lowpass[ind0-1]
+                + lowpass[ind0+1] + lowpass[ind0+1]
+                - lowpass[ind1-1] 
+                + lowpass[ind1+1]
+                ));
+        grad_y = ((0
+                + lowpass[ind_1-1] 
+                + lowpass[ind_1] + lowpass[ind_1]
+                + lowpass[ind_1+1] 
+                - lowpass[ind1-1] 
+                - lowpass[ind1] - lowpass[ind1]
+                - lowpass[ind1+1]
+                ));
+        
+        grad[ind0] = Abs(grad_x) + Abs(grad_y);
+    }
+    
+    // integral gradient
+    if ( integral )
+    {
+        // first row
+        for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
+        // other rows
+        for(i=w,k=0,sum=0; i<count; i++,k++)
+        {
+            if (k>=w) { k=0; sum=0; }
+            sum += grad[i]; grad[i] = grad[i-w] + sum;
+        }
+    }
+}
+function gradient2( im, w, h, gradX, gradY, integral )
+{
+    var i, j, k, sumx, sumy,
+        ind0, ind1, ind2, ind_1, ind_2,
+        count = gradX.length, lowpass = new A8U(count),
+        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
+    
+    // first, second rows, last, second-to-last rows
+    /*for (i=0; i<w; i++)
+    {
+        lowpass[i] = 0; lowpass[i+w] = 0;
+        lowpass[i+count-w] = 0; lowpass[i+count-w2] = 0;
+        gradX[i] = 0; gradX[i+count-w] = 0;
+        gradY[i] = 0; gradY[i+count-w] = 0;
+    }
+    // first, second columns, last, second-to-last columns
+    for (i=0,k=0; i<h; i++,k+=w)
+    {
+        lowpass[k] = 0; lowpass[1+k] = 0;
+        lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
+        gradX[k] = 0; gradX[w_1+k]=0;
+        gradY[k] = 0; gradY[w_1+k]=0;
+    }*/
+    // quasi-gauss lowpass
+    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
+    {
+        if ( j >= h_2 ){ j=2; k=w2; i++; }
+        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
+        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
+        
+        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
+        sumx =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
+                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
+                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
+                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
+                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
+                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
+                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
+                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
+                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
+        
+        lowpass[ind0] = ((((103*sumx + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+    }
+    
+    // sobel gradient
+    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+    {
+        if ( j >= h_1 ){ j=1; k=w; i++; }
+        // compute coords using simple add/subtract arithmetic (faster)
+        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+        
+        gradX[ind0] = (
+                  lowpass[ind_1+1] 
+                - lowpass[ind_1-1] 
+                - lowpass[ind0-1] - lowpass[ind0-1]
+                + lowpass[ind0+1] + lowpass[ind0+1]
+                - lowpass[ind1-1] 
+                + lowpass[ind1+1]
+                );
+        gradY[ind0] = (
+                  lowpass[ind_1-1] 
+                + lowpass[ind_1] + lowpass[ind_1]
+                + lowpass[ind_1+1] 
+                - lowpass[ind1-1] 
+                - lowpass[ind1] - lowpass[ind1]
+                - lowpass[ind1+1]
+                );
+    }
+    
+    // integral gradient
+    if ( integral )
+    {
+        // first row
+        for(i=0,sumx=sumy=0; i<w; i++) { sumx += gradX[i]; sumy += gradY[i]; gradX[i] = sumx; gradY[i] = sumy; }
+        // other rows
+        for(i=w,k=0,sumx=sumy=0; i<count; i++,k++)
+        {
+            if (k>=w) { k=0; sumx=sumy=0; }
+            sumx += gradX[i]; gradX[i] = gradX[i-w] + sumx;
+            sumy += gradY[i]; gradY[i] = gradY[i-w] + sumy;
+        }
+    }
+}
 
 // speed-up convolution for special kernels like moving-average
 function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
@@ -1346,8 +1511,7 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp
-    ;
+        r, g, b, r2, g2, b2, repeat, tmp;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -1524,8 +1688,7 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp
-    ;
+        r, g, b, r2, g2, b2, repeat, tmp;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -2071,19 +2234,23 @@ function am_eye( )
     0,1,0,0
     ]);
 }
-
-function tensor_product( m1, m2, matrix )
+function cm_combine( m1, m2, a1, a2, matrix )
+{
+    matrix = matrix || Array; a1 = a1 || 1; a2 = a2 || 1;
+    for(var i=0,d=m1.length,m12=new matrix(d); i<d; i++) m12[i] = a1 * m1[i] + a2 * m2[i];
+    return m12;
+}
+function cm_convolve( cm1, cm2, matrix )
 {
     matrix = matrix || Array/*ConvolutionMatrix*/;
-    if ( m2 === +m2 ) m2 = [m2];
-    var i, j, p, s, d1 = m1.length, d2 = m2.length, m12 = new matrix(d1*d2);
-    for (s=0,i=0,j=0; i<d1; )
+    if ( cm2 === +cm2 ) cm2 = [cm2];
+    var i, j, p, d1 = cm1.length, d2 = cm2.length, cm12 = new matrix(d1*d2);
+    for (i=0,j=0; i<d1; )
     {
-        p = m1[i]*m2[j];
-        s += p; m12[i*d2+j] = p;
+        cm12[i*d2+j] = cm1[i]*cm2[j];
         if ( ++j >= d2 ){ j=0; i++; }
     }
-    return {kernel:m12, sum:s};
+    return cm12;
 }
 
 function esc( s )
@@ -2093,7 +2260,6 @@ function esc( s )
 
 MathUtil.clamp = clamp;
 MathUtil.closest_power2 = closest_power_of_two;
-MathUtil.tensor_product = tensor_product;
 MathUtil.Geometry = {
      Point2: point2
     ,Point3: point3
@@ -2129,9 +2295,13 @@ FilterUtil.cm_multiply = cm_multiply;
 FilterUtil.cm_rechannel = cm_rechannel;
 FilterUtil.am_eye = am_eye;
 FilterUtil.am_multiply = am_multiply;
+FilterUtil.cm_combine = cm_combine;
+FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_clamp : integral_convolution_rgb;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 FilterUtil.SAT = integral2;
+FilterUtil.GRAD = gradient;
+FilterUtil.GRAD2 = gradient2;
 
 }(FILTER);/**
 *

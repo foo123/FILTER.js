@@ -44,8 +44,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,dispose: function( ) {
         var self = this;
         
-        self.$super('dispose');
-        
         self._map = null;
         self.map = null;
         self.scaleX = null;
@@ -55,6 +53,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         self.componentX = null;
         self.componentY = null;
         self.color = null;
+        self.$super('dispose');
         
         return self;
     }

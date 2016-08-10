@@ -48,8 +48,8 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
     
     ,dispose: function( ) {
         var self = this;
-        self.$super('dispose');
         self._table = null;
+        self.$super('dispose');
         return self;
     }
     

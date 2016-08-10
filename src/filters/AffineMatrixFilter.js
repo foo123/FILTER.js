@@ -35,9 +35,9 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
     
     ,dispose: function( ) {
         var self = this;
-        self.$super('dispose');
         self.matrix = null;
         self.color = null;
+        self.$super('dispose');
         return self;
     }
     

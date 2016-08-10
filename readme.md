@@ -131,7 +131,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a numbe of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 9 generic Filter types (some having `glsl`/`svg` analogs) plus various Plugins (with support for parallel processing transparently both for browser and nodejs)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a numbe of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 14 generic `Filter` types (some having `glsl`/`svg` analogs) plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter) 
@@ -144,11 +144,11 @@ The framework defines an [Image Proxy class](/api-reference.md#image-class), whi
 8. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
 9. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called `NonLinearFilter`)
 10. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
-11. [__InlineFilter__](/api-reference.md#plugins-and-inline-filters) (create inline filters dynamicalty at run-time using your custom functions)
-12. [__CombinatorFilter__](/api-reference.md#combinator-filter) (combine/blend multiple processed inputs into one output)
-13. [__Plugins__](/api-reference.md#plugins-and-inline-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
-14. __GLSLFilter__ glsl-based (webgl/node-gl) analogs of at least some of the filters (in progress, possibly in next update)
-15. __SVGFilter__ svg-based filters (todo)
+11. [__AlgebraicFilter__](/api-reference.md#algebraic-filter) (an abstraction of algebraic combination of images or other filter outputs into an output image, to be added)
+12. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicalty at run-time using your custom functions)
+13. [__GLSLFilter__](/api-reference.md#glsl-filter) glsl-based (`webgl`/`node-gl`) analogs of at least some of the generic filters (in progress, possibly in next update)
+14. [__SVGFilter__](/api-reference.md#svg-filter) svg-based filters (todo)
+15. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
@@ -156,7 +156,7 @@ Each of the generic filters is prototype but it also includes a number of implem
 
 __Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
 
-__GPU Processing Support (browser and node, in progress)__ (support GPU-based parallel procesing/filtering with glsl filters in an intuitive and transparent way, in progress)
+__GPU Processing Support (browser and node, in progress)__ (support GPU-based parallel procesing/filtering with glsl filters in an intuitive and transparent way)
 
 
 __Image Blending Modes__ (analogous to PhotoShop blend modes)
@@ -172,12 +172,12 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 ###Todo
-* add `GLSL` (webgl/node-gl) support for various pre-built and inline Filters (in progress, possibly in next update)
-* add `SVG`, `CSS` Filters interface support for various pre-built and custom Filters (todo)
-* add `2d-fft` routines, frequency-domain filtering (todo)
+* add `GLSL` (`webgl`/`node-gl`) support for various generic Filters (in progress, possibly in next update)
+* add some needed signal processing graph node filters (eg `algebraic`, `switch`, `delay`  etc..) (in progress)
 * add active-shape geometric filters, color/histogram-detector filters, .. (todo)
-* add needed graph node filters (eg `hub`, `switch`, `combine` etc..)
-* add image segmentation/classification algorithms (e.g `svd`, `kmeans`, `em`, `camshift`) (todo)
+* add `2d-fft` routines, frequency-domain filtering (todo)
+* add machine learning (image) segmentation/classification algorithms (e.g `svd`, `jade`, `kmeans`, `camshift`) (todo)
+* add `SVG`, `CSS` Filters interface support for some Filters (todo)
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]

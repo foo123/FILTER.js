@@ -46,8 +46,6 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,dispose: function( ) {
         var self = this;
         
-        self.$super('dispose');
-        
         self._map = null;
         self._mapInit = null;
         self._mapName = null;
@@ -61,6 +59,7 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         //self.wavelength = null;
         //self.amplitude = null;
         //self.phase = null;
+        self.$super('dispose');
         
         return self;
     }
