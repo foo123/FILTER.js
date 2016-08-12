@@ -26,6 +26,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
 * [Morphological Filter](#morphological-filter)
 * [Statistical Filter](#statistical-filter)  (previously called `NonLinearFilter`)
+* [Blend Filter](#blend-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, to be added)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
@@ -115,6 +116,8 @@ Each filter (and plugin) is an extension of the generic abstract filter, which p
 __Properties:__
 
 * `name`   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
+* `hasMeta`  whether the filter has meta data passed between processes (except the current image data), for example bounding boxes or other data (for example the `HaarDetectorFilter` returns the detected regions as metaData, while the passed image data are left unchanged)
+* `hasInputs`  whether the filter has multiple extra inputs (except the current image data input), for example blend filters or displacement map filters or alpha mask filters have an extra image input (the blending image or displacement image or mask image respectively)
 
 
 __Methods:__
@@ -125,6 +128,8 @@ __Methods:__
 * `toggle( )`  toggle the filter's ON/OFF status
 * `isOn( )`   check if filter is ON or OFF
 * `combineWith( similarFilterInstance )`   for any filter that supports combination of a similar filter with itself, else does nothing
+* `setInput(key, inputImage)`  for filters that accept multiple extra inputs (e.g blend filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
+* `input(key)`  for filters that accept multiple extra inputs (except the main image input e.g blend filters) the extra inputs are available to the filter via this method by inputKey (see above)
 * `serialize( )`   serialize filter's parameters (for use with parallel worker filters)
 * `unserialize( data:Object )`   unserialize filter's parameters (for use with parallel worker filters)
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
@@ -636,6 +641,63 @@ image.apply( median );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
+###Blend Filter
+
+````javascript
+new FILTER.BlendFilter( blendImage:Image, mode:String );
+````
+
+The filter blends images together with photoshop-like blending modes.
+
+**Supported Blend Modes:**
+    
+* normal
+* lighten
+* darken
+* multiply
+* average
+* add
+* subtract
+* difference
+* negation
+* screen
+* exclusion
+* overlay
+* softlight
+* hardlight
+* colordodge
+* colorburn
+* linearlight
+* reflect
+* glow
+* phoenix
+* vividlight
+* pinlight
+* hardmix
+* lineardodge ( alias of add )
+* linearburn ( alias of subtract )
+
+In order to use a blend filter do the following:
+
+````javascript
+
+var screenBlend = new FILTER.BlendFilter( blendImg, "screen" );
+// this also works
+var screenBlend = FILTER.BlendFilter.setImage( blendImg ).setMode( "screen" );
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+screenBlend.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+screenBlend.worker( false );
+
+// this is same even if filter uses a parallel worker filter
+screenBlend.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( screenBlend );   // image is a FILTER.Image instance, see examples
+
+````
+
 ###Composite Filter
 
 
@@ -706,10 +768,6 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Algebraic Filter
 
 *to be added*
-
-````javascript
-new FILTER.AlgebraicFilter([ input1:Filter|Image, input2:Filter|Image, input3:Filter|Image /*, etc..*/ ]:Array);
-````
 
 This filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image
 
@@ -796,7 +854,6 @@ __Included Plugins__ (see examples for how to use)
 * `ChannelCopy` : copy a channel from an image to another channel on target image
 * `AlphaMask` : apply another image as an alpha mask to the target image
 * `ColorMask` : replace a color or use a color as mask for another image pattern (e.g *green screen* effects) (TO BE ADDED)
-* `Blend` : apply photoshop-like image blending as a filter <del>(similar method exists also in `Image` class)</del>
 * `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 

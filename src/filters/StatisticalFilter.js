@@ -51,31 +51,19 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _filterName: self._filterName
-                ,_dim: self._dim
-                ,_indices: self._indices
-            }
+            _filterName: self._filterName
+            ,_dim: self._dim
+            ,_indices: self._indices
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._dim = params._dim;
-            self._indices = TypedArray( params._indices, A32I );
-            self._filterName = params._filterName;
-            if ( self._filterName && Filters[ self._filterName ] )
-                self._filter = Filters[ self._filterName ];
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._dim = params._dim;
+        self._indices = TypedArray( params._indices, A32I );
+        self._filterName = params._filterName;
+        if ( self._filterName && Filters[ self._filterName ] )
+            self._filter = Filters[ self._filterName ];
         return self;
     }
     
@@ -87,10 +75,12 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     ,minimum: function( d ) { 
         return this.set( null == d ? 3 : (d&1 ? d : d+1), "minimum" );
     }
+    ,erode: null
     
     ,maximum: function( d ) { 
         return this.set( null == d ? 3 : (d&1 ? d : d+1), "maximum" );
     }
+    ,dilate: null
     
     ,set: function( d, filt ) {
         var self = this;

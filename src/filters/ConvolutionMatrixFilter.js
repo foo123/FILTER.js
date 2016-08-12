@@ -104,53 +104,41 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 dim: self.dim
-                ,dim2: self.dim2
-                ,matrix: self.matrix
-                ,matrix2: self.matrix2
-                ,_mat: self._mat
-                ,_mat2: self._mat2
-                ,_coeff: self._coeff
-                ,_isGrad: self._isGrad
-                ,_doIntegral: self._doIntegral
-                ,_doSeparable: self._doSeparable
-                ,_indices: self._indices
-                ,_indices2: self._indices2
-                ,_indicesf: self._indicesf
-                ,_indicesf2: self._indicesf2
-                ,_rgba: self._rgba
-            }
+             dim: self.dim
+            ,dim2: self.dim2
+            ,matrix: self.matrix
+            ,matrix2: self.matrix2
+            ,_mat: self._mat
+            ,_mat2: self._mat2
+            ,_coeff: self._coeff
+            ,_isGrad: self._isGrad
+            ,_doIntegral: self._doIntegral
+            ,_doSeparable: self._doSeparable
+            ,_indices: self._indices
+            ,_indices2: self._indices2
+            ,_indicesf: self._indicesf
+            ,_indicesf2: self._indicesf2
+            ,_rgba: self._rgba
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.dim = params.dim;
-            self.dim2 = params.dim2;
-            self.matrix = TypedArray( params.matrix, CM );
-            self.matrix2 = TypedArray( params.matrix2, CM );
-            self._mat = TypedArray( params._mat, CM );
-            self._mat2 = TypedArray( params._mat2, CM );
-            self._coeff = TypedArray( params._coeff, CM );
-            self._isGrad = params._isGrad;
-            self._doIntegral = params._doIntegral;
-            self._doSeparable = params._doSeparable;
-            self._indices = TypedArray( params._indices, A16I );
-            self._indices2 = TypedArray( params._indices2, A16I );
-            self._indicesf = TypedArray( params._indicesf, A16I );
-            self._indicesf2 = TypedArray( params._indicesf2, A16I );
-            self._rgba = params._rgba;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.dim = params.dim;
+        self.dim2 = params.dim2;
+        self.matrix = TypedArray( params.matrix, CM );
+        self.matrix2 = TypedArray( params.matrix2, CM );
+        self._mat = TypedArray( params._mat, CM );
+        self._mat2 = TypedArray( params._mat2, CM );
+        self._coeff = TypedArray( params._coeff, CM );
+        self._isGrad = params._isGrad;
+        self._doIntegral = params._doIntegral;
+        self._doSeparable = params._doSeparable;
+        self._indices = TypedArray( params._indices, A16I );
+        self._indices2 = TypedArray( params._indices2, A16I );
+        self._indicesf = TypedArray( params._indicesf, A16I );
+        self._indicesf2 = TypedArray( params._indicesf2, A16I );
+        self._rgba = params._rgba;
         return self;
     }
     
@@ -739,22 +727,28 @@ function binomial1( d )
     d--;
     if (d < l)
     {
-        row = new CM(_pascal[d]);
+        row = _pascal[d];
     }
     else
     {
         // else compute them iteratively
-        row = new CM(_pascal[l-1]);
+        row = _pascal[l-1];
         while ( l<=d )
         {
-            uprow=row; row=new CM(uprow.length+1); row[0]=1;
-            for (i=0, il=uprow.length-1; i<il; i++) { row[i+1]=(uprow[i]+uprow[i+1]); } row[uprow.length]=1;
-            if (l<40) _pascal.push(new Array(row)); // save it for future dynamically
+            uprow=row; row=new Array(uprow.length+1); row[0]=1;
+            for(i=0,il=uprow.length-1; i<il; i++) row[i+1] = uprow[i]+uprow[i+1]; row[uprow.length]=1;
+            if (l<20) _pascal.push(row); // save it for future dynamically
             l++;
         }
     }
-    return row;
+    return row.slice();
 }
+
+//console.log( binomial1( 5 ) );
+//console.log( derivative1( 5 ) );
+//console.log( sobel( 5 ) );
+//console.log( binomial2( 5 ) );
+//console.log( summa(binomial2( 5 )) );
 
 function functional2( d, f )
 {

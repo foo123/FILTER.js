@@ -149,33 +149,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 connectivity: self.connectivity
-                ,tolerance: self.tolerance
-                ,mode: self.mode
-                ,color: self.color
-                ,invert: self.invert
-            }
+             connectivity: self.connectivity
+            ,tolerance: self.tolerance
+            ,mode: self.mode
+            ,color: self.color
+            ,invert: self.invert
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.connectivity = params.connectivity;
-            self.tolerance = params.tolerance;
-            self.mode = params.mode;
-            self.color = params.color;
-            self.invert = params.invert;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.connectivity = params.connectivity;
+        self.tolerance = params.tolerance;
+        self.mode = params.mode;
+        self.color = params.color;
+        self.invert = params.invert;
         return self;
     }
     

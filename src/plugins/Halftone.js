@@ -49,29 +49,17 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 size: self.size
-                ,thresh: self.thresh
-                ,mode: self.mode
-            }
+             size: self.size
+            ,thresh: self.thresh
+            ,mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.size = params.size;
-            self.thresh = params.thresh;
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.size = params.size;
+        self.thresh = params.thresh;
+        self.mode = params.mode;
         return self;
     }
     

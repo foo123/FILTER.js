@@ -9,7 +9,8 @@
 
 // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
 
-var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
+var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
+    ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     
     ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
@@ -242,12 +243,16 @@ var
                         }
                     })
                     .listen('params', function( data ) {
-                        if ( filter ) filter.unserialize( data );
+                        if ( filter ) filter.unserializeFilter( data );
+                    })
+                    .listen('inputs', function( data ) {
+                        if ( filter ) filter.unserializeInputs( data );
                     })
                     .listen('apply', function( data ) {
                         if ( filter && data && data.im )
                         {
-                            if ( data.params ) filter.unserialize( data.params );
+                            if ( data.params ) filter.unserializeFilter( data.params );
+                            if ( data.inputs ) filter.unserializeInputs( data.inputs );
                             //log(data.im[0]);
                             var im = TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
@@ -342,8 +347,9 @@ var
         name: "Filter"
         
         ,constructor: function( ) {
-            //var self = this;
+            var self = this;
             //self.$super('constructor', 100, false);
+            self._inputs = {};
         }
         
         // filters can have id's
@@ -351,19 +357,23 @@ var
         ,_isOn: true
         ,_update: true
         ,_onComplete: null
+        ,_inputs: null
+        ,hasInputs: false
         ,hasMeta: false
         ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
-            self.$super('dispose');
             self.name = null;
             self.id = null;
             self._isOn = null;
             self._update = null;
             self._onComplete = null;
+            self._inputs = null;
+            self.hasInputs = null;
             self.hasMeta = null;
             self.mode = null;
+            self.$super('dispose');
             return self;
         }
         
@@ -371,19 +381,72 @@ var
         ,worker: FilterThread[PROTO].thread
         
         
-        // @override
-        ,serialize: function( ) {
-            var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, _update: self._update, params: {} };
+        ,setInput: function( key, inputImage ) {
+            this._inputs[key] = [null, inputImage];
+            return this;
+        }
+        
+        ,delInput: function( key ) {
+            if ( this._inputs[key] ) delete this._inputs[key];
+            return this;
+        }
+        
+        ,input: function( key ) {
+            var input = this._inputs[key];
+            if ( !input ) return null;
+            if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
+            return input[0] || null;
         }
         
         // @override
-        ,unserialize: function( json ) {
-            var self = this;
-            if ( json && self.name === json.filter )
+        ,serialize: function( ) {
+            return null;
+        }
+        
+        // @override
+        ,unserialize: function( params ) {
+            return this;
+        }
+        
+        ,serializeInputs: function( ) {
+            if ( !this.hasInputs ) return null;
+            var inputs = this._inputs, input, k = KEYS(inputs), i, l = k.length, json;
+            if ( !l ) return null;
+            json = { };
+            for(i=0; i<l; i++)
             {
-                self._isOn = json._isOn;
-                self._update = json._update;
+                input = inputs[k[i]];
+                if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+                    json[k[i]] = input[1].getSelectedData( );
+            }
+            return json;
+        }
+        
+        ,unserializeInputs: function( json ) {
+            var self = this;
+            if ( !json || !self.hasInputs ) return self;
+            var inputs = self._inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
+            for(i=0; i<l; i++)
+            {
+                input = json[k[i]];
+                if ( !input ) continue;
+                input[0] = TypedArray( input[0], IMG )
+                inputs[k[i]] = [input, null];
+            }
+            return self;
+        }
+        
+        ,serializeFilter: function( ) {
+            var self = this;
+            return { filter: self.name, _isOn: self._isOn, _update: self._update, params: self.serialize( ) };
+        }
+        
+        ,unserializeFilter: function( json ) {
+            var self = this;
+            if ( json && (self.name === json.filter) )
+            {
+                self._isOn = json._isOn; self._update = json._update;
+                if ( self._isOn && json.params ) self.unserialize( json.params );
             }
             return self;
         }
@@ -458,8 +521,7 @@ var
             return im;
         }
         
-        // generic apply a filter from an image (src) to another image (dest)
-        // with optional callback (cb)
+        // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
         ,apply: function( src, dst, cb ) {
             var self = this, im, im2;
             
@@ -504,10 +566,11 @@ var
                         if ( cb ) cb.call( self );
                     };
                     // process request
-                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
+                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serializeFilter( ), inputs: self.serializeInputs( )} );
                 }
                 else
                 {
+                    //if ( self.hasInputs ) self._getInputs( );
                     im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
                     // update image only if needed
                     // some filters do not actually change the image data

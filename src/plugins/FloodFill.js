@@ -38,33 +38,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 color: self.color
-                ,borderColor: self.borderColor
-                ,x: self.x
-                ,y: self.y
-                ,tolerance: self.tolerance
-            }
+             color: self.color
+            ,borderColor: self.borderColor
+            ,x: self.x
+            ,y: self.y
+            ,tolerance: self.tolerance
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.color = params.color;
-            self.borderColor = params.borderColor;
-            self.x = params.x;
-            self.y = params.y;
-            self.tolerance = params.tolerance;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.color = params.color;
+        self.borderColor = params.borderColor;
+        self.x = params.x;
+        self.y = params.y;
+        self.tolerance = params.tolerance;
         return self;
     }
     
@@ -251,10 +239,9 @@ FILTER.Create({
     ,offsetX: 0
     ,offsetY: 0
     ,tolerance: 0.0
-    ,pattern: null
-    ,_pattern: null
     ,mode: MODE.TILE
     ,borderColor: null
+    ,hasInputs: true
     
     ,path: FILTER_PLUGINS_PATH
     
@@ -264,7 +251,7 @@ FILTER.Create({
         self.y = y || 0;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
-        if ( pattern ) self.setPattern( pattern );
+        if ( pattern ) self.setInput( "pattern", pattern );
         self.mode = mode || MODE.TILE;
         self.tolerance = tolerance || 0.0;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
@@ -272,8 +259,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        self.pattern = null;
-        self._pattern = null;
         self.x = null;
         self.y = null;
         self.offsetX = null;
@@ -285,68 +270,43 @@ FILTER.Create({
         return self;
     }
     
-    ,setPattern: function( pattern ) {
-        var self = this;
-        if ( pattern )
-        {
-            self.pattern = pattern;
-            self._pattern = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Pat = self.pattern;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 x: self.x
-                ,y: self.y
-                ,offsetX: self.offsetX
-                ,offsetY: self.offsetY
-                ,tolerance: self.tolerance
-                ,mode: self.mode
-                ,borderColor: self.borderColor
-                ,_pattern: self._pattern || (Pat ? { data: Pat.getData( ), width: Pat.width, height: Pat.height } : null)
-            }
+             x: self.x
+            ,y: self.y
+            ,offsetX: self.offsetX
+            ,offsetY: self.offsetY
+            ,tolerance: self.tolerance
+            ,mode: self.mode
+            ,borderColor: self.borderColor
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.x = params.x;
-            self.y = params.y;
-            self.offsetX = params.offsetX;
-            self.offsetY = params.offsetY;
-            self.tolerance = params.tolerance;
-            self.mode = params.mode;
-            self.borderColor = params.borderColor;
-            self.pattern = null;
-            self._pattern = params._pattern;
-            if ( self._pattern ) self._pattern.data = TypedArray( self._pattern.data, FILTER.ImArray );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.x = params.x;
+        self.y = params.y;
+        self.offsetX = params.offsetX;
+        self.offsetY = params.offsetY;
+        self.tolerance = params.tolerance;
+        self.mode = params.mode;
+        self.borderColor = params.borderColor;
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this, Pat = self.pattern;
+        var self = this, Pat;
         
-        if ( !self._isOn || !(Pat || self._pattern) ) return im;
+        if ( !self._isOn ) return im;
+        
+        Pat = self.input("pattern"); if ( !Pat ) return im;
         
         // seems to have issues when tol is exactly 1.0
-        var _pat = self._pattern || { data: Pat.getData( ), width: Pat.width, height: Pat.height },
-            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+        var tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
             borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
-            OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
+            OC, dy = w<<2, pattern = Pat[0], pw = Pat[1], ph = Pat[2], 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
             l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone,

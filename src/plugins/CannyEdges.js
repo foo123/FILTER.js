@@ -7,34 +7,13 @@
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, //gradient_xy = FILTER.Util.Filter.GRAD2,
+var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, gradient = FILTER.Util.Filter.GRAD,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
     exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
 ;
 
 // private utility methods
-function normalize_contrast( im )
-{
-    var histogram = new Int32(256), remap = new Int32(256),
-        i, size = im.length, area = size>>>2, sum, j, k, target;
-
-    for (i=0; i<size; i+=4) histogram[ im[i] ]++;
-
-    sum = 0; j = 0;
-    for (i = 0; i<256; i++) 
-    {
-        sum += histogram[ i ];
-        target = sum*255/area;
-        for (k = j+1; k <=target; k++) remap[ k ] = i;
-        j = target;
-    }
-    for (i=0; i<size; i+=4)
-    {
-        k = remap[ im[i] ];
-        im[i] = k; im[i+1] = k; im[i+2] = k;
-    }        
-}
 function gradient_and_non_maximal_supression( im, width, height, magnitude ) 
 {
     //generate the gaussian convolution masks
@@ -47,7 +26,7 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
         sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = (PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        factor = (PI2 * sigma2),
         kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
@@ -139,15 +118,6 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
         gradMag = abs(xGrad)+abs(yGrad);
 
         //perform non-maximal supression
-        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
-        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
-        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
-        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
-        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
-        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
-        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
-        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
-        //tmp;
         /*
          * An explanation of what's happening here, for those who want
          * to understand the source: This performs the "non-maximal
@@ -176,23 +146,28 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
          * variable (3) and reused in the mirror case (4).
          * 
          */
-        if (xGrad * yGrad <= 0 /*(1)*/
-            ? abs(xGrad) >= abs(yGrad) /*(2)*/
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-            : abs(xGrad) >= abs(yGrad) /*(2)*/
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
+        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
+        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
+        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
+        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
+        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
+        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
+        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
+        if (xGrad * yGrad <= 0
+            ? abs(xGrad) >= abs(yGrad)
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag)
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag)
+            : abs(xGrad) >= abs(yGrad)
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
         ) 
         {
             magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : floor(MAGNITUDE_SCALE * gradMag);
-            //NOTE: The orientation of the edge is not employed by this
-            //implementation. It is a simple matter to compute it at
-            //this point as: Math.atan2(yGrad, xGrad);
         } 
         else 
         {
@@ -244,15 +219,13 @@ FILTER.Create({
     
     ,low: 2.5
     ,high: 7.5
-    ,contrastNormalized: false
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold, contrastNormalized ) {
+    ,init: function( lowThreshold, highThreshold ) {
         var self = this;
 		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
 		self.high = arguments.length < 2 ? 7.5 : highThreshold;
-        self.contrastNormalized = !!contrastNormalized;
     }
     
     ,thresholds: function( low, high ) {
@@ -265,29 +238,15 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 low: self.low
-                ,high: self.high
-                ,contrastNormalized: self.contrastNormalized
-            }
+             low: self.low
+            ,high: self.high
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.low = params.low;
-            self.high = params.high;
-            self.contrastNormalized = params.contrastNormalized;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.low = params.low;
+        self.high = params.high;
         return self;
     }
     
@@ -295,8 +254,7 @@ FILTER.Create({
     ,apply: function(im, w, h) {
         var self = this, area = im.length>>2, gradient_magnitude;
         
-        // NOTE: assume image is already grayscale
-        if ( self.contrastNormalized ) normalize_contrast( im );
+        // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
         hysteresis_and_threshold( im, w, h, gradient_magnitude, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ) );
         

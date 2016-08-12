@@ -58,33 +58,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this, mask = self.mask;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _mask: mask === +mask ? +mask : (self._mask || (mask ? { data: mask.getData( ), width: mask.width, height: mask.height } : null))
-                ,color: self.color
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-            }
+            _mask: mask === +mask ? +mask : (self._mask || (mask ? { data: mask.getData( ), width: mask.width, height: mask.height } : null))
+            ,color: self.color
+            ,centerX: self.centerX
+            ,centerY: self.centerY
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mask = null;
-            self._mask = params._mask;
-            if ( self._mask && (self._mask !== +self._mask) ) self._mask.data = FILTER.Util.Array.typed( self._mask.data, FILTER.ImArray );
-            self.color = params.color;
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.mask = null;
+        self._mask = params._mask;
+        if ( self._mask && (self._mask !== +self._mask) ) self._mask.data = FILTER.Util.Array.typed( self._mask.data, FILTER.ImArray );
+        self.color = params.color;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
         return self;
     }
     

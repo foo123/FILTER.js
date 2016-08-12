@@ -436,7 +436,7 @@ function integral( im, w, h, channel )
 function histogram( im, w, h, channel, pdf ) 
 {
     channel = channel || 0;
-    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2, n = 1.0/l2;
+    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2;
     
     // initialize the arrays
     cdf = new A32F( 256 ); 
@@ -480,45 +480,116 @@ function histogram( im, w, h, channel, pdf )
     for (i=channel; i<l; i+=128)
     {
         // partial loop unrolling
-        cdf[ im[i    ] ] += n;
-        cdf[ im[i+4  ] ] += n;
-        cdf[ im[i+8  ] ] += n;
-        cdf[ im[i+12 ] ] += n;
-        cdf[ im[i+16 ] ] += n;
-        cdf[ im[i+20 ] ] += n;
-        cdf[ im[i+24 ] ] += n;
-        cdf[ im[i+28 ] ] += n;
-        cdf[ im[i+32 ] ] += n;
-        cdf[ im[i+36 ] ] += n;
-        cdf[ im[i+40 ] ] += n;
-        cdf[ im[i+44 ] ] += n;
-        cdf[ im[i+48 ] ] += n;
-        cdf[ im[i+52 ] ] += n;
-        cdf[ im[i+56 ] ] += n;
-        cdf[ im[i+60 ] ] += n;
-        cdf[ im[i+64 ] ] += n;
-        cdf[ im[i+68 ] ] += n;
-        cdf[ im[i+72 ] ] += n;
-        cdf[ im[i+76 ] ] += n;
-        cdf[ im[i+80 ] ] += n;
-        cdf[ im[i+84 ] ] += n;
-        cdf[ im[i+88 ] ] += n;
-        cdf[ im[i+92 ] ] += n;
-        cdf[ im[i+96 ] ] += n;
-        cdf[ im[i+100] ] += n;
-        cdf[ im[i+104] ] += n;
-        cdf[ im[i+108] ] += n;
-        cdf[ im[i+112] ] += n;
-        cdf[ im[i+116] ] += n;
-        cdf[ im[i+120] ] += n;
-        cdf[ im[i+124] ] += n;
+        cdf[ im[i    ] ]++;
+        cdf[ im[i+4  ] ]++;
+        cdf[ im[i+8  ] ]++;
+        cdf[ im[i+12 ] ]++;
+        cdf[ im[i+16 ] ]++;
+        cdf[ im[i+20 ] ]++;
+        cdf[ im[i+24 ] ]++;
+        cdf[ im[i+28 ] ]++;
+        cdf[ im[i+32 ] ]++;
+        cdf[ im[i+36 ] ]++;
+        cdf[ im[i+40 ] ]++;
+        cdf[ im[i+44 ] ]++;
+        cdf[ im[i+48 ] ]++;
+        cdf[ im[i+52 ] ]++;
+        cdf[ im[i+56 ] ]++;
+        cdf[ im[i+60 ] ]++;
+        cdf[ im[i+64 ] ]++;
+        cdf[ im[i+68 ] ]++;
+        cdf[ im[i+72 ] ]++;
+        cdf[ im[i+76 ] ]++;
+        cdf[ im[i+80 ] ]++;
+        cdf[ im[i+84 ] ]++;
+        cdf[ im[i+88 ] ]++;
+        cdf[ im[i+92 ] ]++;
+        cdf[ im[i+96 ] ]++;
+        cdf[ im[i+100] ]++;
+        cdf[ im[i+104] ]++;
+        cdf[ im[i+108] ]++;
+        cdf[ im[i+112] ]++;
+        cdf[ im[i+116] ]++;
+        cdf[ im[i+120] ]++;
+        cdf[ im[i+124] ]++;
     }
     if ( rem )
     {
-        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ] += n;
+        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ]++;
     }
     // return pdf NOT cdf
-    if ( true === pdf ) return cdf;
+    if ( true === pdf )
+    {
+        /*for (i=0; i<256; i+=64) 
+        { 
+            // partial loop unrolling
+            cdf[i   ] /= l2;
+            cdf[i+1 ] /= l2;
+            cdf[i+2 ] /= l2;
+            cdf[i+3 ] /= l2;
+            cdf[i+4 ] /= l2;
+            cdf[i+5 ] /= l2;
+            cdf[i+6 ] /= l2;
+            cdf[i+7 ] /= l2;
+            cdf[i+8 ] /= l2;
+            cdf[i+9 ] /= l2;
+            cdf[i+10] /= l2;
+            cdf[i+11] /= l2;
+            cdf[i+12] /= l2;
+            cdf[i+13] /= l2;
+            cdf[i+14] /= l2;
+            cdf[i+15] /= l2;
+            cdf[i+16] /= l2;
+            cdf[i+17] /= l2;
+            cdf[i+18] /= l2;
+            cdf[i+19] /= l2;
+            cdf[i+20] /= l2;
+            cdf[i+21] /= l2;
+            cdf[i+22] /= l2;
+            cdf[i+23] /= l2;
+            cdf[i+24] /= l2;
+            cdf[i+25] /= l2;
+            cdf[i+26] /= l2;
+            cdf[i+27] /= l2;
+            cdf[i+28] /= l2;
+            cdf[i+29] /= l2;
+            cdf[i+30] /= l2;
+            cdf[i+31] /= l2;
+            cdf[i+32] /= l2;
+            cdf[i+33] /= l2;
+            cdf[i+34] /= l2;
+            cdf[i+35] /= l2;
+            cdf[i+36] /= l2;
+            cdf[i+37] /= l2;
+            cdf[i+38] /= l2;
+            cdf[i+39] /= l2;
+            cdf[i+40] /= l2;
+            cdf[i+41] /= l2;
+            cdf[i+42] /= l2;
+            cdf[i+43] /= l2;
+            cdf[i+44] /= l2;
+            cdf[i+45] /= l2;
+            cdf[i+46] /= l2;
+            cdf[i+47] /= l2;
+            cdf[i+48] /= l2;
+            cdf[i+49] /= l2;
+            cdf[i+50] /= l2;
+            cdf[i+51] /= l2;
+            cdf[i+52] /= l2;
+            cdf[i+53] /= l2;
+            cdf[i+54] /= l2;
+            cdf[i+55] /= l2;
+            cdf[i+56] /= l2;
+            cdf[i+57] /= l2;
+            cdf[i+58] /= l2;
+            cdf[i+59] /= l2;
+            cdf[i+60] /= l2;
+            cdf[i+61] /= l2;
+            cdf[i+62] /= l2;
+            cdf[i+63] /= l2;
+        }*/
+        return cdf;
+    }
     
     // compute cdf
     for (accum=0,i=0; i<256; i+=64) 
@@ -733,11 +804,11 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function gradient( im, w, h, grad, integral )
+function gradient( im, w, h, grad, grad2, summed )
 {
-    var i, j, k, sum, grad_x, grad_y,
+    var i, j, k, sum, sum2, grad_x, grad_y,
         ind0, ind1, ind2, ind_1, ind_2,
-        count = grad.length, lowpass = new A8U(count),
+        count = grad.length, lowpass,
         w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
     
     // first, second rows, last, second-to-last rows
@@ -754,7 +825,9 @@ function gradient( im, w, h, grad, integral )
         lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
         grad[k] = 0; grad[w_1+k]=0;
     }*/
+    
     // gauss lowpass
+    lowpass = new A8U(count);
     for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
     {
         if ( j >= h_2 ){ j=2; k=w2; i++; }
@@ -773,128 +846,88 @@ function gradient( im, w, h, grad, integral )
                 + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
         
         lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+        
     }
-    
     // sobel gradient
-    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+    if ( grad2 )
     {
-        if ( j >= h_1 ){ j=1; k=w; i++; }
-        // compute coords using simple add/subtract arithmetic (faster)
-        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-        
-        grad_x = ((0
-                - lowpass[ind_1-1] 
-                + lowpass[ind_1+1] 
-                - lowpass[ind0-1] - lowpass[ind0-1]
-                + lowpass[ind0+1] + lowpass[ind0+1]
-                - lowpass[ind1-1] 
-                + lowpass[ind1+1]
-                ));
-        grad_y = ((0
-                + lowpass[ind_1-1] 
-                + lowpass[ind_1] + lowpass[ind_1]
-                + lowpass[ind_1+1] 
-                - lowpass[ind1-1] 
-                - lowpass[ind1] - lowpass[ind1]
-                - lowpass[ind1+1]
-                ));
-        
-        grad[ind0] = Abs(grad_x) + Abs(grad_y);
-    }
-    
-    // integral gradient
-    if ( integral )
-    {
-        // first row
-        for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
-        // other rows
-        for(i=w,k=0,sum=0; i<count; i++,k++)
+        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
         {
-            if (k>=w) { k=0; sum=0; }
-            sum += grad[i]; grad[i] = grad[i-w] + sum;
+            if ( j >= h_1 ){ j=1; k=w; i++; }
+            // compute coords using simple add/subtract arithmetic (faster)
+            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+            
+            grad[ind0] = (
+                      lowpass[ind_1+1] 
+                    - lowpass[ind_1-1] 
+                    - lowpass[ind0-1] - lowpass[ind0-1]
+                    + lowpass[ind0+1] + lowpass[ind0+1]
+                    - lowpass[ind1-1] 
+                    + lowpass[ind1+1]
+                    );
+            grad2[ind0] = (
+                      lowpass[ind_1-1] 
+                    + lowpass[ind_1] + lowpass[ind_1]
+                    + lowpass[ind_1+1] 
+                    - lowpass[ind1-1] 
+                    - lowpass[ind1] - lowpass[ind1]
+                    - lowpass[ind1+1]
+                    );
+        }
+        
+        // integral gradient
+        if ( summed )
+        {
+            // first row
+            for(i=0,sum=sum2=0; i<w; i++) { sum += grad[i]; sum2 += grad2[i]; grad[i] = sum; grad2[i] = sum2; }
+            // other rows
+            for(i=w,k=0,sum=sum2=0; i<count; i++,k++)
+            {
+                if (k>=w) { k=0; sum=sum2=0; }
+                sum += grad[i]; grad[i] = grad[i-w] + sum;
+                sum2 += grad2[i]; grad2[i] = grad2[i-w] + sum2;
+            }
         }
     }
-}
-function gradient2( im, w, h, gradX, gradY, integral )
-{
-    var i, j, k, sumx, sumy,
-        ind0, ind1, ind2, ind_1, ind_2,
-        count = gradX.length, lowpass = new A8U(count),
-        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
-    
-    // first, second rows, last, second-to-last rows
-    /*for (i=0; i<w; i++)
+    else
     {
-        lowpass[i] = 0; lowpass[i+w] = 0;
-        lowpass[i+count-w] = 0; lowpass[i+count-w2] = 0;
-        gradX[i] = 0; gradX[i+count-w] = 0;
-        gradY[i] = 0; gradY[i+count-w] = 0;
-    }
-    // first, second columns, last, second-to-last columns
-    for (i=0,k=0; i<h; i++,k+=w)
-    {
-        lowpass[k] = 0; lowpass[1+k] = 0;
-        lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
-        gradX[k] = 0; gradX[w_1+k]=0;
-        gradY[k] = 0; gradY[w_1+k]=0;
-    }*/
-    // quasi-gauss lowpass
-    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
-    {
-        if ( j >= h_2 ){ j=2; k=w2; i++; }
-        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
-        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
-        
-        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-        sumx =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
-                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
-                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
-                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
-                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
-                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
-                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
-                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
-                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
-        
-        lowpass[ind0] = ((((103*sumx + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
-    }
-    
-    // sobel gradient
-    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
-    {
-        if ( j >= h_1 ){ j=1; k=w; i++; }
-        // compute coords using simple add/subtract arithmetic (faster)
-        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-        
-        gradX[ind0] = (
-                  lowpass[ind_1+1] 
-                - lowpass[ind_1-1] 
-                - lowpass[ind0-1] - lowpass[ind0-1]
-                + lowpass[ind0+1] + lowpass[ind0+1]
-                - lowpass[ind1-1] 
-                + lowpass[ind1+1]
-                );
-        gradY[ind0] = (
-                  lowpass[ind_1-1] 
-                + lowpass[ind_1] + lowpass[ind_1]
-                + lowpass[ind_1+1] 
-                - lowpass[ind1-1] 
-                - lowpass[ind1] - lowpass[ind1]
-                - lowpass[ind1+1]
-                );
-    }
-    
-    // integral gradient
-    if ( integral )
-    {
-        // first row
-        for(i=0,sumx=sumy=0; i<w; i++) { sumx += gradX[i]; sumy += gradY[i]; gradX[i] = sumx; gradY[i] = sumy; }
-        // other rows
-        for(i=w,k=0,sumx=sumy=0; i<count; i++,k++)
+        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
         {
-            if (k>=w) { k=0; sumx=sumy=0; }
-            sumx += gradX[i]; gradX[i] = gradX[i-w] + sumx;
-            sumy += gradY[i]; gradY[i] = gradY[i-w] + sumy;
+            if ( j >= h_1 ){ j=1; k=w; i++; }
+            // compute coords using simple add/subtract arithmetic (faster)
+            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+            
+            grad_x = (
+                      lowpass[ind_1+1] 
+                    - lowpass[ind_1-1] 
+                    - lowpass[ind0-1] - lowpass[ind0-1]
+                    + lowpass[ind0+1] + lowpass[ind0+1]
+                    - lowpass[ind1-1] 
+                    + lowpass[ind1+1]
+                    );
+            grad_y = (
+                      lowpass[ind_1-1] 
+                    + lowpass[ind_1] + lowpass[ind_1]
+                    + lowpass[ind_1+1] 
+                    - lowpass[ind1-1] 
+                    - lowpass[ind1] - lowpass[ind1]
+                    - lowpass[ind1+1]
+                    );
+            
+            grad[ind0] = Abs(grad_x) + Abs(grad_y);
+        }
+        
+        // integral gradient
+        if ( summed )
+        {
+            // first row
+            for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
+            // other rows
+            for(i=w,k=0,sum=0; i<count; i++,k++)
+            {
+                if (k>=w) { k=0; sum=0; }
+                sum += grad[i]; grad[i] = grad[i-w] + sum;
+            }
         }
     }
 }
@@ -1697,6 +1730,5 @@ FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_cla
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 FilterUtil.SAT = integral2;
 FilterUtil.GRAD = gradient;
-FilterUtil.GRAD2 = gradient2;
 
 }(FILTER);

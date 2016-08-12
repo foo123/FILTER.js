@@ -67,65 +67,53 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _mapName: self._mapName || null
-                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
-                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
-                ,color: self.color
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,angle: self.angle
-                ,radius: self.radius
-                //,wavelength: self.wavelength
-                //,amplitude: self.amplitude
-                //,phase: self.phase
-                ,mode: self.mode
-            }
+            _mapName: self._mapName || null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+            ,color: self.color
+            ,centerX: self.centerX
+            ,centerY: self.centerY
+            ,angle: self.angle
+            ,radius: self.radius
+            //,wavelength: self.wavelength
+            //,amplitude: self.amplitude
+            //,phase: self.phase
+            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
+    ,unserialize: function( params ) {
+        var self = this;
+        self.color = params.color;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.angle = params.angle;
+        self.radius = params.radius;
+        //self.wavelength = params.wavelength;
+        //self.amplitude = params.amplitude;
+        //self.phase = params.phase;
+        self.mode = params.mode;
+        
+        //self._mapName = params._mapName;
+        //self._map = params._map;
+        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
         {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.color = params.color;
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.angle = params.angle;
-            self.radius = params.radius;
-            //self.wavelength = params.wavelength;
-            //self.amplitude = params.amplitude;
-            //self.phase = params.phase;
-            self.mode = params.mode;
-            
-            //self._mapName = params._mapName;
-            //self._map = params._map;
-            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
-            {
-                self.set(params._mapName);
-            }
-            else if ( params._map && ("generic" === params._mapName) )
-            {
-                // using bind makes the code become [native code] and thus unserializable
-                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
-                if ( params._mapInit )
-                self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
-                self.set(params._map, params._mapInit||null, 1);
-            }
-            /*else
-            {
-                self._map = null;
-            }*/
+            self.set(params._mapName);
         }
+        else if ( params._map && ("generic" === params._mapName) )
+        {
+            // using bind makes the code become [native code] and thus unserializable
+            /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+            if ( params._mapInit )
+            self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+            self.set(params._map, params._mapInit||null);
+        }
+        /*else
+        {
+            self._map = null;
+        }*/
         return self;
     }
     
@@ -161,23 +149,26 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         return self.set("ripple");
     }*/
     
-    ,set: function( T, preample, precompiled ) {
+    ,set: function( T, preample ) {
         var self = this;
-        if ( precompiled || ("function" === typeof T) )
+        if ( T && Maps.hasOwnProperty(String(T)) )
+        {
+            if ( self._mapName !== String(T) )
+            {
+                self._mapName = String(T);
+                self._map = Maps[self._mapName];
+                self._mapInit = Maps["init__"+self._mapName];
+                self._apply = apply__( self._map, self._mapInit );
+            }
+            self._mapChanged = false;
+        }
+        else if ( T )
         {
             self._mapName = "generic"; 
             self._map = T;
             self._mapInit = preample || null;
             self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = precompiled ? false : true;
-        }
-        else if ( T && Maps.hasOwnProperty(String(T)) && (self._mapName !== String(T)) )
-        {
-            self._mapName = String(T);
-            self._map = Maps[self._mapName];
-            self._mapInit = Maps["init__"+self._mapName];
-            self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = false;
+            self._mapChanged = true;
         }
         return self;
     }

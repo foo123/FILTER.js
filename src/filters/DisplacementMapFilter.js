@@ -25,12 +25,10 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         var self = this;
         if ( !(self instanceof DisplacementMapFilter) ) return new DisplacementMapFilter(displacemap);
         self.$super('constructor');
-        if ( displacemap ) self.setMap( displacemap );
+        if ( displacemap ) self.setInput( "map", displacemap );
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_map: null
-    ,map: null
     // parameters
     ,scaleX: 1
     ,scaleY: 1
@@ -40,12 +38,11 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,componentY: 0
     ,color: 0
     ,mode: MODE.CLAMP
+    ,hasInputs: true
     
     ,dispose: function( ) {
         var self = this;
         
-        self._map = null;
-        self.map = null;
         self.scaleX = null;
         self.scaleY = null;
         self.startX = null;
@@ -59,78 +56,46 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     }
     
     ,serialize: function( ) {
-        var self = this, Map = self.map;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _map: self._map || (Map ? { data: Map.getData( ), width: Map.width, height: Map.height } : null)
-                ,scaleX: self.scaleX
-                ,scaleY: self.scaleY
-                ,startX: self.startX
-                ,startY: self.startY
-                ,componentX: self.componentX
-                ,componentY: self.componentY
-                ,color: self.color
-                ,mode: self.mode
-            }
+             scaleX: self.scaleX
+            ,scaleY: self.scaleY
+            ,startX: self.startX
+            ,startY: self.startY
+            ,componentX: self.componentX
+            ,componentY: self.componentY
+            ,color: self.color
+            ,mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.map = null;
-            self._map = params._map;
-            if ( self._map ) self._map.data = TypedArray( self._map.data, IMG );
-            self.scaleX = params.scaleX;
-            self.scaleY = params.scaleY;
-            self.startX = params.startX;
-            self.startY = params.startY;
-            self.componentX = params.componentX;
-            self.componentY = params.componentY;
-            self.color = params.color;
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scaleX = params.scaleX;
+        self.scaleY = params.scaleY;
+        self.startX = params.startX;
+        self.startY = params.startY;
+        self.componentX = params.componentX;
+        self.componentY = params.componentY;
+        self.color = params.color;
+        self.mode = params.mode;
         return self;
     }
     
     ,reset: function( ) {
-        var self = this;
-        self._map = null; 
-        self.map = null; 
-        return self;
-    }
-    
-    ,getMap: function( ) {
-        return this.map;
-    }
-    
-    ,setMap: function( map )  {
-        var self = this;
-        if ( map )
-        {
-            self.map = map;
-            self._map = null;
-        }
-        return self;
+        this.delInput("map"); 
+        return this;
     }
     
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
-        var self = this, Map = self.map;
-        if ( !self._isOn || !(Map || self._map) ) return im;
+        var self = this, Map;
         
-        //self._map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height };
+        if ( !self._isOn ) return im;
         
-        var _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
-            map, mapW, mapH, mapArea, displace, ww, hh,
+        Map = self.input("map"); if ( !Map ) return im;
+        
+        var map, mapW, mapH, mapArea, displace, ww, hh,
             color = self.color||0, alpha, red, green, blue,
             sty, stx, styw, bx0, by0, bx, by, bxx = w-1, byy = h-1, rem,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
@@ -140,8 +105,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             mode = self.mode||CLAMP
         ;
         
-        map = _map.data;
-        mapW = _map.width; mapH = _map.height; 
+        map = Map[0]; mapW = Map[1]; mapH = Map[2]; 
         mapLen = map.length; mapArea = mapLen>>>2;
         ww = Min(mapW, w); hh = Min(mapH, h);
         imLen = im.length; applyArea = (ww*hh)<<2; imArea = imLen>>>2;
@@ -310,10 +274,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             }
         }
         return im;
-    }
-        
-    ,canRun: function( ) {
-        return this._isOn && (this._map || this.map);
     }
 });
 

@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-10 20:24:15
+*   @built on 2016-08-13 02:06:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-10 20:24:15
+*   @built on 2016-08-13 02:06:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -50,7 +50,8 @@ FILTER.VERSION = "0.9.5";
 
 // http://jsperf.com/math-floor-vs-math-round-vs-parseint/33
 
-var PROTO = 'prototype', OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
+var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
+    ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     
     ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
     
@@ -283,12 +284,16 @@ var
                         }
                     })
                     .listen('params', function( data ) {
-                        if ( filter ) filter.unserialize( data );
+                        if ( filter ) filter.unserializeFilter( data );
+                    })
+                    .listen('inputs', function( data ) {
+                        if ( filter ) filter.unserializeInputs( data );
                     })
                     .listen('apply', function( data ) {
                         if ( filter && data && data.im )
                         {
-                            if ( data.params ) filter.unserialize( data.params );
+                            if ( data.params ) filter.unserializeFilter( data.params );
+                            if ( data.inputs ) filter.unserializeInputs( data.inputs );
                             //log(data.im[0]);
                             var im = TypedArray( data.im[ 0 ], FILTER.ImArray );
                             // pass any filter metadata if needed
@@ -383,8 +388,9 @@ var
         name: "Filter"
         
         ,constructor: function( ) {
-            //var self = this;
+            var self = this;
             //self.$super('constructor', 100, false);
+            self._inputs = {};
         }
         
         // filters can have id's
@@ -392,19 +398,23 @@ var
         ,_isOn: true
         ,_update: true
         ,_onComplete: null
+        ,_inputs: null
+        ,hasInputs: false
         ,hasMeta: false
         ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
-            self.$super('dispose');
             self.name = null;
             self.id = null;
             self._isOn = null;
             self._update = null;
             self._onComplete = null;
+            self._inputs = null;
+            self.hasInputs = null;
             self.hasMeta = null;
             self.mode = null;
+            self.$super('dispose');
             return self;
         }
         
@@ -412,19 +422,72 @@ var
         ,worker: FilterThread[PROTO].thread
         
         
-        // @override
-        ,serialize: function( ) {
-            var self = this;
-            return { filter: self.name, _isOn: !!self._isOn, _update: self._update, params: {} };
+        ,setInput: function( key, inputImage ) {
+            this._inputs[key] = [null, inputImage];
+            return this;
+        }
+        
+        ,delInput: function( key ) {
+            if ( this._inputs[key] ) delete this._inputs[key];
+            return this;
+        }
+        
+        ,input: function( key ) {
+            var input = this._inputs[key];
+            if ( !input ) return null;
+            if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
+            return input[0] || null;
         }
         
         // @override
-        ,unserialize: function( json ) {
-            var self = this;
-            if ( json && self.name === json.filter )
+        ,serialize: function( ) {
+            return null;
+        }
+        
+        // @override
+        ,unserialize: function( params ) {
+            return this;
+        }
+        
+        ,serializeInputs: function( ) {
+            if ( !this.hasInputs ) return null;
+            var inputs = this._inputs, input, k = KEYS(inputs), i, l = k.length, json;
+            if ( !l ) return null;
+            json = { };
+            for(i=0; i<l; i++)
             {
-                self._isOn = json._isOn;
-                self._update = json._update;
+                input = inputs[k[i]];
+                if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+                    json[k[i]] = input[1].getSelectedData( );
+            }
+            return json;
+        }
+        
+        ,unserializeInputs: function( json ) {
+            var self = this;
+            if ( !json || !self.hasInputs ) return self;
+            var inputs = self._inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
+            for(i=0; i<l; i++)
+            {
+                input = json[k[i]];
+                if ( !input ) continue;
+                input[0] = TypedArray( input[0], IMG )
+                inputs[k[i]] = [input, null];
+            }
+            return self;
+        }
+        
+        ,serializeFilter: function( ) {
+            var self = this;
+            return { filter: self.name, _isOn: self._isOn, _update: self._update, params: self.serialize( ) };
+        }
+        
+        ,unserializeFilter: function( json ) {
+            var self = this;
+            if ( json && (self.name === json.filter) )
+            {
+                self._isOn = json._isOn; self._update = json._update;
+                if ( self._isOn && json.params ) self.unserialize( json.params );
             }
             return self;
         }
@@ -499,8 +562,7 @@ var
             return im;
         }
         
-        // generic apply a filter from an image (src) to another image (dest)
-        // with optional callback (cb)
+        // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
         ,apply: function( src, dst, cb ) {
             var self = this, im, im2;
             
@@ -545,10 +607,11 @@ var
                         if ( cb ) cb.call( self );
                     };
                     // process request
-                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serialize( )} );
+                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serializeFilter( ), inputs: self.serializeInputs( )} );
                 }
                 else
                 {
+                    //if ( self.hasInputs ) self._getInputs( );
                     im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
                     // update image only if needed
                     // some filters do not actually change the image data
@@ -1040,7 +1103,7 @@ function integral( im, w, h, channel )
 function histogram( im, w, h, channel, pdf ) 
 {
     channel = channel || 0;
-    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2, n = 1.0/l2;
+    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2;
     
     // initialize the arrays
     cdf = new A32F( 256 ); 
@@ -1084,45 +1147,116 @@ function histogram( im, w, h, channel, pdf )
     for (i=channel; i<l; i+=128)
     {
         // partial loop unrolling
-        cdf[ im[i    ] ] += n;
-        cdf[ im[i+4  ] ] += n;
-        cdf[ im[i+8  ] ] += n;
-        cdf[ im[i+12 ] ] += n;
-        cdf[ im[i+16 ] ] += n;
-        cdf[ im[i+20 ] ] += n;
-        cdf[ im[i+24 ] ] += n;
-        cdf[ im[i+28 ] ] += n;
-        cdf[ im[i+32 ] ] += n;
-        cdf[ im[i+36 ] ] += n;
-        cdf[ im[i+40 ] ] += n;
-        cdf[ im[i+44 ] ] += n;
-        cdf[ im[i+48 ] ] += n;
-        cdf[ im[i+52 ] ] += n;
-        cdf[ im[i+56 ] ] += n;
-        cdf[ im[i+60 ] ] += n;
-        cdf[ im[i+64 ] ] += n;
-        cdf[ im[i+68 ] ] += n;
-        cdf[ im[i+72 ] ] += n;
-        cdf[ im[i+76 ] ] += n;
-        cdf[ im[i+80 ] ] += n;
-        cdf[ im[i+84 ] ] += n;
-        cdf[ im[i+88 ] ] += n;
-        cdf[ im[i+92 ] ] += n;
-        cdf[ im[i+96 ] ] += n;
-        cdf[ im[i+100] ] += n;
-        cdf[ im[i+104] ] += n;
-        cdf[ im[i+108] ] += n;
-        cdf[ im[i+112] ] += n;
-        cdf[ im[i+116] ] += n;
-        cdf[ im[i+120] ] += n;
-        cdf[ im[i+124] ] += n;
+        cdf[ im[i    ] ]++;
+        cdf[ im[i+4  ] ]++;
+        cdf[ im[i+8  ] ]++;
+        cdf[ im[i+12 ] ]++;
+        cdf[ im[i+16 ] ]++;
+        cdf[ im[i+20 ] ]++;
+        cdf[ im[i+24 ] ]++;
+        cdf[ im[i+28 ] ]++;
+        cdf[ im[i+32 ] ]++;
+        cdf[ im[i+36 ] ]++;
+        cdf[ im[i+40 ] ]++;
+        cdf[ im[i+44 ] ]++;
+        cdf[ im[i+48 ] ]++;
+        cdf[ im[i+52 ] ]++;
+        cdf[ im[i+56 ] ]++;
+        cdf[ im[i+60 ] ]++;
+        cdf[ im[i+64 ] ]++;
+        cdf[ im[i+68 ] ]++;
+        cdf[ im[i+72 ] ]++;
+        cdf[ im[i+76 ] ]++;
+        cdf[ im[i+80 ] ]++;
+        cdf[ im[i+84 ] ]++;
+        cdf[ im[i+88 ] ]++;
+        cdf[ im[i+92 ] ]++;
+        cdf[ im[i+96 ] ]++;
+        cdf[ im[i+100] ]++;
+        cdf[ im[i+104] ]++;
+        cdf[ im[i+108] ]++;
+        cdf[ im[i+112] ]++;
+        cdf[ im[i+116] ]++;
+        cdf[ im[i+120] ]++;
+        cdf[ im[i+124] ]++;
     }
     if ( rem )
     {
-        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ] += n;
+        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ]++;
     }
     // return pdf NOT cdf
-    if ( true === pdf ) return cdf;
+    if ( true === pdf )
+    {
+        /*for (i=0; i<256; i+=64) 
+        { 
+            // partial loop unrolling
+            cdf[i   ] /= l2;
+            cdf[i+1 ] /= l2;
+            cdf[i+2 ] /= l2;
+            cdf[i+3 ] /= l2;
+            cdf[i+4 ] /= l2;
+            cdf[i+5 ] /= l2;
+            cdf[i+6 ] /= l2;
+            cdf[i+7 ] /= l2;
+            cdf[i+8 ] /= l2;
+            cdf[i+9 ] /= l2;
+            cdf[i+10] /= l2;
+            cdf[i+11] /= l2;
+            cdf[i+12] /= l2;
+            cdf[i+13] /= l2;
+            cdf[i+14] /= l2;
+            cdf[i+15] /= l2;
+            cdf[i+16] /= l2;
+            cdf[i+17] /= l2;
+            cdf[i+18] /= l2;
+            cdf[i+19] /= l2;
+            cdf[i+20] /= l2;
+            cdf[i+21] /= l2;
+            cdf[i+22] /= l2;
+            cdf[i+23] /= l2;
+            cdf[i+24] /= l2;
+            cdf[i+25] /= l2;
+            cdf[i+26] /= l2;
+            cdf[i+27] /= l2;
+            cdf[i+28] /= l2;
+            cdf[i+29] /= l2;
+            cdf[i+30] /= l2;
+            cdf[i+31] /= l2;
+            cdf[i+32] /= l2;
+            cdf[i+33] /= l2;
+            cdf[i+34] /= l2;
+            cdf[i+35] /= l2;
+            cdf[i+36] /= l2;
+            cdf[i+37] /= l2;
+            cdf[i+38] /= l2;
+            cdf[i+39] /= l2;
+            cdf[i+40] /= l2;
+            cdf[i+41] /= l2;
+            cdf[i+42] /= l2;
+            cdf[i+43] /= l2;
+            cdf[i+44] /= l2;
+            cdf[i+45] /= l2;
+            cdf[i+46] /= l2;
+            cdf[i+47] /= l2;
+            cdf[i+48] /= l2;
+            cdf[i+49] /= l2;
+            cdf[i+50] /= l2;
+            cdf[i+51] /= l2;
+            cdf[i+52] /= l2;
+            cdf[i+53] /= l2;
+            cdf[i+54] /= l2;
+            cdf[i+55] /= l2;
+            cdf[i+56] /= l2;
+            cdf[i+57] /= l2;
+            cdf[i+58] /= l2;
+            cdf[i+59] /= l2;
+            cdf[i+60] /= l2;
+            cdf[i+61] /= l2;
+            cdf[i+62] /= l2;
+            cdf[i+63] /= l2;
+        }*/
+        return cdf;
+    }
     
     // compute cdf
     for (accum=0,i=0; i<256; i+=64) 
@@ -1337,11 +1471,11 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function gradient( im, w, h, grad, integral )
+function gradient( im, w, h, grad, grad2, summed )
 {
-    var i, j, k, sum, grad_x, grad_y,
+    var i, j, k, sum, sum2, grad_x, grad_y,
         ind0, ind1, ind2, ind_1, ind_2,
-        count = grad.length, lowpass = new A8U(count),
+        count = grad.length, lowpass,
         w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
     
     // first, second rows, last, second-to-last rows
@@ -1358,7 +1492,9 @@ function gradient( im, w, h, grad, integral )
         lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
         grad[k] = 0; grad[w_1+k]=0;
     }*/
+    
     // gauss lowpass
+    lowpass = new A8U(count);
     for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
     {
         if ( j >= h_2 ){ j=2; k=w2; i++; }
@@ -1377,128 +1513,88 @@ function gradient( im, w, h, grad, integral )
                 + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
         
         lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+        
     }
-    
     // sobel gradient
-    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+    if ( grad2 )
     {
-        if ( j >= h_1 ){ j=1; k=w; i++; }
-        // compute coords using simple add/subtract arithmetic (faster)
-        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-        
-        grad_x = ((0
-                - lowpass[ind_1-1] 
-                + lowpass[ind_1+1] 
-                - lowpass[ind0-1] - lowpass[ind0-1]
-                + lowpass[ind0+1] + lowpass[ind0+1]
-                - lowpass[ind1-1] 
-                + lowpass[ind1+1]
-                ));
-        grad_y = ((0
-                + lowpass[ind_1-1] 
-                + lowpass[ind_1] + lowpass[ind_1]
-                + lowpass[ind_1+1] 
-                - lowpass[ind1-1] 
-                - lowpass[ind1] - lowpass[ind1]
-                - lowpass[ind1+1]
-                ));
-        
-        grad[ind0] = Abs(grad_x) + Abs(grad_y);
-    }
-    
-    // integral gradient
-    if ( integral )
-    {
-        // first row
-        for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
-        // other rows
-        for(i=w,k=0,sum=0; i<count; i++,k++)
+        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
         {
-            if (k>=w) { k=0; sum=0; }
-            sum += grad[i]; grad[i] = grad[i-w] + sum;
+            if ( j >= h_1 ){ j=1; k=w; i++; }
+            // compute coords using simple add/subtract arithmetic (faster)
+            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+            
+            grad[ind0] = (
+                      lowpass[ind_1+1] 
+                    - lowpass[ind_1-1] 
+                    - lowpass[ind0-1] - lowpass[ind0-1]
+                    + lowpass[ind0+1] + lowpass[ind0+1]
+                    - lowpass[ind1-1] 
+                    + lowpass[ind1+1]
+                    );
+            grad2[ind0] = (
+                      lowpass[ind_1-1] 
+                    + lowpass[ind_1] + lowpass[ind_1]
+                    + lowpass[ind_1+1] 
+                    - lowpass[ind1-1] 
+                    - lowpass[ind1] - lowpass[ind1]
+                    - lowpass[ind1+1]
+                    );
+        }
+        
+        // integral gradient
+        if ( summed )
+        {
+            // first row
+            for(i=0,sum=sum2=0; i<w; i++) { sum += grad[i]; sum2 += grad2[i]; grad[i] = sum; grad2[i] = sum2; }
+            // other rows
+            for(i=w,k=0,sum=sum2=0; i<count; i++,k++)
+            {
+                if (k>=w) { k=0; sum=sum2=0; }
+                sum += grad[i]; grad[i] = grad[i-w] + sum;
+                sum2 += grad2[i]; grad2[i] = grad2[i-w] + sum2;
+            }
         }
     }
-}
-function gradient2( im, w, h, gradX, gradY, integral )
-{
-    var i, j, k, sumx, sumy,
-        ind0, ind1, ind2, ind_1, ind_2,
-        count = gradX.length, lowpass = new A8U(count),
-        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
-    
-    // first, second rows, last, second-to-last rows
-    /*for (i=0; i<w; i++)
+    else
     {
-        lowpass[i] = 0; lowpass[i+w] = 0;
-        lowpass[i+count-w] = 0; lowpass[i+count-w2] = 0;
-        gradX[i] = 0; gradX[i+count-w] = 0;
-        gradY[i] = 0; gradY[i+count-w] = 0;
-    }
-    // first, second columns, last, second-to-last columns
-    for (i=0,k=0; i<h; i++,k+=w)
-    {
-        lowpass[k] = 0; lowpass[1+k] = 0;
-        lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
-        gradX[k] = 0; gradX[w_1+k]=0;
-        gradY[k] = 0; gradY[w_1+k]=0;
-    }*/
-    // quasi-gauss lowpass
-    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
-    {
-        if ( j >= h_2 ){ j=2; k=w2; i++; }
-        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
-        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
-        
-        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-        sumx =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
-                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
-                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
-                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
-                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
-                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
-                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
-                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
-                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
-        
-        lowpass[ind0] = ((((103*sumx + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
-    }
-    
-    // sobel gradient
-    for (i=1,j=1,k=w; i<w_1; j++,k+=w)
-    {
-        if ( j >= h_1 ){ j=1; k=w; i++; }
-        // compute coords using simple add/subtract arithmetic (faster)
-        ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-        
-        gradX[ind0] = (
-                  lowpass[ind_1+1] 
-                - lowpass[ind_1-1] 
-                - lowpass[ind0-1] - lowpass[ind0-1]
-                + lowpass[ind0+1] + lowpass[ind0+1]
-                - lowpass[ind1-1] 
-                + lowpass[ind1+1]
-                );
-        gradY[ind0] = (
-                  lowpass[ind_1-1] 
-                + lowpass[ind_1] + lowpass[ind_1]
-                + lowpass[ind_1+1] 
-                - lowpass[ind1-1] 
-                - lowpass[ind1] - lowpass[ind1]
-                - lowpass[ind1+1]
-                );
-    }
-    
-    // integral gradient
-    if ( integral )
-    {
-        // first row
-        for(i=0,sumx=sumy=0; i<w; i++) { sumx += gradX[i]; sumy += gradY[i]; gradX[i] = sumx; gradY[i] = sumy; }
-        // other rows
-        for(i=w,k=0,sumx=sumy=0; i<count; i++,k++)
+        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
         {
-            if (k>=w) { k=0; sumx=sumy=0; }
-            sumx += gradX[i]; gradX[i] = gradX[i-w] + sumx;
-            sumy += gradY[i]; gradY[i] = gradY[i-w] + sumy;
+            if ( j >= h_1 ){ j=1; k=w; i++; }
+            // compute coords using simple add/subtract arithmetic (faster)
+            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
+            
+            grad_x = (
+                      lowpass[ind_1+1] 
+                    - lowpass[ind_1-1] 
+                    - lowpass[ind0-1] - lowpass[ind0-1]
+                    + lowpass[ind0+1] + lowpass[ind0+1]
+                    - lowpass[ind1-1] 
+                    + lowpass[ind1+1]
+                    );
+            grad_y = (
+                      lowpass[ind_1-1] 
+                    + lowpass[ind_1] + lowpass[ind_1]
+                    + lowpass[ind_1+1] 
+                    - lowpass[ind1-1] 
+                    - lowpass[ind1] - lowpass[ind1]
+                    - lowpass[ind1+1]
+                    );
+            
+            grad[ind0] = Abs(grad_x) + Abs(grad_y);
+        }
+        
+        // integral gradient
+        if ( summed )
+        {
+            // first row
+            for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
+            // other rows
+            for(i=w,k=0,sum=0; i<count; i++,k++)
+            {
+                if (k>=w) { k=0; sum=0; }
+                sum += grad[i]; grad[i] = grad[i-w] + sum;
+            }
         }
     }
 }
@@ -2301,7 +2397,6 @@ FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_cla
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 FilterUtil.SAT = integral2;
 FilterUtil.GRAD = gradient;
-FilterUtil.GRAD2 = gradient2;
 
 }(FILTER);/**
 *
@@ -2351,395 +2446,6 @@ FILTER.Interpolation.bilinear = function( im, w, h, nw, nh ) {
         A = im[pixel+3]; B = im[pixel+7];
         C = im[pixel+w4+3]; D = im[pixel+w4+7];
         interpolated[index+3] = clamp(~~(A*a +  B*b + C*c  +  D*d + 0.5), 0, 255);
-    }
-    return interpolated;
-};
-
-}(FILTER);/**
-*
-* Filter Interpolation methods
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray;
-
-// http://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html
-FILTER.Interpolation.nearest = function( im, w, h, nw, nh ) {
-    var size = (nw*nh)<<2, interpolated = new IMG(size),
-        rx = (w-1)/nw, ry = (h-1)/nh, 
-        i, j, x, y, xi, yi, pixel, index,
-        yw, xoff, yoff, w4 = w<<2
-    ;
-    i=0; j=0; x=0; y=0; yi=0; yw=0; yoff=0;
-    for (index=0; index<size; index+=4,j++,x+=rx) 
-    {
-        if ( j >= nw ) { j=0; x=0; i++; y+=ry; yi=~~y; yw=yi*w; yoff=y - (yi<0.5 ? 0 : w4); }
-        
-        xi = ~~x; xoff = x - (xi<0.5 ? 0 : 4);
-        
-        pixel = ((yw + xi)<<2) + xoff + yoff;
-
-        interpolated[index]      = im[pixel];
-        interpolated[index+1]    = im[pixel+1];
-        interpolated[index+2]    = im[pixel+2];
-        interpolated[index+3]    = im[pixel+3];
-    }
-    return interpolated;
-};
-
-}(FILTER);/**
-*
-* Filter Interpolation methods
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F,
-    subarray = FILTER.Util.Array.subarray;
-
-// http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
-FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
-? function( im, w, h, nw, nh ) {
-    var size = (nw*nh)<<2, interpolated = new IMG(size),
-        rx = (w-1)/nw, ry = (h-1)/nh, 
-        i, j, x, y, xi, yi, pixel, index,
-        rgba = new IMG(4), 
-        rgba0 = new A32F(4), rgba1 = new A32F(4), 
-        rgba2 = new A32F(4), rgba3 = new A32F(4),
-        yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
-        B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
-        p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
-    ;
-    i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
-    for (index=0; index<size; index+=4,j++,x+=rx) 
-    {
-        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
-        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
-        
-        pixel = (yw + xi)<<2;
-        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
-        
-        // handle edge cases
-        C = im.subarray(pixel, pixel+4);
-        L = L_EDGE ? C : im.subarray(pixel-4, pixel);
-        R = R_EDGE ? C : im.subarray(pixel+4, pixel+8);
-        RR = R_EDGE ? C : im.subarray(pixel+8, pixel+12);
-        B = B_EDGE ? C : im.subarray(pixel+w4, pixel+w4+4);
-        BB = B_EDGE ? C : im.subarray(pixel+w4+w4, pixel+w4+w4+4);
-        BL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4-4, pixel+w4);
-        BR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+4, pixel+w4+8);
-        BRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+8, pixel+w4+12);
-        BBL = B_EDGE||L_EDGE ? C : im.subarray(pixel+w4+w4-4, pixel+w4+w4);
-        BBR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+4, pixel+w4+w4+8);
-        BBRR = B_EDGE||R_EDGE ? C : im.subarray(pixel+w4+w4+8, pixel+w4+w4+12);
-        T = T_EDGE ? C : im.subarray(pixel-w4, pixel-w4+4);
-        TL = T_EDGE||L_EDGE ? C : im.subarray(pixel-w4-4, pixel-w4);
-        TR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+4, pixel-w4+8);
-        TRR = T_EDGE||R_EDGE ? C : im.subarray(pixel-w4+8, pixel-w4+12);
-        //interpolate_pixel(rgba0, TL, T, TR, TRR, dx);
-        p = (TRR[0] - TR[0]) - (TL[0] - T[0]);
-        q = (TL[0] - T[0]) - p;
-        r = TR[0] - TL[0];
-        s = T[0];
-        rgba0[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[1] - TR[1]) - (TL[1] - T[1]);
-        q = (TL[1] - T[1]) - p;
-        r = TR[1] - TL[1];
-        s = T[1];
-        rgba0[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[2] - TR[2]) - (TL[2] - T[2]);
-        q = (TL[2] - T[2]) - p;
-        r = TR[2] - TL[2];
-        s = T[2];
-        rgba0[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[3] - TR[3]) - (TL[3] - T[3]);
-        q = (TL[3] - T[3]) - p;
-        r = TR[3] - TL[3];
-        s = T[3];
-        rgba0[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba1, L, C, R, RR, dx);
-        p = (RR[0] - R[0]) - (L[0] - C[0]);
-        q = (L[0] - C[0]) - p;
-        r = R[0] - L[0];
-        s = C[0];
-        rgba1[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[1] - R[1]) - (L[1] - C[1]);
-        q = (L[1] - C[1]) - p;
-        r = R[1] - L[1];
-        s = C[1];
-        rgba1[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[2] - R[2]) - (L[2] - C[2]);
-        q = (L[2] - C[2]) - p;
-        r = R[2] - L[2];
-        s = C[2];
-        rgba1[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[3] - R[3]) - (L[3] - C[3]);
-        q = (L[3] - C[3]) - p;
-        r = R[3] - L[3];
-        s = C[3];
-        rgba1[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba2, BL, B, BR, BRR, dx);
-        p = (BRR[0] - BR[0]) - (BL[0] - B[0]);
-        q = (BL[0] - B[0]) - p;
-        r = BR[0] - BL[0];
-        s = B[0];
-        rgba2[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[1] - BR[1]) - (BL[1] - B[1]);
-        q = (BL[1] - B[1]) - p;
-        r = BR[1] - BL[1];
-        s = B[1];
-        rgba2[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[2] - BR[2]) - (BL[2] - B[2]);
-        q = (BL[2] - B[2]) - p;
-        r = BR[2] - BL[2];
-        s = B[2];
-        rgba2[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[3] - BR[3]) - (BL[3] - B[3]);
-        q = (BL[3] - B[3]) - p;
-        r = BR[3] - BL[3];
-        s = B[3];
-        rgba2[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba3, BBL, BB, BBR, BBRR, dx);
-        p = (BBRR[0] - BBR[0]) - (BBL[0] - BB[0]);
-        q = (BBL[0] - BB[0]) - p;
-        r = BBR[0] - BBL[0];
-        s = BB[0];
-        rgba3[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[1] - BBR[1]) - (BBL[1] - BB[1]);
-        q = (BBL[1] - BB[1]) - p;
-        r = BBR[1] - BBL[1];
-        s = BB[1];
-        rgba3[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[2] - BBR[2]) - (BBL[2] - BB[2]);
-        q = (BBL[2] - BB[2]) - p;
-        r = BBR[2] - BBL[2];
-        s = BB[2];
-        rgba3[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[3] - BBR[3]) - (BBL[3] - BB[3]);
-        q = (BBL[3] - BB[3]) - p;
-        r = BBR[3] - BBL[3];
-        s = BB[3];
-        rgba3[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        // Then we interpolate those 4 pixels to get a single pixel that is a composite of 4 * 4 pixels, 16 pixels
-        //interpolate_pixel(rgba, rgba0, rgba1, rgba2, rgba3, dy);
-        p = (rgba3[0] - rgba2[0]) - (rgba0[0] - rgba1[0]);
-        q = (rgba0[0] - rgba1[0]) - p;
-        r = rgba2[0] - rgba0[0];
-        s = rgba1[0];
-        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
-        q = (rgba0[1] - rgba1[1]) - p;
-        r = rgba2[1] - rgba0[1];
-        s = rgba1[1];
-        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
-        q = (rgba0[2] - rgba1[2]) - p;
-        r = rgba2[2] - rgba0[2];
-        s = rgba1[2];
-        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
-        q = (rgba0[3] - rgba1[3]) - p;
-        r = rgba2[3] - rgba0[3];
-        s = rgba1[3];
-        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        
-        interpolated[index]      = rgba[0];
-        interpolated[index+1]    = rgba[1];
-        interpolated[index+2]    = rgba[2];
-        interpolated[index+3]    = rgba[3];
-    }
-    return interpolated;
-}
-: function( im, w, h, nw, nh ) {
-    var size = (nw*nh)<<2, interpolated = new IMG(size),
-        rx = (w-1)/nw, ry = (h-1)/nh, 
-        i, j, x, y, xi, yi, pixel, index,
-        rgba = new IMG(4), 
-        rgba0 = new A32F(4), rgba1 = new A32F(4), 
-        rgba2 = new A32F(4), rgba3 = new A32F(4),
-        yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
-        B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
-        p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
-    ;
-    i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
-    for (index=0; index<size; index+=4,j++,x+=rx) 
-    {
-        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
-        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
-        
-        pixel = (yw + xi)<<2;
-        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
-        
-        // handle edge cases
-        C = subarray(im, pixel, pixel+4);
-        L = L_EDGE ? C : subarray(im, pixel-4, pixel);
-        R = R_EDGE ? C : subarray(im, pixel+4, pixel+8);
-        RR = R_EDGE ? C : subarray(im, pixel+8, pixel+12);
-        B = B_EDGE ? C : subarray(im, pixel+w4, pixel+w4+4);
-        BB = B_EDGE ? C : subarray(im, pixel+w4+w4, pixel+w4+w4+4);
-        BL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4-4, pixel+w4);
-        BR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+4, pixel+w4+8);
-        BRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+8, pixel+w4+12);
-        BBL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4+w4-4, pixel+w4+w4);
-        BBR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+4, pixel+w4+w4+8);
-        BBRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+8, pixel+w4+w4+12);
-        T = T_EDGE ? C : subarray(im, pixel-w4, pixel-w4+4);
-        TL = T_EDGE||L_EDGE ? C : subarray(im, pixel-w4-4, pixel-w4);
-        TR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+4, pixel-w4+8);
-        TRR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+8, pixel-w4+12);
-        
-        /*function interpolate_pixel(n, p0, p1, p2, p3, t)
-        {
-            var p, q, r, s, t2 = t*t, t3 = t2 * t, v;
-            
-            p = (p3[0] - p2[0]) - (p0[0] - p1[0]);
-            q = (p0[0] - p1[0]) - p;
-            r = p2[0] - p0[0];
-            s = p1[0];
-            n[0] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
-
-            p = (p3[1] - p2[1]) - (p0[1] - p1[1]);
-            q = (p0[1] - p1[1]) - p;
-            r = p2[1] - p0[1];
-            s = p1[1];
-            n[1] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
-
-            p = (p3[2] - p2[2]) - (p0[2] - p1[2]);
-            q = (p0[2] - p1[2]) - p;
-            r = p2[2] - p0[2];
-            s = p1[2];
-            n[2] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
-
-            p = (p3[3] - p2[3]) - (p0[3] - p1[3]);
-            q = (p0[3] - p1[3]) - p;
-            r = p2[3] - p0[3];
-            s = p1[3];
-            n[3] = clamp(~~(p * t3 + q * t2 + r * t + s + 0.5), 0, 255);
-        }*/
-        //interpolate_pixel(rgba0, TL, T, TR, TRR, dx);
-        p = (TRR[0] - TR[0]) - (TL[0] - T[0]);
-        q = (TL[0] - T[0]) - p;
-        r = TR[0] - TL[0];
-        s = T[0];
-        rgba0[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[1] - TR[1]) - (TL[1] - T[1]);
-        q = (TL[1] - T[1]) - p;
-        r = TR[1] - TL[1];
-        s = T[1];
-        rgba0[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[2] - TR[2]) - (TL[2] - T[2]);
-        q = (TL[2] - T[2]) - p;
-        r = TR[2] - TL[2];
-        s = T[2];
-        rgba0[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (TRR[3] - TR[3]) - (TL[3] - T[3]);
-        q = (TL[3] - T[3]) - p;
-        r = TR[3] - TL[3];
-        s = T[3];
-        rgba0[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba1, L, C, R, RR, dx);
-        p = (RR[0] - R[0]) - (L[0] - C[0]);
-        q = (L[0] - C[0]) - p;
-        r = R[0] - L[0];
-        s = C[0];
-        rgba1[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[1] - R[1]) - (L[1] - C[1]);
-        q = (L[1] - C[1]) - p;
-        r = R[1] - L[1];
-        s = C[1];
-        rgba1[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[2] - R[2]) - (L[2] - C[2]);
-        q = (L[2] - C[2]) - p;
-        r = R[2] - L[2];
-        s = C[2];
-        rgba1[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (RR[3] - R[3]) - (L[3] - C[3]);
-        q = (L[3] - C[3]) - p;
-        r = R[3] - L[3];
-        s = C[3];
-        rgba1[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba2, BL, B, BR, BRR, dx);
-        p = (BRR[0] - BR[0]) - (BL[0] - B[0]);
-        q = (BL[0] - B[0]) - p;
-        r = BR[0] - BL[0];
-        s = B[0];
-        rgba2[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[1] - BR[1]) - (BL[1] - B[1]);
-        q = (BL[1] - B[1]) - p;
-        r = BR[1] - BL[1];
-        s = B[1];
-        rgba2[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[2] - BR[2]) - (BL[2] - B[2]);
-        q = (BL[2] - B[2]) - p;
-        r = BR[2] - BL[2];
-        s = B[2];
-        rgba2[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BRR[3] - BR[3]) - (BL[3] - B[3]);
-        q = (BL[3] - B[3]) - p;
-        r = BR[3] - BL[3];
-        s = B[3];
-        rgba2[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        //interpolate_pixel(rgba3, BBL, BB, BBR, BBRR, dx);
-        p = (BBRR[0] - BBR[0]) - (BBL[0] - BB[0]);
-        q = (BBL[0] - BB[0]) - p;
-        r = BBR[0] - BBL[0];
-        s = BB[0];
-        rgba3[0] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[1] - BBR[1]) - (BBL[1] - BB[1]);
-        q = (BBL[1] - BB[1]) - p;
-        r = BBR[1] - BBL[1];
-        s = BB[1];
-        rgba3[1] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[2] - BBR[2]) - (BBL[2] - BB[2]);
-        q = (BBL[2] - BB[2]) - p;
-        r = BBR[2] - BBL[2];
-        s = BB[2];
-        rgba3[2] = p * dx3 + q * dx2 + r * dx + s;
-        p = (BBRR[3] - BBR[3]) - (BBL[3] - BB[3]);
-        q = (BBL[3] - BB[3]) - p;
-        r = BBR[3] - BBL[3];
-        s = BB[3];
-        rgba3[3] = p * dx3 + q * dx2 + r * dx + s;
-        
-        // Then we interpolate those 4 pixels to get a single pixel that is a composite of 4 * 4 pixels, 16 pixels
-        //interpolate_pixel(rgba, rgba0, rgba1, rgba2, rgba3, dy);
-        p = (rgba3[0] - rgba2[0]) - (rgba0[0] - rgba1[0]);
-        q = (rgba0[0] - rgba1[0]) - p;
-        r = rgba2[0] - rgba0[0];
-        s = rgba1[0];
-        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
-        q = (rgba0[1] - rgba1[1]) - p;
-        r = rgba2[1] - rgba0[1];
-        s = rgba1[1];
-        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
-        q = (rgba0[2] - rgba1[2]) - p;
-        r = rgba2[2] - rgba0[2];
-        s = rgba1[2];
-        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
-        q = (rgba0[3] - rgba1[3]) - p;
-        r = rgba2[3] - rgba0[3];
-        s = rgba1[3];
-        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
-        
-        interpolated[index]      = rgba[0];
-        interpolated[index+1]    = rgba[1];
-        interpolated[index+2]    = rgba[2];
-        interpolated[index+3]    = rgba[3];
     }
     return interpolated;
 };
@@ -4876,11 +4582,23 @@ CanvasProxyCtx = FILTER.Class({
         ;
         if ( 3 === argslen )
         {
+            if ( !self._data )
+            {
+                W = self._w = w;
+                H = self._h = h;
+                self._data = new IMG((W*H)<<2);
+            }
             dx = sx; dy = sy;
             set( self._data, W, H, idata, w, h, 0, 0, w-1, h-1, dx, dy );
         }
         else if ( 5 === argslen )
         {
+            if ( !self._data )
+            {
+                W = self._w = sw;
+                H = self._h = sh;
+                self._data = new IMG((W*H)<<2);
+            }
             dx = sx; dy = sy;
             dw = sw; dh = sh;
             if ( (w === dw) && (h === dh) )
@@ -4890,6 +4608,12 @@ CanvasProxyCtx = FILTER.Class({
         }
         else
         {
+            if ( !self._data )
+            {
+                W = self._w = dw;
+                H = self._h = dh;
+                self._data = new IMG((W*H)<<2);
+            }
             if ( (sw === dw) && (sh === dh) )
                 set( self._data, W, H, get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
             else
@@ -4906,8 +4630,7 @@ CanvasProxyCtx = FILTER.Class({
     },
     
     putImageData: function( data, x, y ) {
-        var self = this, W = self._w, H = self._h,
-            w = data.width, h = data.height;
+        var self = this, W = self._w, H = self._h, w = data.width, h = data.height;
         if ( null == x ) x = 0;
         if ( null == y ) y = 0;
         set( self._data, W, H, data.data, w, h, 0, 0, w-1, h-1, x, y );

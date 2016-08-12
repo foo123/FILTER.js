@@ -27,7 +27,9 @@ __0.9.5__
 * two new generic filters (which replace multiple plugins, see updated examples) `AffineMatrixFilter` (i.e linear geometric map filtering) and `ColorMapFilter` (i.e non-linear color transformation filtering) instead of having multiple filters and plugins with similar functionalities scattered around, plus dynamicaly optimise them, parametrise them and also have GLSL analogs more easily
 * fix `tensor_product` utility from previous update (produced incorrect convolution kernels)
 * simplify and make somewhat faster `CannyEdges` and `HaarDetector` plugins
-* new `AlgebraicFilter` (instead of `CombinatorFilter`), in progress
+* move `BlendFilter` into generic filters instead of plugins, new `AlgebraicFilter` (instead of `CombinatorFilter`), in progress
+* handle uniformly and more efficiently multiple extra input images in filters, simplify filters' `serialize`/`unserialize` methods
+* fix `Image.image` method issue when loading an image without initializing imageData in nodejs
 
 
 __0.9.0__

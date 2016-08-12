@@ -33,7 +33,7 @@ else /* Browser/WebWorker/.. */
 var FILTER_FILTERS_PATH = FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUri );
 /**
 *
-* CompositeFilter Class
+* Composite Filter Class
 * @package FILTER.js
 *
 **/
@@ -41,8 +41,7 @@ var FILTER_FILTERS_PATH = FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUr
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get
-;
+    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get;
 
 //
 // Composite Filter Stack  (a variation of Composite Design Pattern)
@@ -60,6 +59,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     ,_stack: null
     ,_meta: null
     ,_stable: true
+    ,hasInputs: true
     
     ,dispose: function( withFilters ) {
         var self = this, i, stack = self._stack;
@@ -78,52 +78,65 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         return self;
     }
     
-    ,serialize: function( ) {
-        var self = this, i, stack = self._stack,
-            json = { filter: self.name, _isOn: !!self._isOn, _stable: !!self._stable, _update: self._update, filters: [ ] };
-        for (i=0; i<stack.length; i++) json.filters.push( stack[ i ].serialize( ) );
-        return json;
+    ,serializeInputs: function( ) {
+        var self = this, i, stack = self._stack, l, inputs = [ ], hasInputs = false, input;
+        for (i=0,l=stack.length; i<l; i++)
+        {
+            inputs.push( input=stack[ i ].serializeInputs( ) );
+            if ( input ) hasInputs = true;
+        }
+        return hasInputs ? inputs : null;
     }
     
-    ,unserialize: function( json ) {
+    ,unserializeInputs: function( inputs ) {
+        var self = this;
+        if ( !inputs ) return self;
+        var i, stack = self._stack, l;
+        for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ] );
+        return self;
+    }
+    
+    ,serialize: function( ) {
+        var self = this, i, stack = self._stack, l, filters = [ ];
+        for (i=0,l=stack.length; i<l; i++) filters.push( stack[ i ].serializeFilter( ) );
+        return {_stable: self._stable, filters: filters};
+    }
+    
+    ,unserialize: function( params ) {
         var self = this, i, l, ls, filters, filter, stack = self._stack;
-        if ( json && self.name === json.filter )
+        
+        self._stable = params._stable;
+        filters = params.filters || [ ];
+        l = filters.length; ls = stack.length;
+        
+        if ( (l !== ls) || (!self._stable) )
         {
-            self._isOn = json._isOn;
-            self._update = json._update;
-            self._stable = json._stable;
+            // dispose any prev filters
+            for (i=0; i<ls; i++)
+            {
+                stack[ i ] && stack[ i ].dispose( true );
+                stack[ i ] = null;
+            }
+            stack = [ ];
             
-            filters = json.filters || [ ];
-            l = filters.length; ls = stack.length;
-            if ( (l !== ls) || (!self._stable) )
+            for (i=0; i<l; i++)
             {
-                // dispose any prev filters
-                for (i=0; i<ls; i++)
+                filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
+                if ( filter )
                 {
-                    stack[ i ] && stack[ i ].dispose( true );
-                    stack[ i ] = null;
+                    stack.push( new filter( ).unserializeFilter( filters[ i ] ) );
                 }
-                stack = [ ];
-                
-                for (i=0; i<l; i++)
+                else
                 {
-                    filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
-                    if ( filter )
-                    {
-                        stack.push( new filter( ).unserialize( filters[ i ] ) );
-                    }
-                    else
-                    {
-                        throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
-                        return;
-                    }
+                    throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
+                    return;
                 }
-                self._stack = stack;
             }
-            else
-            {
-                for (i=0; i<l; i++) stack[ i ].unserialize( filters[ i ] );
-            }
+            self._stack = stack;
+        }
+        else
+        {
+            for (i=0; i<l; i++) stack[ i ].unserializeFilter( filters[ i ] );
         }
         return self;
     }
@@ -159,6 +172,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         if ( arguments.length ) concat.apply(this._stack, arguments);
         return this;
     }
+    ,concat: null
     
     ,pop: function( ) {
         return this._stack.pop( );
@@ -176,12 +190,14 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     ,getAt: function( i ) {
         return this._stack.length > i ? this._stack[ i ] : null;
     }
+    ,get: null
     
     ,setAt: function( i, filter ) {
         if ( this._stack.length > i ) this._stack[ i ] = filter;
         else this._stack.push( filter );
         return this;
     }
+    ,set: null
     
     ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
         var args = slice.call(arguments), arglen = args.length;
@@ -211,6 +227,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         this._stack.length = 0;  
         return this;
     }
+    ,empty: null
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
@@ -253,6 +270,134 @@ CompositeFilter.prototype.get = CompositeFilter.prototype.getAt;
 CompositeFilter.prototype.set = CompositeFilter.prototype.setAt;
 CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
 CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
+FILTER.CompositionFilter = FILTER.CompositeFilter;
+
+}(FILTER);/**
+*
+* Blend Filter
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var HAS = 'hasOwnProperty', Min = Math.min, Round = Math.round,
+    notSupportClamp = FILTER._notSupportClamp, blend_function = FILTER.Color.Combine;
+
+//
+// Blend Filter, photoshop-like image blending
+var BlendFilter = FILTER.BlendFilter = FILTER.Class( FILTER.Filter, {
+    name: "BlendFilter"
+    
+    ,constructor: function BlendFilter( blendImage, mode ) { 
+        var self = this;
+        if ( !(self instanceof BlendFilter) ) return new BlendFilter(blendImage, mode);
+        self.$super('constructor');
+        self.startX = 0;
+        self.startY = 0;
+        self._blendImage = null;
+        self.blendImage = null;
+        self.mode = null;
+        if ( blendImage ) self.setInput( "blend", blendImage );
+        if ( mode ) self.setMode( mode );
+    }
+    
+    ,path: FILTER_FILTERS_PATH
+    // parameters
+    ,mode: null
+    ,startX: 0
+    ,startY: 0
+    ,hasInputs: true
+    
+    ,dispose: function( ) {
+        var self = this;
+        self.$super('dispose');
+        return self;
+    }
+    
+    // set blend mode auxiliary method
+    ,setMode: function( mode ) {
+        var self = this;
+        if ( mode )
+        {
+            self.mode = (''+mode).toLowerCase();
+            if ( !blend_function[HAS](self.mode) ) self.mode = null;
+        }
+        else
+        {
+            self.mode = null;
+        }
+        return self;
+    }
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+             mode: self.mode
+            ,startX: self.startX
+            ,startY: self.startY
+        };
+    }
+    
+    ,unserialize: function( params ) {
+        var self = this;
+        self.startX = params.startX;
+        self.startY = params.startY;
+        self.setMode( params.mode );
+        return self;
+    }
+    
+    ,reset: function( ) {
+        var self = this;
+        self.startX = 0;
+        self.startY = 0;
+        self.mode = null;
+        return self;
+    }
+    
+    ,_apply: function(im, w, h/*, image*/) {
+        var self = this, blendImg;
+        if ( !self._isOn || !self.mode ) return im;
+        
+        blendImg = self.input("blend"); if ( !blendImg ) return im;
+        
+        var startX = self.startX||0, startY = self.startY||0, 
+            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
+            W1, W2, start, end, x, y, x2, y2,
+            pix2, blend = blend_function[ self.mode ];
+        
+        if (startX < 0) { startX2 = -startX;  startX = 0; }
+        if (startY < 0) { startY2 = -startY;  startY = 0; }
+        
+        w2 = blendImg[1]; h2 = blendImg[2];
+        if (startX >= w || startY >= h) return im;
+        if (startX2 >= w2 || startY2 >= h2) return im;
+        
+        startX = Round(startX); startY = Round(startY);
+        startX2 = Round(startX2); startY2 = Round(startY2);
+        W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
+        if (W <= 0 || H <= 0) return im;
+        
+        im2 = blendImg[0];
+        
+        // blend images
+        x = startX; y = startY*w;
+        x2 = startX2; y2 = startY2*w2;
+        W1 = startX+W; W2 = startX2+W;
+        for(start=0,end=H*W; start<end; start++)
+        {
+            pix2 = (x2 + y2)<<2;
+            // blend only if im2 has opacity in this point
+            if ( 0 < im2[pix2+3] ) blend(im, im2, (x + y)<<2, pix2, notSupportClamp);
+            // next pixels
+            x++; if (x>=W1) { x = startX; y += w; }
+            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
+        }
+        return im; 
+    }
+});
+// aliases
+FILTER.CombineFilter = FILTER.BlendFilter;
 
 }(FILTER);/**
 *
@@ -312,31 +457,19 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _tableR: self._table[CHANNEL.R]
-                ,_tableG: self._table[CHANNEL.G]
-                ,_tableB: self._table[CHANNEL.B]
-                ,_tableA: self._table[CHANNEL.A]
-            }
+             _tableR: self._table[CHANNEL.R]
+            ,_tableG: self._table[CHANNEL.G]
+            ,_tableB: self._table[CHANNEL.B]
+            ,_tableA: self._table[CHANNEL.A]
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
-            self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
-            self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
-            self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
+        self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
+        self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
+        self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
         return self;
     }
     
@@ -472,6 +605,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
         for(i=0; i<256; i++) { t[i] = clamp(q[ ~~(nR * i) ]); }
         return this.set(t);
     }
+    ,posterize: null
     
     ,binarize: function( ) {
         return this.quantize(2);
@@ -740,7 +874,7 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 "use strict";
 
 var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
-    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, rechannel = FUtil.cm_rechannel,
+    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, blend = FUtil.cm_combine, rechannel = FUtil.cm_rechannel,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
 ;
@@ -771,25 +905,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                matrix: self.matrix
-            }
+            matrix: self.matrix
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.matrix = TypedArray( params.matrix, CM );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.matrix = TypedArray( params.matrix, CM );
         return self;
     }
     
@@ -913,6 +1035,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
         ));
     }
+    ,grayscale: null
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,saturate: function( s ) {
@@ -994,12 +1117,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
         ));
     }
+    ,rotateHue: null
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,average: function( r, g, b ) {
         if ( null == r ) r = 0.3333;
         if ( null == g ) g = 0.3333;
-        if ( null == b ) b = 0.3334;
+        if ( null == b ) b = 0.3333;
         return this.set(rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
@@ -1083,6 +1207,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,thresholdRGB: function( threshold, factor ) {
         return this.threshold(threshold, factor, false);
     }
+    ,threshold_rgb: null
     
     ,thresholdChannel: function( channel, threshold, factor, lumia ) {
         if ( null == factor ) factor = 256;
@@ -1129,6 +1254,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,thresholdAlpha: function( threshold, factor, lumia ) {
         return this.thresholdChannel(CHANNEL.A, threshold, factor, lumia);
     }
+    ,threshold_alpha: null
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
@@ -1158,8 +1284,9 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // blend with another filter
     ,blend: function( filt, amount ) {
-        this.matrix = this.matrix ? cm_blend(this.matrix, filt.matrix, amount) : new CM(filt.matrix);
-        return this;
+        var self = this;
+        self.matrix = self.matrix ? blend(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
+        return self;
     }
     
     ,set: function( matrix ) {
@@ -1178,8 +1305,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp
-    ? function( im, w, h/*, image*/ ) {
+    ,_apply: notSupportClamp ? function( im, w, h/*, image*/ ) {
         var self = this, M = self.matrix;
         if ( !self._isOn || !M ) return im;
         
@@ -1303,8 +1429,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             }
         }
         return im;
-    }
-    : function( im, w, h/*, image*/ ) {
+    } : function( im, w, h/*, image*/ ) {
         var self = this, M = self.matrix;
         if ( !self._isOn || !M ) return im;
         
@@ -1399,40 +1524,6 @@ ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
 ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
-ColorMatrixFilter.blend = cm_blend;
-
-function cm_blend( m1, m2, amount )
-{
-    var m = new CM(20);
-    
-    // unroll the loop completely
-    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
-    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
-    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
-    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
-    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
-
-    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
-    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
-    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
-    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
-    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
-    
-    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
-    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
-    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
-    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
-    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
-    
-    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
-    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
-    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
-    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
-    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
-    
-    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-    return m;
-}
 
 }(FILTER);/**
 *
@@ -1492,53 +1583,41 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _mapName: self._mapName || null
-                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
-                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
-                ,thresholds: self.thresholds
-                ,quantizedColors: self.quantizedColors
-                ,mode: self.mode
-            }
+            _mapName: self._mapName || null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+            ,thresholds: self.thresholds
+            ,quantizedColors: self.quantizedColors
+            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
+    ,unserialize: function( params ) {
+        var self = this;
+        self.mode = params.mode;
+        self.thresholds = TypedArray( params.thresholds, Array );
+        self.quantizedColors = TypedArray( params.quantizedColors, Array );
+        
+        //self._mapName = params._mapName;
+        //self._map = params._map;
+        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
         {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mode = params.mode;
-            self.thresholds = TypedArray( params.thresholds, Array );
-            self.quantizedColors = TypedArray( params.quantizedColors, Array );
-            
-            //self._mapName = params._mapName;
-            //self._map = params._map;
-            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
-            {
-                self.set(params._mapName);
-            }
-            else if ( params._map && ("generic" === params._mapName) )
-            {
-                // using bind makes the code become [native code] and thus unserializable
-                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
-                if ( params._mapInit )
-                    self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
-                self.set(params._map, params._mapInit||null, 1);
-            }
-            /*else
-            {
-                self._map = null;
-            }*/
+            self.set(params._mapName);
         }
+        else if ( params._map && ("generic" === params._mapName) )
+        {
+            // using bind makes the code become [native code] and thus unserializable
+            /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+            if ( params._mapInit )
+                self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+            self.set(params._map, params._mapInit||null);
+        }
+        /*else
+        {
+            self._map = null;
+        }*/
         return self;
     }
     
@@ -1568,6 +1647,7 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
         self.quantizedColors = quantizedColors;
         return self.set("quantize");
     }
+    ,threshold: null
     
     ,mask: function( min, max, background ) {
         var self = this;
@@ -1575,24 +1655,28 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
         self.quantizedColors = [background || 0];
         return self.set("mask");
     }
+    ,extract: null
     
-    ,set: function( M, preample, precompiled ) {
+    ,set: function( M, preample ) {
         var self = this;
-        if ( precompiled || ("function" === typeof M) )
+        if ( M && Maps.hasOwnProperty(String(M)) )
+        {
+            if ( self._mapName !== String(M) )
+            {
+                self._mapName = String(M);
+                self._map = Maps[self._mapName];
+                self._mapInit = Maps["init__"+self._mapName];
+                self._apply = apply__( self._map, self._mapInit );
+            }
+            self._mapChanged = false;
+        }
+        else if ( M )
         {
             self._mapName = "generic"; 
             self._map = T;
             self._mapInit = preample || null;
             self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = precompiled ? false : true;
-        }
-        else if ( M && Maps.hasOwnProperty(String(M)) && (self._mapName !== String(M)) )
-        {
-            self._mapName = String(M);
-            self._map = Maps[self._mapName];
-            self._mapInit = Maps["init__"+self._mapName];
-            self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = false;
+            self._mapChanged = true;
         }
         return self;
     }
@@ -1838,29 +1922,17 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 matrix: self.matrix
-                ,mode: self.mode
-                ,color: self.color
-            }
+             matrix: self.matrix
+            ,mode: self.mode
+            ,color: self.color
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.matrix = TypedArray( params.matrix, AM );
-            self.mode = params.mode;
-            self.color = params.color;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.matrix = TypedArray( params.matrix, AM );
+        self.mode = params.mode;
+        self.color = params.color;
         return self;
     }
     
@@ -1896,6 +1968,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
             0, 1, ty, 0
         ]);
     }
+    ,shift: null
     
     ,rotate: function( theta ) {
         var s = Sin(theta), c = Cos(theta);
@@ -2059,12 +2132,10 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         var self = this;
         if ( !(self instanceof DisplacementMapFilter) ) return new DisplacementMapFilter(displacemap);
         self.$super('constructor');
-        if ( displacemap ) self.setMap( displacemap );
+        if ( displacemap ) self.setInput( "map", displacemap );
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_map: null
-    ,map: null
     // parameters
     ,scaleX: 1
     ,scaleY: 1
@@ -2074,12 +2145,11 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     ,componentY: 0
     ,color: 0
     ,mode: MODE.CLAMP
+    ,hasInputs: true
     
     ,dispose: function( ) {
         var self = this;
         
-        self._map = null;
-        self.map = null;
         self.scaleX = null;
         self.scaleY = null;
         self.startX = null;
@@ -2093,78 +2163,46 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     }
     
     ,serialize: function( ) {
-        var self = this, Map = self.map;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _map: self._map || (Map ? { data: Map.getData( ), width: Map.width, height: Map.height } : null)
-                ,scaleX: self.scaleX
-                ,scaleY: self.scaleY
-                ,startX: self.startX
-                ,startY: self.startY
-                ,componentX: self.componentX
-                ,componentY: self.componentY
-                ,color: self.color
-                ,mode: self.mode
-            }
+             scaleX: self.scaleX
+            ,scaleY: self.scaleY
+            ,startX: self.startX
+            ,startY: self.startY
+            ,componentX: self.componentX
+            ,componentY: self.componentY
+            ,color: self.color
+            ,mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.map = null;
-            self._map = params._map;
-            if ( self._map ) self._map.data = TypedArray( self._map.data, IMG );
-            self.scaleX = params.scaleX;
-            self.scaleY = params.scaleY;
-            self.startX = params.startX;
-            self.startY = params.startY;
-            self.componentX = params.componentX;
-            self.componentY = params.componentY;
-            self.color = params.color;
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scaleX = params.scaleX;
+        self.scaleY = params.scaleY;
+        self.startX = params.startX;
+        self.startY = params.startY;
+        self.componentX = params.componentX;
+        self.componentY = params.componentY;
+        self.color = params.color;
+        self.mode = params.mode;
         return self;
     }
     
     ,reset: function( ) {
-        var self = this;
-        self._map = null; 
-        self.map = null; 
-        return self;
-    }
-    
-    ,getMap: function( ) {
-        return this.map;
-    }
-    
-    ,setMap: function( map )  {
-        var self = this;
-        if ( map )
-        {
-            self.map = map;
-            self._map = null;
-        }
-        return self;
+        this.delInput("map"); 
+        return this;
     }
     
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
-        var self = this, Map = self.map;
-        if ( !self._isOn || !(Map || self._map) ) return im;
+        var self = this, Map;
         
-        //self._map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height };
+        if ( !self._isOn ) return im;
         
-        var _map = self._map || { data: Map.getData( ), width: Map.width, height: Map.height },
-            map, mapW, mapH, mapArea, displace, ww, hh,
+        Map = self.input("map"); if ( !Map ) return im;
+        
+        var map, mapW, mapH, mapArea, displace, ww, hh,
             color = self.color||0, alpha, red, green, blue,
             sty, stx, styw, bx0, by0, bx, by, bxx = w-1, byy = h-1, rem,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
@@ -2174,8 +2212,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
             mode = self.mode||CLAMP
         ;
         
-        map = _map.data;
-        mapW = _map.width; mapH = _map.height; 
+        map = Map[0]; mapW = Map[1]; mapH = Map[2]; 
         mapLen = map.length; mapArea = mapLen>>>2;
         ww = Min(mapW, w); hh = Min(mapH, h);
         imLen = im.length; applyArea = (ww*hh)<<2; imArea = imLen>>>2;
@@ -2345,10 +2382,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
         }
         return im;
     }
-        
-    ,canRun: function( ) {
-        return this._isOn && (this._map || this.map);
-    }
 });
 
 }(FILTER);/**
@@ -2420,65 +2453,53 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _mapName: self._mapName || null
-                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
-                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
-                ,color: self.color
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,angle: self.angle
-                ,radius: self.radius
-                //,wavelength: self.wavelength
-                //,amplitude: self.amplitude
-                //,phase: self.phase
-                ,mode: self.mode
-            }
+            _mapName: self._mapName || null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+            ,color: self.color
+            ,centerX: self.centerX
+            ,centerY: self.centerY
+            ,angle: self.angle
+            ,radius: self.radius
+            //,wavelength: self.wavelength
+            //,amplitude: self.amplitude
+            //,phase: self.phase
+            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
+    ,unserialize: function( params ) {
+        var self = this;
+        self.color = params.color;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.angle = params.angle;
+        self.radius = params.radius;
+        //self.wavelength = params.wavelength;
+        //self.amplitude = params.amplitude;
+        //self.phase = params.phase;
+        self.mode = params.mode;
+        
+        //self._mapName = params._mapName;
+        //self._map = params._map;
+        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
         {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.color = params.color;
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.angle = params.angle;
-            self.radius = params.radius;
-            //self.wavelength = params.wavelength;
-            //self.amplitude = params.amplitude;
-            //self.phase = params.phase;
-            self.mode = params.mode;
-            
-            //self._mapName = params._mapName;
-            //self._map = params._map;
-            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
-            {
-                self.set(params._mapName);
-            }
-            else if ( params._map && ("generic" === params._mapName) )
-            {
-                // using bind makes the code become [native code] and thus unserializable
-                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
-                if ( params._mapInit )
-                self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
-                self.set(params._map, params._mapInit||null, 1);
-            }
-            /*else
-            {
-                self._map = null;
-            }*/
+            self.set(params._mapName);
         }
+        else if ( params._map && ("generic" === params._mapName) )
+        {
+            // using bind makes the code become [native code] and thus unserializable
+            /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+            if ( params._mapInit )
+            self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+            self.set(params._map, params._mapInit||null);
+        }
+        /*else
+        {
+            self._map = null;
+        }*/
         return self;
     }
     
@@ -2514,23 +2535,26 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
         return self.set("ripple");
     }*/
     
-    ,set: function( T, preample, precompiled ) {
+    ,set: function( T, preample ) {
         var self = this;
-        if ( precompiled || ("function" === typeof T) )
+        if ( T && Maps.hasOwnProperty(String(T)) )
+        {
+            if ( self._mapName !== String(T) )
+            {
+                self._mapName = String(T);
+                self._map = Maps[self._mapName];
+                self._mapInit = Maps["init__"+self._mapName];
+                self._apply = apply__( self._map, self._mapInit );
+            }
+            self._mapChanged = false;
+        }
+        else if ( T )
         {
             self._mapName = "generic"; 
             self._map = T;
             self._mapInit = preample || null;
             self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = precompiled ? false : true;
-        }
-        else if ( T && Maps.hasOwnProperty(String(T)) && (self._mapName !== String(T)) )
-        {
-            self._mapName = String(T);
-            self._map = Maps[self._mapName];
-            self._mapInit = Maps["init__"+self._mapName];
-            self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = false;
+            self._mapChanged = true;
         }
         return self;
     }
@@ -2825,53 +2849,41 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 dim: self.dim
-                ,dim2: self.dim2
-                ,matrix: self.matrix
-                ,matrix2: self.matrix2
-                ,_mat: self._mat
-                ,_mat2: self._mat2
-                ,_coeff: self._coeff
-                ,_isGrad: self._isGrad
-                ,_doIntegral: self._doIntegral
-                ,_doSeparable: self._doSeparable
-                ,_indices: self._indices
-                ,_indices2: self._indices2
-                ,_indicesf: self._indicesf
-                ,_indicesf2: self._indicesf2
-                ,_rgba: self._rgba
-            }
+             dim: self.dim
+            ,dim2: self.dim2
+            ,matrix: self.matrix
+            ,matrix2: self.matrix2
+            ,_mat: self._mat
+            ,_mat2: self._mat2
+            ,_coeff: self._coeff
+            ,_isGrad: self._isGrad
+            ,_doIntegral: self._doIntegral
+            ,_doSeparable: self._doSeparable
+            ,_indices: self._indices
+            ,_indices2: self._indices2
+            ,_indicesf: self._indicesf
+            ,_indicesf2: self._indicesf2
+            ,_rgba: self._rgba
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.dim = params.dim;
-            self.dim2 = params.dim2;
-            self.matrix = TypedArray( params.matrix, CM );
-            self.matrix2 = TypedArray( params.matrix2, CM );
-            self._mat = TypedArray( params._mat, CM );
-            self._mat2 = TypedArray( params._mat2, CM );
-            self._coeff = TypedArray( params._coeff, CM );
-            self._isGrad = params._isGrad;
-            self._doIntegral = params._doIntegral;
-            self._doSeparable = params._doSeparable;
-            self._indices = TypedArray( params._indices, A16I );
-            self._indices2 = TypedArray( params._indices2, A16I );
-            self._indicesf = TypedArray( params._indicesf, A16I );
-            self._indicesf2 = TypedArray( params._indicesf2, A16I );
-            self._rgba = params._rgba;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.dim = params.dim;
+        self.dim2 = params.dim2;
+        self.matrix = TypedArray( params.matrix, CM );
+        self.matrix2 = TypedArray( params.matrix2, CM );
+        self._mat = TypedArray( params._mat, CM );
+        self._mat2 = TypedArray( params._mat2, CM );
+        self._coeff = TypedArray( params._coeff, CM );
+        self._isGrad = params._isGrad;
+        self._doIntegral = params._doIntegral;
+        self._doSeparable = params._doSeparable;
+        self._indices = TypedArray( params._indices, A16I );
+        self._indices2 = TypedArray( params._indices2, A16I );
+        self._indicesf = TypedArray( params._indicesf, A16I );
+        self._indicesf2 = TypedArray( params._indicesf2, A16I );
+        self._rgba = params._rgba;
         return self;
     }
     
@@ -3460,22 +3472,28 @@ function binomial1( d )
     d--;
     if (d < l)
     {
-        row = new CM(_pascal[d]);
+        row = _pascal[d];
     }
     else
     {
         // else compute them iteratively
-        row = new CM(_pascal[l-1]);
+        row = _pascal[l-1];
         while ( l<=d )
         {
-            uprow=row; row=new CM(uprow.length+1); row[0]=1;
-            for (i=0, il=uprow.length-1; i<il; i++) { row[i+1]=(uprow[i]+uprow[i+1]); } row[uprow.length]=1;
-            if (l<40) _pascal.push(new Array(row)); // save it for future dynamically
+            uprow=row; row=new Array(uprow.length+1); row[0]=1;
+            for(i=0,il=uprow.length-1; i<il; i++) row[i+1] = uprow[i]+uprow[i+1]; row[uprow.length]=1;
+            if (l<20) _pascal.push(row); // save it for future dynamically
             l++;
         }
     }
-    return row;
+    return row.slice();
 }
+
+//console.log( binomial1( 5 ) );
+//console.log( derivative1( 5 ) );
+//console.log( sobel( 5 ) );
+//console.log( binomial2( 5 ) );
+//console.log( summa(binomial2( 5 )) );
 
 function functional2( d, f )
 {
@@ -3628,33 +3646,21 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _filterName: self._filterName
-                ,_dim: self._dim
-                ,_structureElement: self._structureElement
-                ,_indices: self._indices
-            }
+            _filterName: self._filterName
+            ,_dim: self._dim
+            ,_structureElement: self._structureElement
+            ,_indices: self._indices
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._dim = params._dim;
-            self._structureElement = TypedArray( params._structureElement, STRUCT );
-            self._indices = TypedArray( params._indices, A32I );
-            self._filterName = params._filterName;
-            if ( self._filterName && Filters[ self._filterName ] )
-                self._filter = Filters[ self._filterName ];
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._dim = params._dim;
+        self._structureElement = TypedArray( params._structureElement, STRUCT );
+        self._indices = TypedArray( params._indices, A32I );
+        self._filterName = params._filterName;
+        if ( self._filterName && Filters[ self._filterName ] )
+            self._filter = Filters[ self._filterName ];
         return self;
     }
     
@@ -4040,31 +4046,19 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _filterName: self._filterName
-                ,_dim: self._dim
-                ,_indices: self._indices
-            }
+            _filterName: self._filterName
+            ,_dim: self._dim
+            ,_indices: self._indices
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._dim = params._dim;
-            self._indices = TypedArray( params._indices, A32I );
-            self._filterName = params._filterName;
-            if ( self._filterName && Filters[ self._filterName ] )
-                self._filter = Filters[ self._filterName ];
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._dim = params._dim;
+        self._indices = TypedArray( params._indices, A32I );
+        self._filterName = params._filterName;
+        if ( self._filterName && Filters[ self._filterName ] )
+            self._filter = Filters[ self._filterName ];
         return self;
     }
     
@@ -4076,10 +4070,12 @@ var StatisticalFilter = FILTER.StatisticalFilter = FILTER.Class( FILTER.Filter, 
     ,minimum: function( d ) { 
         return this.set( null == d ? 3 : (d&1 ? d : d+1), "minimum" );
     }
+    ,erode: null
     
     ,maximum: function( d ) { 
         return this.set( null == d ? 3 : (d&1 ? d : d+1), "maximum" );
     }
+    ,dilate: null
     
     ,set: function( d, filt ) {
         var self = this;
@@ -4332,34 +4328,20 @@ var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            ,_update: self._update
-            
-            ,params: {
-                 _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString( ) : null)
-                ,_params: self._params
-            }
+             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString( ) : null)
+            ,_params: self._params
         };
         self._changed = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            self._update = json._update;
-            
-            params = json.params;
-            
-            if ( null != params._filter )
-                // using bind makes the code become [native code] and thus unserializable
-                // make FILTER namespace accessible to the function code
-                self._filter = false === params._filter ? null : new Function( "FILTER", '"use strict"; return ' + params._filter + ';')( FILTER );
-            self._params = params._params || {};
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        if ( null != params._filter )
+            // using bind makes the code become [native code] and thus unserializable
+            // make FILTER namespace accessible to the function code
+            self._filter = false === params._filter ? null : new Function( "FILTER", '"use strict"; return ' + params._filter + ';')( FILTER );
+        self._params = params._params || {};
         return self;
     }
     

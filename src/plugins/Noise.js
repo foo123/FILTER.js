@@ -31,27 +31,15 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                min: self.min
-                ,max: self.max
-            }
+             min: self.min
+            ,max: self.max
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.min = params.min;
-            self.max = params.max;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.min = params.min;
+        self.max = params.max;
         return self;
     }
     

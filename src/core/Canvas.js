@@ -73,11 +73,23 @@ CanvasProxyCtx = FILTER.Class({
         ;
         if ( 3 === argslen )
         {
+            if ( !self._data )
+            {
+                W = self._w = w;
+                H = self._h = h;
+                self._data = new IMG((W*H)<<2);
+            }
             dx = sx; dy = sy;
             set( self._data, W, H, idata, w, h, 0, 0, w-1, h-1, dx, dy );
         }
         else if ( 5 === argslen )
         {
+            if ( !self._data )
+            {
+                W = self._w = sw;
+                H = self._h = sh;
+                self._data = new IMG((W*H)<<2);
+            }
             dx = sx; dy = sy;
             dw = sw; dh = sh;
             if ( (w === dw) && (h === dh) )
@@ -87,6 +99,12 @@ CanvasProxyCtx = FILTER.Class({
         }
         else
         {
+            if ( !self._data )
+            {
+                W = self._w = dw;
+                H = self._h = dh;
+                self._data = new IMG((W*H)<<2);
+            }
             if ( (sw === dw) && (sh === dh) )
                 set( self._data, W, H, get( idata, w, h, sx, sy, sx+sw-1, sy+sh-1, true ), dw, dh, 0, 0, dw-1, dh-1, dx, dy );
             else
@@ -103,8 +121,7 @@ CanvasProxyCtx = FILTER.Class({
     },
     
     putImageData: function( data, x, y ) {
-        var self = this, W = self._w, H = self._h,
-            w = data.width, h = data.height;
+        var self = this, W = self._w, H = self._h, w = data.width, h = data.height;
         if ( null == x ) x = 0;
         if ( null == y ) y = 0;
         set( self._data, W, H, data.data, w, h, 0, 0, w-1, h-1, x, y );

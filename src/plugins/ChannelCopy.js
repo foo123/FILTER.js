@@ -14,12 +14,11 @@ FILTER.Create({
     name: "ChannelCopyFilter"
     
     // parameters
-    ,_srcImg: null
-    ,srcImg: null
     ,centerX: 0
     ,centerY: 0
     ,srcChannel: CHANNEL.RED
     ,dstChannel: CHANNEL.RED
+    ,hasInputs: true
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -33,7 +32,7 @@ FILTER.Create({
         self.dstChannel = dstChannel || CHANNEL.RED;
         self.centerX = centerX || 0;
         self.centerY = centerY || 0;
-        if ( srcImg ) self.setSrc( srcImg );
+        if ( srcImg ) self.setInput( "source", srcImg );
     }
     
     ,dispose: function( ) {
@@ -42,54 +41,26 @@ FILTER.Create({
         self.dstChannel = null;
         self.centerX = null;
         self.centerY = null;
-        self.srcImg = null;
-        self._srcImg = null;
         self.$super('dispose');
         return self;
     }
     
-    ,setSrc: function( srcImg ) {
-        var self = this;
-        if ( srcImg )
-        {
-            self.srcImg = srcImg;
-            self._srcImg = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Src = self.srcImg;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _srcImg: self._srcImg || (Src ? { data: Src.getData( ), width: Src.width, height: Src.height } : null)
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,srcChannel: self.srcChannel
-                ,dstChannel: self.dstChannel
-            }
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,srcChannel: self.srcChannel
+            ,dstChannel: self.dstChannel
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.srcImg = null;
-            self._srcImg = params._srcImg;
-            if ( self._srcImg ) self._srcImg.data = FILTER.Util.Array.typed( self._srcImg.data, FILTER.ImArray );
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.srcChannel = params.srcChannel;
-            self.dstChannel = params.dstChannel;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.srcChannel = params.srcChannel;
+        self.dstChannel = params.dstChannel;
         return self;
     }
     
@@ -99,13 +70,12 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this, Src = self.srcImg;
-        if ( !self._isOn || !(Src || self._srcImg) ) return im;
+        var self = this, Src;
+        if ( !self._isOn ) return im;
         
-        //self._srcImg = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height };
+        Src = self.input("source"); if ( !Src ) return im;
         
-        var _src = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height },
-            src = _src.data, w2 = _src.width, h2 = _src.height,
+        var src = Src[0], w2 = Src[1], h2 = Src[2],
             i, l = im.length, l2 = src.length, 
             sC = self.srcChannel, tC = self.dstChannel,
             x, x2, y, y2, off, xc, yc, 

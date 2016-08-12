@@ -44,34 +44,20 @@ var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            ,_update: self._update
-            
-            ,params: {
-                 _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString( ) : null)
-                ,_params: self._params
-            }
+             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString( ) : null)
+            ,_params: self._params
         };
         self._changed = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            self._update = json._update;
-            
-            params = json.params;
-            
-            if ( null != params._filter )
-                // using bind makes the code become [native code] and thus unserializable
-                // make FILTER namespace accessible to the function code
-                self._filter = false === params._filter ? null : new Function( "FILTER", '"use strict"; return ' + params._filter + ';')( FILTER );
-            self._params = params._params || {};
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        if ( null != params._filter )
+            // using bind makes the code become [native code] and thus unserializable
+            // make FILTER namespace accessible to the function code
+            self._filter = false === params._filter ? null : new Function( "FILTER", '"use strict"; return ' + params._filter + ';')( FILTER );
+        self._params = params._params || {};
         return self;
     }
     

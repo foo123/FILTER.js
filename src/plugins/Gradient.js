@@ -49,29 +49,17 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 angle: self.angle
-                ,colors: self.colors
-                ,stops: self.stops
-            }
+             angle: self.angle
+            ,colors: self.colors
+            ,stops: self.stops
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.angle = params.angle;
-            self.colors = TypedArray( params.colors, Array );
-            self.stops = TypedArray( params.stops, Array );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.angle = params.angle;
+        self.colors = TypedArray( params.colors, Array );
+        self.stops = TypedArray( params.stops, Array );
         return self;
     }
     

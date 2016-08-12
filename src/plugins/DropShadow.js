@@ -54,33 +54,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 offsetX: self.offsetX
-                ,offsetY: self.offsetY
-                ,color: self.color
-                ,opacity: self.opacity
-                ,quality: self.quality
-            }
+             offsetX: self.offsetX
+            ,offsetY: self.offsetY
+            ,color: self.color
+            ,opacity: self.opacity
+            ,quality: self.quality
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.offsetX = params.offsetX;
-            self.offsetY = params.offsetY;
-            self.color = params.color;
-            self.opacity = params.opacity;
-            self.quality = params.quality;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.offsetX = params.offsetX;
+        self.offsetY = params.offsetY;
+        self.color = params.color;
+        self.opacity = params.opacity;
+        self.quality = params.quality;
         return self;
     }
     

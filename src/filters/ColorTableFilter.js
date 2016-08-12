@@ -56,31 +56,19 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _tableR: self._table[CHANNEL.R]
-                ,_tableG: self._table[CHANNEL.G]
-                ,_tableB: self._table[CHANNEL.B]
-                ,_tableA: self._table[CHANNEL.A]
-            }
+             _tableR: self._table[CHANNEL.R]
+            ,_tableG: self._table[CHANNEL.G]
+            ,_tableB: self._table[CHANNEL.B]
+            ,_tableA: self._table[CHANNEL.A]
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
-            self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
-            self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
-            self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
+        self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
+        self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
+        self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
         return self;
     }
     
@@ -216,6 +204,7 @@ var ColorTableFilter = FILTER.ColorTableFilter = FILTER.Class( FILTER.Filter, {
         for(i=0; i<256; i++) { t[i] = clamp(q[ ~~(nR * i) ]); }
         return this.set(t);
     }
+    ,posterize: null
     
     ,binarize: function( ) {
         return this.quantize(2);

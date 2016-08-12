@@ -56,53 +56,41 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _mapName: self._mapName || null
-                ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
-                ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
-                ,thresholds: self.thresholds
-                ,quantizedColors: self.quantizedColors
-                ,mode: self.mode
-            }
+            _mapName: self._mapName || null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString( ) : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
+            ,thresholds: self.thresholds
+            ,quantizedColors: self.quantizedColors
+            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
+    ,unserialize: function( params ) {
+        var self = this;
+        self.mode = params.mode;
+        self.thresholds = TypedArray( params.thresholds, Array );
+        self.quantizedColors = TypedArray( params.quantizedColors, Array );
+        
+        //self._mapName = params._mapName;
+        //self._map = params._map;
+        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
         {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mode = params.mode;
-            self.thresholds = TypedArray( params.thresholds, Array );
-            self.quantizedColors = TypedArray( params.quantizedColors, Array );
-            
-            //self._mapName = params._mapName;
-            //self._map = params._map;
-            if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
-            {
-                self.set(params._mapName);
-            }
-            else if ( params._map && ("generic" === params._mapName) )
-            {
-                // using bind makes the code become [native code] and thus unserializable
-                /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
-                if ( params._mapInit )
-                    self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
-                self.set(params._map, params._mapInit||null, 1);
-            }
-            /*else
-            {
-                self._map = null;
-            }*/
+            self.set(params._mapName);
         }
+        else if ( params._map && ("generic" === params._mapName) )
+        {
+            // using bind makes the code become [native code] and thus unserializable
+            /*self._map = new Function("FILTER", '"use strict"; return ' + params._map)( FILTER );
+            if ( params._mapInit )
+                self._mapInit = new Function("FILTER", '"use strict"; return ' + params._mapInit)( FILTER );*/
+            self.set(params._map, params._mapInit||null);
+        }
+        /*else
+        {
+            self._map = null;
+        }*/
         return self;
     }
     
@@ -132,6 +120,7 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
         self.quantizedColors = quantizedColors;
         return self.set("quantize");
     }
+    ,threshold: null
     
     ,mask: function( min, max, background ) {
         var self = this;
@@ -139,24 +128,28 @@ var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
         self.quantizedColors = [background || 0];
         return self.set("mask");
     }
+    ,extract: null
     
-    ,set: function( M, preample, precompiled ) {
+    ,set: function( M, preample ) {
         var self = this;
-        if ( precompiled || ("function" === typeof M) )
+        if ( M && Maps.hasOwnProperty(String(M)) )
+        {
+            if ( self._mapName !== String(M) )
+            {
+                self._mapName = String(M);
+                self._map = Maps[self._mapName];
+                self._mapInit = Maps["init__"+self._mapName];
+                self._apply = apply__( self._map, self._mapInit );
+            }
+            self._mapChanged = false;
+        }
+        else if ( M )
         {
             self._mapName = "generic"; 
             self._map = T;
             self._mapInit = preample || null;
             self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = precompiled ? false : true;
-        }
-        else if ( M && Maps.hasOwnProperty(String(M)) && (self._mapName !== String(M)) )
-        {
-            self._mapName = String(M);
-            self._map = Maps[self._mapName];
-            self._mapInit = Maps["init__"+self._mapName];
-            self._apply = apply__( self._map, self._mapInit );
-            self._mapChanged = false;
+            self._mapChanged = true;
         }
         return self;
     }

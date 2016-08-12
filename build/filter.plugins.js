@@ -65,27 +65,15 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                min: self.min
-                ,max: self.max
-            }
+             min: self.min
+            ,max: self.max
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.min = params.min;
-            self.max = params.max;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.min = params.min;
+        self.max = params.max;
         return self;
     }
     
@@ -222,41 +210,29 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _baseX: self._baseX
-                ,_baseY: self._baseY
-                ,_octaves: self._octaves
-                ,_offsets: self._offsets
-                ,_seed: self._seed || 0
-                ,_stitch: self._stitch
-                ,_mode: self._mode
-                ,_fractal: self._fractal
-                ,_perlin: self._perlin
-            }
+             _baseX: self._baseX
+            ,_baseY: self._baseY
+            ,_octaves: self._octaves
+            ,_offsets: self._offsets
+            ,_seed: self._seed || 0
+            ,_stitch: self._stitch
+            ,_mode: self._mode
+            ,_fractal: self._fractal
+            ,_perlin: self._perlin
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._baseX = params._baseX;
-            self._baseY = params._baseY;
-            self._octaves = params._octaves;
-            self._offsets = params._offsets;
-            self._seed = params._seed || 0;
-            self._stitch = params._stitch;
-            self._mode = params._mode;
-            self._fractal = params._fractal;
-            self._perlin = params._perlin;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._baseX = params._baseX;
+        self._baseY = params._baseY;
+        self._octaves = params._octaves;
+        self._offsets = params._offsets;
+        self._seed = params._seed || 0;
+        self._stitch = params._stitch;
+        self._mode = params._mode;
+        self._fractal = params._fractal;
+        self._perlin = params._perlin;
         return self;
     }
     
@@ -324,29 +300,17 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 angle: self.angle
-                ,colors: self.colors
-                ,stops: self.stops
-            }
+             angle: self.angle
+            ,colors: self.colors
+            ,stops: self.stops
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.angle = params.angle;
-            self.colors = TypedArray( params.colors, Array );
-            self.stops = TypedArray( params.stops, Array );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.angle = params.angle;
+        self.colors = TypedArray( params.colors, Array );
+        self.stops = TypedArray( params.stops, Array );
         return self;
     }
     
@@ -462,12 +426,11 @@ FILTER.Create({
     name: "ChannelCopyFilter"
     
     // parameters
-    ,_srcImg: null
-    ,srcImg: null
     ,centerX: 0
     ,centerY: 0
     ,srcChannel: CHANNEL.RED
     ,dstChannel: CHANNEL.RED
+    ,hasInputs: true
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -481,7 +444,7 @@ FILTER.Create({
         self.dstChannel = dstChannel || CHANNEL.RED;
         self.centerX = centerX || 0;
         self.centerY = centerY || 0;
-        if ( srcImg ) self.setSrc( srcImg );
+        if ( srcImg ) self.setInput( "source", srcImg );
     }
     
     ,dispose: function( ) {
@@ -490,54 +453,26 @@ FILTER.Create({
         self.dstChannel = null;
         self.centerX = null;
         self.centerY = null;
-        self.srcImg = null;
-        self._srcImg = null;
         self.$super('dispose');
         return self;
     }
     
-    ,setSrc: function( srcImg ) {
-        var self = this;
-        if ( srcImg )
-        {
-            self.srcImg = srcImg;
-            self._srcImg = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Src = self.srcImg;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _srcImg: self._srcImg || (Src ? { data: Src.getData( ), width: Src.width, height: Src.height } : null)
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,srcChannel: self.srcChannel
-                ,dstChannel: self.dstChannel
-            }
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,srcChannel: self.srcChannel
+            ,dstChannel: self.dstChannel
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.srcImg = null;
-            self._srcImg = params._srcImg;
-            if ( self._srcImg ) self._srcImg.data = FILTER.Util.Array.typed( self._srcImg.data, FILTER.ImArray );
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.srcChannel = params.srcChannel;
-            self.dstChannel = params.dstChannel;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.srcChannel = params.srcChannel;
+        self.dstChannel = params.dstChannel;
         return self;
     }
     
@@ -547,13 +482,12 @@ FILTER.Create({
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
-        var self = this, Src = self.srcImg;
-        if ( !self._isOn || !(Src || self._srcImg) ) return im;
+        var self = this, Src;
+        if ( !self._isOn ) return im;
         
-        //self._srcImg = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height };
+        Src = self.input("source"); if ( !Src ) return im;
         
-        var _src = self._srcImg || { data: Src.getData( ), width: Src.width, height: Src.height },
-            src = _src.data, w2 = _src.width, h2 = _src.height,
+        var src = Src[0], w2 = Src[1], h2 = Src[2],
             i, l = im.length, l2 = src.length, 
             sC = self.srcChannel, tC = self.dstChannel,
             x, x2, y, y2, off, xc, yc, 
@@ -602,11 +536,10 @@ FILTER.Create({
     name: "AlphaMaskFilter"
     
     // parameters
-    ,_alphaMask: null
-    ,alphaMask: null
     ,centerX: 0
     ,centerY: 0
     ,channel: CHANNEL.ALPHA
+    ,hasInputs: true
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -619,7 +552,7 @@ FILTER.Create({
         self.channel = null == channel ? CHANNEL.ALPHA : (channel||CHANNEL.RED);
         self._alphaMask = null;
         self.alphaMask = null;
-        if ( alphaMask ) self.setMask( alphaMask );
+        if ( alphaMask ) self.setInput( "mask", alphaMask );
     }
     
     ,dispose: function( ) {
@@ -627,52 +560,24 @@ FILTER.Create({
         self.centerX = null;
         self.centerY = null;
         self.channel = null;
-        self.alphaMask = null;
-        self._alphaMask = null;
         self.$super('dispose');
         return self;
     }
     
-    ,setMask: function( alphaMask ) {
-        var self = this;
-        if ( alphaMask )
-        {
-            self.alphaMask = alphaMask;
-            self._alphaMask = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Mask = self.alphaMask;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,channel: self.channel
-            }
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,channel: self.channel
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.alphaMask = null;
-            self._alphaMask = params._alphaMask;
-            if ( self._alphaMask ) self._alphaMask.data = FILTER.Util.Array.typed( self._alphaMask.data, FILTER.ImArray );
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.channel = params.channel;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.channel = params.channel;
         return self;
     }
     
@@ -683,13 +588,12 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         
-        var self = this, Mask = self.alphaMask;
-        if ( !self._isOn || !(Mask || self._alphaMask) ) return im;
+        var self = this, Mask;
+        if ( !self._isOn ) return im;
         
-        //self._alphaMask = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height };
+        Mask = self.input("mask"); if ( !Mask ) return im;
         
-        var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
-            alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
+        var alpha = Mask[0], w2 = Mask[1], h2 = Mask[2],
             i, l = im.length, l2 = alpha.length,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  
@@ -759,25 +663,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 mode: self.mode
-            }
+             mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.mode = params.mode;
         return self;
     }
     
@@ -792,7 +684,7 @@ FILTER.Create({
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
             cdfR, cdfG, cdfB,
             accumR, accumG, accumB, t0, t1, t2,
-            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2, n=1.0/l2
+            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2
         ;
         
         // initialize the arrays
@@ -801,7 +693,7 @@ FILTER.Create({
         for (i=0; i<l; i+=32)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -809,7 +701,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+4]; g = im[i+5]; b = im[i+6];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -817,7 +709,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+8]; g = im[i+9]; b = im[i+10];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -825,7 +717,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+12]; g = im[i+13]; b = im[i+14];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -833,7 +725,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+16]; g = im[i+17]; b = im[i+18];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -841,7 +733,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+20]; g = im[i+21]; b = im[i+22];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -849,7 +741,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+24]; g = im[i+25]; b = im[i+26];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -857,7 +749,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+28]; g = im[i+29]; b = im[i+30];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -870,7 +762,7 @@ FILTER.Create({
             for (i=l-rem; i<l; i+=4)
             {
                 r = im[i]; g = im[i+1]; b = im[i+2];
-                cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+                cdfR[r]++; cdfG[g]++; cdfB[b]++;
                 maxR = Max(r, maxR);
                 maxG = Max(g, maxG);
                 maxB = Max(b, maxB);
@@ -985,7 +877,7 @@ FILTER.Create({
         }
         
         // equalize each channel separately
-        rangeR=maxR-minR; rangeG=maxG-minG; rangeB=maxB-minB;
+        rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
         if (notSupportClamp)
         {   
             for (i=0; i<l; i+=32)
@@ -1116,7 +1008,7 @@ FILTER.Create({
         if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
         
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
-            cdf, accum, i, l = im.length, l2 = l>>>2, n=1.0/l2,
+            cdf, accum, i, l = im.length, l2 = l>>>2,
             is_grayscale = MODE.GRAY === self.mode, rem = (l2&7)<<2
         ;
         
@@ -1128,35 +1020,35 @@ FILTER.Create({
             for (i=0; i<l; i+=32)
             {
                 r = im[i];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+4];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+8];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+12];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+16];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+20];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+24];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+28];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
             }
@@ -1165,7 +1057,7 @@ FILTER.Create({
                 for (i=l-rem; i<l; i+=4)
                 {
                     r = im[i];
-                    cdf[ r ] += n;
+                    cdf[ r ]++;
                     max = Max(r, max);
                     min = Min(r, min);
                 }
@@ -1184,7 +1076,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+4]; g = im[i+5]; b = im[i+6];
@@ -1196,7 +1088,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+4] = cr; im[i+5] = y; im[i+6] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+8]; g = im[i+9]; b = im[i+10];
@@ -1208,7 +1100,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+8] = cr; im[i+9] = y; im[i+10] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+12]; g = im[i+13]; b = im[i+14];
@@ -1220,7 +1112,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+12] = cr; im[i+13] = y; im[i+14] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+16]; g = im[i+17]; b = im[i+18];
@@ -1232,7 +1124,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+16] = cr; im[i+17] = y; im[i+18] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+20]; g = im[i+21]; b = im[i+22];
@@ -1244,7 +1136,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+20] = cr; im[i+21] = y; im[i+22] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+24]; g = im[i+25]; b = im[i+26];
@@ -1256,7 +1148,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+24] = cr; im[i+25] = y; im[i+26] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+28]; g = im[i+29]; b = im[i+30];
@@ -1268,7 +1160,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+28] = cr; im[i+29] = y; im[i+30] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
             }
@@ -1285,7 +1177,7 @@ FILTER.Create({
                     y = y<0 ? 0 : (y>255 ? 255 : y);
                     cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                     im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                    cdf[ y ] += n;
+                    cdf[ y ]++;
                     max = Max(y, max);
                     min = Min(y, min);
                 }
@@ -1331,7 +1223,7 @@ FILTER.Create({
         }
         
         // equalize only the intesity channel
-        range = max-min;
+        range = (max-min)/l2;
         if (notSupportClamp)
         {   
             if ( is_grayscale )
@@ -1601,25 +1493,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                scale: self.scale
-            }
+            scale: self.scale
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.scale = params.scale;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scale = params.scale;
         return self;
     }
     
@@ -1693,25 +1573,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                scale: self.scale
-            }
+            scale: self.scale
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.scale = params.scale;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scale = params.scale;
         return self;
     }
     
@@ -1798,25 +1666,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                scale: self.scale
-            }
+            scale: self.scale
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.scale = params.scale;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scale = params.scale;
         return self;
     }
     
@@ -1949,29 +1805,17 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 size: self.size
-                ,thresh: self.thresh
-                ,mode: self.mode
-            }
+             size: self.size
+            ,thresh: self.thresh
+            ,mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.size = params.size;
-            self.thresh = params.thresh;
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.size = params.size;
+        self.thresh = params.thresh;
+        self.mode = params.mode;
         return self;
     }
     
@@ -2099,169 +1943,6 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Image Blend Filter Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var HAS = 'hasOwnProperty', Min = Math.min, Round = Math.round,
-    notSupportClamp = FILTER._notSupportClamp, blend_function = FILTER.Color.Combine
-;
-
-//
-// a photoshop-like Blend Filter Plugin
-FILTER.Create({
-    name: "BlendFilter"
-    
-    // parameters
-    ,_blendImage: null
-    ,blendImage: null
-    ,mode: null
-    ,startX: 0
-    ,startY: 0
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    // constructor
-    ,init: function( blendImage, mode ) { 
-        var self = this;
-        self.startX = 0;
-        self.startY = 0;
-        self._blendImage = null;
-        self.blendImage = null;
-        self.mode = null;
-        if ( blendImage ) self.setImage( blendImage );
-        if ( mode ) self.setMode( mode );
-    }
-    
-    ,dispose: function( ) {
-        var self = this;
-        self.blendImage = null;
-        self._blendImage = null;
-        self.mode = null;
-        self.$super('dispose');
-        return self;
-    }
-    
-    // set blend image auxiliary method
-    ,setImage: function( blendImage ) {
-        var self = this;
-        if ( blendImage )
-        {
-            self.blendImage = blendImage;
-            self._blendImage = null;
-        }
-        return self;
-    }
-    
-    // set blend mode auxiliary method
-    ,setMode: function( mode ) {
-        var self = this;
-        if ( mode )
-        {
-            self.mode = (''+mode).toLowerCase();
-            if ( !blend_function[HAS](self.mode) ) self.mode = null;
-        }
-        else
-        {
-            self.mode = null;
-        }
-        return self;
-    }
-    
-    ,serialize: function( ) {
-        var self = this, bImg = self.blendImage;
-        return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _blendImage: self._blendImage || (bImg ? { data: bImg.getData( ), width: bImg.width, height: bImg.height } : null)
-                ,mode: self.mode
-                ,startX: self.startX
-                ,startY: self.startY
-            }
-        };
-    }
-    
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.startX = params.startX;
-            self.startY = params.startY;
-            self.blendImage = null;
-            self._blendImage = params._blendImage;
-            if ( self._blendImage ) self._blendImage.data = FILTER.Util.Array.typed( self._blendImage.data, FILTER.ImArray );
-            self.setMode( params.mode );
-        }
-        return self;
-    }
-    
-    ,reset: function( ) {
-        var self = this;
-        self.startX = 0;
-        self.startY = 0;
-        self.mode = null;
-        return self;
-    }
-    
-    // main apply routine
-    ,apply: function(im, w, h/*, image*/) {
-        var self = this, bImg = self.blendImage;
-        if ( !self._isOn || !self.mode || !(bImg || self._blendImage) ) return im;
-        
-        //self._blendImage = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height };
-        
-        var image2 = self._blendImage || { data: bImg.getData( ), width: bImg.width, height: bImg.height },
-            startX = self.startX||0, startY = self.startY||0, 
-            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
-            W1, W2, start, end, x, y, x2, y2,
-            pix2, blend = blend_function[ self.mode ]
-        ;
-        
-        //if ( !blend ) return im;
-        
-        if (startX < 0) { startX2 = -startX;  startX = 0; }
-        if (startY < 0) { startY2 = -startY;  startY = 0; }
-        
-        w2 = image2.width; h2 = image2.height;
-        if (startX >= w || startY >= h) return im;
-        if (startX2 >= w2 || startY2 >= h2) return im;
-        
-        startX = Round(startX); startY = Round(startY);
-        startX2 = Round(startX2); startY2 = Round(startY2);
-        W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
-        if (W <= 0 || H <= 0) return im;
-        
-        im2 = image2.data;
-        
-        // blend images
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        for(start=0,end=H*W; start<end; start++)
-        {
-            pix2 = (x2 + y2)<<2;
-            // blend only if im2 has opacity in this point
-            if ( 0 < im2[pix2+3] ) blend(im, im2, (x + y)<<2, pix2, notSupportClamp);
-            // next pixels
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
-        }
-        return im; 
-    }
-});
-
-}(FILTER);/**
-*
 * Drop Shadow Filter Plugin
 * @package FILTER.js
 *
@@ -2316,33 +1997,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 offsetX: self.offsetX
-                ,offsetY: self.offsetY
-                ,color: self.color
-                ,opacity: self.opacity
-                ,quality: self.quality
-            }
+             offsetX: self.offsetX
+            ,offsetY: self.offsetY
+            ,color: self.color
+            ,opacity: self.opacity
+            ,quality: self.quality
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.offsetX = params.offsetX;
-            self.offsetY = params.offsetY;
-            self.color = params.color;
-            self.opacity = params.opacity;
-            self.quality = params.quality;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.offsetX = params.offsetX;
+        self.offsetY = params.offsetY;
+        self.color = params.color;
+        self.opacity = params.opacity;
+        self.quality = params.quality;
         return self;
     }
     
@@ -2454,31 +2123,19 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                centerX: self.centerX
-                ,centerY: self.centerY
-                ,radius: self.radius
-                ,amount: self.amount
-            }
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,radius: self.radius
+            ,amount: self.amount
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.radius = params.radius;
-            self.amount = params.amount;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.radius = params.radius;
+        self.amount = params.amount;
         return self;
     }
     
@@ -2625,25 +2282,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                type: self.type
-            }
+            type: self.type
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.type = params.type;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.type = params.type;
         return self;
     }
     
@@ -2798,33 +2443,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 color: self.color
-                ,borderColor: self.borderColor
-                ,x: self.x
-                ,y: self.y
-                ,tolerance: self.tolerance
-            }
+             color: self.color
+            ,borderColor: self.borderColor
+            ,x: self.x
+            ,y: self.y
+            ,tolerance: self.tolerance
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.color = params.color;
-            self.borderColor = params.borderColor;
-            self.x = params.x;
-            self.y = params.y;
-            self.tolerance = params.tolerance;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.color = params.color;
+        self.borderColor = params.borderColor;
+        self.x = params.x;
+        self.y = params.y;
+        self.tolerance = params.tolerance;
         return self;
     }
     
@@ -3011,10 +2644,9 @@ FILTER.Create({
     ,offsetX: 0
     ,offsetY: 0
     ,tolerance: 0.0
-    ,pattern: null
-    ,_pattern: null
     ,mode: MODE.TILE
     ,borderColor: null
+    ,hasInputs: true
     
     ,path: FILTER_PLUGINS_PATH
     
@@ -3024,7 +2656,7 @@ FILTER.Create({
         self.y = y || 0;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
-        if ( pattern ) self.setPattern( pattern );
+        if ( pattern ) self.setInput( "pattern", pattern );
         self.mode = mode || MODE.TILE;
         self.tolerance = tolerance || 0.0;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
@@ -3032,8 +2664,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        self.pattern = null;
-        self._pattern = null;
         self.x = null;
         self.y = null;
         self.offsetX = null;
@@ -3045,68 +2675,43 @@ FILTER.Create({
         return self;
     }
     
-    ,setPattern: function( pattern ) {
-        var self = this;
-        if ( pattern )
-        {
-            self.pattern = pattern;
-            self._pattern = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Pat = self.pattern;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 x: self.x
-                ,y: self.y
-                ,offsetX: self.offsetX
-                ,offsetY: self.offsetY
-                ,tolerance: self.tolerance
-                ,mode: self.mode
-                ,borderColor: self.borderColor
-                ,_pattern: self._pattern || (Pat ? { data: Pat.getData( ), width: Pat.width, height: Pat.height } : null)
-            }
+             x: self.x
+            ,y: self.y
+            ,offsetX: self.offsetX
+            ,offsetY: self.offsetY
+            ,tolerance: self.tolerance
+            ,mode: self.mode
+            ,borderColor: self.borderColor
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.x = params.x;
-            self.y = params.y;
-            self.offsetX = params.offsetX;
-            self.offsetY = params.offsetY;
-            self.tolerance = params.tolerance;
-            self.mode = params.mode;
-            self.borderColor = params.borderColor;
-            self.pattern = null;
-            self._pattern = params._pattern;
-            if ( self._pattern ) self._pattern.data = TypedArray( self._pattern.data, FILTER.ImArray );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.x = params.x;
+        self.y = params.y;
+        self.offsetX = params.offsetX;
+        self.offsetY = params.offsetY;
+        self.tolerance = params.tolerance;
+        self.mode = params.mode;
+        self.borderColor = params.borderColor;
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this, Pat = self.pattern;
+        var self = this, Pat;
         
-        if ( !self._isOn || !(Pat || self._pattern) ) return im;
+        if ( !self._isOn ) return im;
+        
+        Pat = self.input("pattern"); if ( !Pat ) return im;
         
         // seems to have issues when tol is exactly 1.0
-        var _pat = self._pattern || { data: Pat.getData( ), width: Pat.width, height: Pat.height },
-            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+        var tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
             borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
-            OC, dy = w<<2, pattern = _pat.data, pw = _pat.width, ph = _pat.height, 
+            OC, dy = w<<2, pattern = Pat[0], pw = Pat[1], ph = Pat[2], 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
             imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
             l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone,
@@ -3328,34 +2933,13 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, //gradient_xy = FILTER.Util.Filter.GRAD2,
+var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, gradient = FILTER.Util.Filter.GRAD,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
     exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
 ;
 
 // private utility methods
-function normalize_contrast( im )
-{
-    var histogram = new Int32(256), remap = new Int32(256),
-        i, size = im.length, area = size>>>2, sum, j, k, target;
-
-    for (i=0; i<size; i+=4) histogram[ im[i] ]++;
-
-    sum = 0; j = 0;
-    for (i = 0; i<256; i++) 
-    {
-        sum += histogram[ i ];
-        target = sum*255/area;
-        for (k = j+1; k <=target; k++) remap[ k ] = i;
-        j = target;
-    }
-    for (i=0; i<size; i+=4)
-    {
-        k = remap[ im[i] ];
-        im[i] = k; im[i+1] = k; im[i+2] = k;
-    }        
-}
 function gradient_and_non_maximal_supression( im, width, height, magnitude ) 
 {
     //generate the gaussian convolution masks
@@ -3368,7 +2952,7 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
         kernel = new Float32(kernelWidth),
         diffKernel = new Float32(kernelWidth),
         sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = (PI2 * /*kernelRadius * kernelRadius*/sigma2),
+        factor = (PI2 * sigma2),
         kwidth, g1, g2, g3, x;
     for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
     {
@@ -3460,15 +3044,6 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
         gradMag = abs(xGrad)+abs(yGrad);
 
         //perform non-maximal supression
-        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
-        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
-        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
-        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
-        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
-        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
-        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
-        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
-        //tmp;
         /*
          * An explanation of what's happening here, for those who want
          * to understand the source: This performs the "non-maximal
@@ -3497,23 +3072,28 @@ function gradient_and_non_maximal_supression( im, width, height, magnitude )
          * variable (3) and reused in the mirror case (4).
          * 
          */
-        if (xGrad * yGrad <= 0 /*(1)*/
-            ? abs(xGrad) >= abs(yGrad) /*(2)*/
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
-                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
-                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
-            : abs(xGrad) >= abs(yGrad) /*(2)*/
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
-                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
-                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
+        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
+        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
+        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
+        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
+        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
+        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
+        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
+        if (xGrad * yGrad <= 0
+            ? abs(xGrad) >= abs(yGrad)
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag)
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag)
+            : abs(xGrad) >= abs(yGrad)
+                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
+                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
         ) 
         {
             magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : floor(MAGNITUDE_SCALE * gradMag);
-            //NOTE: The orientation of the edge is not employed by this
-            //implementation. It is a simple matter to compute it at
-            //this point as: Math.atan2(yGrad, xGrad);
         } 
         else 
         {
@@ -3565,15 +3145,13 @@ FILTER.Create({
     
     ,low: 2.5
     ,high: 7.5
-    ,contrastNormalized: false
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold, contrastNormalized ) {
+    ,init: function( lowThreshold, highThreshold ) {
         var self = this;
 		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
 		self.high = arguments.length < 2 ? 7.5 : highThreshold;
-        self.contrastNormalized = !!contrastNormalized;
     }
     
     ,thresholds: function( low, high ) {
@@ -3586,29 +3164,15 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 low: self.low
-                ,high: self.high
-                ,contrastNormalized: self.contrastNormalized
-            }
+             low: self.low
+            ,high: self.high
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.low = params.low;
-            self.high = params.high;
-            self.contrastNormalized = params.contrastNormalized;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.low = params.low;
+        self.high = params.high;
         return self;
     }
     
@@ -3616,8 +3180,7 @@ FILTER.Create({
     ,apply: function(im, w, h) {
         var self = this, area = im.length>>2, gradient_magnitude;
         
-        // NOTE: assume image is already grayscale
-        if ( self.contrastNormalized ) normalize_contrast( im );
+        // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
         hysteresis_and_threshold( im, w, h, gradient_magnitude, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ) );
         
@@ -4041,52 +3604,38 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            ,_update: self._update
-            
-            ,params: {
-                 //haardata: null
-                 baseScale: self.baseScale
-                ,scaleIncrement: self.scaleIncrement
-                ,stepIncrement: self.stepIncrement
-                ,minNeighbors: self.minNeighbors
-                ,doCannyPruning: self.doCannyPruning
-                ,tolerance: self.tolerance
-                ,cannyLow: self.cannyLow
-                ,cannyHigh: self.cannyHigh
-                ,selection: self.selection
-            }
+             //haardata: null
+             baseScale: self.baseScale
+            ,scaleIncrement: self.scaleIncrement
+            ,stepIncrement: self.stepIncrement
+            ,minNeighbors: self.minNeighbors
+            ,doCannyPruning: self.doCannyPruning
+            ,tolerance: self.tolerance
+            ,cannyLow: self.cannyLow
+            ,cannyHigh: self.cannyHigh
+            ,selection: self.selection
         };
         // avoid unnecessary (large) data transfer
         if ( self._haarchanged )
         {
-            json.params.haardata = TypedObj( self.haardata );
+            json.haardata = TypedObj( self.haardata );
             self._haarchanged = false;
         }
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = json._isOn;
-            self._update = json._update;
-            
-            params = json.params;
-            
-            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata, 1 );
-            self.baseScale = params.baseScale;
-            self.scaleIncrement = params.scaleIncrement;
-            self.stepIncrement = params.stepIncrement;
-            self.minNeighbors = params.minNeighbors;
-            self.doCannyPruning = params.doCannyPruning;
-            self.tolerance = params.tolerance;
-            self.cannyLow = params.cannyLow;
-            self.cannyHigh = params.cannyHigh;
-            self.selection = TypedArray(params.selection, Array);
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata, 1 );
+        self.baseScale = params.baseScale;
+        self.scaleIncrement = params.scaleIncrement;
+        self.stepIncrement = params.stepIncrement;
+        self.minNeighbors = params.minNeighbors;
+        self.doCannyPruning = params.doCannyPruning;
+        self.tolerance = params.tolerance;
+        self.cannyLow = params.cannyLow;
+        self.cannyHigh = params.cannyHigh;
+        self.selection = TypedArray(params.selection, Array);
         return self;
     }
     
@@ -4145,7 +3694,7 @@ FILTER.Create({
             }
             else
             {
-                sat_gradient(im, w, h, EDGES=new Array32F(imSize), 1);
+                sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
                 if ( scratchpad ) { scratchpad.EDGES = EDGES; }
             }
         }
@@ -4318,33 +3867,21 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 connectivity: self.connectivity
-                ,tolerance: self.tolerance
-                ,mode: self.mode
-                ,color: self.color
-                ,invert: self.invert
-            }
+             connectivity: self.connectivity
+            ,tolerance: self.tolerance
+            ,mode: self.mode
+            ,color: self.color
+            ,invert: self.invert
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.connectivity = params.connectivity;
-            self.tolerance = params.tolerance;
-            self.mode = params.mode;
-            self.color = params.color;
-            self.invert = params.invert;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.connectivity = params.connectivity;
+        self.tolerance = params.tolerance;
+        self.mode = params.mode;
+        self.color = params.color;
+        self.invert = params.invert;
         return self;
     }
     

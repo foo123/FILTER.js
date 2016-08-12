@@ -44,29 +44,17 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 matrix: self.matrix
-                ,mode: self.mode
-                ,color: self.color
-            }
+             matrix: self.matrix
+            ,mode: self.mode
+            ,color: self.color
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.matrix = TypedArray( params.matrix, AM );
-            self.mode = params.mode;
-            self.color = params.color;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.matrix = TypedArray( params.matrix, AM );
+        self.mode = params.mode;
+        self.color = params.color;
         return self;
     }
     
@@ -102,6 +90,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
             0, 1, ty, 0
         ]);
     }
+    ,shift: null
     
     ,rotate: function( theta ) {
         var s = Sin(theta), c = Cos(theta);

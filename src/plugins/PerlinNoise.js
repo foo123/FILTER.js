@@ -86,41 +86,29 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 _baseX: self._baseX
-                ,_baseY: self._baseY
-                ,_octaves: self._octaves
-                ,_offsets: self._offsets
-                ,_seed: self._seed || 0
-                ,_stitch: self._stitch
-                ,_mode: self._mode
-                ,_fractal: self._fractal
-                ,_perlin: self._perlin
-            }
+             _baseX: self._baseX
+            ,_baseY: self._baseY
+            ,_octaves: self._octaves
+            ,_offsets: self._offsets
+            ,_seed: self._seed || 0
+            ,_stitch: self._stitch
+            ,_mode: self._mode
+            ,_fractal: self._fractal
+            ,_perlin: self._perlin
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self._baseX = params._baseX;
-            self._baseY = params._baseY;
-            self._octaves = params._octaves;
-            self._offsets = params._offsets;
-            self._seed = params._seed || 0;
-            self._stitch = params._stitch;
-            self._mode = params._mode;
-            self._fractal = params._fractal;
-            self._perlin = params._perlin;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self._baseX = params._baseX;
+        self._baseY = params._baseY;
+        self._octaves = params._octaves;
+        self._offsets = params._offsets;
+        self._seed = params._seed || 0;
+        self._stitch = params._stitch;
+        self._mode = params._mode;
+        self._fractal = params._fractal;
+        self._perlin = params._perlin;
         return self;
     }
     

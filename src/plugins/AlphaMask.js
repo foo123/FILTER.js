@@ -14,11 +14,10 @@ FILTER.Create({
     name: "AlphaMaskFilter"
     
     // parameters
-    ,_alphaMask: null
-    ,alphaMask: null
     ,centerX: 0
     ,centerY: 0
     ,channel: CHANNEL.ALPHA
+    ,hasInputs: true
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
@@ -31,7 +30,7 @@ FILTER.Create({
         self.channel = null == channel ? CHANNEL.ALPHA : (channel||CHANNEL.RED);
         self._alphaMask = null;
         self.alphaMask = null;
-        if ( alphaMask ) self.setMask( alphaMask );
+        if ( alphaMask ) self.setInput( "mask", alphaMask );
     }
     
     ,dispose: function( ) {
@@ -39,52 +38,24 @@ FILTER.Create({
         self.centerX = null;
         self.centerY = null;
         self.channel = null;
-        self.alphaMask = null;
-        self._alphaMask = null;
         self.$super('dispose');
         return self;
     }
     
-    ,setMask: function( alphaMask ) {
-        var self = this;
-        if ( alphaMask )
-        {
-            self.alphaMask = alphaMask;
-            self._alphaMask = null;
-        }
-        return self;
-    }
-    
     ,serialize: function( ) {
-        var self = this, Mask = self.alphaMask;
+        var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                _alphaMask: self._alphaMask || (Mask ? { data: Mask.getData( ), width: Mask.width, height: Mask.height } : null)
-                ,centerX: self.centerX
-                ,centerY: self.centerY
-                ,channel: self.channel
-            }
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,channel: self.channel
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.alphaMask = null;
-            self._alphaMask = params._alphaMask;
-            if ( self._alphaMask ) self._alphaMask.data = FILTER.Util.Array.typed( self._alphaMask.data, FILTER.ImArray );
-            self.centerX = params.centerX;
-            self.centerY = params.centerY;
-            self.channel = params.channel;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.channel = params.channel;
         return self;
     }
     
@@ -95,13 +66,12 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         
-        var self = this, Mask = self.alphaMask;
-        if ( !self._isOn || !(Mask || self._alphaMask) ) return im;
+        var self = this, Mask;
+        if ( !self._isOn ) return im;
         
-        //self._alphaMask = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height };
+        Mask = self.input("mask"); if ( !Mask ) return im;
         
-        var _alpha = self._alphaMask || { data: Mask.getData( ), width: Mask.width, height: Mask.height },
-            alpha = _alpha.data, w2 = _alpha.width, h2 = _alpha.height,
+        var alpha = Mask[0], w2 = Mask[1], h2 = Mask[2],
             i, l = im.length, l2 = alpha.length,
             x, x2, y, y2, off, xc, yc, 
             wm = Min(w, w2), hm = Min(h, h2),  

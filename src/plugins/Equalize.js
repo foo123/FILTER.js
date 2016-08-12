@@ -27,25 +27,13 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                 mode: self.mode
-            }
+             mode: self.mode
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.mode = params.mode;
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.mode = params.mode;
         return self;
     }
     
@@ -60,7 +48,7 @@ FILTER.Create({
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
             cdfR, cdfG, cdfB,
             accumR, accumG, accumB, t0, t1, t2,
-            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2, n=1.0/l2
+            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2
         ;
         
         // initialize the arrays
@@ -69,7 +57,7 @@ FILTER.Create({
         for (i=0; i<l; i+=32)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -77,7 +65,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+4]; g = im[i+5]; b = im[i+6];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -85,7 +73,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+8]; g = im[i+9]; b = im[i+10];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -93,7 +81,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+12]; g = im[i+13]; b = im[i+14];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -101,7 +89,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+16]; g = im[i+17]; b = im[i+18];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -109,7 +97,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+20]; g = im[i+21]; b = im[i+22];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -117,7 +105,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+24]; g = im[i+25]; b = im[i+26];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -125,7 +113,7 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
             r = im[i+28]; g = im[i+29]; b = im[i+30];
-            cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+            cdfR[r]++; cdfG[g]++; cdfB[b]++;
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -138,7 +126,7 @@ FILTER.Create({
             for (i=l-rem; i<l; i+=4)
             {
                 r = im[i]; g = im[i+1]; b = im[i+2];
-                cdfR[r] += n; cdfG[g] += n; cdfB[b] += n;
+                cdfR[r]++; cdfG[g]++; cdfB[b]++;
                 maxR = Max(r, maxR);
                 maxG = Max(g, maxG);
                 maxB = Max(b, maxB);
@@ -253,7 +241,7 @@ FILTER.Create({
         }
         
         // equalize each channel separately
-        rangeR=maxR-minR; rangeG=maxG-minG; rangeB=maxB-minB;
+        rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
         if (notSupportClamp)
         {   
             for (i=0; i<l; i+=32)
@@ -384,7 +372,7 @@ FILTER.Create({
         if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
         
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
-            cdf, accum, i, l = im.length, l2 = l>>>2, n=1.0/l2,
+            cdf, accum, i, l = im.length, l2 = l>>>2,
             is_grayscale = MODE.GRAY === self.mode, rem = (l2&7)<<2
         ;
         
@@ -396,35 +384,35 @@ FILTER.Create({
             for (i=0; i<l; i+=32)
             {
                 r = im[i];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+4];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+8];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+12];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+16];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+20];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+24];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
                 r = im[i+28];
-                cdf[ r ] += n;
+                cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
             }
@@ -433,7 +421,7 @@ FILTER.Create({
                 for (i=l-rem; i<l; i+=4)
                 {
                     r = im[i];
-                    cdf[ r ] += n;
+                    cdf[ r ]++;
                     max = Max(r, max);
                     min = Min(r, min);
                 }
@@ -452,7 +440,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+4]; g = im[i+5]; b = im[i+6];
@@ -464,7 +452,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+4] = cr; im[i+5] = y; im[i+6] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+8]; g = im[i+9]; b = im[i+10];
@@ -476,7 +464,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+8] = cr; im[i+9] = y; im[i+10] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+12]; g = im[i+13]; b = im[i+14];
@@ -488,7 +476,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+12] = cr; im[i+13] = y; im[i+14] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+16]; g = im[i+17]; b = im[i+18];
@@ -500,7 +488,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+16] = cr; im[i+17] = y; im[i+18] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+20]; g = im[i+21]; b = im[i+22];
@@ -512,7 +500,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+20] = cr; im[i+21] = y; im[i+22] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+24]; g = im[i+25]; b = im[i+26];
@@ -524,7 +512,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+24] = cr; im[i+25] = y; im[i+26] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
                 r = im[i+28]; g = im[i+29]; b = im[i+30];
@@ -536,7 +524,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i+28] = cr; im[i+29] = y; im[i+30] = cb;
-                cdf[ y ] += n;
+                cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
             }
@@ -553,7 +541,7 @@ FILTER.Create({
                     y = y<0 ? 0 : (y>255 ? 255 : y);
                     cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                     im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                    cdf[ y ] += n;
+                    cdf[ y ]++;
                     max = Max(y, max);
                     min = Min(y, min);
                 }
@@ -599,7 +587,7 @@ FILTER.Create({
         }
         
         // equalize only the intesity channel
-        range = max-min;
+        range = (max-min)/l2;
         if (notSupportClamp)
         {   
             if ( is_grayscale )

@@ -414,52 +414,38 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this, json;
         json = {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            ,_update: self._update
-            
-            ,params: {
-                 //haardata: null
-                 baseScale: self.baseScale
-                ,scaleIncrement: self.scaleIncrement
-                ,stepIncrement: self.stepIncrement
-                ,minNeighbors: self.minNeighbors
-                ,doCannyPruning: self.doCannyPruning
-                ,tolerance: self.tolerance
-                ,cannyLow: self.cannyLow
-                ,cannyHigh: self.cannyHigh
-                ,selection: self.selection
-            }
+             //haardata: null
+             baseScale: self.baseScale
+            ,scaleIncrement: self.scaleIncrement
+            ,stepIncrement: self.stepIncrement
+            ,minNeighbors: self.minNeighbors
+            ,doCannyPruning: self.doCannyPruning
+            ,tolerance: self.tolerance
+            ,cannyLow: self.cannyLow
+            ,cannyHigh: self.cannyHigh
+            ,selection: self.selection
         };
         // avoid unnecessary (large) data transfer
         if ( self._haarchanged )
         {
-            json.params.haardata = TypedObj( self.haardata );
+            json.haardata = TypedObj( self.haardata );
             self._haarchanged = false;
         }
         return json;
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = json._isOn;
-            self._update = json._update;
-            
-            params = json.params;
-            
-            if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata, 1 );
-            self.baseScale = params.baseScale;
-            self.scaleIncrement = params.scaleIncrement;
-            self.stepIncrement = params.stepIncrement;
-            self.minNeighbors = params.minNeighbors;
-            self.doCannyPruning = params.doCannyPruning;
-            self.tolerance = params.tolerance;
-            self.cannyLow = params.cannyLow;
-            self.cannyHigh = params.cannyHigh;
-            self.selection = TypedArray(params.selection, Array);
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        if ( params[HAS]('haardata') ) self.haardata = TypedObj( params.haardata, 1 );
+        self.baseScale = params.baseScale;
+        self.scaleIncrement = params.scaleIncrement;
+        self.stepIncrement = params.stepIncrement;
+        self.minNeighbors = params.minNeighbors;
+        self.doCannyPruning = params.doCannyPruning;
+        self.tolerance = params.tolerance;
+        self.cannyLow = params.cannyLow;
+        self.cannyHigh = params.cannyHigh;
+        self.selection = TypedArray(params.selection, Array);
         return self;
     }
     
@@ -518,7 +504,7 @@ FILTER.Create({
             }
             else
             {
-                sat_gradient(im, w, h, EDGES=new Array32F(imSize), 1);
+                sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
                 if ( scratchpad ) { scratchpad.EDGES = EDGES; }
             }
         }

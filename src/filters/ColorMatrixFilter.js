@@ -16,7 +16,7 @@
 "use strict";
 
 var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
-    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, rechannel = FUtil.cm_rechannel,
+    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, blend = FUtil.cm_combine, rechannel = FUtil.cm_rechannel,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
 ;
@@ -47,25 +47,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,serialize: function( ) {
         var self = this;
         return {
-            filter: self.name
-            ,_isOn: !!self._isOn
-            
-            ,params: {
-                matrix: self.matrix
-            }
+            matrix: self.matrix
         };
     }
     
-    ,unserialize: function( json ) {
-        var self = this, params;
-        if ( json && self.name === json.filter )
-        {
-            self._isOn = !!json._isOn;
-            
-            params = json.params;
-            
-            self.matrix = TypedArray( params.matrix, CM );
-        }
+    ,unserialize: function( params ) {
+        var self = this;
+        self.matrix = TypedArray( params.matrix, CM );
         return self;
     }
     
@@ -189,6 +177,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
         ));
     }
+    ,grayscale: null
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,saturate: function( s ) {
@@ -270,12 +259,13 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
         ));
     }
+    ,rotateHue: null
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,average: function( r, g, b ) {
         if ( null == r ) r = 0.3333;
         if ( null == g ) g = 0.3333;
-        if ( null == b ) b = 0.3334;
+        if ( null == b ) b = 0.3333;
         return this.set(rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
@@ -359,6 +349,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,thresholdRGB: function( threshold, factor ) {
         return this.threshold(threshold, factor, false);
     }
+    ,threshold_rgb: null
     
     ,thresholdChannel: function( channel, threshold, factor, lumia ) {
         if ( null == factor ) factor = 256;
@@ -405,6 +396,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     ,thresholdAlpha: function( threshold, factor, lumia ) {
         return this.thresholdChannel(CHANNEL.A, threshold, factor, lumia);
     }
+    ,threshold_alpha: null
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
@@ -434,8 +426,9 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     
     // blend with another filter
     ,blend: function( filt, amount ) {
-        this.matrix = this.matrix ? cm_blend(this.matrix, filt.matrix, amount) : new CM(filt.matrix);
-        return this;
+        var self = this;
+        self.matrix = self.matrix ? blend(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
+        return self;
     }
     
     ,set: function( matrix ) {
@@ -454,8 +447,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp
-    ? function( im, w, h/*, image*/ ) {
+    ,_apply: notSupportClamp ? function( im, w, h/*, image*/ ) {
         var self = this, M = self.matrix;
         if ( !self._isOn || !M ) return im;
         
@@ -579,8 +571,7 @@ var ColorMatrixFilter = FILTER.ColorMatrixFilter = FILTER.Class( FILTER.Filter, 
             }
         }
         return im;
-    }
-    : function( im, w, h/*, image*/ ) {
+    } : function( im, w, h/*, image*/ ) {
         var self = this, M = self.matrix;
         if ( !self._isOn || !M ) return im;
         
@@ -675,39 +666,5 @@ ColorMatrixFilter.prototype.grayscale = ColorMatrixFilter.prototype.desaturate;
 ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
-ColorMatrixFilter.blend = cm_blend;
-
-function cm_blend( m1, m2, amount )
-{
-    var m = new CM(20);
-    
-    // unroll the loop completely
-    m[ 0 ] = m1[0] + amount * (m2[0]-m1[0]);
-    m[ 1 ] = m1[1] + amount * (m2[1]-m1[1]);
-    m[ 2 ] = m1[2] + amount * (m2[2]-m1[2]);
-    m[ 3 ] = m1[3] + amount * (m2[3]-m1[3]);
-    m[ 4 ] = m1[4] + amount * (m2[4]-m1[4]);
-
-    m[ 5 ] = m1[5] + amount * (m2[5]-m1[5]);
-    m[ 6 ] = m1[6] + amount * (m2[6]-m1[6]);
-    m[ 7 ] = m1[7] + amount * (m2[7]-m1[7]);
-    m[ 8 ] = m1[8] + amount * (m2[8]-m1[0]);
-    m[ 9 ] = m1[9] + amount * (m2[9]-m1[9]);
-    
-    m[ 10 ] = m1[10] + amount * (m2[10]-m1[10]);
-    m[ 11 ] = m1[11] + amount * (m2[11]-m1[11]);
-    m[ 12 ] = m1[12] + amount * (m2[12]-m1[12]);
-    m[ 13 ] = m1[13] + amount * (m2[13]-m1[13]);
-    m[ 14 ] = m1[14] + amount * (m2[14]-m1[14]);
-    
-    m[ 15 ] = m1[15] + amount * (m2[15]-m1[15]);
-    m[ 16 ] = m1[16] + amount * (m2[16]-m1[16]);
-    m[ 17 ] = m1[17] + amount * (m2[17]-m1[17]);
-    m[ 18 ] = m1[18] + amount * (m2[18]-m1[18]);
-    m[ 19 ] = m1[19] + amount * (m2[19]-m1[19]);
-    
-    //while (i < 20) { m[i] = (inv_amount * m1[i]) + (amount * m2[i]);  i++; };
-    return m;
-}
 
 }(FILTER);
