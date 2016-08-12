@@ -683,7 +683,7 @@ In order to use a blend filter do the following:
 
 var screenBlend = new FILTER.BlendFilter( blendImg, "screen" );
 // this also works
-var screenBlend = FILTER.BlendFilter.setImage( blendImg ).setMode( "screen" );
+var screenBlend = FILTER.BlendFilter.setInput( "blend", blendImg ).setMode( "screen" );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 screenBlend.worker( );
