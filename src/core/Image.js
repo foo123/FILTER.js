@@ -417,9 +417,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // get direct data array
-    ,getData: function( ) {
+    ,getData: function( processed ) {
         var self = this, Data;
-        if ( self._restorable )
+        if ( self._restorable && !processed )
         {
         if (self._refresh & IDATA) refresh_data( self, IDATA );
         Data = self.iData;
@@ -434,12 +434,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // get direct data array of selected part
-    ,getSelectedData: function( ) {
+    ,getSelectedData: function( processed ) {
         var self = this, sel;
         
         if (self.selection)  
         {
-            if ( self._restorable )
+            if ( self._restorable && !processed )
             {
             if (self._refresh & ISEL) refresh_selected_data( self, ISEL );
             sel = self.iDataSel;
@@ -452,7 +452,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         else
         {
-            if ( self._restorable )
+            if ( self._restorable && !processed )
             {
             if (self._refresh & IDATA) refresh_data( self, IDATA );
             sel = self.iData;
@@ -462,32 +462,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if (self._refresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
             }
-        }
-        // clone it
-        return [new IMGcpy( sel.data ), sel.width, sel.height];
-    }
-    
-    // get processed data array
-    ,getProcessedData: function( ) {
-        var self = this;
-        if (self._refresh & ODATA) refresh_data( self, ODATA );
-        // clone it
-        return new IMGcpy( self.oData.data );
-    }
-    
-    // get processed data array of selected part
-    ,getProcessedSelectedData: function( ) {
-        var self = this, sel;
-        
-        if (self.selection)  
-        {
-            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
-            sel = self.oDataSel;
-        }
-        else
-        {
-            if (self._refresh & ODATA) refresh_data( self, ODATA );
-            sel = self.oData;
         }
         // clone it
         return [new IMGcpy( sel.data ), sel.width, sel.height];

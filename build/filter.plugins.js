@@ -3140,6 +3140,8 @@ function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
 // an efficient Canny Edges Detector
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
+// expose as static utility methods
+FILTER.Util.Filter.canny_gradient = gradient_and_non_maximal_supression;
 FILTER.Create({
     name : "CannyEdgesFilter"
     
@@ -3178,7 +3180,8 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this, area = im.length>>2, gradient_magnitude;
+        var self = this, area = im.length>>2, gradient_magnitude,
+            gradient_and_non_maximal_supression = FILTER.Util.Filter.canny_gradient;
         
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
@@ -3187,7 +3190,7 @@ FILTER.Create({
         return im;
     }
 });
-    
+
 }(FILTER);/**
 *
 * HAAR Feature Detector Plugin
@@ -3509,6 +3512,9 @@ function merge_features(rects, min_neighbors, tolerance)
 // references:
 // 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
 // 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
+// expose as static utility methods
+FILTER.Util.Filter.haar_detect = haar_detect;
+FILTER.Util.Filter.merge_features = merge_features;
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -3657,7 +3663,9 @@ FILTER.Create({
         var imSize = im.length>>>2,
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
-            x1, y1, x2, y2, features;
+            x1, y1, x2, y2, features,
+            haar_detect = FILTER.Util.Filter.haar_detect,
+            merge_features = FILTER.Util.Filter.merge_features;
         
         if ( selection )
         {
@@ -3712,9 +3720,6 @@ FILTER.Create({
         return im;
     }
 });
-// expose as static utility methods
-FILTER.HaarDetectorFilter.detect = haar_detect;
-FILTER.HaarDetectorFilter.merge = merge_features;
 
 }(FILTER);/**
 *

@@ -382,14 +382,24 @@ var
         
         
         ,setInput: function( key, inputImage ) {
-            this._inputs[key] = [null, inputImage];
-            return this;
+            var self = this;
+            if ( null === inputImage )
+            {
+                if ( self._inputs[key] ) delete self._inputs[key];
+            }
+            else
+            {
+                self._inputs[key] = [null, inputImage];
+            }
+            return self;
         }
         
-        ,delInput: function( key ) {
-            if ( this._inputs[key] ) delete this._inputs[key];
-            return this;
+        ,unsetInput: function( key ) {
+            var self = this;
+            if ( self._inputs[key] ) delete self._inputs[key];
+            return self;
         }
+        ,delInput: null
         
         ,input: function( key ) {
             var input = this._inputs[key];
@@ -397,6 +407,7 @@ var
             if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
             return input[0] || null;
         }
+        ,getInput: null
         
         // @override
         ,serialize: function( ) {
@@ -588,6 +599,8 @@ var
         }
     })
 ;
+FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
+FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 
 FILTER.Filter.get = function( filterClass ) {
     if ( !filterClass || !filterClass.length ) return null;

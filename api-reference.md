@@ -65,14 +65,12 @@ __Methods:__
 * `flipHorizontal()`  flip image horizontally
 * `flipVertical()`  flip image vertically
 * `setData()` sets the image pixel data
-* `getData()` gets a copy of image pixel data
-* `getProcessedData()` gets a copy of image processed/filtered data
+* `getData(processed:Boolean=false)` gets a copy of image (original or processed/filtered) pixel data
 * `setSelectedData()` sets the image pixel data for the current selection
-* `getSelectedData()` gets a copy of the pixel data of current image selection region
-* `getProcessedSelectedData()` gets a copy of the processed/filtered data of current image selection region
-* `integral(channel:FILTER.CHANNEL)`  Computes (and caches) the image integral (SAT image)
-* `histogram(channel:FILTER.CHANNEL)`  Computes (and caches) the image histogram
-* `spectrum(channel:FILTER.CHANNEL)`  Computes (and caches) the image fourier frequency spectrum (TODO)
+* `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
+* `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
+* `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
+* `spectrum(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image fourier frequency spectrum per channel (TODO)
 * `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
@@ -129,7 +127,8 @@ __Methods:__
 * `isOn( )`   check if filter is ON or OFF
 * `combineWith( similarFilterInstance )`   for any filter that supports combination of a similar filter with itself, else does nothing
 * `setInput(key, inputImage)`  for filters that accept multiple extra inputs (e.g blend filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
-* `input(key)`  for filters that accept multiple extra inputs (except the main image input e.g blend filters) the extra inputs are available to the filter via this method by inputKey (see above)
+* `unsetInput(key)`  for filters that accept multiple extra inputs (e.g blend filters) this method unsets inputs by key (see above)
+* `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g blend filters) the extra inputs are available to the filter via this method by inputKey (see above)
 * `serialize( )`   serialize filter's parameters (for use with parallel worker filters)
 * `unserialize( data:Object )`   unserialize filter's parameters (for use with parallel worker filters)
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)

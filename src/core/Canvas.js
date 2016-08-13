@@ -116,7 +116,7 @@ CanvasProxyCtx = FILTER.Class({
         var self = this;
         self._data = new IMG((w*h)<<2);
         self._w = w; self._h = h;
-        fill( self._data, w, h, [0,0,0,0], 0, 0, w-1, h-1 );
+        //fill( self._data, w, h, [0,0,0,0], 0, 0, w-1, h-1 );
         return self;
     },
     

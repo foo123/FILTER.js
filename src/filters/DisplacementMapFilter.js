@@ -83,7 +83,7 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     }
     
     ,reset: function( ) {
-        this.delInput("map"); 
+        this.unsetInput("map"); 
         return this;
     }
     

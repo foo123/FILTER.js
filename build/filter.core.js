@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-13 02:06:27
+*   @built on 2016-08-13 14:27:40
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-13 02:06:27
+*   @built on 2016-08-13 14:27:40
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -35,10 +35,11 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 **/
 "use strict";
-var FILTER = Classy.Merge({ 
-    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
-}, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "0.9.5";
+var FILTER = {
+    VERSION: "0.9.5",
+    Classy: Classy, Asynchronous: Asynchronous,
+    Class: Classy.Class, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
+};
 /**
 *
 * Filter SuperClass, Interfaces and Utilities
@@ -53,7 +54,7 @@ FILTER.VERSION = "0.9.5";
 var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     
-    ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
+    ,FILTERPath = FILTER.Path, Merge = FILTER.Classy.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( null, true ), isInsideThread = Async.isThread( )
@@ -423,14 +424,24 @@ var
         
         
         ,setInput: function( key, inputImage ) {
-            this._inputs[key] = [null, inputImage];
-            return this;
+            var self = this;
+            if ( null === inputImage )
+            {
+                if ( self._inputs[key] ) delete self._inputs[key];
+            }
+            else
+            {
+                self._inputs[key] = [null, inputImage];
+            }
+            return self;
         }
         
-        ,delInput: function( key ) {
-            if ( this._inputs[key] ) delete this._inputs[key];
-            return this;
+        ,unsetInput: function( key ) {
+            var self = this;
+            if ( self._inputs[key] ) delete self._inputs[key];
+            return self;
         }
+        ,delInput: null
         
         ,input: function( key ) {
             var input = this._inputs[key];
@@ -438,6 +449,7 @@ var
             if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
             return input[0] || null;
         }
+        ,getInput: null
         
         // @override
         ,serialize: function( ) {
@@ -629,6 +641,8 @@ var
         }
     })
 ;
+FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
+FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 
 FILTER.Filter.get = function( filterClass ) {
     if ( !filterClass || !filterClass.length ) return null;
@@ -658,10 +672,10 @@ FILTER.Create = function( methods ) {
             ,toString: toStringPlugin
             ,apply: applyPlugin
     }, methods);
+    var filterName = methods.name;
     methods.constructor = constructorPlugin( methods.init );
     methods._apply = methods.apply;
     delete methods.init; delete methods.apply;
-    var filterName = methods.name;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };
 
@@ -4625,7 +4639,7 @@ CanvasProxyCtx = FILTER.Class({
         var self = this;
         self._data = new IMG((w*h)<<2);
         self._w = w; self._h = h;
-        fill( self._data, w, h, [0,0,0,0], 0, 0, w-1, h-1 );
+        //fill( self._data, w, h, [0,0,0,0], 0, 0, w-1, h-1 );
         return self;
     },
     
@@ -5173,9 +5187,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // get direct data array
-    ,getData: function( ) {
+    ,getData: function( processed ) {
         var self = this, Data;
-        if ( self._restorable )
+        if ( self._restorable && !processed )
         {
         if (self._refresh & IDATA) refresh_data( self, IDATA );
         Data = self.iData;
@@ -5190,12 +5204,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // get direct data array of selected part
-    ,getSelectedData: function( ) {
+    ,getSelectedData: function( processed ) {
         var self = this, sel;
         
         if (self.selection)  
         {
-            if ( self._restorable )
+            if ( self._restorable && !processed )
             {
             if (self._refresh & ISEL) refresh_selected_data( self, ISEL );
             sel = self.iDataSel;
@@ -5208,7 +5222,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         else
         {
-            if ( self._restorable )
+            if ( self._restorable && !processed )
             {
             if (self._refresh & IDATA) refresh_data( self, IDATA );
             sel = self.iData;
@@ -5218,32 +5232,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if (self._refresh & ODATA) refresh_data( self, ODATA );
             sel = self.oData;
             }
-        }
-        // clone it
-        return [new IMGcpy( sel.data ), sel.width, sel.height];
-    }
-    
-    // get processed data array
-    ,getProcessedData: function( ) {
-        var self = this;
-        if (self._refresh & ODATA) refresh_data( self, ODATA );
-        // clone it
-        return new IMGcpy( self.oData.data );
-    }
-    
-    // get processed data array of selected part
-    ,getProcessedSelectedData: function( ) {
-        var self = this, sel;
-        
-        if (self.selection)  
-        {
-            if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
-            sel = self.oDataSel;
-        }
-        else
-        {
-            if (self._refresh & ODATA) refresh_data( self, ODATA );
-            sel = self.oData;
         }
         // clone it
         return [new IMGcpy( sel.data ), sel.width, sel.height];
@@ -5803,14 +5791,14 @@ FILTER.IO.Loader = FILTER.IO.Reader = FILTER.Class({
     
     __static__: {
         // accessible as "$class.load" (extendable and with "late static binding")
-        load: FILTER.Method(function($super, $private, $class){
+        load: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
               return function( url, onLoad, onError ) {
                 return new $class().load(url, onLoad, onError);
             }
-        }, FILTER.LATE|FILTER.STATIC )
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
     constructor: function Loader() {
@@ -5862,14 +5850,14 @@ FILTER.IO.Writer = FILTER.Class({
     
     __static__: {
         // accessible as "$class.load" (extendable and with "late static binding")
-        write: FILTER.Method(function($super, $private, $class){
+        write: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
               return function( file, data, onWrite, onError ) {
                 return new $class().write(file, data, onWrite, onError);
             }
-        }, FILTER.LATE|FILTER.STATIC )
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
     constructor: function Writer() {
