@@ -319,6 +319,9 @@ function merge_features(rects, min_neighbors, tolerance)
 // references:
 // 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
 // 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
+// expose as static utility methods
+FILTER.Util.Filter.haar_detect = haar_detect;
+FILTER.Util.Filter.merge_features = merge_features;
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -467,7 +470,9 @@ FILTER.Create({
         var imSize = im.length>>>2,
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
-            x1, y1, x2, y2, features;
+            x1, y1, x2, y2, features,
+            haar_detect = FILTER.Util.Filter.haar_detect,
+            merge_features = FILTER.Util.Filter.merge_features;
         
         if ( selection )
         {
@@ -522,8 +527,5 @@ FILTER.Create({
         return im;
     }
 });
-// expose as static utility methods
-FILTER.HaarDetectorFilter.detect = haar_detect;
-FILTER.HaarDetectorFilter.merge = merge_features;
 
 }(FILTER);

@@ -12,7 +12,7 @@
 var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     
-    ,FILTERPath = FILTER.Path, Merge = FILTER.Merge, Async = FILTER.Asynchronous
+    ,FILTERPath = FILTER.Path, Merge = FILTER.Classy.Merge, Async = FILTER.Asynchronous
     
     ,isNode = Async.isPlatform( Async.Platform.NODE ), isBrowser = Async.isPlatform( Async.Platform.BROWSER )
     ,supportsThread = Async.supportsMultiThreading( ), isThread = Async.isThread( null, true ), isInsideThread = Async.isThread( )
@@ -617,10 +617,10 @@ FILTER.Create = function( methods ) {
             ,toString: toStringPlugin
             ,apply: applyPlugin
     }, methods);
+    var filterName = methods.name;
     methods.constructor = constructorPlugin( methods.init );
     methods._apply = methods.apply;
     delete methods.init; delete methods.apply;
-    var filterName = methods.name;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };
 

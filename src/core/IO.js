@@ -19,7 +19,7 @@ FILTER.IO.Loader = FILTER.IO.Reader = FILTER.Class({
               return function( url, onLoad, onError ) {
                 return new $class().load(url, onLoad, onError);
             }
-        }, FILTER.LATE|FILTER.STATIC )
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
     constructor: function Loader() {
@@ -71,14 +71,14 @@ FILTER.IO.Writer = FILTER.Class({
     
     __static__: {
         // accessible as "$class.load" (extendable and with "late static binding")
-        write: FILTER.Method(function($super, $private, $class){
+        write: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
               return function( file, data, onWrite, onError ) {
                 return new $class().write(file, data, onWrite, onError);
             }
-        }, FILTER.LATE|FILTER.STATIC )
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
     constructor: function Writer() {

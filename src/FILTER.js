@@ -10,7 +10,8 @@
 *
 **/
 "use strict";
-var FILTER = Classy.Merge({ 
-    Classy: Classy, Asynchronous: Asynchronous, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
-}, Classy); /* make Classy methods accessible as FILTER methods, like FILTER.Class and so on.. */
-FILTER.VERSION = "@@VERSION@@";
+var FILTER = {
+    VERSION: "@@VERSION@@",
+    Classy: Classy, Asynchronous: Asynchronous,
+    Class: Classy.Class, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
+};

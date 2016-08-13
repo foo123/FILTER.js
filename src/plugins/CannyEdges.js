@@ -214,6 +214,8 @@ function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
 // an efficient Canny Edges Detector
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
+// expose as static utility methods
+FILTER.Util.Filter.canny_gradient = gradient_and_non_maximal_supression;
 FILTER.Create({
     name : "CannyEdgesFilter"
     
@@ -252,7 +254,8 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this, area = im.length>>2, gradient_magnitude;
+        var self = this, area = im.length>>2, gradient_magnitude,
+            gradient_and_non_maximal_supression = FILTER.Util.Filter.canny_gradient;
         
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
@@ -261,5 +264,5 @@ FILTER.Create({
         return im;
     }
 });
-    
+
 }(FILTER);
