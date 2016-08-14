@@ -8,9 +8,8 @@
 "use strict";
 
 var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
-    MODE = FILTER.MODE,
-    A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
-    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
+    MODE = FILTER.MODE, A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
+    intensity = FILTER.Color.intensity;
 
 // http://en.wikipedia.org/wiki/Halftone
 // http://en.wikipedia.org/wiki/Error_diffusion
@@ -23,13 +22,15 @@ FILTER.Create({
     ,size: 1
     ,thresh: 0.4
     ,mode: MODE.GRAY
+    //,inverse: false
     
     // this is the filter constructor
-    ,init: function( size, threshold, mode ) {
+    ,init: function( size, threshold, mode/*, inverse*/ ) {
         var self = this;
         self.size = size || 1;
         self.thresh = clamp(null == threshold ? 0.4 : threshold,0,1);
         self.mode = mode || MODE.GRAY;
+        //self.inverse = !!inverse
     }
     
     // support worker serialize/unserialize interface
@@ -46,12 +47,19 @@ FILTER.Create({
         return this;
     }
     
+    /*,invert: function( bool ) {
+        if ( !arguments.length ) bool = true;
+        this.inverse = !!bool;
+        return this;
+    }*/
+    
     ,serialize: function( ) {
         var self = this;
         return {
              size: self.size
             ,thresh: self.thresh
             ,mode: self.mode
+            //,inverse: self.inverse
         };
     }
     
@@ -60,6 +68,7 @@ FILTER.Create({
         self.size = params.size;
         self.thresh = params.thresh;
         self.mode = params.mode;
+        //self.inverse = params.inverse;
         return self;
     }
     
@@ -69,117 +78,120 @@ FILTER.Create({
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
             size = self.size, area = size*size, invarea = 1.0/area,
             threshold = 255*self.thresh, size2 = size2<<1,
-            colored = MODE.RGB === self.mode,
-            x, y, yw, sw = size*w, i, j, jw, 
-            sum_r, sum_g, sum_b, qr, qg, qb
+            colored = MODE.RGB === self.mode, x, y, yw, sw = size*w, i, j, jw, 
+            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf,
+            //inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
             ,f11 = /*area**/f1, f22 = /*area**/f2
             ,f33 = /*area**/f3, f44 = /*area**/f4
         ;
         
-        y=0; yw=0; x=0;
-        while ( y < h )
+        for(y=0,yw=0,x=0; y<h; )
         {
             sum_r = sum_g = sum_b = 0;
-            i=0; j=0; jw=0;
-            while ( j < size )
+            if ( colored )
             {
-                pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
-                sum_r += im[pixel] + err[index];
-                sum_g += im[pixel+1] + err[index+1];
-                sum_b += im[pixel+2] + err[index+2];
-                i++;
-                if ( i>=size ) {i=0; j++; jw+=w;}
-            }
-            sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
-            ycbcr = colored ? RGB2YCbCr([sum_r, sum_g, sum_b],0) : [sum_r, sum_g, sum_b];
-            t = ycbcr[0];
-            if ( t > threshold )
-            {
-                if ( colored ) 
+                for(i=0,j=0,jw=0; j<size; )
                 {
-                    ycbcr[0] = /*255;*/clamp(~~t, 0, 255);
-                    rgb = YCbCr2RGB(ycbcr,0);
+                    pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
+                    sum_r += im[pixel  ] + err[index  ];
+                    sum_g += im[pixel+1] + err[index+1];
+                    sum_b += im[pixel+2] + err[index+2];
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
+                }
+                sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
+                t = intensity(sum_r, sum_g, sum_b);
+                if ( t > threshold )
+                {
+                    r = ~~sum_r; g = ~~sum_g; b = ~~sum_b;
                 }
                 else
-                {                    
-                    rgb = [255,255,255];
+                {                
+                    r = 0; g = 0; b = 0;
                 }
             }
             else
-            {                
-                rgb = [0,0,0];
+            {
+                for(i=0,j=0,jw=0; j<size; )
+                {
+                    pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
+                    sum_r += im[pixel  ] + err[index  ];
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
+                }
+                t = sum_r * invarea;
+                if ( t > threshold )
+                {
+                    r = 255; g = 255; b = 255;
+                }
+                else
+                {                
+                    r = 0; g = 0; b = 0;
+                }
             }
+            
             pixel = (x+yw)<<2;
-            qr = im[pixel] - rgb[0];
-            qg = im[pixel+1] - rgb[1];
-            qb = im[pixel+2] - rgb[2];
+            qr = im[pixel  ] - r;
+            qg = im[pixel+1] - g;
+            qb = im[pixel+2] - b;
             
             if ( x+size<w )
             {                
-                i=size; j=0; jw=0;
-                while ( j < size )
+                qrf = f11*qr; qgf = f11*qg; qbf = f11*qb;
+                for(i=size,j=0,jw=0; j<size; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f11*qr;
-                    err[index+1] += f11*qg;
-                    err[index+2] += f11*qb;
-                    i++;
-                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size2 ) {i=size; j++; jw+=w;}
                 }
             }
             if ( y+size<h && x>size) 
             {
-                i=-size; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f22*qr; qgf = f22*qg; qbf = f22*qb;
+                for(i=-size,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f22*qr;
-                    err[index+1] += f22*qg;
-                    err[index+2] += f22*qb;
-                    i++;
-                    if ( i>=0 ) {i=-size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=0 ) {i=-size; j++; jw+=w;}
                 }
             }
             if ( y+size<h ) 
             {
-                i=0; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f33*qr; qgf = f33*qg; qbf = f33*qb;
+                for(i=0,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f33*qr;
-                    err[index+1] += f33*qg;
-                    err[index+2] += f33*qb;
-                    i++;
-                    if ( i>=size ) {i=0; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
                 }
             }
             if ( y+size<h && x+size<w )
             {
-                i=size; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f44*qr; qgf = f44*qg; qbf = f44*qb;
+                for(i=size,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f44*qr;
-                    err[index+1] += f44*qg;
-                    err[index+2] += f44*qb;
-                    i++;
-                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size2 ) {i=size; j++; jw+=w;}
                 }
             }
             
-            i=0; j=0; jw=0;
-            while ( j < size )
+            for(i=0,j=0,jw=0; j<size; )
             {
                 pixel = (x+yw+i+jw)<<2;
-                im[pixel] = rgb[0];
-                im[pixel+1] = rgb[1];
-                im[pixel+2] = rgb[2];
-                i++;
-                if ( i>=size ) {i=0; j++; jw+=w;}
+                im[pixel  ] = r;
+                im[pixel+1] = g;
+                im[pixel+2] = b;
+                if ( ++i>=size ) {i=0; j++; jw+=w;}
             }
             
-            x+=size;
-            if ( x>=w ) {x=0; y+=size; yw+=sw;}
+            x+=size; if ( x>=w ) {x=0; y+=size; yw+=sw;}
         }
         return im;
     }

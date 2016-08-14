@@ -1271,8 +1271,8 @@ Color.Gradient = {
 Color.Blend = Color.Combine = {
     //p1 = p1 || 0; p2 = p2 || 0;
     
-    normal: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    normal: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1300,8 +1300,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    lighten: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    lighten: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1329,8 +1329,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    darken: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    darken: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1358,8 +1358,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    multiply: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    multiply: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1387,8 +1387,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    average: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    average: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1416,8 +1416,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    add: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    add: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1445,8 +1445,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    subtract: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    subtract: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1474,8 +1474,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    difference: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    difference: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1503,8 +1503,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    negation: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    negation: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1532,8 +1532,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    screen: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    screen: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1561,8 +1561,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    exclusion: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    exclusion: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1590,8 +1590,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    overlay: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    overlay: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1619,8 +1619,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    softlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    softlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1649,8 +1649,8 @@ Color.Blend = Color.Combine = {
     },
 
     // reverse of overlay
-    hardlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    hardlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1678,8 +1678,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    colordodge: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    colordodge: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1707,8 +1707,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    colorburn: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    colorburn: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1736,8 +1736,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    linearlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    linearlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb, tmp,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1792,8 +1792,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    reflect: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    reflect: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1822,8 +1822,8 @@ Color.Blend = Color.Combine = {
     },
 
     // reverse of reflect
-    glow: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    glow: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1851,8 +1851,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    phoenix: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    phoenix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1880,8 +1880,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    vividlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    vividlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb, tmp,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1936,8 +1936,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    pinlight: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    pinlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb, tmp,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
@@ -1992,8 +1992,8 @@ Color.Blend = Color.Combine = {
         rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
     },
 
-    hardmix: function(rgba1, rgba2, p1, p2, do_clamp) { 
-        var amount = rgba2[p2+3]*0.003921568627451,
+    hardmix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb, tmp,
             r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
             r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]

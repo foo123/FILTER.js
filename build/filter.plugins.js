@@ -1764,9 +1764,8 @@ FILTER.Create({
 "use strict";
 
 var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16, 
-    MODE = FILTER.MODE,
-    A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
-    RGB2YCbCr = FILTER.Color.RGB2YCbCr, YCbCr2RGB = FILTER.Color.YCbCr2RGB;
+    MODE = FILTER.MODE, A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
+    intensity = FILTER.Color.intensity;
 
 // http://en.wikipedia.org/wiki/Halftone
 // http://en.wikipedia.org/wiki/Error_diffusion
@@ -1779,13 +1778,15 @@ FILTER.Create({
     ,size: 1
     ,thresh: 0.4
     ,mode: MODE.GRAY
+    //,inverse: false
     
     // this is the filter constructor
-    ,init: function( size, threshold, mode ) {
+    ,init: function( size, threshold, mode/*, inverse*/ ) {
         var self = this;
         self.size = size || 1;
         self.thresh = clamp(null == threshold ? 0.4 : threshold,0,1);
         self.mode = mode || MODE.GRAY;
+        //self.inverse = !!inverse
     }
     
     // support worker serialize/unserialize interface
@@ -1802,12 +1803,19 @@ FILTER.Create({
         return this;
     }
     
+    /*,invert: function( bool ) {
+        if ( !arguments.length ) bool = true;
+        this.inverse = !!bool;
+        return this;
+    }*/
+    
     ,serialize: function( ) {
         var self = this;
         return {
              size: self.size
             ,thresh: self.thresh
             ,mode: self.mode
+            //,inverse: self.inverse
         };
     }
     
@@ -1816,6 +1824,7 @@ FILTER.Create({
         self.size = params.size;
         self.thresh = params.thresh;
         self.mode = params.mode;
+        //self.inverse = params.inverse;
         return self;
     }
     
@@ -1825,117 +1834,120 @@ FILTER.Create({
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
             size = self.size, area = size*size, invarea = 1.0/area,
             threshold = 255*self.thresh, size2 = size2<<1,
-            colored = MODE.RGB === self.mode,
-            x, y, yw, sw = size*w, i, j, jw, 
-            sum_r, sum_g, sum_b, qr, qg, qb
+            colored = MODE.RGB === self.mode, x, y, yw, sw = size*w, i, j, jw, 
+            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf,
+            //inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
             ,f11 = /*area**/f1, f22 = /*area**/f2
             ,f33 = /*area**/f3, f44 = /*area**/f4
         ;
         
-        y=0; yw=0; x=0;
-        while ( y < h )
+        for(y=0,yw=0,x=0; y<h; )
         {
             sum_r = sum_g = sum_b = 0;
-            i=0; j=0; jw=0;
-            while ( j < size )
+            if ( colored )
             {
-                pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
-                sum_r += im[pixel] + err[index];
-                sum_g += im[pixel+1] + err[index+1];
-                sum_b += im[pixel+2] + err[index+2];
-                i++;
-                if ( i>=size ) {i=0; j++; jw+=w;}
-            }
-            sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
-            ycbcr = colored ? RGB2YCbCr([sum_r, sum_g, sum_b],0) : [sum_r, sum_g, sum_b];
-            t = ycbcr[0];
-            if ( t > threshold )
-            {
-                if ( colored ) 
+                for(i=0,j=0,jw=0; j<size; )
                 {
-                    ycbcr[0] = /*255;*/clamp(~~t, 0, 255);
-                    rgb = YCbCr2RGB(ycbcr,0);
+                    pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
+                    sum_r += im[pixel  ] + err[index  ];
+                    sum_g += im[pixel+1] + err[index+1];
+                    sum_b += im[pixel+2] + err[index+2];
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
+                }
+                sum_r *= invarea; sum_g *= invarea; sum_b *= invarea;
+                t = intensity(sum_r, sum_g, sum_b);
+                if ( t > threshold )
+                {
+                    r = ~~sum_r; g = ~~sum_g; b = ~~sum_b;
                 }
                 else
-                {                    
-                    rgb = [255,255,255];
+                {                
+                    r = 0; g = 0; b = 0;
                 }
             }
             else
-            {                
-                rgb = [0,0,0];
+            {
+                for(i=0,j=0,jw=0; j<size; )
+                {
+                    pixel = (x+yw+i+jw)<<2; index = (x+yw+i+jw)*3;
+                    sum_r += im[pixel  ] + err[index  ];
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
+                }
+                t = sum_r * invarea;
+                if ( t > threshold )
+                {
+                    r = 255; g = 255; b = 255;
+                }
+                else
+                {                
+                    r = 0; g = 0; b = 0;
+                }
             }
+            
             pixel = (x+yw)<<2;
-            qr = im[pixel] - rgb[0];
-            qg = im[pixel+1] - rgb[1];
-            qb = im[pixel+2] - rgb[2];
+            qr = im[pixel  ] - r;
+            qg = im[pixel+1] - g;
+            qb = im[pixel+2] - b;
             
             if ( x+size<w )
             {                
-                i=size; j=0; jw=0;
-                while ( j < size )
+                qrf = f11*qr; qgf = f11*qg; qbf = f11*qb;
+                for(i=size,j=0,jw=0; j<size; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f11*qr;
-                    err[index+1] += f11*qg;
-                    err[index+2] += f11*qb;
-                    i++;
-                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size2 ) {i=size; j++; jw+=w;}
                 }
             }
             if ( y+size<h && x>size) 
             {
-                i=-size; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f22*qr; qgf = f22*qg; qbf = f22*qb;
+                for(i=-size,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f22*qr;
-                    err[index+1] += f22*qg;
-                    err[index+2] += f22*qb;
-                    i++;
-                    if ( i>=0 ) {i=-size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=0 ) {i=-size; j++; jw+=w;}
                 }
             }
             if ( y+size<h ) 
             {
-                i=0; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f33*qr; qgf = f33*qg; qbf = f33*qb;
+                for(i=0,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f33*qr;
-                    err[index+1] += f33*qg;
-                    err[index+2] += f33*qb;
-                    i++;
-                    if ( i>=size ) {i=0; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size ) {i=0; j++; jw+=w;}
                 }
             }
             if ( y+size<h && x+size<w )
             {
-                i=size; j=size; jw=0;
-                while ( j < size2 )
+                qrf = f44*qr; qgf = f44*qg; qbf = f44*qb;
+                for(i=size,j=size,jw=0; j<size2; )
                 {
                     index = (x+yw+i+jw)*3;
-                    err[index] += f44*qr;
-                    err[index+1] += f44*qg;
-                    err[index+2] += f44*qb;
-                    i++;
-                    if ( i>=size2 ) {i=size; j++; jw+=w;}
+                    err[index  ] += qrf;
+                    err[index+1] += qgf;
+                    err[index+2] += qbf;
+                    if ( ++i>=size2 ) {i=size; j++; jw+=w;}
                 }
             }
             
-            i=0; j=0; jw=0;
-            while ( j < size )
+            for(i=0,j=0,jw=0; j<size; )
             {
                 pixel = (x+yw+i+jw)<<2;
-                im[pixel] = rgb[0];
-                im[pixel+1] = rgb[1];
-                im[pixel+2] = rgb[2];
-                i++;
-                if ( i>=size ) {i=0; j++; jw+=w;}
+                im[pixel  ] = r;
+                im[pixel+1] = g;
+                im[pixel+2] = b;
+                if ( ++i>=size ) {i=0; j++; jw+=w;}
             }
             
-            x+=size;
-            if ( x>=w ) {x=0; y+=size; yw+=sw;}
+            x+=size; if ( x>=w ) {x=0; y+=size; yw+=sw;}
         }
         return im;
     }
@@ -1968,19 +1980,21 @@ FILTER.Create({
     ,offsetY: null
     ,color: 0
     ,opacity: 1
-    ,quality: 3
+    ,quality: 1
+    ,onlyShadow: false
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( offsetX, offsetY, color, opacity, quality ) {
+    ,init: function( offsetX, offsetY, color, opacity, quality, onlyShadow ) {
         var self = this;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
         self.color = color || 0;
         self.opacity = null == opacity ? 1.0 : +opacity;
-        self.quality = quality || 3;
+        self.quality = ~~(quality || 1);
+        self.onlyShadow = !!onlyShadow;
     }
     
     ,dispose: function( ) {
@@ -1990,6 +2004,7 @@ FILTER.Create({
         self.color = null;
         self.opacity = null;
         self.quality = null;
+        self.onlyShadow = null;
         self.$super('dispose');
         return self;
     }
@@ -2002,6 +2017,7 @@ FILTER.Create({
             ,color: self.color
             ,opacity: self.opacity
             ,quality: self.quality
+            ,onlyShadow: self.onlyShadow
         };
     }
     
@@ -2012,21 +2028,23 @@ FILTER.Create({
         self.color = params.color;
         self.opacity = params.opacity;
         self.quality = params.quality;
+        self.onlyShadow = params.onlyShadow;
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
         var self = this;
-        if ( !self._isOn /*|| 0.0 === self.opacity*/ ) return im;
-        var color = self.color || 0, quality = ~~self.quality,
-            offX = self.offsetX||0, offY = self.offsetY||0,
-            a = self.opacity, r = (color >>> 16)&255, g = (color >>> 8)&255, b = (color)&255,
-            imSize = im.length, imArea = imSize>>>2, i, x, y, sx, sy, si, ai, aa, shadow;
+        if ( !self._isOn ) return im;
+        var color = self.color||0, a = self.opacity, quality = self.quality,
+            onlyShadow = self.onlyShadow, offX = self.offsetX||0, offY = self.offsetY||0,
+            r, g, b, imSize = im.length, imArea = imSize>>>2, i, x, y, sx, sy, si, ai, aa, shadow;
             
         if ( 0.0 > a ) a = 0.0;
         if ( 1.0 < a ) a = 1.0;
         if ( 0.0 === a ) return im;
+        
+        r = (color>>>16)&255; g = (color>>>8)&255; b = (color)&255;
         
         if ( 0 >= quality ) quality = 1;
         if ( 3 < quality ) quality = 3;
@@ -2044,13 +2062,13 @@ FILTER.Create({
                 shadow[i+2] = b;
                 shadow[i+3] = ~~(a*ai);
             }
-            else
+            /*else
             {
                 shadow[i  ] = 0;
                 shadow[i+1] = 0;
                 shadow[i+2] = 0;
                 shadow[i+3] = 0;
-            }
+            }*/
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
@@ -2058,29 +2076,41 @@ FILTER.Create({
         
         // offset and combine with original image
         offY *= w;
-        for(x=0,y=0,si=0; si<imSize; si+=4,x++)
+        if ( onlyShadow )
         {
-            if ( x >= w ) {x=0; y+=w;}
-            sx = x+offX; sy = y+offY;
-            if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea ) continue;
-            i = (sx + sy) << 2; ai = im[i+3]; a = shadow[si+3];
-            if ( (255 === ai) || (0 === a) ) continue;
-            a /= 255; //ai /= 255; //aa = ai + a*(1.0-ai);
-            // src over composition
-            // https://en.wikipedia.org/wiki/Alpha_compositing
-            /*im[i  ] = (~~((im[i  ]*ai + shadow[si  ]*a*(1.0-ai))/aa))&255;
-            im[i+1] = (~~((im[i+1]*ai + shadow[si+1]*a*(1.0-ai))/aa))&255;
-            im[i+2] = (~~((im[i+2]*ai + shadow[si+2]*a*(1.0-ai))/aa))&255;*/
-            //im[i+3] = ~~(aa*255);
-            r = ~~(im[i  ] + (shadow[si  ]-im[i  ])*a);
-            g = ~~(im[i+1] + (shadow[si+1]-im[i+1])*a);
-            b = ~~(im[i+2] + (shadow[si+2]-im[i+2])*a);
-            im[i  ] = r;
-            im[i+1] = g;
-            im[i+2] = b;
+            // return only the shadow
+            for(x=0,y=0,si=0; si<imSize; si+=4,x++)
+            {
+                if ( x >= w ) {x=0; y+=w;}
+                sx = x+offX; sy = y+offY;
+                if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/ ) continue;
+                i = (sx + sy) << 2;
+                im[i  ] = shadow[si  ]; im[i+1] = shadow[si+1]; im[i+2] = shadow[si+2]; im[i+3] = shadow[si+3];
+            }
         }
-        
-        // return image with shadow
+        else
+        {
+            // return image with shadow
+            for(x=0,y=0,si=0; si<imSize; si+=4,x++)
+            {
+                if ( x >= w ) {x=0; y+=w;}
+                sx = x+offX; sy = y+offY;
+                if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea ) continue;
+                i = (sx + sy) << 2; ai = im[i+3]; a = shadow[si+3];
+                if ( (255 === ai) || (0 === a) ) continue;
+                a /= 255; //ai /= 255; //aa = ai + a*(1.0-ai);
+                // src over composition
+                // https://en.wikipedia.org/wiki/Alpha_compositing
+                /*im[i  ] = (im[i  ]*ai + shadow[si  ]*a*(1.0-ai))/aa;
+                im[i+1] = (im[i+1]*ai + shadow[si+1]*a*(1.0-ai))/aa;
+                im[i+2] = (im[i+2]*ai + shadow[si+2]*a*(1.0-ai))/aa;*/
+                //im[i+3] = aa*255;
+                r = im[i  ] + (shadow[si  ]-im[i  ])*a;
+                g = im[i+1] + (shadow[si+1]-im[i+1])*a;
+                b = im[i+2] + (shadow[si+2]-im[i+2])*a;
+                im[i  ] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+            }
+        }
         return im;
     }
 });

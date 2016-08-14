@@ -219,6 +219,7 @@ var
          path: FILTERPath
         ,name: null
         ,_listener: null
+        ,_rand: null
         
         ,constructor: function( ) {
             var self = this, filter = null;
@@ -242,21 +243,21 @@ var
                             Async.importScripts( data["import"].join ? data["import"].join(',') : data["import"] );
                         }
                     })
-                    .listen('params', function( data ) {
+                    /*.listen('params', function( data ) {
                         if ( filter ) filter.unserializeFilter( data );
                     })
                     .listen('inputs', function( data ) {
                         if ( filter ) filter.unserializeInputs( data );
-                    })
+                    })*/
                     .listen('apply', function( data ) {
                         if ( filter && data && data.im )
                         {
-                            if ( data.params ) filter.unserializeFilter( data.params );
-                            if ( data.inputs ) filter.unserializeInputs( data.inputs );
                             //log(data.im[0]);
-                            var im = TypedArray( data.im[ 0 ], FILTER.ImArray );
+                            var im = data.im; im[ 0 ] = TypedArray( im[ 0 ], FILTER.ImArray );
+                            if ( data.params ) filter.unserializeFilter( data.params );
+                            if ( data.inputs ) filter.unserializeInputs( data.inputs, im );
                             // pass any filter metadata if needed
-                            im = filter._apply( im, data.im[ 1 ], data.im[ 2 ] );
+                            im = filter._apply( im[ 0 ], im[ 1 ], im[ 2 ] );
                             self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
                         }
                         else
@@ -281,6 +282,7 @@ var
             var self = this;
             self.path = null;
             self.name = null;
+            self._rand = null;
             if ( self._listener )
             {
                 self._listener.cb = null;
@@ -298,8 +300,9 @@ var
             // activate worker
             if ( enable && !self.$thread ) 
             {
-                var T = isNode ? '' : '?'+new Date().getTime();
-                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file+T ] : self.path.file+T );
+                if ( null === self._rand )
+                    self._rand = isNode ? '' : ((-1 === self.path.file.indexOf('?') ? '?' : '&') + (new Date().getTime()));
+                self.fork( 'FILTER.FilterThread', FILTERPath.file !== self.path.file ? [ FILTERPath.file, self.path.file+self._rand ] : self.path.file+self._rand );
                 if ( imports && imports.length )
                     self.send('import', {'import': imports.join ? imports.join(',') : imports});
                 self.send('load', {filter: self.name});
@@ -322,12 +325,7 @@ var
             {
                 var blobs = [ ], i;
                 for (i=0; i<sources.length; i++)
-                {
-                    if ( 'function' === typeof( sources[ i ] ) )
-                        blobs.push( Async.blob( sources[ i ].toString( ) ) );
-                    else
-                        blobs.push( Async.blob( sources[ i ] ) );
-                }
+                    blobs.push( Async.blob( "function" === typeof sources[ i ] ? sources[ i ].toString( ) : sources[ i ] ) );
                 this.send('import', {'import': blobs.join( ',' )});
             }
             return this;
@@ -401,6 +399,11 @@ var
         }
         ,delInput: null
         
+        ,resetInputs: function( ) {
+            this._inputs = {};
+            return this;
+        }
+        
         ,input: function( key ) {
             var input = this._inputs[key];
             if ( !input ) return null;
@@ -419,7 +422,7 @@ var
             return this;
         }
         
-        ,serializeInputs: function( ) {
+        ,serializeInputs: function( curIm ) {
             if ( !this.hasInputs ) return null;
             var inputs = this._inputs, input, k = KEYS(inputs), i, l = k.length, json;
             if ( !l ) return null;
@@ -428,12 +431,13 @@ var
             {
                 input = inputs[k[i]];
                 if ( (null == input[0]) || (input[1] && input[1]._refresh) )
-                    json[k[i]] = input[1].getSelectedData( );
+                    // save bandwidth if input is same as main current image being processed
+                    json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData( );
             }
             return json;
         }
         
-        ,unserializeInputs: function( json ) {
+        ,unserializeInputs: function( json, curImData ) {
             var self = this;
             if ( !json || !self.hasInputs ) return self;
             var inputs = self._inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
@@ -441,7 +445,9 @@ var
             {
                 input = json[k[i]];
                 if ( !input ) continue;
-                input[0] = TypedArray( input[0], IMG )
+                // save bandwidth if input is same as main current image being processed
+                if ( true === input ) input = curImData;
+                else input[0] = TypedArray( input[0], IMG )
                 inputs[k[i]] = [input, null];
             }
             return self;
@@ -577,7 +583,7 @@ var
                         if ( cb ) cb.call( self );
                     };
                     // process request
-                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serializeFilter( ), inputs: self.serializeInputs( )} );
+                    self.send( 'apply', {im: im, /*id: src.id,*/ params: self.serializeFilter( ), inputs: self.serializeInputs( src )} );
                 }
                 else
                 {
