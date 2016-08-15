@@ -30,6 +30,8 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, to be added)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
+* [Resample Filter](#resample-filter)
+* [Selection Filter](#selection-filter)
 * [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
 * [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
@@ -121,18 +123,20 @@ __Properties:__
 __Methods:__
 
 * `reset( )`   reset the filter to identity (trivial)
-* `dispose( )`   dispose the filter (disposes associated filter worker also if needed)
-* `turnOn( [bool:Boolean=true] )`  turn the filter ON/OFF 
-* `toggle( )`  toggle the filter's ON/OFF status
-* `isOn( )`   check if filter is ON or OFF
-* `combineWith( similarFilterInstance )`   for any filter that supports combination of a similar filter with itself, else does nothing
-* `setInput(key, inputImage)`  for filters that accept multiple extra inputs (e.g blend filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
-* `unsetInput(key)`  for filters that accept multiple extra inputs (e.g blend filters) this method unsets inputs by key (see above)
-* `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g blend filters) the extra inputs are available to the filter via this method by inputKey (see above)
-* `serialize( )`   serialize filter's parameters (for use with parallel worker filters)
-* `unserialize( data:Object )`   unserialize filter's parameters (for use with parallel worker filters)
+* `dispose( )`   dispose the filter (disposes associated filter thread also if needed)
+* `turnOn( [bool:Boolean=true] )`  turn the filter `ON`/`OFF`
+* `toggle( )`  toggle the filter's `ON`/`OFF` status
+* `isOn( )`   check if filter is `ON` or `OFF`
+* `combineWith( similarFilterInstance:Filter )`  for any filter that supports combination of a similar filter with itself, else does nothing
+* `setInput(key, inputImage:Image)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
+* `unsetInput(key)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method unsets inputs by key (see above)
+* `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g `blend` filters) the extra inputs are available to the filter via this method by inputKey (see above)
+* `serialize( )`  serialize filter's parameters (for use during parallel processing)
+* `unserialize( data:Object )`  unserialize filter's parameters (for use during parallel processing)
+* `meta( )/getMeta( )`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
-* `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest Image instance using imageData from srcImage (the destImage output will be changed after the filter application, the filters can be removed if image is restorable)
+* `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
+
 
 ###Color Table Filter
 
@@ -607,6 +611,8 @@ The class has some pre-defined filters to use.
 * `median( )`  Apply median (ie. lowpass/remove noise) filter
 * `minimum( )/erode( )` Apply minimum (erode) filter
 * `maximum( )/dilate( )` Apply maximum (dilate) filter
+* `kth( )`  Apply kth statistic for arbitarry `k` in `0..1` range
+* `grayscale( Boolean:bool=true )` Use faster statistical filters for grayscale images
 
 Statistical Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
@@ -643,10 +649,10 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Blend Filter
 
 ````javascript
-new FILTER.BlendFilter( blendImage:Image, mode:String );
+new FILTER.BlendFilter( blendMatrix:Array );
 ````
 
-The filter blends images together with photoshop-like blending modes.
+The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `alpha` (opacity) factor for each of the blend images to be blended with the main image (see below).
 
 **Supported Blend Modes:**
     
@@ -679,21 +685,23 @@ The filter blends images together with photoshop-like blending modes.
 In order to use a blend filter do the following:
 
 ````javascript
-
-var screenBlend = new FILTER.BlendFilter( blendImg, "screen" );
+                                          /* blendMode, startX, startY, alpha, .. */
+var blend3Images = new FILTER.BlendFilter( ["screen",    0,      0,      1,  /*input1*/
+                                            "overlay",   10,    10,      0.7 /*input2*/] ).setInput(1, blendImg).setInput(2, anotherBlendImg);
 // this also works
-var screenBlend = FILTER.BlendFilter.setInput( "blend", blendImg ).setMode( "screen" );
+var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set( ["screen",    0,      0,      1,
+                                                                     "overlay",   10,    10,      0.7] );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
-screenBlend.worker( );
+blend3Images.worker( );
 
 // if you want to stop and dispose the worker for this filter, do:
-screenBlend.worker( false );
+blend3Images.worker( false );
 
 // this is same even if filter uses a parallel worker filter
-screenBlend.apply( image );   // image is a FILTER.Image instance, see examples
+blend3Images.apply( image );   // image is a FILTER.Image instance, see examples
 // this will also work:
-image.apply( screenBlend );   // image is a FILTER.Image instance, see examples
+image.apply( blend3Images );   // image is a FILTER.Image instance, see examples
 
 ````
 
@@ -766,9 +774,35 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 ###Algebraic Filter
 
-*to be added*
+````javascript
+new FILTER.AlgebraicFilter( algebraicMatrix:Array );
+````
 
-This filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image
+The filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image using an `algebraicMatrix` that is a (flat) array of rows (each row having `7` items, total=`7N` for `N` images), describing the multiplication factors, bias term, relative offset `x,y` positions and optional input/output channels for each of the images to be algebraicaly combined with the main image (see below).
+
+In order to use an algebraic filter do the following:
+
+````javascript
+
+                                    /* factor1, factor2, bias, relOffsetX, relOffsetY, outputChannel, inputChannel, .. */
+var combine = new FILTER.AlgebraicFilter( [0,      1,     0,   0.5,        0.5,      FILTER.CHANNEL.A, FILTER.CHANNEL.G, /*input1*/
+                                          1/2,    1/2,    0,   0,           0,       null,            null, /*input2*/] ).setInput(1, anotherImg).setInput(2, anotherImg);
+// this also works
+var combine = FILTER.AlgebraicFilter.set( [0, 1, 0, 0.5, 0.5, FILTER.CHANNEL.A, FILTER.CHANNEL.G, /*input1*/
+                                          1/2, 1/2, 0, 0, 0,   null,           null, /*input2*/] ).setInput(1, anotherImg).setInput(2, anotherImg);
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+combine.worker( );
+
+// if you want to stop and dispose the worker for this filter, do:
+combine.worker( false );
+
+// this is same even if filter uses a parallel worker filter
+combine.apply( image );   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply( combine );   // image is a FILTER.Image instance, see examples
+
+````
 
 
 ###Inline Filter
@@ -777,7 +811,7 @@ This filter algebraicaly combines inputs (i.e images or other filter outputs) in
 new FILTER.InlineFilter( dynamicFilter:Function );
 ````
 
-This filter creates inline filters dynamicalty at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
+This filter creates inline filters dynamicaly at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
 
 **NOTE** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literally at instantiation, so it can be serialized correctly)
 
@@ -815,6 +849,23 @@ image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
 
 ````
 
+###Resample Filter
+
+````javascript
+new FILTER.ResampleFilter( scaleX:Number, scaleY:Number, interpolationMethod:String="bilinear" );
+````
+
+This filter resamples (interpolates) an image to change its size, i.e up- or down- scale it. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can downsample an image at any stage to speed-up further process and then up-sample it again if needed at another stage.
+
+
+###Selection Filter
+
+````javascript
+new FILTER.SelectionFilter( x1:Number, y1:Number, x2:Number, y2:Number );
+````
+
+This filter selects (or crops) part of image specified by the relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
+
 
 ###GLSL Filter
 
@@ -850,16 +901,14 @@ __Included Plugins__ (see examples for how to use)
 * `Bokeh` : apply a fast Bokeh (Depth-of-Field) effect to an image
 * `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
 * `PatternFill` : apply a (fast) pattern fill to an (connected) area of an image using another image as pattern
-* `ChannelCopy` : copy a channel from an image to another channel on target image
-* `AlphaMask` : apply another image as an alpha mask to the target image
-* `ColorMask` : replace a color or use a color as mask for another image pattern (e.g *green screen* effects) (TO BE ADDED)
+* `ChannelCopy` : copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)
 * `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
 * `SeamlessTile` : create a seamless tileable pattern from target image
 * `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 
+* `ActiveShapeExtractor` : adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)
 * `CannyEdges` : an efficient Canny Edges Detector/Extractor
 * `HaarDetector` : detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
 * `ColorDetector` : fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)
-* `ActiveShapeExtractor` : adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)
 * `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
 
 

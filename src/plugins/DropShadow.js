@@ -12,8 +12,7 @@ var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_con
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9
-    ])
-;
+    ]);
 
 // adapted from http://www.jhlabs.com/ip/filters/
 // analogous to ActionScript filter
@@ -38,7 +37,7 @@ FILTER.Create({
         self.offsetY = offsetY || 0;
         self.color = color || 0;
         self.opacity = null == opacity ? 1.0 : +opacity;
-        self.quality = ~~(quality || 1);
+        self.quality = (quality || 1)|0;
         self.onlyShadow = !!onlyShadow;
     }
     
@@ -105,7 +104,7 @@ FILTER.Create({
                 shadow[i  ] = r;
                 shadow[i+1] = g;
                 shadow[i+2] = b;
-                shadow[i+3] = ~~(a*ai);
+                shadow[i+3] = (a*ai)|0;
             }
             /*else
             {
@@ -153,7 +152,7 @@ FILTER.Create({
                 r = im[i  ] + (shadow[si  ]-im[i  ])*a;
                 g = im[i+1] + (shadow[si+1]-im[i+1])*a;
                 b = im[i+2] + (shadow[si+2]-im[i+2])*a;
-                im[i  ] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+                im[i  ] = r|0; im[i+1] = g|0; im[i+2] = b|0;
             }
         }
         return im;

@@ -17,13 +17,11 @@ var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Arr
 
 //
 // AffineMatrixFilter
-var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter, {
+var AffineMatrixFilter = FILTER.Create({
     name: "AffineMatrixFilter"
     
-    ,constructor: function AffineMatrixFilter( matrix ) {
+    ,init: function AffineMatrixFilter( matrix ) {
         var self = this;
-        if ( !(self instanceof AffineMatrixFilter) ) return new AffineMatrixFilter(matrix);
-        self.$super('constructor');
         self.matrix = matrix && matrix.length ? new AM(matrix) : null;
     }
     
@@ -132,7 +130,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
     // used for internal purposes
     ,_apply: function( im, w, h ) {
         var self = this, T = self.matrix;
-        if ( !self._isOn || !T ) return im;
+        if ( !T ) return im;
         var x, y, yw, nx, ny, i, j, imLen = im.length,
             imArea = imLen>>>2, bx = w-1, by = imArea-w,
             dst = new IMG(imLen), color = self.color||0, r, g, b, a,
@@ -161,7 +159,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
                     dst[i+2] = b;  dst[i+3] = a;
                     continue;
                 }
-                j = (~~nx + ~~ny) << 2;
+                j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }
@@ -178,7 +176,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
                 ny = ny > by || ny < 0 ? yw : ny;
                 nx = nx > bx || nx < 0 ? x : nx;
                 
-                j = (~~nx + ~~ny) << 2;
+                j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }
@@ -195,7 +193,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
                 ny = ny > by ? ny-imArea : (ny < 0 ? ny+imArea : ny);
                 nx = nx > bx ? nx-w : (nx < 0 ? nx+w : nx);
                 
-                j = (~~nx + ~~ny) << 2;
+                j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }
@@ -212,7 +210,7 @@ var AffineMatrixFilter = FILTER.AffineMatrixFilter = FILTER.Class( FILTER.Filter
                 ny = ny > by ? by : (ny < 0 ? 0 : ny);
                 nx = nx > bx ? bx : (nx < 0 ? 0 : nx);
                 
-                j = (~~nx + ~~ny) << 2;
+                j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }

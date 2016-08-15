@@ -7,122 +7,120 @@
 !function(FILTER, undef){
 "use strict";
 
-var HAS = 'hasOwnProperty', Min = Math.min, Round = Math.round,
-    notSupportClamp = FILTER._notSupportClamp, blend_function = FILTER.Color.Combine;
+var HAS = 'hasOwnProperty', IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+    Min = Math.min, Round = Math.round, hasArraySet = FILTER.Util.Array.hasArrayset,
+    arrayset = FILTER.Util.Array.arrayset, notSupportClamp = FILTER._notSupportClamp, BLEND = FILTER.Color.Blend;
 
 //
 // Blend Filter, photoshop-like image blending
-var BlendFilter = FILTER.BlendFilter = FILTER.Class( FILTER.Filter, {
+FILTER.Create({
     name: "BlendFilter"
     
-    ,constructor: function BlendFilter( blendImage, blendMode ) { 
+    ,init: function BlendFilter( matrix ) { 
         var self = this;
-        if ( !(self instanceof BlendFilter) ) return new BlendFilter(blendImage, blendMode);
-        self.$super('constructor');
-        self.startX = 0;
-        self.startY = 0;
-        self.alpha = 1;
-        self.mode = null;
-        if ( blendImage ) self.setInput( "blend", blendImage );
-        if ( blendMode ) self.setMode( blendMode );
+        self.set( matrix );
     }
     
     ,path: FILTER_FILTERS_PATH
     // parameters
-    ,mode: null
-    ,startX: 0
-    ,startY: 0
-    ,alpha: 1
+    ,matrix: null
     ,hasInputs: true
     
     ,dispose: function( ) {
         var self = this;
+        self.matrix = null;
         self.$super('dispose');
-        return self;
-    }
-    
-    // set blend mode auxiliary method
-    ,setMode: function( mode ) {
-        var self = this;
-        if ( mode )
-        {
-            self.mode = String(mode).toLowerCase();
-            if ( !blend_function[HAS](self.mode) ) self.mode = null;
-        }
-        else
-        {
-            self.mode = null;
-        }
         return self;
     }
     
     ,serialize: function( ) {
         var self = this;
         return {
-             mode: self.mode
-            ,startX: self.startX
-            ,startY: self.startY
-            ,alpha: self.alpha
+            matrix: self.matrix
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
-        self.startX = params.startX;
-        self.startY = params.startY;
-        self.alpha = params.alpha;
-        self.setMode( params.mode );
+        self.matrix = params.matrix;
+        return self;
+    }
+    
+    ,set: function( matrix ) {
+        var self = this;
+        if ( matrix && matrix.length /*&& (matrix.length&3 === 0)*//*4N*/ )
+        {
+            //self.resetInputs( );
+            self.matrix = matrix;
+        }
+        return self;
+    }
+    
+    ,setInputValues: function( inputIndex, values ) {
+        var self = this, index, matrix = self.matrix;
+        if ( values )
+        {
+            if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1];
+            index = (inputIndex-1)<<2;
+            if ( undef !== values.mode ) matrix[index] = values.mode||"normal";
+            if ( null != values.startX ) matrix[index+1] = +values.startX;
+            if ( null != values.startY ) matrix[index+2] = +values.startY;
+            if ( null != values.alpha ) matrix[index+3] = +values.alpha;
+        }
         return self;
     }
     
     ,reset: function( ) {
         var self = this;
-        self.startX = 0;
-        self.startY = 0;
-        self.alpha = 1;
-        self.mode = null;
+        self.matrix = null;
+        self.resetInputs( );
         return self;
     }
     
     ,_apply: function(im, w, h/*, image*/) {
-        var self = this, blendImg, alpha = self.alpha;
-        if ( !self._isOn || !self.mode || 0 === alpha ) return im;
+        var self = this, matrix = self.matrix;
+        if ( !matrix || !matrix.length ) return im;
         
-        blendImg = self.input("blend"); if ( !blendImg ) return im;
+        var i, k, l = matrix.length, imLen = im.length, input,
+            alpha, startX, startY, startX2, startY2, W, H, im2, w2, h2, 
+            W1, W2, start, end, x, y, x2, y2, pix2, blend, mode, blended;
         
-        var startX = self.startX||0, startY = self.startY||0, 
-            startX2 = 0, startY2 = 0, W, H, im2, w2, h2, 
-            W1, W2, start, end, x, y, x2, y2,
-            pix2, blend = blend_function[ self.mode ];
+        //blended = im;
+        // clone original image since same image may also blend with itself
+        blended = new IMG(imLen); if ( hasArraySet ) blended.set( im ); else arrayset(blended, im);
         
-        if (startX < 0) { startX2 = -startX;  startX = 0; }
-        if (startY < 0) { startY2 = -startY;  startY = 0; }
-        
-        w2 = blendImg[1]; h2 = blendImg[2];
-        if (startX >= w || startY >= h) return im;
-        if (startX2 >= w2 || startY2 >= h2) return im;
-        
-        startX = Round(startX); startY = Round(startY);
-        startX2 = Round(startX2); startY2 = Round(startY2);
-        W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
-        if (W <= 0 || H <= 0) return im;
-        
-        im2 = blendImg[0];
-        
-        // blend images
-        x = startX; y = startY*w;
-        x2 = startX2; y2 = startY2*w2;
-        W1 = startX+W; W2 = startX2+W;
-        for(start=0,end=H*W; start<end; start++)
+        for(i=0,k=1; i<l; i+=4,k++)
         {
-            pix2 = (x2 + y2)<<2;
-            // blend only if im2 has opacity in this point
-            if ( 0 < im2[pix2+3] ) blend(im, im2, (x + y)<<2, pix2, alpha, notSupportClamp);
-            // next pixels
-            x++; if (x>=W1) { x = startX; y += w; }
-            x2++; if (x2>=W2) { x2 = startX2; y2 += w2; }
+            alpha = matrix[i+3]||0; if ( 0 === alpha ) continue;
+            mode = matrix[i]||"normal"; blend = BLEND[HAS](mode)?BLEND[mode]:null; if ( !blend ) continue;
+            
+            input = self.input(k); if ( !input ) continue;
+            im2 = input[0]; w2 = input[1]; h2 = input[2];
+            
+            startX = matrix[i+1]||0; startY = matrix[i+2]||0;
+            startX2 = 0; startY2 = 0;
+            if ( startX < 0 ) { startX2 = -startX; startX = 0; }
+            if ( startY < 0 ) { startY2 = -startY; startY = 0; }
+            if ( startX >= w || startY >= h || startX2 >= w2 || startY2 >= h2 ) continue;
+            
+            startX = Round(startX); startY = Round(startY);
+            startX2 = Round(startX2); startY2 = Round(startY2);
+            W = Min(w-startX, w2-startX2); H = Min(h-startY, h2-startY2);
+            if ( W <= 0 || H <= 0 ) continue;
+            
+            // blend images
+            x = startX; y = startY*w; x2 = startX2; y2 = startY2*w2; W1 = startX+W; W2 = startX2+W;
+            for(start=0,end=H*W; start<end; start++)
+            {
+                pix2 = (x2 + y2)<<2;
+                // blend only if im2 has opacity in this point
+                if ( 0 < im2[pix2+3] ) blend(blended, im2, (x + y)<<2, pix2, alpha, notSupportClamp);
+                // next pixels
+                if ( ++x >= W1 ) { x = startX; y += w; }
+                if ( ++x2 >= W2 ) { x2 = startX2; y2 += w2; }
+            }
         }
-        return im; 
+        return blended; 
     }
 });
 // aliases

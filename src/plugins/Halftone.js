@@ -79,8 +79,8 @@ FILTER.Create({
             size = self.size, area = size*size, invarea = 1.0/area,
             threshold = 255*self.thresh, size2 = size2<<1,
             colored = MODE.RGB === self.mode, x, y, yw, sw = size*w, i, j, jw, 
-            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf,
-            //inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
+            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf
+            //,inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
             ,f11 = /*area**/f1, f22 = /*area**/f2
             ,f33 = /*area**/f3, f44 = /*area**/f4
         ;
@@ -102,7 +102,7 @@ FILTER.Create({
                 t = intensity(sum_r, sum_g, sum_b);
                 if ( t > threshold )
                 {
-                    r = ~~sum_r; g = ~~sum_g; b = ~~sum_b;
+                    r = sum_r|0; g = sum_g|0; b = sum_b|0;
                 }
                 else
                 {                

@@ -20,8 +20,8 @@ var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
     
-    ,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
-    ,applyPlugin = function( im, w, h, image ){ return im; }
+    //,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
+    //,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
     ,constructorPlugin = function( init ) {
         return function PluginFilter( ) {
@@ -135,7 +135,8 @@ FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
     COLOR: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12
+    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12,
+    COLOR_CHANNEL: 13, COLOR_MASK: 14, CHANNEL_MASK: 15
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -157,20 +158,15 @@ FILTER.CONSTANTS = FILTER.CONST = {
     
     ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
     ,toRad: Math.PI/180, toDeg: 180/Math.PI
-    
-    ,SQRT2: Math.SQRT2
-    ,LN2: Math.LN2
 };
 
 // utilities
-TypedArray = isNode
-? function( a, A ) {
+TypedArray = isNode ? function( a, A ) {
     if ( (null == a) || (a instanceof A) ) return a;
     else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
     if ( null == a.length ) a.length = Object.keys( a ).length;
     return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-}
-: function( a, A ) { return a; };
+} : function( a, A ) { return a; };
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 FILTER.Util = {
     Array   : {
@@ -184,6 +180,7 @@ FILTER.Util = {
             : function( o ) { return o; }
     },
     String  : { },
+    List    : { },
     Math    : { },
     IO      : { },
     Filter  : { },
@@ -344,7 +341,7 @@ var
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
         
-        ,constructor: function( ) {
+        ,constructor: function Filter( ) {
             var self = this;
             //self.$super('constructor', 100, false);
             self._inputs = {};
@@ -358,6 +355,7 @@ var
         ,_inputs: null
         ,hasInputs: false
         ,hasMeta: false
+        ,_meta: null
         ,mode: 0
         
         ,dispose: function( ) {
@@ -370,6 +368,7 @@ var
             self._inputs = null;
             self.hasInputs = null;
             self.hasMeta = null;
+            self._meta = null;
             self.mode = null;
             self.$super('dispose');
             return self;
@@ -381,6 +380,7 @@ var
         
         ,setInput: function( key, inputImage ) {
             var self = this;
+            key = String(key);
             if ( null === inputImage )
             {
                 if ( self._inputs[key] ) delete self._inputs[key];
@@ -394,6 +394,7 @@ var
         
         ,unsetInput: function( key ) {
             var self = this;
+            key = String(key);
             if ( self._inputs[key] ) delete self._inputs[key];
             return self;
         }
@@ -405,7 +406,7 @@ var
         }
         
         ,input: function( key ) {
-            var input = this._inputs[key];
+            var input = this._inputs[String(key)];
             if ( !input ) return null;
             if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
             return input[0] || null;
@@ -509,6 +510,7 @@ var
         
         // @override
         ,reset: function( ) {
+            this.resetInputs( );
             return this;
         }
         
@@ -518,11 +520,14 @@ var
         }
         
         // @override
-        ,getMeta: function( ) {
+        ,meta: function( ) {
+            return this._meta;
         }
+        ,getMeta: null
         
         // @override
         ,setMeta: function( meta ) {
+            this._meta = meta;
             return this;
         }
         
@@ -578,7 +583,12 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im && self._update ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im && self._update )
+                            {
+                                if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
+                                    dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                                dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            }
                         }
                         if ( cb ) cb.call( self );
                     };
@@ -593,7 +603,12 @@ var
                     // some filters do not actually change the image data
                     // but instead process information from the data,
                     // no need to update in such a case
-                    if ( self._update ) dst.setSelectedData( im2 );
+                    if ( self._update )
+                    {
+                        if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
+                            dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                        dst.setSelectedData( im2 );
+                    }
                     if ( cb ) cb.call( self );
                 }
             }
@@ -605,6 +620,7 @@ var
         }
     })
 ;
+FILTER.Filter[PROTO].getMeta = FILTER.Filter[PROTO].meta;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 
@@ -633,13 +649,16 @@ FILTER.Create = function( methods ) {
     methods = Merge({
              init: initPlugin
             ,name: "PluginFilter"
-            ,toString: toStringPlugin
-            ,apply: applyPlugin
+            //,toString: toStringPlugin
+            //,apply: applyPlugin
     }, methods);
     var filterName = methods.name;
     methods.constructor = constructorPlugin( methods.init );
-    methods._apply = methods.apply;
-    delete methods.init; delete methods.apply;
+    if ( (null == methods._apply) && ("function" === typeof methods.apply) ) methods._apply = methods.apply;
+    // add some aliases
+    if ( ("function" === typeof methods.meta) && (methods.meta !== Filter[PROTO].meta) ) methods.getMeta = methods.meta;
+    else if ( ("function" === typeof methods.getMeta) && (methods.getMeta !== Filter[PROTO].getMeta) ) methods.meta = methods.getMeta;
+    delete methods.init; if ( methods[HAS]('apply') ) delete methods.apply;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };
 

@@ -119,7 +119,7 @@ FILTER.Create({
             
             // calculate amount(radius) of blurring 
             // depending on distance from focus center
-            blur = d>r ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
+            blur = d>r ? Log((d-r)*m)|0 : (d/r+0.5)|0; // smooth it a bit, around the radius edge condition
             
             if ( blur > 0 )
             {
@@ -156,12 +156,11 @@ FILTER.Create({
                     t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
-                im[i] = ~~t0;  im[i+1] = ~~t1;  im[i+2] = ~~t2;
+                im[i] = t0|0;  im[i+1] = t1|0;  im[i+2] = t2|0;
                 // alpha channel is not transformed
                 //im[i+3] = im[i+3];
             }
         }
-        
         // return the new image data
         return im;
     }

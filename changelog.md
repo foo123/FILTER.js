@@ -30,6 +30,9 @@ __0.9.5__
 * move `BlendFilter` into generic filters instead of plugins, new `AlgebraicFilter` (instead of `CombinatorFilter`), in progress
 * handle uniformly and more efficiently multiple extra input images in filters, simplify filters' `serialize`/`unserialize` methods
 * fix `Image.image` method issue when loading an image without initializing imageData in nodejs
+* add new filters `ResampleFilter`, `SelectionFilter`
+* remove `AlphaMaskFilter`, `ChannelCopyFilter` has been extended with same functionality
+* make `BlendFilter` accept multiple inputs, plus extra alpha (opacity) parameter (per input), via `BlendMatrix` (see examples)
 
 
 __0.9.0__

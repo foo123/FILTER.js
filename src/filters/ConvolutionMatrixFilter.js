@@ -21,7 +21,7 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
     
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
-    sqrt2 = FILTER.CONST.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
+    sqrt2 = Math.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = Math.abs, Sqrt = Math.sqrt, Sin = Math.sin, Cos = Math.cos,
     
     // hardcode Pascal numbers, used for binomial kernels
@@ -40,20 +40,18 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
 
 //
 //  Convolution Matrix Filter
-var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FILTER.Filter, {
+var ConvolutionMatrixFilter = FILTER.Create({
     name: "ConvolutionMatrixFilter"
     
-    ,constructor: function ConvolutionMatrixFilter( weights, factor, bias, rgba ) {
+    ,init: function ConvolutionMatrixFilter( weights, factor, bias, rgba ) {
         var self = this;
-        if ( !(self instanceof ConvolutionMatrixFilter) ) return new ConvolutionMatrixFilter(weights, factor, bias, rgba);
-        self.$super('constructor');
         self._coeff = new CM([1.0, 0.0]);
         self.matrix2 = null;  self.dim2 = 0;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         self._rgba = !!rgba;
         if ( weights && weights.length)
         {
-            self.set(weights, ~~(Sqrt(weights.length)+0.5), factor||1.0, bias||0.0);
+            self.set(weights, (Sqrt(weights.length)+0.5)|0, factor||1.0, bias||0.0);
         }
         else 
         {
@@ -167,7 +165,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     // fast gauss filter
     ,fastGauss: function( quality, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
-        quality = ~~(quality||1);
+        quality = (quality||1)|0;
         if ( quality < 1 ) quality = 1;
         else if ( quality > 3 ) quality = 3;
         this.set(ones(d), d, 1/(d*d), 0.0);
@@ -366,24 +364,16 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
     
     ,combineWith: function( filt ) {
-        // matrices/kernels need to be convolved -> larger kernel->tensor in order to be actually combined
-        // todo??
-        return this;
-    }
-    
-    ,getMatrix: function( ) {
-        return this.matrix;
-    }
-    
-    ,setMatrix: function( m, d ) {
-        return this.set( m, d );
+        var self = this;
+        if ( !filt.matrix ) return self;
+        return self.matrix ? self.set(convolve(self.matrix, filt.matrix), self.dim*filt.dim, self._coeff[0]*filt._coeff[0]) : self.set(filt.matrix, filt.dim, filt._coeff[0], filt._coeff[1]);
     }
     
     // used for internal purposes
     ,_apply: notSupportClamp
     ? function(im, w, h/*, image*/) {
         var self = this, rgba = self._rgba;
-        if ( !self._isOn || !self.matrix ) return im;
+        if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
@@ -441,22 +431,22 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 // output
                 if ( _isGrad )
                 {
-                    t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                    t0 = (Abs(r)+Abs(r2))|0;  t1 = (Abs(g)+Abs(g2))|0;  t2 = (Abs(b)+Abs(b2))|0;
                 }
                 else
                 {
-                    t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                    t0 = (coeff1*r + coeff2*r2)|0;  t1 = (coeff1*g + coeff2*g2)|0;  t2 = (coeff1*b + coeff2*b2)|0;
                 }
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 /*if ( rgba )
                 {
-                    t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
-                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
+                    t3 = _isGrad ? (Abs(a)+Abs(a2))|0 : (coeff1*a + coeff2*a2)|0;
+                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = t3;
                 }
                 else
                 {*/
@@ -498,17 +488,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 }
                 
                 // output
-                t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
+                t0 = (coeff1*r+coeff2)|0;  t1 = (coeff1*g+coeff2)|0;  t2 = (coeff1*b+coeff2)|0;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 /*if ( rgba )
                 {
-                    t3 = coeff1*a + coeff2;
-                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
+                    t3 = (coeff1*a + coeff2)|0;
+                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
+                    dst[i+3] = t3;
                 }
                 else
                 {*/
@@ -521,7 +511,7 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
     }
     : function(im, w, h/*, image*/) {
         var self = this, rgba = self._rgba;
-        if ( !self._isOn || !self.matrix ) return im;
+        if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
@@ -579,18 +569,17 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 // output
                 if ( _isGrad )
                 {
-                    t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                    t0 = (Abs(r)+Abs(r2))|0;  t1 = (Abs(g)+Abs(g2))|0;  t2 = (Abs(b)+Abs(b2))|0;
                 }
                 else
                 {
-                    t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                    t0 = (coeff1*r + coeff2*r2)|0;  t1 = (coeff1*g + coeff2*g2)|0;  t2 = (coeff1*b + coeff2*b2)|0;
                 }
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 /*if ( rgba )
                 {
-                    t3 = _isGrad ? Abs(a)+Abs(a2) : coeff1*a + coeff2*a2;
-                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
+                    t3 = _isGrad ? (Abs(a)+Abs(a2))|0 : (coeff1*a + coeff2*a2)|0;
+                    dst[i+3] = t3;
                 }
                 else
                 {*/
@@ -632,13 +621,12 @@ var ConvolutionMatrixFilter = FILTER.ConvolutionMatrixFilter = FILTER.Class( FIL
                 }
                 
                 // output
-                t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                t0 = (coeff1*r+coeff2)|0;  t1 = (coeff1*g+coeff2)|0;  t2 = (coeff1*b+coeff2)|0;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 /*if ( rgba )
                 {
-                    t3 = coeff1*a + coeff2;
-                    if ( notSupportClamp ) t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = ~~t3;
+                    t3 = (coeff1*a + coeff2)|0;
+                    dst[i+3] = t3;
                 }
                 else
                 {*/
@@ -694,8 +682,8 @@ function indices( m, d )
 
 function functional1( d, f )
 {
-    var i, ker = new Array(d);
-    for(i=0; i<d; i++) ker[i] = f(i);
+    var x, y, i, ker = new Array(d);
+    for(x=0,y=0,i=0; i<d; i++,x++) ker[i] = f(x, y, d);
     return ker;
 }
 function identity1( d )
@@ -817,8 +805,8 @@ function twos2( d, c, s, cf )
     while (i<=half)
     {
         // compute the transformation of the (diagonal) line
-        T[center + i]= ~~(center + tx + ty + 0.5);
-        T[center - i]= ~~(center - tx - ty + 0.5);
+        T[center + i]= (center + tx + ty + 0.5)|0;
+        T[center - i]= (center - tx - ty + 0.5)|0;
         i++; tx+=dx; ty+=k;
     }
     i=0;

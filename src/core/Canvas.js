@@ -47,7 +47,7 @@ CanvasProxyCtx = FILTER.Class({
         else if ( fillStyle && fillStyle.substr )
         {
             col = Color.fromString( fillStyle ).toRGB( false );
-            col[3] = ~~(255*col[3]);
+            col[3] = (255*col[3])|0;
         }
         else
         {

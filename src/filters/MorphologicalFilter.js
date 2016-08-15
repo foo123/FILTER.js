@@ -14,28 +14,23 @@
 var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
     Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     // return a box structure element
-    box = function(d) {
-        var i, size=d*d, ones=new STRUCT(size);
+    box = function( d ) {
+        var i, size=d*d, ones = new STRUCT(size);
         for (i=0; i<size; i++) ones[i]=1;
         return ones;
     },
-    
-    box3 = box(3),
-    
-    Filters
+    box3 = box(3), Filters
 ;
 
 
 //
 //
 //  Morphological Filter
-var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filter, {
+FILTER.Create({
     name: "MorphologicalFilter"
     
-    ,constructor: function MorphologicalFilter( ) {
+    ,init: function MorphologicalFilter( ) {
         var self = this;
-        if ( !(self instanceof MorphologicalFilter) ) return new MorphologicalFilter();
-        self.$super('constructor');
         self._filterName = null;
         self._filter = null;
         self._dim = 0;
@@ -52,14 +47,12 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
     
     ,dispose: function( ) {
         var self = this;
-        
         self._filterName = null;
         self._filter = null;
         self._dim = null;
         self._structureElement = null;
         self._indices = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -108,9 +101,9 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
         {
             // structure Element given
             self._structureElement = new STRUCT( structureElement );
-            self._dim = ~~(Sqrt(self._structureElement.length)+0.5);
+            self._dim = (Sqrt(self._structureElement.length)+0.5)|0;
         }
-        else if (structureElement && structureElement===(structureElement-0))
+        else if (structureElement && (structureElement === +structureElement) )
         {
             // dimension given
             self._structureElement = box(structureElement);
@@ -124,22 +117,19 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
         }
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        var Indices=[], k, x, y,
-            structureElement=self._structureElement, 
-            matArea=structureElement.length, matRadius=self._dim, matHalfSide=(matRadius>>1);
-        x=0; y=0; k=0;
-        while (k<matArea)
+        var indices = [], i, x, y, structureElement = self._structureElement, 
+            matArea = structureElement.length, matRadius = self._dim, matHalfSide = matRadius>>>1;
+        for(x=0,y=0,i=0; i<matArea; i++,x++)
         { 
+            if (x>=matRadius) { x=0; y++; }
             // allow a general structuring element instead of just a box
-            if (structureElement[k])
+            if ( structureElement[i] )
             {
-                Indices.push(x-matHalfSide); 
-                Indices.push(y-matHalfSide);
+                indices.push(x-matHalfSide);
+                indices.push(y-matHalfSide);
             }
-            k++; x++; if (x>=matRadius) { x=0; y++; }
         }
-        self._indices = new A32I(Indices);
-        
+        self._indices = new A32I(indices);
         return self;
     }
     
@@ -153,10 +143,9 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
         return self;
     }
     
-    // used for internal purposes
     ,_apply: function( im, w, h ) {
         var self = this;
-        if ( !self._isOn || !self._dim || !self._filter )  return im;
+        if ( !self._dim || !self._filter )  return im;
         return self._filter( self, im, w, h );
     }
         
@@ -171,89 +160,66 @@ var MorphologicalFilter = FILTER.MorphologicalFilter = FILTER.Class( FILTER.Filt
 
 Filters = {
     "dilate": function( self, im, w, h ) {
-        var 
-            structureElement=self._structureElement,
-            matArea=structureElement.length, //matRadius*matRadius,
-            matRadius=self._dim, imageIndices=new A32I(self._indices), 
-            imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
-            coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
-            bx=w-1, by=imArea-w
-        ;
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        for (k=0; k<coverArea2; k+=2)
-        { 
-            // translate to image dimensions
-            // the y coordinate
-            imageIndices[k+1]*=w;
-        }
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=0; gM=0; bM=0; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r>rM) rM=r; if (g>gM) gM=g; if (b>bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
             }
-            
             // output
-            dst[i] = rM;  dst[i+1] = gM;  dst[i+2] = bM;  dst[i+3] = im[i+3];
+            dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
         }
         return dst;
     }
     
     ,"erode": function( self, im, w, h ) {
-        var 
-            structureElement=self._structureElement,
-            matArea=structureElement.length, //matRadius*matRadius,
-            matRadius=self._dim, imageIndices=new A32I(self._indices), 
-            imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
-            coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
-            bx=w-1, by=imArea-w
-        ;
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        for (k=0; k<coverArea2; k+=2)
-        { 
-            // translate to image dimensions
-            // the y coordinate
-            imageIndices[k+1]*=w;
-        }
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=255; gM=255; bM=255; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
             }
             
             // output
@@ -264,146 +230,114 @@ Filters = {
     
     // dilation of erotion
     ,"open": function( self, im, w, h ) {
-        var 
-            structureElement=self._structureElement,
-            matArea=structureElement.length, //matRadius*matRadius,
-            matRadius=self._dim, imageIndices=new A32I(self._indices), 
-            imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
-            coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
-            bx=w-1, by=imArea-w
-        ;
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        for (k=0; k<coverArea2; k+=2)
-        { 
-            // translate to image dimensions
-            // the y coordinate
-            imageIndices[k+1]*=w;
-        }
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
         // erode step
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=255; gM=255; bM=255; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
             }
             
             // output
             dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
         }
         
-        im = dst; dst = new IMG(imLen);
+        var tmp = im; im = dst; dst = tmp;
         
         // dilate step
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=255; gM=255; bM=255; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
             }
-            
             // output
-            dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
+            dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
         }
         return dst;
     }
     
     // erotion of dilation
     ,"close": function( self, im, w, h ) {
-        var 
-            structureElement=self._structureElement,
-            matArea=structureElement.length, //matRadius*matRadius,
-            matRadius=self._dim, imageIndices=new A32I(self._indices), 
-            imLen=im.length, imArea=(imLen>>2), dst=new IMG(imLen),
-            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM,
-            coverArea2=imageIndices.length, coverArea=(coverArea2>>1), 
-            bx=w-1, by=imArea-w
-        ;
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
-        for (k=0; k<coverArea2; k+=2)
-        { 
-            // translate to image dimensions
-            // the y coordinate
-            imageIndices[k+1]*=w;
-        }
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
         // dilate step
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=255; gM=255; bM=255; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
             }
-            
             // output
-            dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
+            dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
         }
         
-        im = dst; dst = new IMG(imLen);
+        var tmp = im; im = dst; dst = tmp;
         
         // erode step
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
         {
             // update image coordinates
             if (x>=w) { x=0; ty+=w; }
             
             // calculate the image pixels that
             // fall under the structure matrix
-            rM=255; gM=255; bM=255; 
-            for (j=0; j<coverArea; j+=2)
+            for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
             {
-                xOff=x + imageIndices[j]; yOff=ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
-                {
-                    srcOff=(xOff + yOff)<<2;
-                    r=im[srcOff]; g=im[srcOff+1]; b=im[srcOff+2];
-                    if (r<rM) rM=r; if (g<gM) gM=g; if (b<bM) bM=b;
-                }
+                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                srcOff = (xOff + yOff)<<2;
+                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
             }
             
             // output

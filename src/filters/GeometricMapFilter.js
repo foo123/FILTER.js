@@ -17,13 +17,11 @@ var MODE = FILTER.MODE, Maps, function_body = FILTER.Util.String.function_body;
 //
 //
 // GeometricMapFilter
-var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter, {
+FILTER.Create({
     name: "GeometricMapFilter"
     
-    ,constructor: function GeometricMapFilter( T, init ) {
+    ,init: function GeometricMapFilter( T, init ) {
         var self = this;
-        if ( !(self instanceof GeometricMapFilter) ) return new GeometricMapFilter(T, init);
-        self.$super('constructor');
         if ( T ) self.set( T, init );
     }
     
@@ -193,9 +191,10 @@ var GeometricMapFilter = FILTER.GeometricMapFilter = FILTER.Class( FILTER.Filter
 function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
-    return new Function("FILTER", "return function( im, w, h ){\
+    return new Function("FILTER", "\"use strict\";\
+    return function( im, w, h ){\
     var self = this;\
-    if ( !self._isOn || !self._map ) return im;\
+    if ( !self._map ) return im;\
     var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\
         COLOR = FILTER.MODE.COLOR, CLAMP = FILTER.MODE.CLAMP, WRAP = FILTER.MODE.WRAP, IGNORE = FILTER.MODE.IGNORE,\
         mode = self.mode||CLAMP, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
@@ -225,7 +224,7 @@ function apply__( map, preample )
                 continue;\
             }\
             \
-            j = (~~t[0] + (~~t[1])*w) << 2;\
+            j = ((t[0]|0) + (t[1]|0)*w) << 2;\
             dst[i] = im[j];   dst[i+1] = im[j+1];\
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
         }\
@@ -244,7 +243,7 @@ function apply__( map, preample )
             t[1] = t[1] > by || t[1] < 0 ? y : t[1];\
             t[0] = t[0] > bx || t[0] < 0 ? x : t[0];\
             \
-            j = (~~t[0] + (~~t[1])*w) << 2;\
+            j = ((t[0]|0) + (t[1]|0)*w) << 2;\
             dst[i] = im[j];   dst[i+1] = im[j+1];\
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
         }\
@@ -263,7 +262,7 @@ function apply__( map, preample )
             t[1] = t[1] > by ? t[1]-h : (t[1] < 0 ? t[1]+h : t[1]);\
             t[0] = t[0] > bx ? t[0]-w : (t[0] < 0 ? t[0]+w : t[0]);\
             \
-            j = (~~t[0] + (~~t[1])*w) << 2;\
+            j = ((t[0]|0) + (t[1]|0)*w) << 2;\
             dst[i] = im[j];   dst[i+1] = im[j+1];\
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
         }\
@@ -282,7 +281,7 @@ function apply__( map, preample )
             t[1] = t[1] > by ? by : (t[1] < 0 ? 0 : t[1]);\
             t[0] = t[0] > bx ? bx : (t[0] < 0 ? 0 : t[0]);\
             \
-            j = (~~t[0] + (~~t[1])*w) << 2;\
+            j = ((t[0]|0) + (t[1]|0)*w) << 2;\
             dst[i] = im[j];   dst[i+1] = im[j+1];\
             dst[i+2] = im[j+2];  dst[i+3] = im[j+3];\
         }\

@@ -16,13 +16,11 @@ var HAS = 'hasOwnProperty';
 //
 //  Inline Filter 
 //  used as a placeholder for constructing filters inline with an anonymous function
-var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
+FILTER.Create({
     name: "InlineFilter"
     
-    ,constructor: function InlineFilter( filter, params ) {
+    ,init: function InlineFilter( filter, params ) {
         var self = this;
-        if ( !(self instanceof InlineFilter) ) return new InlineFilter(filter, params);
-        self.$super('constructor');
         self._params = {};
         self.set( filter, params );
     }
@@ -92,7 +90,7 @@ var InlineFilter = FILTER.InlineFilter = FILTER.Class( FILTER.Filter, {
     
     ,_apply: function( im, w, h, image ) {
         var self = this;
-        if ( !self._isOn || !self._filter ) return im;
+        if ( !self._filter ) return im;
         return self._filter( self._params, im, w, h, image );
     }
         

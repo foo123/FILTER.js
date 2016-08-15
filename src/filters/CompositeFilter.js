@@ -12,19 +12,16 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
 
 //
 // Composite Filter Stack  (a variation of Composite Design Pattern)
-var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
+var CompositeFilter = FILTER.Create({
     name: "CompositeFilter"
     
-    ,constructor: function CompositeFilter( filters ) { 
+    ,init: function CompositeFilter( filters ) { 
         var self = this;
-        if ( !(self instanceof CompositeFilter) ) return new CompositeFilter(filters);
-        self.$super('constructor');
         self._stack = filters && filters.length ? filters.slice( ) : [ ];
     }
     
     ,path: FILTER_FILTERS_PATH
     ,_stack: null
-    ,_meta: null
     ,_stable: true
     ,hasInputs: true
     
@@ -40,26 +37,25 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
             }
         }
         self._stack = null;
-        self._meta = null;
         self.$super('dispose');
         return self;
     }
     
-    ,serializeInputs: function( ) {
+    ,serializeInputs: function( curIm ) {
         var self = this, i, stack = self._stack, l, inputs = [ ], hasInputs = false, input;
         for (i=0,l=stack.length; i<l; i++)
         {
-            inputs.push( input=stack[ i ].serializeInputs( ) );
+            inputs.push( input=stack[ i ].serializeInputs( curIm ) );
             if ( input ) hasInputs = true;
         }
         return hasInputs ? inputs : null;
     }
     
-    ,unserializeInputs: function( inputs ) {
+    ,unserializeInputs: function( inputs, curImData ) {
         var self = this;
         if ( !inputs ) return self;
         var i, stack = self._stack, l;
-        for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ] );
+        for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ], curImData );
         return self;
     }
     
@@ -108,14 +104,15 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
         return self;
     }
     
-    ,getMeta: function( ) {
-        return this._meta;
-    }
-    
     ,setMeta: function( meta ) {
         var self = this, stack = self._stack, i, l;
-        if ( meta && (l=meta.length) && stack.length )
-            for (i=0; i<l; i++) stack[ meta[i][0] ].setMeta( meta[i][1] );
+        if ( meta && meta.filters && (l=meta.filters.length) && stack.length )
+            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1] );
+        if ( meta && (null != meta._IMG_WIDTH) )
+        {
+            self._meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
+            self.hasMeta = true;
+        }
         return self;
     }
     
@@ -198,9 +195,9 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     
     // used for internal purposes
     ,_apply: function( im, w, h, image ) {
-        var self = this, scratchpad = {}/*, update = false*/;
-        self._meta = [];
-        if ( self._isOn && self._stack.length )
+        var self = this, scratchpad = {}, meta, _meta/*, update = false*/;
+        _meta = {filters: []};
+        if ( self._stack.length )
         {
             var filterstack = self._stack, stacklength = filterstack.length, fi, filter;
             for (fi=0; fi<stacklength; fi++)
@@ -209,13 +206,31 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
                 if ( filter && filter._isOn ) 
                 {
                     im = filter._apply(im, w, h, image, scratchpad);
-                    if ( filter.hasMeta ) self._meta.push([fi, filter.getMeta()]);
+                    if ( filter.hasMeta )
+                    {
+                        _meta.filters.push([fi, meta=filter.getMeta()]);
+                        if ( null != meta._IMG_WIDTH )
+                        {
+                            // width/height changed during process, update and pass on
+                            _meta._IMG_WIDTH = w = meta._IMG_WIDTH;
+                            _meta._IMG_HEIGHT = h = meta._IMG_HEIGHT;
+                        }
+                    }
                     //update = update || filter._update;
                 }
             }
         }
         //self._update = update;
-        self.hasMeta = self._meta.length > 0;
+        if ( _meta.filters.length > 0 )
+        {
+            self.hasMeta = true;
+            self._meta = _meta;
+        }
+        else
+        {
+            self.hasMeta = false;
+            self._meta = null;
+        }
         return im;
     }
         
@@ -224,7 +239,7 @@ var CompositeFilter = FILTER.CompositeFilter = FILTER.Class( FILTER.Filter, {
     }
     
     ,toString: function( ) {
-        var tab = "  ", s = this._stack, out = [], i, l = s.length;
+        var tab = "\t", s = this._stack, out = [], i, l = s.length;
         for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
         return [
              "[FILTER: " + this.name + "]"

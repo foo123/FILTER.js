@@ -130,7 +130,6 @@ FILTER.Create({
     ,color: null
     ,invert: false
     ,box: null
-    
     //,hasMeta: true
     
     // this is the filter constructor
@@ -166,15 +165,6 @@ FILTER.Create({
         self.invert = params.invert;
         return self;
     }
-    
-    /*,getMeta: function( ) {
-        return this.box;
-    }
-    
-    ,setMeta: function( boxes ) {
-        this.box = boxes;
-        return this;
-    }*/
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -284,7 +274,7 @@ FILTER.Create({
             for(c=0,i=0; i<imLen; i+=4,c++)
             {
                 color = labels[root_of(labelimg[c], labels)][2];
-                color = ~~(255-255*color/tag);
+                color = (255-255*color/tag)|0;
                 im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
@@ -294,12 +284,11 @@ FILTER.Create({
             for(c=0,i=0; i<imLen; i+=4,c++)
             {
                 color = labels[root_of(labelimg[c], labels)][2];
-                color = ~~(255*color/tag);
+                color = (255*color/tag)|0;
                 im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
-        
         // return the connected image data
         return im;
     }

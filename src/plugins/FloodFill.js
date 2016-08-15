@@ -65,7 +65,7 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this, 
             /* seems to have issues when tol is exactly 1.0*/
-            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
+            tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0,
             color = self.color || 0, borderColor = self.borderColor,
             isBorderColor = borderColor === +borderColor, OC, NC, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length,
@@ -304,7 +304,7 @@ FILTER.Create({
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
         // seems to have issues when tol is exactly 1.0
-        var tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+        var tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, mode = self.mode,
             borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
             OC, dy = w<<2, pattern = Pat[0], pw = Pat[1], ph = Pat[2], 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
@@ -361,8 +361,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -386,8 +386,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -449,8 +449,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -471,8 +471,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {

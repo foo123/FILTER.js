@@ -32,41 +32,42 @@ function function_body( func )
 function arrayset( a, b, offset )
 {
     offset = offset || 0;
-    var i, n = b.length, rem = n&31;
-    for(i=0; i<n; i+=32)
+    var j, i, n = b.length, rem = n&31;
+    for(j=0; j<n; j+=32)
     {
-        a[ i   + offset ] = b[ i   ];
-        a[ i+ 1+ offset ] = b[ i+ 1];
-        a[ i+ 2+ offset ] = b[ i+ 2];
-        a[ i+ 3+ offset ] = b[ i+ 3];
-        a[ i+ 4+ offset ] = b[ i+ 4];
-        a[ i+ 5+ offset ] = b[ i+ 5];
-        a[ i+ 6+ offset ] = b[ i+ 6];
-        a[ i+ 7+ offset ] = b[ i+ 7];
-        a[ i+ 8+ offset ] = b[ i+ 8];
-        a[ i+ 9+ offset ] = b[ i+ 9];
-        a[ i+10+ offset ] = b[ i+10];
-        a[ i+11+ offset ] = b[ i+11];
-        a[ i+12+ offset ] = b[ i+12];
-        a[ i+13+ offset ] = b[ i+13];
-        a[ i+14+ offset ] = b[ i+14];
-        a[ i+15+ offset ] = b[ i+15];
-        a[ i+16+ offset ] = b[ i+16];
-        a[ i+17+ offset ] = b[ i+17];
-        a[ i+18+ offset ] = b[ i+18];
-        a[ i+19+ offset ] = b[ i+19];
-        a[ i+20+ offset ] = b[ i+20];
-        a[ i+21+ offset ] = b[ i+21];
-        a[ i+22+ offset ] = b[ i+22];
-        a[ i+23+ offset ] = b[ i+23];
-        a[ i+24+ offset ] = b[ i+24];
-        a[ i+25+ offset ] = b[ i+25];
-        a[ i+26+ offset ] = b[ i+26];
-        a[ i+27+ offset ] = b[ i+27];
-        a[ i+28+ offset ] = b[ i+28];
-        a[ i+29+ offset ] = b[ i+29];
-        a[ i+30+ offset ] = b[ i+30];
-        a[ i+31+ offset ] = b[ i+31];
+        i = j;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
     }
     if ( rem )
     {
@@ -845,7 +846,7 @@ function gradient( im, w, h, grad, grad2, summed )
                 + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
                 + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
         
-        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF)|0;
         
     }
     // sobel gradient
@@ -1027,8 +1028,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1099,8 +1100,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1204,12 +1205,12 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1280,12 +1281,12 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
+                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1352,9 +1353,9 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
             }
             
             // output
-            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
             
-            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
             /*if ( rgba )
             {
                 t3 = coeff * a;
@@ -1431,14 +1432,14 @@ function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2
             }
             
             // output
-            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
             
             // clamp them manually
             t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
             t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
             t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
             
-            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
             /*if ( rgba )
             {
                 t3 = coeff * a;
@@ -1467,38 +1468,38 @@ function ct_eye( c1, c0 )
     var i, t = new ColorTable(256);
     for(i=0; i<256; i+=32)
     {
-        t[i   ] = ~~clamp(c0 + c1*(i   ),0,255);
-        t[i+1 ] = ~~clamp(c0 + c1*(i+1 ),0,255);
-        t[i+2 ] = ~~clamp(c0 + c1*(i+2 ),0,255);
-        t[i+3 ] = ~~clamp(c0 + c1*(i+3 ),0,255);
-        t[i+4 ] = ~~clamp(c0 + c1*(i+4 ),0,255);
-        t[i+5 ] = ~~clamp(c0 + c1*(i+5 ),0,255);
-        t[i+6 ] = ~~clamp(c0 + c1*(i+6 ),0,255);
-        t[i+7 ] = ~~clamp(c0 + c1*(i+7 ),0,255);
-        t[i+8 ] = ~~clamp(c0 + c1*(i+8 ),0,255);
-        t[i+9 ] = ~~clamp(c0 + c1*(i+9 ),0,255);
-        t[i+10] = ~~clamp(c0 + c1*(i+10),0,255);
-        t[i+11] = ~~clamp(c0 + c1*(i+11),0,255);
-        t[i+12] = ~~clamp(c0 + c1*(i+12),0,255);
-        t[i+13] = ~~clamp(c0 + c1*(i+13),0,255);
-        t[i+14] = ~~clamp(c0 + c1*(i+14),0,255);
-        t[i+15] = ~~clamp(c0 + c1*(i+15),0,255);
-        t[i+16] = ~~clamp(c0 + c1*(i+16),0,255);
-        t[i+17] = ~~clamp(c0 + c1*(i+17),0,255);
-        t[i+18] = ~~clamp(c0 + c1*(i+18),0,255);
-        t[i+19] = ~~clamp(c0 + c1*(i+19),0,255);
-        t[i+20] = ~~clamp(c0 + c1*(i+20),0,255);
-        t[i+21] = ~~clamp(c0 + c1*(i+21),0,255);
-        t[i+22] = ~~clamp(c0 + c1*(i+22),0,255);
-        t[i+23] = ~~clamp(c0 + c1*(i+23),0,255);
-        t[i+24] = ~~clamp(c0 + c1*(i+24),0,255);
-        t[i+25] = ~~clamp(c0 + c1*(i+25),0,255);
-        t[i+26] = ~~clamp(c0 + c1*(i+26),0,255);
-        t[i+27] = ~~clamp(c0 + c1*(i+27),0,255);
-        t[i+28] = ~~clamp(c0 + c1*(i+28),0,255);
-        t[i+29] = ~~clamp(c0 + c1*(i+29),0,255);
-        t[i+30] = ~~clamp(c0 + c1*(i+30),0,255);
-        t[i+31] = ~~clamp(c0 + c1*(i+31),0,255);
+        t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
+        t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
+        t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
+        t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
+        t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
+        t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
+        t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
+        t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
+        t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
+        t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
+        t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
+        t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
+        t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
+        t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
+        t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
+        t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
+        t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
+        t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
+        t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
+        t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
+        t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
+        t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
+        t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
+        t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
+        t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
+        t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
+        t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
+        t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
+        t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
+        t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
+        t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
+        t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
     }
     return t;
 }

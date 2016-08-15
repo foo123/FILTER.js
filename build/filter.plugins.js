@@ -103,7 +103,7 @@ FILTER.Create({
                 else if (t1>255) t1=255;
                 if (t2<0) t2=0;
                 else if (t2>255) t2=255;
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                im[i] = t0|0; im[i+1] = t1|0; im[i+2] = t2|0;
             }
         }
         else
@@ -113,7 +113,7 @@ FILTER.Create({
                 r = im[i]; g = im[i+1]; b = im[i+2];
                 n = range*rand()+m;
                 t0 = r+n; t1 = g+n; t2 = b+n; 
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                im[i] = t0|0; im[i+1] = t1|0; im[i+2] = t2|0;
             }
         }
         
@@ -419,7 +419,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var Min = Math.min, Floor = Math.floor, CHANNEL = FILTER.CHANNEL;
+var Min = Math.min, Floor = Math.floor, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE;
 
 // a plugin to copy a channel of an image to a channel of another image
 FILTER.Create({
@@ -428,23 +428,23 @@ FILTER.Create({
     // parameters
     ,centerX: 0
     ,centerY: 0
-    ,srcChannel: CHANNEL.RED
-    ,dstChannel: CHANNEL.RED
+    ,srcChannel: CHANNEL.R
+    ,dstChannel: CHANNEL.R
+    ,color: 0
+    ,mode: MODE.IGNORE
     ,hasInputs: true
     
     // support worker serialize/unserialize interface
     ,path: FILTER_PLUGINS_PATH
     
     // constructor
-    ,init: function( srcImg, srcChannel, dstChannel, centerX, centerY ) {
+    ,init: function( srcChannel, dstChannel, centerX, centerY, color ) {
         var self = this;
-        self._srcImg = null;
-        self.srcImg = null;
-        self.srcChannel = srcChannel || CHANNEL.RED;
-        self.dstChannel = dstChannel || CHANNEL.RED;
+        self.srcChannel = srcChannel || CHANNEL.R;
+        self.dstChannel = dstChannel || CHANNEL.R;
         self.centerX = centerX || 0;
         self.centerY = centerY || 0;
-        if ( srcImg ) self.setInput( "source", srcImg );
+        self.color = color || 0;
     }
     
     ,dispose: function( ) {
@@ -453,6 +453,7 @@ FILTER.Create({
         self.dstChannel = null;
         self.centerX = null;
         self.centerY = null;
+        self.color = null;
         self.$super('dispose');
         return self;
     }
@@ -464,6 +465,7 @@ FILTER.Create({
             ,centerY: self.centerY
             ,srcChannel: self.srcChannel
             ,dstChannel: self.dstChannel
+            ,color: self.color
         };
     }
     
@@ -473,162 +475,59 @@ FILTER.Create({
         self.centerY = params.centerY;
         self.srcChannel = params.srcChannel;
         self.dstChannel = params.dstChannel;
+        self.color = params.color;
         return self;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
         var self = this, Src;
-        if ( !self._isOn ) return im;
-        
         Src = self.input("source"); if ( !Src ) return im;
         
         var src = Src[0], w2 = Src[1], h2 = Src[2],
             i, l = im.length, l2 = src.length, 
             sC = self.srcChannel, tC = self.dstChannel,
-            x, x2, y, y2, off, xc, yc, 
+            x, x2, y, y2, off, xc, yc,
+            cX = self.centerX||0, cY = self.centerY||0, cX2 = w2>>>1, cY2 = h2>>>1,
             wm = Min(w,w2), hm = Min(h, h2),  
-            cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = w2>>>1, cY2 = h2>>>1
-        ;
+            color = self.color||0, r, g, b, a,
+            mode = self.mode, COLOR = MODE.COLOR, CH_COLOR = MODE.COLOR_CHANNEL, MASK = MODE.COLOR_MASK;
         
+        if ( COLOR === mode || MASK === mode )
+        {
+            a = (color >>> 24)&255;
+            r = (color >>> 16)&255;
+            g = (color >>> 8)&255;
+            b = (color)&255;
+        }
+        else if ( CH_COLOR === mode )
+        {
+            color &= 255;
+        }
         
         // make center relative
         cX = Floor(cX*(w-1)) - cX2;
         cY = Floor(cY*(h-1)) - cY2;
         
-        i=0; x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
+        for (x=0,y=0,i=0; i<l; i+=4,x++)
         {
             if (x>=w) { x=0; y++; }
             
             xc = x - cX; yc = y - cY;
-            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
+            if (xc<0 || xc>=wm || yc<0 || yc>=hm)
+            {
+                if ( COLOR === mode ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a; }
+                else if ( MASK === mode ) { im[i  ] = r&im[i  ]; im[i+1] = g&im[i+1]; im[i+2] = b&im[i+2]; im[i+3] = a&im[i+3]; }
+                else if ( CH_COLOR === mode ) im[i+tC] = color;
+                // else ignore
+            }
+            else
             {
                 // copy channel
                 off = (xc + yc*w2)<<2;
                 im[i + tC] = src[off + sC];
             }
         }
-        
-        // return the new image data
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Alpha Mask Plugin
-* @package FILTER.js
-*
-**/
-!function(FILTER){
-"use strict";
-
-var notSupportClamp = FILTER._notSupportClamp, CHANNEL = FILTER.CHANNEL, Min = Math.min, Floor=Math.floor;
-
-// a plugin to mask an image using the alpha channel of another image
-FILTER.Create({
-    name: "AlphaMaskFilter"
-    
-    // parameters
-    ,centerX: 0
-    ,centerY: 0
-    ,channel: CHANNEL.ALPHA
-    ,hasInputs: true
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    // constructor
-    ,init: function( alphaMask, centerX, centerY, channel ) {
-        var self = this;
-        self.centerX = centerX||0;
-        self.centerY = centerY||0;
-        self.channel = null == channel ? CHANNEL.ALPHA : (channel||CHANNEL.RED);
-        self._alphaMask = null;
-        self.alphaMask = null;
-        if ( alphaMask ) self.setInput( "mask", alphaMask );
-    }
-    
-    ,dispose: function( ) {
-        var self = this;
-        self.centerX = null;
-        self.centerY = null;
-        self.channel = null;
-        self.$super('dispose');
-        return self;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-             centerX: self.centerX
-            ,centerY: self.centerY
-            ,channel: self.channel
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.centerX = params.centerX;
-        self.centerY = params.centerY;
-        self.channel = params.channel;
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        
-        var self = this, Mask;
-        if ( !self._isOn ) return im;
-        
-        Mask = self.input("mask"); if ( !Mask ) return im;
-        
-        var alpha = Mask[0], w2 = Mask[1], h2 = Mask[2],
-            i, l = im.length, l2 = alpha.length,
-            x, x2, y, y2, off, xc, yc, 
-            wm = Min(w, w2), hm = Min(h, h2),  
-            channel = null==self.channel?CHANNEL.ALPHA:(self.channel||CHANNEL.RED),
-            cX = self.centerX||0, cY = self.centerY||0, 
-            cX2 = w2>>>1, cY2 = h2>>>1
-        ;
-        
-        
-        // make center relative
-        cX = Floor(cX*(w-1)) - cX2;
-        cY = Floor(cY*(h-1)) - cY2;
-        
-        x=0; y=0;
-        for (i=0; i<l; i+=4, x++)
-        {
-            if (x>=w) { x=0; y++; }
-            
-            xc = x - cX; yc = y - cY;
-            if (xc>=0 && xc<wm && yc>=0 && yc<hm)
-            {
-                // copy (alpha) channel
-                off = (xc + yc*w2)<<2;
-                im[i+3] = alpha[off+channel];
-            }
-            else
-            {
-                // better to remove the alpha channel if mask dimensions are different??
-                im[i] = 0;
-                im[i+1] = 0;
-                im[i+2] = 0;
-                im[i+3] = 0;
-            }
-        }
-        
         // return the new image data
         return im;
     }
@@ -1516,7 +1415,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01);
+        step = (sqrt(imArea)*self.scale*0.01)|0;
         stepx = step-1; stepy = w*stepx;
         
         // do pixelation via interpolation on 5 points of a certain rectangle
@@ -1538,7 +1437,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]/*+im[p5  ]*/;
             g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]/*+im[p5+1]*/;
             b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]/*+im[p5+2]*/;
-            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
+            dst[i] = (0.25*r)|0; dst[i+1] = (0.25*g)|0; dst[i+2] = (0.25*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1596,7 +1495,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01);
+        step = (sqrt(imArea)*self.scale*0.01)|0;
         stepx = step-1; stepy = w*stepx;
         
         // do pixelation via interpolation on 4 points of a certain triangle
@@ -1629,7 +1528,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]/*+im[p4  ]*/;
             g = im[p1+1]+im[p2+1]+im[p3+1]/*+im[p4+1]*/;
             b = im[p1+2]+im[p2+2]+im[p3+2]/*+im[p4+2]*/;
-            dst[i] = ~~(0.333*r); dst[i+1] = ~~(0.333*g); dst[i+2] = ~~(0.333*b); dst[i+3] = im[i+3];
+            dst[i] = (0.333*r)|0; dst[i+1] = (0.333*g)|0; dst[i+2] = (0.333*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1690,7 +1589,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01); d = ~~(step/SQRT_3);
+        step = (sqrt(imArea)*self.scale*0.01)|0; d = ~~(step/SQRT_3);
         step_1 = step-1; step_2 = step >>> 1;
         stepx_2 = (step/*+d+d* /) >>> 1; stepx = step_1/*+d+d* /;
         stepy_2 = w*step_2; stepy = w*step_1;
@@ -1737,7 +1636,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ];
             g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1];
             b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2];
-            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
+            dst[i] = (0.25*r)|0; dst[i+1] = (0.25*g)|0; dst[i+2] = (0.25*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1835,8 +1734,8 @@ FILTER.Create({
             size = self.size, area = size*size, invarea = 1.0/area,
             threshold = 255*self.thresh, size2 = size2<<1,
             colored = MODE.RGB === self.mode, x, y, yw, sw = size*w, i, j, jw, 
-            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf,
-            //inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
+            sum_r, sum_g, sum_b, r, g, b, qr, qg, qb, qrf, qgf, qbf
+            //,inverse = self.inverse,one = inverse?0:255, zero = inverse?255:0
             ,f11 = /*area**/f1, f22 = /*area**/f2
             ,f33 = /*area**/f3, f44 = /*area**/f4
         ;
@@ -1858,7 +1757,7 @@ FILTER.Create({
                 t = intensity(sum_r, sum_g, sum_b);
                 if ( t > threshold )
                 {
-                    r = ~~sum_r; g = ~~sum_g; b = ~~sum_b;
+                    r = sum_r|0; g = sum_g|0; b = sum_b|0;
                 }
                 else
                 {                
@@ -1967,8 +1866,7 @@ var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_con
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9
-    ])
-;
+    ]);
 
 // adapted from http://www.jhlabs.com/ip/filters/
 // analogous to ActionScript filter
@@ -1993,7 +1891,7 @@ FILTER.Create({
         self.offsetY = offsetY || 0;
         self.color = color || 0;
         self.opacity = null == opacity ? 1.0 : +opacity;
-        self.quality = ~~(quality || 1);
+        self.quality = (quality || 1)|0;
         self.onlyShadow = !!onlyShadow;
     }
     
@@ -2060,7 +1958,7 @@ FILTER.Create({
                 shadow[i  ] = r;
                 shadow[i+1] = g;
                 shadow[i+2] = b;
-                shadow[i+3] = ~~(a*ai);
+                shadow[i+3] = (a*ai)|0;
             }
             /*else
             {
@@ -2108,7 +2006,7 @@ FILTER.Create({
                 r = im[i  ] + (shadow[si  ]-im[i  ])*a;
                 g = im[i+1] + (shadow[si+1]-im[i+1])*a;
                 b = im[i+2] + (shadow[si+2]-im[i+2])*a;
-                im[i  ] = ~~r; im[i+1] = ~~g; im[i+2] = ~~b;
+                im[i  ] = r|0; im[i+1] = g|0; im[i+2] = b|0;
             }
         }
         return im;
@@ -2236,7 +2134,7 @@ FILTER.Create({
             
             // calculate amount(radius) of blurring 
             // depending on distance from focus center
-            blur = d>r ? ~~Log((d-r)*m) : ~~(d/r+0.5); // smooth it a bit, around the radius edge condition
+            blur = d>r ? Log((d-r)*m)|0 : (d/r+0.5)|0; // smooth it a bit, around the radius edge condition
             
             if ( blur > 0 )
             {
@@ -2273,12 +2171,11 @@ FILTER.Create({
                     t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
                     t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
                 }
-                im[i] = ~~t0;  im[i+1] = ~~t1;  im[i+2] = ~~t2;
+                im[i] = t0|0;  im[i+1] = t1|0;  im[i+2] = t2|0;
                 // alpha channel is not transformed
                 //im[i+3] = im[i+3];
             }
         }
-        
         // return the new image data
         return im;
     }
@@ -2500,7 +2397,7 @@ FILTER.Create({
     ,apply: function(im, w, h/*, image*/) {
         var self = this, 
             /* seems to have issues when tol is exactly 1.0*/
-            tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), 
+            tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0,
             color = self.color || 0, borderColor = self.borderColor,
             isBorderColor = borderColor === +borderColor, OC, NC, /*pix = 4,*/ dy = w<<2, 
             x0 = self.x, y0 = self.y, imSize = im.length,
@@ -2739,7 +2636,7 @@ FILTER.Create({
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
         // seems to have issues when tol is exactly 1.0
-        var tol = ~~(255*(self.tolerance>=1.0 ? 0.999 : self.tolerance)), mode = self.mode,
+        var tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, mode = self.mode,
             borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
             OC, dy = w<<2, pattern = Pat[0], pw = Pat[1], ph = Pat[2], 
             x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
@@ -2796,8 +2693,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -2821,8 +2718,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -2884,8 +2781,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -2906,8 +2803,8 @@ FILTER.Create({
                         visited[i>>>7] |= 1<<((i>>>2)&31);
                         if ( STRETCH === mode )
                         {
-                            px = ~~(pw*(x>>>2)/w);
-                            py = ~~(ph*(y)/h);
+                            px = (pw*(x>>>2)/w)|0;
+                            py = (ph*(y)/h)|0;
                         }
                         else
                         {
@@ -3264,10 +3161,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
     for(scale=baseScale; scale<=maxScale; scale*=scaleIncrement)
     {
         // Viola-Jones Single Scale Detector
-        xsize = ~~(scale * sizex); 
-        xstep = ~~(xsize * stepIncrement); 
-        ysize = ~~(scale * sizey); 
-        ystep = ~~(ysize * stepIncrement);
+        xsize = (scale * sizex)|0;
+        xstep = (xsize * stepIncrement)|0;
+        ysize = (scale * sizey)|0;
+        ystep = (ysize * stepIncrement)|0;
         //ysize = xsize; ystep = xstep;
         tyw = ysize*selw; tys = ystep*selw; 
         startty = starty*tys; 
@@ -3340,14 +3237,14 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     r = rects[kr];
                                     
                                     // this produces better/larger features, possible rounding effects??
-                                    x1 = x + ~~(scale * r[0]);
-                                    y1 = (y-1 + ~~(scale * r[1])) * selw;
-                                    x2 = x + ~~(scale * (r[0] + r[2]));
-                                    y2 = (y-1 + ~~(scale * (r[1] + r[2]))) * selw;
-                                    x3 = x + ~~(scale * (r[0] - r[3]));
-                                    y3 = (y-1 + ~~(scale * (r[1] + r[3]))) * selw;
-                                    x4 = x + ~~(scale * (r[0] + r[2] - r[3]));
-                                    y4 = (y-1 + ~~(scale * (r[1] + r[2] + r[3]))) * selw;
+                                    x1 = x + (scale * r[0])|0;
+                                    y1 = (y-1 + (scale * r[1])|0) * selw;
+                                    x2 = x + (scale * (r[0] + r[2]))|0;
+                                    y2 = (y-1 + (scale * (r[1] + r[2]))|0) * selw;
+                                    x3 = x + (scale * (r[0] - r[3]))|0;
+                                    y3 = (y-1 + (scale * (r[1] + r[3]))|0) * selw;
+                                    x4 = x + (scale * (r[0] + r[2] - r[3]))|0;
+                                    y4 = (y-1 + (scale * (r[1] + r[2] + r[3]))|0) * selw;
                                     
                                     // clamp
                                     x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
@@ -3372,10 +3269,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     r = rects[kr];
                                     
                                     // this produces better/larger features, possible rounding effects??
-                                    x1 = x-1 + ~~(scale * r[0]); 
-                                    x2 = x-1 + ~~(scale * (r[0] + r[2]));
-                                    y1 = selw * (y-1 + ~~(scale * r[1])); 
-                                    y2 = selw * (y-1 + ~~(scale * (r[1] + r[3])));
+                                    x1 = x-1 + (scale * r[0])|0; 
+                                    x2 = x-1 + (scale * (r[0] + r[2]))|0;
+                                    y1 = selw * (y-1 + (scale * r[1])|0); 
+                                    y2 = selw * (y-1 + (scale * (r[1] + r[3]))|0);
                                     
                                     // clamp
                                     x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
@@ -3439,8 +3336,8 @@ function is_inside(r1, r2)
 
 function snap_to_grid(r)
 {
-    r.x1 = ~~(r.x1+0.5); r.y1 = ~~(r.y1+0.5); 
-    r.x2 = ~~(r.x2+0.5); r.y2 = ~~(r.y2+0.5); 
+    r.x1 = (r.x1+0.5)|0; r.y1 = (r.y1+0.5)|0;
+    r.x2 = (r.x2+0.5)|0; r.y2 = (r.y2+0.5)|0;
 }
 
 function by_area(r1, r2) { return r2.area-r1.area; }
@@ -3552,7 +3449,6 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,haardata: null
-    ,objects: null
     ,selection: null
     ,tolerance: 0.2
     ,baseScale: 1.0
@@ -3567,7 +3463,6 @@ FILTER.Create({
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning, tolerance ) {
         var self = this;
-        self.objects = null;
         self.haardata = haardata || null;
         self.baseScale = undef === baseScale ? 1.0 : baseScale;
         self.scaleIncrement = undef === scaleIncrement ? 1.25 : scaleIncrement;
@@ -3676,19 +3571,19 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,getMeta: function( ) {
-        return FILTER.isWorker ? TypedObj( this.objects ) : this.objects;
+    ,meta: function( ) {
+        return FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
     }
     
     ,setMeta: function( meta ) {
-        this.objects = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+        this._meta = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h, image, scratchpad) {
         var self = this;
-        if ( !self._isOn || !self.haardata ) return im;
+        if ( !self.haardata ) return im;
         
         var imSize = im.length>>>2,
             selection = self.selection || null,
@@ -3744,7 +3639,7 @@ FILTER.Create({
         if ( features.length > features.count ) features.length = features.count;
         
         // return results as meta
-        self.objects = merge_features(features, self.minNeighbors, self.tolerance); 
+        self._meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
         
         // return im back
         return im;
@@ -3883,7 +3778,6 @@ FILTER.Create({
     ,color: null
     ,invert: false
     ,box: null
-    
     //,hasMeta: true
     
     // this is the filter constructor
@@ -3919,15 +3813,6 @@ FILTER.Create({
         self.invert = params.invert;
         return self;
     }
-    
-    /*,getMeta: function( ) {
-        return this.box;
-    }
-    
-    ,setMeta: function( boxes ) {
-        this.box = boxes;
-        return this;
-    }*/
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h/*, image*/) {
@@ -4037,7 +3922,7 @@ FILTER.Create({
             for(c=0,i=0; i<imLen; i+=4,c++)
             {
                 color = labels[root_of(labelimg[c], labels)][2];
-                color = ~~(255-255*color/tag);
+                color = (255-255*color/tag)|0;
                 im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
@@ -4047,12 +3932,11 @@ FILTER.Create({
             for(c=0,i=0; i<imLen; i+=4,c++)
             {
                 color = labels[root_of(labelimg[c], labels)][2];
-                color = ~~(255*color/tag);
+                color = (255*color/tag)|0;
                 im[i] = color; im[i+1] = color; im[i+2] = color; //im[i+3] = 255;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
-        
         // return the connected image data
         return im;
     }

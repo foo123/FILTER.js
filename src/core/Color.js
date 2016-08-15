@@ -184,10 +184,10 @@ var // utils
 
 function lerp( data, index, c1, c2, t )
 {
-    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
-    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
-    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
-    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
+    data[index  ] = ((c1[0] + t*(c2[0]-c1[0]))|0) & 255;
+    data[index+1] = ((c1[1] + t*(c2[1]-c1[1]))|0) & 255;
+    data[index+2] = ((c1[2] + t*(c2[2]-c1[2]))|0) & 255;
+    data[index+3] = ((c1[3] + t*(c2[3]-c1[3]))|0) & 255;
 }
 
 //
@@ -249,7 +249,7 @@ var Color = FILTER.Color = FILTER.Class({
         
         RGB2Gray: function( rgb, p ) {
             //p = p || 0;
-            var g = ~~(LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2]);
+            var g = (LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2])|0;
             rgb[p+0] = g; rgb[p+1] = g; rgb[p+2] = g;
             return rgb;
         },
@@ -265,7 +265,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
         
         Color2RGBA: function( c, rgba, p ) {
-            /*p = p || 0;*/ c = ~~c;
+            /*p = p || 0;*/ c = c|0;
             rgba[p+0] = (c >>> 16) & 255;
             rgba[p+1] = (c >>> 8) & 255;
             rgba[p+2] = (c & 255);
@@ -278,9 +278,9 @@ var Color = FILTER.Color = FILTER.Class({
             //p = p || 0;
             var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2];
             // each take full range from 0-255
-            ccc[p+0] = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-            ccc[p+1] = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-            ccc[p+2] = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+            ccc[p+0] = ( 0   + 0.299*r    + 0.587*g     + 0.114*b    )|0;
+            ccc[p+1] = ( 128 - 0.168736*r - 0.331264*g  + 0.5*b      )|0;
+            ccc[p+2] = ( 128 + 0.5*r      - 0.418688*g  - 0.081312*b )|0;
             return ccc;
         },
         
@@ -289,9 +289,9 @@ var Color = FILTER.Color = FILTER.Class({
             //p = p || 0;
             var y = ccc[p+0], cb = ccc[p+1], cr = ccc[p+2];
             // each take full range from 0-255
-            ccc[p+0] = ~~( y                      + 1.402   * (cr-128) );
-            ccc[p+1] = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-            ccc[p+2] = ~~( y + 1.772   * (cb-128) );
+            ccc[p+0] = ( y                      + 1.402   * (cr-128) )|0;
+            ccc[p+1] = ( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) )|0;
+            ccc[p+2] = ( y + 1.772   * (cb-128) )|0;
             return ccc;
         },
         
@@ -1268,7 +1268,7 @@ Color.Gradient = {
 // color blending utilties
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
-Color.Blend = Color.Combine = {
+Color.Blend = {
     //p1 = p1 || 0; p2 = p2 || 0;
     
     normal: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1297,7 +1297,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     lighten: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1326,7 +1326,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     darken: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1355,7 +1355,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     multiply: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1384,7 +1384,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     average: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1413,7 +1413,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     add: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1442,7 +1442,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     subtract: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1471,7 +1471,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     difference: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1500,7 +1500,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     negation: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1529,7 +1529,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     screen: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1558,7 +1558,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     exclusion: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1587,7 +1587,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     overlay: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1616,7 +1616,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     softlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1645,7 +1645,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     // reverse of overlay
@@ -1675,7 +1675,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     colordodge: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1704,7 +1704,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     colorburn: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1733,7 +1733,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     linearlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1789,7 +1789,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     reflect: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1818,7 +1818,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     // reverse of reflect
@@ -1848,7 +1848,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     phoenix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1877,7 +1877,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     vividlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1933,7 +1933,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     pinlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -1989,7 +1989,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     hardmix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -2048,11 +2048,12 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     }
 };
 // aliases
 Color.Blend.lineardodge = Color.Blend.add;
 Color.Blend.linearburn = Color.Blend.subtract;
- 
+Color.Combine = Color.Blend;
+
 }(FILTER);

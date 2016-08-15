@@ -51,7 +51,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01);
+        step = (sqrt(imArea)*self.scale*0.01)|0;
         stepx = step-1; stepy = w*stepx;
         
         // do pixelation via interpolation on 5 points of a certain rectangle
@@ -73,7 +73,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]/*+im[p5  ]*/;
             g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]/*+im[p5+1]*/;
             b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]/*+im[p5+2]*/;
-            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
+            dst[i] = (0.25*r)|0; dst[i+1] = (0.25*g)|0; dst[i+2] = (0.25*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -131,7 +131,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01);
+        step = (sqrt(imArea)*self.scale*0.01)|0;
         stepx = step-1; stepy = w*stepx;
         
         // do pixelation via interpolation on 4 points of a certain triangle
@@ -164,7 +164,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]/*+im[p4  ]*/;
             g = im[p1+1]+im[p2+1]+im[p3+1]/*+im[p4+1]*/;
             b = im[p1+2]+im[p2+2]+im[p3+2]/*+im[p4+2]*/;
-            dst[i] = ~~(0.333*r); dst[i+1] = ~~(0.333*g); dst[i+2] = ~~(0.333*b); dst[i+3] = im[i+3];
+            dst[i] = (0.333*r)|0; dst[i+1] = (0.333*g)|0; dst[i+2] = (0.333*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 
@@ -225,7 +225,7 @@ FILTER.Create({
         ;
         
         dst = new IMG(imLen);
-        step = ~~(sqrt(imArea)*self.scale*0.01); d = ~~(step/SQRT_3);
+        step = (sqrt(imArea)*self.scale*0.01)|0; d = ~~(step/SQRT_3);
         step_1 = step-1; step_2 = step >>> 1;
         stepx_2 = (step/*+d+d* /) >>> 1; stepx = step_1/*+d+d* /;
         stepy_2 = w*step_2; stepy = w*step_1;
@@ -272,7 +272,7 @@ FILTER.Create({
             r = im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ];
             g = im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1];
             b = im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2];
-            dst[i] = ~~(0.25*r); dst[i+1] = ~~(0.25*g); dst[i+2] = ~~(0.25*b); dst[i+3] = im[i+3];
+            dst[i] = (0.25*r)|0; dst[i+1] = (0.25*g)|0; dst[i+2] = (0.25*b)|0; dst[i+3] = im[i+3];
             
             // next pixel
             x++; sx++; 

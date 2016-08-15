@@ -189,21 +189,22 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    ,dimensions: function( w, h ) {
+    ,dimensions: function( w, h, refresh ) {
         var self = this;
-        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         self._refresh |= DATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
+    ,setDimensions: null
     
     ,scale: function( sx, sy ) {
         var self = this;
         sx = sx||1; sy = sy||sx;
-        if ( (1==sx) && (1==sy) ) return self;
+        if ( (1===sx) && (1===sy) ) return self;
         
         // lazy
         self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
@@ -211,8 +212,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         //ctx.save();
         ctx.scale(sx, sy);
-        w = self.width = ~~(sx*w+0.5);
-        h = self.height = ~~(sy*h+0.5);
+        w = self.width = (sx*w+0.5)|0;
+        h = self.height = (sy*h+0.5)|0;
         
         ctx.drawImage(self.oCanvas, 0, 0);
         self.oCanvas.style.width = w + 'px';
@@ -294,9 +295,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // TODO
-    ,draw: function( drawable, x, y, blendMode ) {
+    /*,draw: function( drawable, x, y, blendMode ) {
         return this;
-    }
+    }*/
     
     // clear the image contents
     ,clear: function( ) {
@@ -651,7 +652,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0);
-            self._refresh |= DATA;
+            //self._refresh |= DATA;
         }
         else
         {
@@ -680,12 +681,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (self.selection) self._refresh |= SEL;
         return self;
     }
+    ,setImage: null
     
     ,getPixel: function( x, y ) {
         var self = this, w = self.width, h = self.height, offset;
         if ( 0 > x || x >= w || 0 > y || y >= h ) return null;
         if (self._refresh & ODATA) refresh_data( self, ODATA );
-        offset = (~~(y*w+x))<<2;
+        offset = ((y*w+x)|0)<<2;
         return subarray(self.oData.data, offset, offset+4);
     }
     
@@ -753,6 +755,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         return null == channel ? integral : integral[channel||0];
     }
+    ,sat: null
     
     ,histogram: function( channel, pdf ) {
         var self = this, gray = self.gray, CHANNEL,
@@ -793,6 +796,52 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, /*spec = ImageUtil.spectrum,*/ spectrum = self._spectrum;
         return null == channel ? spectrum : spectrum[channel||0];
     }
+    ,fft: null
+    
+    ,linearGradient: function( colors, stops, angle, interpolate ) {
+        var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
+        /*if ( FILTER.Browser.isNode )
+        {*/
+            self.setData( Gradient.linear( new IMG((w*h)<<2), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
+        /*}
+        else
+        {
+            var t = Math.tan(angle), ctx = self.octx, grd = ctx.createLinearGradient(0, 0, (1-t)*(w-1), t*(h-1));
+            for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+        }*/
+        return self;
+    }
+    
+    ,radialGradient: function( colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
+        var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
+        /*if ( FILTER.Browser.isNode )
+        {*/
+            self.setData( Gradient.radial( new IMG((w*h)<<2), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
+        /*}
+        else
+        {
+            var ctx = self.octx, grd = ctx.createRadialGradient(centerX, centerY, radiusX*w, centerX, centerY, radiusY*h);
+            for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radiusX*w, 0, Math.PI*2, true);
+            ctx.fill();
+        }*/
+        return self;
+    }
+    
+    ,perlinNoise: function( seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var self = this, w = self.width, h = self.height;
+        if ( ImageUtil.perlin )
+        {
+            if ( seed ) ImageUtil.perlin.seed( seed );
+            self.setData( ImageUtil.perlin(new IMG((w*h)<<2), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
+            self.gray = !!grayscale;
+        }
+        return self;
+    }
     
     ,toImage: function( format, quality ) {
         format = format || 0; quality = quality || 1;
@@ -816,25 +865,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
+FilterImage[PROTO].sat = FilterImage[PROTO].integral;
+FilterImage[PROTO].fft = FilterImage[PROTO].spectrum;
 // static
-FilterImage.Gradient = function LinearGradient( w, h, colors, stops, angle, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
-    Grad.setData( Gradient.linear( Grad.getData(), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
-    return Grad;
+FilterImage.LinearGradient = FilterImage.Gradient = function LinearGradient( w, h, colors, stops, angle, interpolate ) {
+    return new FilterImage().restorable(false).createImageData(w, h).linearGradient(colors, stops, angle, interpolate||Gradient.interpolate);
 };
 FilterImage.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
-    Grad.setData( Gradient.radial( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
-    return Grad;
+    return new FilterImage().restorable(false).createImageData(w, h).radialGradient(colors, stops, centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate);
 };
 FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var perlinNoise = new FilterImage().restorable(false).createImageData(w, h);
-    if ( ImageUtil.perlin )
-    {
-        if ( seed ) ImageUtil.perlin.seed( seed );
-        perlinNoise.setData( ImageUtil.perlin(perlinNoise.getData(), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
-    }
-    return perlinNoise;
+    return new FilterImage().restorable(false).createImageData(w, h).perlinNoise(seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin);
 };
 
 //
@@ -906,8 +947,8 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         
         if ( isImage || isCanvas || isVideo ) 
         {
-            sw = ~~(sx*w + 0.5);
-            sh = ~~(sy*h + 0.5);
+            sw = (sx*w + 0.5)|0;
+            sh = (sy*h + 0.5)|0;
             set_dimensions(self, sw, sh, WIDTH_AND_HEIGHT);
             if ( self._restorable ) 
             {
@@ -964,6 +1005,11 @@ function set_dimensions( scope, w, h, what )
             scope.tmpCanvas.height = scope.oCanvas.height;
         }
     }
+    /*if ( false !== refresh )
+    {
+        refresh_data( scope, DATA );
+        if (scope.selection) refresh_selected_data( scope, SEL );
+    }*/
     return scope;
 }
 function refresh_data( scope, what ) 
@@ -973,11 +1019,13 @@ function refresh_data( scope, what )
     if ( scope._restorable && (what & IDATA) && (scope._refresh & IDATA) )
     {
         scope.iData = scope.ictx.getImageData(0, 0, w, h);
+        //scope.iData.cpy = new IMGcpy( scope.iData.data );
         scope._refresh &= ~IDATA;
     }
     if ( (what & ODATA) && (scope._refresh & ODATA) )
     {
         scope.oData = scope.octx.getImageData(0, 0, w, h);
+        //scope.oData.cpy = new IMGcpy( scope.oData.data );
         scope._refresh &= ~ODATA;
     }
     //scope._refresh &= CLEAR_DATA;
@@ -995,11 +1043,13 @@ function refresh_selected_data( scope, what )
         if ( scope._restorable && (what & ISEL) && (scope._refresh & ISEL) )
         {
             scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
+            //scope.iDataSel.cpy = new IMGcpy( scope.iDataSel.data );
             scope._refresh &= ~ISEL;
         }
         if ( (what & OSEL) && (scope._refresh & OSEL) )
         {
             scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
+            //scope.oDataSel.cpy = new IMGcpy( scope.oDataSel.data );
             scope._refresh &= ~OSEL;
         }
     }

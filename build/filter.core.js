@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-14 06:16:05
+*   @built on 2016-08-15 18:26:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-14 06:16:05
+*   @built on 2016-08-15 18:26:27
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -62,8 +62,8 @@ var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
     
-    ,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
-    ,applyPlugin = function( im, w, h, image ){ return im; }
+    //,toStringPlugin = function( ) { return "[FILTER: " + this.name + "]"; }
+    //,applyPlugin = function( im, w, h, image ){ return im; }
     ,initPlugin = function( ) { }
     ,constructorPlugin = function( init ) {
         return function PluginFilter( ) {
@@ -177,7 +177,8 @@ FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
     COLOR: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12
+    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12,
+    COLOR_CHANNEL: 13, COLOR_MASK: 14, CHANNEL_MASK: 15
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -199,20 +200,15 @@ FILTER.CONSTANTS = FILTER.CONST = {
     
     ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
     ,toRad: Math.PI/180, toDeg: 180/Math.PI
-    
-    ,SQRT2: Math.SQRT2
-    ,LN2: Math.LN2
 };
 
 // utilities
-TypedArray = isNode
-? function( a, A ) {
+TypedArray = isNode ? function( a, A ) {
     if ( (null == a) || (a instanceof A) ) return a;
     else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
     if ( null == a.length ) a.length = Object.keys( a ).length;
     return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-}
-: function( a, A ) { return a; };
+} : function( a, A ) { return a; };
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 FILTER.Util = {
     Array   : {
@@ -226,6 +222,7 @@ FILTER.Util = {
             : function( o ) { return o; }
     },
     String  : { },
+    List    : { },
     Math    : { },
     IO      : { },
     Filter  : { },
@@ -386,7 +383,7 @@ var
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
         
-        ,constructor: function( ) {
+        ,constructor: function Filter( ) {
             var self = this;
             //self.$super('constructor', 100, false);
             self._inputs = {};
@@ -400,6 +397,7 @@ var
         ,_inputs: null
         ,hasInputs: false
         ,hasMeta: false
+        ,_meta: null
         ,mode: 0
         
         ,dispose: function( ) {
@@ -412,6 +410,7 @@ var
             self._inputs = null;
             self.hasInputs = null;
             self.hasMeta = null;
+            self._meta = null;
             self.mode = null;
             self.$super('dispose');
             return self;
@@ -423,6 +422,7 @@ var
         
         ,setInput: function( key, inputImage ) {
             var self = this;
+            key = String(key);
             if ( null === inputImage )
             {
                 if ( self._inputs[key] ) delete self._inputs[key];
@@ -436,6 +436,7 @@ var
         
         ,unsetInput: function( key ) {
             var self = this;
+            key = String(key);
             if ( self._inputs[key] ) delete self._inputs[key];
             return self;
         }
@@ -447,7 +448,7 @@ var
         }
         
         ,input: function( key ) {
-            var input = this._inputs[key];
+            var input = this._inputs[String(key)];
             if ( !input ) return null;
             if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
             return input[0] || null;
@@ -551,6 +552,7 @@ var
         
         // @override
         ,reset: function( ) {
+            this.resetInputs( );
             return this;
         }
         
@@ -560,11 +562,14 @@ var
         }
         
         // @override
-        ,getMeta: function( ) {
+        ,meta: function( ) {
+            return this._meta;
         }
+        ,getMeta: null
         
         // @override
         ,setMeta: function( meta ) {
+            this._meta = meta;
             return this;
         }
         
@@ -620,7 +625,12 @@ var
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
                             if ( data.meta ) self.setMeta( data.meta );
-                            if ( data.im && self._update ) dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            if ( data.im && self._update )
+                            {
+                                if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
+                                    dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                                dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                            }
                         }
                         if ( cb ) cb.call( self );
                     };
@@ -635,7 +645,12 @@ var
                     // some filters do not actually change the image data
                     // but instead process information from the data,
                     // no need to update in such a case
-                    if ( self._update ) dst.setSelectedData( im2 );
+                    if ( self._update )
+                    {
+                        if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
+                            dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                        dst.setSelectedData( im2 );
+                    }
                     if ( cb ) cb.call( self );
                 }
             }
@@ -647,6 +662,7 @@ var
         }
     })
 ;
+FILTER.Filter[PROTO].getMeta = FILTER.Filter[PROTO].meta;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 
@@ -675,13 +691,16 @@ FILTER.Create = function( methods ) {
     methods = Merge({
              init: initPlugin
             ,name: "PluginFilter"
-            ,toString: toStringPlugin
-            ,apply: applyPlugin
+            //,toString: toStringPlugin
+            //,apply: applyPlugin
     }, methods);
     var filterName = methods.name;
     methods.constructor = constructorPlugin( methods.init );
-    methods._apply = methods.apply;
-    delete methods.init; delete methods.apply;
+    if ( (null == methods._apply) && ("function" === typeof methods.apply) ) methods._apply = methods.apply;
+    // add some aliases
+    if ( ("function" === typeof methods.meta) && (methods.meta !== Filter[PROTO].meta) ) methods.getMeta = methods.meta;
+    else if ( ("function" === typeof methods.getMeta) && (methods.getMeta !== Filter[PROTO].getMeta) ) methods.meta = methods.getMeta;
+    delete methods.init; if ( methods[HAS]('apply') ) delete methods.apply;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };
 
@@ -719,41 +738,42 @@ function function_body( func )
 function arrayset( a, b, offset )
 {
     offset = offset || 0;
-    var i, n = b.length, rem = n&31;
-    for(i=0; i<n; i+=32)
+    var j, i, n = b.length, rem = n&31;
+    for(j=0; j<n; j+=32)
     {
-        a[ i   + offset ] = b[ i   ];
-        a[ i+ 1+ offset ] = b[ i+ 1];
-        a[ i+ 2+ offset ] = b[ i+ 2];
-        a[ i+ 3+ offset ] = b[ i+ 3];
-        a[ i+ 4+ offset ] = b[ i+ 4];
-        a[ i+ 5+ offset ] = b[ i+ 5];
-        a[ i+ 6+ offset ] = b[ i+ 6];
-        a[ i+ 7+ offset ] = b[ i+ 7];
-        a[ i+ 8+ offset ] = b[ i+ 8];
-        a[ i+ 9+ offset ] = b[ i+ 9];
-        a[ i+10+ offset ] = b[ i+10];
-        a[ i+11+ offset ] = b[ i+11];
-        a[ i+12+ offset ] = b[ i+12];
-        a[ i+13+ offset ] = b[ i+13];
-        a[ i+14+ offset ] = b[ i+14];
-        a[ i+15+ offset ] = b[ i+15];
-        a[ i+16+ offset ] = b[ i+16];
-        a[ i+17+ offset ] = b[ i+17];
-        a[ i+18+ offset ] = b[ i+18];
-        a[ i+19+ offset ] = b[ i+19];
-        a[ i+20+ offset ] = b[ i+20];
-        a[ i+21+ offset ] = b[ i+21];
-        a[ i+22+ offset ] = b[ i+22];
-        a[ i+23+ offset ] = b[ i+23];
-        a[ i+24+ offset ] = b[ i+24];
-        a[ i+25+ offset ] = b[ i+25];
-        a[ i+26+ offset ] = b[ i+26];
-        a[ i+27+ offset ] = b[ i+27];
-        a[ i+28+ offset ] = b[ i+28];
-        a[ i+29+ offset ] = b[ i+29];
-        a[ i+30+ offset ] = b[ i+30];
-        a[ i+31+ offset ] = b[ i+31];
+        i = j;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
+        a[ i + offset ] = b[ i ]; ++i;
     }
     if ( rem )
     {
@@ -1532,7 +1552,7 @@ function gradient( im, w, h, grad, grad2, summed )
                 + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
                 + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
         
-        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF) >>> 0;
+        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF)|0;
         
     }
     // sobel gradient
@@ -1714,8 +1734,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1786,8 +1806,8 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1891,12 +1911,12 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
                 b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -1967,12 +1987,12 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
                 b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
                 
                 // output
-                t0 = coeff1*r + coeff2;  t1 = coeff1*g + coeff2;  t2 = coeff1*b + coeff2;
+                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
             }
@@ -2039,9 +2059,9 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
             }
             
             // output
-            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
             
-            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
             /*if ( rgba )
             {
                 t3 = coeff * a;
@@ -2118,14 +2138,14 @@ function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2
             }
             
             // output
-            t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
             
             // clamp them manually
             t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
             t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
             t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
             
-            dst[i] = ~~t0;  dst[i+1] = ~~t1;  dst[i+2] = ~~t2;
+            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
             /*if ( rgba )
             {
                 t3 = coeff * a;
@@ -2154,38 +2174,38 @@ function ct_eye( c1, c0 )
     var i, t = new ColorTable(256);
     for(i=0; i<256; i+=32)
     {
-        t[i   ] = ~~clamp(c0 + c1*(i   ),0,255);
-        t[i+1 ] = ~~clamp(c0 + c1*(i+1 ),0,255);
-        t[i+2 ] = ~~clamp(c0 + c1*(i+2 ),0,255);
-        t[i+3 ] = ~~clamp(c0 + c1*(i+3 ),0,255);
-        t[i+4 ] = ~~clamp(c0 + c1*(i+4 ),0,255);
-        t[i+5 ] = ~~clamp(c0 + c1*(i+5 ),0,255);
-        t[i+6 ] = ~~clamp(c0 + c1*(i+6 ),0,255);
-        t[i+7 ] = ~~clamp(c0 + c1*(i+7 ),0,255);
-        t[i+8 ] = ~~clamp(c0 + c1*(i+8 ),0,255);
-        t[i+9 ] = ~~clamp(c0 + c1*(i+9 ),0,255);
-        t[i+10] = ~~clamp(c0 + c1*(i+10),0,255);
-        t[i+11] = ~~clamp(c0 + c1*(i+11),0,255);
-        t[i+12] = ~~clamp(c0 + c1*(i+12),0,255);
-        t[i+13] = ~~clamp(c0 + c1*(i+13),0,255);
-        t[i+14] = ~~clamp(c0 + c1*(i+14),0,255);
-        t[i+15] = ~~clamp(c0 + c1*(i+15),0,255);
-        t[i+16] = ~~clamp(c0 + c1*(i+16),0,255);
-        t[i+17] = ~~clamp(c0 + c1*(i+17),0,255);
-        t[i+18] = ~~clamp(c0 + c1*(i+18),0,255);
-        t[i+19] = ~~clamp(c0 + c1*(i+19),0,255);
-        t[i+20] = ~~clamp(c0 + c1*(i+20),0,255);
-        t[i+21] = ~~clamp(c0 + c1*(i+21),0,255);
-        t[i+22] = ~~clamp(c0 + c1*(i+22),0,255);
-        t[i+23] = ~~clamp(c0 + c1*(i+23),0,255);
-        t[i+24] = ~~clamp(c0 + c1*(i+24),0,255);
-        t[i+25] = ~~clamp(c0 + c1*(i+25),0,255);
-        t[i+26] = ~~clamp(c0 + c1*(i+26),0,255);
-        t[i+27] = ~~clamp(c0 + c1*(i+27),0,255);
-        t[i+28] = ~~clamp(c0 + c1*(i+28),0,255);
-        t[i+29] = ~~clamp(c0 + c1*(i+29),0,255);
-        t[i+30] = ~~clamp(c0 + c1*(i+30),0,255);
-        t[i+31] = ~~clamp(c0 + c1*(i+31),0,255);
+        t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
+        t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
+        t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
+        t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
+        t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
+        t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
+        t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
+        t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
+        t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
+        t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
+        t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
+        t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
+        t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
+        t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
+        t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
+        t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
+        t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
+        t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
+        t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
+        t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
+        t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
+        t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
+        t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
+        t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
+        t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
+        t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
+        t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
+        t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
+        t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
+        t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
+        t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
+        t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
     }
     return t;
 }
@@ -2656,10 +2676,10 @@ var // utils
 
 function lerp( data, index, c1, c2, t )
 {
-    data[index  ] = (~~(c1[0] + t*(c2[0]-c1[0]))) & 255;
-    data[index+1] = (~~(c1[1] + t*(c2[1]-c1[1]))) & 255;
-    data[index+2] = (~~(c1[2] + t*(c2[2]-c1[2]))) & 255;
-    data[index+3] = (~~(c1[3] + t*(c2[3]-c1[3]))) & 255;
+    data[index  ] = ((c1[0] + t*(c2[0]-c1[0]))|0) & 255;
+    data[index+1] = ((c1[1] + t*(c2[1]-c1[1]))|0) & 255;
+    data[index+2] = ((c1[2] + t*(c2[2]-c1[2]))|0) & 255;
+    data[index+3] = ((c1[3] + t*(c2[3]-c1[3]))|0) & 255;
 }
 
 //
@@ -2721,7 +2741,7 @@ var Color = FILTER.Color = FILTER.Class({
         
         RGB2Gray: function( rgb, p ) {
             //p = p || 0;
-            var g = ~~(LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2]);
+            var g = (LUMA[0]*rgb[p+0] + LUMA[1]*rgb[p+1] + LUMA[2]*rgb[p+2])|0;
             rgb[p+0] = g; rgb[p+1] = g; rgb[p+2] = g;
             return rgb;
         },
@@ -2737,7 +2757,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
         
         Color2RGBA: function( c, rgba, p ) {
-            /*p = p || 0;*/ c = ~~c;
+            /*p = p || 0;*/ c = c|0;
             rgba[p+0] = (c >>> 16) & 255;
             rgba[p+1] = (c >>> 8) & 255;
             rgba[p+2] = (c & 255);
@@ -2750,9 +2770,9 @@ var Color = FILTER.Color = FILTER.Class({
             //p = p || 0;
             var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2];
             // each take full range from 0-255
-            ccc[p+0] = ~~( 0   + 0.299*r    + 0.587*g     + 0.114*b    );
-            ccc[p+1] = ~~( 128 - 0.168736*r - 0.331264*g  + 0.5*b      );
-            ccc[p+2] = ~~( 128 + 0.5*r      - 0.418688*g  - 0.081312*b );
+            ccc[p+0] = ( 0   + 0.299*r    + 0.587*g     + 0.114*b    )|0;
+            ccc[p+1] = ( 128 - 0.168736*r - 0.331264*g  + 0.5*b      )|0;
+            ccc[p+2] = ( 128 + 0.5*r      - 0.418688*g  - 0.081312*b )|0;
             return ccc;
         },
         
@@ -2761,9 +2781,9 @@ var Color = FILTER.Color = FILTER.Class({
             //p = p || 0;
             var y = ccc[p+0], cb = ccc[p+1], cr = ccc[p+2];
             // each take full range from 0-255
-            ccc[p+0] = ~~( y                      + 1.402   * (cr-128) );
-            ccc[p+1] = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-            ccc[p+2] = ~~( y + 1.772   * (cb-128) );
+            ccc[p+0] = ( y                      + 1.402   * (cr-128) )|0;
+            ccc[p+1] = ( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) )|0;
+            ccc[p+2] = ( y + 1.772   * (cb-128) )|0;
             return ccc;
         },
         
@@ -3740,7 +3760,7 @@ Color.Gradient = {
 // color blending utilties
 // JavaScript implementations of common image blending modes, based on
 // http://stackoverflow.com/questions/5919663/how-does-photoshop-blend-two-images-together
-Color.Blend = Color.Combine = {
+Color.Blend = {
     //p1 = p1 || 0; p2 = p2 || 0;
     
     normal: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3769,7 +3789,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     lighten: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3798,7 +3818,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     darken: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3827,7 +3847,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     multiply: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3856,7 +3876,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     average: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3885,7 +3905,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     add: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3914,7 +3934,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     subtract: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3943,7 +3963,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     difference: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -3972,7 +3992,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     negation: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4001,7 +4021,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     screen: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4030,7 +4050,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     exclusion: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4059,7 +4079,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     overlay: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4088,7 +4108,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     softlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4117,7 +4137,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     // reverse of overlay
@@ -4147,7 +4167,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     colordodge: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4176,7 +4196,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     colorburn: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4205,7 +4225,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     linearlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4261,7 +4281,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     reflect: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4290,7 +4310,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     // reverse of reflect
@@ -4320,7 +4340,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     phoenix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4349,7 +4369,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     vividlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4405,7 +4425,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     pinlight: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4461,7 +4481,7 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     },
 
     hardmix: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
@@ -4520,13 +4540,14 @@ Color.Blend = Color.Combine = {
         }
         
         // output
-        rgba1[p1] = ~~r; rgba1[p1+1] = ~~g; rgba1[p1+2] = ~~b;
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
     }
 };
 // aliases
 Color.Blend.lineardodge = Color.Blend.add;
 Color.Blend.linearburn = Color.Blend.subtract;
- 
+Color.Combine = Color.Blend;
+
 }(FILTER);/**
 *
 * Canvas Proxy Class
@@ -4576,7 +4597,7 @@ CanvasProxyCtx = FILTER.Class({
         else if ( fillStyle && fillStyle.substr )
         {
             col = Color.fromString( fillStyle ).toRGB( false );
-            col[3] = ~~(255*col[3]);
+            col[3] = (255*col[3])|0;
         }
         else
         {
@@ -4965,21 +4986,22 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    ,dimensions: function( w, h ) {
+    ,dimensions: function( w, h, refresh ) {
         var self = this;
-        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         self._refresh |= DATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
+    ,setDimensions: null
     
     ,scale: function( sx, sy ) {
         var self = this;
         sx = sx||1; sy = sy||sx;
-        if ( (1==sx) && (1==sy) ) return self;
+        if ( (1===sx) && (1===sy) ) return self;
         
         // lazy
         self.tmpCanvas = self.tmpCanvas || Canvas( self.width, self.height );
@@ -4987,8 +5009,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         //ctx.save();
         ctx.scale(sx, sy);
-        w = self.width = ~~(sx*w+0.5);
-        h = self.height = ~~(sy*h+0.5);
+        w = self.width = (sx*w+0.5)|0;
+        h = self.height = (sy*h+0.5)|0;
         
         ctx.drawImage(self.oCanvas, 0, 0);
         self.oCanvas.style.width = w + 'px';
@@ -5070,9 +5092,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     
     // TODO
-    ,draw: function( drawable, x, y, blendMode ) {
+    /*,draw: function( drawable, x, y, blendMode ) {
         return this;
-    }
+    }*/
     
     // clear the image contents
     ,clear: function( ) {
@@ -5427,7 +5449,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
             octx = self.octx = self.oCanvas.getContext('2d');
             octx.drawImage(img, 0, 0);
-            self._refresh |= DATA;
+            //self._refresh |= DATA;
         }
         else
         {
@@ -5456,12 +5478,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (self.selection) self._refresh |= SEL;
         return self;
     }
+    ,setImage: null
     
     ,getPixel: function( x, y ) {
         var self = this, w = self.width, h = self.height, offset;
         if ( 0 > x || x >= w || 0 > y || y >= h ) return null;
         if (self._refresh & ODATA) refresh_data( self, ODATA );
-        offset = (~~(y*w+x))<<2;
+        offset = ((y*w+x)|0)<<2;
         return subarray(self.oData.data, offset, offset+4);
     }
     
@@ -5529,6 +5552,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         return null == channel ? integral : integral[channel||0];
     }
+    ,sat: null
     
     ,histogram: function( channel, pdf ) {
         var self = this, gray = self.gray, CHANNEL,
@@ -5569,6 +5593,52 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, /*spec = ImageUtil.spectrum,*/ spectrum = self._spectrum;
         return null == channel ? spectrum : spectrum[channel||0];
     }
+    ,fft: null
+    
+    ,linearGradient: function( colors, stops, angle, interpolate ) {
+        var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
+        /*if ( FILTER.Browser.isNode )
+        {*/
+            self.setData( Gradient.linear( new IMG((w*h)<<2), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
+        /*}
+        else
+        {
+            var t = Math.tan(angle), ctx = self.octx, grd = ctx.createLinearGradient(0, 0, (1-t)*(w-1), t*(h-1));
+            for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+        }*/
+        return self;
+    }
+    
+    ,radialGradient: function( colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
+        var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
+        /*if ( FILTER.Browser.isNode )
+        {*/
+            self.setData( Gradient.radial( new IMG((w*h)<<2), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
+        /*}
+        else
+        {
+            var ctx = self.octx, grd = ctx.createRadialGradient(centerX, centerY, radiusX*w, centerX, centerY, radiusY*h);
+            for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radiusX*w, 0, Math.PI*2, true);
+            ctx.fill();
+        }*/
+        return self;
+    }
+    
+    ,perlinNoise: function( seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
+        var self = this, w = self.width, h = self.height;
+        if ( ImageUtil.perlin )
+        {
+            if ( seed ) ImageUtil.perlin.seed( seed );
+            self.setData( ImageUtil.perlin(new IMG((w*h)<<2), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
+            self.gray = !!grayscale;
+        }
+        return self;
+    }
     
     ,toImage: function( format, quality ) {
         format = format || 0; quality = quality || 1;
@@ -5592,25 +5662,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
+FilterImage[PROTO].sat = FilterImage[PROTO].integral;
+FilterImage[PROTO].fft = FilterImage[PROTO].spectrum;
 // static
-FilterImage.Gradient = function LinearGradient( w, h, colors, stops, angle, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
-    Grad.setData( Gradient.linear( Grad.getData(), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
-    return Grad;
+FilterImage.LinearGradient = FilterImage.Gradient = function LinearGradient( w, h, colors, stops, angle, interpolate ) {
+    return new FilterImage().restorable(false).createImageData(w, h).linearGradient(colors, stops, angle, interpolate||Gradient.interpolate);
 };
 FilterImage.RadialGradient = function RadialGradient( w, h, colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
-    var Grad = new FilterImage().restorable(false).createImageData(w, h), c = Gradient.stops( colors, stops );
-    Grad.setData( Gradient.radial( Grad.getData(), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
-    return Grad;
+    return new FilterImage().restorable(false).createImageData(w, h).radialGradient(colors, stops, centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate);
 };
 FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin ) {
-    var perlinNoise = new FilterImage().restorable(false).createImageData(w, h);
-    if ( ImageUtil.perlin )
-    {
-        if ( seed ) ImageUtil.perlin.seed( seed );
-        perlinNoise.setData( ImageUtil.perlin(perlinNoise.getData(), w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin) );
-    }
-    return perlinNoise;
+    return new FilterImage().restorable(false).createImageData(w, h).perlinNoise(seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin);
 };
 
 //
@@ -5682,8 +5744,8 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         
         if ( isImage || isCanvas || isVideo ) 
         {
-            sw = ~~(sx*w + 0.5);
-            sh = ~~(sy*h + 0.5);
+            sw = (sx*w + 0.5)|0;
+            sh = (sy*h + 0.5)|0;
             set_dimensions(self, sw, sh, WIDTH_AND_HEIGHT);
             if ( self._restorable ) 
             {
@@ -5740,6 +5802,11 @@ function set_dimensions( scope, w, h, what )
             scope.tmpCanvas.height = scope.oCanvas.height;
         }
     }
+    /*if ( false !== refresh )
+    {
+        refresh_data( scope, DATA );
+        if (scope.selection) refresh_selected_data( scope, SEL );
+    }*/
     return scope;
 }
 function refresh_data( scope, what ) 
@@ -5749,11 +5816,13 @@ function refresh_data( scope, what )
     if ( scope._restorable && (what & IDATA) && (scope._refresh & IDATA) )
     {
         scope.iData = scope.ictx.getImageData(0, 0, w, h);
+        //scope.iData.cpy = new IMGcpy( scope.iData.data );
         scope._refresh &= ~IDATA;
     }
     if ( (what & ODATA) && (scope._refresh & ODATA) )
     {
         scope.oData = scope.octx.getImageData(0, 0, w, h);
+        //scope.oData.cpy = new IMGcpy( scope.oData.data );
         scope._refresh &= ~ODATA;
     }
     //scope._refresh &= CLEAR_DATA;
@@ -5771,11 +5840,13 @@ function refresh_selected_data( scope, what )
         if ( scope._restorable && (what & ISEL) && (scope._refresh & ISEL) )
         {
             scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
+            //scope.iDataSel.cpy = new IMGcpy( scope.iDataSel.data );
             scope._refresh &= ~ISEL;
         }
         if ( (what & OSEL) && (scope._refresh & OSEL) )
         {
             scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
+            //scope.oDataSel.cpy = new IMGcpy( scope.oDataSel.data );
             scope._refresh &= ~OSEL;
         }
     }

@@ -17,14 +17,12 @@ var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util
 
 //
 //
-// DisplacementMapFilter
-var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.Filter, {
+// DisplacementMap Filter
+FILTER.Create({
     name: "DisplacementMapFilter"
     
-    ,constructor: function DisplacementMapFilter( displacemap ) {
+    ,init: function DisplacementMapFilter( displacemap ) {
         var self = this;
-        if ( !(self instanceof DisplacementMapFilter) ) return new DisplacementMapFilter(displacemap);
-        self.$super('constructor');
         if ( displacemap ) self.setInput( "map", displacemap );
     }
     
@@ -90,8 +88,6 @@ var DisplacementMapFilter = FILTER.DisplacementMapFilter = FILTER.Class( FILTER.
     // used for internal purposes
     ,_apply: function( im, w, h/*, image*/ ) {
         var self = this, Map;
-        
-        if ( !self._isOn ) return im;
         
         Map = self.input("map"); if ( !Map ) return im;
         

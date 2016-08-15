@@ -130,7 +130,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a number of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 15 generic `Filter` types (some having `glsl`/`svg` analogs) plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a number of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 17 generic `Filter` types (some having `glsl`/`svg` analogs) plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter) 
@@ -146,9 +146,11 @@ The framework defines an [Image Proxy class](/api-reference.md#image-class), whi
 11. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
 12. [__AlgebraicFilter__](/api-reference.md#algebraic-filter) (an abstraction of algebraic combination of images or other filter outputs into an output image, to be added)
 13. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicaly at run-time using your custom functions)
-14. [__GLSLFilter__](/api-reference.md#glsl-filter) glsl-based (`webgl`/`node-gl`) analogs of at least some of the generic filters (in progress, possibly in next update)
-15. [__SVGFilter__](/api-reference.md#svg-filter) svg-based filters (todo)
-16. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
+14. [__Resample Filter__](/api-reference.md#resample-filter)
+15. [__Selection Filter__](/api-reference.md#selection-filter)
+16. [__GLSLFilter__](/api-reference.md#glsl-filter) glsl-based (`webgl`/`node-gl`) analogs of at least some of the generic filters (in progress, possibly in next update)
+17. [__SVGFilter__](/api-reference.md#svg-filter) svg-based filters (todo)
+18. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)

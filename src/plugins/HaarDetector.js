@@ -41,10 +41,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
     for(scale=baseScale; scale<=maxScale; scale*=scaleIncrement)
     {
         // Viola-Jones Single Scale Detector
-        xsize = ~~(scale * sizex); 
-        xstep = ~~(xsize * stepIncrement); 
-        ysize = ~~(scale * sizey); 
-        ystep = ~~(ysize * stepIncrement);
+        xsize = (scale * sizex)|0;
+        xstep = (xsize * stepIncrement)|0;
+        ysize = (scale * sizey)|0;
+        ystep = (ysize * stepIncrement)|0;
         //ysize = xsize; ystep = xstep;
         tyw = ysize*selw; tys = ystep*selw; 
         startty = starty*tys; 
@@ -117,14 +117,14 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     r = rects[kr];
                                     
                                     // this produces better/larger features, possible rounding effects??
-                                    x1 = x + ~~(scale * r[0]);
-                                    y1 = (y-1 + ~~(scale * r[1])) * selw;
-                                    x2 = x + ~~(scale * (r[0] + r[2]));
-                                    y2 = (y-1 + ~~(scale * (r[1] + r[2]))) * selw;
-                                    x3 = x + ~~(scale * (r[0] - r[3]));
-                                    y3 = (y-1 + ~~(scale * (r[1] + r[3]))) * selw;
-                                    x4 = x + ~~(scale * (r[0] + r[2] - r[3]));
-                                    y4 = (y-1 + ~~(scale * (r[1] + r[2] + r[3]))) * selw;
+                                    x1 = x + (scale * r[0])|0;
+                                    y1 = (y-1 + (scale * r[1])|0) * selw;
+                                    x2 = x + (scale * (r[0] + r[2]))|0;
+                                    y2 = (y-1 + (scale * (r[1] + r[2]))|0) * selw;
+                                    x3 = x + (scale * (r[0] - r[3]))|0;
+                                    y3 = (y-1 + (scale * (r[1] + r[3]))|0) * selw;
+                                    x4 = x + (scale * (r[0] + r[2] - r[3]))|0;
+                                    y4 = (y-1 + (scale * (r[1] + r[2] + r[3]))|0) * selw;
                                     
                                     // clamp
                                     x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
@@ -149,10 +149,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     r = rects[kr];
                                     
                                     // this produces better/larger features, possible rounding effects??
-                                    x1 = x-1 + ~~(scale * r[0]); 
-                                    x2 = x-1 + ~~(scale * (r[0] + r[2]));
-                                    y1 = selw * (y-1 + ~~(scale * r[1])); 
-                                    y2 = selw * (y-1 + ~~(scale * (r[1] + r[3])));
+                                    x1 = x-1 + (scale * r[0])|0; 
+                                    x2 = x-1 + (scale * (r[0] + r[2]))|0;
+                                    y1 = selw * (y-1 + (scale * r[1])|0); 
+                                    y2 = selw * (y-1 + (scale * (r[1] + r[3]))|0);
                                     
                                     // clamp
                                     x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
@@ -216,8 +216,8 @@ function is_inside(r1, r2)
 
 function snap_to_grid(r)
 {
-    r.x1 = ~~(r.x1+0.5); r.y1 = ~~(r.y1+0.5); 
-    r.x2 = ~~(r.x2+0.5); r.y2 = ~~(r.y2+0.5); 
+    r.x1 = (r.x1+0.5)|0; r.y1 = (r.y1+0.5)|0;
+    r.x2 = (r.x2+0.5)|0; r.y2 = (r.y2+0.5)|0;
 }
 
 function by_area(r1, r2) { return r2.area-r1.area; }
@@ -329,7 +329,6 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,haardata: null
-    ,objects: null
     ,selection: null
     ,tolerance: 0.2
     ,baseScale: 1.0
@@ -344,7 +343,6 @@ FILTER.Create({
     // this is the filter constructor
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning, tolerance ) {
         var self = this;
-        self.objects = null;
         self.haardata = haardata || null;
         self.baseScale = undef === baseScale ? 1.0 : baseScale;
         self.scaleIncrement = undef === scaleIncrement ? 1.25 : scaleIncrement;
@@ -453,19 +451,19 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,getMeta: function( ) {
-        return FILTER.isWorker ? TypedObj( this.objects ) : this.objects;
+    ,meta: function( ) {
+        return FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
     }
     
     ,setMeta: function( meta ) {
-        this.objects = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+        this._meta = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h, image, scratchpad) {
         var self = this;
-        if ( !self._isOn || !self.haardata ) return im;
+        if ( !self.haardata ) return im;
         
         var imSize = im.length>>>2,
             selection = self.selection || null,
@@ -521,7 +519,7 @@ FILTER.Create({
         if ( features.length > features.count ) features.length = features.count;
         
         // return results as meta
-        self.objects = merge_features(features, self.minNeighbors, self.tolerance); 
+        self._meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
         
         // return im back
         return im;

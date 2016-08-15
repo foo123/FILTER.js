@@ -17,13 +17,11 @@ var CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FIL
 //
 //
 // ColorMapFilter
-var ColorMapFilter = FILTER.ColorMapFilter = FILTER.Class( FILTER.Filter, {
+var ColorMapFilter = FILTER.Create({
     name: "ColorMapFilter"
     
-    ,constructor: function ColorMapFilter( M, init ) {
+    ,init: function ColorMapFilter( M, init ) {
         var self = this;
-        if ( !(self instanceof ColorMapFilter) ) return new ColorMapFilter(M, init);
-        self.$super('constructor');
         if ( M ) self.set( M, init );
     }
     
@@ -178,9 +176,10 @@ function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
-    return new Function("FILTER", "return function( im, w, h ){\
+    return new Function("FILTER", "\"use strict\";\
+    return function( im, w, h ){\
     var self = this;\
-    if ( !self._isOn || !self._map ) return im;\
+    if ( !self._map ) return im;\
     var x, y, i, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
 \
     "+__INIT__+";\
@@ -190,49 +189,49 @@ function apply__( map, preample )
         c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i] = ~~c[0]; im[i+1] = ~~c[1]; im[i+2] = ~~c[2]; im[i+3] = ~~c[3];\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+4]; c[1] = im[i+5]; c[2] = im[i+6]; c[3] = im[i+7];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+4] = ~~c[0]; im[i+5] = ~~c[1]; im[i+6] = ~~c[2]; im[i+7] = ~~c[3];\
+        im[i+4] = c[0]|0; im[i+5] = c[1]|0; im[i+6] = c[2]|0; im[i+7] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+8]; c[1] = im[i+9]; c[2] = im[i+10]; c[3] = im[i+11];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+8] = ~~c[0]; im[i+9] = ~~c[1]; im[i+10] = ~~c[2]; im[i+11] = ~~c[3];\
+        im[i+8] = c[0]|0; im[i+9] = c[1]|0; im[i+10] = c[2]|0; im[i+11] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+12]; c[1] = im[i+13]; c[2] = im[i+14]; c[3] = im[i+15];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+12] = ~~c[0]; im[i+13] = ~~c[1]; im[i+14] = ~~c[2]; im[i+15] = ~~c[3];\
+        im[i+12] = c[0]|0; im[i+13] = c[1]|0; im[i+14] = c[2]|0; im[i+15] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+16]; c[1] = im[i+17]; c[2] = im[i+18]; c[3] = im[i+19];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+16] = ~~c[0]; im[i+17] = ~~c[1]; im[i+18] = ~~c[2]; im[i+19] = ~~c[3];\
+        im[i+16] = c[0]|0; im[i+17] = c[1]|0; im[i+18] = c[2]|0; im[i+19] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+20]; c[1] = im[i+21]; c[2] = im[i+22]; c[3] = im[i+23];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+20] = ~~c[0]; im[i+21] = ~~c[1]; im[i+22] = ~~c[2]; im[i+23] = ~~c[3];\
+        im[i+20] = c[0]|0; im[i+21] = c[1]|0; im[i+22] = c[2]|0; im[i+23] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+24]; c[1] = im[i+25]; c[2] = im[i+26]; c[3] = im[i+27];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+24] = ~~c[0]; im[i+25] = ~~c[1]; im[i+26] = ~~c[2]; im[i+27] = ~~c[3];\
+        im[i+24] = c[0]|0; im[i+25] = c[1]|0; im[i+26] = c[2]|0; im[i+27] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
         c[0] = im[i+28]; c[1] = im[i+29]; c[2] = im[i+30]; c[3] = im[i+31];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
-        im[i+28] = ~~c[0]; im[i+29] = ~~c[1]; im[i+30] = ~~c[2]; im[i+31] = ~~c[3];\
+        im[i+28] = c[0]|0; im[i+29] = c[1]|0; im[i+30] = c[2]|0; im[i+31] = c[3]|0;\
         \
         if (++x>=w) {x=0; y++;}\
     }\
@@ -244,7 +243,7 @@ function apply__( map, preample )
             c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
             "+__APPLY__+";\
             "+__CLAMP__+";\
-            im[i] = ~~c[0]; im[i+1] = ~~c[1]; im[i+2] = ~~c[2]; im[i+3] = ~~c[3];\
+            im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
         }\
     }\
     return im;\
