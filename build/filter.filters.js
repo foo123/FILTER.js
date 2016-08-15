@@ -50,16 +50,16 @@ var CompositeFilter = FILTER.Create({
     
     ,init: function CompositeFilter( filters ) { 
         var self = this;
-        self._stack = filters && filters.length ? filters.slice( ) : [ ];
+        self.filters = filters && filters.length ? filters : [ ];
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_stack: null
-    ,_stable: true
+    ,filters: null
     ,hasInputs: true
+    ,_stable: true
     
     ,dispose: function( withFilters ) {
-        var self = this, i, stack = self._stack;
+        var self = this, i, stack = self.filters;
         
         if ( true === withFilters )
         {
@@ -69,13 +69,13 @@ var CompositeFilter = FILTER.Create({
                 stack[ i ] = null;
             }
         }
-        self._stack = null;
+        self.filters = null;
         self.$super('dispose');
         return self;
     }
     
     ,serializeInputs: function( curIm ) {
-        var self = this, i, stack = self._stack, l, inputs = [ ], hasInputs = false, input;
+        var self = this, i, stack = self.filters, l, inputs = [ ], hasInputs = false, input;
         for (i=0,l=stack.length; i<l; i++)
         {
             inputs.push( input=stack[ i ].serializeInputs( curIm ) );
@@ -87,19 +87,19 @@ var CompositeFilter = FILTER.Create({
     ,unserializeInputs: function( inputs, curImData ) {
         var self = this;
         if ( !inputs ) return self;
-        var i, stack = self._stack, l;
+        var i, stack = self.filters, l;
         for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ], curImData );
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this, i, stack = self._stack, l, filters = [ ];
+        var self = this, i, stack = self.filters, l, filters = [ ];
         for (i=0,l=stack.length; i<l; i++) filters.push( stack[ i ].serializeFilter( ) );
         return {_stable: self._stable, filters: filters};
     }
     
     ,unserialize: function( params ) {
-        var self = this, i, l, ls, filters, filter, stack = self._stack;
+        var self = this, i, l, ls, filters, filter, stack = self.filters;
         
         self._stable = params._stable;
         filters = params.filters || [ ];
@@ -128,7 +128,7 @@ var CompositeFilter = FILTER.Create({
                     return;
                 }
             }
-            self._stack = stack;
+            self.filters = stack;
         }
         else
         {
@@ -137,10 +137,10 @@ var CompositeFilter = FILTER.Create({
         return self;
     }
     
-    ,setMeta: function( meta ) {
-        var self = this, stack = self._stack, i, l;
+    ,setMeta: function( meta, serialisation ) {
+        var self = this, stack = self.filters, i, l;
         if ( meta && meta.filters && (l=meta.filters.length) && stack.length )
-            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1] );
+            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1], serialisation );
         if ( meta && (null != meta._IMG_WIDTH) )
         {
             self._meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
@@ -156,89 +156,90 @@ var CompositeFilter = FILTER.Create({
     }
     
     // manipulate the filter chain, methods
-    ,filters: function( f ) {
-        if ( arguments.length )
-        {
-            this._stack = f.slice( );
-            return this;
-        }
-        return this._stack.slice( );
+    ,set: function( filters ) {
+        if ( filters && filters.length ) this.filters = filters;
+        return this;
     }
     
+    ,filter: function( i, filter ) {
+        if ( arguments.length > 1 )
+        {
+            if ( this.filters.length > i ) this.filters[ i ] = filter;
+            else this.filters.push( filter );
+            return this;
+        }
+        else
+        {
+            return this.filters.length > i ? this.filters[ i ] : null;
+        }
+    }
+    ,get: null
+    
     ,push: function(/* variable args here.. */) {
-        if ( arguments.length ) concat.apply(this._stack, arguments);
+        if ( arguments.length ) concat.apply(this.filters, arguments);
         return this;
     }
     ,concat: null
     
     ,pop: function( ) {
-        return this._stack.pop( );
+        return this.filters.pop( );
     }
     
     ,shift: function( ) {
-        return this._stack.shift( );
+        return this.filters.shift( );
     }
     
     ,unshift: function(/* variable args here.. */) {
-        if ( arguments.length ) splice.apply(this._stack, concat.apply([0, 0], arguments));
+        if ( arguments.length ) splice.apply(this.filters, concat.apply([0, 0], arguments));
         return this;
     }
-    
-    ,getAt: function( i ) {
-        return this._stack.length > i ? this._stack[ i ] : null;
-    }
-    ,get: null
-    
-    ,setAt: function( i, filter ) {
-        if ( this._stack.length > i ) this._stack[ i ] = filter;
-        else this._stack.push( filter );
-        return this;
-    }
-    ,set: null
     
     ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
         var args = slice.call(arguments), arglen = args.length;
         if ( argslen > 1 )
         {
             args.shift( );
-            splice.apply( this._stack, [i, 0].concat( args ) );
+            splice.apply( this.filters, [i, 0].concat( args ) );
         }
         return this;
     }
     
     ,removeAt: function( i ) {
-        return this._stack.splice( i, 1 );
+        return this.filters.splice( i, 1 );
     }
     
     ,remove: function( filter ) {
-        var i = this._stack.length;
+        var i = this.filters.length;
         while ( --i >= 0 ) 
         { 
-            if ( filter === this._stack[i] ) 
-                this._stack.splice( i, 1 ); 
+            if ( filter === this.filters[i] ) 
+                this.filters.splice( i, 1 ); 
         }
         return this;
     }
     
     ,reset: function( ) {
-        this._stack.length = 0;  
+        this.filters.length = 0;  
         return this;
     }
     ,empty: null
     
     // used for internal purposes
-    ,_apply: function( im, w, h, image ) {
-        var self = this, scratchpad = {}, meta, _meta/*, update = false*/;
+    ,_apply: function( im, w, h, metaData ) {
+        var self = this, meta, _meta/*, update = false*/;
         _meta = {filters: []};
-        if ( self._stack.length )
+        if ( self.filters.length )
         {
-            var filterstack = self._stack, stacklength = filterstack.length, fi, filter;
+            metaData = metaData || {};
+            metaData.container = self; metaData.index = 0;
+            var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
             for (fi=0; fi<stacklength; fi++)
             {
                 filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    im = filter._apply(im, w, h, image, scratchpad);
+                    metaData.index = fi;
+                    im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
                         _meta.filters.push([fi, meta=filter.getMeta()]);
@@ -268,11 +269,11 @@ var CompositeFilter = FILTER.Create({
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._stack.length;
+        return this._isOn && this.filters.length;
     }
     
     ,toString: function( ) {
-        var tab = "\t", s = this._stack, out = [], i, l = s.length;
+        var tab = "\t", s = this.filters, out = [], i, l = s.length;
         for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
         return [
              "[FILTER: " + this.name + "]"
@@ -281,8 +282,7 @@ var CompositeFilter = FILTER.Create({
     }
 });
 // aliases
-CompositeFilter.prototype.get = CompositeFilter.prototype.getAt;
-CompositeFilter.prototype.set = CompositeFilter.prototype.setAt;
+CompositeFilter.prototype.get = CompositeFilter.prototype.filter;
 CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
 CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 FILTER.CompositionFilter = FILTER.CompositeFilter;
@@ -539,12 +539,13 @@ FILTER.Create({
         var self = this, index, matrix = self.matrix;
         if ( values )
         {
-            if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1];
+            if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1, 1];
             index = (inputIndex-1)<<2;
-            if ( undef !== values.mode ) matrix[index] = values.mode||"normal";
-            if ( null != values.startX ) matrix[index+1] = +values.startX;
-            if ( null != values.startY ) matrix[index+2] = +values.startY;
-            if ( null != values.alpha ) matrix[index+3] = +values.alpha;
+            if ( undef !== values.mode )    matrix[index  ] =  values.mode||"normal";
+            if ( null != values.startX )    matrix[index+1] = +values.startX;
+            if ( null != values.startY )    matrix[index+2] = +values.startY;
+            if ( null != values.alpha )     matrix[index+3] = +values.alpha;
+            if ( null != values.enabled )   matrix[index+4] = !!values.enabled;
         }
         return self;
     }
@@ -556,7 +557,7 @@ FILTER.Create({
         return self;
     }
     
-    ,_apply: function(im, w, h/*, image*/) {
+    ,_apply: function(im, w, h) {
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         
@@ -568,12 +569,13 @@ FILTER.Create({
         // clone original image since same image may also blend with itself
         blended = new IMG(imLen); if ( hasArraySet ) blended.set( im ); else arrayset(blended, im);
         
-        for(i=0,k=1; i<l; i+=4,k++)
+        for(i=0,k=1; i<l; i+=5,k++)
         {
-            alpha = matrix[i+3]||0; if ( 0 === alpha ) continue;
+            if ( !matrix[i+4] ) continue; // not enabled, skip
+            alpha = matrix[i+3]||0; if ( 0 === alpha ) continue; // 0 alpha, skip
             mode = matrix[i]||"normal"; blend = BLEND[HAS](mode)?BLEND[mode]:null; if ( !blend ) continue;
             
-            input = self.input(k); if ( !input ) continue;
+            input = self.input(k); if ( !input ) continue; // no input, skip
             im2 = input[0]; w2 = input[1]; h2 = input[2];
             
             startX = matrix[i+1]||0; startY = matrix[i+2]||0;
@@ -982,7 +984,7 @@ var ColorTableFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: function(im, w, h/*, image*/) {
+    ,_apply: function( im, w, h ) {
         var self = this, T = self._table;
         if ( !T || !T[CHANNEL.R] ) return im;
         
@@ -1509,7 +1511,7 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp ? function( im, w, h/*, image*/ ) {
+    ,_apply: notSupportClamp ? function( im, w, h ) {
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -1633,7 +1635,7 @@ var ColorMatrixFilter = FILTER.Create({
             }
         }
         return im;
-    } : function( im, w, h/*, image*/ ) {
+    } : function( im, w, h ) {
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -1907,8 +1909,7 @@ function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
-    return new Function("FILTER", "\"use strict\";\
-    return function( im, w, h ){\
+    return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
     var x, y, i, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
@@ -2394,7 +2395,7 @@ FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: function( im, w, h/*, image*/ ) {
+    ,_apply: function( im, w, h ) {
         var self = this, Map;
         
         Map = self.input("map"); if ( !Map ) return im;
@@ -2763,9 +2764,6 @@ FILTER.Create({
         return self;
     }
     
-    // used for internal purposes
-    /*,_apply: apply*/
-        
     ,canRun: function( ) {
         return this._isOn && this._map;
     }
@@ -2774,8 +2772,7 @@ FILTER.Create({
 function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
-    return new Function("FILTER", "\"use strict\";\
-    return function( im, w, h ){\
+    return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
     var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\
@@ -3311,8 +3308,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp
-    ? function(im, w, h/*, image*/) {
+    ,_apply: notSupportClamp ? function( im, w, h ) {
         var self = this, rgba = self._rgba;
         if ( !self.matrix ) return im;
         
@@ -3449,8 +3445,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             }
         }
         return dst;
-    }
-    : function(im, w, h/*, image*/) {
+    } : function( im, w, h ) {
         var self = this, rgba = self._rgba;
         if ( !self.matrix ) return im;
         
@@ -4124,8 +4119,8 @@ Filters = {
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array.typed,
-    Min = Math.min, Max = Math.max, Filters;
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Filters;
     
 //
 //  Statistical Filter
@@ -4313,13 +4308,13 @@ Filters = {
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
             r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
-            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum, min, max,
+            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
-        rhist = new Uint32Array(matArea);
-        ghist = new Uint32Array(matArea);
-        bhist = new Uint32Array(matArea);
+        rhist = new A32U(256/*268*/);
+        ghist = new A32U(256/*268*/);
+        bhist = new A32U(256/*268*/);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
@@ -4340,7 +4335,10 @@ Filters = {
                 srcOff = (xOff + yOff)<<2;
                 r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2]; 
                 // compute histogram, similar to counting sort
-                rhist[r]++; ghist[g]++; bhist[b]++;
+                //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
+                //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
+                //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
+                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++;
                 rtot++; gtot++; btot++;
                 if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
                 if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
@@ -4349,16 +4347,19 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            min = Min(rmin, gmin, gmax); max = Max(rmax, gmax, bmax);
-            rtot *= kth; gtot *= kth; btot *= kth;
-            kthR = kthG = kthB = -1; rsum = gsum = bsum = 0;
-            for(j=min; j<=max; j++)
+            for(rtot*=kth,rsum=0,kthR=-1,j=rmin; j<=rmax; j++)
             {
                 rsum += rhist[j]; rhist[j] = 0;
-                gsum += ghist[j]; ghist[j] = 0;
-                bsum += bhist[j]; bhist[j] = 0;
                 if ( 0 > kthR && rsum >= rtot ) kthR = j;
+            }
+            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            {
+                gsum += ghist[j]; ghist[j] = 0;
                 if ( 0 > kthG && gsum >= gtot ) kthG = j;
+            }
+            for(btot*=kth,bsum=0,kthB=-1,j=bmin; j<=bmax; j++)
+            {
+                bsum += bhist[j]; bhist[j] = 0;
                 if ( 0 > kthB && bsum >= btot ) kthB = j;
             }
             
@@ -4433,7 +4434,7 @@ Filters = {
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
-        ghist = new Uint32Array(matArea);
+        ghist = new A32U(256);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
@@ -4459,8 +4460,7 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            gtot *= kth; gsum = 0; kthG = -1;
-            for(j=gmin; j<=gmax; j++)
+            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
                 gsum += ghist[j]; ghist[j] = 0;
                 if ( 0 > kthG && gsum >= gtot ) kthG = j;
@@ -4563,10 +4563,10 @@ FILTER.Create({
         return self;
     }
     
-    ,_apply: function( im, w, h, image ) {
+    ,_apply: function( im, w, h, metaData ) {
         var self = this;
         if ( !self._filter ) return im;
-        return self._filter( self._params, im, w, h, image );
+        return self._filter( self._params, im, w, h, metaData );
     }
         
     ,canRun: function( ) {

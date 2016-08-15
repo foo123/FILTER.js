@@ -86,7 +86,7 @@ FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: function( im, w, h/*, image*/ ) {
+    ,_apply: function( im, w, h ) {
         var self = this, Map;
         
         Map = self.input("map"); if ( !Map ) return im;

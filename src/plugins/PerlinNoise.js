@@ -113,7 +113,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || !perlin_noise ) return im;
         if ( self._seed )

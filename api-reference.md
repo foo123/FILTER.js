@@ -42,7 +42,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ###Image Class
 
 ````javascript
-new FILTER.Image([ImageOrCanvasOrVideoOrFilterImageInstance]);
+new FILTER.Image( image:Image|Video|Canvas|FILTER.Image|ImageData=null );
 ````
 
 This is a placeholder for an image, along with basic methods to access the image data
@@ -50,12 +50,12 @@ and alter them.
 
 __Methods:__
 
-* `image(ImageOrCanvasOrVideoOrFilterImageInstance)`  Sets/Alters the underlying image
+* `image(image:Image|Video|Canvas|FILTER.Image|ImageData)`  Sets/Alters the underlying image
 * `select(x1:Number, y1:Number, x2:Number, y2:Number)`  set a rectangle as selected part of image (any filters will be applied only to that part)
 * `deselect()`  remove previous selection (selected part becomes whole image)
 * `store()`  store the current filtered/processed image as the original image
 * `restore()` restore the original image, remove any filters applied to this image
-* `restorable( Boolean )` whether the image is restorable (it can be faster if not)
+* `restorable( bool:Boolean )` whether the image is restorable (it can be faster if not)
 * `apply(filter:Filter [, callback:Function])` shorthand to apply method of a FILTER.Filter instance, image will change after application
 * `apply2(filter:Filter, destImage:Image [, callback:Function])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
 * `clone(original:Boolean)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
@@ -78,7 +78,7 @@ __Methods:__
 ###ScaledImage Class
 
 ````javascript
-new FILTER.ScaledImage(scaleX, scaleY [, ImageOrCanvasOrVideoOrFilterImageInstance]);
+new FILTER.ScaledImage(scaleX:Number, scaleY:Number [, image:Image|Video|Canvas|FILTER.Image|ImageData]);
 ````
 
 This is a placeholder for an image, which is automatically up/down scaled (for faster processing). It is a subclass of FILTER.Image and shares the same common methods.
@@ -92,7 +92,7 @@ __Methods:__
 ###Loader / BinaryLoader / HTMLImageLoader Classes
 
 ````javascript
-filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl [, onLoad, onError] );
+filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl:String [, onLoad:Function, onError:Function] );
 
 // this is same as (factory-constructor pattern):
 
@@ -128,7 +128,7 @@ __Methods:__
 * `toggle( )`  toggle the filter's `ON`/`OFF` status
 * `isOn( )`   check if filter is `ON` or `OFF`
 * `combineWith( similarFilterInstance:Filter )`  for any filter that supports combination of a similar filter with itself, else does nothing
-* `setInput(key, inputImage:Image)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
+* `setInput(key:String, inputImage:Image)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
 * `unsetInput(key)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method unsets inputs by key (see above)
 * `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g `blend` filters) the extra inputs are available to the filter via this method by inputKey (see above)
 * `serialize( )`  serialize filter's parameters (for use during parallel processing)
@@ -141,7 +141,7 @@ __Methods:__
 ###Color Table Filter
 
 ````javascript
-new FILTER.ColorTableFilter(colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray]);
+new FILTER.ColorTableFilter( colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray] );
 ````
 
 The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
@@ -200,11 +200,11 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Color Matrix Filter
 
 ````javascript
-new FILTER.ColorMatrixFilter( weights:Array );
+new FILTER.ColorMatrixFilter( colorMatrix:Array );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
-The (optional) weights parameter is an array of 20 numbers which define the multipliers and bias terms
+The (optional) `colorMatrix` parameter is an array of 20 numbers which define the multipliers and bias terms
 for the RGBA components of each pixel in an image.
 
 The filter scans an image and maps each pixel colors linearly according to the color matrix.
@@ -268,7 +268,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Color Map Filter
 
 ````javascript
-new FILTER.ColorMapFilter( map:Function );
+new FILTER.ColorMapFilter( colorMap:Function );
 ````
 
 The filter scans an image and maps each pixel colors non-linearly according to the color mapping function.
@@ -313,7 +313,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Affine Matrix Filter
 
 ````javascript
-new FILTER.AffinematrixFilter( transformMatrix:Array );
+new FILTER.AffineMatrixFilter( affineMatrix:Array );
 ````
 
 The filter scans an image and maps each pixel position linearly according to the affine transformation matrix.
@@ -365,7 +365,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Geometric Map Filter
 
 ````javascript
-new FILTER.GeometricMapFilter( inverseGeometricMap:Function );
+new FILTER.GeometricMapFilter( geometricMap:Function );
 ````
 
 The filter scans an image and maps each pixel position non-linearly according to the geometric transformation map function.
@@ -467,7 +467,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Convolution Matrix Filter
 
 ````javascript
-new FILTER.ConvolutionMatrixFilter( weights:Array, factor:Number );
+new FILTER.ConvolutionMatrixFilter( convolutionMatrix:Array, factor:Number );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
@@ -544,7 +544,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Morphological Filter
 
 ````javascript
-new FILTER.MorphologicalFilter( );
+new FILTER.MorphologicalFilter( structureElement:Array );
 ````
 
 This filter implements basic morphological processing like erode and dilate filters with arbitrary structure elements (given as matrix array)
@@ -608,11 +608,11 @@ This filter implements some statistical processing like median filters and erode
 
 The class has some pre-defined filters to use.
 
-* `median( )`  Apply median (ie. lowpass/remove noise) filter
-* `minimum( )/erode( )` Apply minimum (erode) filter
-* `maximum( )/dilate( )` Apply maximum (dilate) filter
-* `kth( )`  Apply kth statistic for arbitarry `k` in `0..1` range
-* `grayscale( Boolean:bool=true )` Use faster statistical filters for grayscale images
+* `median( dimension:Integer=3 )`  Apply median (ie. lowpass/remove noise) filter
+* `minimum( dimension:Integer=3 )/erode( dimension:Integer=3 )` Apply minimum (erode) filter
+* `maximum( dimension:Integer=3 )/dilate( dimension:Integer=3 )` Apply maximum (dilate) filter
+* `kth( k:Number, dimension:Integer=3 )`  Apply kth statistic for arbitarry `k` in `0..1` range
+* `grayscale( bool:Boolean=true )` Use faster statistical filters for grayscale images
 
 Statistical Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
@@ -652,7 +652,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.BlendFilter( blendMatrix:Array );
 ````
 
-The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `alpha` (opacity) factor for each of the blend images to be blended with the main image (see below).
+The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `5` items, total = `5N` for `N` images) describing the `blendMode`, start `x,y` positions and `alpha` (opacity) factor and `enabled` flag for each of the blend images to be blended with the main image (see below).
 
 **Supported Blend Modes:**
     
@@ -685,12 +685,12 @@ The filter blends multiple images together with photoshop-like blending modes us
 In order to use a blend filter do the following:
 
 ````javascript
-                                          /* blendMode, startX, startY, alpha, .. */
-var blend3Images = new FILTER.BlendFilter( ["screen",    0,      0,      1,  /*input1*/
-                                            "overlay",   10,    10,      0.7 /*input2*/] ).setInput(1, blendImg).setInput(2, anotherBlendImg);
+                                          /* blendMode, startX, startY, alpha, enabled, .. */
+var blend3Images = new FILTER.BlendFilter( ["screen",    0,      0,      1,    1,/*input1*/
+                                            "overlay",   10,    10,      0.7,  1 /*input2*/] ).setInput(1, blendImg).setInput(2, anotherBlendImg);
 // this also works
-var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set( ["screen",    0,      0,      1,
-                                                                     "overlay",   10,    10,      0.7] );
+var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set( ["screen", 0, 0, 1, 1,
+                                                                     "overlay", 10, 10, 0.7, 1] );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 blend3Images.worker( );
@@ -722,12 +722,10 @@ The class implements these methods:
 * `shift( )`  remove a filter from the start of stack
 * `unshift( )` add filter(s) to the start of stack
 * `remove( )` remove a filter by instance 
-* `insertAt( )` insert filter(s) at specified location/order
 * `removeAt( )` remove the filter at specified location/order
-* `getAt( )` get the filter at this location
-* `setAt( )` replace the filter at this location
-* `filters( )` set all the filters stack at once
-* `stable( [bool] )` whether the filter is stable (meaning no filters will be added or removed), this makes serialization faster
+* `insertAt( )` insert filter(s) at specified location/order
+* `filter( )` get/set the filter at this location
+* `stable( bool:Boolean )` whether the filter is stable (meaning no filters will be added and/or removed), this makes serialization faster
 * `reset( )/empty( )` reset the filter to identity
 
 
@@ -808,7 +806,7 @@ image.apply( combine );   // image is a FILTER.Image instance, see examples
 ###Inline Filter
 
 ````javascript
-new FILTER.InlineFilter( dynamicFilter:Function );
+new FILTER.InlineFilter( filterFunc:Function );
 ````
 
 This filter creates inline filters dynamicaly at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).

@@ -3,36 +3,34 @@
 __0.9.5__
 
 * fix any nodejs portability emulation and parallel threads issues
+* make parallel thread calls faster (both browser and nodejs), update asynchronous
 * fix some typos in `Color` utility and plugins
+* add extra static utilities in `Color` class (`.intensity`, `.hue`, `.saturation`, `blend` modes, ..)
+* color space conversions made faster and more generic
 * restructure utiltiies and folders (e.g Math, String, Array, Image, Filter utils ..)
+* filters and created plugins automaticaly support the `constructor-factory` pattern to be able to be instantiated without the explicit `new Filter()` operator instead simply using `Filter()`, see updated examples
+* handle uniformly and more efficiently multiple extra input images in filters, simplify filters' `serialize`/`unserialize` methods
+* make filters pass generic `metaData` in `apply` method instead of just the `src` image (e.g useful in composite filters to adjust parameters of filters at run-time based on previous filter outputs etc..)
+* a number of filters/plugins have been combined or extended to support various modes of operation defined in FILTER.MODE (see examples)
+* two new generic filters (which replace multiple plugins, see updated examples) `AffineMatrixFilter` (i.e linear geometric map filtering) and `ColorMapFilter` (i.e non-linear color transformation filtering) instead of having multiple filters and plugins with similar functionalities scattered around, plus dynamicaly optimise them, parametrise them and also have GLSL analogs more easily
+* remove `AlphaMaskFilter`, `ChannelCopyFilter` has been extended with same functionality
 * new effects utiltiies and plugins `gradient`, `radial-gradient` (nodejs support), extra static part of `Filter.Image`
 * new plugin `PatternFillFilter` (in `FloodFillFilter` plugin file)
 * new plugin `DropShadowFilter` (analogous to ActionScript filter)
 * new plugin `ConnectedComponentsFilter`
+* add new filters `ResampleFilter`, `SelectionFilter`
+* move `BlendFilter` into generic filters instead of plugins, new `AlgebraicFilter` (instead of `CombinatorFilter`), in progress
+* make `BlendFilter` accept multiple inputs, plus extra alpha (opacity) parameter and enabled/disbaled flag (per input), via `BlendMatrix` (see examples)
 * new and faster approximate algorithm for `Pixelate`, `TriangularPixelate`, `HexagonalPixelate`, all included in `Pixelate` plugin file
-* add `channel` parameter to `AlphaMask` filter so any channel can serve as the `ALPHA` channel (default is `ALPHA` channel)
-* `Threshold` filter can operate in `color`, `intensity` or `hue` mode (e.g similar to `HueExtractor` filter)
-* `HSVConverter` can operate in (faster) `onlyHue`, mode i.e generate grayscale image which encodes only the `hue` channel
-* make histogram equalisation faster, some convolutions faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
+* make histogram equalisation faster, some convolutions and statistics faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
 * histogram equalize filter is now one filter with mode parameter (defined in FILTER.MODE) for type of equalisation (i.e MODE.COLOR, MODE.GRAY, MODE.RGB)
-* color space conversions made faster and more generic
 * add custom `selection` option plus `tolerance` to `HaarDetector` plugin so it can detect in a region of image instead of whole (useful for combining detectors to detect different feaures consecutively, where one detects in region detected previously..)
-* a number of filters have been combined or extended to support various modes of operation defined in FILTER.MODE (see examples)
-* add extra static utilities in `Color` class (`.intensity`, `.hue`, `.saturation`)
-* make parallel thread calls faster (both browser and nodejs), update asynchronous
+* simplify and make somewhat faster `CannyEdges` and `HaarDetector` plugins
+* fix `tensor_product` utility from previous update (produced incorrect convolution kernels)
+* fix `Image.image` method issue when loading an image without initializing `imageData` in nodejs
 * heavy refactoring and optimisations
 * update examples (both live browser and nodejs)
 * prepare support for glsl-based filters (`webgl`/`node-gl`) and svg-based filters
-* filters and created plugins automaticaly support the `constructor-factory` pattern to be able to be instantiated without the explicit `new AFilter()` operator instead simply using `AFilter()`, see updated examples
-* two new generic filters (which replace multiple plugins, see updated examples) `AffineMatrixFilter` (i.e linear geometric map filtering) and `ColorMapFilter` (i.e non-linear color transformation filtering) instead of having multiple filters and plugins with similar functionalities scattered around, plus dynamicaly optimise them, parametrise them and also have GLSL analogs more easily
-* fix `tensor_product` utility from previous update (produced incorrect convolution kernels)
-* simplify and make somewhat faster `CannyEdges` and `HaarDetector` plugins
-* move `BlendFilter` into generic filters instead of plugins, new `AlgebraicFilter` (instead of `CombinatorFilter`), in progress
-* handle uniformly and more efficiently multiple extra input images in filters, simplify filters' `serialize`/`unserialize` methods
-* fix `Image.image` method issue when loading an image without initializing imageData in nodejs
-* add new filters `ResampleFilter`, `SelectionFilter`
-* remove `AlphaMaskFilter`, `ChannelCopyFilter` has been extended with same functionality
-* make `BlendFilter` accept multiple inputs, plus extra alpha (opacity) parameter (per input), via `BlendMatrix` (see examples)
 
 
 __0.9.0__

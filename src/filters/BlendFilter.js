@@ -60,12 +60,13 @@ FILTER.Create({
         var self = this, index, matrix = self.matrix;
         if ( values )
         {
-            if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1];
+            if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1, 1];
             index = (inputIndex-1)<<2;
-            if ( undef !== values.mode ) matrix[index] = values.mode||"normal";
-            if ( null != values.startX ) matrix[index+1] = +values.startX;
-            if ( null != values.startY ) matrix[index+2] = +values.startY;
-            if ( null != values.alpha ) matrix[index+3] = +values.alpha;
+            if ( undef !== values.mode )    matrix[index  ] =  values.mode||"normal";
+            if ( null != values.startX )    matrix[index+1] = +values.startX;
+            if ( null != values.startY )    matrix[index+2] = +values.startY;
+            if ( null != values.alpha )     matrix[index+3] = +values.alpha;
+            if ( null != values.enabled )   matrix[index+4] = !!values.enabled;
         }
         return self;
     }
@@ -77,7 +78,7 @@ FILTER.Create({
         return self;
     }
     
-    ,_apply: function(im, w, h/*, image*/) {
+    ,_apply: function(im, w, h) {
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         
@@ -89,12 +90,13 @@ FILTER.Create({
         // clone original image since same image may also blend with itself
         blended = new IMG(imLen); if ( hasArraySet ) blended.set( im ); else arrayset(blended, im);
         
-        for(i=0,k=1; i<l; i+=4,k++)
+        for(i=0,k=1; i<l; i+=5,k++)
         {
-            alpha = matrix[i+3]||0; if ( 0 === alpha ) continue;
+            if ( !matrix[i+4] ) continue; // not enabled, skip
+            alpha = matrix[i+3]||0; if ( 0 === alpha ) continue; // 0 alpha, skip
             mode = matrix[i]||"normal"; blend = BLEND[HAS](mode)?BLEND[mode]:null; if ( !blend ) continue;
             
-            input = self.input(k); if ( !input ) continue;
+            input = self.input(k); if ( !input ) continue; // no input, skip
             im2 = input[0]; w2 = input[1]; h2 = input[2];
             
             startX = matrix[i+1]||0; startY = matrix[i+2]||0;

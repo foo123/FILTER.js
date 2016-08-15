@@ -180,9 +180,6 @@ FILTER.Create({
         return self;
     }
     
-    // used for internal purposes
-    /*,_apply: apply*/
-        
     ,canRun: function( ) {
         return this._isOn && this._map;
     }
@@ -191,8 +188,7 @@ FILTER.Create({
 function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
-    return new Function("FILTER", "\"use strict\";\
-    return function( im, w, h ){\
+    return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
     var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\

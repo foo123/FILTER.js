@@ -77,7 +77,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn ) return im;
         var color = self.color||0, a = self.opacity, quality = self.quality,

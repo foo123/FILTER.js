@@ -445,7 +445,7 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp ? function( im, w, h/*, image*/ ) {
+    ,_apply: notSupportClamp ? function( im, w, h ) {
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -569,7 +569,7 @@ var ColorMatrixFilter = FILTER.Create({
             }
         }
         return im;
-    } : function( im, w, h/*, image*/ ) {
+    } : function( im, w, h ) {
         var self = this, M = self.matrix;
         if ( !M ) return im;
         

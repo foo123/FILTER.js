@@ -73,7 +73,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, l = im.length, imSize = l>>>2,
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
             size = self.size, area = size*size, invarea = 1.0/area,

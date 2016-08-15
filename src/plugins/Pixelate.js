@@ -39,7 +39,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
@@ -119,7 +119,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
@@ -212,7 +212,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image* /) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;

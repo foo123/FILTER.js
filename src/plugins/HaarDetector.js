@@ -451,17 +451,17 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,meta: function( ) {
-        return FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
+    ,meta: function( serialisation ) {
+        return serialisation && FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
     }
     
-    ,setMeta: function( meta ) {
-        this._meta = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+    ,setMeta: function( meta, serialisation ) {
+        this._meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h, image, scratchpad) {
+    ,apply: function(im, w, h, metaData) {
         var self = this;
         if ( !self.haardata ) return im;
         
@@ -487,28 +487,28 @@ FILTER.Create({
         }
         
         // NOTE: assume image is already grayscale
-        if ( scratchpad && scratchpad.SAT )
+        if ( metaData && metaData.haarfilter_SAT )
         {
-            SAT = scratchpad.SAT; SAT2 = scratchpad.SAT2; RSAT = scratchpad.RSAT;
+            SAT = metaData.haarfilter_SAT; SAT2 = metaData.haarfilter_SAT2; RSAT = metaData.haarfilter_RSAT;
         }
         else
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
             sat_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
-            if ( scratchpad ) { scratchpad.SAT = SAT; scratchpad.SAT2 = SAT2; scratchpad.RSAT = RSAT; }
+            if ( metaData ) { metaData.haarfilter_SAT = SAT; metaData.haarfilter_SAT2 = SAT2; metaData.haarfilter_RSAT = RSAT; }
         }
         
         // pre-compute integral gradient edges if needed
         if ( self.doCannyPruning )
         {
-            if ( scratchpad && scratchpad.EDGES )
+            if ( metaData && metaData.haarfilter_EDGES )
             {
-                EDGES = scratchpad.EDGES;
+                EDGES = metaData.haarfilter_EDGES;
             }
             else
             {
                 sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
-                if ( scratchpad ) { scratchpad.EDGES = EDGES; }
+                if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
             }
         }
         

@@ -88,10 +88,10 @@ FILTER.Create({
         return self;
     }
     
-    ,_apply: function( im, w, h, image ) {
+    ,_apply: function( im, w, h, metaData ) {
         var self = this;
         if ( !self._filter ) return im;
-        return self._filter( self._params, im, w, h, image );
+        return self._filter( self._params, im, w, h, metaData );
     }
         
     ,canRun: function( ) {

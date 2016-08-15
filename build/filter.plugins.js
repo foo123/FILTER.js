@@ -78,7 +78,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
@@ -237,7 +237,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || !perlin_noise ) return im;
         if ( self._seed )
@@ -315,9 +315,9 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
-        if ( !self._isOn || !self.colors ) return im;
+        if ( !self.colors ) return im;
         return Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
     }
 });
@@ -401,9 +401,9 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
-        if ( !self._isOn || !self.colors ) return im;
+        if ( !self.colors ) return im;
         
         // make center relative
         return Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate );
@@ -480,7 +480,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, Src;
         Src = self.input("source"); if ( !Src ) return im;
         
@@ -896,7 +896,7 @@ FILTER.Create({
         return im;
     }
     
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed
@@ -1403,7 +1403,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
@@ -1483,7 +1483,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
@@ -1576,7 +1576,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image* /) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn || self.scale <= 1 ) return im;
         if ( self.scale > 100 ) self.scale = 100;
@@ -1728,7 +1728,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, l = im.length, imSize = l>>>2,
             err = new A32F(imSize*3), pixel, index, t, rgb, ycbcr,
             size = self.size, area = size*size, invarea = 1.0/area,
@@ -1931,7 +1931,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn ) return im;
         var color = self.color||0, a = self.opacity, quality = self.quality,
@@ -2068,10 +2068,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn ) return im;
         var imLen = im.length, imArea, 
@@ -2221,10 +2218,7 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     // adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
+    ,apply: function(im, w, h) {
         var self = this, masktype = self.type,
             resize = FILTER.Interpolation.bilinear,
             IMG = FILTER.ImArray, A8U = FILTER.Array8U,
@@ -2394,7 +2388,7 @@ FILTER.Create({
      * by Paul Heckbert
      * from "Graphics Gems", Academic Press, 1990
      */
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, 
             /* seems to have issues when tol is exactly 1.0*/
             tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0,
@@ -2563,6 +2557,7 @@ FILTER.Create({
         return im;
     }
 });
+FILTER.ColorFillFilter = FILTER.FloodFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"
@@ -3571,17 +3566,17 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,meta: function( ) {
-        return FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
+    ,meta: function( serialisation ) {
+        return serialisation && FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
     }
     
-    ,setMeta: function( meta ) {
-        this._meta = "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+    ,setMeta: function( meta, serialisation ) {
+        this._meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h, image, scratchpad) {
+    ,apply: function(im, w, h, metaData) {
         var self = this;
         if ( !self.haardata ) return im;
         
@@ -3607,28 +3602,28 @@ FILTER.Create({
         }
         
         // NOTE: assume image is already grayscale
-        if ( scratchpad && scratchpad.SAT )
+        if ( metaData && metaData.haarfilter_SAT )
         {
-            SAT = scratchpad.SAT; SAT2 = scratchpad.SAT2; RSAT = scratchpad.RSAT;
+            SAT = metaData.haarfilter_SAT; SAT2 = metaData.haarfilter_SAT2; RSAT = metaData.haarfilter_RSAT;
         }
         else
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
             sat_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
-            if ( scratchpad ) { scratchpad.SAT = SAT; scratchpad.SAT2 = SAT2; scratchpad.RSAT = RSAT; }
+            if ( metaData ) { metaData.haarfilter_SAT = SAT; metaData.haarfilter_SAT2 = SAT2; metaData.haarfilter_RSAT = RSAT; }
         }
         
         // pre-compute integral gradient edges if needed
         if ( self.doCannyPruning )
         {
-            if ( scratchpad && scratchpad.EDGES )
+            if ( metaData && metaData.haarfilter_EDGES )
             {
-                EDGES = scratchpad.EDGES;
+                EDGES = metaData.haarfilter_EDGES;
             }
             else
             {
                 sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
-                if ( scratchpad ) { scratchpad.EDGES = EDGES; }
+                if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
             }
         }
         
@@ -3815,7 +3810,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
         if ( !self._isOn ) return im;
         

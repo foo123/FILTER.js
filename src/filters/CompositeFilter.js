@@ -17,16 +17,16 @@ var CompositeFilter = FILTER.Create({
     
     ,init: function CompositeFilter( filters ) { 
         var self = this;
-        self._stack = filters && filters.length ? filters.slice( ) : [ ];
+        self.filters = filters && filters.length ? filters : [ ];
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,_stack: null
-    ,_stable: true
+    ,filters: null
     ,hasInputs: true
+    ,_stable: true
     
     ,dispose: function( withFilters ) {
-        var self = this, i, stack = self._stack;
+        var self = this, i, stack = self.filters;
         
         if ( true === withFilters )
         {
@@ -36,13 +36,13 @@ var CompositeFilter = FILTER.Create({
                 stack[ i ] = null;
             }
         }
-        self._stack = null;
+        self.filters = null;
         self.$super('dispose');
         return self;
     }
     
     ,serializeInputs: function( curIm ) {
-        var self = this, i, stack = self._stack, l, inputs = [ ], hasInputs = false, input;
+        var self = this, i, stack = self.filters, l, inputs = [ ], hasInputs = false, input;
         for (i=0,l=stack.length; i<l; i++)
         {
             inputs.push( input=stack[ i ].serializeInputs( curIm ) );
@@ -54,19 +54,19 @@ var CompositeFilter = FILTER.Create({
     ,unserializeInputs: function( inputs, curImData ) {
         var self = this;
         if ( !inputs ) return self;
-        var i, stack = self._stack, l;
+        var i, stack = self.filters, l;
         for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ], curImData );
         return self;
     }
     
     ,serialize: function( ) {
-        var self = this, i, stack = self._stack, l, filters = [ ];
+        var self = this, i, stack = self.filters, l, filters = [ ];
         for (i=0,l=stack.length; i<l; i++) filters.push( stack[ i ].serializeFilter( ) );
         return {_stable: self._stable, filters: filters};
     }
     
     ,unserialize: function( params ) {
-        var self = this, i, l, ls, filters, filter, stack = self._stack;
+        var self = this, i, l, ls, filters, filter, stack = self.filters;
         
         self._stable = params._stable;
         filters = params.filters || [ ];
@@ -95,7 +95,7 @@ var CompositeFilter = FILTER.Create({
                     return;
                 }
             }
-            self._stack = stack;
+            self.filters = stack;
         }
         else
         {
@@ -104,10 +104,10 @@ var CompositeFilter = FILTER.Create({
         return self;
     }
     
-    ,setMeta: function( meta ) {
-        var self = this, stack = self._stack, i, l;
+    ,setMeta: function( meta, serialisation ) {
+        var self = this, stack = self.filters, i, l;
         if ( meta && meta.filters && (l=meta.filters.length) && stack.length )
-            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1] );
+            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1], serialisation );
         if ( meta && (null != meta._IMG_WIDTH) )
         {
             self._meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
@@ -123,89 +123,90 @@ var CompositeFilter = FILTER.Create({
     }
     
     // manipulate the filter chain, methods
-    ,filters: function( f ) {
-        if ( arguments.length )
-        {
-            this._stack = f.slice( );
-            return this;
-        }
-        return this._stack.slice( );
+    ,set: function( filters ) {
+        if ( filters && filters.length ) this.filters = filters;
+        return this;
     }
     
+    ,filter: function( i, filter ) {
+        if ( arguments.length > 1 )
+        {
+            if ( this.filters.length > i ) this.filters[ i ] = filter;
+            else this.filters.push( filter );
+            return this;
+        }
+        else
+        {
+            return this.filters.length > i ? this.filters[ i ] : null;
+        }
+    }
+    ,get: null
+    
     ,push: function(/* variable args here.. */) {
-        if ( arguments.length ) concat.apply(this._stack, arguments);
+        if ( arguments.length ) concat.apply(this.filters, arguments);
         return this;
     }
     ,concat: null
     
     ,pop: function( ) {
-        return this._stack.pop( );
+        return this.filters.pop( );
     }
     
     ,shift: function( ) {
-        return this._stack.shift( );
+        return this.filters.shift( );
     }
     
     ,unshift: function(/* variable args here.. */) {
-        if ( arguments.length ) splice.apply(this._stack, concat.apply([0, 0], arguments));
+        if ( arguments.length ) splice.apply(this.filters, concat.apply([0, 0], arguments));
         return this;
     }
-    
-    ,getAt: function( i ) {
-        return this._stack.length > i ? this._stack[ i ] : null;
-    }
-    ,get: null
-    
-    ,setAt: function( i, filter ) {
-        if ( this._stack.length > i ) this._stack[ i ] = filter;
-        else this._stack.push( filter );
-        return this;
-    }
-    ,set: null
     
     ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
         var args = slice.call(arguments), arglen = args.length;
         if ( argslen > 1 )
         {
             args.shift( );
-            splice.apply( this._stack, [i, 0].concat( args ) );
+            splice.apply( this.filters, [i, 0].concat( args ) );
         }
         return this;
     }
     
     ,removeAt: function( i ) {
-        return this._stack.splice( i, 1 );
+        return this.filters.splice( i, 1 );
     }
     
     ,remove: function( filter ) {
-        var i = this._stack.length;
+        var i = this.filters.length;
         while ( --i >= 0 ) 
         { 
-            if ( filter === this._stack[i] ) 
-                this._stack.splice( i, 1 ); 
+            if ( filter === this.filters[i] ) 
+                this.filters.splice( i, 1 ); 
         }
         return this;
     }
     
     ,reset: function( ) {
-        this._stack.length = 0;  
+        this.filters.length = 0;  
         return this;
     }
     ,empty: null
     
     // used for internal purposes
-    ,_apply: function( im, w, h, image ) {
-        var self = this, scratchpad = {}, meta, _meta/*, update = false*/;
+    ,_apply: function( im, w, h, metaData ) {
+        var self = this, meta, _meta/*, update = false*/;
         _meta = {filters: []};
-        if ( self._stack.length )
+        if ( self.filters.length )
         {
-            var filterstack = self._stack, stacklength = filterstack.length, fi, filter;
+            metaData = metaData || {};
+            metaData.container = self; metaData.index = 0;
+            var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
             for (fi=0; fi<stacklength; fi++)
             {
                 filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    im = filter._apply(im, w, h, image, scratchpad);
+                    metaData.index = fi;
+                    im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
                         _meta.filters.push([fi, meta=filter.getMeta()]);
@@ -235,11 +236,11 @@ var CompositeFilter = FILTER.Create({
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._stack.length;
+        return this._isOn && this.filters.length;
     }
     
     ,toString: function( ) {
-        var tab = "\t", s = this._stack, out = [], i, l = s.length;
+        var tab = "\t", s = this.filters, out = [], i, l = s.length;
         for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
         return [
              "[FILTER: " + this.name + "]"
@@ -248,8 +249,7 @@ var CompositeFilter = FILTER.Create({
     }
 });
 // aliases
-CompositeFilter.prototype.get = CompositeFilter.prototype.getAt;
-CompositeFilter.prototype.set = CompositeFilter.prototype.setAt;
+CompositeFilter.prototype.get = CompositeFilter.prototype.filter;
 CompositeFilter.prototype.empty = CompositeFilter.prototype.reset;
 CompositeFilter.prototype.concat = CompositeFilter.prototype.push;
 FILTER.CompositionFilter = FILTER.CompositeFilter;

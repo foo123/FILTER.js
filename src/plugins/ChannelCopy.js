@@ -68,7 +68,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, Src;
         Src = self.input("source"); if ( !Src ) return im;
         

@@ -38,10 +38,7 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     // adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
-    ,apply: function(im, w, h/*, image*/) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
+    ,apply: function(im, w, h) {
         var self = this, masktype = self.type,
             resize = FILTER.Interpolation.bilinear,
             IMG = FILTER.ImArray, A8U = FILTER.Array8U,

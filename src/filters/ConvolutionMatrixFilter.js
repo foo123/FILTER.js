@@ -370,8 +370,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: notSupportClamp
-    ? function(im, w, h/*, image*/) {
+    ,_apply: notSupportClamp ? function( im, w, h ) {
         var self = this, rgba = self._rgba;
         if ( !self.matrix ) return im;
         
@@ -508,8 +507,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             }
         }
         return dst;
-    }
-    : function(im, w, h/*, image*/) {
+    } : function( im, w, h ) {
         var self = this, rgba = self._rgba;
         if ( !self.matrix ) return im;
         

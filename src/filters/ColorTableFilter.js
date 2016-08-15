@@ -375,7 +375,7 @@ var ColorTableFilter = FILTER.Create({
     }
     
     // used for internal purposes
-    ,_apply: function(im, w, h/*, image*/) {
+    ,_apply: function( im, w, h ) {
         var self = this, T = self._table;
         if ( !T || !T[CHANNEL.R] ) return im;
         

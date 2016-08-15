@@ -44,7 +44,7 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         // im is a copy of the image data as an image array
         // w is image width, h is image height
         // image is the original image instance reference, generally not needed

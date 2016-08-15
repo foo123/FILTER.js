@@ -62,7 +62,7 @@ FILTER.Create({
      * by Paul Heckbert
      * from "Graphics Gems", Academic Press, 1990
      */
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this, 
             /* seems to have issues when tol is exactly 1.0*/
             tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0,
@@ -231,6 +231,7 @@ FILTER.Create({
         return im;
     }
 });
+FILTER.ColorFillFilter = FILTER.FloodFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"

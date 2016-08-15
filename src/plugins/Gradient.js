@@ -64,9 +64,9 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
-        if ( !self._isOn || !self.colors ) return im;
+        if ( !self.colors ) return im;
         return Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
     }
 });
@@ -150,9 +150,9 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h/*, image*/) {
+    ,apply: function(im, w, h) {
         var self = this;
-        if ( !self._isOn || !self.colors ) return im;
+        if ( !self.colors ) return im;
         
         // make center relative
         return Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate );

@@ -11,8 +11,8 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, TypedArray = FILTER.Util.Array.typed,
-    Min = Math.min, Max = Math.max, Filters;
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Filters;
     
 //
 //  Statistical Filter
@@ -200,13 +200,13 @@ Filters = {
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
             r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
-            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum, min, max,
+            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
-        rhist = new Uint32Array(matArea);
-        ghist = new Uint32Array(matArea);
-        bhist = new Uint32Array(matArea);
+        rhist = new A32U(256/*268*/);
+        ghist = new A32U(256/*268*/);
+        bhist = new A32U(256/*268*/);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
@@ -227,7 +227,10 @@ Filters = {
                 srcOff = (xOff + yOff)<<2;
                 r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2]; 
                 // compute histogram, similar to counting sort
-                rhist[r]++; ghist[g]++; bhist[b]++;
+                //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
+                //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
+                //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
+                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++;
                 rtot++; gtot++; btot++;
                 if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
                 if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
@@ -236,16 +239,19 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            min = Min(rmin, gmin, gmax); max = Max(rmax, gmax, bmax);
-            rtot *= kth; gtot *= kth; btot *= kth;
-            kthR = kthG = kthB = -1; rsum = gsum = bsum = 0;
-            for(j=min; j<=max; j++)
+            for(rtot*=kth,rsum=0,kthR=-1,j=rmin; j<=rmax; j++)
             {
                 rsum += rhist[j]; rhist[j] = 0;
-                gsum += ghist[j]; ghist[j] = 0;
-                bsum += bhist[j]; bhist[j] = 0;
                 if ( 0 > kthR && rsum >= rtot ) kthR = j;
+            }
+            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            {
+                gsum += ghist[j]; ghist[j] = 0;
                 if ( 0 > kthG && gsum >= gtot ) kthG = j;
+            }
+            for(btot*=kth,bsum=0,kthB=-1,j=bmin; j<=bmax; j++)
+            {
+                bsum += bhist[j]; bhist[j] = 0;
                 if ( 0 > kthB && bsum >= btot ) kthB = j;
             }
             
@@ -320,7 +326,7 @@ Filters = {
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
-        ghist = new Uint32Array(matArea);
+        ghist = new A32U(256);
         
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
@@ -346,8 +352,7 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            gtot *= kth; gsum = 0; kthG = -1;
-            for(j=gmin; j<=gmax; j++)
+            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
                 gsum += ghist[j]; ghist[j] = 0;
                 if ( 0 > kthG && gsum >= gtot ) kthG = j;

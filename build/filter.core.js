@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-15 18:26:27
+*   @built on 2016-08-16 01:32:33
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-15 18:26:27
+*   @built on 2016-08-16 01:32:33
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -297,7 +297,7 @@ var
                             if ( data.inputs ) filter.unserializeInputs( data.inputs, im );
                             // pass any filter metadata if needed
                             im = filter._apply( im[ 0 ], im[ 1 ], im[ 2 ] );
-                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta() : null} );
+                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta( true ) : null} );
                         }
                         else
                         {
@@ -562,13 +562,13 @@ var
         }
         
         // @override
-        ,meta: function( ) {
+        ,meta: function( serialisation ) {
             return this._meta;
         }
         ,getMeta: null
         
         // @override
-        ,setMeta: function( meta ) {
+        ,setMeta: function( meta, serialisation ) {
             this._meta = meta;
             return this;
         }
@@ -580,7 +580,7 @@ var
         
         // @override
         // for internal use, each filter overrides this
-        ,_apply: function( im, w, h, image ) { 
+        ,_apply: function( im, w, h, metaData ) { 
             /* do nothing here, override */
             return im;
         }
@@ -624,7 +624,7 @@ var
                         {
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
-                            if ( data.meta ) self.setMeta( data.meta );
+                            if ( data.meta ) self.setMeta( data.meta, true );
                             if ( data.im && self._update )
                             {
                                 if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
@@ -639,8 +639,7 @@ var
                 }
                 else
                 {
-                    //if ( self.hasInputs ) self._getInputs( );
-                    im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], src );
+                    im2 = self._apply( im[ 0 ], im[ 1 ], im[ 2 ], {src:src, dst:dst} );
                     // update image only if needed
                     // some filters do not actually change the image data
                     // but instead process information from the data,
@@ -665,7 +664,6 @@ var
 FILTER.Filter[PROTO].getMeta = FILTER.Filter[PROTO].meta;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
-
 FILTER.Filter.get = function( filterClass ) {
     if ( !filterClass || !filterClass.length ) return null;
     if ( -1 < filterClass.indexOf('.') )
@@ -691,8 +689,6 @@ FILTER.Create = function( methods ) {
     methods = Merge({
              init: initPlugin
             ,name: "PluginFilter"
-            //,toString: toStringPlugin
-            //,apply: applyPlugin
     }, methods);
     var filterName = methods.name;
     methods.constructor = constructorPlugin( methods.init );
