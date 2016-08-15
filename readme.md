@@ -95,7 +95,7 @@ Some image processing/computer vision theory, basics and tutorials:
 * [Perlin Noise](https://en.wikipedia.org/wiki/Perlin_noise)
 * [Simplex Noise](https://en.wikipedia.org/wiki/Simplex_noise)
 * [simplex noise demystified tutorial](http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf)
-* [fast almost-Gaussian filtering using integral filters](http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf)
+* [fast almost-Gaussian filtering using integral filters](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
 * [image processing in C](http://homepages.inf.ed.ac.uk/rbf/BOOKS/PHILLIPS/)
 * [computer vision: algorithms and applications (draft)](http://szeliski.org/Book/)
 * [(Blind) Source Separation](https://en.wikipedia.org/wiki/Blind_signal_separation)
@@ -103,6 +103,7 @@ Some image processing/computer vision theory, basics and tutorials:
 * [OpenCV, open source computer vision](http://opencv.org/)
 * [General-purpose GPU Scientific Computing](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) (..moving towards)
 
+<!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
 
 Advanced references:
 
