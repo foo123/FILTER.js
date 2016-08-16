@@ -134,6 +134,8 @@ __Methods:__
 * `serialize( )`  serialize filter's parameters (for use during parallel processing)
 * `unserialize( data:Object )`  unserialize filter's parameters (for use during parallel processing)
 * `meta( )/getMeta( )`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
+* `select( x1:Number, y1:Number, x2:Number, y2:Number )` define a (relative) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `SelectionFilter` below and the `HaarDetectorFilter` plugin)
+* `select( Boolean=false )` deselect any selection made previously
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
 
@@ -275,8 +277,8 @@ The filter scans an image and maps each pixel colors non-linearly according to t
 
 The class has various pre-defined filters which can be combined in any order.
 
-* `threshold/quantize(thresholds, quantizedcolors)`  applies a full 32-bit threshods to the image with quantized colors
-* `extract/mask(min, max, background)`  applies a color mask to (i.e extracts range of colors from) image
+* `threshold/quantize(thresholds:Array, quantizedcolors:Array)`  applies a full 32-bit threshods to the image with quantized colors
+* `extract/mask(min:Number, max:Number, background:HEX)`  applies a color mask to (i.e extracts range of colors from) image
 * `RGB2HSV()`  transforms RGB to HSV color space
 * `HSV2RGB()`  transforms HSV to RGB color space
 * `RGB2CMYK()`  transforms RGB to CMY(K) color space
@@ -325,10 +327,10 @@ The class has some pre-defined filters to use.
 * `flipX( )`  Flip the target image wrt to `X` axis
 * `flipY( )`  Flip the target image wrt to `Y` axis
 * `flipXY( )`  Flip the target image wrt to both `X` and `Y` axis
-* `translate( dx, dy, relative )`  Translate target image by `dx`, `dy` (relative) offsets
-* `rotate( theta )`  Rotate target image by `theta` radians
-* `scale( sx, sy )`  Scale target image by `sx, sy` amount
-* `skew( thetax, thetay )`  Skew target image by `thetax, thetay` amounts in each direction
+* `translate( dx:Number, dy:Number, relative:Boolean )`  Translate target image by `dx`, `dy` (relative) offsets
+* `rotate( theta:Number )`  Rotate target image by `theta` radians
+* `scale( sx:Number, sy:Number )`  Scale target image by `sx, sy` amount
+* `skew( thetax:Number, thetay:Number )`  Skew target image by `thetax, thetay` amounts in each direction
 
 Affine Matrix Filters can be combined very easily since they operate **on mapping single pixels positions linearly**.
 
@@ -471,7 +473,7 @@ new FILTER.ConvolutionMatrixFilter( convolutionMatrix:Array, factor:Number );
 ````
 
 This filter is analogous to the ActionScript filter of same name. 
-The (optional) weights parameter is a square matrix of convolution coefficients represented as an array.
+The (optional) convolutionMatrix parameter is a square matrix of convolution coefficients represented as an array.
 The (optional) factor is the normalization factor for the convoltuon matrix. The matrix elements should sum up to 1,
 in order for the filtered image to have same brightness as original.
 
@@ -545,7 +547,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 ###Morphological Filter
 
 ````javascript
-new FILTER.MorphologicalFilter( structureElement:Array );
+new FILTER.MorphologicalFilter( );
 ````
 
 This filter implements basic morphological processing like erode and dilate filters with arbitrary structure elements (given as matrix array)
@@ -773,6 +775,8 @@ NOTE: The (filter) apply method will actually change the image output to which i
 
 ###Algebraic Filter
 
+*(in progress)*
+
 ````javascript
 new FILTER.AlgebraicFilter( algebraicMatrix:Array );
 ````
@@ -819,7 +823,7 @@ Example:
 
 ````javascript
 
-var inlinefilter = new FILTER.InlineFilter(function( filterParameters, im, w, h ){
+var inlinefilter = new FILTER.InlineFilter(function( filterParameters, im, w, h, metaData ){
     // this is the inline filter apply method
     // do your stuff here..
     // "filterParameters"  are custom parameters added to inline filter instance, useful if you need to use extra parameters
@@ -827,11 +831,12 @@ var inlinefilter = new FILTER.InlineFilter(function( filterParameters, im, w, h 
     // "im"     is (a copy of) the image pixel data,
     // "w"      is the image width, 
     // "h"      is the image height
+    // "metaData" is an optional object containing information about `src` and `dst` images (can also be used to pass information between filters inside a filter chain)
     // make sure to return the data back
     return im;
 });
 // this also works
-var inlinefilter = FILTER.InlineFilter(function( filterParameters, im, w, h ){
+var inlinefilter = FILTER.InlineFilter(function( filterParameters, im, w, h, metaData ){
     // this is the inline filter apply method
     // do your stuff here..
     // make sure to return the data back
@@ -855,6 +860,14 @@ new FILTER.ResampleFilter( scaleX:Number, scaleY:Number, interpolationMethod:Str
 ````
 
 This filter resamples (interpolates) an image to change its size, i.e up- or down- scale it. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can downsample an image at any stage to speed-up further process and then up-sample it again if needed at another stage.
+
+**Supported Interpolation Methods:** (you have to build the library with the respective interpolation routines added)
+    
+* bilinear (default)
+* bicubic
+* nearest
+* biquadric (not implemented yet)
+* lanczos (not implemented yet)
 
 
 ###Selection Filter

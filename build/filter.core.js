@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 18:43:35
+*   @built on 2016-08-16 22:32:37
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 18:43:35
+*   @built on 2016-08-16 22:32:37
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library

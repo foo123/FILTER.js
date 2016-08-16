@@ -19,11 +19,8 @@ var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
         for (i=0; i<size; i++) ones[i]=1;
         return ones;
     },
-    box3 = box(3), Filters
-;
+    box3 = box(3), Morphological;
 
-
-//
 //
 //  Morphological Filter
 FILTER.Create({
@@ -59,7 +56,7 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            _filterName: self._filterName
+             _filterName: self._filterName
             ,_dim: self._dim
             ,_structureElement: self._structureElement
             ,_indices: self._indices
@@ -72,8 +69,8 @@ FILTER.Create({
         self._structureElement = TypedArray( params._structureElement, STRUCT );
         self._indices = TypedArray( params._indices, A32I );
         self._filterName = params._filterName;
-        if ( self._filterName && Filters[ self._filterName ] )
-            self._filter = Filters[ self._filterName ];
+        if ( self._filterName && Morphological[ self._filterName ] )
+            self._filter = Morphological[ self._filterName ];
         return self;
     }
     
@@ -96,7 +93,7 @@ FILTER.Create({
     ,set: function( structureElement, filtName ) {
         var self = this;
         self._filterName = filtName;
-        self._filter = Filters[ filtName ];
+        self._filter = Morphological[ filtName ];
         if ( structureElement && structureElement.length )
         {
             // structure Element given
@@ -154,11 +151,8 @@ FILTER.Create({
     }
 });
 
-//
-//
 // private methods
-
-Filters = {
+Morphological = {
     "dilate": function( self, im, w, h ) {
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
@@ -192,7 +186,6 @@ Filters = {
         }
         return dst;
     }
-    
     ,"erode": function( self, im, w, h ) {
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
@@ -227,7 +220,6 @@ Filters = {
         }
         return dst;
     }
-    
     // dilation of erotion
     ,"open": function( self, im, w, h ) {
         var structureElement = self._structureElement,
@@ -286,7 +278,6 @@ Filters = {
         }
         return dst;
     }
-    
     // erotion of dilation
     ,"close": function( self, im, w, h ) {
         var structureElement = self._structureElement,

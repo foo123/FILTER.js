@@ -12,7 +12,7 @@
 
 // used for internal purposes
 var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U, MODE = FILTER.MODE,
-    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Filters;
+    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Statistical;
     
 //
 //  Statistical Filter
@@ -114,7 +114,7 @@ var StatisticalFilter = FILTER.Create({
     ,_apply: function(im, w, h) {
         var self = this;
         if ( !self.d )  return im;
-        return Filters[self._filter+(MODE.GRAY===self.mode?'_gray':'')]( self, im, w, h );
+        return Statistical[self._filter]( self, im, w, h );
     }
         
     ,canRun: function( ) {
@@ -125,9 +125,8 @@ var StatisticalFilter = FILTER.Create({
 StatisticalFilter.prototype.erode = StatisticalFilter.prototype.minimum;
 StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 
-//
 // private methods
-Filters = {
+Statistical = {
      "1th": function( self, im, w, h ) {
         var matRadius = self.d, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
@@ -140,20 +139,41 @@ Filters = {
         // translate to image dimensions the y coordinate
         for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+        if ( MODE.GRAY === self.mode )
         {
-            if (x>=w) { x=0; ty+=w; }
-            for(rM=gM=bM=0,j=0; j<matArea2; j+=2)
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
             {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
-                // get max
-                if ( r > rM ) rM = r; if ( g > gM ) gM = g; if ( b > bM ) bM = b;
+                if (x>=w) { x=0; ty+=w; }
+                for(gM=0,j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    g = im[srcOff];
+                    // get max
+                    if ( g > gM ) gM = g;
+                }
+                // output
+                dst[i] = gM; dst[i+1] = gM; dst[i+2] = gM; dst[i+3] = im[i+3];
             }
-            // output
-            dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+        }
+        else
+        {
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; ty+=w; }
+                for(rM=gM=bM=0,j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    // get max
+                    if ( r > rM ) rM = r; if ( g > gM ) gM = g; if ( b > bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
         }
         return dst;
     }
@@ -169,20 +189,41 @@ Filters = {
         // translate to image dimensions the y coordinate
         for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+        if ( MODE.GRAY === self.mode )
         {
-            if (x>=w) { x=0; ty+=w; }
-            for(rM=gM=bM=255,j=0; j<matArea2; j+=2)
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
             {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
-                // get min
-                if ( r < rM ) rM = r; if ( g < gM ) gM = g; if ( b < bM ) bM = b;
+                if (x>=w) { x=0; ty+=w; }
+                for(gM=255,j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    g = im[srcOff];
+                    // get min
+                    if ( g < gM ) gM = g;
+                }
+                // output
+                dst[i] = gM; dst[i+1] = gM; dst[i+2] = gM; dst[i+3] = im[i+3];
             }
-            // output
-            dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+        }
+        else
+        {
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; ty+=w; }
+                for(rM=gM=bM=255,j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    // get min
+                    if ( r < rM ) rM = r; if ( g < gM ) gM = g; if ( b < bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
         }
         return dst;
     }
@@ -195,161 +236,92 @@ Filters = {
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
-        rhist = new A32U(256/*268*/);
-        ghist = new A32U(256/*268*/);
-        bhist = new A32U(256/*268*/);
-        
         // pre-compute indices, 
         // reduce redundant computations inside the main convolution loop (faster)
         // translate to image dimensions the y coordinate
         for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
         
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+        if ( MODE.GRAY === self.mode )
         {
-            if (x>=w) { x=0; ty+=w; }
+            ghist = new A32U(256/*268*/);
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+            {
+                if (x>=w) { x=0; ty+=w; }
 
-            tot=0; rmin=gmin=bmin=255; rmax=gmax=bmax=0;
-            for(j=0; j<matArea2; j+=2)
-            {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2]; 
-                // compute histogram, similar to counting sort
-                //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
-                //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
-                //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
-                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++; tot++;
-                if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
-                if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
+                tot=0; gmin=255; gmax=0;
+                for(j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    g = im[srcOff];
+                    if ( g < gmin ) gmin = g; if ( g > gmax ) gmax = g;
+                    // compute histogram, similar to counting sort
+                    tot++; ghist[g]++;
+                }
+                
+                // search histogram for kth statistic
+                // and also reset histogram for next round
+                // can it be made faster??
+                tot *= kth;
+                for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
+                {
+                    sum += ghist[j]; ghist[j] = 0;
+                    if ( 0 > kthG && sum >= tot ) kthG = j;
+                }
+                
+                // output
+                dst[i] = kthG; dst[i+1] = kthG; dst[i+2] = kthG; dst[i+3] = im[i+3];
             }
-            
-            // search histogram for kth statistic
-            // and also reset histogram for next round
-            // can it be made faster??
-            tot *= kth;
-            for(sum=0,kthR=-1,j=rmin; j<=rmax; j++)
-            {
-                sum += rhist[j]; rhist[j] = 0;
-                if ( 0 > kthR && sum >= tot ) kthR = j;
-            }
-            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
-            {
-                sum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && sum >= tot ) kthG = j;
-            }
-            for(sum=0,kthB=-1,j=bmin; j<=bmax; j++)
-            {
-                sum += bhist[j]; bhist[j] = 0;
-                if ( 0 > kthB && sum >= tot ) kthB = j;
-            }
-            
-            // output
-            dst[i] = kthR; dst[i+1] = kthG; dst[i+2] = kthB; dst[i+3] = im[i+3];
         }
-        return dst;
-    }
-    ,"1th_gray": function( self, im, w, h ) {
-        var matRadius = self.d, matHalfSide = matRadius>>1,
-            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            i, j, x, ty, xOff, yOff, srcOff, g, gM, bx = w-1, by = imArea-w,
-            indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
-        
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        // translate to image dimensions the y coordinate
-        for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
-        
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
+        else
         {
-            if (x>=w) { x=0; ty+=w; }
-            for(gM=0,j=0; j<matArea2; j+=2)
+            rhist = new A32U(256/*268*/);
+            ghist = new A32U(256/*268*/);
+            bhist = new A32U(256/*268*/);
+            for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
             {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                g = im[srcOff];
-                // get max
-                if ( g > gM ) gM = g;
-            }
-            // output
-            dst[i] = gM; dst[i+1] = gM; dst[i+2] = gM; dst[i+3] = im[i+3];
-        }
-        return dst;
-    }
-    ,"0th_gray": function( self, im, w, h ) {
-        var matRadius = self.d, matHalfSide = matRadius>>1,
-            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            i, j, x, ty, xOff, yOff, srcOff, g, gM, bx = w-1, by = imArea-w,
-            indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
-        
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        // translate to image dimensions the y coordinate
-        for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
-        
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
-        {
-            if (x>=w) { x=0; ty+=w; }
-            for(gM=255,j=0; j<matArea2; j+=2)
-            {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                g = im[srcOff];
-                // get min
-                if ( g < gM ) gM = g;
-            }
-            // output
-            dst[i] = gM; dst[i+1] = gM; dst[i+2] = gM; dst[i+3] = im[i+3];
-        }
-        return dst;
-    }
-    ,"kth_gray": function( self, im, w, h ) {
-        var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
-            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
-            g, gmin, gmax, kthG, ghist, tot, sum,
-            indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
-        
-        ghist = new A32U(256);
-        
-        // pre-compute indices, 
-        // reduce redundant computations inside the main convolution loop (faster)
-        // translate to image dimensions the y coordinate
-        for (j=0; j<matArea2; j+=2) { imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
-        
-        for (i=0,x=0,ty=0; i<imLen; i+=4,x++)
-        {
-            if (x>=w) { x=0; ty+=w; }
+                if (x>=w) { x=0; ty+=w; }
 
-            tot=0; gmin=255; gmax=0;
-            for(j=0; j<matArea2; j+=2)
-            {
-                xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
-                if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                srcOff = (xOff + yOff)<<2;
-                g = im[srcOff];
-                if ( g < gmin ) gmin = g; if ( g > gmax ) gmax = g;
-                // compute histogram, similar to counting sort
-                tot++; ghist[g]++;
+                tot=0; rmin=gmin=bmin=255; rmax=gmax=bmax=0;
+                for(j=0; j<matArea2; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2]; 
+                    // compute histogram, similar to counting sort
+                    //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
+                    //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
+                    //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
+                    rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++; tot++;
+                    if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
+                    if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
+                }
+                
+                // search histogram for kth statistic
+                // and also reset histogram for next round
+                // can it be made faster??
+                tot *= kth;
+                for(sum=0,kthR=-1,j=rmin; j<=rmax; j++)
+                {
+                    sum += rhist[j]; rhist[j] = 0;
+                    if ( 0 > kthR && sum >= tot ) kthR = j;
+                }
+                for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
+                {
+                    sum += ghist[j]; ghist[j] = 0;
+                    if ( 0 > kthG && sum >= tot ) kthG = j;
+                }
+                for(sum=0,kthB=-1,j=bmin; j<=bmax; j++)
+                {
+                    sum += bhist[j]; bhist[j] = 0;
+                    if ( 0 > kthB && sum >= tot ) kthB = j;
+                }
+                
+                // output
+                dst[i] = kthR; dst[i+1] = kthG; dst[i+2] = kthB; dst[i+3] = im[i+3];
             }
-            
-            // search histogram for kth statistic
-            // and also reset histogram for next round
-            // can it be made faster??
-            tot *= kth;
-            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
-            {
-                sum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && sum >= tot ) kthG = j;
-            }
-            
-            // output
-            dst[i] = kthG; dst[i+1] = kthG; dst[i+2] = kthG; dst[i+3] = im[i+3];
         }
         return dst;
     }
