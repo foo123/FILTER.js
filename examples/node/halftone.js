@@ -66,7 +66,7 @@ function parse_args( args )
 
 
 var path = require('path'), F = require('../../build/filter.bundle.js'),
-    halftone = F.CompositeFilter([F.ColorMatrixFilter().grayscale(), F.HalftoneFilter(1).threshold(0.4).grayscale(true)]);
+    halftone = F.CompositeFilter([F.ColorMatrixFilter().grayscale(), F.HalftoneFilter(1).threshold(0.4)/*.setMode(F.MODE.GRAY)*/]);
 
 console.log('Loading image..');
 F.IO.BinaryReader( F.Codec.JPG.decoder ).load(path.join(__dirname,'./che.jpg'), function( che ){

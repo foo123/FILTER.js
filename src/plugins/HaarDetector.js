@@ -12,7 +12,7 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    sat_image = FILTER.Util.Filter.SAT, sat_gradient = FILTER.Util.Filter.GRAD
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.SAT, sat_gradient = FilterUtil.GRAD
 ;
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
@@ -320,8 +320,8 @@ function merge_features(rects, min_neighbors, tolerance)
 // 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
 // 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
 // expose as static utility methods
-FILTER.Util.Filter.haar_detect = haar_detect;
-FILTER.Util.Filter.merge_features = merge_features;
+FilterUtil.haar_detect = haar_detect;
+FilterUtil.merge_features = merge_features;
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -329,7 +329,6 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,haardata: null
-    ,selection: null
     ,tolerance: 0.2
     ,baseScale: 1.0
     ,scaleIncrement: 1.25
@@ -358,8 +357,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        self.selection = null;
-        self.objects = null;
         self.haardata = null;
         self.$super('dispose');
         return self;
@@ -369,24 +366,6 @@ FILTER.Create({
         var self = this;
         self.haardata = haardata;
         self._haarchanged = true;
-        return self;
-    }
-    
-    ,select: function( x1, y1, x2, y2) {
-        var self = this;
-        if ( false === x1 )
-        {
-            self.selection = null
-        }
-        else
-        {
-            self.selection = [
-            Min(1.0, Max(0.0, x1||0)),
-            Min(1.0, Max(0.0, y1||0)),
-            Min(1.0, Max(0.0, x2||0)),
-            Min(1.0, Max(0.0, y2||0))
-            ];
-        }
         return self;
     }
     
@@ -424,7 +403,6 @@ FILTER.Create({
             ,tolerance: self.tolerance
             ,cannyLow: self.cannyLow
             ,cannyHigh: self.cannyHigh
-            ,selection: self.selection
         };
         // avoid unnecessary (large) data transfer
         if ( self._haarchanged )
@@ -446,7 +424,6 @@ FILTER.Create({
         self.tolerance = params.tolerance;
         self.cannyLow = params.cannyLow;
         self.cannyHigh = params.cannyHigh;
-        self.selection = TypedArray(params.selection, Array);
         return self;
     }
     
@@ -469,8 +446,8 @@ FILTER.Create({
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features,
-            haar_detect = FILTER.Util.Filter.haar_detect,
-            merge_features = FILTER.Util.Filter.merge_features;
+            haar_detect = FilterUtil.haar_detect,
+            merge_features = FilterUtil.merge_features;
         
         if ( selection )
         {

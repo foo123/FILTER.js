@@ -29,24 +29,24 @@ var ColorTableFilter = FILTER.Create({
     
     ,init: function ColorTableFilter( tR, tG, tB, tA ) {
         var self = this;
-        self._table = [null, null, null, null];
+        self.table = [null, null, null, null];
         tR = tR || null;
         tG = tG || tR;
         tB = tB || tG;
         tA = tA || null;
-        self._table[CHANNEL.R] = tR;
-        self._table[CHANNEL.G] = tG;
-        self._table[CHANNEL.B] = tB;
-        self._table[CHANNEL.A] = tA;
+        self.table[CHANNEL.R] = tR;
+        self.table[CHANNEL.G] = tG;
+        self.table[CHANNEL.B] = tB;
+        self.table[CHANNEL.A] = tA;
     }
     
     ,path: FILTER_FILTERS_PATH
     // parameters
-    ,_table: null
+    ,table: null
     
     ,dispose: function( ) {
         var self = this;
-        self._table = null;
+        self.table = null;
         self.$super('dispose');
         return self;
     }
@@ -54,19 +54,19 @@ var ColorTableFilter = FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-             _tableR: self._table[CHANNEL.R]
-            ,_tableG: self._table[CHANNEL.G]
-            ,_tableB: self._table[CHANNEL.B]
-            ,_tableA: self._table[CHANNEL.A]
+             tableR: self.table[CHANNEL.R]
+            ,tableG: self.table[CHANNEL.G]
+            ,tableB: self.table[CHANNEL.B]
+            ,tableA: self.table[CHANNEL.A]
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
-        self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
-        self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
-        self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
-        self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
+        self.table[CHANNEL.R] = TypedArray(params.tableR, CT);
+        self.table[CHANNEL.G] = TypedArray(params.tableG, CT);
+        self.table[CHANNEL.B] = TypedArray(params.tableB, CT);
+        self.table[CHANNEL.A] = TypedArray(params.tableA, CT);
         return self;
     }
     
@@ -337,7 +337,7 @@ var ColorTableFilter = FILTER.Create({
     ,set: function( tR, tG, tB, tA ) {
         if ( !tR ) return this;
         
-        var i, T = this._table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        var i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
         
         if ( tG || tB )
         {
@@ -357,7 +357,7 @@ var ColorTableFilter = FILTER.Create({
     }
     
     ,reset: function( ) {
-        this._table = [null, null, null, null]; 
+        this.table = [null, null, null, null]; 
         return this;
     }
     
@@ -366,17 +366,17 @@ var ColorTableFilter = FILTER.Create({
     }
     
     ,getTable: function ( channel ) {
-        return this._table[channel || CHANNEL.R] || null;
+        return this.table[channel || CHANNEL.R] || null;
     }
     
     ,setTable: function ( table, channel ) {
-        this._table[channel || CHANNEL.R] = table || null;
+        this.table[channel || CHANNEL.R] = table || null;
         return this;
     }
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
-        var self = this, T = self._table;
+        var self = this, T = self.table;
         if ( !T || !T[CHANNEL.R] ) return im;
         
         var i, j, l=im.length, l2=l>>>2, rem=(l2&15)<<2, R = T[0], G = T[1], B = T[2], A = T[3];
@@ -448,7 +448,7 @@ var ColorTableFilter = FILTER.Create({
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._table && this._table[CHANNEL.R];
+        return this._isOn && this.table && this.table[CHANNEL.R];
     }
 });
 // aliases

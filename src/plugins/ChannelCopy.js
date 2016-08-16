@@ -14,12 +14,11 @@ FILTER.Create({
     name: "ChannelCopyFilter"
     
     // parameters
-    ,centerX: 0
-    ,centerY: 0
     ,srcChannel: CHANNEL.R
     ,dstChannel: CHANNEL.R
+    ,centerX: 0
+    ,centerY: 0
     ,color: 0
-    ,mode: MODE.IGNORE
     ,hasInputs: true
     
     // support worker serialize/unserialize interface
@@ -49,20 +48,20 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-             centerX: self.centerX
-            ,centerY: self.centerY
-            ,srcChannel: self.srcChannel
+             srcChannel: self.srcChannel
             ,dstChannel: self.dstChannel
+            ,centerX: self.centerX
+            ,centerY: self.centerY
             ,color: self.color
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
-        self.centerX = params.centerX;
-        self.centerY = params.centerY;
         self.srcChannel = params.srcChannel;
         self.dstChannel = params.dstChannel;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
         self.color = params.color;
         return self;
     }
@@ -79,16 +78,17 @@ FILTER.Create({
             cX = self.centerX||0, cY = self.centerY||0, cX2 = w2>>>1, cY2 = h2>>>1,
             wm = Min(w,w2), hm = Min(h, h2),  
             color = self.color||0, r, g, b, a,
-            mode = self.mode, COLOR = MODE.COLOR, CH_COLOR = MODE.COLOR_CHANNEL, MASK = MODE.COLOR_MASK;
+            mode = self.mode, COLOR32 = MODE.COLOR32, COLOR8 = MODE.COLOR8,
+            MASK32 = MODE.COLORMASK32, MASK8 = MODE.COLORMASK8;
         
-        if ( COLOR === mode || MASK === mode )
+        if ( COLOR32 === mode || MASK32 === mode )
         {
             a = (color >>> 24)&255;
             r = (color >>> 16)&255;
             g = (color >>> 8)&255;
             b = (color)&255;
         }
-        else if ( CH_COLOR === mode )
+        else if ( COLOR8 === mode || MASK8 === mode )
         {
             color &= 255;
         }
@@ -104,9 +104,10 @@ FILTER.Create({
             xc = x - cX; yc = y - cY;
             if (xc<0 || xc>=wm || yc<0 || yc>=hm)
             {
-                if ( COLOR === mode ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a; }
-                else if ( MASK === mode ) { im[i  ] = r&im[i  ]; im[i+1] = g&im[i+1]; im[i+2] = b&im[i+2]; im[i+3] = a&im[i+3]; }
-                else if ( CH_COLOR === mode ) im[i+tC] = color;
+                if ( COLOR32 === mode ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a; }
+                else if ( MASK32 === mode ) { im[i  ] = r & im[i  ]; im[i+1] = g & im[i+1]; im[i+2] = b & im[i+2]; im[i+3] = a & im[i+3]; }
+                else if ( COLOR8 === mode ) im[i+tC] = color;
+                else if ( MASK8 === mode ) im[i+tC] = color & im[i+sC];
                 // else ignore
             }
             else

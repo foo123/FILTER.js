@@ -24,19 +24,6 @@ FILTER.Create({
         self.mode = mode || MODE.INTENSITY;
     }
     
-    ,serialize: function( ) {
-        var self = this;
-        return {
-             mode: self.mode
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.mode = params.mode;
-        return self;
-    }
-    
     // this is the filter actual apply method routine
     ,_apply_rgb: function(im, w, h) {
         // im is a copy of the image data as an image array

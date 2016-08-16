@@ -7,7 +7,8 @@
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, gradient = FILTER.Util.Filter.GRAD,
+var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, FilterUtil = FILTER.Util.Filter,
+    //gradient = FilterUtil.GRAD,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
     exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
@@ -215,7 +216,7 @@ function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
 // expose as static utility methods
-FILTER.Util.Filter.canny_gradient = gradient_and_non_maximal_supression;
+FilterUtil.canny_gradient = gradient_and_non_maximal_supression;
 FILTER.Create({
     name : "CannyEdgesFilter"
     
@@ -255,7 +256,7 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this, area = im.length>>2, gradient_magnitude,
-            gradient_and_non_maximal_supression = FILTER.Util.Filter.canny_gradient;
+            gradient_and_non_maximal_supression = FilterUtil.canny_gradient;
         
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );

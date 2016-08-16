@@ -150,7 +150,6 @@ FILTER.Create({
         return {
              connectivity: self.connectivity
             ,tolerance: self.tolerance
-            ,mode: self.mode
             ,color: self.color
             ,invert: self.invert
         };
@@ -160,7 +159,6 @@ FILTER.Create({
         var self = this;
         self.connectivity = params.connectivity;
         self.tolerance = params.tolerance;
-        self.mode = params.mode;
         self.color = params.color;
         self.invert = params.invert;
         return self;

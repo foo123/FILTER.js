@@ -76,7 +76,6 @@ FILTER.Create({
             //,wavelength: self.wavelength
             //,amplitude: self.amplitude
             //,phase: self.phase
-            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
@@ -92,7 +91,6 @@ FILTER.Create({
         //self.wavelength = params.wavelength;
         //self.amplitude = params.amplitude;
         //self.phase = params.phase;
-        self.mode = params.mode;
         
         //self._mapName = params._mapName;
         //self._map = params._map;
@@ -193,7 +191,7 @@ function apply__( map, preample )
     if ( !self._map ) return im;\
     var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\
         COLOR = FILTER.MODE.COLOR, CLAMP = FILTER.MODE.CLAMP, WRAP = FILTER.MODE.WRAP, IGNORE = FILTER.MODE.IGNORE,\
-        mode = self.mode||CLAMP, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
+        mode = self.mode||IGNORE, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
 \
     "+__INIT__+";\
     \

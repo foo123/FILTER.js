@@ -23,8 +23,10 @@ __0.9.5__
 * make `BlendFilter` accept multiple inputs, plus extra alpha (opacity) parameter and enabled/disbaled flag (per input), via `BlendMatrix` (see examples)
 * new and faster approximate algorithm for `Pixelate`, `TriangularPixelate`, `HexagonalPixelate`, all included in `Pixelate` plugin file
 * make histogram equalisation faster, some convolutions and statistics faster and fix some typos, hue extraction faster, .. (up to consistent 60 fps processing)
+* have faster convolutions and statistics for grayscale images via FILTER.MODE.GRAY parameter (i.e `.setMode(FILTER.MODE.GRAY)`)
 * histogram equalize filter is now one filter with mode parameter (defined in FILTER.MODE) for type of equalisation (i.e MODE.COLOR, MODE.GRAY, MODE.RGB)
-* add custom `selection` option plus `tolerance` to `HaarDetector` plugin so it can detect in a region of image instead of whole (useful for combining detectors to detect different feaures consecutively, where one detects in region detected previously..)
+* add custom <del>`selection`</del> option `tolerance` to `HaarDetector` plugin so it can detect in a region of image instead of whole (useful for combining detectors to detect different feaures consecutively, where one detects in region detected previously..)
+* `selection` option is added to generic `Filter` so all filter instances can have custom selections for any purpose needed
 * simplify and make somewhat faster `CannyEdges` and `HaarDetector` plugins
 * fix `tensor_product` utility from previous update (produced incorrect convolution kernels)
 * fix `Image.image` method issue when loading an image without initializing `imageData` in nodejs

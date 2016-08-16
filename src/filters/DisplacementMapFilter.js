@@ -40,7 +40,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        
         self.scaleX = null;
         self.scaleY = null;
         self.startX = null;
@@ -49,7 +48,6 @@ FILTER.Create({
         self.componentY = null;
         self.color = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -63,7 +61,6 @@ FILTER.Create({
             ,componentX: self.componentX
             ,componentY: self.componentY
             ,color: self.color
-            ,mode: self.mode
         };
     }
     
@@ -76,7 +73,6 @@ FILTER.Create({
         self.componentX = params.componentX;
         self.componentY = params.componentY;
         self.color = params.color;
-        self.mode = params.mode;
         return self;
     }
     
@@ -98,7 +94,7 @@ FILTER.Create({
             SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
             applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
-            mode = self.mode||CLAMP
+            mode = self.mode||IGNORE
         ;
         
         map = Map[0]; mapW = Map[1]; mapH = Map[2]; 

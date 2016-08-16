@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 01:32:33
+*   @built on 2016-08-16 18:43:35
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 01:32:33
+*   @built on 2016-08-16 18:43:35
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -87,7 +87,7 @@ var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     }
     ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,TypedArray, log, _uuid = 0
+    ,TypedArray, log, _uuid = 0, Min = Math.min, Max = Math.max
 ;
 
 //
@@ -175,10 +175,12 @@ FILTER.STRIDE = {
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
-    COLOR: 3, TILE: 4, STRETCH: 5,
+    COLOR: 3, COLOR32: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12,
-    COLOR_CHANNEL: 13, COLOR_MASK: 14, CHANNEL_MASK: 15
+    GRAY: 9, GRAYSCALE: 9, RGB: 10, RGBA: 11, HSV: 12, CMY: 13, CMYK: 13, PATTERN: 14,
+    COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
+    MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
+    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -393,12 +395,13 @@ var
         ,id: null
         ,_isOn: true
         ,_update: true
-        ,_onComplete: null
         ,_inputs: null
+        ,_meta: null
+        ,onComplete: null
+        ,mode: 0
+        ,selection: null
         ,hasInputs: false
         ,hasMeta: false
-        ,_meta: null
-        ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
@@ -406,12 +409,13 @@ var
             self.id = null;
             self._isOn = null;
             self._update = null;
-            self._onComplete = null;
             self._inputs = null;
+            self._meta = null;
+            self.onComplete = null;
+            self.mode = null;
+            self.selection = null;
             self.hasInputs = null;
             self.hasMeta = null;
-            self._meta = null;
-            self.mode = null;
             self.$super('dispose');
             return self;
         }
@@ -498,7 +502,7 @@ var
         
         ,serializeFilter: function( ) {
             var self = this;
-            return { filter: self.name, _isOn: self._isOn, _update: self._update, params: self.serialize( ) };
+            return { filter: self.name, _isOn: self._isOn, _update: self._update, mode: self.mode, selection: self.selection, params: self.serialize( ) };
         }
         
         ,unserializeFilter: function( json ) {
@@ -506,13 +510,37 @@ var
             if ( json && (self.name === json.filter) )
             {
                 self._isOn = json._isOn; self._update = json._update;
+                self.mode = json.mode||0; self.selection = json.selection||null;
                 if ( self._isOn && json.params ) self.unserialize( json.params );
             }
             return self;
         }
         
+        ,select: function( x1, y1, x2, y2 ) {
+            var self = this;
+            if ( false === x1 )
+            {
+                self.selection = null
+            }
+            else
+            {
+                self.selection = [
+                Min(1.0, Max(0.0, x1||0)),
+                Min(1.0, Max(0.0, y1||0)),
+                Min(1.0, Max(0.0, x2||0)),
+                Min(1.0, Max(0.0, y2||0))
+                ];
+            }
+            return self;
+        }
+    
+        ,deselect: function( ) {
+            this.selection = null;
+            return this;
+        }
+        
         ,complete: function( f ) {
-            this._onComplete = f || null;
+            this.onComplete = f || null;
             return this;
         }
         
@@ -613,7 +641,7 @@ var
             
             if ( src && dst )
             {
-                cb = cb || self._onComplete;
+                cb = cb || self.onComplete;
                 im = src.getSelectedData( );
                 if ( self.$thread )
                 {
@@ -1636,14 +1664,14 @@ function gradient( im, w, h, grad, grad2, summed )
 }
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp;
+        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<2;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -1656,171 +1684,309 @@ function integral_convolution_rgb(rgba, im, w, h, matrix, matrix2, dimX, dimY, c
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
-    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
-    
+    dst = im; im = new IMG(imLen);
     numRepeats = numRepeats||1;
     
-    if (matrix2) // allow to compute a second matrix in-parallel
+    if ( MODE.GRAY === mode )
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+        integralLen = imArea;  rowLen = w;
+        integral = new A32F(integralLen);
         
-        // do this multiple times??
-        for(repeat=0; repeat<numRepeats; repeat++)
+        if (matrix2) // allow to compute a second matrix in-parallel
         {
-            //dst = new IMG(imLen); integral = new A32F(integralLen);
-            tmp = im; im = dst; dst = tmp;
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
+            {
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
 
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=0;
+                for (x=0; x<w; x++, i+=4, j++)
+                {
+                    colR+=im[i]; integral[j]=colR;
+                }
+                // other rows
+                j=0; x=0; colR=0;
+                for (i=w4; i<imLen; i+=4, j++, x++)
+                {
+                    if (x>=w) { x=0; colR=0; }
+                    colR+=im[i]; integral[j+rowLen]=integral[j]+colR; 
+                }
+                
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2*r2;
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                // do another pass??
             }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+        }
+        else
+        {
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen]=integral[j]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+                
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=0;
+                for (x=0; x<w; x++, i+=4,j++)
+                {
+                    colR+=im[i]; integral[j]=colR;
+                }
+                // other rows
+                j=0; x=0; colR=0;
+                for (i=w4; i<imLen; i+=4, j++, x++)
+                {
+                    if (x>=w) { x=0; colR=0; }
+                    colR+=im[i]; integral[j+rowLen  ]=integral[j  ]+colR; 
+                }
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2;
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                // do another pass??
             }
-            
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                 yOff1 = yOff1<by1 ? by1 : yOff1;
-                 yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
-                g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
-                b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
-                
-                // output
-                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
         }
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-    
-        // do this multiple times??
-        for(repeat=0; repeat<numRepeats; repeat++)
+        integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
+        integral = new A32F(integralLen);
+        
+        if (matrix2) // allow to compute a second matrix in-parallel
         {
-            //dst = new IMG(imLen); integral = new A32F(integralLen);
-            tmp = im; im = dst; dst = tmp;
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
             
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=colG=colB=0;
+                for (x=0; x<w; x++, i+=4, j+=3)
+                {
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                }
+                // other rows
+                j=0; x=0; colR=colG=colB=0;
+                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                {
+                    if (x>=w) { x=0; colR=colG=colB=0; }
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j+rowLen]=integral[j]+colR; 
+                    integral[j+rowLen+1]=integral[j+1]+colG; 
+                    integral[j+rowLen+2]=integral[j+2]+colB;
+                }
+                
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                    
+                    r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                    g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
+                    b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2*r2; t1 = coeff1*g + coeff2*g2; t2 = coeff1*b + coeff2*b2;
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                
+                // do another pass??
             }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+        }
+        else
+        {
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen  ]=integral[j  ]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+                
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=colG=colB=0;
+                for (x=0; x<w; x++, i+=4, j+=3)
+                {
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                }
+                // other rows
+                j=0; x=0; colR=colG=colB=0;
+                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                {
+                    if (x>=w) { x=0; colR=colG=colB=0; }
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j+rowLen  ]=integral[j  ]+colR; 
+                    integral[j+rowLen+1]=integral[j+1]+colG; 
+                    integral[j+rowLen+2]=integral[j+2]+colB;
+                }
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2; t1 = coeff1*g + coeff2; t2 = coeff1*b + coeff2;
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                // do another pass??
             }
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                 yOff1 = yOff1<by1 ? by1 : yOff1;
-                 yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                // output
-                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
         }
     }
     return dst;
 }
-function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
 {
     var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp;
+        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<2;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -1833,181 +1999,323 @@ function integral_convolution_rgb_clamp(rgba, im, w, h, matrix, matrix2, dimX, d
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
     
-    integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-    dst = im; im = new IMG(imLen); integral = new A32F(integralLen);
-    
+    dst = im; im = new IMG(imLen);
     numRepeats = numRepeats||1;
     
-    if (matrix2) // allow to compute a second matrix in-parallel
+    if ( MODE.GRAY === mode )
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-        wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+        integralLen = imArea;  rowLen = w;
+        integral = new A32F(integralLen);
         
-        // do this multiple times??
-        for(repeat=0; repeat<numRepeats; repeat++)
+        if (matrix2) // allow to compute a second matrix in-parallel
         {
-            //dst = new IMG(imLen); integral = new A32F(integralLen);
-            tmp = im; im = dst; dst = tmp;
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
+            {
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
 
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
-            {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=0;
+                for (x=0; x<w; x++, i+=4, j++)
+                {
+                    colR+=im[i]; integral[j]=colR;
+                }
+                // other rows
+                j=0; x=0; colR=0;
+                for (i=w4; i<imLen; i+=4, j++, x++)
+                {
+                    if (x>=w) { x=0; colR=0; }
+                    colR+=im[i]; integral[j+rowLen]=integral[j]+colR; 
+                }
+                
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2*r2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                // do another pass??
             }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+        }
+        else
+        {
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen]=integral[j]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+                
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=0;
+                for (x=0; x<w; x++, i+=4,j++)
+                {
+                    colR+=im[i]; integral[j]=colR;
+                }
+                // other rows
+                j=0; x=0; colR=0;
+                for (i=w4; i<imLen; i+=4, j++, x++)
+                {
+                    if (x>=w) { x=0; colR=0; }
+                    colR+=im[i]; integral[j+rowLen  ]=integral[j  ]+colR; 
+                }
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                // do another pass??
             }
-            
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                 yOff1 = yOff1<by1 ? by1 : yOff1;
-                 yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
-                g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
-                b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
-                
-                // output
-                t0 = (coeff1*r + coeff2*r2)|0; t1 = (coeff1*g + coeff2*g2)|0; t2 = (coeff1*b + coeff2*b2)|0;
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
         }
     }
     else
     {
-        wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-    
-        // do this multiple times??
-        for(repeat=0; repeat<numRepeats; repeat++)
+        integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
+        integral = new A32F(integralLen);
+        
+        if (matrix2) // allow to compute a second matrix in-parallel
         {
-            //dst = new IMG(imLen); integral = new A32F(integralLen);
-            tmp = im; im = dst; dst = tmp;
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
             
-            // compute integral of image in one pass
-            
-            // first row
-            i=0; j=0; colR=colG=colB=0;
-            for (x=0; x<w; x++, i+=4, j+=3)
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=colG=colB=0;
+                for (x=0; x<w; x++, i+=4, j+=3)
+                {
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                }
+                // other rows
+                j=0; x=0; colR=colG=colB=0;
+                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                {
+                    if (x>=w) { x=0; colR=colG=colB=0; }
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j+rowLen]=integral[j]+colR; 
+                    integral[j+rowLen+1]=integral[j+1]+colG; 
+                    integral[j+rowLen+2]=integral[j+2]+colB;
+                }
+                
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                    
+                    r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
+                    g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
+                    b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2*r2; t1 = coeff1*g + coeff2*g2; t2 = coeff1*b + coeff2*b2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                
+                // do another pass??
             }
-            // other rows
-            j=0; x=0; colR=colG=colB=0;
-            for (i=rowLen+w; i<imLen; i+=4, j+=3, x++)
+        }
+        else
+        {
+            wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
+        
+            // do this multiple times??
+            for(repeat=0; repeat<numRepeats; repeat++)
             {
-                if (x>=w) { x=0; colR=colG=colB=0; }
-                colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-                integral[j+rowLen  ]=integral[j  ]+colR; 
-                integral[j+rowLen+1]=integral[j+1]+colG; 
-                integral[j+rowLen+2]=integral[j+2]+colB;
+                //dst = new IMG(imLen); integral = new A32F(integralLen);
+                tmp = im; im = dst; dst = tmp;
+                
+                // compute integral of image in one pass
+                
+                // first row
+                i=0; j=0; colR=colG=colB=0;
+                for (x=0; x<w; x++, i+=4, j+=3)
+                {
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+                }
+                // other rows
+                j=0; x=0; colR=colG=colB=0;
+                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                {
+                    if (x>=w) { x=0; colR=colG=colB=0; }
+                    colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+                    integral[j+rowLen  ]=integral[j  ]+colR; 
+                    integral[j+rowLen+1]=integral[j+1]+colG; 
+                    integral[j+rowLen+2]=integral[j+2]+colB;
+                }
+                
+                // now can compute any symmetric convolution kernel in constant time 
+                // depending only on image dimensions, regardless of matrix radius
+                
+                // do direct convolution
+                x=0; y=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; y++; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
+                    xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
+                    
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                    
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+                    
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
+                    r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+                    g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
+                    b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
+                    
+                    // output
+                    t0 = coeff1*r + coeff2; t1 = coeff1*g + coeff2; t2 = coeff1*b + coeff2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
+                
+                // do another pass??
             }
-            
-            // now can compute any symmetric convolution kernel in constant time 
-            // depending only on image dimensions, regardless of matrix radius
-            
-            // do direct convolution
-            x=0; y=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; y++; ty+=w; }
-                
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1=x + matOffsetLeft; yOff1=ty + matOffsetTop;
-                xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
-                
-                // fix borders
-                 xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                 xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                 yOff1 = yOff1<by1 ? by1 : yOff1;
-                 yOff2 = yOff2>by2 ? by2 : yOff2;
-                
-                // compute integral positions
-                p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
-                
-                // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
-                // also fix the center element (in case it is different)
-                r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
-                g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
-                b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
-                
-                // output
-                t0 = (coeff1*r + coeff2)|0; t1 = (coeff1*g + coeff2)|0; t2 = (coeff1*b + coeff2)|0;
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                // alpha channel is not transformed
-                dst[i+3] = im[i+3];
-            }
-            
-            // do another pass??
         }
     }
     return dst;
 }
 // speed-up convolution for separable kernels
-function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+function separable_convolution(mode, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
     var imLen=im.length, imArea=imLen>>>2,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2,
         xOff, yOff, bx, by, t0, t1, t2, t3, wt,
-        r, g, b, a, coeff, numPasses, tmp
-    ;
+        r, g, b, a, coeff, numPasses, tmp;
     
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
@@ -2027,66 +2335,99 @@ function separable_convolution(rgba, im, w, h, matrix, matrix2, ind1, ind2, coef
     imageIndices = imageIndices1;
     dst = im; im = new IMG(imLen);
     
-    while (numPasses--)
+    if ( MODE.GRAY === mode )
     {
-        tmp = im; im = dst; dst = tmp;
-        matArea = mat.length;
-        matArea2 = indices.length;
-        
-        // do direct convolution
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        while (numPasses--)
         {
-            // update image coordinates
-            if (x>=w) { x=0; ty+=w; }
+            tmp = im; im = dst; dst = tmp;
+            matArea = mat.length;
+            matArea2 = indices.length;
             
-            // calculate the weighed sum of the source image pixels that
-            // fall under the convolution matrix
-            r=g=b=a=0;
-            for (k=0, j=0; k<matArea; k++, j+=2)
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
             {
-                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
                 {
-                    srcOff = (xOff + yOff)<<2; wt = mat[k];
-                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt;
+                    }
                 }
-            }
-            
-            // output
-            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
-            
-            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-            /*if ( rgba )
-            {
-                t3 = coeff * a;
-                dst[i+3] = ~~t3;
-            }
-            else
-            {*/
+                
+                // output
+                t0 = coeff * r;
+                dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
-            /*}*/
+            }
+            // do another pass??
+            mat = matrix2;
+            indices = ind2;
+            coeff = coeff2;
+            imageIndices = imageIndices2;
         }
-        
-        // do another pass??
-        mat = matrix2;
-        indices = ind2;
-        coeff = coeff2;
-        imageIndices = imageIndices2;
+    }
+    else
+    {
+        while (numPasses--)
+        {
+            tmp = im; im = dst; dst = tmp;
+            matArea = mat.length;
+            matArea2 = indices.length;
+            
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                    }
+                }
+                
+                // output
+                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+                dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            }
+            // do another pass??
+            mat = matrix2;
+            indices = ind2;
+            coeff = coeff2;
+            imageIndices = imageIndices2;
+        }
     }
     return dst;
 }
-function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+function separable_convolution_clamp(mode, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
 {
     var imLen=im.length, imArea=imLen>>>2,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2,
         xOff, yOff, bx, by, t0, t1, t2, t3, wt,
-        r, g, b, a, coeff, numPasses, tmp
-    ;
+        r, g, b, a, coeff, numPasses, tmp;
     
     // pre-compute indices, 
     // reduce redundant computations inside the main convolution loop (faster)
@@ -2106,63 +2447,120 @@ function separable_convolution_clamp(rgba, im, w, h, matrix, matrix2, ind1, ind2
     imageIndices = imageIndices1;
     dst = im; im = new IMG(imLen);
     
-    while (numPasses--)
+    if ( MODE.GRAY === mode )
     {
-        tmp = im; im = dst; dst = tmp;
-        matArea = mat.length;
-        matArea2 = indices.length;
-        
-        // do direct convolution
-        x=0; ty=0;
-        for (i=0; i<imLen; i+=4, x++)
+        while (numPasses--)
         {
-            // update image coordinates
-            if (x>=w) { x=0; ty+=w; }
+            tmp = im; im = dst; dst = tmp;
+            matArea = mat.length;
+            matArea2 = indices.length;
             
-            // calculate the weighed sum of the source image pixels that
-            // fall under the convolution matrix
-            r=g=b=a=0;
-            for (k=0, j=0; k<matArea; k++, j+=2)
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
             {
-                xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
                 {
-                    srcOff = (xOff + yOff)<<2; wt = mat[k];
-                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt;
+                    }
                 }
-            }
-            
-            // output
-            t0 = (coeff * r)|0;  t1 = (coeff * g)|0;  t2 = (coeff * b)|0;
-            
-            // clamp them manually
-            t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-            t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-            t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-            
-            dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-            /*if ( rgba )
-            {
-                t3 = coeff * a;
-                t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                dst[i+3] = ~~t3;
-            }
-            else
-            {*/
+                
+                // output
+                t0 = coeff * r;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
                 // alpha channel is not transformed
                 dst[i+3] = im[i+3];
-            /*}*/
+            }
+            // do another pass??
+            mat = matrix2;
+            indices = ind2;
+            coeff = coeff2;
+            imageIndices = imageIndices2;
         }
-        
-        // do another pass??
-        mat = matrix2;
-        indices = ind2;
-        coeff = coeff2;
-        imageIndices = imageIndices2;
+    }
+    else
+    {
+        while (numPasses--)
+        {
+            tmp = im; im = dst; dst = tmp;
+            matArea = mat.length;
+            matArea2 = indices.length;
+            
+            // do direct convolution
+            x=0; ty=0;
+            for (i=0; i<imLen; i+=4, x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                r=g=b=a=0;
+                for (k=0, j=0; k<matArea; k++, j+=2)
+                {
+                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                    if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                    {
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                    }
+                }
+                
+                // output
+                t0 = coeff * r;  t1 = coeff * g;  t2 = coeff * b;
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                // alpha channel is not transformed
+                dst[i+3] = im[i+3];
+            }
+            // do another pass??
+            mat = matrix2;
+            indices = ind2;
+            coeff = coeff2;
+            imageIndices = imageIndices2;
+        }
     }
     return dst;
 }
+/*
+function algebraic_combination( /*c, f1, im1, f2, im2, ..* / )
+{
+    var args = arguments, argslen = args.length, c = args[0],
+        f = args[1], im = args[2], imLen = im.length, res = new IMG(imLen), r, g, b, a, i, k = 0;
+    while ( k+2 < argslen )
+    {
+        f = args[++k]; im = args[++k];
+        for(i=0; i<imLen; i+=4)
+        {
+            r = f*im[i  ] + c;
+            g = f*im[i+1] + c;
+            b = f*im[i+2] + c;
+            a = f*im[i+3] + c;
+            res[i  ] = r|0;
+            res[i+1] = g|0;
+            res[i+2] = b|0;
+            res[i+3] = a|0;
+        }
+        c = 0;
+    }
+    return res;
+}*/
 function ct_eye( c1, c0 )
 {
     if ( null == c0 ) c0 = 0;
@@ -2429,8 +2827,9 @@ FilterUtil.am_eye = am_eye;
 FilterUtil.am_multiply = am_multiply;
 FilterUtil.cm_combine = cm_combine;
 FilterUtil.cm_convolve = cm_convolve;
-FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_rgb_clamp : integral_convolution_rgb;
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+//FilterUtil.algebraic_combination = algebraic_combination;
 FilterUtil.SAT = integral2;
 FilterUtil.GRAD = gradient;
 
@@ -4927,20 +5326,31 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,select: function( x1, y1, x2, y2 ) {
         var self = this, argslen = arguments.length;
-        // default
-        if ( argslen < 1 ) x1 = 0;
-        if ( argslen < 2 ) y1 = 0;
-        if ( argslen < 3 ) x2 = 1;
-        if ( argslen < 4 ) y2 = 1;
-        // select
-        self.selection = [ 
-            // clamp
-            0 > x1 ? 0 : (1 < x1 ? 1 : x1),
-            0 > y1 ? 0 : (1 < y1 ? 1 : y1),
-            0 > x2 ? 0 : (1 < x2 ? 1 : x2),
-            0 > y2 ? 0 : (1 < y2 ? 1 : y2)
-        ];
-        self._refresh |= SEL;
+        if ( false === x1 )
+        {
+            // deselect
+            self.selection = null;
+            self.iDataSel = null;
+            self.oDataSel = null;
+            self._refresh &= CLEAR_SEL;
+        }
+        else
+        {
+            // default
+            if ( argslen < 1 ) x1 = 0;
+            if ( argslen < 2 ) y1 = 0;
+            if ( argslen < 3 ) x2 = 1;
+            if ( argslen < 4 ) y2 = 1;
+            // select
+            self.selection = [ 
+                // clamp
+                0 > x1 ? 0 : (1 < x1 ? 1 : x1),
+                0 > y1 ? 0 : (1 < y1 ? 1 : y1),
+                0 > x2 ? 0 : (1 < x2 ? 1 : x2),
+                0 > y2 ? 0 : (1 < y2 ? 1 : y2)
+            ];
+            self._refresh |= SEL;
+        }
         return self;
     }
     

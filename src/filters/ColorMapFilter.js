@@ -38,16 +38,13 @@ var ColorMapFilter = FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        
         self._map = null;
         self._mapInit = null;
         self._mapName = null;
         self._mapChanged = null;
-        
         self.thresholds = null;
         self.quantizedColors = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -59,7 +56,6 @@ var ColorMapFilter = FILTER.Create({
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
-            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
@@ -67,7 +63,6 @@ var ColorMapFilter = FILTER.Create({
     
     ,unserialize: function( params ) {
         var self = this;
-        self.mode = params.mode;
         self.thresholds = TypedArray( params.thresholds, Array );
         self.quantizedColors = TypedArray( params.quantizedColors, Array );
         

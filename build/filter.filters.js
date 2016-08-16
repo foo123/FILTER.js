@@ -340,6 +340,10 @@ FILTER.Create({
         return self;
     }
     
+    ,fastGradient: function( d ) {
+        return this;
+    }
+    
     ,set: function( matrix ) {
         var self = this;
         if ( matrix && matrix.length /*&& (matrix.length%7 === 0)*//*7N*/ )
@@ -372,13 +376,13 @@ FILTER.Create({
     ,reset: function( ) {
         var self = this;
         self.matrix = null;
-        self.resetInputs( );
+        //self.resetInputs( );
         return self;
     }
     
     ,_apply: function( im, w, h ) {
         var self = this, matrix = self.matrix;
-        if ( !matrix ) return im;
+        if ( !matrix || !matrix.length ) return im;
         var i, j, k, ii, kk, x1, y1, x2, y2, tx, ty, c, a, b, ci, co, im2, w2, h2, wm, hm,
             ra, ga, ba, aa, rb, gb, bb, ab, v, applyArea,
             l = matrix.length, imLen = im.length, imArea = imLen>>>2, res = new A32F(imLen);
@@ -638,24 +642,24 @@ var ColorTableFilter = FILTER.Create({
     
     ,init: function ColorTableFilter( tR, tG, tB, tA ) {
         var self = this;
-        self._table = [null, null, null, null];
+        self.table = [null, null, null, null];
         tR = tR || null;
         tG = tG || tR;
         tB = tB || tG;
         tA = tA || null;
-        self._table[CHANNEL.R] = tR;
-        self._table[CHANNEL.G] = tG;
-        self._table[CHANNEL.B] = tB;
-        self._table[CHANNEL.A] = tA;
+        self.table[CHANNEL.R] = tR;
+        self.table[CHANNEL.G] = tG;
+        self.table[CHANNEL.B] = tB;
+        self.table[CHANNEL.A] = tA;
     }
     
     ,path: FILTER_FILTERS_PATH
     // parameters
-    ,_table: null
+    ,table: null
     
     ,dispose: function( ) {
         var self = this;
-        self._table = null;
+        self.table = null;
         self.$super('dispose');
         return self;
     }
@@ -663,19 +667,19 @@ var ColorTableFilter = FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-             _tableR: self._table[CHANNEL.R]
-            ,_tableG: self._table[CHANNEL.G]
-            ,_tableB: self._table[CHANNEL.B]
-            ,_tableA: self._table[CHANNEL.A]
+             tableR: self.table[CHANNEL.R]
+            ,tableG: self.table[CHANNEL.G]
+            ,tableB: self.table[CHANNEL.B]
+            ,tableA: self.table[CHANNEL.A]
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
-        self._table[CHANNEL.R] = TypedArray(params._tableR, CT);
-        self._table[CHANNEL.G] = TypedArray(params._tableG, CT);
-        self._table[CHANNEL.B] = TypedArray(params._tableB, CT);
-        self._table[CHANNEL.A] = TypedArray(params._tableA, CT);
+        self.table[CHANNEL.R] = TypedArray(params.tableR, CT);
+        self.table[CHANNEL.G] = TypedArray(params.tableG, CT);
+        self.table[CHANNEL.B] = TypedArray(params.tableB, CT);
+        self.table[CHANNEL.A] = TypedArray(params.tableA, CT);
         return self;
     }
     
@@ -946,7 +950,7 @@ var ColorTableFilter = FILTER.Create({
     ,set: function( tR, tG, tB, tA ) {
         if ( !tR ) return this;
         
-        var i, T = this._table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        var i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
         
         if ( tG || tB )
         {
@@ -966,7 +970,7 @@ var ColorTableFilter = FILTER.Create({
     }
     
     ,reset: function( ) {
-        this._table = [null, null, null, null]; 
+        this.table = [null, null, null, null]; 
         return this;
     }
     
@@ -975,17 +979,17 @@ var ColorTableFilter = FILTER.Create({
     }
     
     ,getTable: function ( channel ) {
-        return this._table[channel || CHANNEL.R] || null;
+        return this.table[channel || CHANNEL.R] || null;
     }
     
     ,setTable: function ( table, channel ) {
-        this._table[channel || CHANNEL.R] = table || null;
+        this.table[channel || CHANNEL.R] = table || null;
         return this;
     }
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
-        var self = this, T = self._table;
+        var self = this, T = self.table;
         if ( !T || !T[CHANNEL.R] ) return im;
         
         var i, j, l=im.length, l2=l>>>2, rem=(l2&15)<<2, R = T[0], G = T[1], B = T[2], A = T[3];
@@ -1057,7 +1061,7 @@ var ColorTableFilter = FILTER.Create({
     }
         
     ,canRun: function( ) {
-        return this._isOn && this._table && this._table[CHANNEL.R];
+        return this._isOn && this.table && this.table[CHANNEL.R];
     }
 });
 // aliases
@@ -1771,16 +1775,13 @@ var ColorMapFilter = FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        
         self._map = null;
         self._mapInit = null;
         self._mapName = null;
         self._mapChanged = null;
-        
         self.thresholds = null;
         self.quantizedColors = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -1792,7 +1793,6 @@ var ColorMapFilter = FILTER.Create({
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString( ) : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
-            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
@@ -1800,7 +1800,6 @@ var ColorMapFilter = FILTER.Create({
     
     ,unserialize: function( params ) {
         var self = this;
-        self.mode = params.mode;
         self.thresholds = TypedArray( params.thresholds, Array );
         self.quantizedColors = TypedArray( params.quantizedColors, Array );
         
@@ -2125,7 +2124,6 @@ var AffineMatrixFilter = FILTER.Create({
         var self = this;
         return {
              matrix: self.matrix
-            ,mode: self.mode
             ,color: self.color
         };
     }
@@ -2133,7 +2131,6 @@ var AffineMatrixFilter = FILTER.Create({
     ,unserialize: function( params ) {
         var self = this;
         self.matrix = TypedArray( params.matrix, AM );
-        self.mode = params.mode;
         self.color = params.color;
         return self;
     }
@@ -2219,7 +2216,7 @@ var AffineMatrixFilter = FILTER.Create({
             COLOR = MODE.COLOR, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, IGNORE = MODE.IGNORE,
             Ta = T[0], Tb = T[1], Tx = T[2]+T[3]*bx,
             Tcw = T[4]*w, Td = T[5], Tyw = T[6]*w+T[7]*by,
-            mode = self.mode || CLAMP
+            mode = self.mode || IGNORE
         ;
         
         if ( COLOR === mode )
@@ -2349,7 +2346,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        
         self.scaleX = null;
         self.scaleY = null;
         self.startX = null;
@@ -2358,7 +2354,6 @@ FILTER.Create({
         self.componentY = null;
         self.color = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -2372,7 +2367,6 @@ FILTER.Create({
             ,componentX: self.componentX
             ,componentY: self.componentY
             ,color: self.color
-            ,mode: self.mode
         };
     }
     
@@ -2385,7 +2379,6 @@ FILTER.Create({
         self.componentX = params.componentX;
         self.componentY = params.componentY;
         self.color = params.color;
-        self.mode = params.mode;
         return self;
     }
     
@@ -2407,7 +2400,7 @@ FILTER.Create({
             SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
             applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
-            mode = self.mode||CLAMP
+            mode = self.mode||IGNORE
         ;
         
         map = Map[0]; mapW = Map[1]; mapH = Map[2]; 
@@ -2660,7 +2653,6 @@ FILTER.Create({
             //,wavelength: self.wavelength
             //,amplitude: self.amplitude
             //,phase: self.phase
-            ,mode: self.mode
         };
         self._mapChanged = false;
         return json;
@@ -2676,7 +2668,6 @@ FILTER.Create({
         //self.wavelength = params.wavelength;
         //self.amplitude = params.amplitude;
         //self.phase = params.phase;
-        self.mode = params.mode;
         
         //self._mapName = params._mapName;
         //self._map = params._map;
@@ -2777,7 +2768,7 @@ function apply__( map, preample )
     if ( !self._map ) return im;\
     var x, y, i, j, imLen = im.length, dst = new FILTER.ImArray(imLen), t = new FILTER.Array32F(2),\
         COLOR = FILTER.MODE.COLOR, CLAMP = FILTER.MODE.CLAMP, WRAP = FILTER.MODE.WRAP, IGNORE = FILTER.MODE.IGNORE,\
-        mode = self.mode||CLAMP, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
+        mode = self.mode||IGNORE, color = self.color||0, r, g, b, a, bx = w-1, by = h-1;\
 \
     "+__INIT__+";\
     \
@@ -2955,8 +2946,7 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     integral_convolution = FilterUtil.integral_convolution,
     separable_convolution = FilterUtil.separable_convolution,
-    blend = FilterUtil.cm_combine, convolve = FilterUtil.cm_convolve,
-    
+    blend = FilterUtil.cm_combine, convolve = FilterUtil.cm_convolve, MODE = FILTER.MODE,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
     sqrt2 = Math.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
@@ -2981,12 +2971,11 @@ var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
 var ConvolutionMatrixFilter = FILTER.Create({
     name: "ConvolutionMatrixFilter"
     
-    ,init: function ConvolutionMatrixFilter( weights, factor, bias, rgba ) {
+    ,init: function ConvolutionMatrixFilter( weights, factor, bias, mode ) {
         var self = this;
         self._coeff = new CM([1.0, 0.0]);
         self.matrix2 = null;  self.dim2 = 0;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
-        self._rgba = !!rgba;
         if ( weights && weights.length)
         {
             self.set(weights, (Sqrt(weights.length)+0.5)|0, factor||1.0, bias||0.0);
@@ -2995,6 +2984,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         {
             self.matrix = null; self.dim = 0;
         }
+        self.mode = mode || MODE.RGB;
     }
     
     ,path: FILTER_FILTERS_PATH
@@ -3012,11 +3002,10 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,_indices2: null
     ,_indicesf: null
     ,_indicesf2: null
-    ,_rgba: false
+    ,mode: MODE.RGB
     
     ,dispose: function( ) {
         var self = this;
-        
         self.dim = null;
         self.dim2 = null;
         self.matrix = null;
@@ -3031,9 +3020,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices2 = null;
         self._indicesf = null;
         self._indicesf2 = null;
-        self._rgba = null;
         self.$super('dispose');
-        
         return self;
     }
     
@@ -3054,7 +3041,6 @@ var ConvolutionMatrixFilter = FILTER.Create({
             ,_indices2: self._indices2
             ,_indicesf: self._indicesf
             ,_indicesf2: self._indicesf2
-            ,_rgba: self._rgba
         };
     }
     
@@ -3074,21 +3060,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices2 = TypedArray( params._indices2, A16I );
         self._indicesf = TypedArray( params._indicesf, A16I );
         self._indicesf2 = TypedArray( params._indicesf2, A16I );
-        self._rgba = params._rgba;
         return self;
-    }
-    
-    ,rgba: function( bool ) {
-        var self = this;
-        if ( !arguments.length )
-        {
-            return self._rgba;
-        }
-        else
-        {
-            self._rgba = !!bool;
-            return self;
-        }
     }
     
     // generic functional-based kernel filter
@@ -3105,7 +3077,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = d === undef ? 3 : (d&1 ? d : d+1);
         quality = (quality||1)|0;
         if ( quality < 1 ) quality = 1;
-        else if ( quality > 3 ) quality = 3;
+        else if ( quality > 7 ) quality = 7;
         this.set(ones(d), d, 1/(d*d), 0.0);
         this._doIntegral = quality; return this;
     }
@@ -3309,17 +3281,17 @@ var ConvolutionMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: notSupportClamp ? function( im, w, h ) {
-        var self = this, rgba = self._rgba;
+        var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(rgba, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? integral_convolution(mode, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return separable_convolution(mode, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
@@ -3327,136 +3299,199 @@ var ConvolutionMatrixFilter = FILTER.Create({
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
-            mArea, matArea, imageIndices
-        ;
+            mArea, matArea, imageIndices;
         
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
-        if (mat2) // allow to compute a second matrix in-parallel in same pass
+        if ( MODE.GRAY === mode )
         {
-            // pre-compute indices, 
-            // reduce redundant computations inside the main convolution loop (faster)
-            mArea = self._indicesf.length; 
-            imageIndices = new A16I(self._indicesf);
-            for (k=0; k<mArea; k+=2)
-            { 
-                imageIndices[k+1] *= w;
-            } 
-            matArea = mat.length;
-            
-            // do direct convolution
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            if (mat2) // allow to compute a second matrix in-parallel in same pass
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                matArea = mat.length;
                 
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=r2=g2=b2=a2=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                    srcOff = (xOff + yOff)<<2; 
-                    wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
-                    // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
-                    //a2 += im[srcOff+3] * wt2;
-                }
-                
-                // output
-                if ( _isGrad )
-                {
-                    t0 = (Abs(r)+Abs(r2))|0;  t1 = (Abs(g)+Abs(g2))|0;  t2 = (Abs(b)+Abs(b2))|0;
-                }
-                else
-                {
-                    t0 = (coeff1*r + coeff2*r2)|0;  t1 = (coeff1*g + coeff2*g2)|0;  t2 = (coeff1*b + coeff2*b2)|0;
-                }
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                /*if ( rgba )
-                {
-                    t3 = _isGrad ? (Abs(a)+Abs(a2))|0 : (coeff1*a + coeff2*a2)|0;
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = t3;
-                }
-                else
-                {*/
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=r2=g2=b2=a2=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; 
+                        wt = mat[k]; r += im[srcOff] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2;
+                    }
+                    
+                    // output
+                    if ( _isGrad )
+                    {
+                        t0 = Abs(r)+Abs(r2);
+                    }
+                    else
+                    {
+                        t0 = coeff1*r + coeff2*r2;
+                    }
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                /*}*/
+                }
+            }
+            else
+            {
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                mat = self._mat;
+                matArea = mat.length;
+                
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt;
+                    }
+                    
+                    // output
+                    t0 = coeff1*r+coeff2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         else
         {
-            // pre-compute indices, 
-            // reduce redundant computations inside the main convolution loop (faster)
-            mArea = self._indices.length; 
-            imageIndices = new A16I(self._indices);
-            for (k=0; k<mArea; k+=2)
-            { 
-                imageIndices[k+1] *= w;
-            }
-            mat = self._mat;
-            matArea = mat.length;
-            
-            // do direct convolution
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            if (mat2) // allow to compute a second matrix in-parallel in same pass
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                matArea = mat.length;
                 
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                    srcOff = (xOff + yOff)<<2; wt = mat[k];
-                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
-                }
-                
-                // output
-                t0 = (coeff1*r+coeff2)|0;  t1 = (coeff1*g+coeff2)|0;  t2 = (coeff1*b+coeff2)|0;
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                /*if ( rgba )
-                {
-                    t3 = (coeff1*a + coeff2)|0;
-                    t3 = t3<0 ? 0 : (t3>255 ? 255 : t3);
-                    dst[i+3] = t3;
-                }
-                else
-                {*/
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=r2=g2=b2=a2=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; 
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        //a2 += im[srcOff+3] * wt2;
+                    }
+                    
+                    // output
+                    if ( _isGrad )
+                    {
+                        t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                    }
+                    else
+                    {
+                        t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                    }
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                /*}*/
+                }
+            }
+            else
+            {
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                mat = self._mat;
+                matArea = mat.length;
+                
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                    }
+                    
+                    // output
+                    t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
+                    // clamp them manually
+                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         return dst;
     } : function( im, w, h ) {
-        var self = this, rgba = self._rgba;
+        var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(rgba, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(rgba, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? integral_convolution(mode, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(rgba, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return separable_convolution(mode, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
@@ -3464,111 +3499,172 @@ var ConvolutionMatrixFilter = FILTER.Create({
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
-            mArea, matArea, imageIndices
-        ;
+            mArea, matArea, imageIndices;
         
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
-        if (mat2) // allow to compute a second matrix in-parallel in same pass
+        if ( MODE.GRAY === mode )
         {
-            // pre-compute indices, 
-            // reduce redundant computations inside the main convolution loop (faster)
-            mArea = self._indicesf.length; 
-            imageIndices = new A16I(self._indicesf);
-            for (k=0; k<mArea; k+=2)
-            { 
-                imageIndices[k+1] *= w;
-            } 
-            matArea = mat.length;
-            
-            // do direct convolution
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            if (mat2) // allow to compute a second matrix in-parallel in same pass
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                matArea = mat.length;
                 
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=r2=g2=b2=a2=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                    srcOff = (xOff + yOff)<<2; 
-                    wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
-                    // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                    wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
-                    //a2 += im[srcOff+3] * wt2;
-                }
-                
-                // output
-                if ( _isGrad )
-                {
-                    t0 = (Abs(r)+Abs(r2))|0;  t1 = (Abs(g)+Abs(g2))|0;  t2 = (Abs(b)+Abs(b2))|0;
-                }
-                else
-                {
-                    t0 = (coeff1*r + coeff2*r2)|0;  t1 = (coeff1*g + coeff2*g2)|0;  t2 = (coeff1*b + coeff2*b2)|0;
-                }
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                /*if ( rgba )
-                {
-                    t3 = _isGrad ? (Abs(a)+Abs(a2))|0 : (coeff1*a + coeff2*a2)|0;
-                    dst[i+3] = t3;
-                }
-                else
-                {*/
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=r2=g2=b2=a2=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; 
+                        wt = mat[k]; r += im[srcOff] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2;
+                    }
+                    
+                    // output
+                    if ( _isGrad )
+                    {
+                        t0 = Abs(r)+Abs(r2);
+                    }
+                    else
+                    {
+                        t0 = coeff1*r + coeff2*r2;
+                    }
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                /*}*/
+                }
+            }
+            else
+            {
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                mat = self._mat;
+                matArea = mat.length;
+                
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt;
+                    }
+                    
+                    // output
+                    t0 = coeff1*r+coeff2;
+                    dst[i] = t0|0;  dst[i+1] = t0|0;  dst[i+2] = t0|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         else
         {
-            // pre-compute indices, 
-            // reduce redundant computations inside the main convolution loop (faster)
-            mArea = self._indices.length; 
-            imageIndices = new A16I(self._indices);
-            for (k=0; k<mArea; k+=2)
-            { 
-                imageIndices[k+1] *= w;
-            }
-            mat = self._mat;
-            matArea = mat.length;
-            
-            // do direct convolution
-            x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            if (mat2) // allow to compute a second matrix in-parallel in same pass
             {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indicesf.length; 
+                imageIndices = new A16I(self._indicesf);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                matArea = mat.length;
                 
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                r=g=b=a=0;
-                for (k=0, j=0; k<matArea; k++, j+=2)
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
                 {
-                    xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                    srcOff = (xOff + yOff)<<2; wt = mat[k];
-                    r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                    //a += im[srcOff+3] * wt;
-                }
-                
-                // output
-                t0 = (coeff1*r+coeff2)|0;  t1 = (coeff1*g+coeff2)|0;  t2 = (coeff1*b+coeff2)|0;
-                dst[i] = t0;  dst[i+1] = t1;  dst[i+2] = t2;
-                /*if ( rgba )
-                {
-                    t3 = (coeff1*a + coeff2)|0;
-                    dst[i+3] = t3;
-                }
-                else
-                {*/
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=r2=g2=b2=a2=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; 
+                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
+                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                        //a2 += im[srcOff+3] * wt2;
+                    }
+                    
+                    // output
+                    if ( _isGrad )
+                    {
+                        t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                    }
+                    else
+                    {
+                        t0 = coeff1*r + coeff2*r2;  t1 = coeff1*g + coeff2*g2;  t2 = coeff1*b + coeff2*b2;
+                    }
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
                     // alpha channel is not transformed
                     dst[i+3] = im[i+3];
-                /*}*/
+                }
+            }
+            else
+            {
+                // pre-compute indices, 
+                // reduce redundant computations inside the main convolution loop (faster)
+                mArea = self._indices.length; 
+                imageIndices = new A16I(self._indices);
+                for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
+                mat = self._mat;
+                matArea = mat.length;
+                
+                // do direct convolution
+                x=0; ty=0;
+                for (i=0; i<imLen; i+=4, x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    r=g=b=a=0;
+                    for (k=0, j=0; k<matArea; k++, j+=2)
+                    {
+                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2; wt = mat[k];
+                        r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                        //a += im[srcOff+3] * wt;
+                    }
+                    
+                    // output
+                    t0 = coeff1*r+coeff2;  t1 = coeff1*g+coeff2;  t2 = coeff1*b+coeff2;
+                    dst[i] = t0|0;  dst[i+1] = t1|0;  dst[i+2] = t2|0;
+                    // alpha channel is not transformed
+                    dst[i+3] = im[i+3];
+                }
             }
         }
         return dst;
@@ -4119,7 +4215,7 @@ Filters = {
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U, MODE = FILTER.MODE,
     TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Filters;
     
 //
@@ -4134,20 +4230,20 @@ var StatisticalFilter = FILTER.Create({
         self._gray = false;
         self._filter = null;
         self._indices = null;
+        self.mode = MODE.RGB;
     }
     
     ,path: FILTER_FILTERS_PATH
     ,d: 0
     ,k: 0
-    ,_gray: false
     ,_filter: null
     ,_indices: null
+    ,mode: MODE.RGB
     
     ,dispose: function( ) {
         var self = this;
         self.d = null;
         self.k = null;
-        self._gray = null;
         self._filter = null;
         self._indices = null;
         self.$super('dispose');
@@ -4159,7 +4255,6 @@ var StatisticalFilter = FILTER.Create({
         return {
              d: self.d
             ,k: self.k
-            ,_gray: self._gray
             ,_filter: self._filter
             ,_indices: self._indices
         };
@@ -4169,7 +4264,6 @@ var StatisticalFilter = FILTER.Create({
         var self = this;
         self.d = params.d;
         self.k = params.k;
-        self._gray = params._gray;
         self._filter = params._filter;
         self._indices = TypedArray( params._indices, A32I );
         return self;
@@ -4194,12 +4288,6 @@ var StatisticalFilter = FILTER.Create({
     }
     ,dilate: null
     
-    ,grayscale: function( bool ) {
-        if ( !arguments.length ) bool = true;
-        this._gray = !!bool;
-        return this;
-    }
-    
     ,set: function( d, k ) {
         var self = this;
         self.d = d = d||3;
@@ -4221,7 +4309,6 @@ var StatisticalFilter = FILTER.Create({
         var self = this;
         self.d = 0; 
         self.k = 0; 
-        //self._gray = false; 
         self._filter = null; 
         self._indices = null;
         return self;
@@ -4231,7 +4318,7 @@ var StatisticalFilter = FILTER.Create({
     ,_apply: function(im, w, h) {
         var self = this;
         if ( !self.d )  return im;
-        return Filters[self._filter+(self._gray?'_gray':'')]( self, im, w, h );
+        return Filters[self._filter+(MODE.GRAY===self.mode?'_gray':'')]( self, im, w, h );
     }
         
     ,canRun: function( ) {
@@ -4308,7 +4395,7 @@ Filters = {
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
             r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
-            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum,
+            rhist, ghist, bhist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
@@ -4325,9 +4412,7 @@ Filters = {
         {
             if (x>=w) { x=0; ty+=w; }
 
-            rtot=gtot=btot=0;
-            rmin=gmin=bmin=255;
-            rmax=gmax=bmax=0;
+            tot=0; rmin=gmin=bmin=255; rmax=gmax=bmax=0;
             for(j=0; j<matArea2; j+=2)
             {
                 xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -4338,8 +4423,7 @@ Filters = {
                 //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
                 //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
                 //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
-                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++;
-                rtot++; gtot++; btot++;
+                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++; tot++;
                 if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
                 if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
             }
@@ -4347,20 +4431,21 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            for(rtot*=kth,rsum=0,kthR=-1,j=rmin; j<=rmax; j++)
+            tot *= kth;
+            for(sum=0,kthR=-1,j=rmin; j<=rmax; j++)
             {
-                rsum += rhist[j]; rhist[j] = 0;
-                if ( 0 > kthR && rsum >= rtot ) kthR = j;
+                sum += rhist[j]; rhist[j] = 0;
+                if ( 0 > kthR && sum >= tot ) kthR = j;
             }
-            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
-                gsum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && gsum >= gtot ) kthG = j;
+                sum += ghist[j]; ghist[j] = 0;
+                if ( 0 > kthG && sum >= tot ) kthG = j;
             }
-            for(btot*=kth,bsum=0,kthB=-1,j=bmin; j<=bmax; j++)
+            for(sum=0,kthB=-1,j=bmin; j<=bmax; j++)
             {
-                bsum += bhist[j]; bhist[j] = 0;
-                if ( 0 > kthB && bsum >= btot ) kthB = j;
+                sum += bhist[j]; bhist[j] = 0;
+                if ( 0 > kthB && sum >= tot ) kthB = j;
             }
             
             // output
@@ -4430,7 +4515,7 @@ Filters = {
         var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
-            g, gmin, gmax, kthG, ghist, gtot, gsum,
+            g, gmin, gmax, kthG, ghist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
@@ -4445,7 +4530,7 @@ Filters = {
         {
             if (x>=w) { x=0; ty+=w; }
 
-            gtot=0; gmin=255; gmax=0;
+            tot=0; gmin=255; gmax=0;
             for(j=0; j<matArea2; j+=2)
             {
                 xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -4454,16 +4539,17 @@ Filters = {
                 g = im[srcOff];
                 if ( g < gmin ) gmin = g; if ( g > gmax ) gmax = g;
                 // compute histogram, similar to counting sort
-                gtot++; ghist[g]++;
+                tot++; ghist[g]++;
             }
             
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            tot *= kth;
+            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
-                gsum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && gsum >= gtot ) kthG = j;
+                sum += ghist[j]; ghist[j] = 0;
+                if ( 0 > kthG && sum >= tot ) kthG = j;
             }
             
             // output
@@ -4667,55 +4753,22 @@ var max = Math.max, min = Math.min, select = FILTER.Util.Image.get_data;
 FILTER.Create({
     name: "SelectionFilter"
     
-    ,init: function SelectionFilter( x1, y1, x2, y2 ) {
+    ,init: function SelectionFilter( selection ) {
         var self = this;
-        self.x1 = null == x1 ? 0 : +x1;
-        self.y1 = null == y1 ? 0 : +y1;
-        self.x2 = null == x2 ? 1 : +x2;
-        self.y2 = null == y2 ? 1 : +y2;
+        self.selection = selection || null;
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,x1: 0, y1: 0, x2: 1, y2: 1
-    ,hasMeta: true
-    
-    ,dispose: function( ) {
-        var self = this;
-        self.x1 = null;
-        self.y1 = null;
-        self.x2 = null;
-        self.y2 = null;
-        self.$super('dispose');
-        return self;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-             x1: self.x1
-            ,y1: self.y1
-            ,x2: self.x2
-            ,y2: self.y2
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.x1 = params.x1;
-        self.y1 = params.y1;
-        self.x2 = params.x2;
-        self.y2 = params.y2;
-        return self;
-    }
     
     ,_apply: function( im, w, h ) {
-        var self = this, x1, y1, x2, y2;
+        var self = this, selection = self.selection, x1, y1, x2, y2;
         self.hasMeta = false; self._meta = null;
         
-        x1 = (min(1,max(0, +self.x1))*(w-1))|0;
-        y1 = (min(1,max(0, +self.y1))*(h-1))|0;
-        x2 = (min(1,max(0, +self.x2))*(w-1))|0;
-        y2 = (min(1,max(0, +self.y2))*(h-1))|0;
+        if ( !selection ) return im;
+        x1 = (min(1,max(0, +selection[0]))*(w-1))|0;
+        y1 = (min(1,max(0, +selection[1]))*(h-1))|0;
+        x2 = (min(1,max(0, +selection[2]))*(w-1))|0;
+        y2 = (min(1,max(0, +selection[3]))*(h-1))|0;
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
         self.hasMeta = true; self._meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};

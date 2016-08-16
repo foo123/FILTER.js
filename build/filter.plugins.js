@@ -139,11 +139,11 @@ FILTER.Create({
     name: "PerlinNoiseFilter"
     
     // parameters
+    ,mode: MODE.GRAY
     ,_baseX: 1
     ,_baseY: 1
     ,_octaves: 1
     ,_offsets: null
-    ,_mode: MODE.GRAY
     ,_seed: 0
     ,_stitch: false
     ,_fractal: true
@@ -155,7 +155,7 @@ FILTER.Create({
     // constructor
     ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, seed, use_perlin ) {
         var self = this;
-        self._mode = MODE.GRAY;
+        self.mode = MODE.GRAY;
         self._baseX = baseX || 1;
         self._baseY = baseY || 1;
         self._seed = seed || 0;
@@ -187,7 +187,7 @@ FILTER.Create({
     
     ,colors: function( enabled ) {
         if ( !arguments.length ) enabled = true;
-        this._mode = !!enabled ? MODE.COLOR : MODE.GRAY;
+        this.mode = !!enabled ? MODE.COLOR : MODE.GRAY;
         return this;
     }
     
@@ -216,7 +216,6 @@ FILTER.Create({
             ,_offsets: self._offsets
             ,_seed: self._seed || 0
             ,_stitch: self._stitch
-            ,_mode: self._mode
             ,_fractal: self._fractal
             ,_perlin: self._perlin
         };
@@ -230,7 +229,6 @@ FILTER.Create({
         self._offsets = params._offsets;
         self._seed = params._seed || 0;
         self._stitch = params._stitch;
-        self._mode = params._mode;
         self._fractal = params._fractal;
         self._perlin = params._perlin;
         return self;
@@ -239,13 +237,13 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
-        if ( !self._isOn || !perlin_noise ) return im;
+        if ( !perlin_noise ) return im;
         if ( self._seed )
         {
             perlin_noise.seed( self._seed );
             self._seed = 0;
         }
-        return perlin_noise( im, w, h, self._stitch, MODE.COLOR !== self._mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+        return perlin_noise( im, w, h, self._stitch, MODE.COLOR !== self.mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
     }
 });
 
@@ -426,12 +424,11 @@ FILTER.Create({
     name: "ChannelCopyFilter"
     
     // parameters
-    ,centerX: 0
-    ,centerY: 0
     ,srcChannel: CHANNEL.R
     ,dstChannel: CHANNEL.R
+    ,centerX: 0
+    ,centerY: 0
     ,color: 0
-    ,mode: MODE.IGNORE
     ,hasInputs: true
     
     // support worker serialize/unserialize interface
@@ -461,20 +458,20 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-             centerX: self.centerX
-            ,centerY: self.centerY
-            ,srcChannel: self.srcChannel
+             srcChannel: self.srcChannel
             ,dstChannel: self.dstChannel
+            ,centerX: self.centerX
+            ,centerY: self.centerY
             ,color: self.color
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
-        self.centerX = params.centerX;
-        self.centerY = params.centerY;
         self.srcChannel = params.srcChannel;
         self.dstChannel = params.dstChannel;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
         self.color = params.color;
         return self;
     }
@@ -491,16 +488,17 @@ FILTER.Create({
             cX = self.centerX||0, cY = self.centerY||0, cX2 = w2>>>1, cY2 = h2>>>1,
             wm = Min(w,w2), hm = Min(h, h2),  
             color = self.color||0, r, g, b, a,
-            mode = self.mode, COLOR = MODE.COLOR, CH_COLOR = MODE.COLOR_CHANNEL, MASK = MODE.COLOR_MASK;
+            mode = self.mode, COLOR32 = MODE.COLOR32, COLOR8 = MODE.COLOR8,
+            MASK32 = MODE.COLORMASK32, MASK8 = MODE.COLORMASK8;
         
-        if ( COLOR === mode || MASK === mode )
+        if ( COLOR32 === mode || MASK32 === mode )
         {
             a = (color >>> 24)&255;
             r = (color >>> 16)&255;
             g = (color >>> 8)&255;
             b = (color)&255;
         }
-        else if ( CH_COLOR === mode )
+        else if ( COLOR8 === mode || MASK8 === mode )
         {
             color &= 255;
         }
@@ -516,9 +514,10 @@ FILTER.Create({
             xc = x - cX; yc = y - cY;
             if (xc<0 || xc>=wm || yc<0 || yc>=hm)
             {
-                if ( COLOR === mode ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a; }
-                else if ( MASK === mode ) { im[i  ] = r&im[i  ]; im[i+1] = g&im[i+1]; im[i+2] = b&im[i+2]; im[i+3] = a&im[i+3]; }
-                else if ( CH_COLOR === mode ) im[i+tC] = color;
+                if ( COLOR32 === mode ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a; }
+                else if ( MASK32 === mode ) { im[i  ] = r & im[i  ]; im[i+1] = g & im[i+1]; im[i+2] = b & im[i+2]; im[i+3] = a & im[i+3]; }
+                else if ( COLOR8 === mode ) im[i+tC] = color;
+                else if ( MASK8 === mode ) im[i+tC] = color & im[i+sC];
                 // else ignore
             }
             else
@@ -557,19 +556,6 @@ FILTER.Create({
     ,init: function( mode ) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
-    }
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-             mode: self.mode
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.mode = params.mode;
-        return self;
     }
     
     // this is the filter actual apply method routine
@@ -1696,12 +1682,6 @@ FILTER.Create({
         return this;
     }
     
-    ,grayscale: function( bool ) {
-        if ( !arguments.length ) bool = true;
-        this.mode = !!bool ? MODE.GRAY : MODE.RGB;
-        return this;
-    }
-    
     /*,invert: function( bool ) {
         if ( !arguments.length ) bool = true;
         this.inverse = !!bool;
@@ -1713,7 +1693,6 @@ FILTER.Create({
         return {
              size: self.size
             ,thresh: self.thresh
-            ,mode: self.mode
             //,inverse: self.inverse
         };
     }
@@ -1722,7 +1701,6 @@ FILTER.Create({
         var self = this;
         self.size = params.size;
         self.thresh = params.thresh;
-        self.mode = params.mode;
         //self.inverse = params.inverse;
         return self;
     }
@@ -1970,7 +1948,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(false, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = integral_convolution(0, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;
@@ -2552,7 +2530,6 @@ FILTER.Create({
                 notdone = (x <= x2);
             }
         }
-        
         // return the new image data
         return im;
     }
@@ -2591,7 +2568,6 @@ FILTER.Create({
         self.offsetX = null;
         self.offsetY = null;
         self.tolerance = null;
-        self.mode = null;
         self.borderColor = null;
         self.$super('dispose');
         return self;
@@ -2605,7 +2581,6 @@ FILTER.Create({
             ,offsetX: self.offsetX
             ,offsetY: self.offsetY
             ,tolerance: self.tolerance
-            ,mode: self.mode
             ,borderColor: self.borderColor
         };
     }
@@ -2617,7 +2592,6 @@ FILTER.Create({
         self.offsetX = params.offsetX;
         self.offsetY = params.offsetY;
         self.tolerance = params.tolerance;
-        self.mode = params.mode;
         self.borderColor = params.borderColor;
         return self;
     }
@@ -2625,8 +2599,6 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this, Pat;
-        
-        if ( !self._isOn ) return im;
         
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
@@ -2840,7 +2812,6 @@ FILTER.Create({
                 notdone = (x <= x2);
             }
         }
-        
         // return the new image data
         return im;
     }
@@ -2855,7 +2826,8 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, gradient = FILTER.Util.Filter.GRAD,
+var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, FilterUtil = FILTER.Util.Filter,
+    //gradient = FilterUtil.GRAD,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
     exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
@@ -3063,7 +3035,7 @@ function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
 // adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
 // expose as static utility methods
-FILTER.Util.Filter.canny_gradient = gradient_and_non_maximal_supression;
+FilterUtil.canny_gradient = gradient_and_non_maximal_supression;
 FILTER.Create({
     name : "CannyEdgesFilter"
     
@@ -3103,7 +3075,7 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this, area = im.length>>2, gradient_magnitude,
-            gradient_and_non_maximal_supression = FILTER.Util.Filter.canny_gradient;
+            gradient_and_non_maximal_supression = FilterUtil.canny_gradient;
         
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
         gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
@@ -3127,7 +3099,7 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    sat_image = FILTER.Util.Filter.SAT, sat_gradient = FILTER.Util.Filter.GRAD
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.SAT, sat_gradient = FilterUtil.GRAD
 ;
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
@@ -3435,8 +3407,8 @@ function merge_features(rects, min_neighbors, tolerance)
 // 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
 // 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
 // expose as static utility methods
-FILTER.Util.Filter.haar_detect = haar_detect;
-FILTER.Util.Filter.merge_features = merge_features;
+FilterUtil.haar_detect = haar_detect;
+FilterUtil.merge_features = merge_features;
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -3444,7 +3416,6 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,haardata: null
-    ,selection: null
     ,tolerance: 0.2
     ,baseScale: 1.0
     ,scaleIncrement: 1.25
@@ -3473,8 +3444,6 @@ FILTER.Create({
     
     ,dispose: function( ) {
         var self = this;
-        self.selection = null;
-        self.objects = null;
         self.haardata = null;
         self.$super('dispose');
         return self;
@@ -3484,24 +3453,6 @@ FILTER.Create({
         var self = this;
         self.haardata = haardata;
         self._haarchanged = true;
-        return self;
-    }
-    
-    ,select: function( x1, y1, x2, y2) {
-        var self = this;
-        if ( false === x1 )
-        {
-            self.selection = null
-        }
-        else
-        {
-            self.selection = [
-            Min(1.0, Max(0.0, x1||0)),
-            Min(1.0, Max(0.0, y1||0)),
-            Min(1.0, Max(0.0, x2||0)),
-            Min(1.0, Max(0.0, y2||0))
-            ];
-        }
         return self;
     }
     
@@ -3539,7 +3490,6 @@ FILTER.Create({
             ,tolerance: self.tolerance
             ,cannyLow: self.cannyLow
             ,cannyHigh: self.cannyHigh
-            ,selection: self.selection
         };
         // avoid unnecessary (large) data transfer
         if ( self._haarchanged )
@@ -3561,7 +3511,6 @@ FILTER.Create({
         self.tolerance = params.tolerance;
         self.cannyLow = params.cannyLow;
         self.cannyHigh = params.cannyHigh;
-        self.selection = TypedArray(params.selection, Array);
         return self;
     }
     
@@ -3584,8 +3533,8 @@ FILTER.Create({
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features,
-            haar_detect = FILTER.Util.Filter.haar_detect,
-            merge_features = FILTER.Util.Filter.merge_features;
+            haar_detect = FilterUtil.haar_detect,
+            merge_features = FilterUtil.merge_features;
         
         if ( selection )
         {
@@ -3793,7 +3742,6 @@ FILTER.Create({
         return {
              connectivity: self.connectivity
             ,tolerance: self.tolerance
-            ,mode: self.mode
             ,color: self.color
             ,invert: self.invert
         };
@@ -3803,7 +3751,6 @@ FILTER.Create({
         var self = this;
         self.connectivity = params.connectivity;
         self.tolerance = params.tolerance;
-        self.mode = params.mode;
         self.color = params.color;
         self.invert = params.invert;
         return self;

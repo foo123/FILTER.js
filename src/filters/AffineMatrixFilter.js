@@ -43,7 +43,6 @@ var AffineMatrixFilter = FILTER.Create({
         var self = this;
         return {
              matrix: self.matrix
-            ,mode: self.mode
             ,color: self.color
         };
     }
@@ -51,7 +50,6 @@ var AffineMatrixFilter = FILTER.Create({
     ,unserialize: function( params ) {
         var self = this;
         self.matrix = TypedArray( params.matrix, AM );
-        self.mode = params.mode;
         self.color = params.color;
         return self;
     }
@@ -137,7 +135,7 @@ var AffineMatrixFilter = FILTER.Create({
             COLOR = MODE.COLOR, CLAMP = MODE.CLAMP, WRAP = MODE.WRAP, IGNORE = MODE.IGNORE,
             Ta = T[0], Tb = T[1], Tx = T[2]+T[3]*bx,
             Tcw = T[4]*w, Td = T[5], Tyw = T[6]*w+T[7]*by,
-            mode = self.mode || CLAMP
+            mode = self.mode || IGNORE
         ;
         
         if ( COLOR === mode )

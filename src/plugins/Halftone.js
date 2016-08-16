@@ -41,12 +41,6 @@ FILTER.Create({
         return this;
     }
     
-    ,grayscale: function( bool ) {
-        if ( !arguments.length ) bool = true;
-        this.mode = !!bool ? MODE.GRAY : MODE.RGB;
-        return this;
-    }
-    
     /*,invert: function( bool ) {
         if ( !arguments.length ) bool = true;
         this.inverse = !!bool;
@@ -58,7 +52,6 @@ FILTER.Create({
         return {
              size: self.size
             ,thresh: self.thresh
-            ,mode: self.mode
             //,inverse: self.inverse
         };
     }
@@ -67,7 +60,6 @@ FILTER.Create({
         var self = this;
         self.size = params.size;
         self.thresh = params.thresh;
-        self.mode = params.mode;
         //self.inverse = params.inverse;
         return self;
     }

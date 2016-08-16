@@ -116,7 +116,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(false, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = integral_convolution(0, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;

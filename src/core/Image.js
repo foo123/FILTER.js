@@ -134,20 +134,31 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,select: function( x1, y1, x2, y2 ) {
         var self = this, argslen = arguments.length;
-        // default
-        if ( argslen < 1 ) x1 = 0;
-        if ( argslen < 2 ) y1 = 0;
-        if ( argslen < 3 ) x2 = 1;
-        if ( argslen < 4 ) y2 = 1;
-        // select
-        self.selection = [ 
-            // clamp
-            0 > x1 ? 0 : (1 < x1 ? 1 : x1),
-            0 > y1 ? 0 : (1 < y1 ? 1 : y1),
-            0 > x2 ? 0 : (1 < x2 ? 1 : x2),
-            0 > y2 ? 0 : (1 < y2 ? 1 : y2)
-        ];
-        self._refresh |= SEL;
+        if ( false === x1 )
+        {
+            // deselect
+            self.selection = null;
+            self.iDataSel = null;
+            self.oDataSel = null;
+            self._refresh &= CLEAR_SEL;
+        }
+        else
+        {
+            // default
+            if ( argslen < 1 ) x1 = 0;
+            if ( argslen < 2 ) y1 = 0;
+            if ( argslen < 3 ) x2 = 1;
+            if ( argslen < 4 ) y2 = 1;
+            // select
+            self.selection = [ 
+                // clamp
+                0 > x1 ? 0 : (1 < x1 ? 1 : x1),
+                0 > y1 ? 0 : (1 < y1 ? 1 : y1),
+                0 > x2 ? 0 : (1 < x2 ? 1 : x2),
+                0 > y2 ? 0 : (1 < y2 ? 1 : y2)
+            ];
+            self._refresh |= SEL;
+        }
         return self;
     }
     

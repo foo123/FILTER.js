@@ -506,6 +506,7 @@ The class has various pre-defined filters to use.
 * `emboss() / bump()`   Apply emboss effect to the image
 * `edges()`  Apply an edge filter to the image
 * `motionblur()`  __deprecated__  (use `directionalBlur`)
+* `setMode( FILTER.MODE.GRAY )` Use faster convolution filters for grayscale images
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
 
@@ -612,7 +613,7 @@ The class has some pre-defined filters to use.
 * `minimum( dimension:Integer=3 )/erode( dimension:Integer=3 )` Apply minimum (erode) filter
 * `maximum( dimension:Integer=3 )/dilate( dimension:Integer=3 )` Apply maximum (dilate) filter
 * `kth( k:Number, dimension:Integer=3 )`  Apply kth statistic for arbitarry `k` in `0..1` range
-* `grayscale( bool:Boolean=true )` Use faster statistical filters for grayscale images
+* `setMode( FILTER.MODE.GRAY )` Use faster statistical filters for grayscale images
 
 Statistical Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
@@ -859,10 +860,10 @@ This filter resamples (interpolates) an image to change its size, i.e up- or dow
 ###Selection Filter
 
 ````javascript
-new FILTER.SelectionFilter( x1:Number, y1:Number, x2:Number, y2:Number );
+new FILTER.SelectionFilter( selection:Array=null );
 ````
 
-This filter selects (or crops) part of image specified by the relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
+This filter selects (or crops) part of image specified by the selection array containing grelative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
 
 
 ###GLSL Filter

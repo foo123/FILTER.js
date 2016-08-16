@@ -226,7 +226,6 @@ FILTER.Create({
                 notdone = (x <= x2);
             }
         }
-        
         // return the new image data
         return im;
     }
@@ -265,7 +264,6 @@ FILTER.Create({
         self.offsetX = null;
         self.offsetY = null;
         self.tolerance = null;
-        self.mode = null;
         self.borderColor = null;
         self.$super('dispose');
         return self;
@@ -279,7 +277,6 @@ FILTER.Create({
             ,offsetX: self.offsetX
             ,offsetY: self.offsetY
             ,tolerance: self.tolerance
-            ,mode: self.mode
             ,borderColor: self.borderColor
         };
     }
@@ -291,7 +288,6 @@ FILTER.Create({
         self.offsetX = params.offsetX;
         self.offsetY = params.offsetY;
         self.tolerance = params.tolerance;
-        self.mode = params.mode;
         self.borderColor = params.borderColor;
         return self;
     }
@@ -299,8 +295,6 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this, Pat;
-        
-        if ( !self._isOn ) return im;
         
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
@@ -514,7 +508,6 @@ FILTER.Create({
                 notdone = (x <= x2);
             }
         }
-        
         // return the new image data
         return im;
     }

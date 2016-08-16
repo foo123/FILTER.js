@@ -51,6 +51,10 @@ FILTER.Create({
         return self;
     }
     
+    ,fastGradient: function( d ) {
+        return this;
+    }
+    
     ,set: function( matrix ) {
         var self = this;
         if ( matrix && matrix.length /*&& (matrix.length%7 === 0)*//*7N*/ )
@@ -83,13 +87,13 @@ FILTER.Create({
     ,reset: function( ) {
         var self = this;
         self.matrix = null;
-        self.resetInputs( );
+        //self.resetInputs( );
         return self;
     }
     
     ,_apply: function( im, w, h ) {
         var self = this, matrix = self.matrix;
-        if ( !matrix ) return im;
+        if ( !matrix || !matrix.length ) return im;
         var i, j, k, ii, kk, x1, y1, x2, y2, tx, ty, c, a, b, ci, co, im2, w2, h2, wm, hm,
             ra, ga, ba, aa, rb, gb, bb, ab, v, applyArea,
             l = matrix.length, imLen = im.length, imArea = imLen>>>2, res = new A32F(imLen);

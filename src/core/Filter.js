@@ -45,7 +45,7 @@ var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     }
     ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,TypedArray, log, _uuid = 0
+    ,TypedArray, log, _uuid = 0, Min = Math.min, Max = Math.max
 ;
 
 //
@@ -133,10 +133,12 @@ FILTER.STRIDE = {
 };
 FILTER.MODE = {
     IGNORE: 0, WRAP: 1, CLAMP: 2,
-    COLOR: 3, TILE: 4, STRETCH: 5,
+    COLOR: 3, COLOR32: 3, TILE: 4, STRETCH: 5,
     INTENSITY: 6, HUE: 7, SATURATION: 8,
-    GRAY: 9, RGB: 10, HSV: 11, PATTERN: 12,
-    COLOR_CHANNEL: 13, COLOR_MASK: 14, CHANNEL_MASK: 15
+    GRAY: 9, GRAYSCALE: 9, RGB: 10, RGBA: 11, HSV: 12, CMY: 13, CMYK: 13, PATTERN: 14,
+    COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
+    MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
+    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
     0.212671, 0.71516, 0.072169
@@ -351,12 +353,13 @@ var
         ,id: null
         ,_isOn: true
         ,_update: true
-        ,_onComplete: null
         ,_inputs: null
+        ,_meta: null
+        ,onComplete: null
+        ,mode: 0
+        ,selection: null
         ,hasInputs: false
         ,hasMeta: false
-        ,_meta: null
-        ,mode: 0
         
         ,dispose: function( ) {
             var self = this;
@@ -364,12 +367,13 @@ var
             self.id = null;
             self._isOn = null;
             self._update = null;
-            self._onComplete = null;
             self._inputs = null;
+            self._meta = null;
+            self.onComplete = null;
+            self.mode = null;
+            self.selection = null;
             self.hasInputs = null;
             self.hasMeta = null;
-            self._meta = null;
-            self.mode = null;
             self.$super('dispose');
             return self;
         }
@@ -456,7 +460,7 @@ var
         
         ,serializeFilter: function( ) {
             var self = this;
-            return { filter: self.name, _isOn: self._isOn, _update: self._update, params: self.serialize( ) };
+            return { filter: self.name, _isOn: self._isOn, _update: self._update, mode: self.mode, selection: self.selection, params: self.serialize( ) };
         }
         
         ,unserializeFilter: function( json ) {
@@ -464,13 +468,37 @@ var
             if ( json && (self.name === json.filter) )
             {
                 self._isOn = json._isOn; self._update = json._update;
+                self.mode = json.mode||0; self.selection = json.selection||null;
                 if ( self._isOn && json.params ) self.unserialize( json.params );
             }
             return self;
         }
         
+        ,select: function( x1, y1, x2, y2 ) {
+            var self = this;
+            if ( false === x1 )
+            {
+                self.selection = null
+            }
+            else
+            {
+                self.selection = [
+                Min(1.0, Max(0.0, x1||0)),
+                Min(1.0, Max(0.0, y1||0)),
+                Min(1.0, Max(0.0, x2||0)),
+                Min(1.0, Max(0.0, y2||0))
+                ];
+            }
+            return self;
+        }
+    
+        ,deselect: function( ) {
+            this.selection = null;
+            return this;
+        }
+        
         ,complete: function( f ) {
-            this._onComplete = f || null;
+            this.onComplete = f || null;
             return this;
         }
         
@@ -571,7 +599,7 @@ var
             
             if ( src && dst )
             {
-                cb = cb || self._onComplete;
+                cb = cb || self.onComplete;
                 im = src.getSelectedData( );
                 if ( self.$thread )
                 {

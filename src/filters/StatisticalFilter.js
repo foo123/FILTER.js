@@ -11,7 +11,7 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U, MODE = FILTER.MODE,
     TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Filters;
     
 //
@@ -26,20 +26,20 @@ var StatisticalFilter = FILTER.Create({
         self._gray = false;
         self._filter = null;
         self._indices = null;
+        self.mode = MODE.RGB;
     }
     
     ,path: FILTER_FILTERS_PATH
     ,d: 0
     ,k: 0
-    ,_gray: false
     ,_filter: null
     ,_indices: null
+    ,mode: MODE.RGB
     
     ,dispose: function( ) {
         var self = this;
         self.d = null;
         self.k = null;
-        self._gray = null;
         self._filter = null;
         self._indices = null;
         self.$super('dispose');
@@ -51,7 +51,6 @@ var StatisticalFilter = FILTER.Create({
         return {
              d: self.d
             ,k: self.k
-            ,_gray: self._gray
             ,_filter: self._filter
             ,_indices: self._indices
         };
@@ -61,7 +60,6 @@ var StatisticalFilter = FILTER.Create({
         var self = this;
         self.d = params.d;
         self.k = params.k;
-        self._gray = params._gray;
         self._filter = params._filter;
         self._indices = TypedArray( params._indices, A32I );
         return self;
@@ -86,12 +84,6 @@ var StatisticalFilter = FILTER.Create({
     }
     ,dilate: null
     
-    ,grayscale: function( bool ) {
-        if ( !arguments.length ) bool = true;
-        this._gray = !!bool;
-        return this;
-    }
-    
     ,set: function( d, k ) {
         var self = this;
         self.d = d = d||3;
@@ -113,7 +105,6 @@ var StatisticalFilter = FILTER.Create({
         var self = this;
         self.d = 0; 
         self.k = 0; 
-        //self._gray = false; 
         self._filter = null; 
         self._indices = null;
         return self;
@@ -123,7 +114,7 @@ var StatisticalFilter = FILTER.Create({
     ,_apply: function(im, w, h) {
         var self = this;
         if ( !self.d )  return im;
-        return Filters[self._filter+(self._gray?'_gray':'')]( self, im, w, h );
+        return Filters[self._filter+(MODE.GRAY===self.mode?'_gray':'')]( self, im, w, h );
     }
         
     ,canRun: function( ) {
@@ -200,7 +191,7 @@ Filters = {
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
             r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
-            rhist, ghist, bhist, rtot, gtot, btot, rsum, gsum, bsum,
+            rhist, ghist, bhist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
@@ -217,9 +208,7 @@ Filters = {
         {
             if (x>=w) { x=0; ty+=w; }
 
-            rtot=gtot=btot=0;
-            rmin=gmin=bmin=255;
-            rmax=gmax=bmax=0;
+            tot=0; rmin=gmin=bmin=255; rmax=gmax=bmax=0;
             for(j=0; j<matArea2; j+=2)
             {
                 xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -230,8 +219,7 @@ Filters = {
                 //rhist[(r>>>6)&3]++; ghist[(g>>>6)&3]++; bhist[(b>>>6)&3]++;
                 //rhist[4+((r>>>4)&3)]++; ghist[4+((g>>>4)&3)]++; bhist[4+((b>>>4)&3)]++;
                 //rhist[8+((r>>>2)&3)]++; ghist[8+((g>>>2)&3)]++; bhist[8+((b>>>2)&3)]++;
-                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++;
-                rtot++; gtot++; btot++;
+                rhist[/*12+*/r]++; ghist[/*12+*/g]++; bhist[/*12+*/b]++; tot++;
                 if ( r < rmin ) rmin = r; if ( g < gmin ) gmin = g; if ( b < bmin ) bmin = b;
                 if ( r > rmax ) rmax = r; if ( g > gmax ) gmax = g; if ( b > bmax ) bmax = b;
             }
@@ -239,20 +227,21 @@ Filters = {
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            for(rtot*=kth,rsum=0,kthR=-1,j=rmin; j<=rmax; j++)
+            tot *= kth;
+            for(sum=0,kthR=-1,j=rmin; j<=rmax; j++)
             {
-                rsum += rhist[j]; rhist[j] = 0;
-                if ( 0 > kthR && rsum >= rtot ) kthR = j;
+                sum += rhist[j]; rhist[j] = 0;
+                if ( 0 > kthR && sum >= tot ) kthR = j;
             }
-            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
-                gsum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && gsum >= gtot ) kthG = j;
+                sum += ghist[j]; ghist[j] = 0;
+                if ( 0 > kthG && sum >= tot ) kthG = j;
             }
-            for(btot*=kth,bsum=0,kthB=-1,j=bmin; j<=bmax; j++)
+            for(sum=0,kthB=-1,j=bmin; j<=bmax; j++)
             {
-                bsum += bhist[j]; bhist[j] = 0;
-                if ( 0 > kthB && bsum >= btot ) kthB = j;
+                sum += bhist[j]; bhist[j] = 0;
+                if ( 0 > kthB && sum >= tot ) kthB = j;
             }
             
             // output
@@ -322,7 +311,7 @@ Filters = {
         var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
-            g, gmin, gmax, kthG, ghist, gtot, gsum,
+            g, gmin, gmax, kthG, ghist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
             matArea = matArea2>>>1, imIndex = new A32I(matArea2);
         
@@ -337,7 +326,7 @@ Filters = {
         {
             if (x>=w) { x=0; ty+=w; }
 
-            gtot=0; gmin=255; gmax=0;
+            tot=0; gmin=255; gmax=0;
             for(j=0; j<matArea2; j+=2)
             {
                 xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -346,16 +335,17 @@ Filters = {
                 g = im[srcOff];
                 if ( g < gmin ) gmin = g; if ( g > gmax ) gmax = g;
                 // compute histogram, similar to counting sort
-                gtot++; ghist[g]++;
+                tot++; ghist[g]++;
             }
             
             // search histogram for kth statistic
             // and also reset histogram for next round
             // can it be made faster??
-            for(gtot*=kth,gsum=0,kthG=-1,j=gmin; j<=gmax; j++)
+            tot *= kth;
+            for(sum=0,kthG=-1,j=gmin; j<=gmax; j++)
             {
-                gsum += ghist[j]; ghist[j] = 0;
-                if ( 0 > kthG && gsum >= gtot ) kthG = j;
+                sum += ghist[j]; ghist[j] = 0;
+                if ( 0 > kthG && sum >= tot ) kthG = j;
             }
             
             // output
