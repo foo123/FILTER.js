@@ -128,6 +128,7 @@ __Methods:__
 * `toggle( )`  toggle the filter's `ON`/`OFF` status
 * `isOn( )`   check if filter is `ON` or `OFF`
 * `combineWith( similarFilterInstance:Filter )`  for any filter that supports combination of a similar filter with itself, else does nothing
+* `setMode( mode:FILTER.MODE )` Set the filter mode, each filter may use this parameter as it sees fit (for example see below)
 * `setInput(key:String, inputImage:Image)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method sets various extra inputs by key and manages the extra inputs more efficiently and transparently
 * `unsetInput(key)`  for filters that accept multiple extra inputs (e.g `blend` filters) this method unsets inputs by key (see above)
 * `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g `blend` filters) the extra inputs are available to the filter via this method by inputKey (see above)
@@ -558,6 +559,7 @@ The class has some pre-defined filters to use.
 * `dilate( )` Apply dilate operation
 * `opening( )` Apply opening operation
 * `closing( )` Apply closing operation
+* `setMode( FILTER.MODE.GRAY )` Use faster morphological filters for grayscale images
 
 Morphological Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
 
