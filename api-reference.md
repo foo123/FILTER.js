@@ -878,7 +878,7 @@ This filter resamples (interpolates) an image to change its size, i.e up- or dow
 new FILTER.SelectionFilter( selection:Array=null );
 ````
 
-This filter selects (or crops) part of image specified by the selection array containing grelative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
+This filter selects (or crops) part of image specified by the selection array containing relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
 
 
 ###GLSL Filter
@@ -901,31 +901,30 @@ A comprehensive framework is provided for creating plugins that function the sam
 
 __Included Plugins__ (see examples for how to use)
 
-* `Noise` : generate uniform noise
-* `PerlinNoise` : perlin noise also as filter plugin
-* `Gradient` : gradient image effect also as filter plugin
-* `RadialGradient` : radial-gradient image effect also as filter plugin
-* `Equalize` : apply fast histogram equalization
-* `GrayscaleEqualize` : apply faster histogram equalization only for grayscale images
-* `RGBEqualize` : apply fast histogram equalization per separate color channel
-* `Pixelate` : fast (rectangular) pixelate the image to the given scale
-* `TriangularPixelate` : fast triangular pixelate the image to the given scale
-* `HexagonalPixelate` : fast hexagonal pixelate the image to the given scale (TO BE ADDED)
-* `Halftone` : create a halftone/dithered black-white or colored image from target image
-* `Bokeh` : apply a fast Bokeh (Depth-of-Field) effect to an image
-* `FloodFill` : apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)
-* `PatternFill` : apply a (fast) pattern fill to an (connected) area of an image using another image as pattern
-* `ChannelCopy` : copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)
-* `DropShadow` : generate drop shadow(s) with opacity on image (analogous to ActionScript filter)
-* `SeamlessTile` : create a seamless tileable pattern from target image
-* `ConnectedComponents` : extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes) 
-* `ActiveShapeExtractor` : adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)
-* `CannyEdges` : an efficient Canny Edges Detector/Extractor
-* `HaarDetector` : detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))
-* `ColorDetector` : fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)
-* `LipContourExtractor` : extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)
-
-
+<table>
+<thead>
+<tr><td>Plugin</td> <td>Description</td></tr>
+</thead>
+<tbody>
+<tr><td>`Noise`</td>    <td>generate uniform noise</td></tr>
+<tr><td>`PerlinNoise`</td>  <td>perlin noise also as filter plugin</td></tr>
+<tr><td>`Gradient`</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
+<tr><td>`HistogramEqualize`</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
+<tr><td>`Pixelate`<br />`TriangularPixelate`<br />`HexagonalPixelate`</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale (TO BE ADDED)</td></tr>
+<tr><td>`Halftone`</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
+<tr><td>`Bokeh`</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
+<tr><td>`FloodFill`<br />`PatternFill`</td> <td>apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)<br />apply a (fast) pattern fill to an (connected) area of an image using another image as pattern</td></tr>
+<tr><td>`ChannelCopy`</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)</td></tr>
+<tr><td>`DropShadow`</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
+<tr><td>`SeamlessTile`</td> <td>create a seamless tileable pattern from target image</td></tr>
+<tr><td>`ConnectedComponents`</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
+<tr><td>`ActiveShape`</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
+<tr><td>`CannyEdges`</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
+<tr><td>`HaarDetector`</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
+<tr><td>`ColorDetector`</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
+<tr><td>`LipContourExtractor`</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
+</tbody>
+</table>
 
 ###Codecs
 

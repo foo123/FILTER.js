@@ -68,7 +68,7 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
     shadow_only = !!parse_args().options['shadow'],
     image = F.Image().restorable(false).fill(0, 0, 0, 200, 200),
     shadow = new F.CompositeFilter([
-        new F.RadialGradientFilter( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 0.4, 0.4 ),
+        new F.GradientFilter( ).radial( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 0.4, 0.4 ),
         new F.DropShadowFilter( 10, 10, shadow_only ? 0xffffff : 0x0, 0.5, 1, shadow_only )
     ])
 ;
