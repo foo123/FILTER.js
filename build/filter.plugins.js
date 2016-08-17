@@ -482,8 +482,7 @@ FILTER.Create({
 "use strict";
 
 var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
-    MODE = FILTER.MODE, Min = Math.min, Max = Math.max
-;
+    MODE = FILTER.MODE, Min = Math.min, Max = Math.max;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
@@ -498,24 +497,18 @@ FILTER.Create({
         self.mode = mode || MODE.INTENSITY;
     }
     
-    // this is the filter actual apply method routine
-    ,_apply_rgb: function(im, w, h) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
-        var self = this;
-        var r,g,b, rangeR, rangeG, rangeB,
+    ,_apply_rgb: function( im, w, h ) {
+        var self = this,
+            r,g,b, rangeR, rangeG, rangeB,
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
             cdfR, cdfG, cdfB,
             accumR, accumG, accumB, t0, t1, t2,
-            i, l=im.length, l2=l>>>2, rem=(l2&7)<<2
-        ;
+            i, l=im.length, l2=l>>>2;
         
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
         // compute pdf and maxima/minima
-        for (i=0; i<l; i+=32)
+        for (i=0; i<l; i+=4)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
             cdfR[r]++; cdfG[g]++; cdfB[b]++;
@@ -525,76 +518,6 @@ FILTER.Create({
             minR = Min(r, minR);
             minG = Min(g, minG);
             minB = Min(b, minB);
-            r = im[i+4]; g = im[i+5]; b = im[i+6];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+8]; g = im[i+9]; b = im[i+10];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+12]; g = im[i+13]; b = im[i+14];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+16]; g = im[i+17]; b = im[i+18];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+20]; g = im[i+21]; b = im[i+22];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+24]; g = im[i+25]; b = im[i+26];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-            r = im[i+28]; g = im[i+29]; b = im[i+30];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-        }
-        if ( rem )
-        {
-            for (i=l-rem; i<l; i+=4)
-            {
-                r = im[i]; g = im[i+1]; b = im[i+2];
-                cdfR[r]++; cdfG[g]++; cdfB[b]++;
-                maxR = Max(r, maxR);
-                maxG = Max(g, maxG);
-                maxB = Max(b, maxB);
-                minR = Min(r, minR);
-                minG = Min(g, minG);
-                minB = Min(b, minB);
-            }
         }
         
         // compute cdf
@@ -705,7 +628,7 @@ FILTER.Create({
         rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
         if (notSupportClamp)
         {   
-            for (i=0; i<l; i+=32)
+            for (i=0; i<l; i+=4)
             { 
                 r = im[i]; g = im[i+1]; b = im[i+2]; 
                 t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
@@ -714,183 +637,46 @@ FILTER.Create({
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-                r = im[i+4]; g = im[i+5]; b = im[i+6]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+4] = ~~t0; im[i+5] = ~~t1; im[i+6] = ~~t2; 
-                r = im[i+8]; g = im[i+9]; b = im[i+10]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+8] = ~~t0; im[i+9] = ~~t1; im[i+10] = ~~t2; 
-                r = im[i+12]; g = im[i+13]; b = im[i+14]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+12] = ~~t0; im[i+13] = ~~t1; im[i+14] = ~~t2; 
-                r = im[i+16]; g = im[i+17]; b = im[i+18];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+16] = ~~t0; im[i+17] = ~~t1; im[i+18] = ~~t2; 
-                r = im[i+20]; g = im[i+21]; b = im[i+22];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+20] = ~~t0; im[i+21] = ~~t1; im[i+22] = ~~t2; 
-                r = im[i+24]; g = im[i+25]; b = im[i+26]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+24] = ~~t0; im[i+25] = ~~t1; im[i+26] = ~~t2;
-                r = im[i+28]; g = im[i+29]; b = im[i+30];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i+28] = ~~t0; im[i+29] = ~~t1; im[i+30] = ~~t2;
-            }
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                { 
-                    r = im[i]; g = im[i+1]; b = im[i+2]; 
-                    t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                    // clamp them manually
-                    t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                    t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                    t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-                }
             }
         }
         else
         {
-            for (i=0; i<l; i+=32)
+            for (i=0; i<l; i+=4)
             { 
                 r = im[i]; g = im[i+1]; b = im[i+2]; 
                 t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
                 im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-                r = im[i+4]; g = im[i+5]; b = im[i+6]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+4] = ~~t0; im[i+5] = ~~t1; im[i+6] = ~~t2; 
-                r = im[i+8]; g = im[i+9]; b = im[i+10]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+8] = ~~t0; im[i+9] = ~~t1; im[i+10] = ~~t2; 
-                r = im[i+12]; g = im[i+13]; b = im[i+14]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+12] = ~~t0; im[i+13] = ~~t1; im[i+14] = ~~t2; 
-                r = im[i+16]; g = im[i+17]; b = im[i+18];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+16] = ~~t0; im[i+17] = ~~t1; im[i+18] = ~~t2; 
-                r = im[i+20]; g = im[i+21]; b = im[i+22];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+20] = ~~t0; im[i+21] = ~~t1; im[i+22] = ~~t2; 
-                r = im[i+24]; g = im[i+25]; b = im[i+26]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+24] = ~~t0; im[i+25] = ~~t1; im[i+26] = ~~t2;
-                r = im[i+28]; g = im[i+29]; b = im[i+30];
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i+28] = ~~t0; im[i+29] = ~~t1; im[i+30] = ~~t2;
-            }
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                { 
-                    r = im[i]; g = im[i+1]; b = im[i+2]; 
-                    t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                    im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
-                }
             }
         }
-        
         // return the new image data
         return im;
     }
     
-    ,apply: function(im, w, h) {
-        // im is a copy of the image data as an image array
-        // w is image width, h is image height
-        // image is the original image instance reference, generally not needed
-        // for this filter, no need to clone the image data, operate in-place
+    ,apply: function( im, w, h ) {
         var self = this;
-        if ( !self._isOn ) return im;
         
         if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
         
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
             cdf, accum, i, l = im.length, l2 = l>>>2,
-            is_grayscale = MODE.GRAY === self.mode, rem = (l2&7)<<2
-        ;
+            is_grayscale = MODE.GRAY === self.mode;
         
         // initialize the arrays
         cdf = new A32F( 256 );
         // compute pdf and maxima/minima
         if ( is_grayscale )
         {
-            for (i=0; i<l; i+=32)
+            for (i=0; i<l; i+=4)
             {
                 r = im[i];
                 cdf[ r ]++;
                 max = Max(r, max);
                 min = Min(r, min);
-                r = im[i+4];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+8];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+12];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+16];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+20];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+24];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-                r = im[i+28];
-                cdf[ r ]++;
-                max = Max(r, max);
-                min = Min(r, min);
-            }
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                {
-                    r = im[i];
-                    cdf[ r ]++;
-                    max = Max(r, max);
-                    min = Min(r, min);
-                }
             }
         }
         else
         {
-            for (i=0; i<l; i+=32)
+            for (i=0; i<l; i+=4)
             {
                 r = im[i]; g = im[i+1]; b = im[i+2];
                 y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
@@ -904,108 +690,6 @@ FILTER.Create({
                 cdf[ y ]++;
                 max = Max(y, max);
                 min = Min(y, min);
-                r = im[i+4]; g = im[i+5]; b = im[i+6];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+4] = cr; im[i+5] = y; im[i+6] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+8]; g = im[i+9]; b = im[i+10];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+8] = cr; im[i+9] = y; im[i+10] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+12]; g = im[i+13]; b = im[i+14];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+12] = cr; im[i+13] = y; im[i+14] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+16]; g = im[i+17]; b = im[i+18];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+16] = cr; im[i+17] = y; im[i+18] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+20]; g = im[i+21]; b = im[i+22];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+20] = cr; im[i+21] = y; im[i+22] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+24]; g = im[i+25]; b = im[i+26];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+24] = cr; im[i+25] = y; im[i+26] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-                r = im[i+28]; g = im[i+29]; b = im[i+30];
-                y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i+28] = cr; im[i+29] = y; im[i+30] = cb;
-                cdf[ y ]++;
-                max = Max(y, max);
-                min = Min(y, min);
-            }
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                {
-                    r = im[i]; g = im[i+1]; b = im[i+2];
-                    y =  ~~(0   + 0.299*r    + 0.587*g     + 0.114*b);
-                    cb = ~~(128 - 0.168736*r - 0.331264*g  + 0.5*b);
-                    cr = ~~(128 + 0.5*r      - 0.418688*g  - 0.081312*b);
-                    // clamp them manually
-                    cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                    y = y<0 ? 0 : (y>255 ? 255 : y);
-                    cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                    im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                    cdf[ y ]++;
-                    max = Max(y, max);
-                    min = Min(y, min);
-                }
             }
         }
         
@@ -1053,55 +737,17 @@ FILTER.Create({
         {   
             if ( is_grayscale )
             {
-                for (i=0; i<l; i+=32)
+                for (i=0; i<l; i+=4)
                 { 
                     r = ~~(cdf[im[i]]*range + min);
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i] = r; im[i+1] = r; im[i+2] = r; 
-                    r = ~~(cdf[im[i+4]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+4] = r; im[i+5] = r; im[i+6] = r; 
-                    r = ~~(cdf[im[i+8]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+8] = r; im[i+9] = r; im[i+10] = r; 
-                    r = ~~(cdf[im[i+12]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+12] = r; im[i+13] = r; im[i+14] = r; 
-                    r = ~~(cdf[im[i+16]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+16] = r; im[i+17] = r; im[i+18] = r;
-                    r = ~~(cdf[im[i+20]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+20] = r; im[i+21] = r; im[i+22] = r; 
-                    r = ~~(cdf[im[i+24]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+24] = r; im[i+25] = r; im[i+26] = r; 
-                    r = ~~(cdf[im[i+28]]*range + min);
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+28] = r; im[i+29] = r; im[i+30] = r; 
-                }
-                if ( rem )
-                {
-                    for (i=l-rem; i<l; i+=4)
-                    { 
-                        r = ~~(cdf[im[i]]*range + min);
-                        // clamp them manually
-                        r = r<0 ? 0 : (r>255 ? 255 : r);
-                        im[i] = r; im[i+1] = r; im[i+2] = r; 
-                    }
                 }
             }
             else
             {
-                for (i=0; i<l; i+=32)
+                for (i=0; i<l; i+=4)
                 { 
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
@@ -1112,84 +758,6 @@ FILTER.Create({
                     g = g<0 ? 0 : (g>255 ? 255 : g);
                     b = b<0 ? 0 : (b>255 ? 255 : b);
                     im[i] = r; im[i+1] = g; im[i+2] = b; 
-                    y = cdf[im[i+5]]*range + min; cb = im[i+6]; cr = im[i+4];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+4] = r; im[i+5] = g; im[i+6] = b; 
-                    y = cdf[im[i+9]]*range + min; cb = im[i+10]; cr = im[i+8];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+8] = r; im[i+9] = g; im[i+10] = b; 
-                    y = cdf[im[i+13]]*range + min; cb = im[i+14]; cr = im[i+12];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+12] = r; im[i+13] = g; im[i+14] = b; 
-                    y = cdf[im[i+17]]*range + min; cb = im[i+18]; cr = im[i+16];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+16] = r; im[i+17] = g; im[i+18] = b; 
-                    y = cdf[im[i+21]]*range + min; cb = im[i+22]; cr = im[i+20];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+20] = r; im[i+21] = g; im[i+22] = b; 
-                    y = cdf[im[i+25]]*range + min; cb = im[i+26]; cr = im[i+24];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+24] = r; im[i+25] = g; im[i+26] = b; 
-                    y = cdf[im[i+29]]*range + min; cb = im[i+30]; cr = im[i+28];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i+28] = r; im[i+29] = g; im[i+30] = b; 
-                }
-                if ( rem )
-                {
-                    for (i=l-rem; i<l; i+=4)
-                    { 
-                        y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
-                        r = ~~( y                      + 1.402   * (cr-128) );
-                        g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                        b = ~~( y + 1.772   * (cb-128) );
-                        // clamp them manually
-                        r = r<0 ? 0 : (r>255 ? 255 : r);
-                        g = g<0 ? 0 : (g>255 ? 255 : g);
-                        b = b<0 ? 0 : (b>255 ? 255 : b);
-                        im[i] = r; im[i+1] = g; im[i+2] = b; 
-                    }
                 }
             }
         }
@@ -1197,89 +765,21 @@ FILTER.Create({
         {
             if ( is_grayscale )
             {
-                for (i=0; i<l; i+=32)
+                for (i=0; i<l; i+=4)
                 { 
                     r = ~~(cdf[im[i]]*range + min);
                     im[i] = r; im[i+1] = r; im[i+2] = r; 
-                    r = ~~(cdf[im[i+4]]*range + min);
-                    im[i+4] = r; im[i+5] = r; im[i+6] = r; 
-                    r = ~~(cdf[im[i+8]]*range + min);
-                    im[i+8] = r; im[i+9] = r; im[i+10] = r; 
-                    r = ~~(cdf[im[i+12]]*range + min);
-                    im[i+12] = r; im[i+13] = r; im[i+14] = r; 
-                    r = ~~(cdf[im[i+16]]*range + min);
-                    im[i+16] = r; im[i+17] = r; im[i+18] = r;
-                    r = ~~(cdf[im[i+20]]*range + min);
-                    im[i+20] = r; im[i+21] = r; im[i+22] = r; 
-                    r = ~~(cdf[im[i+24]]*range + min);
-                    im[i+24] = r; im[i+25] = r; im[i+26] = r; 
-                    r = ~~(cdf[im[i+28]]*range + min);
-                    im[i+28] = r; im[i+29] = r; im[i+30] = r; 
-                }
-                if ( rem )
-                {
-                    for (i=l-rem; i<l; i+=4)
-                    { 
-                        r = ~~(cdf[im[i]]*range + min);
-                        im[i] = r; im[i+1] = r; im[i+2] = r; 
-                    }
                 }
             }
             else
             {
-                for (i=0; i<l; i+=32)
+                for (i=0; i<l; i+=4)
                 { 
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
                     g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
                     b = ~~( y + 1.772   * (cb-128) );
                     im[i] = r; im[i+1] = g; im[i+2] = b; 
-                    y = cdf[im[i+5]]*range + min; cb = im[i+6]; cr = im[i+4];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+4] = r; im[i+5] = g; im[i+6] = b; 
-                    y = cdf[im[i+9]]*range + min; cb = im[i+10]; cr = im[i+8];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+8] = r; im[i+9] = g; im[i+10] = b; 
-                    y = cdf[im[i+13]]*range + min; cb = im[i+14]; cr = im[i+12];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+12] = r; im[i+13] = g; im[i+14] = b; 
-                    y = cdf[im[i+17]]*range + min; cb = im[i+18]; cr = im[i+16];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+16] = r; im[i+17] = g; im[i+18] = b; 
-                    y = cdf[im[i+21]]*range + min; cb = im[i+22]; cr = im[i+20];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+20] = r; im[i+21] = g; im[i+22] = b; 
-                    y = cdf[im[i+25]]*range + min; cb = im[i+26]; cr = im[i+24];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+24] = r; im[i+25] = g; im[i+26] = b; 
-                    y = cdf[im[i+29]]*range + min; cb = im[i+30]; cr = im[i+28];
-                    r = ~~( y                      + 1.402   * (cr-128) );
-                    g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                    b = ~~( y + 1.772   * (cb-128) );
-                    im[i+28] = r; im[i+29] = g; im[i+30] = b; 
-                }
-                if ( rem )
-                {
-                    for (i=l-rem; i<l; i+=4)
-                    { 
-                        y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
-                        r = ~~( y                      + 1.402   * (cr-128) );
-                        g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
-                        b = ~~( y + 1.772   * (cb-128) );
-                        im[i] = r; im[i+1] = g; im[i+2] = b; 
-                    }
                 }
             }
         }
@@ -1780,7 +1280,7 @@ FILTER.Create({
 "use strict";
 
 var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
+    MODE = FILTER.MODE, boxKernel_3x3 = new FILTER.ConvolutionMatrix([
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9
@@ -1888,7 +1388,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(0, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;
@@ -2766,234 +2266,36 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var Float32 = FILTER.Array32F, Int32 = FILTER.Array32I, FilterUtil = FILTER.Util.Filter,
-    //gradient = FilterUtil.GRAD,
+var canny_gradient = FILTER.Util.Filter.canny_gradient,
     GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
-    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, PI2 = 2*Math.PI,
-    exp = Math.exp, abs = Math.abs, floor = Math.floor, round = Math.round
-;
-
-// private utility methods
-function gradient_and_non_maximal_supression( im, width, height, magnitude ) 
-{
-    //generate the gaussian convolution masks
-    var kernelRadius = 2, kernelWidth = 14,
-        size = im.length, picsize = magnitude.length,
-        xConv = new Float32(picsize),
-        yConv = new Float32(picsize),
-        xGradient = new Float32(picsize),
-        yGradient = new Float32(picsize),
-        kernel = new Float32(kernelWidth),
-        diffKernel = new Float32(kernelWidth),
-        sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = (PI2 * sigma2),
-        kwidth, g1, g2, g3, x;
-    for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
-    {
-        g1 = exp(-(kwidth * kwidth) / sigma22); // gaussian
-        if ( g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2 ) break;
-        g2 = exp(-((x=kwidth - 0.5) * x) / sigma22); // gaussian
-        g3 = exp(-((x=kwidth + 0.5) * x) / sigma22); // gaussian
-        kernel[kwidth] = (g1 + g2 + g3) / 3 / factor;
-        diffKernel[kwidth] = g3 - g2;
-    }
-
-    var initX = kwidth - 1,
-        maxX = width - (kwidth - 1),
-        initY = width * (kwidth - 1),
-        maxY = width * (height - (kwidth - 1)),
-        x, y, index, sumX, sumY, xOffset, yOffset,
-        sum, i
-    ;
-    
-    //perform convolution in x and y directions
-    for (x=initX,y=initY; x<maxX; y+=width) 
-    {
-        if ( y >= maxY) { y=initY; x++; }
-        index = x + y;
-        sumX = im[index<<2] * kernel[0];
-        sumY = sumX;
-        xOffset = 1;
-        yOffset = width;
-        for(; xOffset < kwidth ;) 
-        {
-            sumY += kernel[xOffset] * (im[(index - yOffset)<<2] + im[(index + yOffset)<<2]);
-            sumX += kernel[xOffset] * (im[(index - xOffset)<<2] + im[(index + xOffset)<<2]);
-            yOffset += width; xOffset++;
-        }
-        yConv[index] = sumY;
-        xConv[index] = sumX;
-    }
-
-    for (x=initX,y=initY; x<maxX; y+=width) 
-    {
-        if ( y >= maxY) { y=initY; x++; }
-        sum = 0;
-        index = x + y;
-        for (i = 1; i < kwidth; i++) sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
-        xGradient[index] = sum;
-    }
-    
-    maxX = width - kwidth;
-    for (x=kwidth,y=initY; x<maxX; y+=width) 
-    {
-        if ( y >= maxY) { y=initY; x++; }
-        sum = 0.0;
-        index = x + y;
-        yOffset = width;
-        for (i = 1; i < kwidth; i++) 
-        {
-            sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
-            yOffset += width;
-        }
-        yGradient[index] = sum;
-    }
-
-    initX = kwidth;
-    maxX = width - kwidth;
-    initY = width * kwidth;
-    maxY = width * (height - kwidth);
-    var indexN, indexS, indexE, indexW,
-        indexNW, indexNE, indexSW, indexSE,
-        xGrad, yGrad, gradMag, tmp,
-        nMag, sMag, eMag, wMag,
-        nwMag, neMag, swMag, seMag
-    ;
-    for (x=initX,y=initY; x<maxX; y+=width) 
-    {
-        if ( y >= maxY ) {y=initY; x++; }
-        
-        index = x + y;
-        indexN = index - width;
-        indexS = index + width;
-        indexW = index - 1;
-        indexE = index + 1;
-        indexNW = indexN - 1;
-        indexNE = indexN + 1;
-        indexSW = indexS - 1;
-        indexSE = indexS + 1;
-        
-        xGrad = xGradient[index];
-        yGrad = yGradient[index];
-        gradMag = abs(xGrad)+abs(yGrad);
-
-        //perform non-maximal supression
-        /*
-         * An explanation of what's happening here, for those who want
-         * to understand the source: This performs the "non-maximal
-         * supression" phase of the Canny edge detection in which we
-         * need to compare the gradient magnitude to that in the
-         * direction of the gradient; only if the value is a local
-         * maximum do we consider the point as an edge candidate.
-         * 
-         * We need to break the comparison into a number of different
-         * cases depending on the gradient direction so that the
-         * appropriate values can be used. To avoid computing the
-         * gradient direction, we use two simple comparisons: first we
-         * check that the partial derivatives have the same sign (1)
-         * and then we check which is larger (2). As a consequence, we
-         * have reduced the problem to one of four identical cases that
-         * each test the central gradient magnitude against the values at
-         * two points with 'identical support'; what this means is that
-         * the geometry required to accurately interpolate the magnitude
-         * of gradient function at those points has an identical
-         * geometry (upto right-angled-rotation/reflection).
-         * 
-         * When comparing the central gradient to the two interpolated
-         * values, we avoid performing any divisions by multiplying both
-         * sides of each inequality by the greater of the two partial
-         * derivatives. The common comparand is stored in a temporary
-         * variable (3) and reused in the mirror case (4).
-         * 
-         */
-        nMag = abs(xGradient[indexN])+abs(yGradient[indexN]);
-        sMag = abs(xGradient[indexS])+abs(yGradient[indexS]);
-        wMag = abs(xGradient[indexW])+abs(yGradient[indexW]);
-        eMag = abs(xGradient[indexE])+abs(yGradient[indexE]);
-        neMag = abs(xGradient[indexNE])+abs(yGradient[indexNE]);
-        seMag = abs(xGradient[indexSE])+abs(yGradient[indexSE]);
-        swMag = abs(xGradient[indexSW])+abs(yGradient[indexSW]);
-        nwMag = abs(xGradient[indexNW])+abs(yGradient[indexNW]);
-        if (xGrad * yGrad <= 0
-            ? abs(xGrad) >= abs(yGrad)
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * neMag - (xGrad + yGrad) * eMag)
-                    && tmp > abs(yGrad * swMag - (xGrad + yGrad) * wMag)
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * neMag - (yGrad + xGrad) * nMag)
-                    && tmp > abs(xGrad * swMag - (yGrad + xGrad) * sMag)
-            : abs(xGrad) >= abs(yGrad)
-                ? (tmp = abs(xGrad * gradMag)) >= abs(yGrad * seMag + (xGrad - yGrad) * eMag)
-                    && tmp > abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
-                : (tmp = abs(yGrad * gradMag)) >= abs(xGrad * seMag + (yGrad - xGrad) * sMag)
-                    && tmp > abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
-        ) 
-        {
-            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : floor(MAGNITUDE_SCALE * gradMag);
-        } 
-        else 
-        {
-            magnitude[index] = 0;
-        }
-    }
-}
-function hysteresis_and_threshold( im, w, h, grad_magn, low, high )
-{
-    var i, j, y, x, size = im.length, area = size >>> 2;
-    for (i=0; i<size; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
-
-    for (x=0,y=0,j=0,i=0; j<area; j++,i=j<<2,x++) 
-    {
-        if ( x >= w ){ x=0; y++; }
-        if ( (0 === im[i]) && (grad_magn[j] >= high) )
-            follow_edge( im, w, h, grad_magn, x, y, i, low );
-    }
-}
-function follow_edge( im, w, h, grad_magn, x1, y1, i1, thresh )
-{
-    var x0 = x1 === 0 ? x1 : x1 - 1,
-        x2 = x1 === w - 1 ? x1 : x1 + 1,
-        y0 = y1 === 0 ? y1 : y1 - 1,
-        y2 = y1 === h -1 ? y1 : y1 + 1,
-        x, y, y0w = y0*w, yw, i, j;
-
-    // threshold here
-    im[i1] = im[i1+1] = im[i1+2] = 255;
-    
-    x = x0, y = y0; yw = y0w;
-    while (x <= x2 && y <= y2)
-    {
-        j = x + yw; i = j << 2;
-        if ( (y !== y1 || x !== x1) && (0 === im[i]) && (grad_magn[j] >= thresh) ) 
-        {
-            follow_edge( im, w, h, grad_magn, x, y, i, thresh );
-            return;
-        }
-        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
-    }
-}
+    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 
 // an efficient Canny Edges Detector
-// adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
-// expose as static utility methods
-FilterUtil.canny_gradient = gradient_and_non_maximal_supression;
 FILTER.Create({
     name : "CannyEdgesFilter"
     
     ,low: 2.5
     ,high: 7.5
+    ,radius: 2
+    ,width: 14
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold ) {
+    ,init: function( lowThreshold, highThreshold, kernelRadius, kernelWidth ) {
         var self = this;
-		self.low = arguments.length < 1 ? 2.5 : lowThreshold;
-		self.high = arguments.length < 2 ? 7.5 : highThreshold;
+		self.low = arguments.length < 1 ? 2.5 : +lowThreshold;
+		self.high = arguments.length < 2 ? 7.5 : +highThreshold;
+		self.radius = arguments.length < 3 ? 2 : +kernelRadius;
+		self.width = arguments.length < 4 ? 14 : +kernelWidth;
     }
     
-    ,thresholds: function( low, high ) {
+    ,thresholds: function( low, high, radius, width ) {
         var self = this;
-        self.low = low;
-        self.high = high;
+        self.low = +low;
+        self.high = +high;
+        if ( null != radius ) self.radius = +radius;
+        if ( null != width ) self.width = +width;
         return self;
     }
     
@@ -3002,6 +2304,8 @@ FILTER.Create({
         return {
              low: self.low
             ,high: self.high
+            ,radius: self.radius
+            ,width: self.width
         };
     }
     
@@ -3009,19 +2313,16 @@ FILTER.Create({
         var self = this;
         self.low = params.low;
         self.high = params.high;
+        self.radius = params.radius;
+        self.width = params.width;
         return self;
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this, area = im.length>>2, gradient_magnitude,
-            gradient_and_non_maximal_supression = FilterUtil.canny_gradient;
-        
+    ,apply: function( im, w, h ) {
+        var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        gradient_and_non_maximal_supression( im, w, h, gradient_magnitude=new Int32(area) );
-        hysteresis_and_threshold( im, w, h, gradient_magnitude, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ) );
-        
-        return im;
+        return canny_gradient( im, w, h, self.radius, self.width, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ), GAUSSIAN_CUT_OFF, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
     }
 });
 
@@ -3455,12 +2756,12 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,meta: function( serialisation ) {
-        return serialisation && FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
+    ,metaData: function( serialisation ) {
+        return serialisation && FILTER.isWorker ? TypedObj( this.meta ) : this.meta;
     }
     
-    ,setMeta: function( meta, serialisation ) {
-        this._meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+    ,setMetaData: function( meta, serialisation ) {
+        this.meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
@@ -3523,7 +2824,7 @@ FILTER.Create({
         if ( features.length > features.count ) features.length = features.count;
         
         // return results as meta
-        self._meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
+        self.meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
         
         // return im back
         return im;

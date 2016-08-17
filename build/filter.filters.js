@@ -137,13 +137,13 @@ var CompositeFilter = FILTER.Create({
         return self;
     }
     
-    ,setMeta: function( meta, serialisation ) {
+    ,setMetaData: function( meta, serialisation ) {
         var self = this, stack = self.filters, i, l;
         if ( meta && meta.filters && (l=meta.filters.length) && stack.length )
-            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMeta( meta.filters[i][1], serialisation );
+            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMetaData( meta.filters[i][1], serialisation );
         if ( meta && (null != meta._IMG_WIDTH) )
         {
-            self._meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
+            self.meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
             self.hasMeta = true;
         }
         return self;
@@ -242,7 +242,7 @@ var CompositeFilter = FILTER.Create({
                     im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
-                        _meta.filters.push([fi, meta=filter.getMeta()]);
+                        _meta.filters.push([fi, meta=filter.metaData()]);
                         if ( null != meta._IMG_WIDTH )
                         {
                             // width/height changed during process, update and pass on
@@ -258,12 +258,12 @@ var CompositeFilter = FILTER.Create({
         if ( _meta.filters.length > 0 )
         {
             self.hasMeta = true;
-            self._meta = _meta;
+            self.meta = _meta;
         }
         else
         {
             self.hasMeta = false;
-            self._meta = null;
+            self.meta = null;
         }
         return im;
     }
@@ -3767,6 +3767,7 @@ function binomial1( d )
 //console.log( binomial1( 5 ) );
 //console.log( derivative1( 5 ) );
 //console.log( sobel( 5 ) );
+//console.log( sobel( 5, 1 ) );
 //console.log( binomial2( 5 ) );
 //console.log( summa(binomial2( 5 )) );
 
@@ -4831,14 +4832,14 @@ FILTER.Create({
     
     ,_apply: function( im, w, h ) {
         var self = this, sX = self.sX, sY = self.sY, nw, nh, interpolate;
-        self.hasMeta = false; self._meta = null;
+        self.hasMeta = false; self.meta = null;
         if ( 1 === sX && 1 === sY ) return im;
         
         interpolate = Interpolation[self.interpolation||"bilinear"];
         if ( !interpolate ) return im;
         
         nw = (self.sX*w)|0; nh = (self.sY*h)|0;
-        self.hasMeta = true; self._meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
+        self.hasMeta = true; self.meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
         return interpolate( im, w, h, nw, nh );
     }
 });
@@ -4872,7 +4873,7 @@ FILTER.Create({
     
     ,_apply: function( im, w, h ) {
         var self = this, selection = self.selection, x1, y1, x2, y2;
-        self.hasMeta = false; self._meta = null;
+        self.hasMeta = false; self.meta = null;
         
         if ( !selection ) return im;
         x1 = (min(1,max(0, +selection[0]))*(w-1))|0;
@@ -4881,7 +4882,7 @@ FILTER.Create({
         y2 = (min(1,max(0, +selection[3]))*(h-1))|0;
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
-        self.hasMeta = true; self._meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
+        self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
         return select( im, w, h, x1, y1, x2, y2, true );
     }
 });

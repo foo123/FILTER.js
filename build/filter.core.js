@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 23:15:46
+*   @built on 2016-08-18 00:12:11
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.5
-*   @built on 2016-08-16 23:15:46
+*   @built on 2016-08-18 00:12:11
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -183,7 +183,10 @@ FILTER.MODE = {
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
-    0.212671, 0.71516, 0.072169
+    //0.212671, 0.71516, 0.072169
+    0.2126, 0.7152, 0.0722
+    //0.30, 0.59, 0.11
+    //0.299, 0.587, 0.114
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -199,7 +202,6 @@ FILTER.MIME = {
 };
 FILTER.CONSTANTS = FILTER.CONST = {
      X: 0, Y: 1, Z: 2
-    
     ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
     ,toRad: Math.PI/180, toDeg: 180/Math.PI
 };
@@ -299,7 +301,7 @@ var
                             if ( data.inputs ) filter.unserializeInputs( data.inputs, im );
                             // pass any filter metadata if needed
                             im = filter._apply( im[ 0 ], im[ 1 ], im[ 2 ] );
-                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta( true ) : null} );
+                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData( true ) : null} );
                         }
                         else
                         {
@@ -388,19 +390,20 @@ var
         ,constructor: function Filter( ) {
             var self = this;
             //self.$super('constructor', 100, false);
-            self._inputs = {};
+            self.inputs = {};
+            self.meta = null;
         }
         
         // filters can have id's
-        ,id: null
         ,_isOn: true
         ,_update: true
-        ,_inputs: null
-        ,_meta: null
+        ,id: null
         ,onComplete: null
         ,mode: 0
         ,selection: null
+        ,inputs: null
         ,hasInputs: false
+        ,meta: null
         ,hasMeta: false
         
         ,dispose: function( ) {
@@ -409,12 +412,12 @@ var
             self.id = null;
             self._isOn = null;
             self._update = null;
-            self._inputs = null;
-            self._meta = null;
             self.onComplete = null;
             self.mode = null;
             self.selection = null;
+            self.inputs = null;
             self.hasInputs = null;
+            self.meta = null;
             self.hasMeta = null;
             self.$super('dispose');
             return self;
@@ -424,16 +427,31 @@ var
         ,worker: FilterThread[PROTO].thread
         
         
+        // @override
+        ,metaData: function( meta, serialisation ) {
+            return this.meta;
+        }
+        ,getMetaData: null
+        
+        // @override
+        ,setMetaData: function( meta, serialisation ) {
+            this.meta = meta;
+            return this;
+        }
+        
+        /* TOFIX:
+**NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated version. It is going to be fixed in a next update.
+        */
         ,setInput: function( key, inputImage ) {
             var self = this;
             key = String(key);
             if ( null === inputImage )
             {
-                if ( self._inputs[key] ) delete self._inputs[key];
+                if ( self.inputs[key] ) delete self.inputs[key];
             }
             else
             {
-                self._inputs[key] = [null, inputImage];
+                self.inputs[key] = [null, inputImage/*, inputImage._refresh*/];
             }
             return self;
         }
@@ -441,20 +459,24 @@ var
         ,unsetInput: function( key ) {
             var self = this;
             key = String(key);
-            if ( self._inputs[key] ) delete self._inputs[key];
+            if ( self.inputs[key] ) delete self.inputs[key];
             return self;
         }
         ,delInput: null
         
         ,resetInputs: function( ) {
-            this._inputs = {};
+            this.inputs = {};
             return this;
         }
         
         ,input: function( key ) {
-            var input = this._inputs[String(key)];
+            var input = this.inputs[String(key)];
             if ( !input ) return null;
-            if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
+            if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+            {
+                input[0] = input[1].getSelectedData( );
+                //input[2] = 0;
+            }
             return input[0] || null;
         }
         ,getInput: null
@@ -471,7 +493,7 @@ var
         
         ,serializeInputs: function( curIm ) {
             if ( !this.hasInputs ) return null;
-            var inputs = this._inputs, input, k = KEYS(inputs), i, l = k.length, json;
+            var inputs = this.inputs, input, k = KEYS(inputs), i, l = k.length, json;
             if ( !l ) return null;
             json = { };
             for(i=0; i<l; i++)
@@ -487,7 +509,7 @@ var
         ,unserializeInputs: function( json, curImData ) {
             var self = this;
             if ( !json || !self.hasInputs ) return self;
-            var inputs = self._inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
+            var inputs = self.inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
             for(i=0; i<l; i++)
             {
                 input = json[k[i]];
@@ -590,18 +612,6 @@ var
         }
         
         // @override
-        ,meta: function( serialisation ) {
-            return this._meta;
-        }
-        ,getMeta: null
-        
-        // @override
-        ,setMeta: function( meta, serialisation ) {
-            this._meta = meta;
-            return this;
-        }
-        
-        // @override
         ,combineWith: function( filter ) {
             return this;
         }
@@ -652,11 +662,11 @@ var
                         {
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
-                            if ( data.meta ) self.setMeta( data.meta, true );
+                            if ( data.meta ) self.setMetaData( data.meta, true );
                             if ( data.im && self._update )
                             {
-                                if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
-                                    dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                                if ( self.hasMeta && (null != self.meta._IMG_WIDTH) )
+                                    dst.dimensions( self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT );
                                 dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                             }
                         }
@@ -674,8 +684,8 @@ var
                     // no need to update in such a case
                     if ( self._update )
                     {
-                        if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
-                            dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                        if ( self.hasMeta && (null != self.meta._IMG_WIDTH) )
+                            dst.dimensions( self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT );
                         dst.setSelectedData( im2 );
                     }
                     if ( cb ) cb.call( self );
@@ -689,7 +699,7 @@ var
         }
     })
 ;
-FILTER.Filter[PROTO].getMeta = FILTER.Filter[PROTO].meta;
+FILTER.Filter[PROTO].getMetaData = FILTER.Filter[PROTO].metaData;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 FILTER.Filter.get = function( filterClass ) {
@@ -722,8 +732,8 @@ FILTER.Create = function( methods ) {
     methods.constructor = constructorPlugin( methods.init );
     if ( (null == methods._apply) && ("function" === typeof methods.apply) ) methods._apply = methods.apply;
     // add some aliases
-    if ( ("function" === typeof methods.meta) && (methods.meta !== Filter[PROTO].meta) ) methods.getMeta = methods.meta;
-    else if ( ("function" === typeof methods.getMeta) && (methods.getMeta !== Filter[PROTO].getMeta) ) methods.meta = methods.getMeta;
+    if ( ("function" === typeof methods.metaData) && (methods.metaData !== Filter[PROTO].metaData) ) methods.getMetaData = methods.metaData;
+    else if ( ("function" === typeof methods.getMetaData) && (methods.getMetaData !== Filter[PROTO].getMetaData) ) methods.metaData = methods.getMetaData;
     delete methods.init; if ( methods[HAS]('apply') ) delete methods.apply;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };
@@ -739,12 +749,12 @@ FILTER.Create = function( methods ) {
 
 var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
-    A16I = FILTER.Array16I, A8U = FILTER.Array8U,
+    A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
     AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
     MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String, ArrayUtil = FILTER.Util.Array,
     ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
-    Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil,
+    Exp = Math.exp, Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil, Floor = Math.floor,
     Log = Math.log, Sin = Math.sin, Cos = Math.cos,
     Min = Math.min, Max = Math.max, Abs = Math.abs,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
@@ -754,6 +764,10 @@ var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
     func_body_re = /^function[^{]+{([\s\S]*)}$/;
 
+function esc( s )
+{
+    return s.replace(esc_re, '\\$1');
+}
 function function_body( func )
 {
     return func.toString( ).match( func_body_re )[ 1 ] || '';
@@ -810,107 +824,6 @@ function clamp( x, m, M )
     return x > M ? M : (x < m ? m : x); 
 }
 
-function closest_power_of_two( x )
-{ 
-    return Pow( 2, Ceil( Log2(x) ) ); 
-}
-
-function point2( x, y )
-{
-    var p = new A32F( 2 );
-    p[0] = x||0.0; p[1] = y||0.0;
-    return p;
-}
-
-function point3( x, y, z )
-{
-    var p = new A32F( 3 );
-    p[0] = x||0.0; p[1] = y||0.0; p[2] = z||0.0;
-    return p;
-}
-
-function interpolate2( p0, p1, t ) 
-{
-    return point2( p0[0]+t*(p1[0]-p0[0]), p0[1]+t*(p1[1]-p0[1]) );
-}
-
-function interpolate3( p0, p1, t ) 
-{
-    return point3( p0[0]+t*(p1[0]-p0[0]), p0[1]+t*(p1[1]-p0[1]), p0[2]+t*(p1[2]-p0[2]) );
-}
-
-function cross2( p0, p1 )
-{ 
-    return p0[0]*p1[1] - p1[0]*p0[1]; 
-}
-
-function enorm2( x, y ) 
-{
-    // avoid oveflows
-    var t;
-    if ( 0 > x ) x = -x;
-    if ( 0 > y ) y = -y;
-    if ( 0 === x )  
-    {
-        return y;
-    }
-    else if ( 0 === y )  
-    {
-        return x;
-    }
-    else if ( x > y ) 
-    {
-        t = y / x;  
-        return x *Sqrt( 1.0 + t*t ); 
-    }
-    else 
-    { 
-        t = x / y;
-        return y * Sqrt( 1.0 + t*t ); 
-    }
-}
-
-function normal2( p1, p0 ) 
-{
-    var d, n, lamda, normallamda, l;
-
-    d = point2( p1[0]-p0[0], p1[1]-p0[1] );
-    
-    if ( 0 === d[1] && 0 === d[0] )  // same point infinite normals
-    {
-        return null;
-    }
-    
-    n = point2( 0, 0 );
-    
-    if ( 0 === d[0] ) // lamda=Inf
-    {
-        n[0] = 10;
-    }
-    if ( 0 === d[1] )  // normallamda=Inf
-    {
-        n[1] = 10;
-    }
-    
-    if ( 0 !== d[1] && 0 !== d[0] )
-    {
-        lamda = d[1] / d[0];
-        normallamda = -d[0] / d[1];
-        n[0] = 10;
-        n[1] = normallamda*n[0];
-    }
-    
-    // normalize
-    l = enorm2( n[0], n[1] );
-    n[0] /= l; n[1] /= l;
-    if ( 0 > cross2( d, n ) )
-    {
-        n[0] = -n[0];
-        n[1] = -n[1];
-    }
-    return n;
-}
-
 function crop( im, w, h, x1, y1, x2, y2 )
 {
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
@@ -925,7 +838,6 @@ function crop( im, w, h, x1, y1, x2, y2 )
     }
     return cropped;
 }
-
 function crop_shim( im, w, h, x1, y1, x2, y2 )
 {
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
@@ -940,7 +852,6 @@ function crop_shim( im, w, h, x1, y1, x2, y2 )
     }
     return cropped;
 }
-
 function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
@@ -957,7 +868,6 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     }
     return padded;
 }
-
 function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
@@ -974,7 +884,6 @@ function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     }
     return padded;
 }
-
 function get_data( D, W, H, x0, y0, x1, y1, orig )
 {
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
@@ -993,7 +902,6 @@ function get_data( D, W, H, x0, y0, x1, y1, orig )
     }
     return d;
 }
-
 function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 {
     var i, I, x, y;
@@ -1015,7 +923,6 @@ function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
     }
     return D;
 }
-
 function fill_data( D, W, H, c, x0, y0, x1, y1 )
 {
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
@@ -1035,7 +942,7 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
 }
 
 // compute integral image (Summed Area Table, SAT) (for a given channel)
-function integral( im, w, h, channel ) 
+function integral( im, w, h, channel, integ ) 
 {
         channel = channel || 0;
     var len = im.length, size = len>>>2, rowLen = w<<2,
@@ -1164,13 +1071,13 @@ function integral( im, w, h, channel )
     return integ;
 }
 // compute image histogram (for a given channel)
-function histogram( im, w, h, channel, pdf ) 
+function histogram( im, w, h, channel, pdf, cdf )
 {
     channel = channel || 0;
     var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2;
     
     // initialize the arrays
-    cdf = new A32F( 256 ); 
+    cdf = cdf || new A32F( 256 ); 
     /*for (i=0; i<256; i+=32) 
     { 
         // partial loop unrolling
@@ -1661,6 +1568,187 @@ function gradient( im, w, h, grad, grad2, summed )
             }
         }
     }
+}
+function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh )
+{
+    var x0 = x1 === 0 ? x1 : x1 - 1,
+        x2 = x1 === w - 1 ? x1 : x1 + 1,
+        y0 = y1 === 0 ? y1 : y1 - 1,
+        y2 = y1 === h -1 ? y1 : y1 + 1,
+        x, y, y0w = y0*w, yw, i, j;
+
+    // threshold here
+    im[i1] = im[i1+1] = im[i1+2] = 255;
+    
+    x = x0, y = y0; yw = y0w;
+    while (x <= x2 && y <= y2)
+    {
+        j = x + yw; i = j << 2;
+        if ( (y !== y1 || x !== x1) && (0 === im[i]) && (magnitude[j] >= thresh) ) 
+        {
+            follow_edge( im, w, h, magnitude, x, y, i, thresh );
+            return;
+        }
+        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
+    }
+}
+// adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
+function canny_gradient( im, w, h, kernelRadius, kernelWidth, low, high,
+                        GAUSSIAN_CUT_OFF, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX ) 
+{
+    //generate the gaussian convolution masks
+    var //kernelRadius = 2, kernelWidth = 14,
+        size = im.length, picsize = size>>>2,
+        magnitude = new A32I(picsize),
+        xConv = new A32F(picsize),
+        yConv = new A32F(picsize),
+        xGradient = new A32F(picsize),
+        yGradient = new A32F(picsize),
+        kernel = new A32F(kernelWidth),
+        diffKernel = new A32F(kernelWidth),
+        sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
+        factor = PI2 * sigma2, kwidth, g1, g2, g3, x, y;
+    
+    for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
+    {
+        g1 = Exp(-(kwidth * kwidth) / sigma22); // gaussian
+        if ( g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2 ) break;
+        g2 = Exp(-((x=kwidth - 0.5) * x) / sigma22); // gaussian
+        g3 = Exp(-((x=kwidth + 0.5) * x) / sigma22); // gaussian
+        kernel[kwidth] = (g1 + g2 + g3) / 3 / factor;
+        diffKernel[kwidth] = g3 - g2;
+    }
+
+    var initX = kwidth - 1, maxX = w - initX, initY = w * (kwidth - 1), maxY = picsize - initY,
+        index, sumX, sumY, xOffset, yOffset, i, j;
+    
+    //perform convolution in x and y directions
+    for (x=initX,y=initY; x<maxX; y+=w) 
+    {
+        if ( y >= maxY) { y=initY; x++; }
+        index = x + y;
+        sumX = im[index<<2] * kernel[0];
+        sumY = sumX;
+        xOffset = 1;
+        yOffset = w;
+        for(; xOffset < kwidth ;) 
+        {
+            sumY += kernel[xOffset] * (im[(index - yOffset)<<2] + im[(index + yOffset)<<2]);
+            sumX += kernel[xOffset] * (im[(index - xOffset)<<2] + im[(index + xOffset)<<2]);
+            yOffset += w; xOffset++;
+        }
+        yConv[index] = sumY;
+        xConv[index] = sumX;
+    }
+
+    //perform sobel gradient in x and y directions
+    for (x=initX,y=initY; x<maxX; y+=w) 
+    {
+        if ( y >= maxY) { y=initY; x++; }
+        index = x + y; yOffset = w;
+        for (sumX=sumY=0,i = 1; i < kwidth; i++)
+        {
+            sumX += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
+            sumY += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
+            yOffset += w;
+        }
+        xGradient[index] = sumX;
+        yGradient[index] = sumY;
+    }
+    
+    var indexN, indexS, indexE, indexW,
+        indexNW, indexNE, indexSW, indexSE,
+        xGrad, yGrad, gradMag, tmp, nMag, sMag, eMag, wMag,
+        nwMag, neMag, swMag, seMag, absxGrad, absyGrad;
+    
+    //perform non-maximal supression
+    initX = kwidth; maxX = w - initX; initY = w * kwidth; maxY = picsize - initY;
+    for (x=initX,y=initY; x<maxX; y+=w) 
+    {
+        if ( y >= maxY ) {y=initY; x++; }
+        
+        index = x + y;
+        indexN = index - w;
+        indexS = index + w;
+        indexW = index - 1;
+        indexE = index + 1;
+        indexNW = indexN - 1;
+        indexNE = indexN + 1;
+        indexSW = indexS - 1;
+        indexSE = indexS + 1;
+        
+        xGrad = xGradient[index];
+        yGrad = yGradient[index];
+        absxGrad = Abs(xGrad);
+        absyGrad = Abs(yGrad);
+        gradMag = absxGrad+absyGrad;
+        /*
+         * An explanation of what's happening here, for those who want
+         * to understand the source: This performs the "non-maximal
+         * supression" phase of the Canny edge detection in which we
+         * need to compare the gradient magnitude to that in the
+         * direction of the gradient; only if the value is a local
+         * maximum do we consider the point as an edge candidate.
+         * 
+         * We need to break the comparison into a number of different
+         * cases depending on the gradient direction so that the
+         * appropriate values can be used. To avoid computing the
+         * gradient direction, we use two simple comparisons: first we
+         * check that the partial derivatives have the same sign (1)
+         * and then we check which is larger (2). As a consequence, we
+         * have reduced the problem to one of four identical cases that
+         * each test the central gradient magnitude against the values at
+         * two points with 'identical support'; what this means is that
+         * the geometry required to accurately interpolate the magnitude
+         * of gradient function at those points has an identical
+         * geometry (upto right-angled-rotation/reflection).
+         * 
+         * When comparing the central gradient to the two interpolated
+         * values, we avoid performing any divisions by multiplying both
+         * sides of each inequality by the greater of the two partial
+         * derivatives. The common comparand is stored in a temporary
+         * variable (3) and reused in the mirror case (4).
+         * 
+         */
+        nMag = Abs(xGradient[indexN])+Abs(yGradient[indexN]);
+        sMag = Abs(xGradient[indexS])+Abs(yGradient[indexS]);
+        wMag = Abs(xGradient[indexW])+Abs(yGradient[indexW]);
+        eMag = Abs(xGradient[indexE])+Abs(yGradient[indexE]);
+        neMag = Abs(xGradient[indexNE])+Abs(yGradient[indexNE]);
+        seMag = Abs(xGradient[indexSE])+Abs(yGradient[indexSE]);
+        swMag = Abs(xGradient[indexSW])+Abs(yGradient[indexSW]);
+        nwMag = Abs(xGradient[indexNW])+Abs(yGradient[indexNW]);
+        if (xGrad * yGrad <= 0
+            ? absxGrad >= absyGrad
+                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
+                : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
+            : absxGrad >= absyGrad
+                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
+                : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
+        ) 
+        {
+            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
+        } 
+        else 
+        {
+            magnitude[index] = 0;
+        }
+    }
+    
+    for (i=0; i<size; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
+
+    //hysteresis and threshold
+    for (x=0,y=0,j=0,i=0; j<picsize; j++,i=j<<2,x++) 
+    {
+        if ( x >= w ){ x=0; y++; }
+        if ( (0 === im[i]) && (magnitude[j] >= high) )
+            follow_edge( im, w, h, magnitude, x, y, i, low );
+    }
+    return im;
 }
 
 // speed-up convolution for special kernels like moving-average
@@ -2783,22 +2871,8 @@ function cm_convolve( cm1, cm2, matrix )
     return cm12;
 }
 
-function esc( s )
-{
-    return s.replace(esc_re, '\\$1');
-}
-
 MathUtil.clamp = clamp;
-MathUtil.closest_power2 = closest_power_of_two;
-MathUtil.Geometry = {
-     Point2: point2
-    ,Point3: point3
-    ,enorm2: enorm2
-    ,cross2: cross2
-    ,normal2: normal2
-    ,interpolate2: interpolate2
-    ,interpolate3: interpolate3
-};
+MathUtil.Geometry = {};
 
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
@@ -2830,8 +2904,9 @@ FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 //FilterUtil.algebraic_combination = algebraic_combination;
-FilterUtil.SAT = integral2;
+FilterUtil.canny_gradient = canny_gradient;
 FilterUtil.GRAD = gradient;
+FilterUtil.SAT = integral2;
 
 }(FILTER);/**
 *

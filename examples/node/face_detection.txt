@@ -1,0 +1,7 @@
+Detection runs "parallel"
+Loading image..
+./che.jpg loaded with dims: 150,185
+Detecting..
+Detection completed
+1 feature was found
+1st feature is found at x1:39,y1:39,x2:114,y2:114

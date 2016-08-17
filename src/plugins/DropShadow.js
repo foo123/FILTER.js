@@ -8,7 +8,7 @@
 "use strict";
 
 var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
+    MODE = FILTER.MODE, boxKernel_3x3 = new FILTER.ConvolutionMatrix([
         1/9,1/9,1/9,
         1/9,1/9,1/9,
         1/9,1/9,1/9
@@ -116,7 +116,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(0, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;

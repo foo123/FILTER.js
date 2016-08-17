@@ -26,7 +26,7 @@ FILTER.Create({
     
     ,_apply: function( im, w, h ) {
         var self = this, selection = self.selection, x1, y1, x2, y2;
-        self.hasMeta = false; self._meta = null;
+        self.hasMeta = false; self.meta = null;
         
         if ( !selection ) return im;
         x1 = (min(1,max(0, +selection[0]))*(w-1))|0;
@@ -35,7 +35,7 @@ FILTER.Create({
         y2 = (min(1,max(0, +selection[3]))*(h-1))|0;
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
-        self.hasMeta = true; self._meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
+        self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
         return select( im, w, h, x1, y1, x2, y2, true );
     }
 });

@@ -141,7 +141,10 @@ FILTER.MODE = {
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
-    0.212671, 0.71516, 0.072169
+    //0.212671, 0.71516, 0.072169
+    0.2126, 0.7152, 0.0722
+    //0.30, 0.59, 0.11
+    //0.299, 0.587, 0.114
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -157,7 +160,6 @@ FILTER.MIME = {
 };
 FILTER.CONSTANTS = FILTER.CONST = {
      X: 0, Y: 1, Z: 2
-    
     ,PI: Math.PI, PI2: 2*Math.PI, PI_2: Math.PI/2
     ,toRad: Math.PI/180, toDeg: 180/Math.PI
 };
@@ -257,7 +259,7 @@ var
                             if ( data.inputs ) filter.unserializeInputs( data.inputs, im );
                             // pass any filter metadata if needed
                             im = filter._apply( im[ 0 ], im[ 1 ], im[ 2 ] );
-                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.getMeta( true ) : null} );
+                            self.send( 'apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData( true ) : null} );
                         }
                         else
                         {
@@ -346,19 +348,20 @@ var
         ,constructor: function Filter( ) {
             var self = this;
             //self.$super('constructor', 100, false);
-            self._inputs = {};
+            self.inputs = {};
+            self.meta = null;
         }
         
         // filters can have id's
-        ,id: null
         ,_isOn: true
         ,_update: true
-        ,_inputs: null
-        ,_meta: null
+        ,id: null
         ,onComplete: null
         ,mode: 0
         ,selection: null
+        ,inputs: null
         ,hasInputs: false
+        ,meta: null
         ,hasMeta: false
         
         ,dispose: function( ) {
@@ -367,12 +370,12 @@ var
             self.id = null;
             self._isOn = null;
             self._update = null;
-            self._inputs = null;
-            self._meta = null;
             self.onComplete = null;
             self.mode = null;
             self.selection = null;
+            self.inputs = null;
             self.hasInputs = null;
+            self.meta = null;
             self.hasMeta = null;
             self.$super('dispose');
             return self;
@@ -382,16 +385,31 @@ var
         ,worker: FilterThread[PROTO].thread
         
         
+        // @override
+        ,metaData: function( meta, serialisation ) {
+            return this.meta;
+        }
+        ,getMetaData: null
+        
+        // @override
+        ,setMetaData: function( meta, serialisation ) {
+            this.meta = meta;
+            return this;
+        }
+        
+        /* TOFIX:
+**NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated version. It is going to be fixed in a next update.
+        */
         ,setInput: function( key, inputImage ) {
             var self = this;
             key = String(key);
             if ( null === inputImage )
             {
-                if ( self._inputs[key] ) delete self._inputs[key];
+                if ( self.inputs[key] ) delete self.inputs[key];
             }
             else
             {
-                self._inputs[key] = [null, inputImage];
+                self.inputs[key] = [null, inputImage/*, inputImage._refresh*/];
             }
             return self;
         }
@@ -399,20 +417,24 @@ var
         ,unsetInput: function( key ) {
             var self = this;
             key = String(key);
-            if ( self._inputs[key] ) delete self._inputs[key];
+            if ( self.inputs[key] ) delete self.inputs[key];
             return self;
         }
         ,delInput: null
         
         ,resetInputs: function( ) {
-            this._inputs = {};
+            this.inputs = {};
             return this;
         }
         
         ,input: function( key ) {
-            var input = this._inputs[String(key)];
+            var input = this.inputs[String(key)];
             if ( !input ) return null;
-            if ( (null == input[0]) || (input[1] && input[1]._refresh) ) input[0] = input[1].getSelectedData( );
+            if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+            {
+                input[0] = input[1].getSelectedData( );
+                //input[2] = 0;
+            }
             return input[0] || null;
         }
         ,getInput: null
@@ -429,7 +451,7 @@ var
         
         ,serializeInputs: function( curIm ) {
             if ( !this.hasInputs ) return null;
-            var inputs = this._inputs, input, k = KEYS(inputs), i, l = k.length, json;
+            var inputs = this.inputs, input, k = KEYS(inputs), i, l = k.length, json;
             if ( !l ) return null;
             json = { };
             for(i=0; i<l; i++)
@@ -445,7 +467,7 @@ var
         ,unserializeInputs: function( json, curImData ) {
             var self = this;
             if ( !json || !self.hasInputs ) return self;
-            var inputs = self._inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
+            var inputs = self.inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
             for(i=0; i<l; i++)
             {
                 input = json[k[i]];
@@ -548,18 +570,6 @@ var
         }
         
         // @override
-        ,meta: function( serialisation ) {
-            return this._meta;
-        }
-        ,getMeta: null
-        
-        // @override
-        ,setMeta: function( meta, serialisation ) {
-            this._meta = meta;
-            return this;
-        }
-        
-        // @override
         ,combineWith: function( filter ) {
             return this;
         }
@@ -610,11 +620,11 @@ var
                         {
                             // listen for metadata if needed
                             //if ( null != data.update ) self._update = !!data.update;
-                            if ( data.meta ) self.setMeta( data.meta, true );
+                            if ( data.meta ) self.setMetaData( data.meta, true );
                             if ( data.im && self._update )
                             {
-                                if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
-                                    dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                                if ( self.hasMeta && (null != self.meta._IMG_WIDTH) )
+                                    dst.dimensions( self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT );
                                 dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
                             }
                         }
@@ -632,8 +642,8 @@ var
                     // no need to update in such a case
                     if ( self._update )
                     {
-                        if ( self.hasMeta && (null != self._meta._IMG_WIDTH) )
-                            dst.dimensions( self._meta._IMG_WIDTH, self._meta._IMG_HEIGHT );
+                        if ( self.hasMeta && (null != self.meta._IMG_WIDTH) )
+                            dst.dimensions( self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT );
                         dst.setSelectedData( im2 );
                     }
                     if ( cb ) cb.call( self );
@@ -647,7 +657,7 @@ var
         }
     })
 ;
-FILTER.Filter[PROTO].getMeta = FILTER.Filter[PROTO].meta;
+FILTER.Filter[PROTO].getMetaData = FILTER.Filter[PROTO].metaData;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 FILTER.Filter.get = function( filterClass ) {
@@ -680,8 +690,8 @@ FILTER.Create = function( methods ) {
     methods.constructor = constructorPlugin( methods.init );
     if ( (null == methods._apply) && ("function" === typeof methods.apply) ) methods._apply = methods.apply;
     // add some aliases
-    if ( ("function" === typeof methods.meta) && (methods.meta !== Filter[PROTO].meta) ) methods.getMeta = methods.meta;
-    else if ( ("function" === typeof methods.getMeta) && (methods.getMeta !== Filter[PROTO].getMeta) ) methods.meta = methods.getMeta;
+    if ( ("function" === typeof methods.metaData) && (methods.metaData !== Filter[PROTO].metaData) ) methods.getMetaData = methods.metaData;
+    else if ( ("function" === typeof methods.getMetaData) && (methods.getMetaData !== Filter[PROTO].getMetaData) ) methods.metaData = methods.getMetaData;
     delete methods.init; if ( methods[HAS]('apply') ) delete methods.apply;
     return FILTER[filterName] = FILTER.Class( Filter, methods );
 };

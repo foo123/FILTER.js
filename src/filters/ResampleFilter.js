@@ -58,14 +58,14 @@ FILTER.Create({
     
     ,_apply: function( im, w, h ) {
         var self = this, sX = self.sX, sY = self.sY, nw, nh, interpolate;
-        self.hasMeta = false; self._meta = null;
+        self.hasMeta = false; self.meta = null;
         if ( 1 === sX && 1 === sY ) return im;
         
         interpolate = Interpolation[self.interpolation||"bilinear"];
         if ( !interpolate ) return im;
         
         nw = (self.sX*w)|0; nh = (self.sY*h)|0;
-        self.hasMeta = true; self._meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
+        self.hasMeta = true; self.meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
         return interpolate( im, w, h, nw, nh );
     }
 });

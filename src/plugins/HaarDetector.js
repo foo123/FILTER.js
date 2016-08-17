@@ -428,12 +428,12 @@ FILTER.Create({
     }
     
     // detected objects are passed as filter metadata (if filter is run in parallel thread)
-    ,meta: function( serialisation ) {
-        return serialisation && FILTER.isWorker ? TypedObj( this._meta ) : this._meta;
+    ,metaData: function( serialisation ) {
+        return serialisation && FILTER.isWorker ? TypedObj( this.meta ) : this.meta;
     }
     
-    ,setMeta: function( meta, serialisation ) {
-        this._meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
+    ,setMetaData: function( meta, serialisation ) {
+        this.meta = serialisation && "string" === typeof meta ? TypedObj( meta, 1 ) : meta;
         return this;
     }
     
@@ -496,7 +496,7 @@ FILTER.Create({
         if ( features.length > features.count ) features.length = features.count;
         
         // return results as meta
-        self._meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
+        self.meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
         
         // return im back
         return im;

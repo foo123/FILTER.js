@@ -117,7 +117,11 @@ __Properties:__
 
 * `name`   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
 * `hasMeta`  whether the filter has meta data passed between processes (except the current image data), for example bounding boxes or other data (for example the `HaarDetectorFilter` returns the detected regions as metaData, while the passed image data are left unchanged)
+* `meta` the (optional) filter's metadata object or null if filter has no metadata
 * `hasInputs`  whether the filter has multiple extra inputs (except the current image data input), for example blend filters or displacement map filters or alpha mask filters have an extra image input (the blending image or displacement image or mask image respectively)
+* `inputs` the extra filter's inputs object (by key)
+
+**NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version. It is going to be fixed in a next update in an optimum manner.
 
 
 __Methods:__
@@ -134,7 +138,7 @@ __Methods:__
 * `input(key)/getInput(key)`  for filters that accept multiple extra inputs (except the main image input e.g `blend` filters) the extra inputs are available to the filter via this method by inputKey (see above)
 * `serialize( )`  serialize filter's parameters (for use during parallel processing)
 * `unserialize( data:Object )`  unserialize filter's parameters (for use during parallel processing)
-* `meta( )/getMeta( )`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
+* `metaData( )/getMetadata( )`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
 * `select( x1:Number, y1:Number, x2:Number, y2:Number )` define a (relative) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `SelectionFilter` below and the `HaarDetectorFilter` plugin)
 * `select( Boolean=false )` deselect any selection made previously
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
@@ -906,23 +910,23 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Plugin</td> <td>Description</td></tr>
 </thead>
 <tbody>
-<tr><td>`Noise`</td>    <td>generate uniform noise</td></tr>
-<tr><td>`PerlinNoise`</td>  <td>perlin noise also as filter plugin</td></tr>
-<tr><td>`Gradient`</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
-<tr><td>`HistogramEqualize`</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
-<tr><td>`Pixelate`<br />`TriangularPixelate`<br />`HexagonalPixelate`</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale (TO BE ADDED)</td></tr>
-<tr><td>`Halftone`</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
-<tr><td>`Bokeh`</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
-<tr><td>`FloodFill`<br />`PatternFill`</td> <td>apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)<br />apply a (fast) pattern fill to an (connected) area of an image using another image as pattern</td></tr>
-<tr><td>`ChannelCopy`</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)</td></tr>
-<tr><td>`DropShadow`</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
-<tr><td>`SeamlessTile`</td> <td>create a seamless tileable pattern from target image</td></tr>
-<tr><td>`ConnectedComponents`</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
-<tr><td>`ActiveShape`</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
-<tr><td>`CannyEdges`</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
-<tr><td>`HaarDetector`</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
-<tr><td>`ColorDetector`</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
-<tr><td>`LipContourExtractor`</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
+<tr><td>Noise</td>    <td>generate uniform noise</td></tr>
+<tr><td>PerlinNoise</td>  <td>perlin noise also as filter plugin</td></tr>
+<tr><td>Gradient</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
+<tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
+<tr><td>Pixelate<br />TriangularPixelate<br />HexagonalPixelate</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale (TO BE ADDED)</td></tr>
+<tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
+<tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
+<tr><td>FloodFill<br />PatternFill</td> <td>apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)<br />apply a (fast) pattern fill to an (connected) area of an image using another image as pattern</td></tr>
+<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)</td></tr>
+<tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
+<tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
+<tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
+<tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
+<tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
+<tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
+<tr><td>ColorDetector</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
+<tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
 </tbody>
 </table>
 

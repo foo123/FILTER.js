@@ -68,7 +68,10 @@ function parse_args( args )
 var path = require('path'), F = require('../../build/filter.bundle.js'),
     parallel = !!parse_args().options['parallel'],
     haarcascade_frontalface_alt = require('./haarcascade_frontalface_alt.js'),
-    face_detector = F.CompositeFilter([F.ColorMatrixFilter( ).grayscale( ), F.HaarDetectorFilter(haarcascade_frontalface_alt)]);
+    face_detector = F.CompositeFilter([
+        F.ColorMatrixFilter().grayscale(),
+        F.HaarDetectorFilter(haarcascade_frontalface_alt)
+    ]);
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if ( parallel ) face_detector.worker( true );
@@ -79,7 +82,7 @@ F.IO.BinaryReader( F.Codec.JPG.decoder ).load(path.join(__dirname,'./che.jpg'), 
     face_detector.apply( che, function( ){
         if ( parallel ) face_detector.worker( false );
         console.log('Detection completed');
-        var features = face_detector.get(1).meta().objects;
+        var features = face_detector.filter(1).metaData().objects;
         console.log(features.length + (1 === features.length ? ' feature was found' : ' features were found'));
         if ( features.length )
         {

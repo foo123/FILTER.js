@@ -67,7 +67,11 @@ function parse_args( args )
 
 var path = require('path'), F = require('../../build/filter.bundle.js'),
     parallel = !!parse_args().options['parallel'],
-    edge_detector = F.CompositeFilter([F.ColorMatrixFilter( ).grayscale( ), F.CannyEdgesFilter( )]);
+    edge_detector = F.CompositeFilter([
+        F.ColorMatrixFilter().grayscale(),
+        F.HistogramEqualizeFilter(F.MODE.GRAY),
+        F.CannyEdgesFilter()
+    ]);
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if ( parallel ) edge_detector.worker( true );

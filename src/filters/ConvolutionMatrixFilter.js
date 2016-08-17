@@ -838,6 +838,7 @@ function binomial1( d )
 //console.log( binomial1( 5 ) );
 //console.log( derivative1( 5 ) );
 //console.log( sobel( 5 ) );
+//console.log( sobel( 5, 1 ) );
 //console.log( binomial2( 5 ) );
 //console.log( summa(binomial2( 5 )) );
 
