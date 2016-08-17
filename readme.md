@@ -113,6 +113,7 @@ Advanced references:
 * [Efficient computational noise in GLSL, McEwan, Sheets, Gustavson, Richardson 2012](http://arxiv.org/pdf/1204.1461.pdf)
 * [Singular Value Decomposition on GPU using CUDA, Lahabar, Narayanan 2009](http://www.pascal-man.com/navigation/faq-java-browser/GPU/Sheetal09Singular.pdf)
 * [Efficient Integral Image Computation on the GPU, Bilgic, Horn, Masaki 2010](http://dspace.mit.edu/openaccess-disseminate/1721.1/71883)
+* [A Computational Approach to Edge Detection, John Canny 1986](https://perso.limsi.fr/vezien/PAPIERS_ACS/canny1986.pdf)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
