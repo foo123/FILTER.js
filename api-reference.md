@@ -822,7 +822,7 @@ new FILTER.InlineFilter( filterFunc:Function );
 
 This filter creates inline filters dynamicaly at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
 
-**NOTE** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literally at instantiation, so it can be serialized correctly)
+**NOTE** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literaly at instantiation, so it can be serialized correctly)
 
 
 Example:
@@ -865,7 +865,7 @@ image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
 new FILTER.ResampleFilter( scaleX:Number, scaleY:Number, interpolationMethod:String="bilinear" );
 ````
 
-This filter resamples (interpolates) an image to change its size, i.e up- or down- scale it. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can downsample an image at any stage to speed-up further process and then up-sample it again if needed at another stage.
+This filter resamples (interpolates) an image to change its size, i.e up- or down- scale it. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can down-sample an image at any stage to speed-up further process and then up-sample it again if needed at another stage.
 
 **Supported Interpolation Methods:** (you have to build the library with the respective interpolation routines added)
     

@@ -193,13 +193,13 @@ var CompositeFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h, metaData ) {
-        var self = this, meta, _meta/*, update = false*/;
-        _meta = {filters: []};
+        var self = this, meta, filtermeta = null, metalen = 0, IMGW = null, IMGH = null;
         if ( self.filters.length )
         {
             metaData = metaData || {};
             metaData.container = self; metaData.index = 0;
             var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
+            filtermeta = new Array(stacklength);
             for (fi=0; fi<stacklength; fi++)
             {
                 filter = filterstack[fi]; 
@@ -209,23 +209,23 @@ var CompositeFilter = FILTER.Create({
                     im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
-                        _meta.filters.push([fi, meta=filter.metaData()]);
+                        filtermeta[metalen++] = [fi, meta=filter.metaData()];
                         if ( null != meta._IMG_WIDTH )
                         {
                             // width/height changed during process, update and pass on
-                            _meta._IMG_WIDTH = w = meta._IMG_WIDTH;
-                            _meta._IMG_HEIGHT = h = meta._IMG_HEIGHT;
+                            IMGW = w = meta._IMG_WIDTH;
+                            IMGH = h = meta._IMG_HEIGHT;
                         }
                     }
-                    //update = update || filter._update;
                 }
             }
         }
-        //self._update = update;
-        if ( _meta.filters.length > 0 )
+        if ( metalen > 0 )
         {
+            if ( filtermeta.length > metalen ) filtermeta.length = metalen;
             self.hasMeta = true;
-            self.meta = _meta;
+            self.meta = {filters: filtermeta};
+            if ( null != IMGW ) { self.meta._IMG_WIDTH = IMGW; self.meta._IMG_HEIGHT = IMGH; }
         }
         else
         {
