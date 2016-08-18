@@ -617,9 +617,9 @@ This filter implements some statistical processing like median filters and erode
 
 The class has some pre-defined filters to use.
 
-* `median( dimension:Integer=3 )`  Apply median (ie. lowpass/remove noise) filter
-* `minimum( dimension:Integer=3 )/erode( dimension:Integer=3 )` Apply minimum (erode) filter
-* `maximum( dimension:Integer=3 )/dilate( dimension:Integer=3 )` Apply maximum (dilate) filter
+* `median( dimension:Integer=3 )`  Apply median (ie. lowpass/remove noise) filter, same as `kth( 0.5 )`
+* `minimum( dimension:Integer=3 )/erode( dimension:Integer=3 )` Apply minimum (erode) filter, same as `kth( 0 )`
+* `maximum( dimension:Integer=3 )/dilate( dimension:Integer=3 )` Apply maximum (dilate) filter, same as `kth( 1 )`
 * `kth( k:Number, dimension:Integer=3 )`  Apply kth statistic for arbitarry `k` in `0..1` range
 * `setMode( FILTER.MODE.GRAY )` Use faster statistical filters for grayscale images
 
