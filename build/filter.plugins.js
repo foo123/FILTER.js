@@ -3006,7 +3006,7 @@ FILTER.Create({
             mode = self.mode||MODE.COLOR, invert = self.invert, color = self.color,
             tolerance = min(0.999, max(0.0, self.tolerance||0.0)),
             connectivity = 8 === self.connectivity ? 8 : 4,
-            K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = d0<<2,
+            K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = 4*d0,
             mylab, c, r, d, row, labels, labelimg,
             SIMILAR = null, memo = null, SIMILAR_TO = null, background_label = null,
             need_match = null != color, highest, tag//, box
@@ -3045,7 +3045,7 @@ FILTER.Create({
         labelimg[0] = need_match && !SIMILAR_TO(color, im, 0, tolerance, memo) ? background_label : new_label(0, 0, labels);
         
         // label the first row.
-        for(c=1,i=4; c<w; c++,i+4)
+        for(c=1,i=4; c<w; c++,i+=4)
             labelimg[c] = need_match && !SIMILAR_TO(color, im, i, tolerance, memo) ? background_label : (SIMILAR(im, i, i-4, tolerance, memo) ? copy_label(labelimg[c-1], c, 0, labels) : new_label(c, 0, labels));
 
         // label subsequent rows.
