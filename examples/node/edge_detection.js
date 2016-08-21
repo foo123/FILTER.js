@@ -70,7 +70,8 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
     edge_detector = F.CompositeFilter([
         F.ColorMatrixFilter().grayscale(),
         F.HistogramEqualizeFilter(F.MODE.GRAY),
-        F.CannyEdgesFilter()
+        F.ConvolutionMatrixFilter().fastGauss(6, 3).setMode(F.MODE.GRAY),
+        F.CannyEdgesFilter(35, 70, false)
     ]);
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');

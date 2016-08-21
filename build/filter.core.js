@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 0.9.5
-*   @built on 2016-08-19 21:27:37
+*   @version: 0.9.6
+*   @built on 2016-08-22 02:31:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -26,8 +26,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js
-*   @version: 0.9.5
-*   @built on 2016-08-19 21:27:37
+*   @version: 0.9.6
+*   @built on 2016-08-22 02:31:48
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -36,7 +36,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 **/
 "use strict";
 var FILTER = {
-    VERSION: "0.9.5",
+    VERSION: "0.9.6",
     Classy: Classy, Asynchronous: Asynchronous,
     Class: Classy.Class, Path: Asynchronous.path( ModuleFactory__FILTER.moduleUri )
 };
@@ -183,10 +183,10 @@ FILTER.MODE = {
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
-    //0.212671, 0.71516, 0.072169
-    0.2126, 0.7152, 0.0722
     //0.30, 0.59, 0.11
     //0.299, 0.587, 0.114
+    //0.212671, 0.71516, 0.072169
+    0.2126, 0.7152, 0.0722
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -240,7 +240,7 @@ FILTER.IO = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
-FILTER.MachineLearning = FILTER.ML = { };
+FILTER.MachineLearning = /*FILTER.ML =*/ { };
 FILTER.GLSL = { };
 FILTER.SVG = { };
 
@@ -439,7 +439,8 @@ var
             return this;
         }
         
-        /* TOFIX:
+        /* FIXED: by counting update references in image and comparing current ref count with image ref count
+        
 **NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated version. It is going to be fixed in a next update.
         */
         ,setInput: function( key, inputImage ) {
@@ -451,7 +452,7 @@ var
             }
             else
             {
-                self.inputs[key] = [null, inputImage/*, inputImage._refresh*/];
+                self.inputs[key] = [null, inputImage, inputImage.nref];
             }
             return self;
         }
@@ -472,10 +473,10 @@ var
         ,input: function( key ) {
             var input = this.inputs[String(key)];
             if ( !input ) return null;
-            if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+            if ( (null == input[0]) || (input[1] && (input[2] !== input[1].nref)) )
             {
+                input[2] = input[1].nref; // compare and update current ref count with image ref count
                 input[0] = input[1].getSelectedData( );
-                //input[2] = 0;
             }
             return input[0] || null;
         }
@@ -499,9 +500,12 @@ var
             for(i=0; i<l; i++)
             {
                 input = inputs[k[i]];
-                if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+                if ( (null == input[0]) || (input[1] && (input[2] !== input[1].nref)) )
+                {
                     // save bandwidth if input is same as main current image being processed
+                    input[2] = input[1].nref; // compare and update current ref count with image ref count
                     json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData( );
+                }
             }
             return json;
         }
@@ -517,7 +521,7 @@ var
                 // save bandwidth if input is same as main current image being processed
                 if ( true === input ) input = curImData;
                 else input[0] = TypedArray( input[0], IMG )
-                inputs[k[i]] = [input, null];
+                inputs[k[i]] = [input, null, 0];
             }
             return self;
         }
@@ -1442,131 +1446,186 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function gradient( im, w, h, grad, grad2, summed )
+function gradient( rgba, im, w, h, count, do_blur, do_sat,
+                    low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
-    var i, j, k, sum, sum2, grad_x, grad_y,
-        ind0, ind1, ind2, ind_1, ind_2,
-        count = grad.length, lowpass,
-        w_1 = w-1, h_1 = h-1, w_2 = w-2, h_2 = h-2, w2 = w<<1, w4 = w<<2;
+    var imSize = im.length, index, i, j, k, dx, dy, dx2, stride, sum,
+        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
+        w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<2,
+        sobelX, sobelY, gX, gY, g, gauss, f,
+        xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
+        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag;
     
-    // first, second rows, last, second-to-last rows
-    /*for (i=0; i<w; i++)
+    if ( null == MAGNITUDE_SCALE )
     {
-        lowpass[i] = 0; lowpass[i+w] = 0;
-        lowpass[i+count-w] = 0; lowpass[i+count-w2] = 0;
+        MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 255;
+        MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
+    }
+    
+    if ( rgba )
+    {
+        dx = 4; dx2 = 8; dy = w4; stride = 2;
+    }
+    else
+    {
+        dx = 1; dx2 = 2; dy = w; stride = 0;
+    }
+    g = new A32F(count);
+    
+    /*
+    // first, second rows, last, second-to-last rows
+    for (i=0; i<w; i++)
+    {
+        gauss[i] = 0; gauss[i+w] = 0;
+        gauss[i+count-w] = 0; gauss[i+count-w2] = 0;
         grad[i] = 0; grad[i+count-w] = 0;
     }
     // first, second columns, last, second-to-last columns
     for (i=0,k=0; i<h; i++,k+=w)
     {
-        lowpass[k] = 0; lowpass[1+k] = 0;
-        lowpass[w_1+k] = 0; lowpass[w_2+k] = 0;
+        gauss[k] = 0; gauss[1+k] = 0;
+        gauss[w_1+k] = 0; gauss[w_2+k] = 0;
         grad[k] = 0; grad[w_1+k]=0;
-    }*/
-    
-    // gauss lowpass
-    lowpass = new A8U(count);
-    for (i=2,j=2,k=w2; i<w_2; j++,k+=w)
-    {
-        if ( j >= h_2 ){ j=2; k=w2; i++; }
-        ind0 = (i+k)<<2; ind1 = ind0+w4; ind2 = ind1+w4; 
-        ind_1 = ind0-w4; ind_2 = ind_1-w4; 
-        
-        // use as simple fixed-point arithmetic as possible (only addition/subtraction and binary shifts)
-        sum =(    (im[ind_2-8] << 1) + (im[ind_1-8] << 2) + (im[ind0-8] << 2) + (im[ind0-8])
-                + (im[ind1-8] << 2) + (im[ind2-8] << 1) + (im[ind_2-4] << 2) + (im[ind_1-4] << 3)
-                + (im[ind_1-4]) + (im[ind0-4] << 4) - (im[ind0-4] << 2) + (im[ind1-4] << 3)
-                + (im[ind1-4]) + (im[ind2-4] << 2) + (im[ind_2] << 2) + (im[ind_2]) + (im[ind_1] << 4)
-                - (im[ind_1] << 2) + (im[ind0] << 4) - (im[ind0]) + (im[ind1] << 4) - (im[ind1] << 2)
-                + (im[ind2] << 2) + (im[ind2]) + (im[ind_2+4] << 2) + (im[ind_1+4] << 3) + (im[ind_1+4])
-                + (im[ind0+4] << 4) - (im[ind0+4] << 2) + (im[ind1+4] << 3) + (im[ind1+4]) + (im[ind2+4] << 2)
-                + (im[ind_2+8] << 1) + (im[ind_1+8] << 2) + (im[ind0+8] << 2) + (im[ind0+8])
-                + (im[ind1+8] << 2) + (im[ind2+8] << 1) );
-        
-        lowpass[ind0] = ((((103*sum + 8192)&0xFFFFFFFF) >>> 14)&0xFF)|0;
-        
     }
-    // sobel gradient
-    if ( grad2 )
+    */
+    if( do_blur )
     {
-        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+        /*
+        gauss lowpass 5x5 with sigma = 1.4
+                       | 2  4  5  4 2 |
+                 1     | 4  9 12  9 4 |
+        Gauss = ---  * | 5 12 15 12 5 |
+                159    | 4  9 12  9 4 |
+                       | 2  4  5  4 2 |
+        */
+        gauss = new A8U(count); f = 1.0/159.0;
+        w_2 = w-2; h_2 = h-2; w2 = w<<1;
+        for(i=2,j=2,k=w2; j<h_2; i++)
         {
-            if ( j >= h_1 ){ j=1; k=w; i++; }
-            // compute coords using simple add/subtract arithmetic (faster)
-            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-            
-            grad[ind0] = (
-                      lowpass[ind_1+1] 
-                    - lowpass[ind_1-1] 
-                    - lowpass[ind0-1] - lowpass[ind0-1]
-                    + lowpass[ind0+1] + lowpass[ind0+1]
-                    - lowpass[ind1-1] 
-                    + lowpass[ind1+1]
-                    );
-            grad2[ind0] = (
-                      lowpass[ind_1-1] 
-                    + lowpass[ind_1] + lowpass[ind_1]
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind1-1] 
-                    - lowpass[ind1] - lowpass[ind1]
-                    - lowpass[ind1+1]
-                    );
+            if ( i >= w_2 ){ i=2; k+=w; j++; if(j>=h_2) break; }
+            index = i+k; i0 = index<<stride;
+            i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
+            gauss[index] = ((f*(
+                            2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
+                           +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
+                           +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
+                           +4*im[i1s-dx2] +  9*im[i1s-dx] + 12*im[i1s] +  9*im[i1s+dx] + 4*im[i1s+dx2]
+                           +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
+                      ))|0)&255;
         }
-        
-        // integral gradient
-        if ( summed )
-        {
-            // first row
-            for(i=0,sum=sum2=0; i<w; i++) { sum += grad[i]; sum2 += grad2[i]; grad[i] = sum; grad2[i] = sum2; }
-            // other rows
-            for(i=w,k=0,sum=sum2=0; i<count; i++,k++)
-            {
-                if (k>=w) { k=0; sum=sum2=0; }
-                sum += grad[i]; grad[i] = grad[i-w] + sum;
-                sum2 += grad2[i]; grad2[i] = grad2[i-w] + sum2;
-            }
-        }
+        dx = 1; dx2 = 2; dy = w; stride = 0;
     }
     else
     {
-        for (i=1,j=1,k=w; i<w_1; j++,k+=w)
+        gauss = im;
+    }
+    
+    /*
+    sobel gradient 3x3 in X,Y directions
+             | −1  0  1 |
+    sobelX = | −2  0  2 |
+             | −1  0  1 |
+             
+             |  1  2  1 |
+    sobelY = |  0  0  0 |
+             | −1 -2 -1 |
+    */
+    if ( (null != low) && (null != high) )
+    {
+        gX = new A32F(count); gY = new A32F(count);
+        for(i=1,j=1,k=w; j<h_1; i++)
         {
-            if ( j >= h_1 ){ j=1; k=w; i++; }
-            // compute coords using simple add/subtract arithmetic (faster)
-            ind0 = k+i; ind1 = ind0+w; ind_1 = ind0-w; 
-            
-            grad_x = (
-                      lowpass[ind_1+1] 
-                    - lowpass[ind_1-1] 
-                    - lowpass[ind0-1] - lowpass[ind0-1]
-                    + lowpass[ind0+1] + lowpass[ind0+1]
-                    - lowpass[ind1-1] 
-                    + lowpass[ind1+1]
-                    );
-            grad_y = (
-                      lowpass[ind_1-1] 
-                    + lowpass[ind_1] + lowpass[ind_1]
-                    + lowpass[ind_1+1] 
-                    - lowpass[ind1-1] 
-                    - lowpass[ind1] - lowpass[ind1]
-                    - lowpass[ind1+1]
-                    );
-            
-            grad[ind0] = Abs(grad_x) + Abs(grad_y);
+            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
+            index = k+i; i0 = index<<stride;
+            i1s = i0+dy; i1n = i0-dy;
+            gX[index] = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];
+            gY[index] = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
         }
         
-        // integral gradient
-        if ( summed )
+        // non-maximal supression
+        for(i=1,j=1,k=w; j<h_1; i++)
         {
+            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
+            
+            i0 = i + k;
+            i1n = i0 - w;
+            i1s = i0 + w;
+            i1w = i0 - 1;
+            i1e = i0 + 1;
+            inw = i1n - 1;
+            ine = i1n + 1;
+            isw = i1s - 1;
+            ise = i1s + 1;
+            
+            xGrad = gX[i0]; yGrad = gY[i0];
+            absxGrad = Abs(xGrad); absyGrad = Abs(yGrad);
+            gradMag = absxGrad+absyGrad;
+            nMag = Abs(gX[i1n])+Abs(gY[i1n]);
+            sMag = Abs(gX[i1s])+Abs(gY[i1s]);
+            wMag = Abs(gX[i1w])+Abs(gY[i1w]);
+            eMag = Abs(gX[i1e])+Abs(gY[i1e]);
+            neMag = Abs(gX[ine])+Abs(gY[ine]);
+            seMag = Abs(gX[ise])+Abs(gY[ise]);
+            swMag = Abs(gX[isw])+Abs(gY[isw]);
+            nwMag = Abs(gX[inw])+Abs(gY[inw]);
+            if (xGrad * yGrad <= 0
+                ? absxGrad >= absyGrad
+                    ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                        && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
+                    : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                        && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
+                : absxGrad >= absyGrad
+                    ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                        && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
+                    : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                        && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
+            ) 
+            {
+                g[i0] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
+            } 
+            else 
+            {
+                g[i0] = 0;
+            }
+        }
+        
+        // reset image
+        for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
+
+        //hysteresis and threshold
+        for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<2,i++) 
+        {
+            if ( i >= w ){ i=0; j++; }
+            if ( (0 === im[k]) && (g[index] >= high) ) follow_edge( im, w, h, g, i, j, k, low );
+        }
+        
+        return im;
+    }
+    else
+    {
+        // non-maximal supression
+        for(i=1,j=1,k=w; j<h_1; i++)
+        {
+            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
+            index = k+i; i0 = index<<stride;
+            i1s = i0+dy; i1n = i0-dy;
+            sobelX = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];            sobelY = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
+            g[index] = Abs(sobelX) + Abs(sobelY);
+        }
+        if( do_sat )
+        {
+            // integral (canny) gradient
             // first row
-            for(i=0,sum=0; i<w; i++) { sum += grad[i]; grad[i] = sum; }
+            for(i=0,sum=0; i<w; i++) { sum += g[i]; g[i] = sum; }
             // other rows
             for(i=w,k=0,sum=0; i<count; i++,k++)
             {
-                if (k>=w) { k=0; sum=0; }
-                sum += grad[i]; grad[i] = grad[i-w] + sum;
+                if(k>=w) { k=0; sum=0; }
+                sum += g[i]; g[i] = g[i-w] + sum;
             }
         }
+        
+        return g;
     }
 }
 function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh )
@@ -1591,164 +1650,6 @@ function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh )
         }
         y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
     }
-}
-// adapted from Java: http://www.tomgibara.com/computer-vision/canny-edge-detector
-function canny_gradient( im, w, h, kernelRadius, kernelWidth, low, high,
-                        GAUSSIAN_CUT_OFF, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX ) 
-{
-    //generate the gaussian convolution masks
-    var //kernelRadius = 2, kernelWidth = 14,
-        size = im.length, picsize = size>>>2,
-        magnitude = new A32I(picsize),
-        xConv = new A32F(picsize),
-        yConv = new A32F(picsize),
-        xGradient = new A32F(picsize),
-        yGradient = new A32F(picsize),
-        kernel = new A32F(kernelWidth),
-        diffKernel = new A32F(kernelWidth),
-        sigma2 = kernelRadius*kernelRadius, sigma22 = 2 * sigma2,
-        factor = PI2 * sigma2, kwidth, g1, g2, g3, x, y;
-    
-    for (kwidth = 0; kwidth < kernelWidth; kwidth++) 
-    {
-        g1 = Exp(-(kwidth * kwidth) / sigma22); // gaussian
-        if ( g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2 ) break;
-        g2 = Exp(-((x=kwidth - 0.5) * x) / sigma22); // gaussian
-        g3 = Exp(-((x=kwidth + 0.5) * x) / sigma22); // gaussian
-        kernel[kwidth] = (g1 + g2 + g3) / 3 / factor;
-        diffKernel[kwidth] = g3 - g2;
-    }
-
-    var initX = kwidth - 1, maxX = w - initX, initY = w * (kwidth - 1), maxY = picsize - initY,
-        index, sumX, sumY, xOffset, yOffset, i, j;
-    
-    //perform convolution in x and y directions
-    for (x=initX,y=initY; x<maxX; y+=w) 
-    {
-        if ( y >= maxY) { y=initY; x++; }
-        index = x + y;
-        sumX = im[index<<2] * kernel[0];
-        sumY = sumX;
-        xOffset = 1;
-        yOffset = w;
-        for(; xOffset < kwidth ;) 
-        {
-            sumY += kernel[xOffset] * (im[(index - yOffset)<<2] + im[(index + yOffset)<<2]);
-            sumX += kernel[xOffset] * (im[(index - xOffset)<<2] + im[(index + xOffset)<<2]);
-            yOffset += w; xOffset++;
-        }
-        yConv[index] = sumY;
-        xConv[index] = sumX;
-    }
-
-    //perform sobel gradient in x and y directions
-    for (x=initX,y=initY; x<maxX; y+=w) 
-    {
-        if ( y >= maxY) { y=initY; x++; }
-        index = x + y; yOffset = w;
-        for (sumX=sumY=0,i = 1; i < kwidth; i++)
-        {
-            sumX += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
-            sumY += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
-            yOffset += w;
-        }
-        xGradient[index] = sumX;
-        yGradient[index] = sumY;
-    }
-    
-    var indexN, indexS, indexE, indexW,
-        indexNW, indexNE, indexSW, indexSE,
-        xGrad, yGrad, gradMag, tmp, nMag, sMag, eMag, wMag,
-        nwMag, neMag, swMag, seMag, absxGrad, absyGrad;
-    
-    //perform non-maximal supression
-    initX = kwidth; maxX = w - initX; initY = w * kwidth; maxY = picsize - initY;
-    for (x=initX,y=initY; x<maxX; y+=w) 
-    {
-        if ( y >= maxY ) {y=initY; x++; }
-        
-        index = x + y;
-        indexN = index - w;
-        indexS = index + w;
-        indexW = index - 1;
-        indexE = index + 1;
-        indexNW = indexN - 1;
-        indexNE = indexN + 1;
-        indexSW = indexS - 1;
-        indexSE = indexS + 1;
-        
-        xGrad = xGradient[index];
-        yGrad = yGradient[index];
-        absxGrad = Abs(xGrad);
-        absyGrad = Abs(yGrad);
-        gradMag = absxGrad+absyGrad;
-        /*
-         * An explanation of what's happening here, for those who want
-         * to understand the source: This performs the "non-maximal
-         * supression" phase of the Canny edge detection in which we
-         * need to compare the gradient magnitude to that in the
-         * direction of the gradient; only if the value is a local
-         * maximum do we consider the point as an edge candidate.
-         * 
-         * We need to break the comparison into a number of different
-         * cases depending on the gradient direction so that the
-         * appropriate values can be used. To avoid computing the
-         * gradient direction, we use two simple comparisons: first we
-         * check that the partial derivatives have the same sign (1)
-         * and then we check which is larger (2). As a consequence, we
-         * have reduced the problem to one of four identical cases that
-         * each test the central gradient magnitude against the values at
-         * two points with 'identical support'; what this means is that
-         * the geometry required to accurately interpolate the magnitude
-         * of gradient function at those points has an identical
-         * geometry (upto right-angled-rotation/reflection).
-         * 
-         * When comparing the central gradient to the two interpolated
-         * values, we avoid performing any divisions by multiplying both
-         * sides of each inequality by the greater of the two partial
-         * derivatives. The common comparand is stored in a temporary
-         * variable (3) and reused in the mirror case (4).
-         * 
-         */
-        nMag = Abs(xGradient[indexN])+Abs(yGradient[indexN]);
-        sMag = Abs(xGradient[indexS])+Abs(yGradient[indexS]);
-        wMag = Abs(xGradient[indexW])+Abs(yGradient[indexW]);
-        eMag = Abs(xGradient[indexE])+Abs(yGradient[indexE]);
-        neMag = Abs(xGradient[indexNE])+Abs(yGradient[indexNE]);
-        seMag = Abs(xGradient[indexSE])+Abs(yGradient[indexSE]);
-        swMag = Abs(xGradient[indexSW])+Abs(yGradient[indexSW]);
-        nwMag = Abs(xGradient[indexNW])+Abs(yGradient[indexNW]);
-        if (xGrad * yGrad <= 0
-            ? absxGrad >= absyGrad
-                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
-                    && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
-                : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
-                    && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
-            : absxGrad >= absyGrad
-                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
-                    && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
-                : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
-                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
-        ) 
-        {
-            magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
-        } 
-        else 
-        {
-            magnitude[index] = 0;
-        }
-    }
-    
-    for (i=0; i<size; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
-
-    //hysteresis and threshold
-    for (x=0,y=0,j=0,i=0; j<picsize; j++,i=j<<2,x++) 
-    {
-        if ( x >= w ){ x=0; y++; }
-        if ( (0 === im[i]) && (magnitude[j] >= high) )
-            follow_edge( im, w, h, magnitude, x, y, i, low );
-    }
-    return im;
 }
 
 // speed-up convolution for special kernels like moving-average
@@ -2654,40 +2555,81 @@ function ct_eye( c1, c0 )
     if ( null == c0 ) c0 = 0;
     if ( null == c1 ) c1 = 1;
     var i, t = new ColorTable(256);
-    for(i=0; i<256; i+=32)
+    if ( "function" === typeof c1 )
     {
-        t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
-        t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
-        t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
-        t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
-        t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
-        t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
-        t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
-        t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
-        t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
-        t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
-        t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
-        t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
-        t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
-        t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
-        t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
-        t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
-        t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
-        t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
-        t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
-        t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
-        t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
-        t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
-        t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
-        t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
-        t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
-        t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
-        t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
-        t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
-        t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
-        t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
-        t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
-        t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
+        for(i=0; i<256; i+=32)
+        {
+            t[i   ] = clamp(c1(i   ),0,255)|0;
+            t[i+1 ] = clamp(c1(i+1 ),0,255)|0;
+            t[i+2 ] = clamp(c1(i+2 ),0,255)|0;
+            t[i+3 ] = clamp(c1(i+3 ),0,255)|0;
+            t[i+4 ] = clamp(c1(i+4 ),0,255)|0;
+            t[i+5 ] = clamp(c1(i+5 ),0,255)|0;
+            t[i+6 ] = clamp(c1(i+6 ),0,255)|0;
+            t[i+7 ] = clamp(c1(i+7 ),0,255)|0;
+            t[i+8 ] = clamp(c1(i+8 ),0,255)|0;
+            t[i+9 ] = clamp(c1(i+9 ),0,255)|0;
+            t[i+10] = clamp(c1(i+10),0,255)|0;
+            t[i+11] = clamp(c1(i+11),0,255)|0;
+            t[i+12] = clamp(c1(i+12),0,255)|0;
+            t[i+13] = clamp(c1(i+13),0,255)|0;
+            t[i+14] = clamp(c1(i+14),0,255)|0;
+            t[i+15] = clamp(c1(i+15),0,255)|0;
+            t[i+16] = clamp(c1(i+16),0,255)|0;
+            t[i+17] = clamp(c1(i+17),0,255)|0;
+            t[i+18] = clamp(c1(i+18),0,255)|0;
+            t[i+19] = clamp(c1(i+19),0,255)|0;
+            t[i+20] = clamp(c1(i+20),0,255)|0;
+            t[i+21] = clamp(c1(i+21),0,255)|0;
+            t[i+22] = clamp(c1(i+22),0,255)|0;
+            t[i+23] = clamp(c1(i+23),0,255)|0;
+            t[i+24] = clamp(c1(i+24),0,255)|0;
+            t[i+25] = clamp(c1(i+25),0,255)|0;
+            t[i+26] = clamp(c1(i+26),0,255)|0;
+            t[i+27] = clamp(c1(i+27),0,255)|0;
+            t[i+28] = clamp(c1(i+28),0,255)|0;
+            t[i+29] = clamp(c1(i+29),0,255)|0;
+            t[i+30] = clamp(c1(i+30),0,255)|0;
+            t[i+31] = clamp(c1(i+31),0,255)|0;
+        }
+    }
+    else
+    {
+        for(i=0; i<256; i+=32)
+        {
+            t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
+            t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
+            t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
+            t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
+            t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
+            t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
+            t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
+            t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
+            t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
+            t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
+            t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
+            t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
+            t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
+            t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
+            t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
+            t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
+            t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
+            t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
+            t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
+            t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
+            t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
+            t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
+            t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
+            t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
+            t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
+            t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
+            t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
+            t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
+            t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
+            t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
+            t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
+            t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
+        }
     }
     return t;
 }
@@ -2904,11 +2846,10 @@ FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 //FilterUtil.algebraic_combination = algebraic_combination;
-FilterUtil.canny_gradient = canny_gradient;
-FilterUtil.GRAD = gradient;
-FilterUtil.SAT = integral2;
+FilterUtil.gradient = gradient;
+FilterUtil.sat = integral2;
 
-}(FILTER);/**
+}(FILTER)/**
 *
 * Filter Interpolation methods
 * @package FILTER.js
@@ -5322,6 +5263,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = 0;
         self._intRefresh = 0;
         self._spcRefresh = 0;
+        self.nref = 0;
         if ( img ) self.image( img );
     }
     
@@ -5350,6 +5292,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,_hstRefresh: 0
     ,_intRefresh: 0
     ,_spcRefresh: 0
+    ,nref: 0
     
     ,dispose: function( ) {
         var self = this;
@@ -5360,7 +5303,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.domElement = self.tmpCanvas = self.iCanvas = self.oCanvas = self.ictx = self.octx = null;
         self._restorable = self._gl = null;
         self._histogram = self._integral = self._spectrum = null;
-        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = null;
+        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = self.nref = null;
         return self;
     }
     
@@ -5426,16 +5369,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ];
             self._refresh |= SEL;
         }
+        self.nref++;
         return self;
     }
     
     ,deselect: function( ) {
-        var self = this;
-        self.selection = null;
-        self.iDataSel = null;
-        self.oDataSel = null;
-        self._refresh &= CLEAR_SEL;
-        return self;
+        return this.select( false );
     }
     
     // store the processed/filtered image as the original image
@@ -5447,6 +5386,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.ictx.drawImage(self.oCanvas, 0, 0); 
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
+            self.nref++;
         }
         return self;
     }
@@ -5463,6 +5403,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= OSEL;
+            self.nref++;
         }
         return self;
     }
@@ -5474,6 +5415,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
@@ -5519,6 +5461,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -5544,6 +5487,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         //self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -5569,6 +5513,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         //self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -5589,6 +5534,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= SEL;
+            self.nref++;
         }
         return self;
     }
@@ -5648,6 +5594,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (sel) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
         
@@ -5692,6 +5639,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (sel) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -5757,6 +5705,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     } : function( a ) {
         var self = this;
@@ -5768,6 +5717,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -5793,6 +5743,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
+        self.nref++;
         return self;
     } : function( a ) {
         var self = this;
@@ -5815,6 +5766,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
+        self.nref++;
         return self;
     }
     
@@ -5831,6 +5783,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.createImageData(w, h);
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -5895,6 +5848,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     } : function( img ) {
         if ( !img ) return this;
@@ -5957,6 +5911,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     ,setImage: null
@@ -5979,6 +5934,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -5997,6 +5953,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -6240,6 +6197,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= SEL;
+            self.nref++;
         }
         return self;
     }

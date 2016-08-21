@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Generic Filters
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Generic Filters)
@@ -22,7 +22,7 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js Generic Filters
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Generic Filters)
@@ -230,7 +230,6 @@ var CompositeFilter = FILTER.Create({
         if ( self.filters.length )
         {
             metaData = metaData || {};
-            metaData.container = self; metaData.index = 0;
             var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
             filtermeta = new Array(stacklength);
             for (fi=0; fi<stacklength; fi++)
@@ -238,7 +237,7 @@ var CompositeFilter = FILTER.Create({
                 filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    metaData.index = fi;
+                    metaData.container = self;  metaData.index = fi;
                     im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
@@ -630,7 +629,7 @@ FILTER.CombineFilter = FILTER.BlendFilter;
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
     FilterUtil = FILTER.Util.Filter, eye = FilterUtil.ct_eye, ct_mult = FilterUtil.ct_multiply,
-    Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
+    Floor = Math.floor, Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
     TypedArray = FILTER.Util.Array.typed
 ;
 
@@ -681,6 +680,12 @@ var ColorTableFilter = FILTER.Create({
         self.table[CHANNEL.B] = TypedArray(params.tableB, CT);
         self.table[CHANNEL.A] = TypedArray(params.tableA, CT);
         return self;
+    }
+    
+    ,functional: function( fR, fG, fB ) {
+        if ( "function" !== typeof fR ) return this;
+        var tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
+        return this.set(tR, tG, tB);
     }
     
     ,channel: function( channel ) {
@@ -768,24 +773,22 @@ var ColorTableFilter = FILTER.Create({
         if (!thresholdsG) thresholdsG=thresholdsR;
         if (!thresholdsB) thresholdsB=thresholdsG;
 
-        var tLR=thresholdsR.length, numLevelsR=tLR+1, 
-            tLG=thresholdsG.length, numLevelsG=tLG+1, 
-            tLB=thresholdsB.length, numLevelsB=tLB+1, 
-            tR=new CT(256), qR=new CT(numLevelsR), 
-            tG=new CT(256), qG=new CT(numLevelsG), 
-            tB=new CT(256), qB=new CT(numLevelsB), 
-            i, j, nLR=255/(numLevelsR-1), nLG=255/(numLevelsG-1), nLB=255/(numLevelsB-1)
-        ;
-        i=0; while (i<numLevelsR) { qR[i] = (nLR * i)|0; i++; }
-        thresholdsR[0]=(255*thresholdsR[0])|0;
-        i=1; while (i<tLR) { thresholdsR[i]=thresholdsR[i-1] + (255*thresholdsR[i])|0; i++; }
-        i=0; while (i<numLevelsG) { qG[i] = (nLG * i)|0; i++; }
-        thresholdsG[0]=(255*thresholdsG[0])|0;
-        i=1; while (i<tLG) { thresholdsG[i]=thresholdsG[i-1] + (255*thresholdsG[i])|0; i++; }
-        i=0; while (i<numLevelsB) { qB[i] = (nLB * i)|0; i++; }
-        thresholdsB[0]=(255*thresholdsB[0])|0;
-        i=1; while (i<tLB) { thresholdsB[i]=thresholdsB[i-1] + (255*thresholdsB[i])|0; i++; }
-
+        var tLR = thresholdsR.length, numLevelsR = tLR+1, 
+            tLG = thresholdsG.length, numLevelsG = tLG+1, 
+            tLB = thresholdsB.length, numLevelsB = tLB+1, 
+            tR = new CT(256), qR = new CT(numLevelsR), 
+            tG = new CT(256), qG = new CT(numLevelsG), 
+            tB = new CT(256), qB = new CT(numLevelsB), 
+            i, j, nLR=255/(numLevelsR-1), nLG=255/(numLevelsG-1), nLB=255/(numLevelsB-1);
+        for(i=0; i<numLevelsR; i++) qR[i] = (nLR * i)|0;
+        thresholdsR[0] = (255*thresholdsR[0])|0;
+        for(i=1; i<tLR; i++) thresholdsR[i] = thresholdsR[i-1] + (255*thresholdsR[i])|0;
+        for(i=0; i<numLevelsG; i++) qG[i] = (nLG * i)|0;
+        thresholdsG[0] = (255*thresholdsG[0])|0;
+        for(i=1; i<tLG; i++) thresholdsG[i] = thresholdsG[i-1] + (255*thresholdsG[i])|0;
+        for(i=0; i<numLevelsB; i++) qB[i] = (nLB * i)|0;
+        thresholdsB[0] = (255*thresholdsB[0])|0;
+        for(i=1; i<tLB; i++) thresholdsB[i] = thresholdsB[i-1] + (255*thresholdsB[i])|0;
         for(i=0; i<256; i++)
         { 
             // the non-linear mapping is here
@@ -809,11 +812,9 @@ var ColorTableFilter = FILTER.Create({
     ,quantize: function( numLevels ) {
         if ( null == numLevels ) numLevels = 64;
         if ( numLevels < 2 ) numLevels = 2;
-
-        var t=new CT(256), q=new CT(numLevels), i, nL=255/(numLevels-1), nR=numLevels/256;
-        i=0; while (i<numLevels) { q[i] = (nL * i)|0; i++; }
-        for(i=0; i<256; i++) { t[i] = clamp(q[ (nR * i)|0 ]); }
-        return this.set(t);
+        var j, q=new CT(numLevels), nL=255/(numLevels-1), nR=numLevels/256;
+        for(j=0; j<numLevels; j++) q[j] = clamp(nL * j)|0;
+        return this.set(eye(function( i ){ return q[ (nR * i)|0 ]; }));
     }
     ,posterize: null
     
@@ -826,35 +827,28 @@ var ColorTableFilter = FILTER.Create({
         if ( null == type ) type = 1;
         if ( null == threshold ) threshold=0.5;
         
-        var i, t=new CT(256), q, c, n=2/255;
+        var solar;
         if ( -1 === type ) // inverse
         {
             threshold *= 256; 
-            for(i=0; i<256; i++)
-            { 
-                t[i] = i>threshold ? 255-i : i; 
-            }
+            solar = function( i ){ return i>threshold ? 255-i : i; };
         }
         else if ( 2 === type ) // variation
         {
             threshold = 1-threshold;
-            for(i=0; i<256; i++)
-            { 
-                q = n*i; 
-                c = q<threshold ? (255-255*q)|0 : (255*q-255)|0; 
-                t[i] = clamp( c );
-            }
+            solar = function( i ){
+                var q = 2*i/255; 
+                return q<threshold ? 255-255*q : 255*q-255;
+            };
         }
         else
         {
-            for(i=0; i<256; i++)
-            { 
-                q = n*i; 
-                c = q>threshold ? (255-255*q)|0 : (255*q-255)|0; 
-                t[i] = clamp( c );
-            }
+            solar = function( i ){
+                var q = 2*i/255; 
+                return q>threshold ? 255-255*q : 255*q-255;
+            };
         }
-        return this.set(t);
+        return this.set(eye(solar));
     }
     
     ,solarize2: function( threshold ) {
@@ -867,52 +861,39 @@ var ColorTableFilter = FILTER.Create({
     
     // apply a binary mask to the image color channels
     ,mask: function( mask ) {
-        var i=0, tR=new CT(256), tG=new CT(256), tB=new CT(256),
-            maskR=(mask>>>16)&255, maskG=(mask>>>8)&255, maskB=mask&255
-        ;
-        for(i=0; i<256; i++)
-        { 
-            tR[i] = clamp(i & maskR); 
-            tG[i] = clamp(i & maskG); 
-            tB[i] = clamp(i & maskB); 
-        }
-        return this.set(tR, tG, tB);
+        var maskR=(mask>>>16)&255, maskG=(mask>>>8)&255, maskB=mask&255;
+        return this.set(eye(function( i ){ return i & maskR; }), eye(function( i ){ return i & maskG; }), eye(function( i ){ return i & maskB; }));
     }
     
     // replace a color with another
     ,replace: function( color, replacecolor ) {
-        if (color==replacecolor) return this;
-        var c1R=(color>>>16)&255, c1G=(color>>>8)&255, c1B=(color)&255, 
-            c2R=(replacecolor>>>16)&255, c2G=(replacecolor>>>8)&255, c2B=(replacecolor)&255, 
-            tR=eye(), tG=eye(), tB=eye();
-            tR[c1R]=c2R; tG[c1G]=c2G; tB[c1B]=c2B;
+        if (color == replacecolor) return this;
+        var tR = eye(), tG = eye(), tB = eye();
+        tR[(color>>>16)&255] = (replacecolor>>>16)&255;
+        tG[(color>>>8)&255] = (replacecolor>>>8)&255;
+        tB[(color)&255] = (replacecolor)&255;
         return this.set(tR, tG, tB);
     }
     
     // extract a range of color values from a specific color channel and set the rest to background color
     ,extract: function( channel, range, background ) {
         if (!range || !range.length) return this;
-        background=background||0;
-        var bR = (background>>>16)&255, bG = (background>>>8)&255, bB = background&255, 
-            tR=eye(0,bR), tG=eye(0,bG), tB=eye(0,bB), s, f;
+        background = background||0;
+        var tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255), s, f;
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B:
-                s=range[0]; f=range[1];
-                while (s<=f) { tB[s]=clamp(s); s++; }
+                for(s=range[0],f=range[1]; s<=f; s++) tB[s] = clamp(s);
                 break;
             
             case CHANNEL.G:
-                s=range[0]; f=range[1];
-                while (s<=f) { tG[s]=clamp(s); s++; }
+                for(s=range[0],f=range[1]; s<=f; s++) tG[s] = clamp(s);
                 break;
             
             case CHANNEL.R:
             default:
-                s=range[0]; f=range[1];
-                while (s<=f) { tR[s]=clamp(s); s++; }
+                for(s=range[0],f=range[1]; s<=f; s++) tR[s] = clamp(s);
                 break;
-            
         }
         return this.set(tR, tG, tB);
     }
@@ -922,29 +903,32 @@ var ColorTableFilter = FILTER.Create({
         gammaR = gammaR || 1;
         gammaG = gammaG || gammaR;
         gammaB = gammaB || gammaG;
-        
         // gamma correction uses inverse gamma
         gammaR = 1.0/gammaR; gammaG = 1.0/gammaG; gammaB = 1.0/gammaB;
-        
-        var tR=new CT(256), tG=new CT(256), tB=new CT(256), i=0;
-        for(i=0; i<256; i++)
-        { 
-            tR[i] = clamp((255*Power(nF*i, gammaR))|0); 
-            tG[i] = clamp((255*Power(nF*i, gammaG))|0); 
-            tB[i] = clamp((255*Power(nF*i, gammaB))|0);  
-        }
-        return this.set(tR, tG, tB);
+        return this.set(eye(function( i ){ return 255*Power(nF*i, gammaR); }), eye(function( i ){ return 255*Power(nF*i, gammaG); }), eye(function( i ){ return 255*Power(nF*i, gammaB); }));
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
     ,exposure: function( exposure ) {
         if ( null == exposure ) exposure = 1;
-        var i=0, t=new CT(256);
-        for(i=0; i<256; i++)
-        { 
-            t[i]=clamp((255 * (1 - Exponential(-exposure * i *nF)))|0); 
-        }
-        return this.set(t);
+        return this.set(eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
+    }
+    
+    ,contrast: function( r, g, b ) {
+        if ( null == g ) g = r;
+        if ( null == b ) b = r;
+        r += 1.0; g += 1.0; b += 1.0;
+        return this.set(eye(r,128*(1 - r)), eye(g,128*(1 - g)), eye(b,128*(1 - b)));
+    }
+    
+    ,brightness: function( r, g, b ) {
+        if ( null == g ) g = r;
+        if ( null == b ) b = r;
+        return this.set(eye(1,r), eye(1,g), eye(1,b));
+    }
+    
+    ,quickContrastCorrection: function( contrast ) {
+        return this.set(eye(null == contrast ? 1.2 : +contrast));
     }
     
     ,set: function( tR, tG, tB, tA ) {
@@ -3948,6 +3932,19 @@ FILTER.Create({
         return this.set( structureElement, "close" );
     }
     
+    ,gradient: function( structureElement ) { 
+        return this.set( structureElement, "gradient" );
+    }
+    
+    ,laplacian: function( structureElement ) { 
+        return this.set( structureElement, "laplacian" );
+    }
+    
+    /*,smoothing: function( structureElement ) { 
+        // TODO
+        return this.set( structureElement, "smooth" );
+    }*/
+    
     ,set: function( structureElement, filtName ) {
         var self = this;
         self._filterName = filtName;
@@ -4335,6 +4332,214 @@ Morphological = {
                 
                 // output
                 dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
+            }
+        }
+        return dst;
+    }
+    // 1/2 (dilation - erosion)
+    ,"gradient": function( self, im, w, h ) {
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
+        
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
+        
+        if ( MODE.GRAY === self.mode )
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r>rM ) rM = r;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = rM; dst[i+2] = rM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r<rM ) rM = r;
+                }
+                
+                // output
+                rM = (0.5*(dst[i]-rM))|0;
+                dst[i] = rM;  dst[i+1] = rM; dst[i+2] = rM;
+            }
+        }
+        else
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
+                }
+                
+                // output
+                rM = (0.5*(dst[i  ]-rM))|0; gM = (0.5*(dst[i+1]-gM))|0; bM = (0.5*(dst[i+2]-bM))|0;
+                dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;
+            }
+        }
+        return dst;
+    }
+    // 1/2 (dilation + erosion -2IM)
+    ,"laplacian": function( self, im, w, h ) {
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
+        
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
+        
+        if ( MODE.GRAY === self.mode )
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r>rM ) rM = r;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = rM; dst[i+2] = rM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r<rM ) rM = r;
+                }
+                
+                // output
+                rM = (0.5*(dst[i]+rM)-im[i])|0;
+                dst[i] = rM;  dst[i+1] = rM; dst[i+2] = rM;
+            }
+        }
+        else
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
+                }
+                
+                // output
+                rM = (0.5*(dst[i  ]+rM)-im[i  ])|0; gM = (0.5*(dst[i+1]+gM)-im[i+1])|0; bM = (0.5*(dst[i+2]+bM)-im[i+2])|0;
+                dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;
             }
         }
         return dst;

@@ -7,8 +7,8 @@
 !function(FILTER){
 "use strict";
 
-var canny_gradient = FILTER.Util.Filter.canny_gradient,
-    GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
+var canny_gradient = FILTER.Util.Filter.gradient,
+    MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 
 // an efficient Canny Edges Detector
@@ -18,25 +18,22 @@ FILTER.Create({
     
     ,low: 2.5
     ,high: 7.5
-    ,radius: 2
-    ,width: 14
+    ,lowpass: true
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold, kernelRadius, kernelWidth ) {
+    ,init: function( lowThreshold, highThreshold, lowpass ) {
         var self = this;
 		self.low = arguments.length < 1 ? 2.5 : +lowThreshold;
 		self.high = arguments.length < 2 ? 7.5 : +highThreshold;
-		self.radius = arguments.length < 3 ? 2 : +kernelRadius;
-		self.width = arguments.length < 4 ? 14 : +kernelWidth;
+		self.lowpass = arguments.length < 3 ? true : !!lowpass;
     }
     
-    ,thresholds: function( low, high, radius, width ) {
+    ,thresholds: function( low, high, lowpass ) {
         var self = this;
         self.low = +low;
         self.high = +high;
-        if ( null != radius ) self.radius = +radius;
-        if ( null != width ) self.width = +width;
+        if ( arguments.length > 2 ) self.lowpass = !!lowpass;
         return self;
     }
     
@@ -45,8 +42,7 @@ FILTER.Create({
         return {
              low: self.low
             ,high: self.high
-            ,radius: self.radius
-            ,width: self.width
+            ,lowpass: self.lowpass
         };
     }
     
@@ -54,8 +50,7 @@ FILTER.Create({
         var self = this;
         self.low = params.low;
         self.high = params.high;
-        self.radius = params.radius;
-        self.width = params.width;
+        self.lowpass = params.lowpass;
         return self;
     }
     
@@ -63,7 +58,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return canny_gradient( im, w, h, self.radius, self.width, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ), GAUSSIAN_CUT_OFF, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
+        return canny_gradient(1, im, w, h, im.length>>>2, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 

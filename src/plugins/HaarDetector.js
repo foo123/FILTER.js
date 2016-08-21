@@ -12,7 +12,7 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.SAT, sat_gradient = FilterUtil.GRAD
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, sat_gradient = FilterUtil.gradient
 ;
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
@@ -343,10 +343,10 @@ FILTER.Create({
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning, tolerance ) {
         var self = this;
         self.haardata = haardata || null;
-        self.baseScale = undef === baseScale ? 1.0 : baseScale;
-        self.scaleIncrement = undef === scaleIncrement ? 1.25 : scaleIncrement;
-        self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
-        self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
+        self.baseScale = undef === baseScale ? 1.0 : +baseScale;
+        self.scaleIncrement = undef === scaleIncrement ? 1.25 : +scaleIncrement;
+        self.stepIncrement = undef === stepIncrement ? 0.5 : +stepIncrement;
+        self.minNeighbors = undef === minNeighbors ? 1 : +minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
         self.tolerance = null == tolerance ? 0.2 : +tolerance;
         self._haarchanged = !!self.haardata;
@@ -378,14 +378,14 @@ FILTER.Create({
             self.haardata = params.haardata;
             self._haarchanged = true;
         }
-        if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
-        if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
-        if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
-        if ( params[HAS]('minNeighbors') ) self.minNeighbors = params.minNeighbors;
+        if ( params[HAS]('baseScale') ) self.baseScale = +params.baseScale;
+        if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = +params.scaleIncrement;
+        if ( params[HAS]('stepIncrement') ) self.stepIncrement = +params.stepIncrement;
+        if ( params[HAS]('minNeighbors') ) self.minNeighbors = +params.minNeighbors;
         if ( params[HAS]('doCannyPruning') ) self.doCannyPruning = params.doCannyPruning;
-        if ( params[HAS]('tolerance') ) self.tolerance = params.tolerance;
-        if ( params[HAS]('cannyLow') ) self.cannyLow = params.cannyLow;
-        if ( params[HAS]('cannyHigh') ) self.cannyHigh = params.cannyHigh;
+        if ( params[HAS]('tolerance') ) self.tolerance = +params.tolerance;
+        if ( params[HAS]('cannyLow') ) self.cannyLow = +params.cannyLow;
+        if ( params[HAS]('cannyHigh') ) self.cannyHigh = +params.cannyHigh;
         if ( params[HAS]('selection') ) self.selection = params.selection || null;
         }
         return self;
@@ -438,11 +438,11 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h, metaData) {
+    ,apply: function( im, w, h, metaData ) {
         var self = this;
         if ( !self.haardata ) return im;
         
-        var imSize = im.length>>>2,
+        var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features,
@@ -484,7 +484,7 @@ FILTER.Create({
             }
             else
             {
-                sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
+                EDGES = sat_gradient( 1, im, w, h, imSize, 1, 1 );
                 if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
             }
         }

@@ -141,10 +141,10 @@ FILTER.MODE = {
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
 };
 FILTER.LUMA = new FILTER.Array32F([
-    //0.212671, 0.71516, 0.072169
-    0.2126, 0.7152, 0.0722
     //0.30, 0.59, 0.11
     //0.299, 0.587, 0.114
+    //0.212671, 0.71516, 0.072169
+    0.2126, 0.7152, 0.0722
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -198,7 +198,7 @@ FILTER.IO = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
-FILTER.MachineLearning = FILTER.ML = { };
+FILTER.MachineLearning = /*FILTER.ML =*/ { };
 FILTER.GLSL = { };
 FILTER.SVG = { };
 
@@ -397,7 +397,8 @@ var
             return this;
         }
         
-        /* TOFIX:
+        /* FIXED: by counting update references in image and comparing current ref count with image ref count
+        
 **NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated version. It is going to be fixed in a next update.
         */
         ,setInput: function( key, inputImage ) {
@@ -409,7 +410,7 @@ var
             }
             else
             {
-                self.inputs[key] = [null, inputImage/*, inputImage._refresh*/];
+                self.inputs[key] = [null, inputImage, inputImage.nref];
             }
             return self;
         }
@@ -430,10 +431,10 @@ var
         ,input: function( key ) {
             var input = this.inputs[String(key)];
             if ( !input ) return null;
-            if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+            if ( (null == input[0]) || (input[1] && (input[2] !== input[1].nref)) )
             {
+                input[2] = input[1].nref; // compare and update current ref count with image ref count
                 input[0] = input[1].getSelectedData( );
-                //input[2] = 0;
             }
             return input[0] || null;
         }
@@ -457,9 +458,12 @@ var
             for(i=0; i<l; i++)
             {
                 input = inputs[k[i]];
-                if ( (null == input[0]) || (input[1] && input[1]._refresh) )
+                if ( (null == input[0]) || (input[1] && (input[2] !== input[1].nref)) )
+                {
                     // save bandwidth if input is same as main current image being processed
+                    input[2] = input[1].nref; // compare and update current ref count with image ref count
                     json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData( );
+                }
             }
             return json;
         }
@@ -475,7 +479,7 @@ var
                 // save bandwidth if input is same as main current image being processed
                 if ( true === input ) input = curImData;
                 else input[0] = TypedArray( input[0], IMG )
-                inputs[k[i]] = [input, null];
+                inputs[k[i]] = [input, null, 0];
             }
             return self;
         }

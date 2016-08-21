@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.ML.kmeans = function(){};
+FILTER.MachineLearning.kmeans = function(){};
 
 }(FILTER);

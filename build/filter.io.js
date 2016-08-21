@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js I/O Classes
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (I/O Loaders)
@@ -22,7 +22,7 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js I/O Classes
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (I/O Loaders)

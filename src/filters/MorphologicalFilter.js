@@ -92,6 +92,19 @@ FILTER.Create({
         return this.set( structureElement, "close" );
     }
     
+    ,gradient: function( structureElement ) { 
+        return this.set( structureElement, "gradient" );
+    }
+    
+    ,laplacian: function( structureElement ) { 
+        return this.set( structureElement, "laplacian" );
+    }
+    
+    /*,smoothing: function( structureElement ) { 
+        // TODO
+        return this.set( structureElement, "smooth" );
+    }*/
+    
     ,set: function( structureElement, filtName ) {
         var self = this;
         self._filterName = filtName;
@@ -479,6 +492,214 @@ Morphological = {
                 
                 // output
                 dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;  dst[i+3] = im[i+3];
+            }
+        }
+        return dst;
+    }
+    // 1/2 (dilation - erosion)
+    ,"gradient": function( self, im, w, h ) {
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
+        
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
+        
+        if ( MODE.GRAY === self.mode )
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r>rM ) rM = r;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = rM; dst[i+2] = rM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r<rM ) rM = r;
+                }
+                
+                // output
+                rM = (0.5*(dst[i]-rM))|0;
+                dst[i] = rM;  dst[i+1] = rM; dst[i+2] = rM;
+            }
+        }
+        else
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
+                }
+                
+                // output
+                rM = (0.5*(dst[i  ]-rM))|0; gM = (0.5*(dst[i+1]-gM))|0; bM = (0.5*(dst[i+2]-bM))|0;
+                dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;
+            }
+        }
+        return dst;
+    }
+    // 1/2 (dilation + erosion -2IM)
+    ,"laplacian": function( self, im, w, h ) {
+        var structureElement = self._structureElement,
+            matArea = structureElement.length, //matRadius*matRadius,
+            matRadius = self._dim, indices = self._indices,
+            coverArea2 = indices.length, coverArea = coverArea2>>>1, imIndex = new A32I(coverArea2),
+            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
+            i, j, k, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx=w-1, by=imArea-w;
+        
+        // pre-compute indices, 
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<coverArea2; j+=2){ imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w; }
+        
+        if ( MODE.GRAY === self.mode )
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r>rM ) rM = r;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = rM; dst[i+2] = rM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff];
+                    if ( r<rM ) rM = r;
+                }
+                
+                // output
+                rM = (0.5*(dst[i]+rM)-im[i])|0;
+                dst[i] = rM;  dst[i+1] = rM; dst[i+2] = rM;
+            }
+        }
+        else
+        {
+            // dilate step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r>rM ) rM = r; if ( g>gM ) gM = g; if ( b>bM ) bM = b;
+                }
+                // output
+                dst[i] = rM; dst[i+1] = gM; dst[i+2] = bM; dst[i+3] = im[i+3];
+            }
+            
+            // erode step
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=255,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
+                    if ( r<rM ) rM = r; if ( g<gM ) gM = g; if ( b<bM ) bM = b;
+                }
+                
+                // output
+                rM = (0.5*(dst[i  ]+rM)-im[i  ])|0; gM = (0.5*(dst[i+1]+gM)-im[i+1])|0; bM = (0.5*(dst[i+2]+bM)-im[i+2])|0;
+                dst[i] = rM;  dst[i+1] = gM; dst[i+2] = bM;
             }
         }
         return dst;

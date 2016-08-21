@@ -55,6 +55,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = 0;
         self._intRefresh = 0;
         self._spcRefresh = 0;
+        self.nref = 0;
         if ( img ) self.image( img );
     }
     
@@ -83,6 +84,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,_hstRefresh: 0
     ,_intRefresh: 0
     ,_spcRefresh: 0
+    ,nref: 0
     
     ,dispose: function( ) {
         var self = this;
@@ -93,7 +95,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.domElement = self.tmpCanvas = self.iCanvas = self.oCanvas = self.ictx = self.octx = null;
         self._restorable = self._gl = null;
         self._histogram = self._integral = self._spectrum = null;
-        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = null;
+        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = self.nref = null;
         return self;
     }
     
@@ -159,16 +161,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ];
             self._refresh |= SEL;
         }
+        self.nref++;
         return self;
     }
     
     ,deselect: function( ) {
-        var self = this;
-        self.selection = null;
-        self.iDataSel = null;
-        self.oDataSel = null;
-        self._refresh &= CLEAR_SEL;
-        return self;
+        return this.select( false );
     }
     
     // store the processed/filtered image as the original image
@@ -180,6 +178,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.ictx.drawImage(self.oCanvas, 0, 0); 
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
+            self.nref++;
         }
         return self;
     }
@@ -196,6 +195,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= OSEL;
+            self.nref++;
         }
         return self;
     }
@@ -207,6 +207,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
@@ -252,6 +253,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -277,6 +279,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         //self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -302,6 +305,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         //self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -322,6 +326,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= SEL;
+            self.nref++;
         }
         return self;
     }
@@ -381,6 +386,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (sel) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
         
@@ -425,6 +431,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (sel) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -490,6 +497,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     } : function( a ) {
         var self = this;
@@ -501,6 +509,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -526,6 +535,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
+        self.nref++;
         return self;
     } : function( a ) {
         var self = this;
@@ -548,6 +558,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
+        self.nref++;
         return self;
     }
     
@@ -564,6 +575,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.createImageData(w, h);
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     
@@ -628,6 +640,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     } : function( img ) {
         if ( !img ) return this;
@@ -690,6 +703,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= SEL;
+        self.nref++;
         return self;
     }
     ,setImage: null
@@ -712,6 +726,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -730,6 +745,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
         if (self.selection) self._refresh |= OSEL;
+        self.nref++;
         return self;
     }
     
@@ -973,6 +989,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
             self._intRefresh = ALL_CHANNELS;
             self._spcRefresh = ALL_CHANNELS;
             if (self.selection) self._refresh |= SEL;
+            self.nref++;
         }
         return self;
     }

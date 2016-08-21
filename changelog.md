@@ -1,5 +1,17 @@
 ##ChangeLog
 
+__0.9.6__
+
+* new morphological filters (methods), `gradient`, `laplacian`
+* some new methods (pre-computed filters) in `colortable` filter, which are similar to `colormatrix` filter
+* faster canny gradient algorithm with fixed gauss filter (faster but different quality from previous version), optional (gausian) blur pre-processing can also be used (as parameter, see examples)
+* fix some typos (e.g in `connectedcomponents` filter)
+* fix `container` meta parameter in `compositefilter` after each `apply` call (could be overwritten deeper in apply chain)
+* canny gradient pruning in haar detector computed using wrong indices in previous optimisations, fixed
+* the way extra filter inputs were handled has a bug, if same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version, fixed
+* update references, examples
+
+
 __0.9.5__
 
 * fix any nodejs portability emulation and parallel threads issues

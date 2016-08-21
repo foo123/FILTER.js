@@ -1,7 +1,7 @@
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -22,7 +22,7 @@ else /* Browser/WebWorker/.. */
 /**
 *
 *   FILTER.js Plugins
-*   @version: 0.9.5
+*   @version: 0.9.6
 *   @dependencies: Filter.js
 *
 *   JavaScript Image Processing Library (Plugins)
@@ -2266,8 +2266,8 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var canny_gradient = FILTER.Util.Filter.canny_gradient,
-    GAUSSIAN_CUT_OFF = 0.005, MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
+var canny_gradient = FILTER.Util.Filter.gradient,
+    MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 
 // an efficient Canny Edges Detector
@@ -2277,25 +2277,22 @@ FILTER.Create({
     
     ,low: 2.5
     ,high: 7.5
-    ,radius: 2
-    ,width: 14
+    ,lowpass: true
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( lowThreshold, highThreshold, kernelRadius, kernelWidth ) {
+    ,init: function( lowThreshold, highThreshold, lowpass ) {
         var self = this;
 		self.low = arguments.length < 1 ? 2.5 : +lowThreshold;
 		self.high = arguments.length < 2 ? 7.5 : +highThreshold;
-		self.radius = arguments.length < 3 ? 2 : +kernelRadius;
-		self.width = arguments.length < 4 ? 14 : +kernelWidth;
+		self.lowpass = arguments.length < 3 ? true : !!lowpass;
     }
     
-    ,thresholds: function( low, high, radius, width ) {
+    ,thresholds: function( low, high, lowpass ) {
         var self = this;
         self.low = +low;
         self.high = +high;
-        if ( null != radius ) self.radius = +radius;
-        if ( null != width ) self.width = +width;
+        if ( arguments.length > 2 ) self.lowpass = !!lowpass;
         return self;
     }
     
@@ -2304,8 +2301,7 @@ FILTER.Create({
         return {
              low: self.low
             ,high: self.high
-            ,radius: self.radius
-            ,width: self.width
+            ,lowpass: self.lowpass
         };
     }
     
@@ -2313,8 +2309,7 @@ FILTER.Create({
         var self = this;
         self.low = params.low;
         self.high = params.high;
-        self.radius = params.radius;
-        self.width = params.width;
+        self.lowpass = params.lowpass;
         return self;
     }
     
@@ -2322,7 +2317,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return canny_gradient( im, w, h, self.radius, self.width, round( self.low*MAGNITUDE_SCALE ), round( self.high*MAGNITUDE_SCALE ), GAUSSIAN_CUT_OFF, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
+        return canny_gradient(1, im, w, h, im.length>>>2, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 
@@ -2340,7 +2335,7 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.SAT, sat_gradient = FilterUtil.GRAD
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, sat_gradient = FilterUtil.gradient
 ;
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
@@ -2671,10 +2666,10 @@ FILTER.Create({
     ,init: function( haardata, baseScale, scaleIncrement, stepIncrement, minNeighbors, doCannyPruning, tolerance ) {
         var self = this;
         self.haardata = haardata || null;
-        self.baseScale = undef === baseScale ? 1.0 : baseScale;
-        self.scaleIncrement = undef === scaleIncrement ? 1.25 : scaleIncrement;
-        self.stepIncrement = undef === stepIncrement ? 0.5 : stepIncrement;
-        self.minNeighbors = undef === minNeighbors ? 1 : minNeighbors;
+        self.baseScale = undef === baseScale ? 1.0 : +baseScale;
+        self.scaleIncrement = undef === scaleIncrement ? 1.25 : +scaleIncrement;
+        self.stepIncrement = undef === stepIncrement ? 0.5 : +stepIncrement;
+        self.minNeighbors = undef === minNeighbors ? 1 : +minNeighbors;
         self.doCannyPruning = undef === doCannyPruning ? true : !!doCannyPruning;
         self.tolerance = null == tolerance ? 0.2 : +tolerance;
         self._haarchanged = !!self.haardata;
@@ -2706,14 +2701,14 @@ FILTER.Create({
             self.haardata = params.haardata;
             self._haarchanged = true;
         }
-        if ( params[HAS]('baseScale') ) self.baseScale = params.baseScale;
-        if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = params.scaleIncrement;
-        if ( params[HAS]('stepIncrement') ) self.stepIncrement = params.stepIncrement;
-        if ( params[HAS]('minNeighbors') ) self.minNeighbors = params.minNeighbors;
+        if ( params[HAS]('baseScale') ) self.baseScale = +params.baseScale;
+        if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = +params.scaleIncrement;
+        if ( params[HAS]('stepIncrement') ) self.stepIncrement = +params.stepIncrement;
+        if ( params[HAS]('minNeighbors') ) self.minNeighbors = +params.minNeighbors;
         if ( params[HAS]('doCannyPruning') ) self.doCannyPruning = params.doCannyPruning;
-        if ( params[HAS]('tolerance') ) self.tolerance = params.tolerance;
-        if ( params[HAS]('cannyLow') ) self.cannyLow = params.cannyLow;
-        if ( params[HAS]('cannyHigh') ) self.cannyHigh = params.cannyHigh;
+        if ( params[HAS]('tolerance') ) self.tolerance = +params.tolerance;
+        if ( params[HAS]('cannyLow') ) self.cannyLow = +params.cannyLow;
+        if ( params[HAS]('cannyHigh') ) self.cannyHigh = +params.cannyHigh;
         if ( params[HAS]('selection') ) self.selection = params.selection || null;
         }
         return self;
@@ -2766,11 +2761,11 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h, metaData) {
+    ,apply: function( im, w, h, metaData ) {
         var self = this;
         if ( !self.haardata ) return im;
         
-        var imSize = im.length>>>2,
+        var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
             SAT=null, SAT2=null, RSAT=null, EDGES=null, 
             x1, y1, x2, y2, features,
@@ -2812,7 +2807,7 @@ FILTER.Create({
             }
             else
             {
-                sat_gradient(im, w, h, EDGES=new Array32F(imSize), null, 1);
+                EDGES = sat_gradient( 1, im, w, h, imSize, 1, 1 );
                 if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
             }
         }

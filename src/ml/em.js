@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.ML.expectation_maximisation = FILTER.ML.em = function(){};
+FILTER.MachineLearning.expectation_maximisation = /*FILTER.ML.em =*/ function(){};
 
 }(FILTER);

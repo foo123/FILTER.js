@@ -121,7 +121,7 @@ __Properties:__
 * `hasInputs`  whether the filter has multiple extra inputs (except the current image data input), for example blend filters or displacement map filters or alpha mask filters have an extra image input (the blending image or displacement image or mask image respectively)
 * `inputs` the extra filter's inputs object (by key)
 
-**NOTE** The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version. It is going to be fixed in a next update in an optimum manner.
+**NOTE** **FIXED** <del>The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version. It is going to be fixed in a next update in an optimum manner.</del>
 
 
 __Methods:__
@@ -157,18 +157,22 @@ The filter scans an image and maps each pixel color according to the color table
 
 The class has various pre-defined filters which can be combined in any order.
 
+* `functional(fR:Function, fG:Function=fR, fB:Function=fG)` set color tables via functionals per color channel (or same for all channels)
 * `invert()` Inverts image colors to their complementary
-* `mask()` Apply a bit-mask to the image pixels
-* `replace()` Replace a color with another color
-* `extract()` Extract a color range from a specific color channel and set all rest to a background color
-* `gammaCorrection()` Apply gamma correction to image channels
-* `exposure()` Alter image exposure
-* `solarize()`  Apply a solarize effect
-* `solarize2()`  Apply alternative solarize effect
-* `posterize() / quantize()`  Quantize uniformly the image colors
+* `mask(mask:HEX)` Apply a bit-mask to the image pixels
+* `replace(color:HEX, replacecolor:HEX)` Replace a color with another color
+* `extract(channel:FILTER.CHANNEL, range:Array, background:HEX)` Extract a color range from a specific color channel and set all rest to a background color
+* `gammaCorrection(gammaR:Number, gammaG:Number=gammaR, gammaB:Number=gammaG)` Apply gamma correction to image channels
+* `exposure(exposure:Number)` Alter image exposure
+* `solarize(threshold:Number, type:Integer=1)`  Apply a solarize effect
+* `solarize2()`  Apply alternative solarize effect (`type=2`)
+* `posterize(numLevels:Integer) / quantize(numLevels:Integer)`  Quantize uniformly the image colors
 * `binarize()`  Quantize uniformly the image colors in 2 levels
-* `thresholds()`  Quantize non-uniformly the image colors according to given thresholds
+* `thresholds(thresholdsR:Array, thresholdsG:Array, thresholdsB:Array)`  Quantize non-uniformly the image colors according to given thresholds
 * `threshold()`  Quantize non-uniformly the image colors in 2 levels according to given threshold
+* `contrast(r:Number, g:Number=r, b:Number=g)`  Increase/Decrease image contrast
+* `brightness(r:Number, g:Number=r, b:Number=g)`  Adjust image brightness
+* `quickContrastCorrection(contrast:Number=1.2)`
 
 These filters are pre-computed, however any custom filter can be created by setting the color table manually (in the constructor).
 
@@ -219,23 +223,23 @@ The filter scans an image and maps each pixel colors linearly according to the c
 The class has various pre-defined filters which can be combined in any order.
 
 * `redChannel() / greenChannel() / blueChannel() / alphaChannel()`  Get the R/G/B/A channel of the image as a new image
-* `swapChannels()`  swap 2 image channels (eg `FILTER.CHANNEL.GREEN`, `FILTER.CHANNEL.BLUE`)
-* `maskChannel()`  mask (remove) an image channel
+* `swapChannels(ch1:FILTER.CHANNEL, ch2:FILTER.CHANNEL)`  swap 2 image channels (eg `FILTER.CHANNEL.GREEN`, `FILTER.CHANNEL.BLUE`)
+* `maskChannel(ch:FILTER.CHANNEL)`  mask (remove) an image channel
 * `desaturate() / grayscale()`  Applies grayscaling to an image
-* `colorize()` Applies pseudo-color to an image
+* `colorize(color:HEX, amount:Number=1)` Applies pseudo-color to an image
 * `invert()` Inverts image colors to their complementary
 * `invertAlpha()` Inverts ALPHA channel of image
-* `saturate()`  Saturates the image (each color to maximum degree)
-* `contrast()`  Increase/Decrease image contrast
-* `brightness()`  Adjust image brightness
-* `adjustHue()`  adjust image hue
-* `average()`   color image to an average color (similar to grayscale)
-* `quickContrastCorrection()`  
-* `sepia()`   applies a quick sepia effect
-* `sepia2()`   applies an alternative quick sepia effect
-* `threshold()`  applies a color threshod to the image
-* `threshold_rgb()`  applies a threshod to the image only to the RGB channels
-* `threshold_alpha()`  applies a threshod to the image only to the Alpha channel
+* `saturate(saturation:Number)`  Saturates the image (each color to maximum degree)
+* `contrast(r:Number, g:Number=r, b:Number=g)`  Increase/Decrease image contrast
+* `brightness(r:Number, g:Number=r, b:Number=g)`  Adjust image brightness
+* `adjustHue(degrees:Number)`  adjust image hue by degrees
+* `average(r:Number=1/3, g:Number=r, b:Number=g)`   color image to an average color (similar to grayscale)
+* `quickContrastCorrection(contrast:Number=1.2)`
+* `sepia(amount:Number=0.5)`   applies a quick sepia effect
+* `sepia2(amount:Number=10)`   applies an alternative quick sepia effect
+* `threshold(threshold:Number)`  applies a color threshod to the image
+* `thresholdRGB(threshold:Number)`  applies a threshod to the image only to the RGB channels
+* `thresholdAlpha()`  applies a threshod to the image only to the Alpha channel
 * `blend()`  blend this filter with another color matrix filter
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
@@ -559,10 +563,13 @@ This filter implements basic morphological processing like erode and dilate filt
 
 The class has some pre-defined filters to use.
 
-* `erode( )` Apply erode operation
-* `dilate( )` Apply dilate operation
-* `opening( )` Apply opening operation
-* `closing( )` Apply closing operation
+* `erode( )` Apply morphological erode operation
+* `dilate( )` Apply morphological dilate operation
+* `opening( )` Apply morphological opening operation
+* `closing( )` Apply morphological closing operation
+* `gradient( )` Apply morphological gradient operation
+* `laplacian( )` Apply morphological laplacian (2nd-order gradient) operation
+* `smoothing( )` Apply morphological smoothing operation (TODO)
 * `setMode( FILTER.MODE.GRAY )` Use faster morphological filters for grayscale images
 
 Morphological Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)

@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.ML.singular_value_decomposition = FILTER.ML.svd = function(){};
+FILTER.MachineLearning.singular_value_decomposition = /*FILTER.ML.svd =*/ function(){};
 
 }(FILTER);

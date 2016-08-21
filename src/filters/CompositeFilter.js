@@ -197,7 +197,6 @@ var CompositeFilter = FILTER.Create({
         if ( self.filters.length )
         {
             metaData = metaData || {};
-            metaData.container = self; metaData.index = 0;
             var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
             filtermeta = new Array(stacklength);
             for (fi=0; fi<stacklength; fi++)
@@ -205,7 +204,7 @@ var CompositeFilter = FILTER.Create({
                 filter = filterstack[fi]; 
                 if ( filter && filter._isOn ) 
                 {
-                    metaData.index = fi;
+                    metaData.container = self;  metaData.index = fi;
                     im = filter._apply(im, w, h, metaData);
                     if ( filter.hasMeta )
                     {
