@@ -153,8 +153,8 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add some needed signal processing graph node filters (eg `algebraic`, `switch`, `delay`  etc..) (in progress)
 * add active-shape geometric filters, color/histogram-detector filters, .. (todo)
 * add `2d-fft` routines, frequency-domain filtering (todo)
-* add machine learning (image) segmentation/classification algorithms (e.g `svd`, `jade`, `kmeans`, `camshift`) (todo)
 * add `SVG`, `CSS` Filters interface support for some Filters (todo)
+* add machine learning (image) segmentation/clustering algorithms (e.g `kmeans`, `kmedoids`, `connected components`, `deterministic annealing`, `svd`, `jade`, ..) [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]

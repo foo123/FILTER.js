@@ -56,9 +56,14 @@
 * [Blind Signal Separation: Statistical Principles, Cardoso 1998](http://www.tsi.enst.fr/~cardoso/Papers.PS/ProcIEEE.a4.ps)
 * [Equivariant adaptive source separation, Cardoso, Laheld 1996](http://www.tsi.enst.fr/~cardoso/Papers.PS/easi.ps)
 * [Natural Gradient works efficiently in Learning, Amari 1998](http://www.maths.tcd.ie/~mnl/store/Amari1998a.pdf)
+* [Adaptive On-Line Learning algorithms for Blind Separation, Yang, Amari 1997](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.37.7984&rep=rep1&type=pdf)
 * [Method for Image Source Separation by Means of Independent Component Analysis: ICA, Maximum Entory Method: MEM, and Wavelet Based Method:
 WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&type=pdf)
-* [Adaptive On-Line Learning algorithms for Blind Separation, Yang, Amari 1997](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.37.7984&rep=rep1&type=pdf)
+* [K-means Recovers ICA Filters when Independent Components are Sparse, Vinnikov, Shalev-Shwartz 2014](http://www.cs.huji.ac.il/~shais/papers/KmeansICA_ICML2014.pdf)
 * [Blind signal separation and identification of mixtures of images, Carmo, Teixeira de Assis, Estrela, Coelho 2009](https://arxiv.org/ftp/arxiv/papers/1603/1603.08095.pdf)
+* [Deterministic Annealing for Clustering, Compression, Classification, Regression and Related Optimization Problems, Rose 1998](https://scl.ece.ucsb.edu/sites/scl.ece.ucsb.edu/files/publications/b98_2_0.pdf)
+* [Improved clustering using deterministic annealing with a gradient descent technique, Qiu, Varley, Terrell 1992](http://ima.ac.uk/papers/qiu1994a.pdf)
+* [Pairwise Data Clustering by Deterministic Annealing, Hofmann, Buhmann 1996](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.9812&rep=rep1&type=pdf)
+* [Generalizing Swendsen-Wang for Image Analysis, Barbu, Zhu 2007](http://stat.fsu.edu/~abarbu/papers/jcgs.pdf)
 
 <!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->

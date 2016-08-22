@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-22 02:31:48
+*   @built on 2016-08-22 20:59:50
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-22 02:31:48
+*   @built on 2016-08-22 20:59:50
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -180,7 +180,7 @@ FILTER.MODE = {
     GRAY: 9, GRAYSCALE: 9, RGB: 10, RGBA: 11, HSV: 12, CMY: 13, CMYK: 13, PATTERN: 14,
     COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
     MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
-    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24
+    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24, HISTOGRAM: 25
 };
 FILTER.LUMA = new FILTER.Array32F([
     //0.30, 0.59, 0.11
@@ -240,7 +240,7 @@ FILTER.IO = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
 FILTER.Transform = { };
-FILTER.MachineLearning = /*FILTER.ML =*/ { };
+FILTER.MachineLearning = { };
 FILTER.GLSL = { };
 FILTER.SVG = { };
 
@@ -1446,31 +1446,34 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function gradient( rgba, im, w, h, count, do_blur, do_sat,
-                    low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
+function canny_gradient( rgba, im, w, h, do_blur, do_sat,
+                        low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
-    var imSize = im.length, index, i, j, k, dx, dy, dx2, stride, sum,
+    var imSize = im.length, count,
+        index, i, j, k, dx, dy, dx2, stride, sum,
         i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
         w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<2,
-        sobelX, sobelY, gX, gY, g, gauss, f,
+        sobelX, sobelY, gX, gY, g, gauss, //f,
         xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
         nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag;
     
     if ( null == MAGNITUDE_SCALE )
     {
-        MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 255;
+        MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
         MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
     }
     
     if ( rgba )
     {
         dx = 4; dx2 = 8; dy = w4; stride = 2;
+        count = imSize >>> 2;
     }
     else
     {
         dx = 1; dx2 = 2; dy = w; stride = 0;
+        count = imSize;
     }
-    g = new A32F(count);
+    gX = new A32F(count); gY = new A32F(count); g = new A32F(count);
     
     /*
     // first, second rows, last, second-to-last rows
@@ -1498,20 +1501,21 @@ function gradient( rgba, im, w, h, count, do_blur, do_sat,
                 159    | 4  9 12  9 4 |
                        | 2  4  5  4 2 |
         */
-        gauss = new A8U(count); f = 1.0/159.0;
+        gauss = new A8U(count); //f = 1.0/159.0;
         w_2 = w-2; h_2 = h-2; w2 = w<<1;
         for(i=2,j=2,k=w2; j<h_2; i++)
         {
             if ( i >= w_2 ){ i=2; k+=w; j++; if(j>=h_2) break; }
             index = i+k; i0 = index<<stride;
             i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
-            gauss[index] = ((f*(
-                            2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
-                           +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
-                           +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
-                           +4*im[i1s-dx2] +  9*im[i1s-dx] + 12*im[i1s] +  9*im[i1s+dx] + 4*im[i1s+dx2]
-                           +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
-                      ))|0)&255;
+            // use fixed-point arithmetic here
+            gauss[index] = (((103*(
+                        2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
+                       +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
+                       +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
+                       +4*im[i1s-dx2] +  9*im[i1s-dx] + 12*im[i1s] +  9*im[i1s+dx] + 4*im[i1s+dx2]
+                       +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
+                      )+8192)&0xFFFFFFFF)>>>14)&255;
         }
         dx = 1; dx2 = 2; dy = w; stride = 0;
     }
@@ -1530,69 +1534,69 @@ function gradient( rgba, im, w, h, count, do_blur, do_sat,
     sobelY = |  0  0  0 |
              | −1 -2 -1 |
     */
+    for(i=1,j=1,k=w; j<h_1; i++)
+    {
+        if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
+        index = k+i; i0 = index<<stride;
+        i1s = i0+dy; i1n = i0-dy;
+        gX[index] = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];
+        gY[index] = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
+    }
+    
+    // non-maximal supression
+    for(i=1,j=1,k=w; j<h_1; i++)
+    {
+        if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
+        
+        i0 = i + k;
+        i1n = i0 - w;
+        i1s = i0 + w;
+        i1w = i0 - 1;
+        i1e = i0 + 1;
+        inw = i1n - 1;
+        ine = i1n + 1;
+        isw = i1s - 1;
+        ise = i1s + 1;
+        
+        xGrad = gX[i0]; yGrad = gY[i0];
+        absxGrad = Abs(xGrad); absyGrad = Abs(yGrad);
+        gradMag = absxGrad+absyGrad;
+        nMag = Abs(gX[i1n])+Abs(gY[i1n]);
+        sMag = Abs(gX[i1s])+Abs(gY[i1s]);
+        wMag = Abs(gX[i1w])+Abs(gY[i1w]);
+        eMag = Abs(gX[i1e])+Abs(gY[i1e]);
+        neMag = Abs(gX[ine])+Abs(gY[ine]);
+        seMag = Abs(gX[ise])+Abs(gY[ise]);
+        swMag = Abs(gX[isw])+Abs(gY[isw]);
+        nwMag = Abs(gX[inw])+Abs(gY[inw]);
+        if (xGrad * yGrad <= 0
+            ? absxGrad >= absyGrad
+                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
+                : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
+            : absxGrad >= absyGrad
+                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
+                : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
+        ) 
+        {
+            g[i0] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
+        } 
+        else 
+        {
+            g[i0] = 0;
+        }
+    }
+    
     if ( (null != low) && (null != high) )
     {
-        gX = new A32F(count); gY = new A32F(count);
-        for(i=1,j=1,k=w; j<h_1; i++)
-        {
-            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
-            index = k+i; i0 = index<<stride;
-            i1s = i0+dy; i1n = i0-dy;
-            gX[index] = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];
-            gY[index] = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
-        }
-        
-        // non-maximal supression
-        for(i=1,j=1,k=w; j<h_1; i++)
-        {
-            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
-            
-            i0 = i + k;
-            i1n = i0 - w;
-            i1s = i0 + w;
-            i1w = i0 - 1;
-            i1e = i0 + 1;
-            inw = i1n - 1;
-            ine = i1n + 1;
-            isw = i1s - 1;
-            ise = i1s + 1;
-            
-            xGrad = gX[i0]; yGrad = gY[i0];
-            absxGrad = Abs(xGrad); absyGrad = Abs(yGrad);
-            gradMag = absxGrad+absyGrad;
-            nMag = Abs(gX[i1n])+Abs(gY[i1n]);
-            sMag = Abs(gX[i1s])+Abs(gY[i1s]);
-            wMag = Abs(gX[i1w])+Abs(gY[i1w]);
-            eMag = Abs(gX[i1e])+Abs(gY[i1e]);
-            neMag = Abs(gX[ine])+Abs(gY[ine]);
-            seMag = Abs(gX[ise])+Abs(gY[ise]);
-            swMag = Abs(gX[isw])+Abs(gY[isw]);
-            nwMag = Abs(gX[inw])+Abs(gY[inw]);
-            if (xGrad * yGrad <= 0
-                ? absxGrad >= absyGrad
-                    ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
-                        && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
-                    : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
-                        && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
-                : absxGrad >= absyGrad
-                    ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
-                        && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
-                    : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
-                        && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
-            ) 
-            {
-                g[i0] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
-            } 
-            else 
-            {
-                g[i0] = 0;
-            }
-        }
-        
+        // full (canny) gradient
         // reset image
         for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
 
-        //hysteresis and threshold
+        //hysteresis and double-threshold
         for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<2,i++) 
         {
             if ( i >= w ){ i=0; j++; }
@@ -1603,15 +1607,6 @@ function gradient( rgba, im, w, h, count, do_blur, do_sat,
     }
     else
     {
-        // non-maximal supression
-        for(i=1,j=1,k=w; j<h_1; i++)
-        {
-            if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
-            index = k+i; i0 = index<<stride;
-            i1s = i0+dy; i1n = i0-dy;
-            sobelX = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];            sobelY = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
-            g[index] = Abs(sobelX) + Abs(sobelY);
-        }
         if( do_sat )
         {
             // integral (canny) gradient
@@ -2846,7 +2841,7 @@ FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 //FilterUtil.algebraic_combination = algebraic_combination;
-FilterUtil.gradient = gradient;
+FilterUtil.canny_gradient = canny_gradient;
 FilterUtil.sat = integral2;
 
 }(FILTER)/**
