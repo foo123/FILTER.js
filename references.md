@@ -34,6 +34,8 @@
 * [Fast Almost-Gaussian Filtering using integral filters, Kovesi 2010](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
+* [YEF: Real-Time Object Detection, Abramson, Steux, Ghorayeb 2005](https://www.researchgate.net/publication/221051246_YEF_Yet_Even_Faster_Real-Time_Object_Detection)
+* [High-Performance Rotation Invariant Multiview Face Detection, Huang, Ai, Li, Lao 2007](http://media.cs.tsinghua.edu.cn/%7Eimagevision/papers/%5B2007%5D%5Bpami%5DHigh%20Performance%20Rotation%20Invariant%20Multi-View%20Face%20Detection%20i0671.pdf)
 * [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
 * [GPU Computation Strategies &amp; Tricks](http://gpgpu.org/static/sc2006/slides/09.owens.tips_and_tricks.pdf)
 * [GPU Processing Methods for Machine Vision, Riley](http://www.csee.umbc.edu/~olano/class/635-09-2/d17.pdf)
