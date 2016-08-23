@@ -12,7 +12,7 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, canny_gradient = FilterUtil.canny_gradient
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, canny_gradient = FilterUtil.optimum_gradient
 ;
 
 function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
@@ -482,7 +482,7 @@ FILTER.Create({
             }
             else
             {
-                EDGES = canny_gradient( 1, im, w, h, 1, 1 );
+                EDGES = canny_gradient( 2, im, w, h, 1, 1 );
                 if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
             }
         }

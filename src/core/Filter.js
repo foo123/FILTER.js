@@ -120,8 +120,9 @@ FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Arr
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
     RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
-    Y: 1, CB: 2, CR: 0,
-    H: 0, S: 2, V: 1, I: 1,
+    Y: 1, CB: 2, CR: 0, IP: 0, Q: 2,
+    INPHASE: 0, QUADRATURE: 2,
+    H: 0, S: 2, V: 1, I: 1, U: 2,
     HUE: 0, SATURATION: 2, INTENSITY: 1,
     CY: 2, MA: 0, YE: 1, K: 3,
     CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3
@@ -140,11 +141,16 @@ FILTER.MODE = {
     MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24, HISTOGRAM: 25
 };
-FILTER.LUMA = new FILTER.Array32F([
-    //0.30, 0.59, 0.11
-    //0.299, 0.587, 0.114
+FILTER.LUMA = FILTER.LUMA_YUV = FILTER.LUMA_YIQ = new FILTER.Array32F([
     //0.212671, 0.71516, 0.072169
     0.2126, 0.7152, 0.0722
+]);
+FILTER.LUMA_YCbCr = new FILTER.Array32F([
+    //0.30, 0.59, 0.11
+    0.299, 0.587, 0.114
+]);
+FILTER.LUMA_GREEN = new FILTER.Array32F([
+    0, 1, 0
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -500,7 +506,7 @@ var
             return self;
         }
         
-        ,select: function( x1, y1, x2, y2 ) {
+        ,select: function( x1, y1, x2, y2, absolute ) {
             var self = this;
             if ( false === x1 )
             {
@@ -512,15 +518,15 @@ var
                 Min(1.0, Max(0.0, x1||0)),
                 Min(1.0, Max(0.0, y1||0)),
                 Min(1.0, Max(0.0, x2||0)),
-                Min(1.0, Max(0.0, y2||0))
+                Min(1.0, Max(0.0, y2||0)),
+                absolute ? 0 : 1
                 ];
             }
             return self;
         }
     
         ,deselect: function( ) {
-            this.selection = null;
-            return this;
+            return this.select( false );
         }
         
         ,complete: function( f ) {

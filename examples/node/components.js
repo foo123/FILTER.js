@@ -69,7 +69,7 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
 
 F.IO.BinaryReader( F.Codec.GIF.decoder ).load(path.join(__dirname,'./snoopy.gif'), function( snoopy ){
     console.log('./snoopy.gif' + ' loaded with dims: ' + snoopy.width + ',' + snoopy.height);
-    console.log('Finding connecte components..');
+    console.log('Finding connected components..');
     connected_components.apply( snoopy, function( ){
         console.log('Saving connected components image..');
         F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./snoopy_components.jpg'), snoopy,

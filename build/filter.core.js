@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-22 20:59:50
+*   @built on 2016-08-23 10:08:33
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-22 20:59:50
+*   @built on 2016-08-23 10:08:33
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -162,8 +162,9 @@ FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Arr
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
     RED: 0, GREEN: 1, BLUE: 2, ALPHA: 3,
-    Y: 1, CB: 2, CR: 0,
-    H: 0, S: 2, V: 1, I: 1,
+    Y: 1, CB: 2, CR: 0, IP: 0, Q: 2,
+    INPHASE: 0, QUADRATURE: 2,
+    H: 0, S: 2, V: 1, I: 1, U: 2,
     HUE: 0, SATURATION: 2, INTENSITY: 1,
     CY: 2, MA: 0, YE: 1, K: 3,
     CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3
@@ -182,11 +183,16 @@ FILTER.MODE = {
     MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
     STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24, HISTOGRAM: 25
 };
-FILTER.LUMA = new FILTER.Array32F([
-    //0.30, 0.59, 0.11
-    //0.299, 0.587, 0.114
+FILTER.LUMA = FILTER.LUMA_YUV = FILTER.LUMA_YIQ = new FILTER.Array32F([
     //0.212671, 0.71516, 0.072169
     0.2126, 0.7152, 0.0722
+]);
+FILTER.LUMA_YCbCr = new FILTER.Array32F([
+    //0.30, 0.59, 0.11
+    0.299, 0.587, 0.114
+]);
+FILTER.LUMA_GREEN = new FILTER.Array32F([
+    0, 1, 0
 ]);
 FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048,
@@ -542,7 +548,7 @@ var
             return self;
         }
         
-        ,select: function( x1, y1, x2, y2 ) {
+        ,select: function( x1, y1, x2, y2, absolute ) {
             var self = this;
             if ( false === x1 )
             {
@@ -554,15 +560,15 @@ var
                 Min(1.0, Max(0.0, x1||0)),
                 Min(1.0, Max(0.0, y1||0)),
                 Min(1.0, Max(0.0, x2||0)),
-                Min(1.0, Max(0.0, y2||0))
+                Min(1.0, Max(0.0, y2||0)),
+                absolute ? 0 : 1
                 ];
             }
             return self;
         }
     
         ,deselect: function( ) {
-            this.selection = null;
-            return this;
+            return this.select( false );
         }
         
         ,complete: function( f ) {
@@ -1446,33 +1452,23 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function canny_gradient( rgba, im, w, h, do_blur, do_sat,
+function optimum_gradient( stride, im, w, h, do_blur, do_sat,
                         low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
-    var imSize = im.length, count,
-        index, i, j, k, dx, dy, dx2, stride, sum,
-        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
-        w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<2,
-        sobelX, sobelY, gX, gY, g, gauss, //f,
-        xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
-        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag;
-    
     if ( null == MAGNITUDE_SCALE )
     {
         MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
         MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
     }
     
-    if ( rgba )
-    {
-        dx = 4; dx2 = 8; dy = w4; stride = 2;
-        count = imSize >>> 2;
-    }
-    else
-    {
-        dx = 1; dx2 = 2; dy = w; stride = 0;
-        count = imSize;
-    }
+    var imSize = im.length, index, i, j, k, sum, stride0 = stride,
+        w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
+        dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
+        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
+        sobelX, sobelY, gX, gY, g, gauss, //f,
+        xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
+        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag;
+    
     gX = new A32F(count); gY = new A32F(count); g = new A32F(count);
     
     /*
@@ -1493,6 +1489,7 @@ function canny_gradient( rgba, im, w, h, do_blur, do_sat,
     */
     if( do_blur )
     {
+        // pre-bluring is optional, e.g a deriche pre-blur filtering can be used
         /*
         gauss lowpass 5x5 with sigma = 1.4
                        | 2  4  5  4 2 |
@@ -1594,13 +1591,14 @@ function canny_gradient( rgba, im, w, h, do_blur, do_sat,
     {
         // full (canny) gradient
         // reset image
-        for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
+        if ( stride0 ) for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
+        else for (i=0; i<imSize; i++) { im[i] = 0; }
 
         //hysteresis and double-threshold
-        for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<2,i++) 
+        for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<stride0,i++) 
         {
             if ( i >= w ){ i=0; j++; }
-            if ( (0 === im[k]) && (g[index] >= high) ) follow_edge( im, w, h, g, i, j, k, low );
+            if ( (0 === im[k]) && (g[index] >= high) ) follow_edge( im, w, h, g, i, j, k, low, stride0 );
         }
         
         return im;
@@ -1623,7 +1621,7 @@ function canny_gradient( rgba, im, w, h, do_blur, do_sat,
         return g;
     }
 }
-function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh )
+function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh, stride0 )
 {
     var x0 = x1 === 0 ? x1 : x1 - 1,
         x2 = x1 === w - 1 ? x1 : x1 + 1,
@@ -1632,15 +1630,16 @@ function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh )
         x, y, y0w = y0*w, yw, i, j;
 
     // threshold here
-    im[i1] = im[i1+1] = im[i1+2] = 255;
+    if ( stride0 ) { im[i1] = im[i1+1] = im[i1+2] = 255; }
+    else { im[i1] = 255; }
     
     x = x0, y = y0; yw = y0w;
     while (x <= x2 && y <= y2)
     {
-        j = x + yw; i = j << 2;
+        j = x + yw; i = j << stride0;
         if ( (y !== y1 || x !== x1) && (0 === im[i]) && (magnitude[j] >= thresh) ) 
         {
-            follow_edge( im, w, h, magnitude, x, y, i, thresh );
+            follow_edge( im, w, h, magnitude, x, y, i, thresh, stride0 );
             return;
         }
         y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
@@ -2841,7 +2840,7 @@ FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 //FilterUtil.algebraic_combination = algebraic_combination;
-FilterUtil.canny_gradient = canny_gradient;
+FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
 
 }(FILTER)/**
@@ -5337,7 +5336,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return this;
     }
     
-    ,select: function( x1, y1, x2, y2 ) {
+    ,select: function( x1, y1, x2, y2, absolute ) {
         var self = this, argslen = arguments.length;
         if ( false === x1 )
         {
@@ -5360,7 +5359,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
-                0 > y2 ? 0 : (1 < y2 ? 1 : y2)
+                0 > y2 ? 0 : (1 < y2 ? 1 : y2),
+                absolute ? 0 : 1
             ];
             self._refresh |= SEL;
         }
@@ -5718,11 +5718,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     // set direct data array of selected part
     ,setSelectedData: ArrayUtil.hasArrayset ? function( a ) {
-        var self = this;
-        if (self.selection)
+        var self = this, sel = self.selection;
+        if ( sel )
         {
-            var sel = self.selection, ow = self.width-1, oh = self.height-1,
-                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+            var xs = sel[0], ys = sel[1];
+            if ( sel[4] )
+            {
+                // relative
+                xs = Floor(xs*(self.width-1));
+                ys = Floor(ys*(self.height-1));
+            }
             if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             self.oDataSel.data.set(a);
             self.octx.putImageData(self.oDataSel, xs, ys); 
@@ -5741,11 +5746,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.nref++;
         return self;
     } : function( a ) {
-        var self = this;
-        if (self.selection)
+        var self = this, sel = self.selection;
+        if ( sel )
         {
-            var sel = self.selection, ow = self.width-1, oh = self.height-1,
-                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+            var xs = sel[0], ys = sel[1];
+            if ( sel[4] )
+            {
+                // relative
+                xs = Floor(xs*(self.width-1));
+                ys = Floor(ys*(self.height-1));
+            }
             if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
@@ -6267,9 +6277,14 @@ function refresh_selected_data( scope, what )
     if ( scope.selection )
     {
         var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
-            xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
-            ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
-        ;
+            xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3], ws, hs;
+        if ( sel[4] )
+        {
+            // relative
+            xs = Floor(xs*ow); ys = Floor(ys*oh);
+            xf = Floor(xf*ow); yf = Floor(sel[3]*oh);
+        }
+        ws = xf-xs+1; hs = yf-ys+1;
         what = what || 255;
         if ( scope._restorable && (what & ISEL) && (scope._refresh & ISEL) )
         {

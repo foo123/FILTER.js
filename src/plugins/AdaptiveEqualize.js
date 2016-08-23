@@ -1,15 +1,14 @@
 /**
 *
-* Active Shape Extractor Plugin
+* Adaptive Histogram Equalize Plugin
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-// TODO
 /*FILTER.Create({
-    name: "ActiveShapeFilter"
+    name : "AdaptiveHistogramEqualizeFilter"
 });*/
 
 }(FILTER);

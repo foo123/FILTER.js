@@ -1,6 +1,7 @@
 **Some image processing/computer vision theory, basics and tutorials:**
 
 
+* [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
 * [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
 * [image processing basics](http://www.csd.uwo.ca/courses/CS4487a/Lectures/lec03_image_proc.pdf)
@@ -28,14 +29,18 @@
 * [Improving Noise, Perlin 2001](http://mrl.nyu.edu/~perlin/paper445.pdf)
 * [Optimizations in perlin noise-generated procedural terrain, Marinescu 2012](http://www.cs.ubbcluj.ro/~studia-i/2012-2/05-Marinescu.pdf)
 * [A Computational Approach to Edge Detection, Canny 1986](https://perso.limsi.fr/vezien/PAPIERS_ACS/canny1986.pdf)
+* [Using Canny's Criteria to Derive a Recursively Implemented Optimal Edge Detector, Deriche 1987](https://ena.etsmtl.ca/pluginfile.php/59286/mod_resource/content/0/Lecture2.pdf)
 * [Morphological Filters-Part I: Their Set-Theoretic Analysis and Relations to Linear Shift-Invariant Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part1_ieeetASSP_+corrections1989.pdf)
 * [Morphological Filters-Part II: Their Relations to Median, Order-Statistic, and Stack Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part2_ieeetASSP_+corrections1989.pdf)
 * [Filtering by repeated Integration, Heckbert 1986](https://www.cs.cmu.edu/~ph/rif.ps.gz)
 * [Fast Almost-Gaussian Filtering using integral filters, Kovesi 2010](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
+* [Adaptive Histogram Equalization and Its Variations, Pizer et al,  1986](http://www.cs.unc.edu/Research/MIDAG/pubs/papers/Adaptive%20Histogram%20Equalization%20and%20Its%20Variations.pdf)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [YEF: Real-Time Object Detection, Abramson, Steux, Ghorayeb 2005](https://www.researchgate.net/publication/221051246_YEF_Yet_Even_Faster_Real-Time_Object_Detection)
 * [High-Performance Rotation Invariant Multiview Face Detection, Huang, Ai, Li, Lao 2007](http://media.cs.tsinghua.edu.cn/%7Eimagevision/papers/%5B2007%5D%5Bpami%5DHigh%20Performance%20Rotation%20Invariant%20Multi-View%20Face%20Detection%20i0671.pdf)
+* [Robust Wide Baseline Stereo from Maximally Stable Extremal Regions, Matas, Chum, Urban, Pajdla 2002](http://cmp.felk.cvut.cz/~matas/papers/matas-bmvc02.pdf)
+* [Linear Time Maximally Stable Extremal Regions, Nistér, Stewénius 2008](http://link.springer.com/chapter/10.1007%2F978-3-540-88688-4_14)
 * [Automatic and Accurate Lip Tracking, Eveno et al 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
 * [GPU Computation Strategies &amp; Tricks](http://gpgpu.org/static/sc2006/slides/09.owens.tips_and_tricks.pdf)
 * [GPU Processing Methods for Machine Vision, Riley](http://www.csee.umbc.edu/~olano/class/635-09-2/d17.pdf)

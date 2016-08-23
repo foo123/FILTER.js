@@ -134,7 +134,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return this;
     }
     
-    ,select: function( x1, y1, x2, y2 ) {
+    ,select: function( x1, y1, x2, y2, absolute ) {
         var self = this, argslen = arguments.length;
         if ( false === x1 )
         {
@@ -157,7 +157,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
-                0 > y2 ? 0 : (1 < y2 ? 1 : y2)
+                0 > y2 ? 0 : (1 < y2 ? 1 : y2),
+                absolute ? 0 : 1
             ];
             self._refresh |= SEL;
         }
@@ -515,11 +516,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     // set direct data array of selected part
     ,setSelectedData: ArrayUtil.hasArrayset ? function( a ) {
-        var self = this;
-        if (self.selection)
+        var self = this, sel = self.selection;
+        if ( sel )
         {
-            var sel = self.selection, ow = self.width-1, oh = self.height-1,
-                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+            var xs = sel[0], ys = sel[1];
+            if ( sel[4] )
+            {
+                // relative
+                xs = Floor(xs*(self.width-1));
+                ys = Floor(ys*(self.height-1));
+            }
             if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             self.oDataSel.data.set(a);
             self.octx.putImageData(self.oDataSel, xs, ys); 
@@ -538,11 +544,16 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.nref++;
         return self;
     } : function( a ) {
-        var self = this;
-        if (self.selection)
+        var self = this, sel = self.selection;
+        if ( sel )
         {
-            var sel = self.selection, ow = self.width-1, oh = self.height-1,
-                xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh);
+            var xs = sel[0], ys = sel[1];
+            if ( sel[4] )
+            {
+                // relative
+                xs = Floor(xs*(self.width-1));
+                ys = Floor(ys*(self.height-1));
+            }
             if (self._refresh & OSEL) refresh_selected_data( self, OSEL );
             arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
             self.octx.putImageData(self.oDataSel, xs, ys); 
@@ -1064,9 +1075,14 @@ function refresh_selected_data( scope, what )
     if ( scope.selection )
     {
         var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
-            xs = Floor(sel[0]*ow), ys = Floor(sel[1]*oh), 
-            ws = Floor(sel[2]*ow)-xs+1, hs = Floor(sel[3]*oh)-ys+1
-        ;
+            xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3], ws, hs;
+        if ( sel[4] )
+        {
+            // relative
+            xs = Floor(xs*ow); ys = Floor(ys*oh);
+            xf = Floor(xf*ow); yf = Floor(sel[3]*oh);
+        }
+        ws = xf-xs+1; hs = yf-ys+1;
         what = what || 255;
         if ( scope._restorable && (what & ISEL) && (scope._refresh & ISEL) )
         {

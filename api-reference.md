@@ -51,8 +51,8 @@ and alter them.
 __Methods:__
 
 * `image(image:Image|Video|Canvas|FILTER.Image|ImageData)`  Sets/Alters the underlying image
-* `select(x1:Number, y1:Number, x2:Number, y2:Number)`  set a rectangle as selected part of image (any filters will be applied only to that part)
-* `deselect()`  remove previous selection (selected part becomes whole image)
+* `select(x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false)`  set a (relative or absolute) rectangle as selected part of image (any filters will be applied only to that part)
+* `select( false )/deselect()`  remove previous selection (selected part becomes whole image)
 * `store()`  store the current filtered/processed image as the original image
 * `restore()` restore the original image, remove any filters applied to this image
 * `restorable( bool:Boolean )` whether the image is restorable (it can be faster if not)
@@ -139,8 +139,8 @@ __Methods:__
 * `serialize( )`  serialize filter's parameters (for use during parallel processing)
 * `unserialize( data:Object )`  unserialize filter's parameters (for use during parallel processing)
 * `metaData( )/getMetadata( )`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
-* `select( x1:Number, y1:Number, x2:Number, y2:Number )` define a (relative) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `SelectionFilter` below and the `HaarDetectorFilter` plugin)
-* `select( Boolean=false )` deselect any selection made previously
+* `select( x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false )` define a (relative or absolute) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `SelectionFilter` below and the `HaarDetectorFilter` plugin)
+* `select( false )/deselect()` deselect any selection made previously
 * `worker/thread( [enabled:Boolean=true [, import_extra_scripts:Array]] )`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
 
@@ -796,6 +796,8 @@ new FILTER.AlgebraicFilter( algebraicMatrix:Array );
 
 The filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image using an `algebraicMatrix` that is a (flat) array of rows (each row having `7` items, total=`7N` for `N` images), describing the multiplication factors, bias term, relative offset `x,y` positions and optional input/output channels for each of the images to be algebraicaly combined with the main image (see below).
 
+The filter can also be used as an `IIR` (infinite impulse response) recursive filter (by mixing with original image).
+
 In order to use an algebraic filter do the following:
 
 ````javascript
@@ -921,6 +923,7 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>PerlinNoise</td>  <td>perlin noise also as filter plugin</td></tr>
 <tr><td>Gradient</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
+<tr><td>AdaptiveHistogramEqualize</td>    <td>apply fast adaptive histogram equalization (intensity-based, grayscale-based or per separate rgb channel) (TO BE ADDED)</td></tr>
 <tr><td>Pixelate<br />TriangularPixelate<br />HexagonalPixelate</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale (TO BE ADDED)</td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
@@ -929,10 +932,12 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
-<tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
 <tr><td>ColorDetector</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
+<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TO BE ADDED)</td></tr>
+<tr><td>MSER</td>  <td>extract fast maximaly stable extremal regions (MSER) from image (TO BE ADDED)</td></tr>
+<tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
 <tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
 </tbody>
 </table>

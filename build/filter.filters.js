@@ -1217,8 +1217,8 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,desaturate: function( ) {
-        var L = FILTER.LUMA;
+    ,desaturate: function( LUMA ) {
+        var L = LUMA || FILTER.LUMA;
         return this.set(rechannel([
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
@@ -1232,8 +1232,8 @@ var ColorMatrixFilter = FILTER.Create({
     ,grayscale: null
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,saturate: function( s ) {
-        var sInv, irlum, iglum, iblum, L = FILTER.LUMA;
+    ,saturate: function( s, LUMA ) {
+        var sInv, irlum, iglum, iblum, L = LUMA || FILTER.LUMA;
         sInv = 1 - s;  irlum = sInv * L[0];
         iglum = sInv * L[1];  iblum = sInv * L[2];
         return this.set(rechannel([
@@ -1248,8 +1248,8 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,colorize: function( rgb, amount ) {
-        var r, g, b, inv_amount, L = FILTER.LUMA;
+    ,colorize: function( rgb, amount, LUMA ) {
+        var r, g, b, inv_amount, L = LUMA || FILTER.LUMA;
         if ( null == amount ) amount = 1;
         r = ((rgb >> 16) & 255) / 255;
         g = ((rgb >> 8) & 255) / 255;
@@ -1298,9 +1298,9 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,adjustHue: function( degrees ) {
+    ,adjustHue: function( degrees, LUMA ) {
         degrees *= toRad;
-        var cos = Cos(degrees), sin = Sin(degrees), L = FILTER.LUMA;
+        var cos = Cos(degrees), sin = Sin(degrees), L = LUMA || FILTER.LUMA;
         return this.set(rechannel([
             ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
@@ -1360,11 +1360,11 @@ var ColorMatrixFilter = FILTER.Create({
         ));
     }
     
-    ,sepia2: function( amount ) {
+    ,sepia2: function( amount, LUMA ) {
         if ( null == amount ) amount = 10;
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
-        var L = FILTER.LUMA;
+        var L = LUMA || FILTER.LUMA;
         return this.set(rechannel([
             L[0], L[1], L[2], 0, 40, 
             L[0], L[1], L[2], 0, 20, 
@@ -1377,10 +1377,10 @@ var ColorMatrixFilter = FILTER.Create({
     }
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
-    ,threshold: function( threshold, factor, lumia ) {
+    ,threshold: function( threshold, factor, LUMA ) {
         if ( null == factor ) factor = 256;
-        var L = FILTER.LUMA;
-        return this.set(rechannel(false !== lumia
+        var L = LUMA || FILTER.LUMA;
+        return this.set(rechannel(false !== LUMA
         ? [
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
@@ -1403,20 +1403,20 @@ var ColorMatrixFilter = FILTER.Create({
     }
     ,threshold_rgb: null
     
-    ,thresholdChannel: function( channel, threshold, factor, lumia ) {
+    ,thresholdChannel: function( channel, threshold, factor, LUMA ) {
         if ( null == factor ) factor = 256;
         var m = [
             1, 0, 0, 0, 0, 
             0, 1, 0, 0, 0, 
             0, 0, 1, 0, 0, 
             0, 0, 0, 1, 0
-        ], L = FILTER.LUMA;
+        ], L = LUMA || FILTER.LUMA;
         if ( CHANNEL.A === channel )
         {
             m[channel*5+channel] = factor;
             m[channel*5+4] = -factor * threshold;
         }
-        else if ( false !== lumia )
+        else if ( false !== LUMA )
         {
             m[channel*5+CHANNEL.R] = L[0] * factor;
             m[channel*5+CHANNEL.G] = L[1] * factor;
@@ -1472,6 +1472,32 @@ var ColorMatrixFilter = FILTER.Create({
             0, 0, 0, 1, 0
         ],
             CHANNEL.Y, CHANNEL.CB, CHANNEL.CR, CHANNEL.A,
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
+        ));
+    }
+    
+    // RGB to YIQ
+    ,RGB2YIQ: function( ) {
+        return this.set(rechannel([
+            0.299, 0.587, 0.114, 0, 0,
+            0.701, -0.587, -0.114, 0, 0,
+            -0.299, -0.587, 0.886, 0, 0,
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A,
+            CHANNEL.Y, CHANNEL.IP, CHANNEL.Q, CHANNEL.A
+        ));
+    }
+    
+    // YIQ to RGB
+    ,YIQ2RGB: function( ) {
+        return this.set(rechannel([
+            1, 1, 0, 0, 0,
+            1, -0.509, -0.194, 0, 0,
+            1, 0, 1, 0, 0,
+            0, 0, 0, 1, 0
+        ],
+            CHANNEL.Y, CHANNEL.IP, CHANNEL.Q, CHANNEL.A,
             CHANNEL.R, CHANNEL.G, CHANNEL.B, CHANNEL.A
         ));
     }

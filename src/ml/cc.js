@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var A32U = FILTER.Array32U, min = Math.min, max = Math.max, NUM_LABELS = 20;
+var A32U = FILTER.Array32U, min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
 function root_of( id, labels )
@@ -65,46 +65,46 @@ function copy_label( id, x, y, labels )
     return id;
 }
 // TODO: add bounding boxes, so it can be used as connected color/hue detector/tracker as well efficiently
-function connected_components( labeled_im, im, w, h, connectivity, invert, SIMILAR, SIMILAR_TO, ARGS )
+function connected_components( labeled_im, im, w, h, connectivity, invert, D, delta, V0 )
 {
     var i, j, k, imLen = im.length, imSize = imLen>>>2, w4 = w<<2,
         K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = 4*d0,
         mylab, c, r, d, row, labels, labelimg, background_label = null,
-        need_match = null != SIMILAR_TO, highest, tag, color;//, box
+        need_match = null != V0, highest, tag, color;//, box
     
     labels = new Array(NUM_LABELS);
     labels.next = 0;
     labelimg = new A32U(imSize);
     background_label = need_match ? new_label(0, 0, labels) : null;
 
-    labelimg[0] = need_match && !SIMILAR_TO(im, 0, ARGS) ? background_label : new_label(0, 0, labels);
+    labelimg[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new_label(0, 0, labels);
 
     // label the first row.
     for(c=1,i=4; c<w; c++,i+=4)
-        labelimg[c] = need_match && !SIMILAR_TO(im, i, ARGS) ? background_label : (SIMILAR(im, i, i-4, ARGS) ? labelimg[c-1]/*copy_label(labelimg[c-1], c, 0, labels)*/ : new_label(c, 0, labels));
+        labelimg[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? labelimg[c-1]/*copy_label(labelimg[c-1], c, 0, labels)*/ : new_label(c, 0, labels));
 
     // label subsequent rows.
     for(r=1,row=w,i=w4; r<h; r++,row+=w,i+=w4)
     {
         // label the first pixel on this row.
-        labelimg[row] = need_match && !SIMILAR_TO(im, i, ARGS) ? background_label : (SIMILAR(im, i, i-w4, ARGS) ? labelimg[row-w]/*copy_label(labelimg[row-w], 0, r, labels)*/ : new_label(0, r, labels));
+        labelimg[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? labelimg[row-w]/*copy_label(labelimg[row-w], 0, r, labels)*/ : new_label(0, r, labels));
 
         // label subsequent pixels on this row.
         for(c=1,j=4; c<w; c++,j+=4)
         {
-            if ( need_match && !SIMILAR_TO(im, i+j, ARGS) )
+            if ( need_match && (abs(D[row+c]-V0)>delta) )
             {
                 labelimg[row+c] = background_label;
                 continue;
             }
             // inherit label from pixel on the left if we're in the same blob.
-            mylab = background_label === labelimg[row+c-1] ? -1 : (SIMILAR(im, i+j, i+j-4, ARGS) ? labelimg[row+c-1]/*copy_label(labelimg[row+c-1], c, r, labels)*/ : -1);
+            mylab = background_label === labelimg[row+c-1] ? -1 : (abs(D[row+c]-D[row+c-1])<=delta ? labelimg[row+c-1]/*copy_label(labelimg[row+c-1], c, r, labels)*/ : -1);
 
             for(d=d0,k=k0; d<1; d++,k+=4)
             {
                 // if we're in the same blob, inherit value from above pixel.
                 // if we've already been assigned, merge its label with ours.
-                if( (background_label !== labelimg[row-w+c+d]) && SIMILAR(im, i+j, i-w4+j+k, ARGS) )
+                if( (background_label !== labelimg[row-w+c+d]) && (abs(D[row+c]-D[row-w+c+d])<=delta) )
                 {
                     if( mylab >= 0 ) merge(mylab, labelimg[row-w+c+d], labels);
                     else mylab = labelimg[row-w+c+d]/*copy_label(labelimg[row-w+c+d], c+d, r, labels)*/;
@@ -115,7 +115,7 @@ function connected_components( labeled_im, im, w, h, connectivity, invert, SIMIL
             if( K8_CONNECTIVITY && 
                 (background_label !== labelimg[row+c-1]) && 
                 (background_label !== labelimg[row-w+c]) && 
-                SIMILAR(im, i+j-4, i-w4+j, ARGS)
+                (abs(D[row+c-1]-D[row-w+c])<=delta)
             )
                 merge(labelimg[row+c-1], labelimg[row-w+c], labels);
         }

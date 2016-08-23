@@ -1,6 +1,6 @@
 /**
 *
-* Active Shape Extractor Plugin
+* Local Binary Patterns Extractor Plugin
 * @package FILTER.js
 *
 **/
@@ -9,7 +9,7 @@
 
 // TODO
 /*FILTER.Create({
-    name: "ActiveShapeFilter"
+    name: "LocalBinaryPatternsFilter"
 });*/
 
 }(FILTER);
