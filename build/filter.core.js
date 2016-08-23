@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-23 10:08:33
+*   @built on 2016-08-23 23:02:28
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-23 10:08:33
+*   @built on 2016-08-23 23:02:28
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -556,12 +556,18 @@ var
             }
             else
             {
-                self.selection = [
-                Min(1.0, Max(0.0, x1||0)),
-                Min(1.0, Max(0.0, y1||0)),
-                Min(1.0, Max(0.0, x2||0)),
-                Min(1.0, Max(0.0, y2||0)),
-                absolute ? 0 : 1
+                self.selection = absolute ? [ 
+                    Max(0.0, x1||0),
+                    Max(0.0, y1||0),
+                    Max(0.0, x2||0),
+                    Max(0.0, y2||0),
+                    0
+                ] : [
+                    Min(1.0, Max(0.0, x1||0)),
+                    Min(1.0, Max(0.0, y1||0)),
+                    Min(1.0, Max(0.0, x2||0)),
+                    Min(1.0, Max(0.0, y2||0)),
+                    1
                 ];
             }
             return self;
@@ -5354,13 +5360,20 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( argslen < 3 ) x2 = 1;
             if ( argslen < 4 ) y2 = 1;
             // select
-            self.selection = [ 
+            self.selection = absolute ? [ 
+                // clamp
+                0 > x1 ? 0 : x1,
+                0 > y1 ? 0 : y1,
+                0 > x2 ? 0 : x2,
+                0 > y2 ? 0 : y2,
+                0
+            ] : [
                 // clamp
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
                 0 > y2 ? 0 : (1 < y2 ? 1 : y2),
-                absolute ? 0 : 1
+                1
             ];
             self._refresh |= SEL;
         }

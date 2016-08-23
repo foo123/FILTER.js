@@ -77,12 +77,13 @@ FILTER.Create({
         }
         else //if ( MODE.COLOR === mode )
         {
-            delta *= 0xffffff;
+            delta = (delta*0xff)|0;
+            delta = (delta<<16)|(delta<<8)|delta;
             for(i=0,j=0; i<imLen; i+=4,j++)
                 D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16)|(im[i+1]<<8)|im[i+2];
         }
         // return the connected image data
-        return connected_components(im, im, w, h, self.connectivity, self.invert, D, delta, color);
+        return connected_components(2, im, D, w, h, self.connectivity, self.invert, delta, color);
     }
 });
 

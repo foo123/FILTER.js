@@ -39,7 +39,8 @@ else /* Browser/WebWorker/.. */
 !function(FILTER, undef){
 "use strict";
 
-var A32U = FILTER.Array32U, min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
+var A32U = FILTER.Array32U, A8U = FILTER.Array8U,
+    min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
 function root_of( id, labels )
@@ -97,10 +98,10 @@ function copy_label( id, x, y, labels )
     return id;
 }
 // TODO: add bounding boxes, so it can be used as connected color/hue detector/tracker as well efficiently
-function connected_components( labeled_im, im, w, h, connectivity, invert, D, delta, V0 )
+function connected_components( stride, labeled, D, w, h, connectivity, invert, delta, V0 )
 {
-    var i, j, k, imLen = im.length, imSize = imLen>>>2, w4 = w<<2,
-        K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0, k0 = 4*d0,
+    var i, j, k, imLen = labeled.length, imSize = imLen>>>stride,
+        K8_CONNECTIVITY = 8 === connectivity, d0 = K8_CONNECTIVITY ? -1 : 0,
         mylab, c, r, d, row, labels, labelimg, background_label = null,
         need_match = null != V0, highest, tag, color;//, box
     
@@ -112,17 +113,17 @@ function connected_components( labeled_im, im, w, h, connectivity, invert, D, de
     labelimg[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new_label(0, 0, labels);
 
     // label the first row.
-    for(c=1,i=4; c<w; c++,i+=4)
+    for(c=1; c<w; c++)
         labelimg[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? labelimg[c-1]/*copy_label(labelimg[c-1], c, 0, labels)*/ : new_label(c, 0, labels));
 
     // label subsequent rows.
-    for(r=1,row=w,i=w4; r<h; r++,row+=w,i+=w4)
+    for(r=1,row=w; r<h; r++,row+=w)
     {
         // label the first pixel on this row.
         labelimg[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? labelimg[row-w]/*copy_label(labelimg[row-w], 0, r, labels)*/ : new_label(0, r, labels));
 
         // label subsequent pixels on this row.
-        for(c=1,j=4; c<w; c++,j+=4)
+        for(c=1; c<w; c++)
         {
             if ( need_match && (abs(D[row+c]-V0)>delta) )
             {
@@ -132,7 +133,7 @@ function connected_components( labeled_im, im, w, h, connectivity, invert, D, de
             // inherit label from pixel on the left if we're in the same blob.
             mylab = background_label === labelimg[row+c-1] ? -1 : (abs(D[row+c]-D[row+c-1])<=delta ? labelimg[row+c-1]/*copy_label(labelimg[row+c-1], c, r, labels)*/ : -1);
 
-            for(d=d0,k=k0; d<1; d++,k+=4)
+            for(d=d0; d<1; d++)
             {
                 // if we're in the same blob, inherit value from above pixel.
                 // if we've already been assigned, merge its label with ours.
@@ -169,29 +170,145 @@ function connected_components( labeled_im, im, w, h, connectivity, invert, D, de
     tag = tag > 0 ? tag : 1;
     if ( invert )
     {
-        for(c=0,i=0; i<imLen; i+=4,c++)
+        if ( stride )
         {
-            color = labels[root_of(labelimg[c], labels)][2];
-            color = (255-255*color/tag)|0;
-            labeled_im[i] = color; labeled_im[i+1] = color; labeled_im[i+2] = color;
-            labeled_im[i+3] = im[i+3];
-            //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            for(c=0,i=0; i<imLen; i+=4,c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = (255-255*color/tag)|0;
+                labeled[i] = labeled[i+1] = labeled[i+2] = color;
+                //labeled[i+3] = im[i+3];
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
+        }
+        else
+        {
+            for(c=0; c<imLen; c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = (255-255*color/tag)|0;
+                labeled[c] = color;
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
         }
     }
     else
     {
-        for(c=0,i=0; i<imLen; i+=4,c++)
+        if ( stride )
         {
-            color = labels[root_of(labelimg[c], labels)][2];
-            color = (255*color/tag)|0;
-            labeled_im[i] = color; labeled_im[i+1] = color; labeled_im[i+2] = color;
-            labeled_im[i+3] = im[i+3];
-            //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            for(c=0,i=0; i<imLen; i+=4,c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = (255*color/tag)|0;
+                labeled[i] = labeled[i+1] = labeled[i+2] = color;
+                //labeled[i+3] = im[i+3];
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
+        }
+        else
+        {
+            for(c=0; c<imLen; c++)
+            {
+                color = labels[root_of(labelimg[c], labels)][2];
+                color = (255*color/tag)|0;
+                labeled[c] = color;
+                //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
+            }
         }
     }
-    return labeled_im;
+    return labeled;
 }
+function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta )
+{
+    var imLen = im.length, imSize = imLen>>>2, xm, ym, xM, yM,
+        y, yy, dy = w<<2, ymin = 0, ymax = imLen-dy, xmin = 0, xmax = (w-1)<<2,
+        l, i, k, x, x1, x2, yw, stack, slen, segment, notdone, labeled;
+        
+    xm = x0; ym = y0; xM = x0; yM = y0; 
+    labeled = new A8U(imSize);
+    stack = new Array(imSize); slen = 0; // pre-allocate and soft push/pop for speed
+    
+    labeled[(x0+y0)>>>2] = 255;
+    if ( y0+dy >= ymin && y0+dy <= ymax ) stack[slen++]=[y0, x0, x0, dy]; /* needed in some cases */
+    /*if ( y0 >= ymin && y0 <= ymax)*/ stack[slen++]=[y0+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
+    
+    while ( 0 < slen ) 
+    {
+        /* pop segment off stack and fill a neighboring scan line */
+        segment = stack[--slen];
+        yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
+        ym = min(ym, yw); yM = max(yM, yw);
+        xm = min(xm, x1); xM = max(xM, x2);
+        
+        /*
+         * segment of scan line y-dy for x1<=x<=x2 was previously filled,
+         * now explore adjacent pixels in scan line y
+         */
+        for (x=x1; x>=xmin; x-=4)
+        {
+            i = x+yw; k = i>>>2;
+            if ( 0===labeled[k] && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+            {
+                labeled[k] = 255;
+                xm = min(xm, x);
+            }
+            else break;
+        }
+        if ( x >= x1 ) 
+        {
+            // goto skip:
+            i = x+yw; k = i>>>2;
+            while ( x<=x2 && (0!==labeled[k] || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
+            {
+                x+=4;
+                i = x+yw; k = i>>>2;
+            }
+            l = x;
+            notdone = (x <= x2);
+        }
+        else
+        {
+            l = x+4;
+            if ( l < x1 ) 
+            {
+                if ( yw-dy >= ymin && yw-dy <= ymax ) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+            }
+            x = x1+4;
+            notdone = true;
+        }
+        
+        while ( notdone ) 
+        {
+            i = x+yw; k = i>>>2;
+            while ( x<=xmax && 0===labeled[k] && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+            {
+                labeled[k] = 255;
+                xM = max(xM, x);
+                x+=4; i = x+yw; k = i>>>2;
+            }
+            if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
+            if ( x > x2+4 ) 
+            {
+                if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+            }
+    /*skip:*/   
+            i = x+yw; k = i>>>2;
+            while ( x<=x2 && (0!==labeled[k] || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) ) 
+            {
+                x+=4;
+                i = x+yw; k = i>>>2;
+            }
+            l = x;
+            notdone = (x <= x2);
+        }
+    }
+    bounding_box[0] = xm; bounding_box[1] = ym;
+    bounding_box[2] = xM; bounding_box[3] = yM;
+    return labeled;
+}
+
 FILTER.MachineLearning.connected_components = connected_components;
+FILTER.MachineLearning.connected_component = connected_component;
 
 }(FILTER);/**
 *

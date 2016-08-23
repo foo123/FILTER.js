@@ -1753,7 +1753,7 @@ FILTER.Create({
 
 var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
     min = Math.min, max = Math.max, ceil = Math.ceil,
-    MODE = FILTER.MODE, Array8U = FILTER.Array8U, Array32U = FILTER.Array32U;
+    MODE = FILTER.MODE, connected_component = FILTER.MachineLearning.connected_component;
     
 // a fast flood fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
@@ -1766,7 +1766,7 @@ FILTER.Create({
     ,y: 0
     ,color: null
     ,borderColor: null
-    ,tolerance: 0.0
+    ,tolerance: 1e-6
     
     ,path: FILTER_PLUGINS_PATH
     
@@ -1775,7 +1775,7 @@ FILTER.Create({
         self.x = x || 0;
         self.y = y || 0;
         self.color = color || 0;
-        self.tolerance = tolerance || 0.0;
+        self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
     
@@ -1806,175 +1806,40 @@ FILTER.Create({
      * by Paul Heckbert
      * from "Graphics Gems", Academic Press, 1990
      */
-    ,apply: function(im, w, h) {
-        var self = this, 
-            /* seems to have issues when tol is exactly 1.0*/
-            tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0,
-            color = self.color || 0, borderColor = self.borderColor,
-            isBorderColor = borderColor === +borderColor, OC, NC, /*pix = 4,*/ dy = w<<2, 
-            x0 = self.x, y0 = self.y, imSize = im.length,
-            ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, x1, x2, yw, stack, slen, segment, notdone
-        ;
-        /*
-         * Filled horizontal segment of scanline y for xl<=x<=xr.
-         * Parent segment was on line y-dy.  dy=1 or -1
-         */
-        yw = (y0*w)<<2; x0 <<= 2;
-        if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
-        
-        OC = new Array8U(3); NC = new Array8U(3);
-        NC[0] = (color >>> 16) & 255; NC[1] = (color >>> 8) & 255; NC[2] = color & 255; //NC[3] = (color >>> 24) & 255;
-        // seed color is the image color at x0,y0 position
-        if ( isBorderColor )
-        {
-            OC[0] = (borderColor >>> 16) & 255; OC[1] = (borderColor >>> 8) & 255; OC[2] = borderColor & 255;
-            if ( abs(OC[0]-im[x0+yw])<=tol && abs(OC[1]-im[x0+yw+1])<=tol && abs(OC[2]-im[x0+yw+2])<=tol ) return im;
-        }
-        else
-        {
-            if ( im[x0+yw] === NC[0] && im[x0+yw+1] === NC[1] && im[x0+yw+2] === NC[2] ) return im;
-            OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];
-        }
-        
-        stack = new Array(imSize>>>2); slen = 0; // pre-allocate and soft push/pop for speed
-        
-        if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy]; /* needed in some cases */
-        /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
-        
-        while ( slen > 0 ) 
-        {
-            /* pop segment off stack and fill a neighboring scan line */
-            segment = stack[--slen];
-            yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
+    ,apply: function( im, w, h ) {
+        var self = this, //borderColor = self.borderColor,
+            color = self.color||0, x0 = self.x||0, y0 = self.y||0,
+            r, g, b, r0, g0, b0, x, y, k, i, bb, mask, x1, y1, x2, y2;
             
-            /*
-             * segment of scan line y-dy for x1<=x<=x2 was previously filled,
-             * now explore adjacent pixels in scan line y
-             */
-            if ( isBorderColor )
+        if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
+        
+        x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
+        r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
+        if ( r === r0 && g === g0 && b === b0 ) return im;
+        
+        bb = [0,0,0,0];
+        /* seems to have issues when tolerance is exactly 1.0*/
+        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0);
+        
+        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>2; y2 = bb[3]>>>2;
+        for(x=x1,y=y1; y<=y2; )
+        {
+            k = x+y;
+            if ( 0 < mask[k] )
             {
-                for (x=x1; x>=xmin; x-=4)
-                {
-                    i = x+yw;
-                    if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        im[i  ] = NC[0];
-                        im[i+1] = NC[1];
-                        im[i+2] = NC[2];
-                    }
-                }
+                i = k << 2;
+                im[i  ] = r;
+                im[i+1] = g;
+                im[i+2] = b;
             }
-            else
-            {
-                for (x=x1; x>=xmin; x-=4)
-                {
-                    i = x+yw;
-                    if ( abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        im[i  ] = NC[0];
-                        im[i+1] = NC[1];
-                        im[i+2] = NC[2];
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-            if ( x >= x1 ) 
-            {
-                // goto skip:
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( x<=x2 && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                l = x;
-                notdone = (x <= x2);
-            }
-            else
-            {
-                l = x+4;
-                if ( l < x1 ) 
-                {
-                    if ( yw-dy >= ymin && yw-dy <= ymax ) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
-                }
-                x = x1+4;
-                notdone = true;
-            }
-            
-            while ( notdone ) 
-            {
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( x<=xmax && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        im[i  ] = NC[0];
-                        im[i+1] = NC[1];
-                        im[i+2] = NC[2];
-                        x+=4; i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=xmax && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        im[i  ] = NC[0];
-                        im[i+1] = NC[1];
-                        im[i+2] = NC[2];
-                        x+=4; i = x+yw;
-                    }
-                }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
-                if ( x > x2+4 ) 
-                {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
-                }
-        /*skip:*/   
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( x<=x2 && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol ) 
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=x2 && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) ) 
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                l = x;
-                notdone = (x <= x2);
-            }
+            if ( ++x>x2 ){ x=x1; y+=w; }
         }
         // return the new image data
         return im;
     }
 });
-FILTER.ColorFillFilter = FILTER.FloodFillFilter;
+//FILTER.ColorFillFilter = FILTER.FloodFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"
@@ -1982,7 +1847,7 @@ FILTER.Create({
     ,y: 0
     ,offsetX: 0
     ,offsetY: 0
-    ,tolerance: 0.0
+    ,tolerance: 1e-6
     ,mode: MODE.TILE
     ,borderColor: null
     ,hasInputs: true
@@ -1997,7 +1862,7 @@ FILTER.Create({
         self.offsetY = offsetY || 0;
         if ( pattern ) self.setInput( "pattern", pattern );
         self.mode = mode || MODE.TILE;
-        self.tolerance = tolerance || 0.0;
+        self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.borderColor = borderColor === +borderColor ? +borderColor : null;
     }
     
@@ -2037,219 +1902,60 @@ FILTER.Create({
     }
     
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this, Pat;
+    ,apply: function( im, w, h ) {
+        var self = this, x0 = self.x||0, y0 = self.y||0, Pat;
         
+        if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
-        // seems to have issues when tol is exactly 1.0
-        var tol = (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, mode = self.mode,
-            borderColor = self.borderColor, isBorderColor = borderColor === +borderColor,
-            OC, dy = w<<2, pattern = Pat[0], pw = Pat[1], ph = Pat[2], 
-            x0 = self.x, y0 = self.y, px0 = self.offsetX||0, py0 = self.offsetY||0,
-            imSize = im.length, size = imSize>>>2, ymin = 0, ymax = imSize-dy, xmin = 0, xmax = (w-1)<<2,
-            l, i, x, y, x1, x2, yw, pi, px, py, stack, slen, visited, segment, notdone,
-            STRETCH = MODE.STRETCH
-        ;
+        var STRETCH = MODE.STRETCH, mode = self.mode, pattern = Pat[0],
+            pw = Pat[1], ph = Pat[2], px0 = self.offsetX||0, py0 = self.offsetY||0,
+            r0, g0, b0, x, y, k, i, pi, px, py, bb, mask, x1, y1, x2, y2, sx, sy;
         
-        if ( 0 > px0 ) px0 += pw;
-        if ( 0 > py0 ) py0 += ph;
+        x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
+        bb = [0,0,0,0];
+        /* seems to have issues when tolerance is exactly 1.0*/
+        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0);
         
-        y = y0; yw = (y0*w)<<2; x0 <<= 2;
-        if ( x0 < xmin || x0 > xmax || yw < ymin || yw > ymax ) return im;
-        
-        // seed color is the image color at x0,y0 position
-        OC = new Array8U(3);
-        if ( isBorderColor )
+        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>>2; y2 = bb[3]>>>2;
+        if ( STRETCH === mode )
         {
-            OC[0] = (borderColor >>> 16) & 255; OC[1] = (borderColor >>> 8) & 255; OC[2] = borderColor & 255;
-            if ( abs(OC[0]-im[x0+yw])<=tol && abs(OC[1]-im[x0+yw+1])<=tol && abs(OC[2]-im[x0+yw+2])<=tol ) return im;
+            sx = pw/(x2-x1+1); sy = ph/(y2-y1+w);
+            for(x=x1,y=y1; y<=y2; )
+            {
+                k = x+y;
+                if ( 0 < mask[k] )
+                {
+                    i = k << 2;
+                    //px = (pw*(x-x1)/(x2-x1+1))|0; py = (ph*(y-y1)/(y2-y1+w))|0;
+                    px = (sx*(x-x1))|0; py = (sy*(y-y1))|0;
+                    pi = (px + py*pw) << 2;
+                    im[i  ] = pattern[pi  ];
+                    im[i+1] = pattern[pi+1];
+                    im[i+2] = pattern[pi+2];
+                }
+                if ( ++x>x2 ){ x=x1; y+=w; }
+            }
         }
-        else
+        else //if ( TILE === mode )
         {
-            OC[0] = im[x0+yw]; OC[1] = im[x0+yw+1]; OC[2] = im[x0+yw+2];
-        }
-        
-        stack = new Array(size); slen = 0; // pre-allocate and soft push/pop for speed
-        visited = new Array32U(ceil(size/32));
-        if ( yw+dy >= ymin && yw+dy <= ymax ) stack[slen++]=[yw, x0, x0, dy, y+1]; /* needed in some cases */
-        /*if ( yw >= ymin && yw <= ymax)*/ stack[slen++]=[yw+dy, x0, x0, -dy, y]; /* seed segment (popped 1st) */
-        
-        while ( slen > 0 ) 
-        {
-            /* pop segment off stack and fill a neighboring scan line */
-            segment = stack[--slen];
-            yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
-            y = segment[4];
-            
-            /*
-             * segment of scan line y-dy for x1<=x<=x2 was previously filled,
-             * now explore adjacent pixels in scan line y
-             */
-            if ( isBorderColor )
+            if ( 0 > px0 ) px0 += pw;
+            if ( 0 > py0 ) py0 += ph;
+            for(x=x1,y=y1; y<=y2; )
             {
-                for (x=x1; x>=xmin; x-=4)
+                k = x+y;
+                if ( 0 < mask[k] )
                 {
-                    i = x+yw;
-                    if ( (visited[i>>>7]&(1<<((i>>>2)&31))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        visited[i>>>7] |= 1<<((i>>>2)&31);
-                        if ( STRETCH === mode )
-                        {
-                            px = (pw*(x>>>2)/w)|0;
-                            py = (ph*(y)/h)|0;
-                        }
-                        else
-                        {
-                            px = ((x>>>2)+px0) % pw;
-                            py = (y+py0) % ph;
-                        }
-                        pi = (px + py*pw) << 2;
-                        im[i  ] = pattern[pi  ];
-                        im[i+1] = pattern[pi+1];
-                        im[i+2] = pattern[pi+2];
-                    }
+                    i = k << 2;
+                    px = (x-x1+px0) % pw;
+                    py = (y-y1+py0) % ph;
+                    pi = (px + py*pw) << 2;
+                    im[i  ] = pattern[pi  ];
+                    im[i+1] = pattern[pi+1];
+                    im[i+2] = pattern[pi+2];
                 }
-            }
-            else
-            {
-                for (x=x1; x>=xmin; x-=4)
-                {
-                    i = x+yw;
-                    if ( !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        visited[i>>>7] |= 1<<((i>>>2)&31);
-                        if ( STRETCH === mode )
-                        {
-                            px = (pw*(x>>>2)/w)|0;
-                            py = (ph*(y)/h)|0;
-                        }
-                        else
-                        {
-                            px = ((x>>>2)+px0) % pw;
-                            py = (y+py0) % ph;
-                        }
-                        pi = (px + py*pw) << 2;
-                        im[i  ] = pattern[pi  ];
-                        im[i+1] = pattern[pi+1];
-                        im[i+2] = pattern[pi+2];
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-            if ( x >= x1 ) 
-            {
-                // goto skip:
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( (x<=x2 && (visited[i>>>7]&(1<<((i>>>2)&31)))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                l = x;
-                notdone = (x <= x2);
-            }
-            else
-            {
-                l = x+4;
-                if ( l < x1 ) 
-                {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, l, x1-4, -dy, 0 < dy ? y-1 : y+1];  /* leak on left? */
-                }
-                x = x1+4;
-                notdone = true;
-            }
-            
-            while ( notdone ) 
-            {
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && !(abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        visited[i>>>7] |= 1<<((i>>>2)&31);
-                        if ( STRETCH === mode )
-                        {
-                            px = (pw*(x>>>2)/w)|0;
-                            py = (ph*(y)/h)|0;
-                        }
-                        else
-                        {
-                            px = ((x>>>2)+px0) % pw;
-                            py = (y+py0) % ph;
-                        }
-                        pi = (px + py*pw) << 2;
-                        im[i  ] = pattern[pi  ];
-                        im[i+1] = pattern[pi+1];
-                        im[i+2] = pattern[pi+2];
-                        x+=4; i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=xmax && !(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol )
-                    {
-                        visited[i>>>7] |= 1<<((i>>>2)&31);
-                        if ( STRETCH === mode )
-                        {
-                            px = (pw*(x>>>2)/w)|0;
-                            py = (ph*(y)/h)|0;
-                        }
-                        else
-                        {
-                            px = ((x>>>2)+px0) % pw;
-                            py = (y+py0) % ph;
-                        }
-                        pi = (px + py*pw) << 2;
-                        im[i  ] = pattern[pi  ];
-                        im[i+1] = pattern[pi+1];
-                        im[i+2] = pattern[pi+2];
-                        x+=4; i = x+yw;
-                    }
-                }
-                if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy, 0 < dy ? y+1 : y-1];
-                if ( x > x2+4 ) 
-                {
-                    if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy, 0 < dy ? y-1 : y+1];	/* leak on right? */
-                }
-      /*skip:*/   
-                i = x+yw;
-                if ( isBorderColor )
-                {
-                    while ( (x<=x2 && (visited[i>>>7]&(1<<((i>>>2)&31)))) || (abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                else
-                {
-                    while ( x<=x2 && !(!(visited[i>>>7]&(1<<((i>>>2)&31))) && abs(OC[0]-im[i])<=tol && abs(OC[1]-im[i+1])<=tol && abs(OC[2]-im[i+2])<=tol) )
-                    {
-                        x+=4;
-                        i = x+yw;
-                    }
-                }
-                l = x;
-                notdone = (x <= x2);
+                if ( ++x>x2 ){ x=x1; y+=w; }
             }
         }
         // return the new image data
@@ -2336,12 +2042,13 @@ FILTER.Create({
         }
         else //if ( MODE.COLOR === mode )
         {
-            delta *= 0xffffff;
+            delta = (delta*0xff)|0;
+            delta = (delta<<16)|(delta<<8)|delta;
             for(i=0,j=0; i<imLen; i+=4,j++)
                 D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16)|(im[i+1]<<8)|im[i+2];
         }
         // return the connected image data
-        return connected_components(im, im, w, h, self.connectivity, self.invert, D, delta, color);
+        return connected_components(2, im, D, w, h, self.connectivity, self.invert, delta, color);
     }
 });
 

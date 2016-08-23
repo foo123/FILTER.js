@@ -514,12 +514,18 @@ var
             }
             else
             {
-                self.selection = [
-                Min(1.0, Max(0.0, x1||0)),
-                Min(1.0, Max(0.0, y1||0)),
-                Min(1.0, Max(0.0, x2||0)),
-                Min(1.0, Max(0.0, y2||0)),
-                absolute ? 0 : 1
+                self.selection = absolute ? [ 
+                    Max(0.0, x1||0),
+                    Max(0.0, y1||0),
+                    Max(0.0, x2||0),
+                    Max(0.0, y2||0),
+                    0
+                ] : [
+                    Min(1.0, Max(0.0, x1||0)),
+                    Min(1.0, Max(0.0, y1||0)),
+                    Min(1.0, Max(0.0, x2||0)),
+                    Min(1.0, Max(0.0, y2||0)),
+                    1
                 ];
             }
             return self;

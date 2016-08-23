@@ -152,13 +152,20 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if ( argslen < 3 ) x2 = 1;
             if ( argslen < 4 ) y2 = 1;
             // select
-            self.selection = [ 
+            self.selection = absolute ? [ 
+                // clamp
+                0 > x1 ? 0 : x1,
+                0 > y1 ? 0 : y1,
+                0 > x2 ? 0 : x2,
+                0 > y2 ? 0 : y2,
+                0
+            ] : [
                 // clamp
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
                 0 > y2 ? 0 : (1 < y2 ? 1 : y2),
-                absolute ? 0 : 1
+                1
             ];
             self._refresh |= SEL;
         }

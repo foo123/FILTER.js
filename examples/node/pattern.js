@@ -67,7 +67,7 @@ function parse_args( args )
 
 var path = require('path'), F = require('../../build/filter.bundle.js'),
     pattern1 = F.Image.PerlinNoise(
-        100 /* width */, 100 /* height */,
+        140 /* width */, 140 /* height */,
         0,
         false/* seamless pattern */,
         true/* grayscale */,
@@ -76,7 +76,7 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
         [[0,0],[10,10],[20,10],[10,20]] /* octave offsets */
     ),
     pattern2 = F.Image.PerlinNoise(
-        100 /* width */, 100 /* height */,
+        140 /* width */, 140 /* height */,
         0,
         true/* seamless pattern */,
         false/* grayscale */,
@@ -85,10 +85,10 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
         [[0,0],[10,10],[20,10],[10,20]] /* octave offsets */
     ),
     patternFill = new F.CompositeFilter([
-        new F.PatternFillFilter(25/* x0 */,75/* y0 */,pattern2, 0,0, F.MODE.STRETCH, 0.8/* tolerance */),
-        new F.PatternFillFilter(75/* x0 */,112/* y0 */,pattern2, 0,0, F.MODE.STRETCH, 0.8/* tolerance */),
-        new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.8/* tolerance */),
-        new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.8/* tolerance */)
+        new F.PatternFillFilter(25/* x0 */,75/* y0 */,pattern2, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
+        new F.PatternFillFilter(75/* x0 */,112/* y0 */,pattern2, 0,0, F.MODE.TILE, 0.5/* tolerance */),
+        new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
+        new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.TILE, 0.5/* tolerance */)
     ])
 ;
 
