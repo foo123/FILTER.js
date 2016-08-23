@@ -85,6 +85,7 @@ Some filters code has been adapted from open source libraries (mostly `c`, `java
 Some image processing/computer vision theory, basics and tutorials (see [references](/references.md)):
 
 
+* [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
 * [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
 * [image processing basics](http://www.csd.uwo.ca/courses/CS4487a/Lectures/lec03_image_proc.pdf)
