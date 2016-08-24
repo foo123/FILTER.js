@@ -178,6 +178,7 @@ TypedArray = isNode ? function( a, A ) {
     return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
 } : function( a, A ) { return a; };
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
+
 FILTER.Util = {
     Array   : {
         // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"

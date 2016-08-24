@@ -702,43 +702,19 @@ function integral2( im, w, h, sat, sat2, rsat )
         }
     }
 }
-function optimum_gradient( stride, im, w, h, do_blur, do_sat,
+function gradient( stride, im, w, h, do_lowpass, do_sat,
                         low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
-    if ( null == MAGNITUDE_SCALE )
-    {
-        MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
-        MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
-    }
-    
-    var imSize = im.length, index, i, j, k, sum, stride0 = stride,
-        w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
+    var stride0 = stride, imSize = im.length, count = imSize>>>stride,
+        index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
         dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
-        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
-        sobelX, sobelY, gX, gY, g, gauss, //f,
-        xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
-        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag;
+        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw, //f,
+        sobelX, sobelY, gX = new A32F(count), gY = new A32F(count), lowpassed;
     
-    gX = new A32F(count); gY = new A32F(count); g = new A32F(count);
-    
-    /*
-    // first, second rows, last, second-to-last rows
-    for (i=0; i<w; i++)
+    if( do_lowpass )
     {
-        gauss[i] = 0; gauss[i+w] = 0;
-        gauss[i+count-w] = 0; gauss[i+count-w2] = 0;
-        grad[i] = 0; grad[i+count-w] = 0;
-    }
-    // first, second columns, last, second-to-last columns
-    for (i=0,k=0; i<h; i++,k+=w)
-    {
-        gauss[k] = 0; gauss[1+k] = 0;
-        gauss[w_1+k] = 0; gauss[w_2+k] = 0;
-        grad[k] = 0; grad[w_1+k]=0;
-    }
-    */
-    if( do_blur )
-    {
+        w_2 = w-2; h_2 = h-2; w2 = w<<1;
+        lowpassed = new A8U(count); //f = 1.0/159.0;
         // pre-bluring is optional, e.g a deriche pre-blur filtering can be used
         /*
         gauss lowpass 5x5 with sigma = 1.4
@@ -748,15 +724,27 @@ function optimum_gradient( stride, im, w, h, do_blur, do_sat,
                 159    | 4  9 12  9 4 |
                        | 2  4  5  4 2 |
         */
-        gauss = new A8U(count); //f = 1.0/159.0;
-        w_2 = w-2; h_2 = h-2; w2 = w<<1;
+        /*
+        // first, second rows, last, second-to-last rows
+        for (i=0; i<w; i++)
+        {
+            lowpassed[i] = 0; lowpassed[i+w] = 0;
+            lowpassed[i+count-w] = 0; lowpassed[i+count-w2] = 0;
+        }
+        // first, second columns, last, second-to-last columns
+        for (i=0,k=0; i<h; i++,k+=w)
+        {
+            lowpassed[k] = 0; lowpassed[1+k] = 0;
+            lowpassed[w_1+k] = 0; lowpassed[w_2+k] = 0;
+        }
+        */
         for(i=2,j=2,k=w2; j<h_2; i++)
         {
             if ( i >= w_2 ){ i=2; k+=w; j++; if(j>=h_2) break; }
             index = i+k; i0 = index<<stride;
             i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
             // use fixed-point arithmetic here
-            gauss[index] = (((103*(
+            lowpassed[index] = (((103*(
                         2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
                        +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
                        +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
@@ -768,11 +756,11 @@ function optimum_gradient( stride, im, w, h, do_blur, do_sat,
     }
     else
     {
-        gauss = im;
+        lowpassed = im;
     }
     
     /*
-    sobel gradient 3x3 in X,Y directions
+    separable sobel gradient 3x3 in X,Y directions
              | −1  0  1 |
     sobelX = | −2  0  2 |
              | −1  0  1 |
@@ -786,9 +774,23 @@ function optimum_gradient( stride, im, w, h, do_blur, do_sat,
         if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
         index = k+i; i0 = index<<stride;
         i1s = i0+dy; i1n = i0-dy;
-        gX[index] = gauss[i1n+dx]-gauss[i1n-dx]+(gauss[i0+dx]<<1)-(gauss[i0-dx]<<1)+gauss[i1s+dx]-gauss[i1s-dx];
-        gY[index] = gauss[i1n-dx]-gauss[i1s-dx]+(gauss[i1n]<<1)-(gauss[i1s]<<1)+gauss[i1n+dx]-gauss[i1s+dx];
+        gX[index] = lowpassed[i1n+dx]-lowpassed[i1n-dx]+(lowpassed[i0+dx]<<1)-(lowpassed[i0-dx]<<1)+lowpassed[i1s+dx]-lowpassed[i1s-dx];
+        gY[index] = lowpassed[i1n-dx]-lowpassed[i1s-dx]+(lowpassed[i1n]<<1)-(lowpassed[i1s]<<1)+lowpassed[i1n+dx]-lowpassed[i1s+dx];
     }
+    return optimum_gradient( stride0, gX, gY, im, w, h, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
+}
+function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
+{
+    if ( null == MAGNITUDE_SCALE )
+    {
+        MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
+        MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
+    }
+    var imSize = im.length, count = imSize>>>stride, index, i, j, k, sum,
+        w_1 = w-1, h_1 = h-1, i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
+        g = new A32F(count), xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
+        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag,
+        x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge;
     
     // non-maximal supression
     for(i=1,j=1,k=w; j<h_1; i++)
@@ -836,63 +838,59 @@ function optimum_gradient( stride, im, w, h, do_blur, do_sat,
             g[i0] = 0;
         }
     }
-    
-    if ( (null != low) && (null != high) )
+    if ( sat )
     {
-        // full (canny) gradient
-        // reset image
-        if ( stride0 ) for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
-        else for (i=0; i<imSize; i++) { im[i] = 0; }
-
-        //hysteresis and double-threshold
-        for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<stride0,i++) 
+        // integral (canny) gradient
+        // first row
+        for(i=0,sum=0; i<w; i++) { sum += g[i]; g[i] = sum; }
+        // other rows
+        for(i=w,k=0,sum=0; i<count; i++,k++)
         {
-            if ( i >= w ){ i=0; j++; }
-            if ( (0 === im[k]) && (g[index] >= high) ) follow_edge( im, w, h, g, i, j, k, low, stride0 );
+            if(k>=w) { k=0; sum=0; }
+            sum += g[i]; g[i] = g[i-w] + sum;
         }
-        
-        return im;
+        return g;
     }
     else
     {
-        if( do_sat )
+        // full (canny) gradient
+        // reset image
+        if ( stride ) for (i=0; i<imSize; i+=4) { im[i] = im[i+1] = im[i+2] = 0; }
+        else for (i=0; i<imSize; i++) { im[i] = 0; }
+
+        //hysteresis and double-threshold, inlined
+        for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<stride,i++) 
         {
-            // integral (canny) gradient
-            // first row
-            for(i=0,sum=0; i<w; i++) { sum += g[i]; g[i] = sum; }
-            // other rows
-            for(i=w,k=0,sum=0; i<count; i++,k++)
+            if ( i >= w ){ i=0; j++; }
+            if ( (0 === im[k]) && (g[index] >= high) )
             {
-                if(k>=w) { k=0; sum=0; }
-                sum += g[i]; g[i] = g[i-w] + sum;
+                /*follow_edge( im, w, h, g, i, j, k, low, stride );*/
+                x0 = i; y0 = j; ii = k;
+                do {
+                    // threshold here
+                    if ( stride ) { im[ii] = im[ii+1] = im[ii+2] = 255; }
+                    else { im[ii] = 255; }
+                    
+                    x1 = x0 === 0 ? x0 : x0-1;
+                    x2 = x0 === w_1 ? x0 : x0+1;
+                    y1 = y0 === 0 ? y0 : y0-1;
+                    y2 = y0 === h_1 ? y0 : y0+1;
+                    y0w = y1*w;
+                    x = x1; y = y1; yw = y0w; followedge = 0;
+                    while (x <= x2 && y <= y2)
+                    {
+                        jj = x + yw; ii = jj << stride;
+                        if ( (y !== y1 || x !== x1) && (0 === im[ii]) && (g[jj] >= low) ) 
+                        {
+                            x0 = x; y0 = y;
+                            followedge = 1; break;
+                        }
+                        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
+                    }
+                } while(followedge);
             }
         }
-        
-        return g;
-    }
-}
-function follow_edge( im, w, h, magnitude, x1, y1, i1, thresh, stride0 )
-{
-    var x0 = x1 === 0 ? x1 : x1 - 1,
-        x2 = x1 === w - 1 ? x1 : x1 + 1,
-        y0 = y1 === 0 ? y1 : y1 - 1,
-        y2 = y1 === h -1 ? y1 : y1 + 1,
-        x, y, y0w = y0*w, yw, i, j;
-
-    // threshold here
-    if ( stride0 ) { im[i1] = im[i1+1] = im[i1+2] = 255; }
-    else { im[i1] = 255; }
-    
-    x = x0, y = y0; yw = y0w;
-    while (x <= x2 && y <= y2)
-    {
-        j = x + yw; i = j << stride0;
-        if ( (y !== y1 || x !== x1) && (0 === im[i]) && (magnitude[j] >= thresh) ) 
-        {
-            follow_edge( im, w, h, magnitude, x, y, i, thresh, stride0 );
-            return;
-        }
-        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
+        return im;
     }
 }
 
@@ -2090,6 +2088,7 @@ FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 //FilterUtil.algebraic_combination = algebraic_combination;
+FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
 

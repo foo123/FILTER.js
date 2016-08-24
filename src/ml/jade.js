@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.MachineLearning.jade = function(){};
+//FILTER.MachineLearning.jade = function(){};
 
 }(FILTER);

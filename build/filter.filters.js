@@ -5107,10 +5107,22 @@ FILTER.Create({
         self.hasMeta = false; self.meta = null;
         
         if ( !selection ) return im;
-        x1 = (min(1,max(0, +selection[0]))*(w-1))|0;
-        y1 = (min(1,max(0, +selection[1]))*(h-1))|0;
-        x2 = (min(1,max(0, +selection[2]))*(w-1))|0;
-        y2 = (min(1,max(0, +selection[3]))*(h-1))|0;
+        if ( selection[4] )
+        {
+            // selection is relative, make absolute
+            x1 = min(w-1,max(0, selection[0]*(w-1)))|0;
+            y1 = min(h-1,max(0, selection[1]*(h-1)))|0;
+            x2 = min(w-1,max(0, selection[2]*(w-1)))|0;
+            y2 = min(h-1,max(0, selection[3]*(h-1)))|0;
+        }
+        else
+        {
+            // selection is absolute
+            x1 = min(w-1,max(0, selection[0]))|0;
+            y1 = min(h-1,max(0, selection[1]))|0;
+            x2 = min(w-1,max(0, selection[2]))|0;
+            y2 = min(h-1,max(0, selection[3]))|0;
+        }
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
         self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};

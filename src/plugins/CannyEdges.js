@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var canny_gradient = FILTER.Util.Filter.optimum_gradient,
+var canny_gradient = FILTER.Util.Filter.gradient,
     MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 

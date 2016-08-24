@@ -12,12 +12,12 @@ var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, canny_gradient = FilterUtil.optimum_gradient
+    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, sat_canny_gradient = FilterUtil.gradient
 ;
 
-function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, EDGES, cL, cH)
+function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, GSAT, cL, cH)
 {
-    var doCannyEdges = null != EDGES,
+    var doCannyEdges = null != GSAT,
         selw = sel_x2-sel_x1+1, selh = sel_y2-sel_y1+1,
         imSize = selw*selh, imArea1 = imSize-1,
         haar_stages = haar.stages, sl = haar_stages.length,
@@ -64,11 +64,11 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                 p2 = p2<0 ? 0 : (p2>imArea1 ? imArea1 : p2);
                 p3 = p3<0 ? 0 : (p3>imArea1 ? imArea1 : p3);
                 
-                if (doCannyEdges) 
+                if ( doCannyEdges )
                 {
                     // avoid overflow
-                    edges_density = inv_area * (EDGES[p3] - EDGES[p2] - EDGES[p1] + EDGES[p0]);
-                    if (edges_density < cL || edges_density > cH) continue;
+                    edges_density = inv_area * (GSAT[p3] - GSAT[p2] - GSAT[p1] + GSAT[p0]);
+                    if ( edges_density < cL || edges_density > cH ) continue;
                 }
                 
                 // pre-compute some values for speed
@@ -79,7 +79,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                 total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
                 
                 vnorm = total_x2 - total_x * total_x;
-                vnorm = 1 < vnorm ? Sqrt(vnorm) : /*vnorm*/  1 ;  
+                vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm  /*1*/ ;  
                 
                 pass = false;
                 for(s=0; s<sl; s++) 
@@ -169,7 +169,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                             /*where = rect_sum * inv_area < thresholdf * vnorm ? 0 : 1;*/
                             // END Viola-Jones HAAR-Leaf evaluator
                             
-                            if (rect_sum * inv_area < thresholdf * vnorm) 
+                            if ( rect_sum * inv_area < thresholdf * vnorm )
                             {
                                 if (feature.has_l) { sum += feature.l_val; break; } 
                                 else { cur_node_ind = feature.l_node; }
@@ -185,10 +185,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                     pass = sum > threshold;
                     // END Viola-Jones HAAR-Stage evaluator
                     
-                    if (!pass) break;
+                    if ( !pass ) break;
                 }
                 
-                if (pass)
+                if ( pass )
                 {
                     // expand
                     if ( feats.count === feats.length ) push.apply(feats, new Array(MAX_FEATURES));
@@ -201,7 +201,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
 }
 
 //x2-x1+1=w  x2 = w+x1-1
-function similar(r1, r2, tolerance)
+function similar( r1, r2, tolerance )
 {
     // tolerance = 0.2
     var d1=Max(r2[2], r1[2])*tolerance, 
@@ -209,21 +209,21 @@ function similar(r1, r2, tolerance)
     return Abs(r1[0]-r2[0])<=d1 && Abs(r1[1]-r2[1])<=d2 && Abs(r1[2]-r2[2])<=d1 && Abs(r1[3]-r2[3])<=d2; 
 }
 
-function is_inside(r1, r2)
+function is_inside( r1, r2 )
 {
     return (r1.x1>=r2.x1) && (r1.y1>=r2.y1) && (r1.x2<=r2.x2) && (r1.y2<=r2.y2); 
 }
 
-function snap_to_grid(r)
+function snap_to_grid( r )
 {
     r.x1 = (r.x1+0.5)|0; r.y1 = (r.y1+0.5)|0;
     r.x2 = (r.x2+0.5)|0; r.y2 = (r.y2+0.5)|0;
 }
 
-function by_area(r1, r2) { return r2.area-r1.area; }
+function by_area( r1, r2 ) { return r2.area-r1.area; }
 
 // merge the detected features if needed
-function merge_features(rects, min_neighbors, tolerance) 
+function merge_features( rects, min_neighbors, tolerance ) 
 {
     var rlen=rects.length, ref = new Array(rlen), feats=[], 
         nb_classes = 0, neighbors, r, found=false, i, j, n, t, ri, x1, y1, w, h;
@@ -382,7 +382,7 @@ FILTER.Create({
         if ( params[HAS]('scaleIncrement') ) self.scaleIncrement = +params.scaleIncrement;
         if ( params[HAS]('stepIncrement') ) self.stepIncrement = +params.stepIncrement;
         if ( params[HAS]('minNeighbors') ) self.minNeighbors = +params.minNeighbors;
-        if ( params[HAS]('doCannyPruning') ) self.doCannyPruning = params.doCannyPruning;
+        if ( params[HAS]('doCannyPruning') ) self.doCannyPruning = !!params.doCannyPruning;
         if ( params[HAS]('tolerance') ) self.tolerance = +params.tolerance;
         if ( params[HAS]('cannyLow') ) self.cannyLow = +params.cannyLow;
         if ( params[HAS]('cannyHigh') ) self.cannyHigh = +params.cannyHigh;
@@ -444,16 +444,27 @@ FILTER.Create({
         
         var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
-            SAT=null, SAT2=null, RSAT=null, EDGES=null, 
+            SAT=null, SAT2=null, RSAT=null, GSAT=null, 
             x1, y1, x2, y2, features;
         
         if ( selection )
         {
-            // selection is relative, make absolute
-            x1 = Min(w-1, Max(0, selection[0]*(w-1)));
-            y1 = Min(h-1, Max(0, selection[1]*(h-1)));
-            x2 = Min(w-1, Max(0, selection[2]*(w-1)));
-            y2 = Min(h-1, Max(0, selection[3]*(h-1)));
+            if ( selection[4] )
+            {
+                // selection is relative, make absolute
+                x1 = Min(w-1, Max(0, selection[0]*(w-1)));
+                y1 = Min(h-1, Max(0, selection[1]*(h-1)));
+                x2 = Min(w-1, Max(0, selection[2]*(w-1)));
+                y2 = Min(h-1, Max(0, selection[3]*(h-1)));
+            }
+            else
+            {
+                // selection is absolute
+                x1 = Min(w-1, Max(0, selection[0]));
+                y1 = Min(h-1, Max(0, selection[1]));
+                x2 = Min(w-1, Max(0, selection[2]));
+                y2 = Min(h-1, Max(0, selection[3]));
+            }
         }
         else
         {
@@ -473,23 +484,23 @@ FILTER.Create({
             if ( metaData ) { metaData.haarfilter_SAT = SAT; metaData.haarfilter_SAT2 = SAT2; metaData.haarfilter_RSAT = RSAT; }
         }
         
-        // pre-compute integral gradient edges if needed
+        // pre-compute integral canny gradient edges if needed
         if ( self.doCannyPruning )
         {
-            if ( metaData && metaData.haarfilter_EDGES )
+            if ( metaData && metaData.haarfilter_GSAT )
             {
-                EDGES = metaData.haarfilter_EDGES;
+                GSAT = metaData.haarfilter_GSAT;
             }
             else
             {
-                EDGES = canny_gradient( 2, im, w, h, 1, 1 );
-                if ( metaData ) { metaData.haarfilter_EDGES = EDGES; }
+                GSAT = sat_canny_gradient(2, im, w, h, 1, 1);
+                if ( metaData ) { metaData.haarfilter_GSAT = GSAT; }
             }
         }
         
         // synchronous detection loop
         features = new Array(MAX_FEATURES); features.count = 0;
-        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, EDGES, self.cannyLow, self.cannyHigh);
+        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, GSAT, self.cannyLow, self.cannyHigh);
         // truncate if needed
         if ( features.length > features.count ) features.length = features.count;
         

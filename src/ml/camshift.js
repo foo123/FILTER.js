@@ -8,6 +8,6 @@
 "use strict";
 
 // TODO
-FILTER.MachineLearning.camshift = function(){};
+//FILTER.MachineLearning.camshift = function(){};
 
 }(FILTER);
