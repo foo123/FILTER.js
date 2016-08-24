@@ -72,5 +72,6 @@ WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&
 * [Improved clustering using deterministic annealing with a gradient descent technique, Qiu, Varley, Terrell 1992](http://ima.ac.uk/papers/qiu1994a.pdf)
 * [Pairwise Data Clustering by Deterministic Annealing, Hofmann, Buhmann 1996](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.9812&rep=rep1&type=pdf)
 * [Generalizing Swendsen-Wang for Image Analysis, Barbu, Zhu 2007](http://stat.fsu.edu/~abarbu/papers/jcgs.pdf)
+* [Grammar-based Image Processing (draft)](https://github.com/foo123/grammar-based-image-processing)
 
 <!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
