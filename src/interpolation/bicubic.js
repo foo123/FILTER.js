@@ -11,8 +11,7 @@ var clamp = FILTER.Util.Math.clamp, IMG = FILTER.ImArray, A32F = FILTER.Array32F
     subarray = FILTER.Util.Array.subarray;
 
 // http://www.gamedev.net/topic/229145-bicubic-interpolation-for-image-resizing/
-FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
-? function( im, w, h, nw, nh ) {
+FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray ? function( im, w, h, nw, nh ) {
     var size = (nw*nh)<<2, interpolated = new IMG(size),
         rx = (w-1)/nw, ry = (h-1)/nh, 
         i, j, x, y, xi, yi, pixel, index,
@@ -20,17 +19,18 @@ FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
         rgba0 = new A32F(4), rgba1 = new A32F(4), 
         rgba2 = new A32F(4), rgba3 = new A32F(4),
         yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
+        h_1 = h-1, w_1 = w-1,
         B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
         p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
     ;
     i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
     for (index=0; index<size; index+=4,j++,x+=rx) 
     {
-        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
-        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
+        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=y|0; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
+        xi = x|0; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
         
         pixel = (yw + xi)<<2;
-        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
+        T_EDGE = 0 === yi; B_EDGE = h_1 === yi; L_EDGE = 0 === xi; R_EDGE = w_1 === xi;
         
         // handle edge cases
         C = im.subarray(pixel, pixel+4);
@@ -143,22 +143,22 @@ FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
         q = (rgba0[0] - rgba1[0]) - p;
         r = rgba2[0] - rgba0[0];
         s = rgba1[0];
-        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[0] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
         q = (rgba0[1] - rgba1[1]) - p;
         r = rgba2[1] - rgba0[1];
         s = rgba1[1];
-        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[1] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
         q = (rgba0[2] - rgba1[2]) - p;
         r = rgba2[2] - rgba0[2];
         s = rgba1[2];
-        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[2] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
         q = (rgba0[3] - rgba1[3]) - p;
         r = rgba2[3] - rgba0[3];
         s = rgba1[3];
-        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[3] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         
         interpolated[index]      = rgba[0];
         interpolated[index+1]    = rgba[1];
@@ -166,8 +166,7 @@ FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
         interpolated[index+3]    = rgba[3];
     }
     return interpolated;
-}
-: function( im, w, h, nw, nh ) {
+} : function( im, w, h, nw, nh ) {
     var size = (nw*nh)<<2, interpolated = new IMG(size),
         rx = (w-1)/nw, ry = (h-1)/nh, 
         i, j, x, y, xi, yi, pixel, index,
@@ -175,35 +174,36 @@ FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
         rgba0 = new A32F(4), rgba1 = new A32F(4), 
         rgba2 = new A32F(4), rgba3 = new A32F(4),
         yw, dx, dy, dx2, dx3, dy2, dy3, w4 = w<<2,
+        h_1 = h-1, w_1 = w-1,
         B, BL, BR, BRR, BB, BBL, BBR, BBRR, C, L, R, RR, T, TL, TR, TRR,
         p, q, r, s, T_EDGE, B_EDGE, L_EDGE, R_EDGE
     ;
     i=0; j=0; x=0; y=0; yi=0; yw=0; dy=dy2=dy3=0; 
     for (index=0; index<size; index+=4,j++,x+=rx) 
     {
-        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=~~y; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
-        xi = ~~x; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
+        if ( j >= nw ) {j=0; x=0; i++; y+=ry; yi=y|0; dy=y - yi; dy2=dy*dy; dy3=dy2*dy3; yw=yi*w;}
+        xi = x|0; dx = x - xi; dx2 = dx*dx; dx3 = dx2*dx;
         
         pixel = (yw + xi)<<2;
-        T_EDGE = 0 === yi; B_EDGE = h-1 === yi; L_EDGE = 0 === xi; R_EDGE = w-1 === xi;
+        T_EDGE = 0 === yi; B_EDGE = h_1 === yi; L_EDGE = 0 === xi; R_EDGE = w_1 === xi;
         
         // handle edge cases
-        C = subarray(im, pixel, pixel+4);
-        L = L_EDGE ? C : subarray(im, pixel-4, pixel);
-        R = R_EDGE ? C : subarray(im, pixel+4, pixel+8);
-        RR = R_EDGE ? C : subarray(im, pixel+8, pixel+12);
-        B = B_EDGE ? C : subarray(im, pixel+w4, pixel+w4+4);
-        BB = B_EDGE ? C : subarray(im, pixel+w4+w4, pixel+w4+w4+4);
-        BL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4-4, pixel+w4);
-        BR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+4, pixel+w4+8);
-        BRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+8, pixel+w4+12);
-        BBL = B_EDGE||L_EDGE ? C : subarray(im, pixel+w4+w4-4, pixel+w4+w4);
-        BBR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+4, pixel+w4+w4+8);
-        BBRR = B_EDGE||R_EDGE ? C : subarray(im, pixel+w4+w4+8, pixel+w4+w4+12);
-        T = T_EDGE ? C : subarray(im, pixel-w4, pixel-w4+4);
-        TL = T_EDGE||L_EDGE ? C : subarray(im, pixel-w4-4, pixel-w4);
-        TR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+4, pixel-w4+8);
-        TRR = T_EDGE||R_EDGE ? C : subarray(im, pixel-w4+8, pixel-w4+12);
+        C = im.slice(pixel, pixel+4);
+        L = L_EDGE ? C : im.slice(pixel-4, pixel);
+        R = R_EDGE ? C : im.slice(pixel+4, pixel+8);
+        RR = R_EDGE ? C : im.slice(pixel+8, pixel+12);
+        B = B_EDGE ? C : im.slice(pixel+w4, pixel+w4+4);
+        BB = B_EDGE ? C : im.slice(pixel+w4+w4, pixel+w4+w4+4);
+        BL = B_EDGE||L_EDGE ? C : im.slice(pixel+w4-4, pixel+w4);
+        BR = B_EDGE||R_EDGE ? C : im.slice(pixel+w4+4, pixel+w4+8);
+        BRR = B_EDGE||R_EDGE ? C : im.slice(pixel+w4+8, pixel+w4+12);
+        BBL = B_EDGE||L_EDGE ? C : im.slice(pixel+w4+w4-4, pixel+w4+w4);
+        BBR = B_EDGE||R_EDGE ? C : im.slice(pixel+w4+w4+4, pixel+w4+w4+8);
+        BBRR = B_EDGE||R_EDGE ? C : im.slice(pixel+w4+w4+8, pixel+w4+w4+12);
+        T = T_EDGE ? C : im.slice(pixel-w4, pixel-w4+4);
+        TL = T_EDGE||L_EDGE ? C : im.slice(pixel-w4-4, pixel-w4);
+        TR = T_EDGE||R_EDGE ? C : im.slice(pixel-w4+4, pixel-w4+8);
+        TRR = T_EDGE||R_EDGE ? C : im.slice(pixel-w4+8, pixel-w4+12);
         
         /*function interpolate_pixel(n, p0, p1, p2, p3, t)
         {
@@ -327,22 +327,22 @@ FILTER.Interpolation.bicubic = FILTER.Util.Array.hasSubarray
         q = (rgba0[0] - rgba1[0]) - p;
         r = rgba2[0] - rgba0[0];
         s = rgba1[0];
-        rgba[0] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[0] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[1] - rgba2[1]) - (rgba0[1] - rgba1[1]);
         q = (rgba0[1] - rgba1[1]) - p;
         r = rgba2[1] - rgba0[1];
         s = rgba1[1];
-        rgba[1] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[1] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[2] - rgba2[2]) - (rgba0[2] - rgba1[2]);
         q = (rgba0[2] - rgba1[2]) - p;
         r = rgba2[2] - rgba0[2];
         s = rgba1[2];
-        rgba[2] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[2] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         p = (rgba3[3] - rgba2[3]) - (rgba0[3] - rgba1[3]);
         q = (rgba0[3] - rgba1[3]) - p;
         r = rgba2[3] - rgba0[3];
         s = rgba1[3];
-        rgba[3] = clamp(~~(p * dy3 + q * dy2 + r * dy + s + 0.5), 0, 255);
+        rgba[3] = clamp(p * dy3 + q * dy2 + r * dy + s + 0.5, 0, 255)|0;
         
         interpolated[index]      = rgba[0];
         interpolated[index+1]    = rgba[1];

@@ -10,12 +10,14 @@
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     CHANNEL = FILTER.CHANNEL, FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
-    Color = FILTER.Color, Gradient = Color.Gradient, ImageUtil = FILTER.Util.Image,
+    Color = FILTER.Color, Gradient = Color.Gradient,
+    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
     Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
     ArrayUtil = FILTER.Util.Array, arrayset = ArrayUtil.arrayset, subarray = ArrayUtil.subarray,
     Min = Math.min, Floor = Math.floor,
 
-    RED = 1, GREEN = 2, BLUE = 4, ALPHA = 8, ALL_CHANNELS = RED|GREEN|BLUE|ALPHA,
+    RED = 1<<CHANNEL.R, GREEN = 1<<CHANNEL.G, BLUE = 1<<CHANNEL.B, ALPHA = 1<<CHANNEL.A,
+    ALL_CHANNELS = RED|GREEN|BLUE|ALPHA,
     IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT, SEL = ISEL|OSEL, DATA = IDATA|ODATA,
     CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL, CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT, CLEAR_SPECTRUM = ~SPECTRUM
@@ -769,15 +771,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,integral: function( channel ) {
         var self = this, gray = self.gray, CHANNEL,
-            integ = ImageUtil.integral, integral = self._integral;
+            I = FilterUtil.integral, integral = self._integral;
         if ( null == channel )
         {
             if ( self._refresh & SAT )
             {
                 var data = self.getPixelData().data, w = self.width, h = self.height, i0;
-                integral[0] = i0 = integ(data, w, h, 0);
-                integral[1] = gray ? i0 : integ(data, w, h, 1);
-                integral[2] = gray ? i0 : integ(data, w, h, 2);
+                integral[0] = i0 = I(data, w, h, 2, 0);
+                integral[1] = gray ? i0 : I(data, w, h, 2, 1);
+                integral[2] = gray ? i0 : I(data, w, h, 2, 2);
                 integral[3] = null;
                 self._intRefresh = 0; self._refresh &= CLEAR_SAT;
             }
@@ -794,7 +796,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 else if ( gray && !(self._intRefresh & BLUE) )
                     integral[channel] = integral[2];
                 else
-                    integral[channel] = integ(self.getPixelData().data, self.width, self.height, channel);
+                    integral[channel] = I(self.getPixelData().data, self.width, self.height, 2, channel);
                 self._intRefresh &= ~CHANNEL; self._refresh &= CLEAR_SAT;
             }
         }
@@ -804,15 +806,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,histogram: function( channel, pdf ) {
         var self = this, gray = self.gray, CHANNEL,
-            hist = ImageUtil.histogram, histogram = self._histogram;
+            H = FilterUtil.histogram, histogram = self._histogram;
         if ( null == channel )
         {
             if ( self._refresh & HIST )
             {
                 var data = self.getPixelData().data, w = self.width, h = self.height, h0;
-                histogram[0] = h0 = hist(data, w, h, 0, pdf);
-                histogram[1] = gray ? h0 : hist(data, w, h, 1, pdf);
-                histogram[2] = gray ? h0 : hist(data, w, h, 2, pdf);
+                histogram[0] = h0 = H(data, w, h, 2, 0, pdf);
+                histogram[1] = gray ? h0 : H(data, w, h, 2, 1, pdf);
+                histogram[2] = gray ? h0 : H(data, w, h, 2, 2, pdf);
                 histogram[3] = null;
                 self._hstRefresh = 0; self._refresh &= CLEAR_HIST;
             }
@@ -829,7 +831,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 else if ( gray && !(self._hstRefresh & BLUE) )
                     histogram[channel] = histogram[2];
                 else
-                    histogram[channel] = hist(self.getPixelData().data, self.width, self.height, channel, pdf);
+                    histogram[channel] = H(self.getPixelData().data, self.width, self.height, 2, channel, pdf);
                 self._hstRefresh &= ~CHANNEL; self._refresh &= CLEAR_HIST;
             }
         }
@@ -838,7 +840,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     // TODO
     ,spectrum: function( channel ) {
-        var self = this, /*spec = ImageUtil.spectrum,*/ spectrum = self._spectrum;
+        var self = this, /*F = FilterUtil.spectrum,*/ spectrum = self._spectrum;
         return null == channel ? spectrum : spectrum[channel||0];
     }
     ,fft: null

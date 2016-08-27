@@ -58,7 +58,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return canny_gradient(2, im, w, h, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+        return canny_gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 

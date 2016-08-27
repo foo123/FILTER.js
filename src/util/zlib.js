@@ -7,6 +7,10 @@
 !function(FILTER, undef){
 "use strict";
 
+if ( FILTER.Util.LOADED_ZLIB ) return;
+FILTER.Util.LOADED_ZLIB = true;
+
+
 /*
  * Extracted from pdf.js
  * https://github.com/andreasgal/pdf.js

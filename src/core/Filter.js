@@ -45,7 +45,7 @@ var PROTO = 'prototype', HAS = 'hasOwnProperty', KEYS = Object.keys
     }
     ,devicePixelRatio = FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1
     ,notSupportClamp = FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray
-    ,TypedArray, log, _uuid = 0, Min = Math.min, Max = Math.max
+    ,log, _uuid = 0, Min = Math.min, Max = Math.max
 ;
 
 //
@@ -97,7 +97,6 @@ FILTER.uuid = function( namespace ) {
 };
 
 
-//
 // Typed Arrays Substitute(s)
 FILTER.Array = Array;
 FILTER.Array32F = (typeof Float32Array !== "undefined") ? Float32Array : Array;
@@ -115,7 +114,6 @@ FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
 FILTER.ColorTable = FILTER.ImArrayCopy;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
 
-//
 // Constants
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
@@ -170,37 +168,23 @@ FILTER.CONSTANTS = FILTER.CONST = {
     ,toRad: Math.PI/180, toDeg: 180/Math.PI
 };
 
-// utilities
-TypedArray = isNode ? function( a, A ) {
-    if ( (null == a) || (a instanceof A) ) return a;
-    else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
-    if ( null == a.length ) a.length = Object.keys( a ).length;
-    return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
-} : function( a, A ) { return a; };
 notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
 
+// packages
 FILTER.Util = {
+    String  : { },
     Array   : {
         // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
          hasClampedArray: "undefined" !== typeof Uint8ClampedArray
         ,hasArrayset: ("undefined" !== typeof Int16Array) && ("function" === typeof Int16Array[PROTO].set)
         ,hasSubarray: "function" === typeof FILTER.Array32F[PROTO].subarray
-        ,typed: TypedArray
-        ,typed_obj: isNode
-            ? function( o, unserialise ) { return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o )); }
-            : function( o ) { return o; }
     },
-    String  : { },
-    List    : { },
-    Math    : { },
     IO      : { },
     Filter  : { },
     Image   : { },
     GLSL    : { },
     SVG     : { }
 };
-
-// packages
 FILTER.IO = { };
 FILTER.Codec = { };
 FILTER.Interpolation = { };
@@ -220,7 +204,6 @@ FILTER.warning = function( s ) { log( 'WARNING: ' + s ); };
 FILTER.error = function( s, throwErr ) { log( 'ERROR: ' + s ); if ( throwErr ) throw new Error(s); };
 
 var 
-    //
     // Thread Filter Interface (internal)
     FilterThread = FILTER.FilterThread = FILTER.Class( Async, {
         
@@ -261,7 +244,7 @@ var
                         if ( filter && data && data.im )
                         {
                             //log(data.im[0]);
-                            var im = data.im; im[ 0 ] = TypedArray( im[ 0 ], FILTER.ImArray );
+                            var im = data.im; im[ 0 ] = FILTER.Util.Array.typed( im[ 0 ], FILTER.ImArray );
                             if ( data.params ) filter.unserializeFilter( data.params );
                             if ( data.inputs ) filter.unserializeInputs( data.inputs, im );
                             // pass any filter metadata if needed
@@ -347,7 +330,6 @@ var
         }
     }),
     
-    //
     // Abstract Generic Filter (implements Async Worker/Thread Interface transparently)
     Filter = FILTER.Filter = FILTER.Class( FilterThread, {
         name: "Filter"
@@ -441,7 +423,7 @@ var
             if ( (null == input[0]) || (input[1] && (input[2] !== input[1].nref)) )
             {
                 input[2] = input[1].nref; // compare and update current ref count with image ref count
-                input[0] = input[1].getSelectedData( );
+                input[0] = input[1].getSelectedData( 1 );
             }
             return input[0] || null;
         }
@@ -469,7 +451,7 @@ var
                 {
                     // save bandwidth if input is same as main current image being processed
                     input[2] = input[1].nref; // compare and update current ref count with image ref count
-                    json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData( );
+                    json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData( 1 );
                 }
             }
             return json;
@@ -478,7 +460,8 @@ var
         ,unserializeInputs: function( json, curImData ) {
             var self = this;
             if ( !json || !self.hasInputs ) return self;
-            var inputs = self.inputs, input, k = KEYS(json), i, l = k.length, IMG = FILTER.ImArray;
+            var inputs = self.inputs, input, k = KEYS(json), i, l = k.length,
+                IMG = FILTER.ImArray, TypedArray = FILTER.Util.Array.typed;
             for(i=0; i<l; i++)
             {
                 input = json[k[i]];
@@ -642,7 +625,7 @@ var
                             {
                                 if ( self.hasMeta && (null != self.meta._IMG_WIDTH) )
                                     dst.dimensions( self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT );
-                                dst.setSelectedData( TypedArray( data.im, FILTER.ImArray ) );
+                                dst.setSelectedData( FILTER.Util.Array.typed( data.im, FILTER.ImArray ) );
                             }
                         }
                         if ( cb ) cb.call( self );
@@ -696,7 +679,97 @@ FILTER.Filter.get = function( filterClass ) {
         return FILTER[filterClass] || null;
     }
 };
-//
+
+// IO Manager class
+FILTER.IO.Manager = FILTER.Class({
+    name: "IO.Manager",
+    
+    __static__: {
+        // accessible as "$class.load" (extendable and with "late static binding")
+        load: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( url, onLoad, onError ) {
+                return new $class().read(url, onLoad, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
+        
+        // accessible as "$class.load" (extendable and with "late static binding")
+        write: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( file, data, onWrite, onError ) {
+                return new $class().write(file, data, onWrite, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
+    },
+    
+    constructor: function Manager() {
+        /*var self = this;
+        if ( !(self instanceof Manager) )
+            return new Manager( );*/
+    },
+    
+    _crossOrigin: null,
+    _responseType: null,
+    _encoding: null,
+    
+    dispose: function( ) {
+        var self = this;
+        self._crossOrigin = null;
+        self._responseType = null;
+        self._encoding = null;
+        return self;
+    },
+    
+    // override in sub-classes
+    load: null,
+    read: function( url, onLoad, onError ){
+        return null;
+    },
+    
+    // override in sub-classes
+    write: function( file, data, onWrite, onError ){
+        return null;
+    },
+
+    responseType: function ( value ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            self._responseType = value;
+            return self;
+        }
+        return self._responseType;
+    },
+
+    crossOrigin: function ( value ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            self._crossOrigin = value;
+            return self;
+        }
+        return self._crossOrigin;
+    },
+    
+    encoding: function ( value ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            self._encoding = value;
+            return self;
+        }
+        return self._encoding;
+    }
+});
+// aliases
+FILTER.IO.Manager[PROTO].load = FILTER.IO.Manager[PROTO].read;
+FILTER.IO.Loader = FILTER.IO.Reader = FILTER.IO.Writer = FILTER.IO.Manager;
+
+
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
     methods = Merge({

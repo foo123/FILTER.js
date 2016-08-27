@@ -7,7 +7,11 @@
 !function(FILTER, undef){
 "use strict";
 
-var a2b_re = /[^A-Za-z0-9\+\/\=]/g, hex_re = /\x0d\x0a/g;
+if ( FILTER.Util.LOADED_BASE64 ) return;
+FILTER.Util.LOADED_BASE64 = true;
+
+var StringUtil = FILTER.Util.String = FILTER.Util.String || {},
+    a2b_re = /[^A-Za-z0-9\+\/\=]/g, hex_re = /\x0d\x0a/g;
 
 function utf8_encode( string )
 {
@@ -109,14 +113,9 @@ function base64_decode( input )
     return output;
 }
     
-FILTER.Util.Utf8 = {
-    encode: utf8_encode,
-    decode: utf8_decode
-};
-    
-FILTER.Util.Base64 = {
-    encode: base64_encode,
-    decode: base64_decode
-};
+StringUtil.utf8_encode = utf8_encode;
+StringUtil.utf8_decode = utf8_decode;
+StringUtil.base64_encode = base64_encode;
+StringUtil.base64_decode = base64_decode;
 
 }(FILTER);

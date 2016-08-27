@@ -25,6 +25,8 @@
 **Advanced references:**
 
 * [What Every Computer Scientist Should Know About Floating-Point Arithmetic, Goldberg 1991](http://perso.ens-lyon.fr/jean-michel.muller/goldberg.pdf)
+* [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)
+* [Color Subspaces as Photometric Invariants, Zickler, Mallick, Kriegman, Belhumeu 2006](http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf)
 * [An Image Synthesizer, Perlin 1985](https://design.osu.edu/carlson/history/PDFs/p287-perlin.pdf)
 * [Improving Noise, Perlin 2001](http://mrl.nyu.edu/~perlin/paper445.pdf)
 * [Optimizations in perlin noise-generated procedural terrain, Marinescu 2012](http://www.cs.ubbcluj.ro/~studia-i/2012-2/05-Marinescu.pdf)

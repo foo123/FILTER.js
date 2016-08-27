@@ -7,6 +7,10 @@
 !function(FILTER, undef){
 "use strict";
 
+if ( FILTER.Util.LOADED_PERLIN ) return;
+FILTER.Util.LOADED_PERLIN = true;
+
+
 var ImageUtil = FILTER.Util.Image, Image = FILTER.Image, FLOOR = Math.floor,
     sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
  

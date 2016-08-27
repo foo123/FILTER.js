@@ -7,9 +7,11 @@
 !function(FILTER, undef){
 "use strict";
 
+if ( FILTER.Util.LOADED_XHR ) return;
+FILTER.Util.LOADED_XHR = true;
+
 var HAS = 'hasOwnProperty', toString = Object.prototype.toString,
-    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim
-;
+    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim;
 
 // adapted from https://github.com/foo123/RT
 function header_encode( headers, xmlHttpRequest, httpRequestResponse )

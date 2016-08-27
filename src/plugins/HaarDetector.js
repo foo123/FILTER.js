@@ -480,7 +480,7 @@ FILTER.Create({
         else
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
-            sat_image(im, w, h, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
+            sat_image(im, w, h, 2, 0, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
             if ( metaData ) { metaData.haarfilter_SAT = SAT; metaData.haarfilter_SAT2 = SAT2; metaData.haarfilter_RSAT = RSAT; }
         }
         
@@ -493,7 +493,7 @@ FILTER.Create({
             }
             else
             {
-                GSAT = sat_canny_gradient(2, im, w, h, 1, 1);
+                GSAT = sat_canny_gradient(im, w, h, 2, 0, 1, 1);
                 if ( metaData ) { metaData.haarfilter_GSAT = GSAT; }
             }
         }

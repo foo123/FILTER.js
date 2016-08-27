@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var A32U = FILTER.Array32U, A8U = FILTER.Array8U,
+var A32I = FILTER.Array32I, A32U = FILTER.Array32U, A8U = FILTER.Array8U,
     min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
@@ -190,21 +190,38 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
 {
     var imLen = im.length, imSize = imLen>>>2, xm, ym, xM, yM,
         y, yy, dy = w<<2, ymin = 0, ymax = imLen-dy, xmin = 0, xmax = (w-1)<<2,
-        l, i, k, x, x1, x2, yw, stack, slen, segment, notdone, labeled;
+        l, i, k, x, x1, x2, yw, stack, slen, notdone, labeled;
         
     xm = x0; ym = y0; xM = x0; yM = y0; 
     labeled = new A8U(imSize);
-    stack = new Array(imSize); slen = 0; // pre-allocate and soft push/pop for speed
+    stack = new A32I(imSize<<2); slen = 0; // pre-allocate and soft push/pop for speed
     
     labeled[(x0+y0)>>>2] = 255;
-    if ( y0+dy >= ymin && y0+dy <= ymax ) stack[slen++]=[y0, x0, x0, dy]; /* needed in some cases */
-    /*if ( y0 >= ymin && y0 <= ymax)*/ stack[slen++]=[y0+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
+    if ( y0+dy >= ymin && y0+dy <= ymax )
+    {
+        /* needed in some cases */
+        stack[slen  ]=y0;
+        stack[slen+1]=x0;
+        stack[slen+2]=x0;
+        stack[slen+3]=dy;
+        slen += 4;
+    }
+    /*if ( y0 >= ymin && y0 <= ymax)*/
+    /* seed segment (popped 1st) */
+    stack[slen  ]=y0+dy;
+    stack[slen+1]=x0;
+    stack[slen+2]=x0;
+    stack[slen+3]=-dy;
+    slen += 4;
     
     while ( 0 < slen ) 
     {
         /* pop segment off stack and fill a neighboring scan line */
-        segment = stack[--slen];
-        yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
+        slen -= 4;
+        dy = stack[slen+3];
+        yw = stack[slen  ]+dy;
+        x1 = stack[slen+1];
+        x2 = stack[slen+2];
         ym = min(ym, yw); yM = max(yM, yw);
         xm = min(xm, x1); xM = max(xM, x2);
         
@@ -239,7 +256,15 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
             l = x+4;
             if ( l < x1 ) 
             {
-                if ( yw-dy >= ymin && yw-dy <= ymax ) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                if ( yw-dy >= ymin && yw-dy <= ymax )
+                {
+                    //stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                    stack[slen  ]=yw;
+                    stack[slen+1]=l;
+                    stack[slen+2]=x1-4;
+                    stack[slen+3]=-dy;
+                    slen += 4;
+                }
             }
             x = x1+4;
             notdone = true;
@@ -254,10 +279,26 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
                 xM = max(xM, x);
                 x+=4; i = x+yw; k = i>>>2;
             }
-            if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
+            if ( yw+dy >= ymin && yw+dy <= ymax)
+            {
+                //stack[slen++]=[yw, l, x-4, dy];
+                stack[slen  ]=yw;
+                stack[slen+1]=l;
+                stack[slen+2]=x-4;
+                stack[slen+3]=dy;
+                slen += 4;
+            }
             if ( x > x2+4 ) 
             {
-                if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                if ( yw-dy >= ymin && yw-dy <= ymax)
+                {
+                    //stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                    stack[slen  ]=yw;
+                    stack[slen+1]=x2+4;
+                    stack[slen+2]=x-4;
+                    stack[slen+3]=-dy;
+                    slen += 4;
+                }
             }
     /*skip:*/   
             i = x+yw; k = i>>>2;

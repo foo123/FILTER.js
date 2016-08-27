@@ -9,8 +9,7 @@
 
 var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.Image,
     Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
-    get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill
-;
+    get = ImageUtil.get_data, set = ImageUtil.set_data, fill = ImageUtil.fill;
 
 CanvasProxyCtx = FILTER.Class({
     constructor: function CanvasProxyCtx( canvas ) {

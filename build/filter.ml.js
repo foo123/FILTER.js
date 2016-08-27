@@ -32,6 +32,665 @@ else /* Browser/WebWorker/.. */
 
 /**
 *
+* Filter Utils, Array / List utils
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+if ( FILTER.Util.LOADED_ARRAY ) return;
+FILTER.Util.LOADED_ARRAY = true;
+
+var ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
+    ListUtil = FILTER.Util.List = FILTER.Util.List || {};
+
+ArrayUtil.stride = function array_stride( a, m, n, A, stride, transpose ) {
+    A = A||Array; stride = stride||0;
+    var i, j, k, size = n*m, b = new A(size<<stride);
+    if ( transpose )
+    {
+        for (k=0,i=0,j=0; k<size; k++,j++)
+        {
+            if ( j >= n ){ j=0; i++; }
+            b[k<<stride] = a[j][i];
+        }
+    }
+    else
+    {
+        for (k=0,i=0,j=0; k<size; k++,j++)
+        {
+            if ( j >= n ){ j=0; i++; }
+            b[k<<stride] = a[i][j];
+        }
+    }
+    return b;
+};
+
+ArrayUtil.unstride = function array_unstride( a, m, n, stride, transpose ) {
+    stride = stride||0;
+    var i, j, k, size = a.length>>>stride, b;
+    if ( transpose )
+    {
+        for (b=new Array(n),i=0; i<n; i++)
+            for(b[i]=new Array(m),k=0,j=0; j<m; j++,k+=n) b[i][j] = a[(k+i)<<stride];
+    }
+    else
+    {
+        for (b=new Array(m),k=0,i=0; i<m; i++,k+=n)
+            for(b[i]=new Array(n),j=0; j<n; j++) b[i][j] = a[(k+j)<<stride];
+    }
+    return b;
+};
+
+ArrayUtil.copy = function array_copy( ao, ro, co, ai, ri, ci, v0, stride ) {
+    var i, j, ko, ki;
+    
+    v0 = v0 || 0.0;
+    if ( null != stride )
+    {
+        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
+            for(j=0; j<co; j++)
+                ao[ko+j] = i < ri && j < ci ? ai[(ki+j)<<stride] : v0;
+    }
+    else
+    {
+        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
+            for(j=0; j<co; j++)
+                ao[ko+j] = i < ri && j < ci ? ai[i][j] : v0;
+    }
+    return ao;
+};
+
+ArrayUtil.transpose = function array_transpose( ta, a, r, c, stride ) {
+    var i, j, ko, ki;
+    if ( null != stride )
+    {
+        for(i=0,ko=0; i<c; i++,ko+=r)
+            for(j=0,ki=0; j<r; j++,ki+=c)
+                ta[ko+j] = a[(ki+i)<<stride];
+    }
+    else
+    {
+        for(i=0,ko=0; i<c; i++,ko+=r)
+            for(j=0; j<r; j++)
+                ta[ko+j] = a[j][i];
+    }
+    return ta;
+};
+
+ListUtil.each = function each( x, F, i0, i1, stride, offset ) {
+    offset = offset || 0; stride = stride || 0;
+    var len = x.length>>>stride;
+    if ( arguments.length < 4 ) i1 = len-1;
+    if ( 0 > i1 ) i1 += len;
+    if ( arguments.length < 3 ) i0 = 0;
+    if ( i0 > i1 ) return x;
+    var i, j, k, l=i1-i0+1, l1, lr, r=l&15, q=r&1;
+    if ( q ) F(x[(i0<<stride)+offset], i0, i0, i1);
+    for (i=q; i<r; i+=2)
+    { 
+        k=i0+i; F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+    }
+    for (i=r; i<l; i+=16)
+    {
+        k=i0+i; F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+    }
+    return x;
+};
+
+}(FILTER);/**
+*
+* Filter Utils, BLAS (Basic Linear Algebra Subroutines)
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+if ( FILTER.Util.LOADED_BLAS ) return;
+FILTER.Util.LOADED_BLAS = true;
+
+var BLAS = FILTER.Util.BLAS = FILTER.Util.BLAS || {},
+    fabs = Math.abs, fmax = Math.max, fmin = Math.min,
+    sqrt = Math.sqrt/*, sign = Math.sign*/;
+
+function sign( x )
+{
+    return 0 > x ? -1.0 : 1.0;
+}
+
+// BLAS 1
+BLAS.axpy = function axpy( n, da, dx, dx0, incx, dy, dy0, incy ) {
+    // AXPY computes constant times a vector plus a vector.
+    var i, ix, iy, m;
+    if ( 0 >= n || 0.0 === da ) return;
+    ix = dx0 + (0 <= incx ? 0 : ( - n + 1 ) * incx);
+    iy = dy0 + (0 <= incy ? 0 : ( - n + 1 ) * incy);
+    m = n & 7;
+    for(i=0; i<m; i++)
+    {
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+        dy[iy] += da * dx[ix]; ix+=incx; iy+=incy;
+    }
+};
+BLAS.dot = function dot( n, dx, dx0, incx, dy, dy0, incy ) {
+    // DOT forms the dot product of two vectors.
+    var sum, i, ix, iy, m;
+    if ( 0 >= n ) return 0.0;
+    ix = dx0 + (0 <= incx ? 0 : ( - n + 1 ) * incx);
+    iy = dy0 + (0 <= incy ? 0 : ( - n + 1 ) * incy);
+    m = n & 7;
+    for(sum=0.0,i=0; i<m; i++)
+    {
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+        sum += dx[ix] * dy[iy]; ix+=incx; iy+=incy;
+    }
+    return sum;
+};
+BLAS.asum = function asum( n, dx, dx0, incx ) {
+    // ASUM takes the sum of the absolute values of a vector.
+    var sum, i, ix, m;
+    if ( 0 >= n ) return 0.0;
+    ix = dx0 + (0 <= incx ? 0 : ( - n + 1 ) * incx);
+    m = n & 7;
+    for(sum=0.0,i=0; i<m; i++)
+    {
+        sum += fabs(dx[ix]); ix+=incx;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+        sum += fabs(dx[ix]); ix+=incx;
+    }
+    return sum;
+};
+BLAS.nrm2 = function nrm2( n, x, x0, incx ) {
+    // NRM2 returns the euclidean norm of a vector.
+    var absxi, i, ix, norm, scale, ssq, value;
+
+    if ( 1 > n || 1 > incx )
+    {
+        norm = 0.0;
+    }
+    else if ( 1 === n )
+    {
+        norm = fabs( x[x0] );
+    }
+    else
+    {
+        scale = 0.0; ssq = 1.0;
+        for (i=0,ix=x0; i<n; i++,ix+=incx)
+        {
+            if ( 0.0 === x[ix] ) continue;
+            absxi = fabs ( x[ix] );
+            if ( scale < absxi )
+            {
+                ssq = 1.0 + ssq * ( scale / absxi ) * ( scale / absxi );
+                scale = absxi;
+            }
+            else
+            {
+                ssq += ( absxi / scale ) * ( absxi / scale );
+            }
+        }
+        norm  = scale * sqrt ( ssq );
+    }
+    return norm;
+};
+BLAS.scal = function scal( n, sa, x, x0, incx ) {
+    // SCAL scales a vector by a constant.
+    var i, ix, m;
+    if ( 0 >= n ) return;
+    ix = x0 + (0 <= incx ? 0 : ( - n + 1 ) * incx);
+    m = n & 7;
+    for(i=0; i<m; i++)
+    {
+        x[ix] *= sa; ix+=incx;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+        x[ix] *= sa; ix+=incx;
+    }
+};
+BLAS.swap = function swap( n, x, x0, incx, y, y0, incy ) {
+    // SWAP interchanges two vectors.
+    var i, ix, iy, m, tmp;
+    if ( 0 >= n ) return;
+    ix = x0 + ( 0 <= incx ? 0 : ( - n + 1 ) * incx);
+    iy = y0 + (0 <= incy ? 0 : ( - n + 1 ) * incy);
+    m = n & 7;
+    for(i=0; i<m; i++)
+    {
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+        tmp = x[ix]; x[ix] = y[iy]; y[iy] = tmp; ix+=incx; iy+=incy;
+    }
+};
+BLAS.copy = function copy( n, x, x0, incx, y, y0, incy ) {
+    // COPY copies a vector into another vector.
+    var i, ix, iy, m, tmp;
+    if ( 0 >= n ) return;
+    ix = x0 + ( 0 <= incx ? 0 : ( - n + 1 ) * incx);
+    iy = y0 + (0 <= incy ? 0 : ( - n + 1 ) * incy);
+    m = n & 7;
+    for(i=0; i<m; i++)
+    {
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+        y[iy] = x[ix]; ix+=incx; iy+=incy;
+    }
+};
+BLAS.rot = function rot( n, x, x0, incx, y, y0, incy, c,  s ) {
+    // ROT applies a plane rotation.
+    var i, ix, iy, xi, m;
+    if ( 0 >= n ) return;
+    ix = x0 + (0 <= incx ? 0 : ( - n + 1 ) * incx);
+    iy = y0 + (0 <= incy ? 0 : ( - n + 1 ) * incy);
+    m = n & 7;
+    for(i=0; i<m; i++)
+    {
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+    }
+    for(i=m; i<n; i+=8)
+    {
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+        xi=x[ix]; x[ix] = c*xi + s*y[iy]; y[iy] = c*y[iy] - s*xi; ix+=incx; iy+=incy;
+    }
+};
+BLAS.rotg = function rotg( t /*sa, sb, c, s*/ ) {
+    // ROTG constructs a Givens plane rotation.
+    var r, roe, scale, z;
+
+    roe = fabs( t[1] ) < fabs( t[0] ) ? t[0] : t[1];
+    scale = fabs( t[0] ) + fabs( t[1] );
+
+    if ( 0.0 === scale )
+    {
+        t[2] = 1.0;
+        t[3] = 0.0;
+        r = 0.0;
+    }
+    else
+    {
+        r = scale * sqrt ( ( t[0] / scale ) * ( t[0] / scale ) + ( t[1] / scale ) * ( t[1] / scale ) );
+        r = sign ( roe ) * r;
+        t[2] = t[0] / r;
+        t[3] = t[1] / r;
+    }
+    z = 0.0 < fabs( t[2] ) && fabs( t[2] ) <= t[3] ? 1.0 / t[2] : t[3];
+    t[0] = r; t[1] = z;
+};
+
+// BLAS 2
+BLAS.gemv = function gemv( transpose, m, n, alpha, a, lda, x, x0, incx, beta, y, y0, incy ) {
+    // GEMV computes y := alpha * A * x + beta * y for general matrix A.
+    var i, ix, iy, j, jx, jy, kx, ky, lenx, leny, temp;
+    
+    // Test the input parameters.
+    if ( m < 0 ) return 2;
+    else if ( n < 0 ) return 3;
+    else if ( lda < fmax ( 1, m ) ) return 6;
+    else if ( 0 === incx ) return 8;
+    else if ( 0 === incy ) return 11;
+
+    // Quick return if possible.
+    if ( ( 0 === m ) || ( 0 === n ) || ( ( 0.0 === alpha ) && ( 1.0 === beta ) ) ) return 0;
+    
+    // Set LENX and LENY, the lengths of the vectors x and y, and set
+    // up the start points in X and Y.
+    if ( transpose )
+    {
+        lenx = m;
+        leny = n;
+    }
+    else
+    {
+        lenx = n;
+        leny = m;
+    }
+
+    kx = x0 + (0 < incx ? 0 : 0 - ( lenx - 1 ) * incx);
+    ky = y0 + (0 < incy ? 0 : 0 - ( leny - 1 ) * incy);
+    
+    // Start the operations. In this version the elements of A are
+    // accessed sequentially with one pass through A.
+
+    // First form  y := beta*y.
+    if ( 1.0 !== beta )
+    {
+        iy = ky;
+        if ( 0.0 === beta )
+        {
+            for(i=0; i<leny; i++)
+            {
+                y[iy] = 0.0; iy += incy;
+            }
+        }
+        else
+        {
+            for(i=0; i<leny; i++)
+            {
+                y[iy] = beta * y[iy]; iy += incy;
+            }
+        }
+    }
+    if ( 0.0 === alpha ) return 0;
+    
+    if ( transpose )
+    {
+        // Form y := alpha*A'*x + y.
+        jy = ky;
+        for(j=0; j<n; j++)
+        {
+            temp = 0.0;
+            ix = kx;
+            for(i=0; i<m; i++)
+            {
+                temp = temp + a[i+j*lda] * x[ix];
+                ix += incx;
+            }
+            y[jy] += alpha * temp;
+            jy += incy;
+        }
+    }
+    else
+    {
+        // Form y := alpha*A*x + y.
+        jx = kx;
+        for(j=0; j<n; j++)
+        {
+            if ( 0.0 !== x[jx] )
+            {
+                temp = alpha * x[jx];
+                iy = ky;
+                for(i=0; i<m; i++)
+                {
+                    y[iy] += temp * a[i+j*lda];
+                    iy += incy;
+                }
+            }
+            jx += incx;
+        }
+    }
+    return 0;
+};
+BLAS.ger = function ger( m, n, alpha, x, x0, incx, y, y0, incy, a, lda ) {
+    //DGER computes A := alpha*x*y' + A.
+    var i, ix, j, jy, kx, temp;
+    
+    // Test the input parameters.
+    if ( m < 0 ) return 1;
+    else if ( n < 0 ) return 2;
+    else if ( 0 === incx ) return 5;
+    else if ( 0 === incy ) return 7;
+    else if ( lda < fmax ( 1, m ) ) return 9;
+
+    // Quick return if possible.
+    if ( 0 === m || 0 === n || 0.0 === alpha ) return 0;
+    
+    // Start the operations. In this version the elements of A are
+    // accessed sequentially with one pass through A.
+    
+    jy = y0 + (0 < incy ? 0 : 0 - ( n - 1 ) * incy);
+    kx = x0 + (0 < incx ? 0 : 0 - ( m - 1 ) * incx);
+    for(j=0; j<n; j++)
+    {
+        if ( 0.0 !== y[jy] )
+        {
+            temp = alpha * y[jy];
+            ix = kx;
+            for(i=0; i<m; i++)
+            {
+                a[i+j*lda] += x[ix] * temp;
+                ix += incx;
+            }
+        }
+        jy += incy;
+    }
+    return 0;
+};
+
+// BLAS 3
+BLAS.gemm = function gemm( transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ) {
+    // DGEMM computes C = alpha * A * B and related operations.
+    var i, j, l, ncola, nrowa, nrowb, nota, notb, temp;
+    /*
+    Set NOTA and NOTB as true if A and B respectively are not
+    transposed and set NROWA, NCOLA and NROWB as the number of rows
+    and columns of A and the number of rows of B respectively.
+    */
+    nota = !transa;
+    if ( nota )
+    {
+        nrowa = m;
+        ncola = k;
+    }
+    else
+    {
+        nrowa = k;
+        ncola = m;
+    }
+
+    notb = !transb;
+    if ( notb )
+    {
+        nrowb = k;
+    }
+    else
+    {
+        nrowb = n;
+    }
+    
+    // Test the input parameters.
+    if ( m < 0 ) return 1;
+    if ( n < 0 ) return 2;
+    if ( k  < 0 ) return 3;
+    if ( lda < fmax ( 1, nrowa ) ) return 4;
+    if ( ldb < fmax ( 1, nrowb ) ) return 5;
+    if ( ldc < fmax ( 1, m ) ) return 6;
+    
+    // Quick return if possible.
+    if ( 0 === m || 0 === n || ( ( 0.0 === alpha || 0 === k ) && ( 1.0 === beta ) ) ) return 0;
+    
+    // And if alpha is 0.0.
+    if ( 0.0 === alpha )
+    {
+        if ( 0.0 === beta )
+        {
+            for(j=0; j<n; j++)for(i=0; i<m; i++)
+                c[i+j*ldc] = 0.0;
+        }
+        else
+        {
+            for(j=0; j<n; j++)for(i=0; i<m; i++)
+                c[i+j*ldc] *= beta;
+        }
+        return 0;
+    }
+    
+    // Start the operations.
+    if ( notb )
+    {
+        if ( nota )
+        {
+            // Form  C := alpha*A*B + beta*C.
+            for(j=0; j<n; j++)
+            {
+                if ( 0.0 === beta )
+                {
+                    for(i=0; i<m; i++)
+                        c[i+j*ldc] = 0.0;
+                }
+                else if ( 0.0 !== beta )
+                {
+                    for(i=0; i<m; i++)
+                        c[i+j*ldc] *= beta;
+                }
+
+                for(l=0; l<k; l++)
+                {
+                    temp = b[l+j*ldb];
+                    if ( 0.0 !== temp )
+                    {
+                        temp *= alpha;
+                        for(i=0; i<m; i++)
+                            c[i+j*ldc] += temp * a[i+l*lda];
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Form  C := alpha*A'*B + beta*C
+            for(j=0; j<n; j++)
+            {
+                for(i=0; i<m; i++)
+                {
+                    temp = 0.0;
+                    for(l=0; l<k; l++) temp += a[l+i*lda] * b[l+j*ldb];
+
+                    if ( 0.0 === beta )
+                    {
+                        c[i+j*ldc] = alpha * temp;
+                    }
+                    else
+                    {
+                        c[i+j*ldc] = alpha * temp + beta * c[i+j*ldc];
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        if ( nota )
+        {
+            // Form  C := alpha*A*B' + beta*C
+            for(j=0; j<n; j++)
+            {
+                if ( 0.0 === beta )
+                {
+                    for ( i = 0; i < m; i++ )
+                        c[i+j*ldc] = 0.0;
+                }
+                else if ( 1.0 !== beta )
+                {
+                    for ( i = 0; i < m; i++ )
+                        c[i+j*ldc] *= beta;
+                }
+
+                for(l=0; l<k; l++)
+                {
+                    temp = b[j+l*ldb];
+                    if ( 0.0 !== temp )
+                    {
+                        temp *= alpha;
+                        for(i=0; i<m; i++)
+                            c[i+j*ldc] += temp * a[i+l*lda];
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Form  C := alpha*A'*B' + beta*C
+            for(j=0; j<n; j++)
+            {
+                for(i=0; i<m; i++)
+                {
+                    temp = 0.0;
+                    for(l=0; l<k; l++) temp += a[l+i*lda] * b[j+l*ldb];
+                    if ( 0.0 === beta )
+                    {
+                        c[i+j*ldc] = alpha * temp;
+                    }
+                    else
+                    {
+                        c[i+j*ldc] = alpha * temp + beta * c[i+j*ldc];
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+};
+
+}(FILTER);/**
+*
 * Filter Machine Learning Connected Components
 * @package FILTER.js
 *
@@ -39,7 +698,7 @@ else /* Browser/WebWorker/.. */
 !function(FILTER, undef){
 "use strict";
 
-var A32U = FILTER.Array32U, A8U = FILTER.Array8U,
+var A32I = FILTER.Array32I, A32U = FILTER.Array32U, A8U = FILTER.Array8U,
     min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
@@ -222,21 +881,38 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
 {
     var imLen = im.length, imSize = imLen>>>2, xm, ym, xM, yM,
         y, yy, dy = w<<2, ymin = 0, ymax = imLen-dy, xmin = 0, xmax = (w-1)<<2,
-        l, i, k, x, x1, x2, yw, stack, slen, segment, notdone, labeled;
+        l, i, k, x, x1, x2, yw, stack, slen, notdone, labeled;
         
     xm = x0; ym = y0; xM = x0; yM = y0; 
     labeled = new A8U(imSize);
-    stack = new Array(imSize); slen = 0; // pre-allocate and soft push/pop for speed
+    stack = new A32I(imSize<<2); slen = 0; // pre-allocate and soft push/pop for speed
     
     labeled[(x0+y0)>>>2] = 255;
-    if ( y0+dy >= ymin && y0+dy <= ymax ) stack[slen++]=[y0, x0, x0, dy]; /* needed in some cases */
-    /*if ( y0 >= ymin && y0 <= ymax)*/ stack[slen++]=[y0+dy, x0, x0, -dy]; /* seed segment (popped 1st) */
+    if ( y0+dy >= ymin && y0+dy <= ymax )
+    {
+        /* needed in some cases */
+        stack[slen  ]=y0;
+        stack[slen+1]=x0;
+        stack[slen+2]=x0;
+        stack[slen+3]=dy;
+        slen += 4;
+    }
+    /*if ( y0 >= ymin && y0 <= ymax)*/
+    /* seed segment (popped 1st) */
+    stack[slen  ]=y0+dy;
+    stack[slen+1]=x0;
+    stack[slen+2]=x0;
+    stack[slen+3]=-dy;
+    slen += 4;
     
     while ( 0 < slen ) 
     {
         /* pop segment off stack and fill a neighboring scan line */
-        segment = stack[--slen];
-        yw = segment[0]+(dy=segment[3]); x1 = segment[1]; x2 = segment[2];
+        slen -= 4;
+        dy = stack[slen+3];
+        yw = stack[slen  ]+dy;
+        x1 = stack[slen+1];
+        x2 = stack[slen+2];
         ym = min(ym, yw); yM = max(yM, yw);
         xm = min(xm, x1); xM = max(xM, x2);
         
@@ -271,7 +947,15 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
             l = x+4;
             if ( l < x1 ) 
             {
-                if ( yw-dy >= ymin && yw-dy <= ymax ) stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                if ( yw-dy >= ymin && yw-dy <= ymax )
+                {
+                    //stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                    stack[slen  ]=yw;
+                    stack[slen+1]=l;
+                    stack[slen+2]=x1-4;
+                    stack[slen+3]=-dy;
+                    slen += 4;
+                }
             }
             x = x1+4;
             notdone = true;
@@ -286,10 +970,26 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
                 xM = max(xM, x);
                 x+=4; i = x+yw; k = i>>>2;
             }
-            if ( yw+dy >= ymin && yw+dy <= ymax) stack[slen++]=[yw, l, x-4, dy];
+            if ( yw+dy >= ymin && yw+dy <= ymax)
+            {
+                //stack[slen++]=[yw, l, x-4, dy];
+                stack[slen  ]=yw;
+                stack[slen+1]=l;
+                stack[slen+2]=x-4;
+                stack[slen+3]=dy;
+                slen += 4;
+            }
             if ( x > x2+4 ) 
             {
-                if ( yw-dy >= ymin && yw-dy <= ymax) stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                if ( yw-dy >= ymin && yw-dy <= ymax)
+                {
+                    //stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                    stack[slen  ]=yw;
+                    stack[slen+1]=x2+4;
+                    stack[slen+2]=x-4;
+                    stack[slen+3]=-dy;
+                    slen += 4;
+                }
             }
     /*skip:*/   
             i = x+yw; k = i>>>2;
@@ -426,288 +1126,443 @@ FILTER.MachineLearning.kmedoids = function kmedoids( K, V, V0, D, epsilon ){
 !function(FILTER, undef){
 "use strict";
 
+// adapted from:
 // http://numerical.recipes/webnotes/nr3web2.pdf
-// http://www.public.iastate.edu/~dicook/JSS/paper/code/svd.c
-/* 
- * svdcomp - SVD decomposition routine. 
- * Takes an mxn matrix a and decomposes it into udv, where u,v are
- * left and right orthogonal transformation matrices, and d is a 
- * diagonal matrix of singular values.
- *
- * This routine is adapted from svdecomp.c in XLISP-STAT 2.1 which is 
- * code from Numerical Recipes adapted by Luke Tierney and David Betz.
- *
- * Input to dsvd is as follows:
- *   a = mxn matrix to be decomposed, gets overwritten with u
- *   m = row dimension of a
- *   n = column dimension of a
- *   w = returns the vector of singular values of a
- *   v = returns the right orthogonal transformation matrix
-*/
+// https://people.sc.fsu.edu/~jburkardt/c_src/svd_truncated/svd_truncated.html
 
-var fabs = Math.abs, sqrt = Math.sqrt, MAX = Math.max, A32F = FILTER.Array32F;
+var A32F = FILTER.Array32F, fabs = Math.abs, sqrt = Math.sqrt, MAX = Math.max, MIN = Math.min, //sign = Math.sign,
+    BLAS = FILTER.Util.BLAS, array_copy = FILTER.Util.Array.copy, array_transpose = FILTER.Util.Array.transpose,
+    daxpy = BLAS.axpy, ddot = BLAS.dot, dnrm2 = BLAS.nrm2, dscal = BLAS.scal, dswap = BLAS.swap, drot = BLAS.rot,
+    drotg = BLAS.rotg;
 
-function PYTHAG( a, b )
+function sign( x )
 {
-    var at = fabs(a), bt = fabs(b);
-    if ( at > bt )       { bt /= at; return at * sqrt(1.0 + bt*bt); }
-    else if ( bt > 0.0 ) { at /= bt; return bt * sqrt(1.0 + at*at); }
-    else return 0.0;
-}
-function SIGN( a, b )
-{
-    return 0 <= b ? fabs(a) : -fabs(a);
+    return 0 > x ? -1.0 : 1.0;
 }
 
-function svd( a, m, n )
+function svd_err( norm, r, c, a, s, u, v )
 {
-    if ( m < n )
+    // Check the factorization by computing A = U * S * V'
+    var i, j, k, ri, ci, rj, cj, rk, ck, rc = MIN(r, c),
+        err = 0.0, e, a1 = new A32F(r*c);
+    
+    for(i=0,ri=0,ci=0; i<r; i++,ri+=r,ci+=c)
+        for(j=0,rj=0,cj=0; j<c; j++,rj+=r,cj+=c)
+            for(a1[ci+j]=0.0,k=0,rk=0,ck=0; k<rc; k++,rk+=r,ck+=c)
+                a1[ci+j] += u[ri+k] * s[k] * v[ck+j];
+    
+    if ( a[0].push )
     {
-        throw "SVD: #rows must be >= #cols";
-        return;
+        if ( 2 === norm )
+        {
+            for(i=0,ci=0; i<r; i++,ci+=c) for(j=0; j<c; j++)
+                err += (e = a1[ci+j] - a[i][j]) * e;
+            err = sqrt(err);
+        }
+        else
+        {
+            for(i=0,ci=0; i<r; i++,ci+=c) for(j=0; j<c; j++)
+                err = MAX( err, fabs( a1[ci+j] - a[i][j] ) );
+        }
+    }
+    else
+    {
+        if ( 2 === norm )
+        {
+            for(i=0,ci=0; i<r; i++,ci+=c) for(j=0; j<c; j++)
+                err += ( e = a1[ci+j] - a[ci+j] ) * e;
+            err = sqrt(err);
+        }
+        else
+        {
+            for(i=0,ci=0; i<r; i++,ci+=c) for(j=0; j<c; j++)
+                err = MAX( err, fabs( a1[ci+j] - a[ci+j] ) );
+        }
+    }
+    return err;
+}
+
+// SVDC computes the singular value decomposition of a real rectangular matrix.
+function svdc( a, lda, m, n, s, e, u, ldu, v, ldv, work, wantu, wantv, dosort )
+{
+    var b, c, cs, el, emm1, f, g, i, iter, j, k, kase,
+    kk, l, ll, lls, ls, lu, mm, mm1, mn, mp1, nct, nctp1, givens,
+    ncu, nrt, nrtp1, scale, shift, sl, sm, smm1, sn, t, t1, test, ztest,
+    maxit = 30;
+    
+    // Determine what is to be computed.
+    ncu = wantu ? MIN( m, n ) : m;
+    // Reduce A to bidiagonal form, storing the diagonal elements
+    // in S and the super-diagonal elements in E.
+    nct = MIN( m-1, n ); nrt = MAX( 0, MIN ( m, n-2 ) );
+    lu = MAX( nct, nrt );
+    givens = new A32F(4);
+
+    for(l=1; l<=lu; l++)
+    {
+        // Compute the transformation for the L-th column and
+        // place the L-th diagonal in S(L).
+        if ( l <= nct )
+        {
+            s[l-1] = dnrm2( m-l+1, a, l-1+(l-1)*lda, 1 );
+
+            if ( 0.0 !== s[l-1] )
+            {
+                if ( 0.0 !== a[l-1+(l-1)*lda] )
+                    s[l-1] = sign( a[l-1+(l-1)*lda] ) * fabs( s[l-1] );
+                dscal( m-l+1, 1.0 / s[l-1], a, l-1+(l-1)*lda, 1 );
+                a[l-1+(l-1)*lda] = 1.0 + a[l-1+(l-1)*lda];
+            }
+            s[l-1] = -s[l-1];
+        }
+
+        for(j=l+1; j<=n; j++)
+        {
+            // Apply the transformation.
+            if ( l <= nct && 0.0 !== s[l-1] )
+            {
+                t = -ddot( m-l+1, a, l-1+(l-1)*lda, 1, a, l-1+(j-1)*lda, 1 ) 
+                / a[l-1+(l-1)*lda];
+                daxpy( m-l+1, t, a, l-1+(l-1)*lda, 1, a, l-1+(j-1)*lda, 1 );
+            }
+            // Place the L-th row of A into E for the
+            // subsequent calculation of the row transformation.
+            e[j-1] = a[l-1+(j-1)*lda];
+        }
+        // Place the transformation in U for subsequent back multiplication.
+        if ( wantu && l <= nct ) for ( i = l; i <= m; i++ ) u[i-1+(l-1)*ldu] = a[i-1+(l-1)*lda];
+
+        if ( l <= nrt )
+        {
+            // Compute the L-th row transformation and place the
+            // L-th superdiagonal in E(L).
+            e[l-1] = dnrm2( n-l, e, l, 1 );
+
+            if ( 0.0 !== e[l-1] )
+            {
+                if ( 0.0 !== e[l] )  e[l-1] = sign( e[l] ) * fabs( e[l-1] );
+                dscal( n-l, 1.0 / e[l-1], e, l, 1 );
+                e[l] = 1.0 + e[l];
+            }
+
+            e[l-1] = -e[l-1];
+            // Apply the transformation.
+            if ( l+1 <= m && 0.0 !== e[l-1] )
+            {
+                for(j=l+1; j<=m; j++) work[j-1] = 0.0;
+                for(j=l+1; j<=n; j++) daxpy( m-l, e[j-1], a, l+(j-1)*lda, 1, work, l, 1 );
+                for(j=l+1; j<=n; j++) daxpy( m-l, -e[j-1]/e[l], work, l, 1, a, l+(j-1)*lda, 1 );
+            }
+            // Place the transformation in V for subsequent back multiplication.
+            if ( wantv ) for ( j = l+1; j <= n; j++ ) v[j-1+(l-1)*ldv] = e[j-1];
+        }
     }
     
-    var w, u, v, flag, i, its, j, jj, k, l, nm,
-        c, f, h, s, x, y, z, maxd,
-        anorm = 0.0, g = 0.0, scale = 0.0, rv1;
+    // Set up the final bidiagonal matrix of order MN.
+    mn = MIN( m + 1, n );
+    nctp1 = nct + 1;
+    nrtp1 = nrt + 1;
 
-    maxd = m < n ? n : m;
-    rv1 = new A32F(maxd);
-    w = new Array(maxd); for(i=0; i<maxd; i++) w[i] = 0;
-    for(v=new Array(n),i=0; i<n; i++) for(v[i]=new Array(n),j=0; j<n; j++) v[i][j] = 0;
-    for(u=new Array(m),i=0; i<m; i++) for(u[i]=new Array(m),j=0; j<m; j++) u[i][j] = j < n ? a[i][j] : 0;
+    if ( nct < n ) s[nctp1-1] = a[nctp1-1+(nctp1-1)*lda];
+    if ( m < mn ) s[mn-1] = 0.0;
+    if ( nrtp1 < mn ) e[nrtp1-1] = a[nrtp1-1+(mn-1)*lda];
 
-    /* Householder reduction to bidiagonal form */
-    for(i=0; i<n; i++) 
+    e[mn-1] = 0.0;
+    
+    // If required, generate U.
+    if ( wantu )
     {
-        /* left-hand reduction */
-        l = i + 1;
-        rv1[i] = scale * g;
-        g = s = scale = 0.0;
-        if ( i < m ) 
-        {
-            for(k=i; k<m; k++) scale += fabs(u[k][i]);
-            if ( scale )
-            {
-                for(k=i; k<m; k++) 
-                {
-                    u[k][i] = u[k][i]/scale;
-                    s += u[k][i] * u[k][i];
-                }
-                f = u[i][i];
-                g = -SIGN(sqrt(s), f);
-                h = f * g - s;
-                u[i][i] = f - g;
-                if ( i+1 !== n ) 
-                {
-                    for(j=l; j<n; j++) 
-                    {
-                        for(s=0.0,k=i; k<m; k++) s += u[k][i] * u[k][j];
-                        f = s / h;
-                        for(k=i; k<m; k++) u[k][j] += f * u[k][i];
-                    }
-                }
-                for(k=i; k<m; k++) u[k][i] = u[k][i]*scale;
-            }
-        }
-        w[i] = scale * g;
+        for(i=1; i<=m; i++) for(j=nctp1; j<=ncu; j++)
+            u[(i-1)+(j-1)*ldu] = 0.0;
 
-        /* right-hand reduction */
-        g = s = scale = 0.0;
-        if ( i < m && i+1 !== n ) 
+        for(j=nctp1; j<=ncu; j++) u[j-1+(j-1)*ldu] = 1.0;
+
+        for(ll=1; ll<=nct; ll++)
         {
-            for(k=l; k<n; k++) scale += fabs(u[i][k]);
-            if ( scale )
+            l = nct - ll + 1;
+
+            if ( 0.0 !== s[l-1] )
             {
-                for(k=l; k<n; k++) 
+                for(j=l+1; j<=ncu; j++)
                 {
-                    u[i][k] = u[i][k]/scale;
-                    s += u[i][k] * u[i][k];
+                    t = -ddot( m-l+1, u, (l-1)+(l-1)*ldu, 1, u, (l-1)+(j-1)*ldu, 1 ) 
+                    / u[l-1+(l-1)*ldu];
+                    daxpy( m-l+1, t, u, (l-1)+(l-1)*ldu, 1, u, (l-1)+(j-1)*ldu, 1 );
                 }
-                f = u[i][l];
-                g = -SIGN(sqrt(s), f);
-                h = f * g - s;
-                u[i][l] = f - g;
-                for(k=l; k<n; k++) rv1[k] = u[i][k] / h;
-                if ( i+1 !== m ) 
-                {
-                    for(j=l; j<m; j++) 
-                    {
-                        for(s=0.0,k=l; k<n; k++) s += u[j][k] * u[i][k];
-                        for(k=l; k<n; k++) u[j][k] += s * rv1[k];
-                    }
-                }
-                for(k=l; k<n; k++) u[i][k] = u[i][k]*scale;
+
+                dscal( m-l+1, -1.0, u, (l-1)+(l-1)*ldu, 1 );
+                u[l-1+(l-1)*ldu] = 1.0 + u[l-1+(l-1)*ldu];
+                for(i=1; i<=l-1; i++) u[i-1+(l-1)*ldu] = 0.0;
+            }
+            else
+            {
+                for(i=1; i<=m; i++) u[i-1+(l-1)*ldu] = 0.0;
+                u[l-1+(l-1)*ldu] = 1.0;
             }
         }
-        anorm = MAX(anorm, fabs(w[i])+fabs(rv1[i]));
     }
-
-    /* accumulate the right-hand transformation */
-    for(i=n-1; i>=0; i--) 
+    
+    // If it is required, generate V.
+    if ( wantv )
     {
-        if ( i+1 < n ) 
+        for(ll=1; ll<=n; ll++)
         {
-            if ( g ) 
+            l = n - ll + 1;
+
+            if ( l <= nrt && 0.0 !== e[l-1] )
             {
-                for(j=l; j<n; j++) v[j][i] = (u[i][j] / u[i][l]) / g;
-                /* double division to avoid underflow */
-                for(j=l; j<n; j++)
+                for(j=l+1; j<=n; j++)
                 {
-                    for(s=0.0,k=l; k<n; k++) s += u[i][k] * v[k][j];
-                    for(k=l; k<n; k++) v[k][j] += s * v[k][i];
+                    t = -ddot( n-l, v, l+(l-1)*ldv, 1, v, l+(j-1)*ldv, 1 ) 
+                    / v[l+(l-1)*ldv];
+                    daxpy( n-l, t, v, l+(l-1)*ldv, 1, v, l+(j-1)*ldv, 1 );
                 }
             }
-            for(j=l; j<n; j++) v[i][j] = v[j][i] = 0.0;
+            for(i=1; i<=n; i++) v[i-1+(l-1)*ldv] = 0.0;
+            v[l-1+(l-1)*ldv] = 1.0;
         }
-        v[i][i] = 1.0;
-        g = rv1[i];
-        l = i;
     }
+    
+    // Main iteration loop for the singular values.
+    mm = mn; iter = 0;
 
-    /* accumulate the left-hand transformation */
-    for(i=n-1; i>=0; i--) 
+    while( 0 < mn )
     {
-        l = i + 1;
-        g = w[i];
-        if ( i+1 < n ) for(j=l; j<n; j++) u[i][j] = 0.0;
-        if ( g ) 
-        {
-            g = 1.0 / g;
-            if ( i+1 !== n ) 
-            {
-                for(j=l; j<n; j++) 
-                {
-                    for(s=0.0,k=l; k<m; k++) s += u[k][i] * u[k][j];
-                    f = (s / u[i][i]) * g;
-                    for(k=i; k<m; k++) u[k][j] += f * u[k][i];
-                }
-            }
-            for(j=i; j<m; j++) u[j][i] = u[j][i]*g;
-        }
-        else 
-        {
-            for(j=i; j<m; j++) u[j][i] = 0.0;
-        }
-        ++u[i][i];
-    }
+        // If too many iterations have been performed, set flag and return.
+        if ( maxit <= iter ) return mn;
+        
+        /*
+        This section of the program inspects for
+        negligible elements in the S and E arrays.
 
-    /* diagonalize the bidiagonal form */
-    for(k=n-1; k>=0; k--) 
-    {                             /* loop over singular values */
-        for(its=0; its<30; its++) 
-        {                         /* loop over allowed iterations */
-            flag = 1;
-            for(l=k; l>=0; l--) 
-            {                     /* test for splitting */
-                nm = l - 1;
-                if ( fabs(rv1[l]) + anorm === anorm )
-                {
-                    flag = 0;
-                    break;
-                }
-                if ( fabs(w[nm]) + anorm === anorm ) break;
-            }
-            if ( flag )
+        On completion the variables KASE and L are set as follows:
+
+        KASE = 1     if S(MN) and E(L-1) are negligible and L < MN
+        KASE = 2     if S(L) is negligible and L < MN
+        KASE = 3     if E(L-1) is negligible, L < MN, and
+        S(L), ..., S(MN) are not negligible (QR step).
+        KASE = 4     if E(MN-1) is negligible (convergence).
+        */
+        for(ll=1; ll<=mn; ll++)
+        {
+            l = mn - ll;
+            if ( 0 === l ) break;
+            test = fabs( s[l-1] ) + fabs( s[l] );
+            ztest = test + fabs( e[l-1] );
+            if ( ztest === test )
             {
-                c = 0.0; s = 1.0;
-                for (i=l; i<=k; i++) 
-                {
-                    f = s * rv1[i];
-                    if ( fabs(f) + anorm !== anorm ) 
-                    {
-                        g = w[i];
-                        h = PYTHAG(f, g);
-                        w[i] = h; 
-                        h = 1.0 / h;
-                        c = g * h;
-                        s = - f * h;
-                        for(j=0; j<m; j++) 
-                        {
-                            y = u[j][nm];
-                            z = u[j][i];
-                            u[j][nm] = y * c + z * s;
-                            u[j][i] = z * c - y * s;
-                        }
-                    }
-                }
-            }
-            z = w[k];
-            if ( l === k )
-            {                  /* convergence */
-                if ( z < 0.0 )
-                {              /* make singular value nonnegative */
-                    w[k] = -z;
-                    for(j=0; j<n; j++) v[j][k] = -v[j][k];
-                }
+                e[l-1] = 0.0;
                 break;
             }
-            if ( its >= 30 )
+        }
+
+        if ( l+1 === mn )
+        {
+            kase = 4;
+        }
+        else
+        {
+            mp1 = mn + 1;
+
+            for(lls=l+1; lls<=mn+1; lls++)
             {
-                throw "SVD: No convergence after 30,000! iterations";
-                return;
+                ls = mn - lls + l + 1;
+                if ( ls === l ) break;
+
+                test = 0.0;
+                if ( ls !== mn ) test += fabs( e[ls-1] );
+                if ( ls !== l + 1 ) test += fabs( e[ls-2] );
+                ztest = test + fabs( s[ls-1] );
+                if ( ztest === test )
+                {
+                    s[ls-1] = 0.0;
+                    break;
+                }
             }
 
-            /* shift from bottom 2 x 2 minor */
-            x = w[l];
-            nm = k - 1;
-            y = w[nm];
-            g = rv1[nm];
-            h = rv1[k];
-            f = ((y - z) * (y + z) + (g - h) * (g + h)) / (2.0 * h * y);
-            g = PYTHAG(f, 1.0);
-            f = ((x - z) * (x + z) + h * ((y / (f + SIGN(g, f))) - h)) / x;
-
-            /* next QR transformation */
-            c = s = 1.0;
-            for(j=l; j<=nm; j++) 
+            if ( ls === l )
             {
-                i = j + 1;
-                g = rv1[i];
-                y = w[i];
-                h = s * g;
-                g = c * g;
-                z = PYTHAG(f, h);
-                rv1[j] = z;
-                c = f / z;
-                s = h / z;
-                f = x * c + g * s;
-                g = g * c - x * s;
-                h = y * s;
-                y = y * c;
-                for(jj=0; jj<n; jj++) 
+                kase = 3;
+            }
+            else if ( ls === mn )
+            {
+                kase = 1;
+            }
+            else
+            {
+                kase = 2;
+                l = ls;
+            }
+        }
+
+        l = l + 1;
+        
+        if ( 1 === kase )
+        {
+            // Deflate negligible S(MN).
+            mm1 = mn - 1;
+            f = e[mn-2];
+            e[mn-2] = 0.0;
+
+            for(kk=1; kk<=mm1; kk++)
+            {
+                k = mm1 - kk + l;
+                t1 = s[k-1];
+                givens[0] = t1; givens[1] = f; givens[2] = cs; givens[3] = sn;
+                drotg( givens );
+                t1 = givens[0]; f = givens[1]; cs = givens[2]; sn = givens[3];
+                s[k-1] = t1;
+
+                if ( k !== l )
                 {
-                    x = v[jj][j];
-                    z = v[jj][i];
-                    v[jj][j] = x * c + z * s;
-                    v[jj][i] = z * c - x * s;
+                    f = -sn * e[k-2];
+                    e[k-2] = cs * e[k-2];
                 }
-                z = PYTHAG(f, h);
-                w[j] = z;
-                if ( z ) 
+
+                if ( wantv ) drot( n, v, 0+(k-1)*ldv, 1, v, 0+(mn-1)*ldv, 1, cs, sn );
+            }
+        }
+        else if ( 2 === kase )
+        {
+            // Split at negligible S(L).
+            f = e[l-2];
+            e[l-2] = 0.0;
+
+            for(k=l; k<=mn; k++)
+            {
+                t1 = s[k-1];
+                givens[0] = t1; givens[1] = f; givens[2] = cs; givens[3] = sn;
+                drotg( givens );
+                t1 = givens[0]; f = givens[1]; cs = givens[2]; sn = givens[3];
+                s[k-1] = t1;
+                f = - sn * e[k-1];
+                e[k-1] = cs * e[k-1];
+                
+                if ( wantu ) drot( m, u, 0+(k-1)*ldu, 1, u, 0+(l-2)*ldu, 1, cs, sn );
+            }
+        }
+        else if ( 3 === kase )
+        {
+            // Perform one QR step.
+            // Calculate the shift.
+            scale = MAX( fabs( s[mn-1] ), 
+                    MAX( fabs( s[mn-2] ), 
+                    MAX( fabs( e[mn-2] ), 
+                    MAX( fabs( s[l-1] ), fabs( e[l-1] ) ) ) ) );
+
+            sm = s[mn-1] / scale;
+            smm1 = s[mn-2] / scale;
+            emm1 = e[mn-2] / scale;
+            sl = s[l-1] / scale;
+            el = e[l-1] / scale;
+            b = ( ( smm1 + sm ) * ( smm1 - sm ) + emm1 * emm1 ) / 2.0;
+            c = ( sm * emm1 ) * ( sm * emm1 );
+            shift = 0.0;
+
+            if ( 0.0 !== b || 0.0 !== c )
+            {
+                shift = sqrt( b * b + c );
+                if ( b < 0.0 ) shift = -shift;
+                shift = c / ( b + shift );
+            }
+
+            f = ( sl + sm ) * ( sl - sm ) - shift;
+            g = sl * el;
+            
+            // Chase zeros.
+            mm1 = mn - 1;
+
+            for(k=l; k<=mm1; k++)
+            {
+                givens[0] = f; givens[1] = g; givens[2] = cs; givens[3] = sn;
+                drotg( givens );
+                f = givens[0]; g = givens[1]; cs = givens[2]; sn = givens[3];
+
+                if ( k !== l ) e[k-2] = f;
+
+                f = cs * s[k-1] + sn * e[k-1];
+                e[k-1] = cs * e[k-1] - sn * s[k-1];
+                g = sn * s[k];
+                s[k] = cs * s[k];
+
+                if ( wantv ) drot( n, v, 0+(k-1)*ldv, 1, v, 0+k*ldv, 1, cs, sn );
+
+                givens[0] = f; givens[1] = g; givens[2] = cs; givens[3] = sn;
+                drotg( givens );
+                f = givens[0]; g = givens[1]; cs = givens[2]; sn = givens[3];
+                s[k-1] = f;
+                f = cs * e[k-1] + sn * s[k];
+                s[k] = -sn * e[k-1] + cs * s[k];
+                g = sn * e[k];
+                e[k] = cs * e[k];
+
+                if ( wantu && k < m ) drot( m, u, 0+(k-1)*ldu, 1, u, 0+k*ldu, 1, cs, sn );
+            }
+            e[mn-2] = f;
+            iter = iter + 1;
+        }
+        else if ( 4 === kase )
+        {
+            // Convergence.
+            
+            // Make the singular value nonnegative.
+            if ( 0.0 > s[l-1] )
+            {
+                s[l-1] = -s[l-1];
+                if ( wantv ) dscal( n, -1.0, v, 0+(l-1)*ldv, 1 );
+            }
+            
+            // Order the singular value.
+            if ( dosort )
+            {
+                for ( ; ; )
                 {
-                    z = 1.0 / z;
-                    c = f * z;
-                    s = h * z;
-                }
-                f = (c * g) + (s * y);
-                x = (c * y) - (s * g);
-                for(jj=0; jj<m; jj++) 
-                {
-                    y = u[jj][j];
-                    z = u[jj][i];
-                    u[jj][j] = y * c + z * s;
-                    u[jj][i] = z * c - y * s;
+                    if ( l === mm || s[l] <= s[l-1] ) break;
+
+                    t = s[l-1]; s[l-1] = s[l]; s[l] = t;
+
+                    if ( wantv && l < n ) dswap( n, v, 0+(l-1)*ldv, 1, v, 0+l*ldv, 1 );
+                    if ( wantu && l < m ) dswap( m, u, 0+(l-1)*ldu, 1, u, 0+l*ldu, 1 );
+
+                    l = l + 1;
                 }
             }
-            rv1[l] = 0.0;
-            rv1[k] = f;
-            w[k] = x;
+            
+            iter = 0;
+            mn = mn - 1;
         }
     }
-    return [w, u, v];
+    return 0;
 }
-FILTER.MachineLearning.svd = FILTER.MachineLearning.singular_value_decomposition = svd;
+
+FILTER.MachineLearning.svdc = svdc;
+FILTER.MachineLearning.svd_err = svd_err;
+
+//FILTER.MachineLearning.tsvd = FILTER.MachineLearning.truncated_singular_value_decomposition = function tsvd( ){ };
+
+FILTER.MachineLearning.svd = FILTER.MachineLearning.singular_value_decomposition = function svd( a, m/*tows*/, n/*columns*/, compute_u, compute_v, sorted, strided ){
+    var err, s, u=null, v=null, nm, i, aa, e, work, lda, ldu, ldv, transposed = 0;
+    
+    if ( 0 >= m || 0 >= n ) { throw "SVD: Dimensions out of range!"; return null; }
+    
+    compute_v = false === compute_v ? 0 : 1;
+    compute_u = false === compute_u ? 0 : 1;
+    sorted = false === sorted ? 0 : 1;
+    
+    if ( m < n ) { nm = n; n = m; m = nm; transposed = 1; /* transpose to row-major order */}
+    
+    aa = transposed ? array_transpose(new A32F(m * n), a, n, m, strided) : array_copy(new A32F(m * n), m, n, a, m, n, 0.0, strided);
+    // The correct size of E and SDIAG is min ( m+1, n).
+    e = new A32F( m + n ); s = new A32F( m + n ); work = new A32F( m );
+    // Compute the eigenvalues and eigenvectors.
+    if ( compute_v ) v = new A32F( n * n );
+    if ( compute_u ) u = new A32F( m * n ); 
+    lda = m; ldu = m; ldv = n;
+    
+    err = svdc( aa, lda, m, n, s, e, u, ldu, v, ldv, work, compute_u, compute_v, sorted );
+    if ( err ) { throw "SVD: No convergence!"; return null; }
+    return compute_u||compute_v ? (transposed ? [s, v, u] : [s, u, v]) : s;
+};
 
 }(FILTER);
 /* main code ends here */

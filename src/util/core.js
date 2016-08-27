@@ -7,20 +7,25 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+if ( FILTER.Util.LOADED_CORE ) return;
+FILTER.Util.LOADED_CORE = true;
+
+var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArraySet = FILTER._noTypedArraySet,
+    IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
     AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
-    MathUtil = FILTER.Util.Math, StringUtil = FILTER.Util.String, ArrayUtil = FILTER.Util.Array,
-    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
+    ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
+    StringUtil = FILTER.Util.String = FILTER.Util.String || {},
+    MathUtil = FILTER.Util.Math = FILTER.Util.Math || {},
+    ImageUtil = FILTER.Util.Image = FILTER.Util.Image || {},
+    FilterUtil = FILTER.Util.Filter = FILTER.Util.Filter || {},
     Exp = Math.exp, Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil, Floor = Math.floor,
-    Log = Math.log, Sin = Math.sin, Cos = Math.cos,
-    Min = Math.min, Max = Math.max, Abs = Math.abs,
+    Log = Math.log, Sin = Math.sin, Cos = Math.cos, Min = Math.min, Max = Math.max, Abs = Math.abs,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
     Log2 = Math.log2 || function( x ) { return Log(x) / Math.LN2; },
-    MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArraySet = FILTER._noTypedArraySet,
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
     func_body_re = /^function[^{]+{([\s\S]*)}$/;
 
@@ -33,55 +38,52 @@ function function_body( func )
     return func.toString( ).match( func_body_re )[ 1 ] || '';
 }
 
-function arrayset( a, b, offset )
-{
-    offset = offset || 0;
-    var j, i, n = b.length, rem = n&31;
-    for(j=0; j<n; j+=32)
-    {
-        i = j;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-        a[ i + offset ] = b[ i ]; ++i;
-    }
-    if ( rem )
-    {
-        for(i=n-rem; i<n; i++) a[ i + offset ] = b[ i  ];
-    }
-}
-
 function clamp( x, m, M )
 { 
     return x > M ? M : (x < m ? m : x); 
+}
+
+function arrayset_shim( a, b, offset, b0, b1 )
+{
+    offset = offset || 0; b0 = b0 || 0;
+    var j, i, n = b1 ? b1-b0+1 : b.length, rem = n&31;
+    for(i=0; i<rem; i++) a[ i + offset ] = b[ b0 + i ];
+    for(j=rem; j<n; j+=32)
+    {
+        i = j;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+        a[ i + offset ] = b[ b0 + i ]; ++i;
+    }
 }
 
 function crop( im, w, h, x1, y1, x2, y2 )
@@ -108,7 +110,7 @@ function crop_shim( im, w, h, x1, y1, x2, y2 )
     for (y=y1,yw=y1*w,pixel=0; y<=y2; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = (yw+x1)<<2;
-        arrayset(cropped, im.slice(pixel2, pixel2+nw4), pixel);
+        arrayset_shim(cropped, im, pixel, pixel2, pixel2+nw4);
     }
     return cropped;
 }
@@ -140,7 +142,7 @@ function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
     for (y=0,yw=0,pixel=offtop; y<h; y++,yw+=w,pixel+=nw4)
     {
         pixel2 = yw<<2;
-        arrayset(padded, im.slice(pixel2, pixel2+w4), offleft+pixel);
+        arrayset_shim(padded, im, offleft+pixel, pixel2, pixel2+w4);
     }
     return padded;
 }
@@ -202,139 +204,139 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
 }
 
 // compute integral image (Summed Area Table, SAT) (for a given channel)
-function integral( im, w, h, channel, integ ) 
+function integral( im, w, h, stride, channel, integ ) 
 {
-        channel = channel || 0;
-    var len = im.length, size = len>>>2, rowLen = w<<2,
-        rem = (w&31)<<2, integ = new A32F(size), sum, i, j, x;
+    stride = stride||0; channel = channel||0;
+    var len = im.length, size = len>>>stride, rowLen = w<<stride,
+        rem = (w&31)<<stride, i32 = 32<<stride, ii = 1<<stride,
+        integ, sum, i, j, i0, x;
         
+    integ = integ || new A32F(size);
     // compute integral of image in one pass
     // first row
-    for (j=0,sum=0,i=channel; i<rowlen; i+=128)
+    sum = 0; j = 0;
+    for (i=channel; i<rem; i+=ii,j++)
     {
-        sum += im[i    ]; integ[j++] = sum;
-        sum += im[i+4  ]; integ[j++] = sum;
-        sum += im[i+8  ]; integ[j++] = sum;
-        sum += im[i+12 ]; integ[j++] = sum;
-        sum += im[i+16 ]; integ[j++] = sum;
-        sum += im[i+20 ]; integ[j++] = sum;
-        sum += im[i+24 ]; integ[j++] = sum;
-        sum += im[i+28 ]; integ[j++] = sum;
-        sum += im[i+32 ]; integ[j++] = sum;
-        sum += im[i+36 ]; integ[j++] = sum;
-        sum += im[i+40 ]; integ[j++] = sum;
-        sum += im[i+44 ]; integ[j++] = sum;
-        sum += im[i+48 ]; integ[j++] = sum;
-        sum += im[i+52 ]; integ[j++] = sum;
-        sum += im[i+56 ]; integ[j++] = sum;
-        sum += im[i+60 ]; integ[j++] = sum;
-        sum += im[i+64 ]; integ[j++] = sum;
-        sum += im[i+68 ]; integ[j++] = sum;
-        sum += im[i+72 ]; integ[j++] = sum;
-        sum += im[i+76 ]; integ[j++] = sum;
-        sum += im[i+80 ]; integ[j++] = sum;
-        sum += im[i+84 ]; integ[j++] = sum;
-        sum += im[i+88 ]; integ[j++] = sum;
-        sum += im[i+92 ]; integ[j++] = sum;
-        sum += im[i+96 ]; integ[j++] = sum;
-        sum += im[i+100]; integ[j++] = sum;
-        sum += im[i+104]; integ[j++] = sum;
-        sum += im[i+108]; integ[j++] = sum;
-        sum += im[i+112]; integ[j++] = sum;
-        sum += im[i+116]; integ[j++] = sum;
-        sum += im[i+120]; integ[j++] = sum;
-        sum += im[i+124]; integ[j++] = sum;
+        sum += im[i]; integ[j] = sum;
     }
-    if ( rem )
+    for (i0=rem+channel; i0<rowlen; i0+=i32)
     {
-        for (i=rowlen-rem+channel; i<rowlen; i+=4,j++)
-        {
-            sum += im[i]; integ[j] = sum;
-        }
+        i =i0; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
+        i+=ii; sum += im[i]; integ[j++] = sum;
     }
+    
     // other rows
-    for (x=0,j=0,sum=0,i=rowLen+channel; i<len; i+=128)
+    x=0; j=0; sum=0; rem += rowlen;
+    for (i=rowLen+channel; i<rem; i+=ii,x++,j++)
     {
-        sum += im[i    ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+4  ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+8  ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+12 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+16 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+20 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+24 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+28 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+32 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+36 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+40 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+44 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+48 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+52 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+56 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+60 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+64 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+68 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+72 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+76 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+80 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+84 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+88 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+92 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+96 ]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+100]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+104]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+108]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+112]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+116]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+120]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
-        sum += im[i+124]; integ[j+w] = integ[j] + sum; ++j;
-        if ( ++x >=w ) { x=0; sum=0; }
+        if ( x >=w ) { x=0; sum=0; }
+        sum += im[i]; integ[j+w] = integ[j] + sum; 
     }
-    if ( rem )
+    for (i0=rem+channel; i0<len; i0+=i32)
     {
-        for (i=len-rem+channel; i<len; i+=4,x++,j++)
-        {
-            if ( x >=w ) { x=0; sum=0; }
-            sum += im[i]; integ[j+w] = integ[j] + sum; 
-        }
+        i =i0; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
+        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
     }
     return integ;
 }
 // compute image histogram (for a given channel)
-function histogram( im, w, h, channel, pdf, cdf )
+function histogram( im, w, h, stride, channel, pdf_only, cdf )
 {
-    channel = channel || 0;
-    var i, l = im.length, l2 = l>>>2, cdf, accum, rem = (l2&31)<<2;
+    stride = stride||0; channel = channel||0;
+    var i, i0, i32 = 32<<stride, ii = 1<<stride,
+        l = im.length, l2 = l>>>stride, accum, rem = (l2&31)<<stride;
     
     // initialize the arrays
     cdf = cdf || new A32F( 256 ); 
@@ -375,119 +377,46 @@ function histogram( im, w, h, channel, pdf, cdf )
         cdf[i+31]=0;
     }*/
     // compute pdf
-    for (i=channel; i<l; i+=128)
+    for (i0=channel; i0<l; i0+=i32)
     {
         // partial loop unrolling
-        cdf[ im[i    ] ]++;
-        cdf[ im[i+4  ] ]++;
-        cdf[ im[i+8  ] ]++;
-        cdf[ im[i+12 ] ]++;
-        cdf[ im[i+16 ] ]++;
-        cdf[ im[i+20 ] ]++;
-        cdf[ im[i+24 ] ]++;
-        cdf[ im[i+28 ] ]++;
-        cdf[ im[i+32 ] ]++;
-        cdf[ im[i+36 ] ]++;
-        cdf[ im[i+40 ] ]++;
-        cdf[ im[i+44 ] ]++;
-        cdf[ im[i+48 ] ]++;
-        cdf[ im[i+52 ] ]++;
-        cdf[ im[i+56 ] ]++;
-        cdf[ im[i+60 ] ]++;
-        cdf[ im[i+64 ] ]++;
-        cdf[ im[i+68 ] ]++;
-        cdf[ im[i+72 ] ]++;
-        cdf[ im[i+76 ] ]++;
-        cdf[ im[i+80 ] ]++;
-        cdf[ im[i+84 ] ]++;
-        cdf[ im[i+88 ] ]++;
-        cdf[ im[i+92 ] ]++;
-        cdf[ im[i+96 ] ]++;
-        cdf[ im[i+100] ]++;
-        cdf[ im[i+104] ]++;
-        cdf[ im[i+108] ]++;
-        cdf[ im[i+112] ]++;
-        cdf[ im[i+116] ]++;
-        cdf[ im[i+120] ]++;
-        cdf[ im[i+124] ]++;
+        i =i0; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
+        i+=ii; cdf[ im[i] ]++;
     }
-    if ( rem )
-    {
-        for (i=l-rem+channel; i<l; i+=4) cdf[ im[ i ] ]++;
-    }
+    if ( rem ) for (i=l-rem+channel; i<l; i+=ii) cdf[ im[ i ] ]++;
+    
     // return pdf NOT cdf
-    if ( true === pdf )
-    {
-        /*for (i=0; i<256; i+=64) 
-        { 
-            // partial loop unrolling
-            cdf[i   ] /= l2;
-            cdf[i+1 ] /= l2;
-            cdf[i+2 ] /= l2;
-            cdf[i+3 ] /= l2;
-            cdf[i+4 ] /= l2;
-            cdf[i+5 ] /= l2;
-            cdf[i+6 ] /= l2;
-            cdf[i+7 ] /= l2;
-            cdf[i+8 ] /= l2;
-            cdf[i+9 ] /= l2;
-            cdf[i+10] /= l2;
-            cdf[i+11] /= l2;
-            cdf[i+12] /= l2;
-            cdf[i+13] /= l2;
-            cdf[i+14] /= l2;
-            cdf[i+15] /= l2;
-            cdf[i+16] /= l2;
-            cdf[i+17] /= l2;
-            cdf[i+18] /= l2;
-            cdf[i+19] /= l2;
-            cdf[i+20] /= l2;
-            cdf[i+21] /= l2;
-            cdf[i+22] /= l2;
-            cdf[i+23] /= l2;
-            cdf[i+24] /= l2;
-            cdf[i+25] /= l2;
-            cdf[i+26] /= l2;
-            cdf[i+27] /= l2;
-            cdf[i+28] /= l2;
-            cdf[i+29] /= l2;
-            cdf[i+30] /= l2;
-            cdf[i+31] /= l2;
-            cdf[i+32] /= l2;
-            cdf[i+33] /= l2;
-            cdf[i+34] /= l2;
-            cdf[i+35] /= l2;
-            cdf[i+36] /= l2;
-            cdf[i+37] /= l2;
-            cdf[i+38] /= l2;
-            cdf[i+39] /= l2;
-            cdf[i+40] /= l2;
-            cdf[i+41] /= l2;
-            cdf[i+42] /= l2;
-            cdf[i+43] /= l2;
-            cdf[i+44] /= l2;
-            cdf[i+45] /= l2;
-            cdf[i+46] /= l2;
-            cdf[i+47] /= l2;
-            cdf[i+48] /= l2;
-            cdf[i+49] /= l2;
-            cdf[i+50] /= l2;
-            cdf[i+51] /= l2;
-            cdf[i+52] /= l2;
-            cdf[i+53] /= l2;
-            cdf[i+54] /= l2;
-            cdf[i+55] /= l2;
-            cdf[i+56] /= l2;
-            cdf[i+57] /= l2;
-            cdf[i+58] /= l2;
-            cdf[i+59] /= l2;
-            cdf[i+60] /= l2;
-            cdf[i+61] /= l2;
-            cdf[i+62] /= l2;
-            cdf[i+63] /= l2;
-        }*/
-        return cdf;
-    }
+    if ( true === pdf_only ) return cdf;
     
     // compute cdf
     for (accum=0,i=0; i<256; i+=64) 
@@ -560,150 +489,151 @@ function histogram( im, w, h, channel, pdf, cdf )
     }
     return cdf;
 }
-function spectrum( im, w, h, channel ) 
+function spectrum( im, w, h, stride, channel )
 {
     // TODO
     return null;
 }
 
-function integral2( im, w, h, sat, sat2, rsat ) 
+function integral2( im, w, h, stride, channel, sat, sat2, rsat )
 {
-    var len = im.length, size = len>>>2, rowLen = w<<2,
-        rem = (w&31)<<2, sum, sum2, c, i, j, x, y;
+    var len = im.length, size = len>>>stride, rowLen = w<<stride,
+        rem = (w&31)<<stride, sum, sum2, c, i, i0, j, i32 = 32<<stride, ii = 1<<stride, x, y;
         
     // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
     // first row
-    for (j=0,i=0,sum=sum2=0; i<rowLen; i+=128)
+    for (j=0,i0=channel,sum=sum2=0; i0<rowLen; i0+=i32)
     {
         // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
         // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
         
         // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
         // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+4  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+8  ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+12 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+16 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+20 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+24 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+28 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+32 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+36 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+40 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+44 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+48 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+52 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+56 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+60 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+64 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+68 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+72 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+76 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+80 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+84 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+88 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+92 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+96 ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+100]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+104]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+108]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+112]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+116]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+120]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        c=im[i+124]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i =i0; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
     }
     if ( rem )
     {
-        for (i=rowLen-rem; i<rowLen; i+=4,j++)
+        for (i=rowLen-rem+channel; i<rowLen; i+=ii,j++)
         {
-            c=im[i    ]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
+            c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
         }
     }
+    
     // other rows
-    for (x=0,y=1,j=0,sum=0,sum2=0,i=rowLen; i<len; i+=128)
+    for (x=0,y=1,j=0,sum=0,sum2=0,i0=rowLen+channel; i0<len; i0+=i32)
     {
         // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
         // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
         
         // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
         // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
-        c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i =i0; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+4  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+8  ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+12 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+16 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+20 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+24 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+28 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+32 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+36 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+40 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+44 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+48 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+52 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+56 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+60 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+64 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+68 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+72 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+76 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+80 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+84 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+88 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+92 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+96 ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+100]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+104]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+108]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+112]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+116]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+120]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-        c=im[i+124]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
     }
     if ( rem )
     {
-        for (i=len-rem; i<len; i+=4,x++,j++)
+        for (i=len-rem+channel; i<len; i+=ii,x++,j++)
         {
             if ( x >=w ) { x=0; y++; sum=sum2=0; }
-            c=im[i    ]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<2]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
+            c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
         }
     }
 }
-function gradient( stride, im, w, h, do_lowpass, do_sat,
-                        low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
+function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
+                    low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
     var stride0 = stride, imSize = im.length, count = imSize>>>stride,
         index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
@@ -741,7 +671,7 @@ function gradient( stride, im, w, h, do_lowpass, do_sat,
         for(i=2,j=2,k=w2; j<h_2; i++)
         {
             if ( i >= w_2 ){ i=2; k+=w; j++; if(j>=h_2) break; }
-            index = i+k; i0 = index<<stride;
+            index = i+k; i0 = (index<<stride)+channel;
             i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
             // use fixed-point arithmetic here
             lowpassed[index] = (((103*(
@@ -752,7 +682,7 @@ function gradient( stride, im, w, h, do_lowpass, do_sat,
                        +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
                       )+8192)&0xFFFFFFFF)>>>14)&255;
         }
-        dx = 1; dx2 = 2; dy = w; stride = 0;
+        dx = 1; dx2 = 2; dy = w; stride = 0; channel = 0;
     }
     else
     {
@@ -772,14 +702,15 @@ function gradient( stride, im, w, h, do_lowpass, do_sat,
     for(i=1,j=1,k=w; j<h_1; i++)
     {
         if ( i >= w_1 ){ i=1; k+=w; j++; if(j>=h_1) break; }
-        index = k+i; i0 = index<<stride;
+        index = k+i; i0 = (index<<stride)+channel;
         i1s = i0+dy; i1n = i0-dy;
         gX[index] = lowpassed[i1n+dx]-lowpassed[i1n-dx]+(lowpassed[i0+dx]<<1)-(lowpassed[i0-dx]<<1)+lowpassed[i1s+dx]-lowpassed[i1s-dx];
         gY[index] = lowpassed[i1n-dx]-lowpassed[i1s-dx]+(lowpassed[i1n]<<1)-(lowpassed[i1s]<<1)+lowpassed[i1n+dx]-lowpassed[i1s+dx];
     }
-    return optimum_gradient( stride0, gX, gY, im, w, h, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
+    // do the next stages of canny edge processing
+    return optimum_gradient( gX, gY, im, w, h, stride0, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX );
 }
-function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
+function optimum_gradient( gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
     if ( null == MAGNITUDE_SCALE )
     {
@@ -789,7 +720,7 @@ function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_S
     var imSize = im.length, count = imSize>>>stride, index, i, j, k, sum,
         w_1 = w-1, h_1 = h-1, i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
         g = new A32F(count), xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
-        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag,
+        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag, gg,
         x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge;
     
     // non-maximal supression
@@ -818,7 +749,8 @@ function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_S
         seMag = Abs(gX[ise])+Abs(gY[ise]);
         swMag = Abs(gX[isw])+Abs(gY[isw]);
         nwMag = Abs(gX[inw])+Abs(gY[inw]);
-        if (xGrad * yGrad <= 0
+        
+        gg = (xGrad * yGrad <= 0
             ? absxGrad >= absyGrad
                 ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
                     && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
@@ -828,15 +760,8 @@ function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_S
                 ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
                     && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
                 : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
-                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)
-        ) 
-        {
-            g[i0] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag);
-        } 
-        else 
-        {
-            g[i0] = 0;
-        }
+                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag));
+        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag)) : 0;
     }
     if ( sat )
     {
@@ -862,47 +787,45 @@ function optimum_gradient( stride, gX, gY, im, w, h, sat, low, high, MAGNITUDE_S
         for (i=0,j=0,index=0,k=0; index<count; index++,k=index<<stride,i++) 
         {
             if ( i >= w ){ i=0; j++; }
-            if ( (0 === im[k]) && (g[index] >= high) )
-            {
-                /*follow_edge( im, w, h, g, i, j, k, low, stride );*/
-                x0 = i; y0 = j; ii = k;
-                do {
-                    // threshold here
-                    if ( stride ) { im[ii] = im[ii+1] = im[ii+2] = 255; }
-                    else { im[ii] = 255; }
-                    
-                    x1 = x0 === 0 ? x0 : x0-1;
-                    x2 = x0 === w_1 ? x0 : x0+1;
-                    y1 = y0 === 0 ? y0 : y0-1;
-                    y2 = y0 === h_1 ? y0 : y0+1;
-                    y0w = y1*w;
-                    x = x1; y = y1; yw = y0w; followedge = 0;
-                    while (x <= x2 && y <= y2)
+            if ( (0 !== im[k]) || (g[index] < high) ) continue;
+            
+            x0 = i; y0 = j; ii = k;
+            do {
+                // threshold here
+                if ( stride ) { im[ii] = im[ii+1] = im[ii+2] = 255; }
+                else { im[ii] = 255; }
+                
+                x1 = x0 === 0 ? x0 : x0-1;
+                x2 = x0 === w_1 ? x0 : x0+1;
+                y1 = y0 === 0 ? y0 : y0-1;
+                y2 = y0 === h_1 ? y0 : y0+1;
+                y0w = y1*w;
+                x = x1; y = y1; yw = y0w; followedge = 0;
+                while (x <= x2 && y <= y2)
+                {
+                    jj = x + yw; ii = jj << stride;
+                    if ( (y !== y1 || x !== x1) && (0 === im[ii]) && (g[jj] >= low) ) 
                     {
-                        jj = x + yw; ii = jj << stride;
-                        if ( (y !== y1 || x !== x1) && (0 === im[ii]) && (g[jj] >= low) ) 
-                        {
-                            x0 = x; y0 = y;
-                            followedge = 1; break;
-                        }
-                        y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
+                        x0 = x; y0 = y;
+                        followedge = 1; break;
                     }
-                } while(followedge);
-            }
+                    y++; yw+=w; if ( y>y2 ){y=y0; yw=y0w; x++;}
+                }
+            } while(followedge);
         }
         return im;
     }
 }
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
-    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<2;
+        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -938,13 +861,13 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // first row
                 i=0; j=0; colR=0;
-                for (x=0; x<w; x++, i+=4, j++)
+                for (x=0; x<w; x++, i+=ii, j++)
                 {
                     colR+=im[i]; integral[j]=colR;
                 }
                 // other rows
                 j=0; x=0; colR=0;
-                for (i=w4; i<imLen; i+=4, j++, x++)
+                for (i=w4; i<imLen; i+=ii, j++, x++)
                 {
                     if (x>=w) { x=0; colR=0; }
                     colR+=im[i]; integral[j+rowLen]=integral[j]+colR; 
@@ -956,7 +879,7 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1003,13 +926,13 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // first row
                 i=0; j=0; colR=0;
-                for (x=0; x<w; x++, i+=4,j++)
+                for (x=0; x<w; x++, i+=ii,j++)
                 {
                     colR+=im[i]; integral[j]=colR;
                 }
                 // other rows
                 j=0; x=0; colR=0;
-                for (i=w4; i<imLen; i+=4, j++, x++)
+                for (i=w4; i<imLen; i+=ii, j++, x++)
                 {
                     if (x>=w) { x=0; colR=0; }
                     colR+=im[i]; integral[j+rowLen  ]=integral[j  ]+colR; 
@@ -1020,7 +943,7 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1073,14 +996,14 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // first row
                 i=0; j=0; colR=colG=colB=0;
-                for (x=0; x<w; x++, i+=4, j+=3)
+                for (x=0; x<w; x++, i+=ii, j+=3)
                 {
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                 }
                 // other rows
                 j=0; x=0; colR=colG=colB=0;
-                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                for (i=w4; i<imLen; i+=ii, j+=3, x++)
                 {
                     if (x>=w) { x=0; colR=colG=colB=0; }
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
@@ -1095,7 +1018,7 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1150,14 +1073,14 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // first row
                 i=0; j=0; colR=colG=colB=0;
-                for (x=0; x<w; x++, i+=4, j+=3)
+                for (x=0; x<w; x++, i+=ii, j+=3)
                 {
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                 }
                 // other rows
                 j=0; x=0; colR=colG=colB=0;
-                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                for (i=w4; i<imLen; i+=ii, j+=3, x++)
                 {
                     if (x>=w) { x=0; colR=colG=colB=0; }
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
@@ -1171,7 +1094,7 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1210,14 +1133,14 @@ function integral_convolution(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff
     }
     return dst;
 }
-function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats) 
+function integral_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
-    var imLen=im.length, imArea=imLen>>>2, integral, integralLen, colR, colG, colB,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
-        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<2;
+        r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
     
     // convolution speed-up based on the integral image concept and symmetric / separable kernels
     
@@ -1253,13 +1176,13 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // first row
                 i=0; j=0; colR=0;
-                for (x=0; x<w; x++, i+=4, j++)
+                for (x=0; x<w; x++, i+=ii, j++)
                 {
                     colR+=im[i]; integral[j]=colR;
                 }
                 // other rows
                 j=0; x=0; colR=0;
-                for (i=w4; i<imLen; i+=4, j++, x++)
+                for (i=w4; i<imLen; i+=ii, j++, x++)
                 {
                     if (x>=w) { x=0; colR=0; }
                     colR+=im[i]; integral[j+rowLen]=integral[j]+colR; 
@@ -1271,7 +1194,7 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1320,13 +1243,13 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // first row
                 i=0; j=0; colR=0;
-                for (x=0; x<w; x++, i+=4,j++)
+                for (x=0; x<w; x++, i+=ii,j++)
                 {
                     colR+=im[i]; integral[j]=colR;
                 }
                 // other rows
                 j=0; x=0; colR=0;
-                for (i=w4; i<imLen; i+=4, j++, x++)
+                for (i=w4; i<imLen; i+=ii, j++, x++)
                 {
                     if (x>=w) { x=0; colR=0; }
                     colR+=im[i]; integral[j+rowLen  ]=integral[j  ]+colR; 
@@ -1337,7 +1260,7 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1392,14 +1315,14 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // first row
                 i=0; j=0; colR=colG=colB=0;
-                for (x=0; x<w; x++, i+=4, j+=3)
+                for (x=0; x<w; x++, i+=ii, j+=3)
                 {
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                 }
                 // other rows
                 j=0; x=0; colR=colG=colB=0;
-                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                for (i=w4; i<imLen; i+=ii, j+=3, x++)
                 {
                     if (x>=w) { x=0; colR=colG=colB=0; }
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
@@ -1414,7 +1337,7 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1473,14 +1396,14 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // first row
                 i=0; j=0; colR=colG=colB=0;
-                for (x=0; x<w; x++, i+=4, j+=3)
+                for (x=0; x<w; x++, i+=ii, j+=3)
                 {
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
                     integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
                 }
                 // other rows
                 j=0; x=0; colR=colG=colB=0;
-                for (i=w4; i<imLen; i+=4, j+=3, x++)
+                for (i=w4; i<imLen; i+=ii, j+=3, x++)
                 {
                     if (x>=w) { x=0; colR=colG=colB=0; }
                     colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
@@ -1494,7 +1417,7 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
                 
                 // do direct convolution
                 x=0; y=0; ty=0;
-                for (i=0; i<imLen; i+=4, x++)
+                for (i=0; i<imLen; i+=ii, x++)
                 {
                     // update image coordinates
                     if (x>=w) { x=0; y++; ty+=w; }
@@ -1539,12 +1462,12 @@ function integral_convolution_clamp(mode, im, w, h, matrix, matrix2, dimX, dimY,
     return dst;
 }
 // speed-up convolution for separable kernels
-function separable_convolution(mode, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+function separable_convolution( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
-    var imLen=im.length, imArea=imLen>>>2,
+    var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
-        i, j, k, x, ty, ty2,
+        i, j, k, x, ty, ty2, ii = 1<<stride,
         xOff, yOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
     
@@ -1576,7 +1499,7 @@ function separable_convolution(mode, im, w, h, matrix, matrix2, ind1, ind2, coef
             
             // do direct convolution
             x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            for (i=0; i<imLen; i+=ii, x++)
             {
                 // update image coordinates
                 if (x>=w) { x=0; ty+=w; }
@@ -1617,7 +1540,7 @@ function separable_convolution(mode, im, w, h, matrix, matrix2, ind1, ind2, coef
             
             // do direct convolution
             x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            for (i=0; i<imLen; i+=ii, x++)
             {
                 // update image coordinates
                 if (x>=w) { x=0; ty+=w; }
@@ -1651,12 +1574,12 @@ function separable_convolution(mode, im, w, h, matrix, matrix2, ind1, ind2, coef
     }
     return dst;
 }
-function separable_convolution_clamp(mode, im, w, h, matrix, matrix2, ind1, ind2, coeff1, coeff2) 
+function separable_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
-    var imLen=im.length, imArea=imLen>>>2,
+    var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
-        i, j, k, x, ty, ty2,
+        i, j, k, x, ty, ty2, ii = 1<<stride,
         xOff, yOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
     
@@ -1688,7 +1611,7 @@ function separable_convolution_clamp(mode, im, w, h, matrix, matrix2, ind1, ind2
             
             // do direct convolution
             x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            for (i=0; i<imLen; i+=ii, x++)
             {
                 // update image coordinates
                 if (x>=w) { x=0; ty+=w; }
@@ -1731,7 +1654,7 @@ function separable_convolution_clamp(mode, im, w, h, matrix, matrix2, ind1, ind2
             
             // do direct convolution
             x=0; ty=0;
-            for (i=0; i<imLen; i+=4, x++)
+            for (i=0; i<imLen; i+=ii, x++)
             {
                 // update image coordinates
                 if (x>=w) { x=0; ty+=w; }
@@ -1965,7 +1888,7 @@ function cm_eye( )
   ar ag ab aa aoff
   0  0  0  0  1 ]
 */
-function cm_multiply(cm1, cm2) 
+function cm_multiply( cm1, cm2 )
 {
     var cm12 = new ColorMatrix(20);
 
@@ -2056,9 +1979,18 @@ function cm_convolve( cm1, cm2, matrix )
 }
 
 MathUtil.clamp = clamp;
-MathUtil.Geometry = {};
 
-ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset;
+ArrayUtil.typed = FILTER.Browser.isNode ? function( a, A ) {
+    if ( (null == a) || (a instanceof A) ) return a;
+    else if ( Array.isArray( a ) ) return Array === A ? a : new A( a );
+    if ( null == a.length ) a.length = Object.keys( a ).length;
+    return Array === A ? Array.prototype.slice.call( a ) : new A( Array.prototype.slice.call( a ) );
+} : function( a, A ) { return a; };
+ArrayUtil.typed_obj = FILTER.Browser.isNode ? function( o, unserialise ) {
+    return null == o ? o : (unserialise ? JSON.parse( o ) : JSON.stringify( o ));
+} : function( o ) { return o; };
+ArrayUtil.arrayset_shim = arrayset_shim;
+ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset_shim;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
 
 StringUtil.esc = esc;
@@ -2067,15 +1999,15 @@ StringUtil.trim = String.prototype.trim
 : function( s ){ return s.replace(trim_re, ''); };
 StringUtil.function_body = function_body;
 
-ImageUtil.crop = FILTER.Interpolation.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
-ImageUtil.pad = FILTER.Interpolation.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.get_data = get_data;
 ImageUtil.set_data = set_data;
 ImageUtil.fill = fill_data;
-ImageUtil.integral = integral;
-ImageUtil.histogram = histogram;
-ImageUtil.spectrum = spectrum;
+ImageUtil.crop = FILTER.Interpolation.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = FILTER.Interpolation.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 
+FilterUtil.integral = integral;
+FilterUtil.histogram = histogram;
+FilterUtil.spectrum = spectrum;
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
 FilterUtil.cm_eye = cm_eye;
@@ -2092,4 +2024,4 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
 
-}(FILTER)
+}(FILTER);

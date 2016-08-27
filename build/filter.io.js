@@ -33,6 +33,43 @@ else /* Browser/WebWorker/.. */
 var FILTER_IO_PATH = FILTER.getPath( ModuleFactory__FILTER_IO.moduleUri );
 /**
 *
+* Filter (HTML)ImageLoader Class
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+FILTER.IO.HTMLImageManager = FILTER.Class(FILTER.IO.Manager, {
+    name: "IO.HTMLImageManager",
+    
+    constructor: function HTMLImageLoader() {
+        if ( !(this instanceof HTMLImageLoader) )
+            return new HTMLImageLoader();
+        this.$super('constructor');
+    },
+    
+    read: function( url, onLoad, onError ){
+        var scope = this, loader = new Image( ), image = new FILTER.Image( );
+        
+        loader.onload = function( event ){
+            image.image( loader );
+            if ( 'function' === typeof onLoad ) onLoad(image, loader);
+        };
+        loader.onerror = function( event ){
+            if ( 'function' === typeof onError ) onError(image, loader);
+        };
+        loader.crossOrigin = scope._crossOrigin || "";
+        loader.src = url;
+        
+        return image;
+    }
+});
+FILTER.IO.HTMLImageManager.prototype.load = FILTER.IO.HTMLImageManager.prototype.read;
+FILTER.IO.HTMLImageLoader = FILTER.IO.HTMLImageManager;
+
+}(FILTER);/**
+*
 * Filter Utils, cross-platform XmlHttpRequest (XHR)
 * @package FILTER.js
 *
@@ -40,9 +77,11 @@ var FILTER_IO_PATH = FILTER.getPath( ModuleFactory__FILTER_IO.moduleUri );
 !function(FILTER, undef){
 "use strict";
 
+if ( FILTER.Util.LOADED_XHR ) return;
+FILTER.Util.LOADED_XHR = true;
+
 var HAS = 'hasOwnProperty', toString = Object.prototype.toString,
-    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim
-;
+    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim;
 
 // adapted from https://github.com/foo123/RT
 function header_encode( headers, xmlHttpRequest, httpRequestResponse )
@@ -456,87 +495,25 @@ XHR.create = FILTER.Browser.isNode
 
 }(FILTER);/**
 *
-* Filter XHRLoader Class
+* Filter File / Binary IO Manager Class(es)
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
 
-FILTER.IO.XHRLoader = FILTER.Class(FILTER.IO.Loader, {
-    name: "IO.XHRLoader",
+var Class = FILTER.Class;
+
+var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
+    name: "IO.FileManager",
     
-    constructor: function XHRLoader( ) {
+    constructor: function FileManager( ) {
         var self = this;
-        if ( !(self instanceof XHRLoader) ) return new XHRLoader( );
+        if ( !(self instanceof FileManager) ) return new FileManager( );
+        self.$super("constructor");
     },
     
-    load: function ( url, onLoad, onError ) {
-        var self = this;
-        
-        FILTER.Util.XHR.create({
-            url: url,
-            responseType: self._responseType,
-            onComplete: function( xhr ) {
-                if ( 'function' === typeof onLoad ) onLoad( xhr.response );
-            },
-            onError: function( xhr ) {
-                if ( 'function' === typeof onError ) onError( xhr.statusText );
-            }
-        }, null);
-        /*if ( FILTER.Browser.isNode )
-        {
-            // https://nodejs.org/api/http.html#http_http_request_options_callback
-            request = require('http').get(url, function(response) {
-                var data = '';
-                //response.setEncoding('utf8');
-                response.on('data', function( chunk ) {
-                    data += chunk;
-                });
-                response.on('end', function( ) {
-                    if ( 'function' === typeof onLoad ) onLoad( new Buffer(data) );
-                });
-            }).on('error', function( e ) {
-                if ( 'function' === typeof onError ) onError( e );
-            });
-        }
-        else
-        {
-            // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
-            request = new XMLHttpRequest( );
-            request.open( 'GET', url, true );
-            request[ON]('load', function ( event ) {
-                if ( 'function' === typeof onLoad ) onLoad( this.response );
-            }, false);
-            //if ( 'function' === typeof onProgress ) request[ON]('progress', onProgress, false);
-            if ( 'function' === typeof onError ) request[ON]('error', onError, false);
-            if ( self._crossOrigin ) request.crossOrigin = self._crossOrigin;
-            if ( self._responseType ) request.responseType = self._responseType;
-            request.send( null );
-        }*/
-        return self;
-    }
-});
-}(FILTER);/**
-*
-* Filter BinaryLoader Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var Loader = FILTER.IO.Loader, XHR = FILTER.Util.XHR, FilterImage = FILTER.Image, Class = FILTER.Class;
-
-var FileLoader = FILTER.IO.FileLoader = FILTER.IO.FileReader = Class(Loader, {
-    name: "IO.FileLoader",
-    
-    constructor: function FileLoader( ) {
-        var self = this;
-        if ( !(self instanceof FileLoader) ) return new FileLoader( );
-    },
-    
-    load: function ( file, onLoad, onError ) {
+    read: function ( file, onLoad, onError ) {
         var self = this;
         // read file
         if ( FILTER.Browser.isNode )
@@ -559,7 +536,7 @@ var FileLoader = FILTER.IO.FileLoader = FILTER.IO.FileReader = Class(Loader, {
         }
         else
         {
-            XHR.create({
+            FILTER.Util.XHR.create({
                 url: file,
                 responseType: self._responseType,
                 onComplete: function( xhr ) {
@@ -571,82 +548,6 @@ var FileLoader = FILTER.IO.FileLoader = FILTER.IO.FileReader = Class(Loader, {
             }, null);
         }
         return self;
-    }
-});
-
-FILTER.IO.BinaryLoader = FILTER.IO.BinaryReader = Class(FileLoader, {
-    name: "IO.BinaryLoader",
-    
-    constructor: function BinaryLoader( decoder ) {
-        var self = this;
-        if ( !(self instanceof BinaryLoader) ) return new BinaryLoader( decoder );
-        self._decoder = "function" === typeof decoder ? decoder : null;
-    },
-    
-    _decoder: null,
-    _encoder: null,
-    
-    dispose: function( ) {
-        var self = this;
-        self._decoder = null;
-        self._encoder = null;
-        self.$super("dispose");
-        return self;
-    },
-    
-    decoder: function( decoder ) {
-        var self = this;
-        self._decoder = "function" === typeof decoder ? decoder : null;
-        return self;
-    },
-    
-    encoder: function( encoder ) {
-        var self = this;
-        self._encoder = "function" === typeof encoder ? encoder : null;
-        return self;
-    },
-    
-    load: function( url, onLoad, onError ){
-        var self = this, image = new FilterImage( ), decoder = self._decoder;
-        
-        if ( 'function' === typeof decoder )
-        {
-            self
-                .responseType( 'arraybuffer' )
-                .$super('load', url, function( buffer ) {
-                    var metaData = {}, imData = decoder( buffer, metaData );
-                    if ( !imData )
-                    {
-                        if ( 'function' === typeof onError ) onError( image, metaData, buffer );
-                        return;
-                    }
-                    image.image( imData );
-                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
-                }, onError )
-            ;
-        }
-        return image;
-    }
-
-});
-  
-}(FILTER);/**
-*
-* Filter BinaryWriter Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var Class = FILTER.Class;
-
-var FileWriter = FILTER.IO.FileWriter = Class(FILTER.IO.Writer, {
-    name: "IO.FileWriter",
-    
-    constructor: function FileWriter( ) {
-        var self = this;
-        if ( !(self instanceof FileWriter) ) return new FileWriter( );
     },
     
     write: function ( file, data, onWrite, onError ) {
@@ -673,33 +574,68 @@ var FileWriter = FILTER.IO.FileWriter = Class(FILTER.IO.Writer, {
         return self;
     }
 });
+FileManager.prototype.load = FileManager.prototype.read;
+FILTER.IO.FileLoader = FILTER.IO.FileReader = FILTER.IO.FileWriter = FileManager;
 
-FILTER.IO.BinaryWriter = Class(FileWriter, {
-    name: "IO.BinaryWriter",
+FILTER.IO.BinaryManager = Class(FileManager, {
+    name: "IO.BinaryManager",
     
-    constructor: function BinaryWriter( encoder ) {
+    constructor: function BinaryManager( codec ) {
         var self = this;
-        if ( !(self instanceof BinaryWriter) ) return new BinaryWriter( encoder );
-        self._encoder = "function" === typeof encoder ? encoder : null;
+        if ( !(self instanceof BinaryManager) ) return new BinaryManager( codec );
+        self._codec = "function" === typeof codec ? codec : null;
+        self.$super("constructor");
     },
     
+    _decoder: null,
     _encoder: null,
+    _codec: null,
     
     dispose: function( ) {
         var self = this;
+        self._decoder = null;
         self._encoder = null;
+        self._codec = null;
         self.$super("dispose");
         return self;
     },
     
     encoder: function( encoder ) {
         var self = this;
-        self._encoder = "function" === typeof encoder ? encoder : null;
+        self._codec = self._encoder = "function" === typeof encoder ? encoder : null;
         return self;
     },
     
+    decoder: function( decoder ) {
+        var self = this;
+        self._codec = self._decoder = "function" === typeof decoder ? decoder : null;
+        return self;
+    },
+    
+    read: function( url, onLoad, onError ){
+        var self = this, image = new FILTER.Image( ), decoder = self._decoder || self._codec;
+        
+        if ( 'function' === typeof decoder )
+        {
+            self
+                .responseType( 'arraybuffer' )
+                .$super('load', url, function( buffer ) {
+                    var metaData = {}, imData = decoder( buffer, metaData );
+                    if ( !imData )
+                    {
+                        if ( 'function' === typeof onError ) onError( image, metaData, buffer );
+                        return;
+                    }
+                    image.image( imData );
+                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
+                }, onError )
+            ;
+        }
+        return image;
+    },
+    
     write: function( file, image, onWrite, onError ){
-        var self = this, encoder = self._encoder;
+        var self = this, encoder = self._encoder || self._codec;
         
         if ( image && ('function' === typeof encoder) )
         {
@@ -710,50 +646,10 @@ FILTER.IO.BinaryWriter = Class(FileWriter, {
         }
         return self;
     }
-
 });
-  
-}(FILTER);/**
-*
-* Filter (HTML)ImageLoader Class
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
+FILTER.IO.BinaryManager.prototype.load = FILTER.IO.BinaryManager.prototype.read;
+FILTER.IO.BinaryLoader = FILTER.IO.BinaryReader = FILTER.IO.BinaryWriter = FILTER.IO.BinaryManager;
 
-var FilterImage = FILTER.Image/*, ON = 'addEventListener'*/;
-
-FILTER.IO.HTMLImageLoader = FILTER.Class(FILTER.IO.Loader, {
-    name: "IO.HTMLImageLoader",
-    
-    constructor: function HTMLImageLoader() {
-        if ( !(this instanceof HTMLImageLoader) )
-            return new HTMLImageLoader();
-        this.$super('constructor');
-    },
-    
-    load: function( url, onLoad, onError ){
-        var scope = this, loader, 
-            image = new FilterImage( )
-        ;
-        
-        loader = new Image( );
-        
-        loader.onload = function( event ){
-            image.setImage( loader );
-            if ( 'function' === typeof onLoad ) onLoad(image, loader);
-        };
-        loader.onerror = function( event ){
-            if ( 'function' === typeof onError ) onError(image, loader);
-        };
-        
-        loader.crossOrigin = scope._crossOrigin || "";
-        loader.src = url;
-        
-        return image;
-    }
-});
 }(FILTER);
 /* main code ends here */
 /* export the module */
