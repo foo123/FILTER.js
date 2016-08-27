@@ -95,30 +95,30 @@ ListUtil.each = function each( x, F, i0, i1, stride, offset ) {
     if ( arguments.length < 3 ) i0 = 0;
     if ( i0 > i1 ) return x;
     var i, j, k, l=i1-i0+1, l1, lr, r=l&15, q=r&1;
-    if ( q ) F(x[(i0<<stride)+offset], i0, i0, i1);
+    if ( q ) F(x[(i0<<stride)+offset], i0, x, i0, i1);
     for (i=q; i<r; i+=2)
     { 
-        k=i0+i; F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        k=i0+i; F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
     }
     for (i=r; i<l; i+=16)
     {
-        k=i0+i; F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
-        ++k;    F(x[(k<<stride)+offset], k, i0, i1);
+        k=i0+i; F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
+        ++k;    F(x[(k<<stride)+offset], k, x, i0, i1);
     }
     return x;
 };

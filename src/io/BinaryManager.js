@@ -23,21 +23,37 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         // read file
         if ( FILTER.Browser.isNode )
         {
-            // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
-            require('fs').readFile('file://' === file.slice(0,7) ? file.slice(7) : file, {
-                // return raw buffer
-                encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
-                flag: 'r'
-            }, function( err, data ) {
-              if ( err )
-              {
-                  if ( 'function' === typeof onError ) onError( err.toString() );
-              }
-              else
-              {
-                  if ( 'function' === typeof onLoad ) onLoad( data );
-              }
-            });
+            if ( 'http://' === file.slice(0,7) || 'https://' === file.slice(0,8) )
+            {
+                FILTER.Util.XHR.create({
+                    url: file,
+                    responseType: self._responseType,
+                    onComplete: function( xhr ) {
+                        if ( 'function' === typeof onLoad ) onLoad( xhr.response );
+                    },
+                    onError: function( xhr ) {
+                        if ( 'function' === typeof onError ) onError( xhr.statusText );
+                    }
+                }, null);
+            }
+            else
+            {
+                // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
+                require('fs').readFile('file://' === file.slice(0,7) ? file.slice(7) : file, {
+                    // return raw buffer
+                    encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
+                    flag: 'r'
+                }, function( err, data ) {
+                  if ( err )
+                  {
+                      if ( 'function' === typeof onError ) onError( err.toString() );
+                  }
+                  else
+                  {
+                      if ( 'function' === typeof onLoad ) onLoad( data );
+                  }
+                });
+            }
         }
         else
         {

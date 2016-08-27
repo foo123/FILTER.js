@@ -374,7 +374,7 @@ BLAS.gemv = function gemv( transpose, m, n, alpha, a, lda, x, x0, incx, beta, y,
     return 0;
 };
 BLAS.ger = function ger( m, n, alpha, x, x0, incx, y, y0, incy, a, lda ) {
-    //DGER computes A := alpha*x*y' + A.
+    // GER computes A := alpha*x*y' + A.
     var i, ix, j, jy, kx, temp;
     
     // Test the input parameters.
@@ -411,7 +411,7 @@ BLAS.ger = function ger( m, n, alpha, x, x0, incx, y, y0, incy, a, lda ) {
 
 // BLAS 3
 BLAS.gemm = function gemm( transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ) {
-    // DGEMM computes C = alpha * A * B and related operations.
+    // GEMM computes C = alpha * A * B and related operations.
     var i, j, l, ncola, nrowa, nrowb, nota, notb, temp;
     /*
     Set NOTA and NOTB as true if A and B respectively are not
