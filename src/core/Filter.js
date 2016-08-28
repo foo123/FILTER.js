@@ -685,28 +685,47 @@ FILTER.IO.Manager = FILTER.Class({
     name: "IO.Manager",
     
     __static__: {
-        // accessible as "$class.load" (extendable and with "late static binding")
-        load: FILTER.Classy.Method(function($super, $private, $class){
+        // accessible as "$class.read" (extendable and with "late static binding")
+        read: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( url, onLoad, onError ) {
-                return new $class().read(url, onLoad, onError);
+              return function( path, onComplete, onError ) {
+                return new $class().read(path, onComplete, onError);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
         
-        // accessible as "$class.load" (extendable and with "late static binding")
+        // accessible as "$class.write" (extendable and with "late static binding")
         write: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( file, data, onWrite, onError ) {
-                return new $class().write(file, data, onWrite, onError);
+              return function( path, data, onComplete, onError ) {
+                return new $class().write(path, data, onComplete, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
+        
+        load: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( path, onComplete, onError ) {
+                return new $class().read(path, onComplete, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
+        
+        // accessible as "$class.write" (extendable and with "late static binding")
+        save: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( path, data, onComplete, onError ) {
+                return new $class().write(path, data, onComplete, onError);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
-    constructor: function Manager() {
+    constructor: function Manager( ){
         /*var self = this;
         if ( !(self instanceof Manager) )
             return new Manager( );*/
@@ -716,7 +735,7 @@ FILTER.IO.Manager = FILTER.Class({
     _responseType: null,
     _encoding: null,
     
-    dispose: function( ) {
+    dispose: function( ){
         var self = this;
         self._crossOrigin = null;
         self._responseType = null;
@@ -725,14 +744,19 @@ FILTER.IO.Manager = FILTER.Class({
     },
     
     // override in sub-classes
-    load: null,
-    read: function( url, onLoad, onError ){
+    read: function( path, onComplete, onError ){
+        return null;
+    },
+    write: function( path, data, onComplete, onError ){
         return null;
     },
     
-    // override in sub-classes
-    write: function( file, data, onWrite, onError ){
-        return null;
+    // aliases
+    load: function( path, onComplete, onError ){
+        return this.read( path, onComplete, onError );
+    },
+    save: function( path, data, onComplete, onError ){
+        return this.write( path, data, onComplete, onError );
     },
 
     responseType: function ( value ) {
@@ -766,9 +790,20 @@ FILTER.IO.Manager = FILTER.Class({
     }
 });
 // aliases
-FILTER.IO.Manager[PROTO].load = FILTER.IO.Manager[PROTO].read;
 FILTER.IO.Loader = FILTER.IO.Reader = FILTER.IO.Writer = FILTER.IO.Manager;
-
+// a default raw codec
+FILTER.CODEC.RAW = {
+    encoder: function( imgData, metaData ) {
+        return new Buffer( imgData );
+    },
+    decoder: function( buffer, metaData ) {
+        return {
+            width: metaData.width || 1,
+            height: metaData.height || 1,
+            data: new Uint8Array( buffer )
+        };
+    }
+};
 
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {

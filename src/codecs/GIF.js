@@ -378,12 +378,11 @@ function parseGIF( st, handler )
 
 FILTER.Codec.GIF = {
 
-    encoder: null,//FILTER.NotImplemented('GIF.encoder'),
+    encoder: FILTER.NotImplemented('GIF.encoder'),
     
     decoder: function ( buffer, metaData ) {
         var hdr, transparency = null,
-            image = {width: 0, height: 0, data: null}
-        ;
+            image = {width: 0, height: 0, data: null};
         // animated GIFs are not handled at this moment, needed??
         parseGIF(new Stream(new Uint8Array( buffer )), {
             hdr: function (_hdr) { hdr = _hdr; },
@@ -395,12 +394,13 @@ FILTER.Codec.GIF = {
                 //apply color table colors
                 img.pixels.forEach(function (pixel, i) {
                     // imgData.data === [R,G,B,A,R,G,B,A,...]
+                    var index = i << 2;
                     if (pixel !== transparency) 
                     {
-                        cdd[(i << 2) + 0] = ct[pixel][0];
-                        cdd[(i << 2) + 1] = ct[pixel][1];
-                        cdd[(i << 2) + 2] = ct[pixel][2];
-                        cdd[(i << 2) + 3] = 255; // Opaque.
+                        cdd[index + 0] = ct[pixel][0];
+                        cdd[index + 1] = ct[pixel][1];
+                        cdd[index + 2] = ct[pixel][2];
+                        cdd[index + 3] = 255; // Opaque.
                     }
                 });
                 image.width = img.width;

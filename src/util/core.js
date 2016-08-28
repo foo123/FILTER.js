@@ -45,6 +45,7 @@ function clamp( x, m, M )
 
 function arrayset_shim( a, b, offset, b0, b1 )
 {
+    //"use asm";
     offset = offset || 0; b0 = b0 || 0;
     var j, i, n = b1 ? b1-b0+1 : b.length, rem = n&31;
     for(i=0; i<rem; i++)
@@ -91,6 +92,7 @@ function arrayset_shim( a, b, offset, b0, b1 )
 
 function crop( im, w, h, x1, y1, x2, y2 )
 {
+    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1, 
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
@@ -105,6 +107,7 @@ function crop( im, w, h, x1, y1, x2, y2 )
 }
 function crop_shim( im, w, h, x1, y1, x2, y2 )
 {
+    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1, 
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
@@ -119,6 +122,7 @@ function crop_shim( im, w, h, x1, y1, x2, y2 )
 }
 function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
+    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
@@ -135,6 +139,7 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 }
 function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
+    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
@@ -151,6 +156,7 @@ function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 }
 function get_data( D, W, H, x0, y0, x1, y1, orig )
 {
+    //"use asm";
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
     if ( (0 === x0) && (0 === y0) && (W === x1+1) && (H === y1+1) ) return true === orig ? D : new IMGcpy( D );
@@ -169,6 +175,7 @@ function get_data( D, W, H, x0, y0, x1, y1, orig )
 }
 function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 {
+    //"use asm";
     var i, I, x, y;
     if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
     x0 = Min(x0, w-1); y0 = Min(y0, h-1);
@@ -190,6 +197,7 @@ function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 }
 function fill_data( D, W, H, c, x0, y0, x1, y1 )
 {
+    //"use asm";
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
     if ( !D.length || (x1 < x0) || (y1 < y0) ) return D;
@@ -209,6 +217,7 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
 // compute integral image (Summed Area Table, SAT) (for a given channel)
 function integral( im, w, h, stride, channel, integ ) 
 {
+    //"use asm";
     stride = stride||0; channel = channel||0;
     var len = im.length, size = len>>>stride, rowLen = w<<stride,
         rem = (w&31)<<stride, i32 = 32<<stride, ii = 1<<stride,
@@ -337,6 +346,7 @@ function integral( im, w, h, stride, channel, integ )
 // compute image histogram (for a given channel)
 function histogram( im, w, h, stride, channel, pdf_only, cdf )
 {
+    //"use asm";
     stride = stride||0; channel = channel||0;
     var i, i0, i32 = 32<<stride, ii = 1<<stride,
         l = im.length, l2 = l>>>stride, accum, rem = (l2&31)<<stride;
@@ -503,6 +513,7 @@ function spectrum( im, w, h, stride, channel )
 
 function integral2( im, w, h, stride, channel, sat, sat2, rsat )
 {
+    //"use asm";
     var len = im.length, size = len>>>stride, rowLen = w<<stride,
         rem = (w&31)<<stride, sum, sum2, c, i, i0, j, i32 = 32<<stride, ii = 1<<stride, x, y;
         
@@ -632,6 +643,7 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
 function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
                     low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
+    //"use asm";
     var stride0 = stride, imSize = im.length, count = imSize>>>stride,
         index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
         dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
@@ -709,6 +721,7 @@ function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
 }
 function optimum_gradient( gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
+    //"use asm";
     if ( null == MAGNITUDE_SCALE )
     {
         MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
@@ -817,6 +830,7 @@ function optimum_gradient( gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_S
 // speed-up convolution for special kernels like moving-average
 function integral_convolution( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
@@ -1132,6 +1146,7 @@ function integral_convolution( mode, im, w, h, stride, matrix, matrix2, dimX, di
 }
 function integral_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
@@ -1461,6 +1476,7 @@ function integral_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, di
 // speed-up convolution for separable kernels
 function separable_convolution( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
@@ -1573,6 +1589,7 @@ function separable_convolution( mode, im, w, h, stride, matrix, matrix2, ind1, i
 }
 function separable_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,

@@ -17,6 +17,7 @@ var BLAS = FILTER.Util.BLAS = FILTER.Util.BLAS || {},
 
 // BLAS 1
 BLAS.NRM2 = function NRM2( n, x, x0, dx ) {
+    //"use asm";
     // NRM2 returns the L2 norm of a vector.
     var absxi, i, ix, norm, scale, ssq, value;
 
@@ -50,6 +51,7 @@ BLAS.NRM2 = function NRM2( n, x, x0, dx ) {
     return norm;
 };
 BLAS.SET = function SET( n, v, x, x0, dx ) {
+    //"use asm";
     // SET sets a vector to a constant.
     var i, ix, m;
     if ( 0 >= n ) return;
@@ -71,6 +73,7 @@ BLAS.SET = function SET( n, v, x, x0, dx ) {
     }
 };
 BLAS.CPY = function CPY( n, x, x0, dx, y, y0, dy ) {
+    //"use asm";
     // CPY copies a vector into another vector.
     var i, ix, iy, m, tmp;
     if ( 0 >= n ) return;
@@ -92,6 +95,7 @@ BLAS.CPY = function CPY( n, x, x0, dx, y, y0, dy ) {
     }
 };
 BLAS.SWAP = function SWAP( n, x, x0, dx, y, y0, dy ) {
+    //"use asm";
     // SWAP interchanges two vectors.
     var i, ix, iy, m, t;
     if ( 0 >= n ) return;
@@ -113,6 +117,7 @@ BLAS.SWAP = function SWAP( n, x, x0, dx, y, y0, dy ) {
     }
 };
 BLAS.SCALE = function SCALE( n, s, x, x0, dx ) {
+    //"use asm";
     // SCALE scales a vector by a constant.
     var i, ix, m;
     if ( 0 >= n || 1.0 === s ) return;
@@ -155,6 +160,7 @@ BLAS.SCALE = function SCALE( n, s, x, x0, dx ) {
     }
 };
 BLAS.AXPY = function AXPY( n, a, x, x0, dx, y, y0, dy ) {
+    //"use asm";
     // AXPY computes constant times a vector plus a vector.
     var i, ix, iy, m;
     if ( 0 >= n || 0.0 === a ) return;
@@ -197,6 +203,7 @@ BLAS.AXPY = function AXPY( n, a, x, x0, dx, y, y0, dy ) {
     }
 };
 BLAS.DOTP = function DOTP( n, x, x0, dx, y, y0, dy ) {
+    //"use asm";
     // DOTP forms the dot product of two vectors.
     var sum, i, ix, iy, m;
     if ( 0 >= n ) return 0.0;
@@ -219,6 +226,7 @@ BLAS.DOTP = function DOTP( n, x, x0, dx, y, y0, dy ) {
     return sum;
 };
 BLAS.ASUM = function ASUM( n, x, x0, dx ) {
+    //"use asm";
     // ASUM takes the sum of the absolute values of a vector.
     var sum, i, ix, m;
     if ( 0 >= n ) return 0.0;
@@ -241,6 +249,7 @@ BLAS.ASUM = function ASUM( n, x, x0, dx ) {
     return sum;
 };
 BLAS.PROT = function PROT( n, x, x0, dx, y, y0, dy, c,  s ) {
+    //"use asm";
     // PROT applies a plane rotation.
     var i, ix, iy, xi, m;
     if ( 0 >= n ) return;
@@ -262,6 +271,7 @@ BLAS.PROT = function PROT( n, x, x0, dx, y, y0, dy, c,  s ) {
     }
 };
 BLAS.PROTG = function PROTG( t /*sa, sb, c, s*/ ) {
+    //"use asm";
     // PROTG constructs a Givens plane rotation.
     var r, roe, scale, z;
 
@@ -287,6 +297,7 @@ BLAS.PROTG = function PROTG( t /*sa, sb, c, s*/ ) {
 
 // BLAS 2
 BLAS.GEMV = function GEMV( transpose, m, n, alpha, a, lda, x, x0, dx, beta, y, y0, dy ) {
+    //"use asm";
     // GEMV computes y := alpha * A * x + beta * y for general matrix A.
     var i, ix, iy, j, jx, jy, kx, ky, lenx, leny, temp;
     
@@ -378,6 +389,7 @@ BLAS.GEMV = function GEMV( transpose, m, n, alpha, a, lda, x, x0, dx, beta, y, y
     return 0;
 };
 BLAS.GER = function GER( m, n, alpha, x, x0, dx, y, y0, dy, a, lda ) {
+    //"use asm";
     // GER computes A := alpha*x*y' + A.
     var i, ix, j, jy, kx, temp;
     
@@ -414,6 +426,7 @@ BLAS.GER = function GER( m, n, alpha, x, x0, dx, y, y0, dy, a, lda ) {
 
 // BLAS 3
 BLAS.GEMM = function GEMM( transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc ) {
+    //"use asm";
     // GEMM computes C = alpha * A * B and related operations.
     var i, j, l, ncola, nrowa, nrowb, nota, notb, temp;
     /*

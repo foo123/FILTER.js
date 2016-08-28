@@ -269,7 +269,7 @@ function BmpEncoder( imgData )
     self.data = imgData.data;
     self.width = imgData.width;
     self.height = imgData.height;
-    self.extraBytes = self.width%4;
+    self.extraBytes = self.width&3/*%4*/;
     self.rgbSize = self.height*(3*self.width+self.extraBytes);
     self.headerInfoSize = 40;
 
@@ -382,7 +382,7 @@ BmpEncoder.prototype = {
 FILTER.Codec.BMP = {
 
     encoder: function( imgData, metaData ) {
-        var quality = typeof metaData.quality === 'undefined' ? 100 : metaData.quality;
+        var quality = 'undefined' === typeof metaData.quality ? 100 : metaData.quality;
         return new Buffer( new BmpEncoder( imgData ).encode( ) );
     },
     

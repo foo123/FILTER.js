@@ -437,22 +437,20 @@ FILTER.Codec.HDR = FILTER.Codec.RGBE = {
     },
     
     decoder: function( buffer, metaData ) {
-        var byteArray = new Uint8Array( buffer ),
-            byteLength = byteArray.byteLength;
+        var byteArray = new Uint8Array( buffer ), byteLength = byteArray.byteLength;
         byteArray.pos = 0;
         var rgbe_header_info = RGBE_ReadHeader( byteArray );
 
         if ( RGBE_RETURN_FAILURE !== rgbe_header_info ) 
         {
-            var w = rgbe_header_info.width,
-                h = rgbe_header_info.height
-                ,image_rgba_data = RGBE_ReadPixels_RLE( byteArray.subarray(byteArray.pos), w, h )
-            ;
+            var w = rgbe_header_info.width, h = rgbe_header_info.height,
+                image_rgba_data = RGBE_ReadPixels_RLE( byteArray.subarray(byteArray.pos), w, h );
+            
             if ( RGBE_RETURN_FAILURE !== image_rgba_data ) 
             {
                 if ( metaData ) 
                 {
-                    metaData.header = rgbe_header_info.string;
+                    //metaData.header = rgbe_header_info.string;
                     metaData.gamma = rgbe_header_info.gamma;
                     metaData.exposure = rgbe_header_info.exposure;
                 }

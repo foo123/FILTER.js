@@ -18,18 +18,17 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         self.$super("constructor");
     },
     
-    read: function ( file, onLoad, onError ) {
+    read: function ( path, onComplete, onError ) {
         var self = this;
-        // read file
         if ( FILTER.Browser.isNode )
         {
-            if ( 'http://' === file.slice(0,7) || 'https://' === file.slice(0,8) )
+            if ( 'http://' === path.slice(0,7) || 'https://' === path.slice(0,8) )
             {
                 FILTER.Util.XHR.create({
-                    url: file,
+                    url: path,
                     responseType: self._responseType,
                     onComplete: function( xhr ) {
-                        if ( 'function' === typeof onLoad ) onLoad( xhr.response );
+                        if ( 'function' === typeof onComplete ) onComplete( xhr.response );
                     },
                     onError: function( xhr ) {
                         if ( 'function' === typeof onError ) onError( xhr.statusText );
@@ -39,7 +38,7 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
             else
             {
                 // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
-                require('fs').readFile('file://' === file.slice(0,7) ? file.slice(7) : file, {
+                require('fs').readFile('file://' === path.slice(0,7) ? path.slice(7) : path, {
                     // return raw buffer
                     encoding: 'arraybuffer' === self._responseType ? null : self._responseType,
                     flag: 'r'
@@ -50,7 +49,7 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
                   }
                   else
                   {
-                      if ( 'function' === typeof onLoad ) onLoad( data );
+                      if ( 'function' === typeof onComplete ) onComplete( data );
                   }
                 });
             }
@@ -58,10 +57,10 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         else
         {
             FILTER.Util.XHR.create({
-                url: file,
+                url: path,
                 responseType: self._responseType,
                 onComplete: function( xhr ) {
-                    if ( 'function' === typeof onLoad ) onLoad( xhr.response );
+                    if ( 'function' === typeof onComplete ) onComplete( xhr.response );
                 },
                 onError: function( xhr ) {
                     if ( 'function' === typeof onError ) onError( xhr.statusText );
@@ -71,13 +70,12 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         return self;
     },
     
-    write: function ( file, data, onWrite, onError ) {
+    write: function ( path, data, onComplete, onError ){
         var self = this;
-        // read file
         if ( FILTER.Browser.isNode )
         {
             // https://nodejs.org/api/fs.html#fs_fs_readfile_filename_options_callback
-            require('fs').writeFile('file://' === file.slice(0,7) ? file.slice(7) : file, data, {
+            require('fs').writeFile('file://' === path.slice(0,7) ? path.slice(7) : path, data, {
                 // return raw buffer
                 encoding: 'arraybuffer' === self._encoding ? null : self._encoding,
                 flag: 'w'
@@ -88,14 +86,13 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
               }
               else
               {
-                  if ( 'function' === typeof onWrite ) onWrite( file );
+                  if ( 'function' === typeof onComplete ) onComplete( path );
               }
             });
         }
         return self;
     }
 });
-FileManager.prototype.load = FileManager.prototype.read;
 FILTER.IO.FileLoader = FILTER.IO.FileReader = FILTER.IO.FileWriter = FileManager;
 
 FILTER.IO.BinaryManager = Class(FileManager, {
@@ -130,42 +127,56 @@ FILTER.IO.BinaryManager = Class(FileManager, {
         }
     },
     
-    read: function( url, onLoad, onError ){
+    read: function( path, onComplete, onError ){
         var self = this, image = new FILTER.Image( ), decoder = self._codec ? self._codec.decoder : null;
-        
         if ( 'function' === typeof decoder )
         {
-            self
-                .responseType( 'arraybuffer' )
-                .$super('load', url, function( buffer ) {
-                    var metaData = {}, imData = decoder( buffer, metaData );
-                    if ( !imData )
-                    {
-                        if ( 'function' === typeof onError ) onError( image, metaData, buffer );
-                        return;
-                    }
+            self.responseType( 'arraybuffer' ).$super( 'read', path, function( buffer ){
+                var exc = null, metaData = {}, imData;
+                try {
+                    imData = decoder( buffer, metaData );
+                } catch ( e ) {
+                    exc = e;
+                    imData = null;
+                    //throw e;
+                }
+                if ( exc || !imData )
+                {
+                    if ( 'function' === typeof onError ) onError( exc, buffer, image, metaData );
+                }
+                else
+                {
                     image.image( imData );
-                    if ( 'function' === typeof onLoad ) onLoad( image, metaData );
-                }, onError )
-            ;
+                    if ( 'function' === typeof onComplete ) onComplete( image, metaData );
+                }
+            }, onError );
         }
         return image;
     },
     
-    write: function( file, image, onWrite, onError ){
-        var self = this, encoder = self._codec ? self._codec.encoder : null;
-        
+    write: function( path, image, onComplete, onError ){
+        var exc = null, self = this, buffer, encoder = self._codec ? self._codec.encoder : null;
         if ( image && ('function' === typeof encoder) )
         {
-            self
-                .encoding( 'arraybuffer' )
-                .$super('write', file, encoder( image.getPixelData( ) ), onWrite, onError )
-            ;
+            try {
+                buffer = encoder( image.getPixelData( ) );
+            } catch ( e ) {
+                exc = e;
+                buffer = null;
+                //throw e;
+            }
+            if ( exc || !buffer )
+            {
+                if ( 'function' === typeof onError ) onError( exc, image );
+            }
+            else
+            {
+                self.encoding( 'arraybuffer' ).$super( 'write', path, buffer, onComplete, onError );
+            }
         }
         return self;
     }
 });
-FILTER.IO.BinaryManager.prototype.load = FILTER.IO.BinaryManager.prototype.read;
 FILTER.IO.BinaryLoader = FILTER.IO.BinaryReader = FILTER.IO.BinaryWriter = FILTER.IO.BinaryManager;
 
 }(FILTER);

@@ -15,7 +15,8 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ###Contents
 
 * [Image](#image-class)
-* [Image Loader](#loader--binaryloader--htmlimageloader-classes)
+* [File Input Output](#file-input-output)
+* [Codecs](#codecs) 
 * [Abstract Filter](#generic-abstract-filter)
 * [Color Table Filter](#color-table-filter) 
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
@@ -35,7 +36,6 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
 * [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
-* [Codecs](#codecs) 
 
 
 
@@ -89,21 +89,141 @@ __Methods:__
 
 
 
-###Loader / BinaryLoader / HTMLImageLoader Classes
+###File Input Output
+
+`FILTER` lib includes a number of I/O (input/output) managers which can be included and used optionaly.
+
+* **`FILTER.IO.HTMLImageLoader`**
 
 ````javascript
-filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl:String [, onLoad:Function, onError:Function] );
+filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl:String [, onComplete:Function, onError:Function] );
 
 // this is same as (factory-constructor pattern):
 
-filterImageInstance = new FILTER.IO.HTMLImageLoader( ).load( imageUrl [, onLoad, onError] );
+filterImageInstance = new FILTER.IO.HTMLImageLoader( ).load( imageUrl [, onComplete, onError] );
 ````
 
-Loads an image url into a `FILTER.Image` instance. 
+Loads an image url into a `FILTER.Image` instance using an HTMl Image as underlying loader (`browser` only). 
 
-The same functionality to load a url into a `FILTER.Image` has been **removed from the FILTER.Image Class**
+**NOTE:** The same functionality to load a url into a `FILTER.Image` has been **removed from the `FILTER.Image` Class**. Use the `FILTER.IO.HTMLImageLoader` instead.
 
-Use the `FILTER.IO.HTMLImageLoader` instead. In order to use the `FILTER.IO.BinaryLoader` to load and decode a custom image format, see below.
+
+* **`FILTER.IO.FileManager`**
+
+````javascript
+data = FILTER.IO.FileManager.read( path_or_url:String [, onComplete:Function, onError:Function] );
+FILTER.IO.FileManager.write( path_or_url:String, data:Buffer|String [, onComplete:Function, onError:Function] );
+
+// this is same as (factory-constructor pattern):
+
+data = new FILTER.IO.FileManager( ).read( path_or_url:String [, onComplete:Function, onError:Function] );
+new FILTER.IO.FileManager( ).write( path:String, data:Buffer|String [, onComplete:Function, onError:Function] );
+````
+
+This manager reads/writes files using generic data of any form (not necesarily images). Including local files (in `nodejs`) and/or remote/internet files (via `XmlHttpRequest`, `browser` and `nodejs`)
+
+
+* **`FILTER.IO.BinaryManager`**
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( codec:Object ).read( path_or_url:String [, onComplete:Function, onError:Function] );
+FILTER.IO.BinaryManager( codec:Object ).write( path_or_url:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
+
+// this is same as (factory-constructor pattern):
+
+filterImageInstance = new FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).read( path_or_url:String [, onComplete:Function, onError:Function] );
+new FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
+````
+
+This manager is a subclass of `FILTER.IO.FileManager` and reads/writes **binary** data files directly into and from a `FILTER.Image` using appropriate `codec` (encoder/decoder). The `codec` parameter is an object having at least one of `encoder` and/or `decoder` methods. *(see below for more codec examples)*
+
+
+###Codecs
+
+Native javascript `codecs` (`encoders` / `decoders`) are included for various `image` formats (both `browser` and `nodejs`):
+
+1. `RAW` (reads/writes the raw binary data as is)
+2. `PNG` (adapted from https://github.com/devongovett/png.js/ and https://github.com/lukeapage/pngjs) (**encoder + decoder**)
+3. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js) (**encoder + decoder**)
+4. `BMP` (adapted from https://github.com/shaozilee/bmp-js) (**encoder + decoder**)
+5. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js) (**decoder only**)
+6. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js) (**decoder only**)
+7. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html) (**encoder + decoder**)
+8. Any object having at least one of `encoder` and/or `decoder` methods can be used on-the-fly as custom codec.
+
+Instead of separate loaders per image format, only one `binary manager` (see above) is used, with the appropriate codec as parameter.
+This makes code more flexible and shorter, loaders can be adapted for `nodejs` easier and custom codecs can be used on the fly.
+
+**`PNG` example**
+Loads an image url in PNG format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.PNG ).read( path [, onComplete, onError] );
+````
+
+**`JPG` example**
+Loads an image url in JPG format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.JPG ).read( path [, onComplete, onError] );
+FILTER.IO.BinaryManager( FILTER.Codec.JPG ).write( path, filterImageInstance [, onComplete, onError] );
+````
+
+**`GIF` example**
+Loads an image url in GIF format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.GIF ).read( path [, onComplete, onError] );
+````
+
+**`BMP` example**
+Loads an image url in BMP format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.BMP ).read( path [, onComplete, onError] );
+FILTER.IO.BinaryManager( FILTER.Codec.BMP ).write( path, filterImageInstance [, onComplete, onError] );
+````
+
+**`TGA` example**
+Loads an image url in TGA format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.TGA ).read( path [, onComplete, onError] );
+````
+
+**`RGBE` example**
+Loads an image url in RGBE format into a `FILTER.Image` instance. 
+
+````javascript
+filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.RGBE ).read( path [, onComplete, onError] );
+FILTER.IO.BinaryManager( FILTER.Codec.RGBE ).write( path, filterImageInstance [, onComplete, onError] );
+````
+
+
+**custom example**
+
+````javascript
+var customFormat = FILTER.IO.BinaryManager({
+    decoder: function( buffer, metaData ) {
+        // your custom decoder here
+        // ..
+        return {
+            width: image_width,
+            height: image_height,
+            data: decoded_image_data
+        };
+    },
+    encoder: function( imageData ) {
+        // your custom encoder here
+        // ..
+        return write_buffer;
+    }
+});
+// NOTE: same instance can read and write data (if both encoder and decoder methods exist of course)
+filterImageInstance = customFormat.read( path [, onComplete, onError] );
+// maybe do some processing here.. then write result
+customFormat.write( path, filterImageInstance [, onComplete, onError] );
+````
 
 
 ###Generic Abstract Filter
@@ -941,60 +1061,3 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
 </tbody>
 </table>
-
-###Codecs
-
-
-Native javascript `codecs` (`encoders` / `decoders`) are included for various `image` formats:
-
-1. `PNG` (adapted from https://github.com/devongovett/png.js/) (**decoder only**)
-2. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js) (**encoder + decoder**)
-3. `BMP` (adapted from https://github.com/shaozilee/bmp-js) (**encoder + decoder**)
-4. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js) (**decoder only**)
-5. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js) (**decoder only**)
-6. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html) (**encoder + decoder**)
-
-Instead of separate loaders per image format, only one `binary loader` is used, with the appropriate codecs as parameters.
-This makes code more flexible and shorter, loaders can be adapted for nodejs easier and custom codecs can be used on the fly.
-
-**`PNG` example**
-Loads an image url in PNG format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.PNG.decoder ).load( imageUrl [, onLoad, onError] );
-````
-
-**`JPG` example**
-Loads an image url in JPG format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.JPG.decoder ).load( imageUrl [, onLoad, onError] );
-````
-
-**`GIF` example**
-Loads an image url in GIF format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.GIF.decoder ).load( imageUrl [, onLoad, onError] );
-````
-
-**`BMP` example**
-Loads an image url in BMP format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.BMP.decoder ).load( imageUrl [, onLoad, onError] );
-````
-
-**`TGA` example**
-Loads an image url in TGA format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.TGA.decoder ).load( imageUrl [, onLoad, onError] );
-````
-
-**`RGBE` example**
-Loads an image url in RGBE format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryLoader( FILTER.Codec.RGBE.decoder ).load( imageUrl [, onLoad, onError] );
-````
