@@ -11,7 +11,8 @@ if ( FILTER.Util.LOADED_XHR ) return;
 FILTER.Util.LOADED_XHR = true;
 
 var HAS = 'hasOwnProperty', toString = Object.prototype.toString,
-    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim;
+    KEYS = Object.keys, CRLF = "\r\n", trim = FILTER.Util.String.trim,
+    isNode = FILTER.Browser.isNode;
 
 // adapted from https://github.com/foo123/RT
 function header_encode( headers, xmlHttpRequest, httpRequestResponse )
@@ -168,8 +169,7 @@ XHR.HEADERS_RECEIVED = 2;
 XHR.LOADING = 3;
 XHR.DONE = 4;
 
-XHR.create = FILTER.Browser.isNode
-    ? function( o, payload ) {
+XHR.create = isNode ? function( o, payload ) {
         o = o || {};
         if ( !o.url ) return null;
         var url = '[object Object]' === toString.call(o.url) ? o.url : require('url').parse( o.url ),
@@ -319,8 +319,7 @@ XHR.create = FILTER.Browser.isNode
         //if ( o.mimeType ) $hr$.overrideMimeType( o.mimeType );
         if ( arguments.length > 1 ) xhr.send( payload );
         return xhr;
-    }
-    : function( o, payload ) {
+    } : function( o, payload ) {
         o = o || {};
         if ( !o.url ) return null;
         var $xhr$ = 'undefined' !== typeof XMLHttpRequest

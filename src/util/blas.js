@@ -13,10 +13,7 @@ FILTER.Util.LOADED_BLAS = true;
 // extended versions of C BLAS from: https://people.sc.fsu.edu/~jburkardt/
 var BLAS = FILTER.Util.BLAS = FILTER.Util.BLAS || {},
     fabs = Math.abs, fmax = Math.max, fmin = Math.min,
-    sqrt = Math.sqrt, sign = /*Math.sign*/function sign( x ){ return 0 > x ? -1.0 : 1.0; };
-
-// utils
-BLAS.SGN = sign;
+    sqrt = Math.sqrt, sign = /*Math.sign*/FILTER.Util.Math.sign;
 
 // BLAS 1
 BLAS.NRM2 = function NRM2( n, x, x0, dx ) {

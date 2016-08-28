@@ -47,7 +47,10 @@ function arrayset_shim( a, b, offset, b0, b1 )
 {
     offset = offset || 0; b0 = b0 || 0;
     var j, i, n = b1 ? b1-b0+1 : b.length, rem = n&31;
-    for(i=0; i<rem; i++) a[ i + offset ] = b[ b0 + i ];
+    for(i=0; i<rem; i++)
+    {
+        a[ i + offset ] = b[ b0 + i ];
+    }
     for(j=rem; j<n; j+=32)
     {
         i = j;
@@ -215,9 +218,9 @@ function integral( im, w, h, stride, channel, integ )
     // compute integral of image in one pass
     // first row
     sum = 0; j = 0;
-    for (i=channel; i<rem; i+=ii,j++)
+    for (i=channel; i<rem; i+=ii)
     {
-        sum += im[i]; integ[j] = sum;
+        sum += im[i]; integ[j++] = sum;
     }
     for (i0=rem+channel; i0<rowlen; i0+=i32)
     {
@@ -257,10 +260,10 @@ function integral( im, w, h, stride, channel, integ )
     
     // other rows
     x=0; j=0; sum=0; rem += rowlen;
-    for (i=rowLen+channel; i<rem; i+=ii,x++,j++)
+    for (i=rowLen+channel; i<rem; i+=ii)
     {
-        if ( x >=w ) { x=0; sum=0; }
-        sum += im[i]; integ[j+w] = integ[j] + sum; 
+        sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
     }
     for (i0=rem+channel; i0<len; i0+=i32)
     {
@@ -377,7 +380,11 @@ function histogram( im, w, h, stride, channel, pdf_only, cdf )
         cdf[i+31]=0;
     }*/
     // compute pdf
-    for (i0=channel; i0<l; i0+=i32)
+    for (i=channel; i<rem; i+=ii)
+    {
+        cdf[ im[ i ] ]++;
+    }
+    for (i0=rem+channel; i0<l; i0+=i32)
     {
         // partial loop unrolling
         i =i0; cdf[ im[i] ]++;
@@ -413,7 +420,6 @@ function histogram( im, w, h, stride, channel, pdf_only, cdf )
         i+=ii; cdf[ im[i] ]++;
         i+=ii; cdf[ im[i] ]++;
     }
-    if ( rem ) for (i=l-rem+channel; i<l; i+=ii) cdf[ im[ i ] ]++;
     
     // return pdf NOT cdf
     if ( true === pdf_only ) return cdf;
@@ -501,14 +507,19 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
         rem = (w&31)<<stride, sum, sum2, c, i, i0, j, i32 = 32<<stride, ii = 1<<stride, x, y;
         
     // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
+    // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+    // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+    
+    // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+    // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
     // first row
-    for (j=0,i0=channel,sum=sum2=0; i0<rowLen; i0+=i32)
+    sum=sum2=0; j=0;
+    for (i=channel; i<rem; i+=ii)
     {
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+    }
+    for (i0=rem+channel; i0<rowLen; i0+=i32)
+    {
         i =i0; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
@@ -542,22 +553,16 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
     }
-    if ( rem )
-    {
-        for (i=rowLen-rem+channel; i<rowLen; i+=ii,j++)
-        {
-            c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
-        }
-    }
     
     // other rows
-    for (x=0,y=1,j=0,sum=0,sum2=0,i0=rowLen+channel; i0<len; i0+=i32)
+    x=0; y=1; j=0; sum=0; sum2=0; rem+=rowLen;
+    for (i=rowLen+channel; i<rem; i+=ii)
     {
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+    }
+    for (i0=rem+channel; i0<len; i0+=i32)
+    {
         i =i0; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
         i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
@@ -622,14 +627,6 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
         i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
-    }
-    if ( rem )
-    {
-        for (i=len-rem+channel; i<len; i+=ii,x++,j++)
-        {
-            if ( x >=w ) { x=0; y++; sum=sum2=0; }
-            c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
-        }
     }
 }
 function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
@@ -1979,6 +1976,7 @@ function cm_convolve( cm1, cm2, matrix )
 }
 
 MathUtil.clamp = clamp;
+MathUtil.sign = function sign( x ){ return 0 > x ? -1.0 : 1.0; };
 
 ArrayUtil.typed = FILTER.Browser.isNode ? function( a, A ) {
     if ( (null == a) || (a instanceof A) ) return a;
