@@ -1,71 +1,8 @@
 "use strict";
 
-function parse_args( args ) 
-{
-    var 
-        Flags = {}, Options = {},  Params = [],
-        optionname = '',  argumentforoption = false,
-        arg, index, i, len, i0
-    ;
-    
-    if ( args )
-    {
-        i0 = 0;
-    }
-    else
-    {
-        args = process.argv;
-        // remove firt 2 args ('node' and 'this filename')
-        //args = args.slice(2);
-        i0 = 2;
-    }
-    
-    for (i=i0,len=args.length; i<len; ++i) 
-    {
-        arg = args[i];
-        if (arg.length > 1 && '-' == arg[0] && '-' != arg[1])
-        {
-            arg.slice(1).split('').forEach(function(c){
-                Flags[c] = true;
-            });
-            argumentforoption = false;
-        }
-        /*/^--/.test(arg)*/
-        else if (/^--/.test(arg))
-        {
-            index = arg.indexOf('=');
-            if (~index)
-            {
-                optionname = arg.slice(2, index);
-                Options[optionname] = arg.slice(index + 1);
-                argumentforoption = false;
-            }
-            else
-            {
-                optionname = arg.slice(2);
-                Options[optionname] = true;
-                argumentforoption = true;
-            }
-        } 
-        else 
-        {
-            if (argumentforoption)
-            {
-                Options[optionname] = arg;
-            }
-            else
-            {
-                Params.push(arg);
-            }
-            argumentforoption = false;
-        }
-    }
-    
-    return {flags: Flags, options: Options, params: Params};
-}
-
-
-var path = require('path'), F = require('../../build/filter.bundle.js'),
+var parse_args = require('./commargs.js'),
+    path = require('path'),
+    F = require('../../build/filter.bundle.js'),
     pattern1 = F.Image.PerlinNoise(
         140 /* width */, 140 /* height */,
         0,
@@ -89,15 +26,16 @@ var path = require('path'), F = require('../../build/filter.bundle.js'),
         new F.PatternFillFilter(75/* x0 */,112/* y0 */,pattern2, 0,0, F.MODE.TILE, 0.5/* tolerance */),
         new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
         new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.TILE, 0.5/* tolerance */)
-    ])
+    ]),
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG )
 ;
 
-F.IO.BinaryReader( F.Codec.JPG.decoder ).load(path.join(__dirname,'./yin_yang_blank.jpg'), function( yin_yang ){
+binaryManager.read( path.join(__dirname,'./yin_yang_blank.jpg'), function( yin_yang ){
     console.log('Applying filter..');
     patternFill.apply( yin_yang, function( ){
         //patternFill.worker( false );
         console.log('Saving image..');
-        F.IO.BinaryWriter( F.Codec.JPG.encoder ).write(path.join(__dirname,'./yin_yang_pattern.jpg'), yin_yang,
+        binaryManager.write( path.join(__dirname,'./yin_yang_pattern.jpg'), yin_yang,
         function( file ){
             console.log('image saved to: ' + './yin_yang_pattern.jpg');
         }, function( err ){

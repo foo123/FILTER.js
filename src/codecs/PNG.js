@@ -386,7 +386,7 @@ PNG.prototype = {
 
 FILTER.Codec.PNG = {
 
-    encoder: FILTER.NotImplemented('PNG.encoder'),
+    encoder: null,//FILTER.NotImplemented('PNG.encoder'),
     
     decoder: function( buffer, metaData ) {
         var png = new PNG( );

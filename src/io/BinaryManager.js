@@ -104,37 +104,34 @@ FILTER.IO.BinaryManager = Class(FileManager, {
     constructor: function BinaryManager( codec ) {
         var self = this;
         if ( !(self instanceof BinaryManager) ) return new BinaryManager( codec );
-        self._codec = "function" === typeof codec ? codec : null;
+        self._codec = "object" === typeof codec ? codec : null;
         self.$super("constructor");
     },
     
-    _decoder: null,
-    _encoder: null,
     _codec: null,
     
     dispose: function( ) {
         var self = this;
-        self._decoder = null;
-        self._encoder = null;
         self._codec = null;
         self.$super("dispose");
         return self;
     },
     
-    encoder: function( encoder ) {
+    codec: function( codec ) {
         var self = this;
-        self._codec = self._encoder = "function" === typeof encoder ? encoder : null;
-        return self;
-    },
-    
-    decoder: function( decoder ) {
-        var self = this;
-        self._codec = self._decoder = "function" === typeof decoder ? decoder : null;
-        return self;
+        if ( arguments.length )
+        {
+            self._codec = "object" === typeof codec ? codec : null;
+            return self;
+        }
+        else
+        {
+            return self._codec;
+        }
     },
     
     read: function( url, onLoad, onError ){
-        var self = this, image = new FILTER.Image( ), decoder = self._decoder || self._codec;
+        var self = this, image = new FILTER.Image( ), decoder = self._codec ? self._codec.decoder : null;
         
         if ( 'function' === typeof decoder )
         {
@@ -156,7 +153,7 @@ FILTER.IO.BinaryManager = Class(FileManager, {
     },
     
     write: function( file, image, onWrite, onError ){
-        var self = this, encoder = self._encoder || self._codec;
+        var self = this, encoder = self._codec ? self._codec.encoder : null;
         
         if ( image && ('function' === typeof encoder) )
         {

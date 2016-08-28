@@ -378,7 +378,7 @@ function parseGIF( st, handler )
 
 FILTER.Codec.GIF = {
 
-    encoder: FILTER.NotImplemented('GIF.encoder'),
+    encoder: null,//FILTER.NotImplemented('GIF.encoder'),
     
     decoder: function ( buffer, metaData ) {
         var hdr, transparency = null,

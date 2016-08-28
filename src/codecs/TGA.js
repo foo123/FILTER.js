@@ -362,7 +362,7 @@ function getTgaRGBA( header, width, height, image, palette, use_grey )
 
 FILTER.Codec.TGA = {
 
-    encoder: FILTER.NotImplemented('TGA.encoder'),
+    encoder: null,//FILTER.NotImplemented('TGA.encoder'),
     
     decoder: function ( buffer, metaData ) {
 
