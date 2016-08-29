@@ -126,8 +126,8 @@ This manager reads/writes files using generic data of any form (not necesarily i
 * **`FILTER.IO.BinaryManager`**
 
 ````javascript
-filterImageInstance = FILTER.IO.BinaryManager( codec:Object ).read( path_or_url:String [, onComplete:Function, onError:Function] );
-FILTER.IO.BinaryManager( codec:Object ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
+filterImageInstance = FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).read( path_or_url:String [, onComplete:Function, onError:Function] );
+FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
 
 // this is same as (factory-constructor pattern):
 
