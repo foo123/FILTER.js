@@ -82,7 +82,7 @@ FILTER.Create({
         for(x=x1,y=y1; y<=y2; )
         {
             k = x+y;
-            if ( 0 < mask[k] )
+            if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
             {
                 i = k << 2;
                 im[i  ] = r;
@@ -181,7 +181,7 @@ FILTER.Create({
             for(x=x1,y=y1; y<=y2; )
             {
                 k = x+y;
-                if ( 0 < mask[k] )
+                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
                     //px = (pw*(x-x1)/(x2-x1+1))|0; py = (ph*(y-y1)/(y2-y1+w))|0;
@@ -201,7 +201,7 @@ FILTER.Create({
             for(x=x1,y=y1; y<=y2; )
             {
                 k = x+y;
-                if ( 0 < mask[k] )
+                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
                     px = (x-x1+px0) % pw;

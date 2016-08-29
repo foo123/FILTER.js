@@ -792,7 +792,7 @@ FILTER.IO.Manager = FILTER.Class({
 // aliases
 FILTER.IO.Loader = FILTER.IO.Reader = FILTER.IO.Writer = FILTER.IO.Manager;
 // a default raw codec
-FILTER.CODEC.RAW = {
+FILTER.Codec.RAW = {
     encoder: function( imgData, metaData ) {
         return new Buffer( imgData );
     },

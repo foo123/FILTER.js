@@ -8,7 +8,7 @@
 "use strict";
 
 var A32I = FILTER.Array32I, A32U = FILTER.Array32U, A8U = FILTER.Array8U,
-    min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
+    ceil = Math.ceil, min = Math.min, max = Math.max, abs = Math.abs, NUM_LABELS = 20;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
 function root_of( id, labels )
@@ -193,10 +193,12 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
         l, i, k, x, x1, x2, yw, stack, slen, notdone, labeled;
         
     xm = x0; ym = y0; xM = x0; yM = y0; 
-    labeled = new A8U(imSize);
+    //labeled = new A8U(imSize);
+    labeled = new A32U(ceil(imSize/32));
     stack = new A32I(imSize<<2); slen = 0; // pre-allocate and soft push/pop for speed
     
-    labeled[(x0+y0)>>>2] = 255;
+    //labeled[(x0+y0)>>>2] = 255;
+    labeled[(x0+y0)>>>7] |= 1<<(((x0+y0)>>>2)&31);
     if ( y0+dy >= ymin && y0+dy <= ymax )
     {
         /* needed in some cases */
@@ -232,9 +234,10 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
         for (x=x1; x>=xmin; x-=4)
         {
             i = x+yw; k = i>>>2;
-            if ( 0===labeled[k] && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+            if ( /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
             {
-                labeled[k] = 255;
+                //labeled[k] = 255;
+                labeled[k>>>5] |= 1<<(k&31);
                 xm = min(xm, x);
             }
             else break;
@@ -243,7 +246,7 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
         {
             // goto skip:
             i = x+yw; k = i>>>2;
-            while ( x<=x2 && (0!==labeled[k] || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
+            while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
             {
                 x+=4;
                 i = x+yw; k = i>>>2;
@@ -273,9 +276,10 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
         while ( notdone ) 
         {
             i = x+yw; k = i>>>2;
-            while ( x<=xmax && 0===labeled[k] && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+            while ( x<=xmax && /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
             {
-                labeled[k] = 255;
+                //labeled[k] = 255;
+                labeled[k>>>5] |= 1<<(k&31);
                 xM = max(xM, x);
                 x+=4; i = x+yw; k = i>>>2;
             }
@@ -302,7 +306,7 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
             }
     /*skip:*/   
             i = x+yw; k = i>>>2;
-            while ( x<=x2 && (0!==labeled[k] || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) ) 
+            while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) ) 
             {
                 x+=4;
                 i = x+yw; k = i>>>2;

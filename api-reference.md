@@ -93,7 +93,7 @@ __Methods:__
 
 `FILTER` lib includes a number of I/O (input/output) managers which can be included and used optionaly.
 
-* **`FILTER.IO.HTMLImageLoader`**
+* **`FILTER.IO.HTMLImageManager`**
 
 ````javascript
 filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl:String [, onComplete:Function, onError:Function] );
@@ -112,7 +112,7 @@ Loads an image url into a `FILTER.Image` instance using an HTMl Image as underly
 
 ````javascript
 data = FILTER.IO.FileManager.read( path_or_url:String [, onComplete:Function, onError:Function] );
-FILTER.IO.FileManager.write( path_or_url:String, data:Buffer|String [, onComplete:Function, onError:Function] );
+FILTER.IO.FileManager.write( path:String, data:Buffer|String [, onComplete:Function, onError:Function] );
 
 // this is same as (factory-constructor pattern):
 
@@ -127,7 +127,7 @@ This manager reads/writes files using generic data of any form (not necesarily i
 
 ````javascript
 filterImageInstance = FILTER.IO.BinaryManager( codec:Object ).read( path_or_url:String [, onComplete:Function, onError:Function] );
-FILTER.IO.BinaryManager( codec:Object ).write( path_or_url:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
+FILTER.IO.BinaryManager( codec:Object ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
 
 // this is same as (factory-constructor pattern):
 
@@ -159,6 +159,7 @@ Loads an image url in PNG format into a `FILTER.Image` instance.
 
 ````javascript
 filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.PNG ).read( path [, onComplete, onError] );
+FILTER.IO.BinaryManager( FILTER.Codec.PNG ).write( path, filterImageInstance [, onComplete, onError] );
 ````
 
 **`JPG` example**

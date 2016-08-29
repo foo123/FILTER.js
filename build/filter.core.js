@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-27 16:27:52
+*   @built on 2016-08-29 04:59:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-27 16:27:52
+*   @built on 2016-08-29 04:59:56
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -727,28 +727,47 @@ FILTER.IO.Manager = FILTER.Class({
     name: "IO.Manager",
     
     __static__: {
-        // accessible as "$class.load" (extendable and with "late static binding")
-        load: FILTER.Classy.Method(function($super, $private, $class){
+        // accessible as "$class.read" (extendable and with "late static binding")
+        read: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( url, onLoad, onError ) {
-                return new $class().read(url, onLoad, onError);
+              return function( path, onComplete, onError ) {
+                return new $class().read(path, onComplete, onError);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
         
-        // accessible as "$class.load" (extendable and with "late static binding")
+        // accessible as "$class.write" (extendable and with "late static binding")
         write: FILTER.Classy.Method(function($super, $private, $class){
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( file, data, onWrite, onError ) {
-                return new $class().write(file, data, onWrite, onError);
+              return function( path, data, onComplete, onError ) {
+                return new $class().write(path, data, onComplete, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
+        
+        load: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( path, onComplete, onError ) {
+                return new $class().read(path, onComplete, onError);
+            }
+        }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
+        
+        // accessible as "$class.write" (extendable and with "late static binding")
+        save: FILTER.Classy.Method(function($super, $private, $class){
+              // $super is the direct reference to the superclass itself (NOT the prototype)
+              // $private is the direct reference to the private methods of this class (if any)
+              // $class is the direct reference to this class itself (NOT the prototype)
+              return function( path, data, onComplete, onError ) {
+                return new $class().write(path, data, onComplete, onError);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC )
     },
     
-    constructor: function Manager() {
+    constructor: function Manager( ){
         /*var self = this;
         if ( !(self instanceof Manager) )
             return new Manager( );*/
@@ -758,7 +777,7 @@ FILTER.IO.Manager = FILTER.Class({
     _responseType: null,
     _encoding: null,
     
-    dispose: function( ) {
+    dispose: function( ){
         var self = this;
         self._crossOrigin = null;
         self._responseType = null;
@@ -767,14 +786,19 @@ FILTER.IO.Manager = FILTER.Class({
     },
     
     // override in sub-classes
-    load: null,
-    read: function( url, onLoad, onError ){
+    read: function( path, onComplete, onError ){
+        return null;
+    },
+    write: function( path, data, onComplete, onError ){
         return null;
     },
     
-    // override in sub-classes
-    write: function( file, data, onWrite, onError ){
-        return null;
+    // aliases
+    load: function( path, onComplete, onError ){
+        return this.read( path, onComplete, onError );
+    },
+    save: function( path, data, onComplete, onError ){
+        return this.write( path, data, onComplete, onError );
     },
 
     responseType: function ( value ) {
@@ -808,9 +832,20 @@ FILTER.IO.Manager = FILTER.Class({
     }
 });
 // aliases
-FILTER.IO.Manager[PROTO].load = FILTER.IO.Manager[PROTO].read;
 FILTER.IO.Loader = FILTER.IO.Reader = FILTER.IO.Writer = FILTER.IO.Manager;
-
+// a default raw codec
+FILTER.Codec.RAW = {
+    encoder: function( imgData, metaData ) {
+        return new Buffer( imgData );
+    },
+    decoder: function( buffer, metaData ) {
+        return {
+            width: metaData.width || 1,
+            height: metaData.height || 1,
+            data: new Uint8Array( buffer )
+        };
+    }
+};
 
 // filter plugin creation micro-framework
 FILTER.Create = function( methods ) {
@@ -875,9 +910,13 @@ function clamp( x, m, M )
 
 function arrayset_shim( a, b, offset, b0, b1 )
 {
+    //"use asm";
     offset = offset || 0; b0 = b0 || 0;
     var j, i, n = b1 ? b1-b0+1 : b.length, rem = n&31;
-    for(i=0; i<rem; i++) a[ i + offset ] = b[ b0 + i ];
+    for(i=0; i<rem; i++)
+    {
+        a[ i + offset ] = b[ b0 + i ];
+    }
     for(j=rem; j<n; j+=32)
     {
         i = j;
@@ -918,6 +957,7 @@ function arrayset_shim( a, b, offset, b0, b1 )
 
 function crop( im, w, h, x1, y1, x2, y2 )
 {
+    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1, 
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
@@ -932,6 +972,7 @@ function crop( im, w, h, x1, y1, x2, y2 )
 }
 function crop_shim( im, w, h, x1, y1, x2, y2 )
 {
+    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1, 
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize), 
@@ -946,6 +987,7 @@ function crop_shim( im, w, h, x1, y1, x2, y2 )
 }
 function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
+    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
@@ -962,6 +1004,7 @@ function pad( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 }
 function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 {
+    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot, 
@@ -978,6 +1021,7 @@ function pad_shim( im, w, h, pad_right, pad_bot, pad_left, pad_top )
 }
 function get_data( D, W, H, x0, y0, x1, y1, orig )
 {
+    //"use asm";
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
     if ( (0 === x0) && (0 === y0) && (W === x1+1) && (H === y1+1) ) return true === orig ? D : new IMGcpy( D );
@@ -996,6 +1040,7 @@ function get_data( D, W, H, x0, y0, x1, y1, orig )
 }
 function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 {
+    //"use asm";
     var i, I, x, y;
     if ( !D.length || !d.length || !w || !h || !W || !H ) return D;
     x0 = Min(x0, w-1); y0 = Min(y0, h-1);
@@ -1017,6 +1062,7 @@ function set_data( D, W, H, d, w, h, x0, y0, x1, y1, X0, Y0 )
 }
 function fill_data( D, W, H, c, x0, y0, x1, y1 )
 {
+    //"use asm";
     x0 = Min(x0, W-1); y0 = Min(y0, H-1);
     x1 = Min(x1, W-1); y1 = Min(y1, H-1);
     if ( !D.length || (x1 < x0) || (y1 < y0) ) return D;
@@ -1036,6 +1082,7 @@ function fill_data( D, W, H, c, x0, y0, x1, y1 )
 // compute integral image (Summed Area Table, SAT) (for a given channel)
 function integral( im, w, h, stride, channel, integ ) 
 {
+    //"use asm";
     stride = stride||0; channel = channel||0;
     var len = im.length, size = len>>>stride, rowLen = w<<stride,
         rem = (w&31)<<stride, i32 = 32<<stride, ii = 1<<stride,
@@ -1045,9 +1092,9 @@ function integral( im, w, h, stride, channel, integ )
     // compute integral of image in one pass
     // first row
     sum = 0; j = 0;
-    for (i=channel; i<rem; i+=ii,j++)
+    for (i=channel; i<rem; i+=ii)
     {
-        sum += im[i]; integ[j] = sum;
+        sum += im[i]; integ[j++] = sum;
     }
     for (i0=rem+channel; i0<rowlen; i0+=i32)
     {
@@ -1087,10 +1134,10 @@ function integral( im, w, h, stride, channel, integ )
     
     // other rows
     x=0; j=0; sum=0; rem += rowlen;
-    for (i=rowLen+channel; i<rem; i+=ii,x++,j++)
+    for (i=rowLen+channel; i<rem; i+=ii)
     {
-        if ( x >=w ) { x=0; sum=0; }
-        sum += im[i]; integ[j+w] = integ[j] + sum; 
+        sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
+        if ( ++x >=w ) { x=0; sum=0; }
     }
     for (i0=rem+channel; i0<len; i0+=i32)
     {
@@ -1164,6 +1211,7 @@ function integral( im, w, h, stride, channel, integ )
 // compute image histogram (for a given channel)
 function histogram( im, w, h, stride, channel, pdf_only, cdf )
 {
+    //"use asm";
     stride = stride||0; channel = channel||0;
     var i, i0, i32 = 32<<stride, ii = 1<<stride,
         l = im.length, l2 = l>>>stride, accum, rem = (l2&31)<<stride;
@@ -1207,7 +1255,11 @@ function histogram( im, w, h, stride, channel, pdf_only, cdf )
         cdf[i+31]=0;
     }*/
     // compute pdf
-    for (i0=channel; i0<l; i0+=i32)
+    for (i=channel; i<rem; i+=ii)
+    {
+        cdf[ im[ i ] ]++;
+    }
+    for (i0=rem+channel; i0<l; i0+=i32)
     {
         // partial loop unrolling
         i =i0; cdf[ im[i] ]++;
@@ -1243,7 +1295,6 @@ function histogram( im, w, h, stride, channel, pdf_only, cdf )
         i+=ii; cdf[ im[i] ]++;
         i+=ii; cdf[ im[i] ]++;
     }
-    if ( rem ) for (i=l-rem+channel; i<l; i+=ii) cdf[ im[ i ] ]++;
     
     // return pdf NOT cdf
     if ( true === pdf_only ) return cdf;
@@ -1327,18 +1378,24 @@ function spectrum( im, w, h, stride, channel )
 
 function integral2( im, w, h, stride, channel, sat, sat2, rsat )
 {
+    //"use asm";
     var len = im.length, size = len>>>stride, rowLen = w<<stride,
         rem = (w&31)<<stride, sum, sum2, c, i, i0, j, i32 = 32<<stride, ii = 1<<stride, x, y;
         
     // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
+    // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
+    // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
+    
+    // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
+    // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
     // first row
-    for (j=0,i0=channel,sum=sum2=0; i0<rowLen; i0+=i32)
+    sum=sum2=0; j=0;
+    for (i=channel; i<rem; i+=ii)
     {
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+    }
+    for (i0=rem+channel; i0<rowLen; i0+=i32)
+    {
         i =i0; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
@@ -1372,22 +1429,16 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
         i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
     }
-    if ( rem )
-    {
-        for (i=rowLen-rem+channel; i<rowLen; i+=ii,j++)
-        {
-            c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2;
-        }
-    }
     
     // other rows
-    for (x=0,y=1,j=0,sum=0,sum2=0,i0=rowLen+channel; i0<len; i0+=i32)
+    x=0; y=1; j=0; sum=0; sum2=0; rem+=rowLen;
+    for (i=rowLen+channel; i<rem; i+=ii)
     {
-        // SAT(-1, y) = SAT(x, -1) = SAT(-1, -1) = 0
-        // SAT(x, y) = SAT(x, y-1) + SAT(x-1, y) + I(x, y) - SAT(x-1, y-1)  <-- integral image
-        
-        // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
-        // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+        c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
+        if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
+    }
+    for (i0=rem+channel; i0<len; i0+=i32)
+    {
         i =i0; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
         i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
@@ -1453,18 +1504,11 @@ function integral2( im, w, h, stride, channel, sat, sat2, rsat )
         i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
         if ( ++x >=w ) { x=0; y++; sum=sum2=0; }
     }
-    if ( rem )
-    {
-        for (i=len-rem+channel; i<len; i+=ii,x++,j++)
-        {
-            if ( x >=w ) { x=0; y++; sum=sum2=0; }
-            c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0);
-        }
-    }
 }
 function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
                     low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
+    //"use asm";
     var stride0 = stride, imSize = im.length, count = imSize>>>stride,
         index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
         dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
@@ -1542,6 +1586,7 @@ function gradient( im, w, h, stride, channel, do_lowpass, do_sat,
 }
 function optimum_gradient( gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX )
 {
+    //"use asm";
     if ( null == MAGNITUDE_SCALE )
     {
         MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
@@ -1650,6 +1695,7 @@ function optimum_gradient( gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_S
 // speed-up convolution for special kernels like moving-average
 function integral_convolution( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
@@ -1965,6 +2011,7 @@ function integral_convolution( mode, im, w, h, stride, matrix, matrix2, dimX, di
 }
 function integral_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
         matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
@@ -2294,6 +2341,7 @@ function integral_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, di
 // speed-up convolution for separable kernels
 function separable_convolution( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
@@ -2406,6 +2454,7 @@ function separable_convolution( mode, im, w, h, stride, matrix, matrix2, ind1, i
 }
 function separable_convolution_clamp( mode, im, w, h, stride, matrix, matrix2, ind1, ind2, coeff1, coeff2 )
 {
+    //"use asm";
     var imLen=im.length, imArea=imLen>>>stride,
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
@@ -2809,6 +2858,7 @@ function cm_convolve( cm1, cm2, matrix )
 }
 
 MathUtil.clamp = clamp;
+MathUtil.sign = function sign( x ){ return 0 > x ? -1.0 : 1.0; };
 
 ArrayUtil.typed = FILTER.Browser.isNode ? function( a, A ) {
     if ( (null == a) || (a instanceof A) ) return a;

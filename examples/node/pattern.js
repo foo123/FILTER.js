@@ -27,17 +27,17 @@ var parse_args = require('./commargs.js'),
         new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
         new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.TILE, 0.5/* tolerance */)
     ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG )
+    binaryManager = F.IO.BinaryManager( F.Codec.PNG )
 ;
 
-binaryManager.read( path.join(__dirname,'./yin_yang_blank.jpg'), function( yin_yang ){
+binaryManager.read( path.join(__dirname,'./yin_yang_blank.png'), function( yin_yang ){
     console.log('Applying filter..');
     patternFill.apply( yin_yang, function( ){
         //patternFill.worker( false );
         console.log('Saving image..');
-        binaryManager.write( path.join(__dirname,'./yin_yang_pattern.jpg'), yin_yang,
+        binaryManager.write( path.join(__dirname,'./yin_yang_pattern.png'), yin_yang,
         function( file ){
-            console.log('image saved to: ' + './yin_yang_pattern.jpg');
+            console.log('image saved to: ' + './yin_yang_pattern.png');
         }, function( err ){
             console.log('error while saving image: ' + err);
         });
