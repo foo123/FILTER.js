@@ -370,8 +370,12 @@ var ColorTableFilter = FILTER.Create({
         if ( A )
         {
             // array linearization
+            for (i=0; i<rem; i+=4)
+            {
+                im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]]; im[i+3] = A[im[i+3]];
+            }
             // partial loop unrolling (4 iterations)
-            for (j=0; j<l; j+=64)
+            for (j=rem; j<l; j+=64)
             {
                 i = j;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
@@ -390,19 +394,17 @@ var ColorTableFilter = FILTER.Create({
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
-            }
-            // loop unrolling remainder
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                    im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]]; im[i+3] = A[im[i+3]];
             }
         }
         else
         {
             // array linearization
+            for (i=0; i<rem; i+=4)
+            {
+                im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]];
+            }
             // partial loop unrolling (4 iterations)
-            for (j=0; j<l; j+=64)
+            for (j=rem; j<l; j+=64)
             {
                 i = j;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
@@ -421,12 +423,6 @@ var ColorTableFilter = FILTER.Create({
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
-            }
-            // loop unrolling remainder
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                    im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]];
             }
         }
         return im;

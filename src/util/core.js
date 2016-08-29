@@ -21,6 +21,7 @@ var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArrayS
     MathUtil = FILTER.Util.Math = FILTER.Util.Math || {},
     ImageUtil = FILTER.Util.Image = FILTER.Util.Image || {},
     FilterUtil = FILTER.Util.Filter = FILTER.Util.Filter || {},
+    CodecUtil = FILTER.Util.Codec = FILTER.Util.Codec || {},
     Exp = Math.exp, Sqrt = Math.sqrt, Pow = Math.pow, Ceil = Math.ceil, Floor = Math.floor,
     Log = Math.log, Sin = Math.sin, Cos = Math.cos, Min = Math.min, Max = Math.max, Abs = Math.abs,
     PI = Math.PI, PI2 = PI+PI, PI_2 = 0.5*PI, 
@@ -2007,12 +2008,81 @@ ArrayUtil.typed_obj = FILTER.Browser.isNode ? function( o, unserialise ) {
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset_shim;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
+/*ArrayUtil.packed_isset = function packed_isset( packed, index ){
+    return packed[index>>>5] & (1<<(index&31));
+};
+ArrayUtil.packed_set = function packed_set( packed, index ){
+    packed[index>>>5] |= 1<<(index&31);
+};
+ArrayUtil.packed_unset = function packed_set( packed, index ){
+    packed[index>>>5] &= ~(1<<(index&31));
+};*/
 
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim 
 ? function( s ){ return s.trim(); }
 : function( s ){ return s.replace(trim_re, ''); };
 StringUtil.function_body = function_body;
+
+CodecUtil.readBytes = function readBytes( numbytes, buf, pos ){
+    var i, bytes = [];
+    if ( 0 <= numbytes ) for(i=0; i<numbytes; ++i)  bytes.push( buf[pos.pos++] );
+    else for(i=0; i>numbytes; --i) bytes.push( buf[pos.pos++] );
+    return bytes;
+};
+CodecUtil.readUInt8 = function readUInt8( buf, pos ){
+    return buf[pos.pos++];
+};
+CodecUtil.readUInt16LE = function readUInt16LE( buf, pos ){
+    // big endian, the most significant byte is stored in the smallest address
+    // little endian, the least significant byte is stored in the smallest address
+    var b0, b1;
+    b0 = buf[pos.pos++]; b1 = buf[pos.pos++];
+    return b0 | (b1<<8);
+};
+CodecUtil.readUInt16BE = function readUInt16BE( buf, pos ){
+    // big endian, the most significant byte is stored in the smallest address
+    // little endian, the least significant byte is stored in the smallest address
+    var b0, b1;
+    b0 = buf[pos.pos++]; b1 = buf[pos.pos++];
+    return b1 | (b0<<8);
+};
+CodecUtil.readUInt32LE = function readUInt32LE( buf, pos ){
+    // big endian, the most significant byte is stored in the smallest address
+    // little endian, the least significant byte is stored in the smallest address
+    var b0, b1, b2, b3;
+    b0 = buf[pos.pos++]; b1 = buf[pos.pos++]; b2 = buf[pos.pos++]; b3 = buf[pos.pos++];
+    return b0 | (b1<<8) | (b2<<16) | (b3<<24);
+};
+CodecUtil.readUInt32BE = function readUInt32BE( buf, pos ){
+    // big endian, the most significant byte is stored in the smallest address
+    // little endian, the least significant byte is stored in the smallest address
+    var b0, b1, b2, b3;
+    b0 = buf[pos.pos++]; b1 = buf[pos.pos++]; b2 = buf[pos.pos++]; b3 = buf[pos.pos++];
+    return b3 | (b2<<8) | (b1<<16) | (b0<<24);
+};
+CodecUtil.write = function write( buf, s ){
+    for (var i=0,n=s.length; i<n; i++) buf.push( s.charCodeAt( i ) );
+};
+CodecUtil.writeUInt8 = function writeUInt8( buf, b ){
+    buf.push( b&255 );
+};
+CodecUtil.writeUInt16LE = function writeUInt16LE( buf, b ){
+    buf.push( b&255, (b>>>8)&255 );
+};
+CodecUtil.writeUInt16BE = function writeUInt16BE( buf, b ){
+    buf.push( (b>>>8)&255, b&255 );
+};
+CodecUtil.writeUInt32LE = function writeUInt32LE( buf, b ){
+    buf.push( b&255, (b>>>8)&255, (b>>>16)&255, (b>>>24)&255 );
+};
+CodecUtil.writeUInt32BE = function writeUInt32BE( buf, b ){
+    buf.push( (b>>>24)&255, (b>>>16)&255, (b>>>8)&255, b&255 );
+};
+CodecUtil.fill = function fill( buf, b, start, end ){
+    for (var i=start; i<end; i++) buf[i] = b;
+};
+
 
 ImageUtil.get_data = get_data;
 ImageUtil.set_data = set_data;

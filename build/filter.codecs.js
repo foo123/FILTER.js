@@ -33,7 +33,7 @@ else /* Browser/WebWorker/.. */
 var FILTER_CODECS_PATH = FILTER.getPath( ModuleFactory__FILTER_CODECS.moduleUri );
 /**
 *
-* Filter Utils, zlib
+* Filter Utils, zlib (asm.js emscripten version)
 * @package FILTER.js
 *
 **/
@@ -43,13 +43,10 @@ var FILTER_CODECS_PATH = FILTER.getPath( ModuleFactory__FILTER_CODECS.moduleUri 
 if ( FILTER.Util.LOADED_ZLIB ) return;
 FILTER.Util.LOADED_ZLIB = true;
 
-//if ( FILTER.Browser.isNode ) FILTER.Util.ZLib = require('zlib');
-//if ( FILTER.Util.ZLib ) return;
-    
-// adapted from emscripten version of https://github.com/ukyo/zlib-asm
-var b = {ENVIRONMENT: FILTER.Browser.isNode ? "NODE" : (FILTER.Browser.isInsideWorker ? "WORKER" : "WEB")};
+// adapted from emscripten version at https://github.com/ukyo/zlib-asm
+var Module = {ENVIRONMENT: FILTER.Browser.isNode ? "NODE" : (FILTER.Browser.isInsideWorker ? "WORKER" : "WEB")};
 
-var f={},k;for(k in b)b.hasOwnProperty(k)&&(f[k]=b[k]);var n=!1,q=!1,r=!1,t=!1;
+var b=Module,f={},k;for(k in b)b.hasOwnProperty(k)&&(f[k]=b[k]);var n=!1,q=!1,r=!1,t=!1;
 if(b.ENVIRONMENT)if("WEB"===b.ENVIRONMENT)n=!0;else if("WORKER"===b.ENVIRONMENT)q=!0;else if("NODE"===b.ENVIRONMENT)r=!0;else if("SHELL"===b.ENVIRONMENT)t=!0;else throw Error("The provided Module['ENVIRONMENT'] value is not valid. It must be one of: WEB|WORKER|NODE|SHELL.");else n="object"===typeof window,q="function"===typeof importScripts,r="object"===typeof process&&"function"===typeof require&&!n&&!q,t=!n&&!r&&!q;
 if(r){b.print||(b.print=console.log);b.printErr||(b.printErr=console.warn);var u,v;b.read=function(a,c){u||(u=require("fs"));v||(v=require("path"));a=v.normalize(a);var d=u.readFileSync(a);d||a==v.resolve(a)||(a=path.join(__dirname,"..","src",a),d=u.readFileSync(a));d&&!c&&(d=d.toString());return d};b.readBinary=function(a){a=b.read(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a};b.load=function(a){w(read(a))};b.thisProgram||(b.thisProgram=1<process.argv.length?process.argv[1].replace(/\\/g,
 "/"):"unknown-program");b.arguments=process.argv.slice(2);"undefined"!==typeof module&&(module.exports=b);process.on("uncaughtException",function(a){if(!(a instanceof y))throw a;});b.inspect=function(){return"[Emscripten Module object]"}}else if(t)b.print||(b.print=print),"undefined"!=typeof printErr&&(b.printErr=printErr),b.read="undefined"!=typeof read?read:function(){throw"no read() available (jsc?)";},b.readBinary=function(a){if("function"===typeof readbuffer)return new Uint8Array(readbuffer(a));
@@ -183,8 +180,6 @@ function Ba(a){function c(){if(!b.calledRun&&(b.calledRun=!0,!G)){X||(X=!0,V(W))
 if(b.preInit)for("function"==typeof b.preInit&&(b.preInit=[b.preInit]);0<b.preInit.length;)b.preInit.pop()();var Ca=!0;b.noInitialRun&&(Ca=!1);Ba();var sa=b.ZLIBJS_instances={};
 
 
-var Module = b;
-
 var Z_STREAM_ERROR = -2;
 var Z_DATA_ERROR = -3;
 var Z_MEM_ERROR = -4;
@@ -195,315 +190,234 @@ ERROR_TABLE[Z_DATA_ERROR] = 'invalid or incomplete deflate data';
 ERROR_TABLE[Z_MEM_ERROR] = 'out of memory';
 ERROR_TABLE[Z_VERSION_ERROR] = 'zlib version mismatch';
 var defaultParams = {
-  compressionLevel: 6,
-  chunkSize: 32 * 1024,
-  shareMemory: false,
-  src: null,
-  streamFn: function() {}
+    compressionLevel: 9,
+    chunkSize: 16 * 1024,
+    shareMemory: false,
+    src: null,
+    streamFn: function(){}
 };
 
-/**
- * This function is like a `Object.assign`. It assigns recursively and ignores `undefined` and `null`.
- * @param  {object} source
- * @param  {...rest} rest
- * @return {object}
- */
-function assign(source) {
-  Array.prototype.slice.call(arguments, 1).forEach(function(o) {
-    if (o == null || typeof o !== 'object') return;
-    Object.keys(o).forEach(function(k) {
-      var v = o[k];
-      if (v == null) return;
-      if (typeof v === 'object') {
-        source[k] = source[k] || {};
-        assign(source[k], v);
-      } else {
-        source[k] = v;
-      }
+function assign( source )
+{
+    Array.prototype.slice.call(arguments, 1).forEach(function(o) {
+        if (o == null || typeof o !== 'object') return;
+        Object.keys(o).forEach(function(k) {
+            var v = o[k];
+            if (v == null) return;
+            if (typeof v === 'object')
+            {
+                source[k] = source[k] || {};
+                assign(source[k], v);
+            }
+            else
+            {
+                source[k] = v;
+            }
+        });
     });
-  });
-  return source;
+    return source;
 }
 
-/**
- * concat buffers.
- * @param  {Uint8Array[]} buffers
- * @return {Uint8Array}
- */
-function concat(buffers) {
-  var n, ret, offset = 0;
-  n = buffers.map(function(buffer) {
-    return buffer.length;
-  }).reduce(function(a, b) {
-    return a + b;
-  }, 0);
-  ret = new Uint8Array(n);
-  buffers.forEach(function(buffer) {
-    ret.set(buffer, offset);
-    offset += buffer.length;
-  });
-  return ret;
+function concat( buffers )
+{
+    var n, ret, offset = 0;
+    n = buffers.map(function(buffer) {
+        return buffer.length;
+    }).reduce(function(a, b) {
+        return a + b;
+    }, 0);
+    ret = new Uint8Array(n);
+    buffers.forEach(function(buffer) {
+        ret.set(buffer, offset);
+        offset += buffer.length;
+    });
+    return ret;
 }
 
-function zerror (message) {
-  return new Error('zlib-asm: ' + message);
+function zerror( message )
+{
+    return new Error('zlib-asm: ' + message);
 }
 
-function validate (state) {
-  return {
-    valid: state >= 0,
-    error: ERROR_TABLE[state]
-  };
+function validate( state )
+{
+    return {
+        valid: state >= 0,
+        error: ERROR_TABLE[state]
+    };
 }
 
 var common = {
-  defaultParams: defaultParams,
-  assign: assign,
-  concat: concat,
-  zerror: zerror,
-  validate: validate
+    defaultParams: defaultParams,
+    assign: assign,
+    concat: concat,
+    zerror: zerror,
+    validate: validate
 };
 
-/**
- * @constructor
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.chunkSize=32*1024] - chunk size
- */
-function BaseInflate(zlibHeader, params) {
-  params = common.assign({}, common.defaultParams, params);
-  this.chunkSize = params.chunkSize;
-  this.ctxPtr = Module._ZLIBJS_createInflateContext(zlibHeader);
-  if (!this.ctxPtr) throw common.zerror('ZLIBJS_createInflateContext');
-  Module.ZLIBJS_instances[this.ctxPtr] = this;
-  Module._ZLIBJS_init(this.chunkSize);
+function BaseInflate( zlibHeader, params )
+{
+    params = common.assign({}, common.defaultParams, params);
+    this.chunkSize = params.chunkSize;
+    this.ctxPtr = Module._ZLIBJS_createInflateContext(zlibHeader);
+    if (!this.ctxPtr) throw common.zerror('ZLIBJS_createInflateContext');
+    Module.ZLIBJS_instances[this.ctxPtr] = this;
+    Module._ZLIBJS_init(this.chunkSize);
 }
-
-/**
- * inflate chunk.
- */
-BaseInflate.prototype['inflate'] = function() {
-  var v = common.validate(Module._ZLIBJS_inflate(this.ctxPtr, this.chunkSize));
-  if (!v.valid) {
-    this.cleanup();
-    throw common.zerror(v.error);
-  }
+BaseInflate.prototype['inflate'] = function( ){
+    var v = common.validate(Module._ZLIBJS_inflate(this.ctxPtr, this.chunkSize));
+    if (!v.valid)
+    {
+        this.cleanup();
+        throw common.zerror(v.error);
+    }
+};
+BaseInflate.prototype['cleanup'] = function( ){
+    this.ctxPtr && Module._ZLIBJS_freeInflateContext(this.ctxPtr);
+    delete Module.ZLIBJS_instances[this.ctxPtr];
 };
 
-/**
- * cleanup the z_stream struct.
- */
-BaseInflate.prototype['cleanup'] = function() {
-  this.ctxPtr && Module._ZLIBJS_freeInflateContext(this.ctxPtr);
-  delete Module.ZLIBJS_instances[this.ctxPtr];
-};
-
-/**
- * @constructor
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.compressionLevel=6] - compression level
- * @param {number} [params.chunkSize=32*1024] - chunk size
- */
-function BaseDeflate(zlibHeader, params) {
-  params = common.assign({}, common.defaultParams, params);
-  this.chunkSize = params.chunkSize;
-  if (params.level) this.compressionLevel = params.level;
-  this.compressionLevel = Math.min(Math.max(this.compressionLevel, 0), 9);
-  this.ctxPtr = Module._ZLIBJS_createDeflateContext(this.compressionLevel, zlibHeader);
-  if (!this.ctxPtr) throw common.zerror('ZLIBJS_createDeflateContext');
-  Module.ZLIBJS_instances[this.ctxPtr] = this;
-  Module._ZLIBJS_init(this.chunkSize);
+function BaseDeflate( zlibHeader, params )
+{
+    params = common.assign({}, common.defaultParams, params);
+    this.chunkSize = params.chunkSize;
+    if (params.level) params.compressionLevel = params.level;
+    this.compressionLevel = params.compressionLevel = Math.min(Math.max(params.compressionLevel, 0), 9);
+    this.ctxPtr = Module._ZLIBJS_createDeflateContext(this.compressionLevel, zlibHeader);
+    if (!this.ctxPtr) throw common.zerror('ZLIBJS_createDeflateContext');
+    Module.ZLIBJS_instances[this.ctxPtr] = this;
+    Module._ZLIBJS_init(this.chunkSize);
 }
-
-/**
- * deflate chunk.
- * @param {boolean} flush - stream end flag.
- */
-BaseDeflate.prototype['deflate'] = function(flush) {
-  var v = common.validate(Module._ZLIBJS_deflate(this.ctxPtr, this.chunkSize, +flush));
-  if (!v.valid) {
-    this.cleanup();
-    throw common.zerror(v.error);
-  }
+BaseDeflate.prototype['deflate'] = function( flush ) {
+    var v = common.validate(Module._ZLIBJS_deflate(this.ctxPtr, this.chunkSize, +flush));
+    if (!v.valid)
+    {
+        this.cleanup();
+        throw common.zerror(v.error);
+    }
 };
-
-/**
- * cleanup the z_stream struct.
- */
-BaseDeflate.prototype['cleanup'] = function() {
-  this.ctxPtr && Module._ZLIBJS_freeDeflateContext(this.ctxPtr);
-  delete Module.ZLIBJS_instances[this.ctxPtr];
+BaseDeflate.prototype['cleanup'] = function( ){
+    this.ctxPtr && Module._ZLIBJS_freeDeflateContext(this.ctxPtr);
+    delete Module.ZLIBJS_instances[this.ctxPtr];
 };
 
 var ReaderWriterMixin = {
-  /**
-   * @param  {number} srcPtr - src pointer
-   * @param  {number} size - chunk size
-   */
-  $read: function(srcPtr, size) {
-    Module.HEAPU8.set(this.src.subarray(this.offset, this.offset + this.srcSize), srcPtr);
-    return this.srcSize;
-  },
-  /**
-   * @param  {number} dstPtr - dst pointer
-   * @param  {number} size - chunk size
-   */
-  $write: function(dstPtr, size) {
-    var bytes = Module.HEAPU8.subarray(dstPtr, dstPtr + size)
-    bytes = this.shareMemory ? bytes : new Uint8Array(bytes);
-    this.streamFn(bytes);
-  }
+    $read: function( srcPtr, size ){
+        Module.HEAPU8.set(this.src.subarray(this.offset, this.offset + this.srcSize), srcPtr);
+        return this.srcSize;
+    },
+    $write: function( dstPtr, size ){
+        var bytes = Module.HEAPU8.subarray(dstPtr, dstPtr + size)
+        bytes = this.shareMemory ? bytes : new Uint8Array(bytes);
+        this.streamFn(bytes);
+    }
 };
-
 ReaderWriterMixin['$read'] = ReaderWriterMixin.$read;
 ReaderWriterMixin['$write'] = ReaderWriterMixin.$write;
 
 var StreamReaderWriterMixin = {
-  /**
-   * @param  {number} srcPtr - src pointer
-   * @param  {number} size - chunk size
-   */
-  $read: function(srcPtr, size) {
-    Module.HEAPU8.set(new Uint8Array(this.src.buffer, this.src.byteOffset, this.srcSize), srcPtr);
-    return this.srcSize;
-  },
-  /**
-   * @param  {number} dstPtr - dst pointer
-   * @param  {number} size - chunk size
-   */
-  $write: function(dstPtr, size) {
-    this.dst = new Buffer(Module.HEAPU8.buffer).slice(dstPtr, dstPtr + size);
-    this.push(new Buffer(this.dst));
-  }
+    $read: function( srcPtr, size ){
+        Module.HEAPU8.set(new Uint8Array(this.src.buffer, this.src.byteOffset, this.srcSize), srcPtr);
+        return this.srcSize;
+    },
+    $write: function( dstPtr, size ){
+        this.dst = new Buffer(Module.HEAPU8.buffer).slice(dstPtr, dstPtr + size);
+        this.push(new Buffer(this.dst));
+    }
 };
-
 StreamReaderWriterMixin['$read'] = StreamReaderWriterMixin.$read;
 StreamReaderWriterMixin['$write'] = StreamReaderWriterMixin.$write;
 
-/**
- * @constructor
- * @extends BaseInflate
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.chunkSize=32*1024] - chunk size
- * @param {Uint8Array|Buffer} params.input - input buffer
- * @param {Function} streamFn - stream function
- * @param {boolean} [shareMemory=false] - share memory flag
- */
-function Inflate(zlibHeader, params) {
-  BaseInflate.call(this, zlibHeader, params);
-  this.src = params.input;
-  this.streamFn = params.streamFn;
-  this.shareMemory = params.shareMemory;
-  this.offset = 0;
-  this.srcSize = 0;
+function Inflate( zlibHeader, params )
+{
+    BaseInflate.call(this, zlibHeader, params);
+    this.src = params.input;
+    this.streamFn = params.streamFn;
+    this.shareMemory = params.shareMemory;
+    this.offset = 0;
+    this.srcSize = 0;
 }
 common.assign(Inflate.prototype, BaseInflate.prototype, ReaderWriterMixin);
 Inflate.prototype.constructor = Inflate;
 
-/**
- * inflate whole input buffer.
- */
-Inflate.prototype['inflateAll'] = function() {
-  for (; this.offset < this.src.length; this.offset += this.chunkSize) {
-    this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
-    this.inflate();
-  }
-  this.cleanup();
+Inflate.prototype['inflateAll'] = function( ){
+    for (; this.offset < this.src.length; this.offset += this.chunkSize)
+    {
+        this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
+        this.inflate();
+    }
+    this.cleanup();
 };
 
-/**
- * @constructor
- * @extends BaseDeflate
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.compressionLevel=6] - compression level
- * @param {number} [params.chunkSize=32*1024] - chunk size
- * @param {Uint8Array|Buffer} params.input - input buffer
- * @param {Function} streamFn - stream function
- * @param {boolean} [shareMemory=false] - share memory flag
- */
-function Deflate(zlibHeader, params) {
-  BaseDeflate.call(this, zlibHeader, params);
-  this.src = params.input;
-  this.streamFn = params.streamFn;
-  this.shareMemory = params.shareMemory;
-  this.offset = 0;
-  this.srcSize = 0;
+function Deflate( zlibHeader, params )
+{
+    BaseDeflate.call(this, zlibHeader, params);
+    this.src = params.input;
+    this.streamFn = params.streamFn;
+    this.shareMemory = params.shareMemory;
+    this.offset = 0;
+    this.srcSize = 0;
 }
 common.assign(Deflate.prototype, BaseDeflate.prototype, ReaderWriterMixin);
 Deflate.prototype.constructor = Deflate;
 
-/**
- * deflate whole input buffer.
- */
-Deflate.prototype['deflateAll'] = function() {
-  for (; this.offset < this.src.length; this.offset += this.chunkSize) {
-    this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
-    this.deflate(this.src.length - this.offset <= this.chunkSize);
-  }
-  this.cleanup();
+Deflate.prototype['deflateAll'] = function( ){
+    for (; this.offset < this.src.length; this.offset += this.chunkSize)
+    {
+        this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
+        this.deflate(this.src.length - this.offset <= this.chunkSize);
+    }
+    this.cleanup();
 };
 
-/**
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {Uint8Array|Buffer} input - input buffer
- * @param {number} [chunkSize=32*1024] - chunk size
- * @return {Uint8Array|Buffer}
- */
-function zlibInflate(zlibHeader, input, chunkSize) {
-  var buffers = [];
-  var inf = new Inflate(zlibHeader, {
-    input: input,
-    chunkSize: chunkSize,
-    shareMemory: false,
-    streamFn: function(bytes) {
-      buffers.push(bytes);
-    }
-  });
-  inf.inflateAll();
-  return common.concat(buffers);
+function zlibInflate( zlibHeader, input, chunkSize )
+{
+    var buffers = [];
+    var inf = new Inflate(zlibHeader, {
+        input: input,
+        chunkSize: chunkSize,
+        shareMemory: false,
+        streamFn: function(bytes) {
+            buffers.push(bytes);
+        }
+    });
+    inf.inflateAll();
+    return common.concat(buffers);
 }
 
-/**
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {Uint8Array|Buffer} input - input buffer
- * @param {number} [compressionLevel=6] - compression level
- * @param {number} [chunkSize=32*1024] - chunk size
- * @return {Uint8Array|Buffer}
- */
-function zlibDeflate(zlibHeader, input, compressionLevel, chunkSize) {
-  var buffers = [];
-  var def = new Deflate(zlibHeader, {
-    input: input,
-    compressionLevel: compressionLevel,
-    chunkSize: chunkSize,
-    shareMemory: false,
-    streamFn: function(bytes) {
-      buffers.push(bytes);
-    }
-  });
-  def.deflateAll();
-  return common.concat(buffers);
+function zlibDeflate( zlibHeader, input, compressionLevel, chunkSize )
+{
+    var buffers = [];
+    var def = new Deflate(zlibHeader, {
+        input: input,
+        compressionLevel: compressionLevel,
+        chunkSize: chunkSize,
+        shareMemory: false,
+        streamFn: function(bytes) {
+            buffers.push(bytes);
+        }
+    });
+    def.deflateAll();
+    return common.concat(buffers);
 }
 
 FILTER.Util.ZLib = {
     Module: Module,
-    
-    inflate: function( data, chunkSize ) {
+
+    inflate: function( data, chunkSize ){
         return zlibInflate(1, data, chunkSize);
     },
-    
-    rawinflate: function( data, chunkSize ) {
+
+    rawinflate: function( data, chunkSize ){
         return zlibInflate(-1, data, chunkSize);
     },
-    
-    deflate: function( data, compressionLevel, chunkSize ) {
+
+    deflate: function( data, compressionLevel, chunkSize ){
         return zlibDeflate(1, data, compressionLevel, chunkSize);
     },
-    
-    rawdeflate: function( data, compressionLevel, chunkSize ) {
+
+    rawdeflate: function( data, compressionLevel, chunkSize ){
         return zlibDeflate(-1, data, compressionLevel, chunkSize);
-    },
-    
-    createDeflate: function( options ) {
     }
 };
 
@@ -520,9 +434,11 @@ FILTER.Util.ZLib = {
 // you may provide your own zlib implementation if needed by setting/overriding FILTER.Util.ZLib
 //var zlib = FILTER.Util.ZLib;
 
+var CodecUtil = FILTER.Util.Codec, readUInt16 = CodecUtil.readUInt16BE,
+    readUInt32 = CodecUtil.readUInt32BE, readBytes = CodecUtil.readBytes;
+
 // adapted from https://github.com/devongovett/png.js/
 // and from https://github.com/lukeapage/pngjs
-
 var
 APNG_DISPOSE_OP_NONE = 0,
 APNG_DISPOSE_OP_BACKGROUND = 1,
@@ -567,7 +483,7 @@ PNG.prototype = {
         frame = null;
         while( true ) 
         {
-            chunkSize = self.readUInt32();
+            chunkSize = readUInt32( self.data, self );
             section = ((function() {
                 var _i, _results;
                 _results = [];
@@ -580,8 +496,8 @@ PNG.prototype = {
             switch (section) 
             {
                 case 'IHDR':
-                    self.width = self.readUInt32();
-                    self.height = self.readUInt32();
+                    self.width = readUInt32( self.data, self );
+                    self.height = readUInt32( self.data, self );
                     self.bits = self.data[self.pos++];
                     self.colorType = self.data[self.pos++];
                     self.compressionMethod = self.data[self.pos++];
@@ -590,13 +506,13 @@ PNG.prototype = {
                     break;
                 case 'acTL':
                     self.animation = {
-                        numFrames: self.readUInt32(),
-                        numPlays: self.readUInt32() || Infinity,
+                        numFrames: readUInt32( self.data, self ),
+                        numPlays: readUInt32( self.data, self ) || Infinity,
                         frames: []
                     };
                     break;
                 case 'PLTE':
-                    self.palette = self.read(chunkSize);
+                    self.palette = readBytes(chunkSize, self.data, self);
                     break;
                 case 'fcTL':
                     if (frame) 
@@ -605,13 +521,13 @@ PNG.prototype = {
                     }
                     self.pos += 4;
                     frame = {
-                        width: self.readUInt32(),
-                        height: self.readUInt32(),
-                        xOffset: self.readUInt32(),
-                        yOffset: self.readUInt32()
+                        width: readUInt32( self.data, self ),
+                        height: readUInt32( self.data, self ),
+                        xOffset: readUInt32( self.data, self ),
+                        yOffset: readUInt32( self.data, self )
                     };
-                    delayNum = self.readUInt16();
-                    delayDen = self.readUInt16() || 100;
+                    delayNum = readUInt16( self.data, self );
+                    delayDen = readUInt16( self.data, self ) || 100;
                     frame.delay = 1000 * delayNum / delayDen;
                     frame.disposeOp = self.data[self.pos++];
                     frame.blendOp = self.data[self.pos++];
@@ -635,7 +551,7 @@ PNG.prototype = {
                     switch (self.colorType) 
                     {
                         case 3:
-                            self.transparency.indexed = self.read(chunkSize);
+                            self.transparency.indexed = readBytes(chunkSize, self.data, self);
                             short = 255 - self.transparency.indexed.length;
                             if (short > 0) 
                             {
@@ -646,14 +562,14 @@ PNG.prototype = {
                             }
                             break;
                         case 0:
-                            self.transparency.grayscale = self.read(chunkSize)[0];
+                            self.transparency.grayscale = readBytes(chunkSize, self.data, self)[0];
                             break;
                         case 2:
-                            self.transparency.rgb = self.read(chunkSize);
+                            self.transparency.rgb = readBytes(chunkSize, self.data, self);
                     }
                     break;
                 case 'tEXt':
-                    text = self.read(chunkSize);
+                    text = readBytes(chunkSize, self.data, self);
                     index = text.indexOf(0);
                     key = String.fromCharCode.apply(String, text.slice(0, index));
                     self.text[key] = String.fromCharCode.apply(String, text.slice(index + 1));
@@ -700,32 +616,6 @@ PNG.prototype = {
         }
     },
     
-    read: function( bytes ) {
-        var self = this, i, _i, _results;
-        _results = [];
-        for (i = _i = 0; 0 <= bytes ? _i < bytes : _i > bytes; i = 0 <= bytes ? ++_i : --_i) 
-        {
-            _results.push(self.data[self.pos++]);
-        }
-        return _results;
-    },
-
-    readUInt32: function( ) {
-        var self = this, b1, b2, b3, b4;
-        b1 = self.data[self.pos++] << 24;
-        b2 = self.data[self.pos++] << 16;
-        b3 = self.data[self.pos++] << 8;
-        b4 = self.data[self.pos++];
-        return b1 | b2 | b3 | b4;
-    },
-
-    readUInt16: function( ) {
-        var self = this, b1, b2;
-        b1 = self.data[self.pos++] << 8;
-        b2 = self.data[self.pos++];
-        return b1 | b2;
-    },
-
     decodePixels: function( data ) {
         var self = this, byte, c, col, i, left, length, 
             p, pa, paeth, pb, pc, pixelBytes, pixels, pos, row, 
@@ -738,9 +628,7 @@ PNG.prototype = {
         {
             return new Uint8Array(0);
         }
-        /*data = FlateStream( data );
-        data = data.getBytes();*/
-        data = new FILTER.Util.ZLib.inflate( data );
+        data = FILTER.Util.ZLib.inflate( data );
         pixelBytes = self.pixelBitlength / 8;
         scanlineLength = pixelBytes * self.width;
         pixels = new Uint8Array(scanlineLength * self.height);
@@ -951,21 +839,21 @@ function computeCRCTable( )
   }
 }
 
-var CrcCalculator = function() {
+function CrcStream( )
+{
   this._crc = -1;
-};
-var CrcStream = CrcCalculator;
-CrcCalculator.prototype.write = function( data ) {
+}
+CrcStream.prototype.write = function( data ){
   if ( null === crcTable ) computeCRCTable( );
   for (var i = 0; i < data.length; i++) {
     this._crc = crcTable[(this._crc ^ data[i]) & 0xff] ^ (this._crc >>> 8);
   }
   return true;
 };
-CrcCalculator.prototype.crc32 = function( ) {
+CrcStream.prototype.crc32 = function( ){
   return this._crc ^ -1;
 };
-CrcCalculator.crc32 = function( buf ) {
+CrcStream.crc32 = function( buf ){
   if ( null === crcTable ) computeCRCTable( );
   var crc = -1;
   for (var i = 0; i < buf.length; i++) {
@@ -974,7 +862,8 @@ CrcCalculator.crc32 = function( buf ) {
   return crc ^ -1;
 };
 
-function bitPacker(data, width, height, options) {
+function bitPacker(data, width, height, options)
+{
   var outHasAlpha = options.colorType === constants.COLORTYPE_COLOR_ALPHA;
   if (options.inputHasAlpha && outHasAlpha) {
     return data;
@@ -3225,8 +3114,11 @@ FILTER.Codec.JPEG = FILTER.Codec.JPG = {
 !function(FILTER, undef){
 "use strict";
 
-// adapted from https://github.com/shaozilee/bmp-js
+var CodecUtil = FILTER.Util.Codec, readUInt8 = CodecUtil.readUInt8, readUInt16LE = CodecUtil.readUInt16LE,
+    readUInt32LE = CodecUtil.readUInt32LE, write = CodecUtil.write, writeUInt8 = CodecUtil.writeUInt8,
+    writeUInt16LE = CodecUtil.writeUInt16LE, writeUInt32LE = CodecUtil.writeUInt32LE, fill = CodecUtil.fill;
 
+// adapted from https://github.com/shaozilee/bmp-js
 function BmpDecoder( buffer ) 
 {
     var self = this;
@@ -3240,7 +3132,6 @@ function BmpDecoder( buffer )
     self.parseHeader( );
     self.parseBGR( );
 }
-
 BmpDecoder.prototype = {
     constructor: BmpDecoder,
     
@@ -3264,60 +3155,22 @@ BmpDecoder.prototype = {
     palette: null,
     data: null,
     
-    readUInt8: function( pos ) {
-        return this.buffer[pos++];
-    },
-    
-    readUInt16LE: function( pos ) {
-        // big endian, the most significant byte is stored in the smallest address
-        // little endian, the least significant byte is stored in the smallest address
-        var self = this, b0, b1;
-        b0 = self.buffer[pos++];
-        b1 = self.buffer[pos++];
-        return b0 | (b1<<8);
-    },
-    
-    readUInt32LE: function( pos ) {
-        // big endian, the most significant byte is stored in the smallest address
-        // little endian, the least significant byte is stored in the smallest address
-        var self = this, b0, b1, b2, b3;
-        b0 = self.buffer[pos++];
-        b1 = self.buffer[pos++];
-        b2 = self.buffer[pos++];
-        b3 = self.buffer[pos++];
-        return b0 | (b1<<8) | (b2<<16) | (b3<<24);
-    },
-    
     parseHeader: function( ) {
-        var self = this;
-        self.fileSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.reserved = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.offset = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.headerSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.width = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.height = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.planes = self.readUInt16LE( self.pos );
-        self.pos += 2;
-        self.bitPP = self.readUInt16LE( self.pos );
-        self.pos += 2;
-        self.compress = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.rawSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.hr = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.vr = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.colors = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.importantColors = self.readUInt32LE( self.pos );
-        self.pos += 4;
+        var self = this, buf = self.buffer;
+        self.fileSize = readUInt32LE( buf, self );
+        self.reserved = readUInt32LE( buf, self );
+        self.offset = readUInt32LE( buf, self );
+        self.headerSize = readUInt32LE( buf, self );
+        self.width = readUInt32LE( buf, self );
+        self.height = readUInt32LE( buf, self );
+        self.planes = readUInt16LE( buf, self );
+        self.bitPP = readUInt16LE( buf, self );
+        self.compress = readUInt32LE( buf, self );
+        self.rawSize = readUInt32LE( buf, self );
+        self.hr = readUInt32LE( buf, self );
+        self.vr = readUInt32LE( buf, self );
+        self.colors = readUInt32LE( buf, self );
+        self.importantColors = readUInt32LE( buf, self );
 
         if ( self.bitPP < 24 ) 
         {
@@ -3325,10 +3178,10 @@ BmpDecoder.prototype = {
             self.palette = new Array(len);
             for (var i = 0; i < len; i++) 
             {
-                var blue = self.readUInt8( self.pos++ );
-                var green = self.readUInt8( self.pos++ );
-                var red = self.readUInt8( self.pos++ );
-                var quad = self.readUInt8( self.pos++ );
+                var blue = readUInt8( buf, self );
+                var green = readUInt8( buf, self );
+                var red = readUInt8( buf, self );
+                var quad = readUInt8( buf, self );
                 self.palette[i] = {
                     red: red,
                     green: green,
@@ -3353,14 +3206,14 @@ BmpDecoder.prototype = {
     },
 
     bit1: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            xlen = Math.ceil(w / 8), mode = xlen%4,
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            xlen = Math.ceil(w / 8), mode = xlen&3,
             y, x, b, location, i, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < xlen; x++) 
             {
-                b = self.readUInt8(self.pos++);
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*8*4;
                 for (i = 0; i < 8; i++) 
                 {
@@ -3387,14 +3240,14 @@ BmpDecoder.prototype = {
     },
 
     bit4: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            xlen = Math.ceil(w / 2), mode = xlen%4,
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            xlen = Math.ceil(w / 2), mode = xlen&3,
             y, x, b, location, before, after, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < xlen; x++) 
             {
-                b = self.readUInt8(self.pos++);
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*2*4;
 
                 before = b>>4;
@@ -3423,13 +3276,13 @@ BmpDecoder.prototype = {
     },
 
     bit8: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            mode = w%4, y, x, b, location, rgb;
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            mode = w&3, y, x, b, location, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < w; x++) 
             {
-                b = self.readUInt8( self.pos++ );
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*4;
                 if ( b < palette.length ) 
                 {
@@ -3455,16 +3308,16 @@ BmpDecoder.prototype = {
     },
 
     bit24: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            mode = w%4, y, x, location, blue, green, red;
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            mode = w&3, y, x, location, blue, green, red;
         //when height > 0
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < w; x++) 
             {
-                blue = self.readUInt8( self.pos++ );
-                green = self.readUInt8( self.pos++ );
-                red = self.readUInt8( self.pos++ );
+                blue = readUInt8( buf, self );
+                green = readUInt8( buf, self );
+                red = readUInt8( buf, self );
                 location = y * w * 4 + x * 4;
                 self.data[location] = red;
                 self.data[location + 1] = green;
@@ -3529,48 +3382,25 @@ BmpEncoder.prototype = {
     headerInfoSize: null,
     data: null,
     
-    write: function( buffer, s ) {
-        for (var i=0; i<s.length; i++)
-            buffer.push( s.charCodeAt( i ) );
-    },
-    
-    writeUInt8: function( buffer, b ) {
-        buffer.push( b&255 );
-    },
-    
-    writeUInt16LE: function( buffer, b ) {
-        buffer.push( b&255, (b>>>8)&255 );
-    },
-    
-    writeUInt32LE: function( buffer, b ) {
-        buffer.push( b&255, (b>>>8)&255, 
-            (b>>>16)&255, (b>>>24)&255 );
-    },
-    
-    fill: function( buffer, b, start, end ) {
-        for (var i=start; i<end; i++)
-            buffer[i] = b;
-    },
-    
     encode: function( ) {
         var self = this, w = self.width, h = self.height, 
             header = [], buffer = new Array( self.offset+self.rgbSize );
-        self.write( header, self.flag );
-        self.writeUInt32LE( header, self.fileSize );
-        self.writeUInt32LE( header, self.reserved );
-        self.writeUInt32LE( header, self.offset );
+        write( header, self.flag );
+        writeUInt32LE( header, self.fileSize );
+        writeUInt32LE( header, self.reserved );
+        writeUInt32LE( header, self.offset );
 
-        self.writeUInt32LE( header, self.headerInfoSize );
-        self.writeUInt32LE( header, w );
-        self.writeUInt32LE( header, h );
-        self.writeUInt16LE( header, self.planes );
-        self.writeUInt16LE( header, self.bitPP );
-        self.writeUInt32LE( header, self.compress );
-        self.writeUInt32LE( header, self.rgbSize );
-        self.writeUInt32LE( header, self.hr );
-        self.writeUInt32LE( header, self.vr );
-        self.writeUInt32LE( header, self.colors );
-        self.writeUInt32LE( header, self.importantColors );
+        writeUInt32LE( header, self.headerInfoSize );
+        writeUInt32LE( header, w );
+        writeUInt32LE( header, h );
+        writeUInt16LE( header, self.planes );
+        writeUInt16LE( header, self.bitPP );
+        writeUInt32LE( header, self.compress );
+        writeUInt32LE( header, self.rgbSize );
+        writeUInt32LE( header, self.hr );
+        writeUInt32LE( header, self.vr );
+        writeUInt32LE( header, self.colors );
+        writeUInt32LE( header, self.importantColors );
 
         var i = 0, rowBytes = 3*w+self.extraBytes, y, x, p, r, g, b, fillOffset;
 
@@ -3590,7 +3420,7 @@ BmpEncoder.prototype = {
             if ( self.extraBytes>0 )
             {
                 fillOffset = y*rowBytes+w*3;
-                self.fill( buffer, 0, fillOffset, fillOffset+self.extraBytes );
+                fill( buffer, 0, fillOffset, fillOffset+self.extraBytes );
             }
         }
         return new Uint8Array( header.concat( buffer ) );
@@ -4481,8 +4311,8 @@ FILTER.Codec.TGA = {
 var error = function( err ){ FILTER.error(err, true); };
 // adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html
 // http://en.wikipedia.org/wiki/RGBE_image_format
-var
-HAS = 'hasOwnproperty', APPEND = Array.prototype.push, TOARRAY = Array.prototype.slice,
+
+var HAS = 'hasOwnproperty', APPEND = Array.prototype.push, TOARRAY = Array.prototype.slice,
 /* return codes for rgbe routines */
 RGBE_RETURN_SUCCESS =  0,
 RGBE_RETURN_FAILURE = -1,

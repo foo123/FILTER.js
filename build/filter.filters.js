@@ -982,8 +982,12 @@ var ColorTableFilter = FILTER.Create({
         if ( A )
         {
             // array linearization
+            for (i=0; i<rem; i+=4)
+            {
+                im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]]; im[i+3] = A[im[i+3]];
+            }
             // partial loop unrolling (4 iterations)
-            for (j=0; j<l; j+=64)
+            for (j=rem; j<l; j+=64)
             {
                 i = j;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
@@ -1002,19 +1006,17 @@ var ColorTableFilter = FILTER.Create({
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; im[i] = A[im[i++]];
-            }
-            // loop unrolling remainder
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                    im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]]; im[i+3] = A[im[i+3]];
             }
         }
         else
         {
             // array linearization
+            for (i=0; i<rem; i+=4)
+            {
+                im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]];
+            }
             // partial loop unrolling (4 iterations)
-            for (j=0; j<l; j+=64)
+            for (j=rem; j<l; j+=64)
             {
                 i = j;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
@@ -1033,12 +1035,6 @@ var ColorTableFilter = FILTER.Create({
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
                 im[i] = R[im[i++]]; im[i] = G[im[i++]]; im[i] = B[im[i++]]; ++i;
-            }
-            // loop unrolling remainder
-            if ( rem )
-            {
-                for (i=l-rem; i<l; i+=4)
-                    im[i   ] = R[im[i   ]]; im[i+1] = G[im[i+1]]; im[i+2] = B[im[i+2]];
             }
         }
         return im;
@@ -1534,8 +1530,24 @@ var ColorMatrixFilter = FILTER.Create({
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
+        for (i=0; i<rem; i+=4)
+        {
+            t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+            pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+            pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
+            
+            // clamp them manually
+            pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
+            pr[1] = pr[1]<0 ? 0 : (pr[1]>255 ? 255 : pr[1]);
+            pr[2] = pr[2]<0 ? 0 : (pr[2]>255 ? 255 : pr[2]);
+            pr[3] = pr[3]<0 ? 0 : (pr[3]>255 ? 255 : pr[3]);
+            
+            im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
+        }
         // partial loop unrolling (1/8 iterations)
-        for (i=0; i<imLen; i+=32)
+        for (i=rem; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
             p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
@@ -1628,26 +1640,6 @@ var ColorMatrixFilter = FILTER.Create({
             im[i+24] = p[24]|0; im[i+25] = p[25]|0; im[i+26] = p[26]|0; im[i+27] = p[27]|0;
             im[i+28] = p[28]|0; im[i+29] = p[29]|0; im[i+30] = p[30]|0; im[i+31] = p[31]|0;
         }
-        // loop unrolling remainder
-        if ( rem )
-        {
-            for (i=imLen-rem; i<imLen; i+=4)
-            {
-                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
-                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
-                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
-                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
-                
-                // clamp them manually
-                pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
-                pr[1] = pr[1]<0 ? 0 : (pr[1]>255 ? 255 : pr[1]);
-                pr[2] = pr[2]<0 ? 0 : (pr[2]>255 ? 255 : pr[2]);
-                pr[3] = pr[3]<0 ? 0 : (pr[3]>255 ? 255 : pr[3]);
-                
-                im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
-            }
-        }
         return im;
     } : function( im, w, h ) {
         var self = this, M = self.matrix;
@@ -1658,8 +1650,18 @@ var ColorMatrixFilter = FILTER.Create({
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
+        for (i=0; i<rem; i+=4)
+        {
+            t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+            pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+            pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
+            
+            im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
+        }
         // partial loop unrolling (1/8 iterations)
-        for (i=0; i<imLen; i+=32)
+        for (i=rem; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
             p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
@@ -1717,20 +1719,6 @@ var ColorMatrixFilter = FILTER.Create({
             im[i+20] = p[20]|0; im[i+21] = p[21]|0; im[i+22] = p[22]|0; im[i+23] = p[23]|0;
             im[i+24] = p[24]|0; im[i+25] = p[25]|0; im[i+26] = p[26]|0; im[i+27] = p[27]|0;
             im[i+28] = p[28]|0; im[i+29] = p[29]|0; im[i+30] = p[30]|0; im[i+31] = p[31]|0;
-        }
-        // loop unrolling remainder
-        if ( rem )
-        {
-            for (i=imLen-rem; i<imLen; i+=4)
-            {
-                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
-                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
-                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
-                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
-                
-                im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
-            }
         }
         return im;
     }
@@ -1921,71 +1909,69 @@ function apply__( map, preample )
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
-    var x, y, i, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
+    var x, y, i, i0, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
 \
     "+__INIT__+";\
     \
-    for (x=0,y=0,i=0; i<imLen; i+=32)\
+    x=0;y=0;\
+    for(i=0; i<rem; i+=4)\
     {\
         c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
         im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+4]; c[1] = im[i+5]; c[2] = im[i+6]; c[3] = im[i+7];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+4] = c[0]|0; im[i+5] = c[1]|0; im[i+6] = c[2]|0; im[i+7] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+8]; c[1] = im[i+9]; c[2] = im[i+10]; c[3] = im[i+11];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+8] = c[0]|0; im[i+9] = c[1]|0; im[i+10] = c[2]|0; im[i+11] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+12]; c[1] = im[i+13]; c[2] = im[i+14]; c[3] = im[i+15];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+12] = c[0]|0; im[i+13] = c[1]|0; im[i+14] = c[2]|0; im[i+15] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+16]; c[1] = im[i+17]; c[2] = im[i+18]; c[3] = im[i+19];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+16] = c[0]|0; im[i+17] = c[1]|0; im[i+18] = c[2]|0; im[i+19] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+20]; c[1] = im[i+21]; c[2] = im[i+22]; c[3] = im[i+23];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+20] = c[0]|0; im[i+21] = c[1]|0; im[i+22] = c[2]|0; im[i+23] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+24]; c[1] = im[i+25]; c[2] = im[i+26]; c[3] = im[i+27];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+24] = c[0]|0; im[i+25] = c[1]|0; im[i+26] = c[2]|0; im[i+27] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+28]; c[1] = im[i+29]; c[2] = im[i+30]; c[3] = im[i+31];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+28] = c[0]|0; im[i+29] = c[1]|0; im[i+30] = c[2]|0; im[i+31] = c[3]|0;\
-        \
         if (++x>=w) {x=0; y++;}\
     }\
-    if ( rem )\
+    for(i0=rem; i0<imLen; i0+=32)\
     {\
-        for (i=imLen-rem; i<imLen; i+=4,x++)\
-        {\
-            if (x>=w) {x=0; y++;}\
-            c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
-            "+__APPLY__+";\
-            "+__CLAMP__+";\
-            im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
-        }\
+        i=i0; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
     }\
     return im;\
 };")( FILTER );
@@ -2432,8 +2418,13 @@ FILTER.Create({
         // pre-compute indices, 
         // reduce redundant computations inside the main application loop (faster)
         // this is faster if mapArea <= imArea, else a reverse algorithm may be needed (todo)
-        rem = (mapArea&15)<<2;
-        for (j=0,i=0; i<mapLen; i+=64)
+        rem = (mapArea&15)<<2; j=0;
+        for(i=0; i<rem; i+=4)
+        { 
+            displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+        }
+        for(i=rem; i<mapLen; i+=64)
         { 
             displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
             displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
@@ -2467,14 +2458,6 @@ FILTER.Create({
             displace[j++] = Floor( ( map[i+56+Y] - 128 ) * SY );
             displace[j++] = Floor( ( map[i+60+X] - 128 ) * SX );
             displace[j++] = Floor( ( map[i+60+Y] - 128 ) * SY );
-        }
-        if ( rem )
-        {
-            for (i=mapLen-rem; i<mapLen; i+=4)
-            { 
-                displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
-                displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
-            }
         }
         
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
@@ -3297,11 +3280,11 @@ var ConvolutionMatrixFilter = FILTER.Create({
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(mode, im, w, h, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 

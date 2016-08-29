@@ -27,7 +27,7 @@ var parse_args = require('./commargs.js'),
         new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
         new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.TILE, 0.5/* tolerance */)
     ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.PNG )
+    binaryManager = F.IO.BinaryManager( F.Codec.PNG, {deflateLevel: 9} )
 ;
 
 binaryManager.read( path.join(__dirname,'./yin_yang_blank.png'), function( yin_yang ){

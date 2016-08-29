@@ -14,8 +14,9 @@ __0.9.6__
 * add initial versions of some machine learning algorithms, `kmeans`, `kmedoids`, `svd`, move `connected_components` algorithm under `machinelearning` package
 * add new util `blas` (Basic Linear Algebra Subroutines), refactor and re-organise existing utils into `core`, `array`, ..
 * simplify `IO` and `CODECS` packages into one manager with `codec` parameter
-* add full `zlib` (`zlib-asm.js`) util implementation (can be set/overriden by user if needed)
-* add `png` encoder method (to write image files as `png`)
+* add full `zlib` (`zlib-asm.js`) util implementation and native node `zlib` module alternative (`zlib-node.js`) (can be set/overriden by user if necesary)
+* add `png` encoder method (to write image files in `png` format)
+* fix a typo in `convolutionmatrix` filter (missing `stride` parameter in `convolution_clamp`)
 * update references, examples
 
 

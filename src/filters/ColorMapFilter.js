@@ -174,71 +174,69 @@ function apply__( map, preample )
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
-    var x, y, i, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
+    var x, y, i, i0, imLen = im.length, imArea = imLen>>>2, rem = (imArea&7)<<2, c = new FILTER.ColorMatrix(4);\
 \
     "+__INIT__+";\
     \
-    for (x=0,y=0,i=0; i<imLen; i+=32)\
+    x=0;y=0;\
+    for(i=0; i<rem; i+=4)\
     {\
         c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
         "+__APPLY__+";\
         "+__CLAMP__+";\
         im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+4]; c[1] = im[i+5]; c[2] = im[i+6]; c[3] = im[i+7];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+4] = c[0]|0; im[i+5] = c[1]|0; im[i+6] = c[2]|0; im[i+7] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+8]; c[1] = im[i+9]; c[2] = im[i+10]; c[3] = im[i+11];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+8] = c[0]|0; im[i+9] = c[1]|0; im[i+10] = c[2]|0; im[i+11] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+12]; c[1] = im[i+13]; c[2] = im[i+14]; c[3] = im[i+15];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+12] = c[0]|0; im[i+13] = c[1]|0; im[i+14] = c[2]|0; im[i+15] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+16]; c[1] = im[i+17]; c[2] = im[i+18]; c[3] = im[i+19];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+16] = c[0]|0; im[i+17] = c[1]|0; im[i+18] = c[2]|0; im[i+19] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+20]; c[1] = im[i+21]; c[2] = im[i+22]; c[3] = im[i+23];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+20] = c[0]|0; im[i+21] = c[1]|0; im[i+22] = c[2]|0; im[i+23] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+24]; c[1] = im[i+25]; c[2] = im[i+26]; c[3] = im[i+27];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+24] = c[0]|0; im[i+25] = c[1]|0; im[i+26] = c[2]|0; im[i+27] = c[3]|0;\
-        \
-        if (++x>=w) {x=0; y++;}\
-        c[0] = im[i+28]; c[1] = im[i+29]; c[2] = im[i+30]; c[3] = im[i+31];\
-        "+__APPLY__+";\
-        "+__CLAMP__+";\
-        im[i+28] = c[0]|0; im[i+29] = c[1]|0; im[i+30] = c[2]|0; im[i+31] = c[3]|0;\
-        \
         if (++x>=w) {x=0; y++;}\
     }\
-    if ( rem )\
+    for(i0=rem; i0<imLen; i0+=32)\
     {\
-        for (i=imLen-rem; i<imLen; i+=4,x++)\
-        {\
-            if (x>=w) {x=0; y++;}\
-            c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
-            "+__APPLY__+";\
-            "+__CLAMP__+";\
-            im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
-        }\
+        i=i0; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
+        i+=4; c[0] = im[i]; c[1] = im[i+1]; c[2] = im[i+2]; c[3] = im[i+3];\
+        "+__APPLY__+";\
+        "+__CLAMP__+";\
+        im[i] = c[0]|0; im[i+1] = c[1]|0; im[i+2] = c[2]|0; im[i+3] = c[3]|0;\
+        \
+        if (++x>=w) {x=0; y++;}\
     }\
     return im;\
 };")( FILTER );

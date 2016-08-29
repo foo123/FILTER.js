@@ -26,7 +26,6 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
 // resize/scale/interpolate image data
 ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
 
-//
 // Image (Proxy) Class
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
@@ -493,7 +492,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
         }
         // clone it
-        return [new IMGcpy( sel.data ), sel.width, sel.height];
+        return [new IMGcpy( sel.data ), sel.width, sel.height, 2];
     }
     
     // set direct data array
@@ -925,7 +924,6 @@ FilterImage.PerlinNoise = function PerlinNoise( w, h, seed, seamless, grayscale,
     return new FilterImage().restorable(false).createImageData(w, h).perlinNoise(seed, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin);
 };
 
-//
 // Scaled Image (Proxy) Class
 var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
     name: "ScaledImage"

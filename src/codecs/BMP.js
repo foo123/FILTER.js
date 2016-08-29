@@ -7,8 +7,11 @@
 !function(FILTER, undef){
 "use strict";
 
-// adapted from https://github.com/shaozilee/bmp-js
+var CodecUtil = FILTER.Util.Codec, readUInt8 = CodecUtil.readUInt8, readUInt16LE = CodecUtil.readUInt16LE,
+    readUInt32LE = CodecUtil.readUInt32LE, write = CodecUtil.write, writeUInt8 = CodecUtil.writeUInt8,
+    writeUInt16LE = CodecUtil.writeUInt16LE, writeUInt32LE = CodecUtil.writeUInt32LE, fill = CodecUtil.fill;
 
+// adapted from https://github.com/shaozilee/bmp-js
 function BmpDecoder( buffer ) 
 {
     var self = this;
@@ -22,7 +25,6 @@ function BmpDecoder( buffer )
     self.parseHeader( );
     self.parseBGR( );
 }
-
 BmpDecoder.prototype = {
     constructor: BmpDecoder,
     
@@ -46,60 +48,22 @@ BmpDecoder.prototype = {
     palette: null,
     data: null,
     
-    readUInt8: function( pos ) {
-        return this.buffer[pos++];
-    },
-    
-    readUInt16LE: function( pos ) {
-        // big endian, the most significant byte is stored in the smallest address
-        // little endian, the least significant byte is stored in the smallest address
-        var self = this, b0, b1;
-        b0 = self.buffer[pos++];
-        b1 = self.buffer[pos++];
-        return b0 | (b1<<8);
-    },
-    
-    readUInt32LE: function( pos ) {
-        // big endian, the most significant byte is stored in the smallest address
-        // little endian, the least significant byte is stored in the smallest address
-        var self = this, b0, b1, b2, b3;
-        b0 = self.buffer[pos++];
-        b1 = self.buffer[pos++];
-        b2 = self.buffer[pos++];
-        b3 = self.buffer[pos++];
-        return b0 | (b1<<8) | (b2<<16) | (b3<<24);
-    },
-    
     parseHeader: function( ) {
-        var self = this;
-        self.fileSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.reserved = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.offset = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.headerSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.width = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.height = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.planes = self.readUInt16LE( self.pos );
-        self.pos += 2;
-        self.bitPP = self.readUInt16LE( self.pos );
-        self.pos += 2;
-        self.compress = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.rawSize = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.hr = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.vr = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.colors = self.readUInt32LE( self.pos );
-        self.pos += 4;
-        self.importantColors = self.readUInt32LE( self.pos );
-        self.pos += 4;
+        var self = this, buf = self.buffer;
+        self.fileSize = readUInt32LE( buf, self );
+        self.reserved = readUInt32LE( buf, self );
+        self.offset = readUInt32LE( buf, self );
+        self.headerSize = readUInt32LE( buf, self );
+        self.width = readUInt32LE( buf, self );
+        self.height = readUInt32LE( buf, self );
+        self.planes = readUInt16LE( buf, self );
+        self.bitPP = readUInt16LE( buf, self );
+        self.compress = readUInt32LE( buf, self );
+        self.rawSize = readUInt32LE( buf, self );
+        self.hr = readUInt32LE( buf, self );
+        self.vr = readUInt32LE( buf, self );
+        self.colors = readUInt32LE( buf, self );
+        self.importantColors = readUInt32LE( buf, self );
 
         if ( self.bitPP < 24 ) 
         {
@@ -107,10 +71,10 @@ BmpDecoder.prototype = {
             self.palette = new Array(len);
             for (var i = 0; i < len; i++) 
             {
-                var blue = self.readUInt8( self.pos++ );
-                var green = self.readUInt8( self.pos++ );
-                var red = self.readUInt8( self.pos++ );
-                var quad = self.readUInt8( self.pos++ );
+                var blue = readUInt8( buf, self );
+                var green = readUInt8( buf, self );
+                var red = readUInt8( buf, self );
+                var quad = readUInt8( buf, self );
                 self.palette[i] = {
                     red: red,
                     green: green,
@@ -135,14 +99,14 @@ BmpDecoder.prototype = {
     },
 
     bit1: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            xlen = Math.ceil(w / 8), mode = xlen%4,
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            xlen = Math.ceil(w / 8), mode = xlen&3,
             y, x, b, location, i, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < xlen; x++) 
             {
-                b = self.readUInt8(self.pos++);
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*8*4;
                 for (i = 0; i < 8; i++) 
                 {
@@ -169,14 +133,14 @@ BmpDecoder.prototype = {
     },
 
     bit4: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            xlen = Math.ceil(w / 2), mode = xlen%4,
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            xlen = Math.ceil(w / 2), mode = xlen&3,
             y, x, b, location, before, after, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < xlen; x++) 
             {
-                b = self.readUInt8(self.pos++);
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*2*4;
 
                 before = b>>4;
@@ -205,13 +169,13 @@ BmpDecoder.prototype = {
     },
 
     bit8: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            mode = w%4, y, x, b, location, rgb;
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            mode = w&3, y, x, b, location, rgb;
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < w; x++) 
             {
-                b = self.readUInt8( self.pos++ );
+                b = readUInt8( buf, self );
                 location = y * w * 4 + x*4;
                 if ( b < palette.length ) 
                 {
@@ -237,16 +201,16 @@ BmpDecoder.prototype = {
     },
 
     bit24: function( ) {
-        var self = this, palette = self.palette, w = self.width, h = self.height,
-            mode = w%4, y, x, location, blue, green, red;
+        var self = this, buf = self.buffer, palette = self.palette, w = self.width, h = self.height,
+            mode = w&3, y, x, location, blue, green, red;
         //when height > 0
         for (y = h - 1; y >= 0; y--) 
         {
             for (x = 0; x < w; x++) 
             {
-                blue = self.readUInt8( self.pos++ );
-                green = self.readUInt8( self.pos++ );
-                red = self.readUInt8( self.pos++ );
+                blue = readUInt8( buf, self );
+                green = readUInt8( buf, self );
+                red = readUInt8( buf, self );
                 location = y * w * 4 + x * 4;
                 self.data[location] = red;
                 self.data[location + 1] = green;
@@ -311,48 +275,25 @@ BmpEncoder.prototype = {
     headerInfoSize: null,
     data: null,
     
-    write: function( buffer, s ) {
-        for (var i=0; i<s.length; i++)
-            buffer.push( s.charCodeAt( i ) );
-    },
-    
-    writeUInt8: function( buffer, b ) {
-        buffer.push( b&255 );
-    },
-    
-    writeUInt16LE: function( buffer, b ) {
-        buffer.push( b&255, (b>>>8)&255 );
-    },
-    
-    writeUInt32LE: function( buffer, b ) {
-        buffer.push( b&255, (b>>>8)&255, 
-            (b>>>16)&255, (b>>>24)&255 );
-    },
-    
-    fill: function( buffer, b, start, end ) {
-        for (var i=start; i<end; i++)
-            buffer[i] = b;
-    },
-    
     encode: function( ) {
         var self = this, w = self.width, h = self.height, 
             header = [], buffer = new Array( self.offset+self.rgbSize );
-        self.write( header, self.flag );
-        self.writeUInt32LE( header, self.fileSize );
-        self.writeUInt32LE( header, self.reserved );
-        self.writeUInt32LE( header, self.offset );
+        write( header, self.flag );
+        writeUInt32LE( header, self.fileSize );
+        writeUInt32LE( header, self.reserved );
+        writeUInt32LE( header, self.offset );
 
-        self.writeUInt32LE( header, self.headerInfoSize );
-        self.writeUInt32LE( header, w );
-        self.writeUInt32LE( header, h );
-        self.writeUInt16LE( header, self.planes );
-        self.writeUInt16LE( header, self.bitPP );
-        self.writeUInt32LE( header, self.compress );
-        self.writeUInt32LE( header, self.rgbSize );
-        self.writeUInt32LE( header, self.hr );
-        self.writeUInt32LE( header, self.vr );
-        self.writeUInt32LE( header, self.colors );
-        self.writeUInt32LE( header, self.importantColors );
+        writeUInt32LE( header, self.headerInfoSize );
+        writeUInt32LE( header, w );
+        writeUInt32LE( header, h );
+        writeUInt16LE( header, self.planes );
+        writeUInt16LE( header, self.bitPP );
+        writeUInt32LE( header, self.compress );
+        writeUInt32LE( header, self.rgbSize );
+        writeUInt32LE( header, self.hr );
+        writeUInt32LE( header, self.vr );
+        writeUInt32LE( header, self.colors );
+        writeUInt32LE( header, self.importantColors );
 
         var i = 0, rowBytes = 3*w+self.extraBytes, y, x, p, r, g, b, fillOffset;
 
@@ -372,7 +313,7 @@ BmpEncoder.prototype = {
             if ( self.extraBytes>0 )
             {
                 fillOffset = y*rowBytes+w*3;
-                self.fill( buffer, 0, fillOffset, fillOffset+self.extraBytes );
+                fill( buffer, 0, fillOffset, fillOffset+self.extraBytes );
             }
         }
         return new Uint8Array( header.concat( buffer ) );

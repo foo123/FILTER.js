@@ -116,8 +116,13 @@ FILTER.Create({
         // pre-compute indices, 
         // reduce redundant computations inside the main application loop (faster)
         // this is faster if mapArea <= imArea, else a reverse algorithm may be needed (todo)
-        rem = (mapArea&15)<<2;
-        for (j=0,i=0; i<mapLen; i+=64)
+        rem = (mapArea&15)<<2; j=0;
+        for(i=0; i<rem; i+=4)
+        { 
+            displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
+            displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
+        }
+        for(i=rem; i<mapLen; i+=64)
         { 
             displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
             displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
@@ -151,14 +156,6 @@ FILTER.Create({
             displace[j++] = Floor( ( map[i+56+Y] - 128 ) * SY );
             displace[j++] = Floor( ( map[i+60+X] - 128 ) * SX );
             displace[j++] = Floor( ( map[i+60+Y] - 128 ) * SY );
-        }
-        if ( rem )
-        {
-            for (i=mapLen-rem; i<mapLen; i+=4)
-            { 
-                displace[j++] = Floor( ( map[i   +X] - 128 ) * SX );
-                displace[j++] = Floor( ( map[i   +Y] - 128 ) * SY );
-            }
         }
         
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)

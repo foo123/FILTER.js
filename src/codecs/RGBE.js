@@ -10,8 +10,8 @@
 var error = function( err ){ FILTER.error(err, true); };
 // adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html
 // http://en.wikipedia.org/wiki/RGBE_image_format
-var
-HAS = 'hasOwnproperty', APPEND = Array.prototype.push, TOARRAY = Array.prototype.slice,
+
+var HAS = 'hasOwnproperty', APPEND = Array.prototype.push, TOARRAY = Array.prototype.slice,
 /* return codes for rgbe routines */
 RGBE_RETURN_SUCCESS =  0,
 RGBE_RETURN_FAILURE = -1,

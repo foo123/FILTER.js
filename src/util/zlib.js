@@ -1,6 +1,6 @@
 /**
 *
-* Filter Utils, zlib
+* Filter Utils, zlib (asm.js emscripten version)
 * @package FILTER.js
 *
 **/
@@ -10,13 +10,10 @@
 if ( FILTER.Util.LOADED_ZLIB ) return;
 FILTER.Util.LOADED_ZLIB = true;
 
-//if ( FILTER.Browser.isNode ) FILTER.Util.ZLib = require('zlib');
-//if ( FILTER.Util.ZLib ) return;
-    
-// adapted from emscripten version of https://github.com/ukyo/zlib-asm
-var b = {ENVIRONMENT: FILTER.Browser.isNode ? "NODE" : (FILTER.Browser.isInsideWorker ? "WORKER" : "WEB")};
+// adapted from emscripten version at https://github.com/ukyo/zlib-asm
+var Module = {ENVIRONMENT: FILTER.Browser.isNode ? "NODE" : (FILTER.Browser.isInsideWorker ? "WORKER" : "WEB")};
 
-var f={},k;for(k in b)b.hasOwnProperty(k)&&(f[k]=b[k]);var n=!1,q=!1,r=!1,t=!1;
+var b=Module,f={},k;for(k in b)b.hasOwnProperty(k)&&(f[k]=b[k]);var n=!1,q=!1,r=!1,t=!1;
 if(b.ENVIRONMENT)if("WEB"===b.ENVIRONMENT)n=!0;else if("WORKER"===b.ENVIRONMENT)q=!0;else if("NODE"===b.ENVIRONMENT)r=!0;else if("SHELL"===b.ENVIRONMENT)t=!0;else throw Error("The provided Module['ENVIRONMENT'] value is not valid. It must be one of: WEB|WORKER|NODE|SHELL.");else n="object"===typeof window,q="function"===typeof importScripts,r="object"===typeof process&&"function"===typeof require&&!n&&!q,t=!n&&!r&&!q;
 if(r){b.print||(b.print=console.log);b.printErr||(b.printErr=console.warn);var u,v;b.read=function(a,c){u||(u=require("fs"));v||(v=require("path"));a=v.normalize(a);var d=u.readFileSync(a);d||a==v.resolve(a)||(a=path.join(__dirname,"..","src",a),d=u.readFileSync(a));d&&!c&&(d=d.toString());return d};b.readBinary=function(a){a=b.read(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a};b.load=function(a){w(read(a))};b.thisProgram||(b.thisProgram=1<process.argv.length?process.argv[1].replace(/\\/g,
 "/"):"unknown-program");b.arguments=process.argv.slice(2);"undefined"!==typeof module&&(module.exports=b);process.on("uncaughtException",function(a){if(!(a instanceof y))throw a;});b.inspect=function(){return"[Emscripten Module object]"}}else if(t)b.print||(b.print=print),"undefined"!=typeof printErr&&(b.printErr=printErr),b.read="undefined"!=typeof read?read:function(){throw"no read() available (jsc?)";},b.readBinary=function(a){if("function"===typeof readbuffer)return new Uint8Array(readbuffer(a));
@@ -150,8 +147,6 @@ function Ba(a){function c(){if(!b.calledRun&&(b.calledRun=!0,!G)){X||(X=!0,V(W))
 if(b.preInit)for("function"==typeof b.preInit&&(b.preInit=[b.preInit]);0<b.preInit.length;)b.preInit.pop()();var Ca=!0;b.noInitialRun&&(Ca=!1);Ba();var sa=b.ZLIBJS_instances={};
 
 
-var Module = b;
-
 var Z_STREAM_ERROR = -2;
 var Z_DATA_ERROR = -3;
 var Z_MEM_ERROR = -4;
@@ -162,315 +157,234 @@ ERROR_TABLE[Z_DATA_ERROR] = 'invalid or incomplete deflate data';
 ERROR_TABLE[Z_MEM_ERROR] = 'out of memory';
 ERROR_TABLE[Z_VERSION_ERROR] = 'zlib version mismatch';
 var defaultParams = {
-  compressionLevel: 6,
-  chunkSize: 32 * 1024,
-  shareMemory: false,
-  src: null,
-  streamFn: function() {}
+    compressionLevel: 9,
+    chunkSize: 16 * 1024,
+    shareMemory: false,
+    src: null,
+    streamFn: function(){}
 };
 
-/**
- * This function is like a `Object.assign`. It assigns recursively and ignores `undefined` and `null`.
- * @param  {object} source
- * @param  {...rest} rest
- * @return {object}
- */
-function assign(source) {
-  Array.prototype.slice.call(arguments, 1).forEach(function(o) {
-    if (o == null || typeof o !== 'object') return;
-    Object.keys(o).forEach(function(k) {
-      var v = o[k];
-      if (v == null) return;
-      if (typeof v === 'object') {
-        source[k] = source[k] || {};
-        assign(source[k], v);
-      } else {
-        source[k] = v;
-      }
+function assign( source )
+{
+    Array.prototype.slice.call(arguments, 1).forEach(function(o) {
+        if (o == null || typeof o !== 'object') return;
+        Object.keys(o).forEach(function(k) {
+            var v = o[k];
+            if (v == null) return;
+            if (typeof v === 'object')
+            {
+                source[k] = source[k] || {};
+                assign(source[k], v);
+            }
+            else
+            {
+                source[k] = v;
+            }
+        });
     });
-  });
-  return source;
+    return source;
 }
 
-/**
- * concat buffers.
- * @param  {Uint8Array[]} buffers
- * @return {Uint8Array}
- */
-function concat(buffers) {
-  var n, ret, offset = 0;
-  n = buffers.map(function(buffer) {
-    return buffer.length;
-  }).reduce(function(a, b) {
-    return a + b;
-  }, 0);
-  ret = new Uint8Array(n);
-  buffers.forEach(function(buffer) {
-    ret.set(buffer, offset);
-    offset += buffer.length;
-  });
-  return ret;
+function concat( buffers )
+{
+    var n, ret, offset = 0;
+    n = buffers.map(function(buffer) {
+        return buffer.length;
+    }).reduce(function(a, b) {
+        return a + b;
+    }, 0);
+    ret = new Uint8Array(n);
+    buffers.forEach(function(buffer) {
+        ret.set(buffer, offset);
+        offset += buffer.length;
+    });
+    return ret;
 }
 
-function zerror (message) {
-  return new Error('zlib-asm: ' + message);
+function zerror( message )
+{
+    return new Error('zlib-asm: ' + message);
 }
 
-function validate (state) {
-  return {
-    valid: state >= 0,
-    error: ERROR_TABLE[state]
-  };
+function validate( state )
+{
+    return {
+        valid: state >= 0,
+        error: ERROR_TABLE[state]
+    };
 }
 
 var common = {
-  defaultParams: defaultParams,
-  assign: assign,
-  concat: concat,
-  zerror: zerror,
-  validate: validate
+    defaultParams: defaultParams,
+    assign: assign,
+    concat: concat,
+    zerror: zerror,
+    validate: validate
 };
 
-/**
- * @constructor
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.chunkSize=32*1024] - chunk size
- */
-function BaseInflate(zlibHeader, params) {
-  params = common.assign({}, common.defaultParams, params);
-  this.chunkSize = params.chunkSize;
-  this.ctxPtr = Module._ZLIBJS_createInflateContext(zlibHeader);
-  if (!this.ctxPtr) throw common.zerror('ZLIBJS_createInflateContext');
-  Module.ZLIBJS_instances[this.ctxPtr] = this;
-  Module._ZLIBJS_init(this.chunkSize);
+function BaseInflate( zlibHeader, params )
+{
+    params = common.assign({}, common.defaultParams, params);
+    this.chunkSize = params.chunkSize;
+    this.ctxPtr = Module._ZLIBJS_createInflateContext(zlibHeader);
+    if (!this.ctxPtr) throw common.zerror('ZLIBJS_createInflateContext');
+    Module.ZLIBJS_instances[this.ctxPtr] = this;
+    Module._ZLIBJS_init(this.chunkSize);
 }
-
-/**
- * inflate chunk.
- */
-BaseInflate.prototype['inflate'] = function() {
-  var v = common.validate(Module._ZLIBJS_inflate(this.ctxPtr, this.chunkSize));
-  if (!v.valid) {
-    this.cleanup();
-    throw common.zerror(v.error);
-  }
+BaseInflate.prototype['inflate'] = function( ){
+    var v = common.validate(Module._ZLIBJS_inflate(this.ctxPtr, this.chunkSize));
+    if (!v.valid)
+    {
+        this.cleanup();
+        throw common.zerror(v.error);
+    }
+};
+BaseInflate.prototype['cleanup'] = function( ){
+    this.ctxPtr && Module._ZLIBJS_freeInflateContext(this.ctxPtr);
+    delete Module.ZLIBJS_instances[this.ctxPtr];
 };
 
-/**
- * cleanup the z_stream struct.
- */
-BaseInflate.prototype['cleanup'] = function() {
-  this.ctxPtr && Module._ZLIBJS_freeInflateContext(this.ctxPtr);
-  delete Module.ZLIBJS_instances[this.ctxPtr];
-};
-
-/**
- * @constructor
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.compressionLevel=6] - compression level
- * @param {number} [params.chunkSize=32*1024] - chunk size
- */
-function BaseDeflate(zlibHeader, params) {
-  params = common.assign({}, common.defaultParams, params);
-  this.chunkSize = params.chunkSize;
-  if (params.level) this.compressionLevel = params.level;
-  this.compressionLevel = Math.min(Math.max(this.compressionLevel, 0), 9);
-  this.ctxPtr = Module._ZLIBJS_createDeflateContext(this.compressionLevel, zlibHeader);
-  if (!this.ctxPtr) throw common.zerror('ZLIBJS_createDeflateContext');
-  Module.ZLIBJS_instances[this.ctxPtr] = this;
-  Module._ZLIBJS_init(this.chunkSize);
+function BaseDeflate( zlibHeader, params )
+{
+    params = common.assign({}, common.defaultParams, params);
+    this.chunkSize = params.chunkSize;
+    if (params.level) params.compressionLevel = params.level;
+    this.compressionLevel = params.compressionLevel = Math.min(Math.max(params.compressionLevel, 0), 9);
+    this.ctxPtr = Module._ZLIBJS_createDeflateContext(this.compressionLevel, zlibHeader);
+    if (!this.ctxPtr) throw common.zerror('ZLIBJS_createDeflateContext');
+    Module.ZLIBJS_instances[this.ctxPtr] = this;
+    Module._ZLIBJS_init(this.chunkSize);
 }
-
-/**
- * deflate chunk.
- * @param {boolean} flush - stream end flag.
- */
-BaseDeflate.prototype['deflate'] = function(flush) {
-  var v = common.validate(Module._ZLIBJS_deflate(this.ctxPtr, this.chunkSize, +flush));
-  if (!v.valid) {
-    this.cleanup();
-    throw common.zerror(v.error);
-  }
+BaseDeflate.prototype['deflate'] = function( flush ) {
+    var v = common.validate(Module._ZLIBJS_deflate(this.ctxPtr, this.chunkSize, +flush));
+    if (!v.valid)
+    {
+        this.cleanup();
+        throw common.zerror(v.error);
+    }
 };
-
-/**
- * cleanup the z_stream struct.
- */
-BaseDeflate.prototype['cleanup'] = function() {
-  this.ctxPtr && Module._ZLIBJS_freeDeflateContext(this.ctxPtr);
-  delete Module.ZLIBJS_instances[this.ctxPtr];
+BaseDeflate.prototype['cleanup'] = function( ){
+    this.ctxPtr && Module._ZLIBJS_freeDeflateContext(this.ctxPtr);
+    delete Module.ZLIBJS_instances[this.ctxPtr];
 };
 
 var ReaderWriterMixin = {
-  /**
-   * @param  {number} srcPtr - src pointer
-   * @param  {number} size - chunk size
-   */
-  $read: function(srcPtr, size) {
-    Module.HEAPU8.set(this.src.subarray(this.offset, this.offset + this.srcSize), srcPtr);
-    return this.srcSize;
-  },
-  /**
-   * @param  {number} dstPtr - dst pointer
-   * @param  {number} size - chunk size
-   */
-  $write: function(dstPtr, size) {
-    var bytes = Module.HEAPU8.subarray(dstPtr, dstPtr + size)
-    bytes = this.shareMemory ? bytes : new Uint8Array(bytes);
-    this.streamFn(bytes);
-  }
+    $read: function( srcPtr, size ){
+        Module.HEAPU8.set(this.src.subarray(this.offset, this.offset + this.srcSize), srcPtr);
+        return this.srcSize;
+    },
+    $write: function( dstPtr, size ){
+        var bytes = Module.HEAPU8.subarray(dstPtr, dstPtr + size)
+        bytes = this.shareMemory ? bytes : new Uint8Array(bytes);
+        this.streamFn(bytes);
+    }
 };
-
 ReaderWriterMixin['$read'] = ReaderWriterMixin.$read;
 ReaderWriterMixin['$write'] = ReaderWriterMixin.$write;
 
 var StreamReaderWriterMixin = {
-  /**
-   * @param  {number} srcPtr - src pointer
-   * @param  {number} size - chunk size
-   */
-  $read: function(srcPtr, size) {
-    Module.HEAPU8.set(new Uint8Array(this.src.buffer, this.src.byteOffset, this.srcSize), srcPtr);
-    return this.srcSize;
-  },
-  /**
-   * @param  {number} dstPtr - dst pointer
-   * @param  {number} size - chunk size
-   */
-  $write: function(dstPtr, size) {
-    this.dst = new Buffer(Module.HEAPU8.buffer).slice(dstPtr, dstPtr + size);
-    this.push(new Buffer(this.dst));
-  }
+    $read: function( srcPtr, size ){
+        Module.HEAPU8.set(new Uint8Array(this.src.buffer, this.src.byteOffset, this.srcSize), srcPtr);
+        return this.srcSize;
+    },
+    $write: function( dstPtr, size ){
+        this.dst = new Buffer(Module.HEAPU8.buffer).slice(dstPtr, dstPtr + size);
+        this.push(new Buffer(this.dst));
+    }
 };
-
 StreamReaderWriterMixin['$read'] = StreamReaderWriterMixin.$read;
 StreamReaderWriterMixin['$write'] = StreamReaderWriterMixin.$write;
 
-/**
- * @constructor
- * @extends BaseInflate
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.chunkSize=32*1024] - chunk size
- * @param {Uint8Array|Buffer} params.input - input buffer
- * @param {Function} streamFn - stream function
- * @param {boolean} [shareMemory=false] - share memory flag
- */
-function Inflate(zlibHeader, params) {
-  BaseInflate.call(this, zlibHeader, params);
-  this.src = params.input;
-  this.streamFn = params.streamFn;
-  this.shareMemory = params.shareMemory;
-  this.offset = 0;
-  this.srcSize = 0;
+function Inflate( zlibHeader, params )
+{
+    BaseInflate.call(this, zlibHeader, params);
+    this.src = params.input;
+    this.streamFn = params.streamFn;
+    this.shareMemory = params.shareMemory;
+    this.offset = 0;
+    this.srcSize = 0;
 }
 common.assign(Inflate.prototype, BaseInflate.prototype, ReaderWriterMixin);
 Inflate.prototype.constructor = Inflate;
 
-/**
- * inflate whole input buffer.
- */
-Inflate.prototype['inflateAll'] = function() {
-  for (; this.offset < this.src.length; this.offset += this.chunkSize) {
-    this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
-    this.inflate();
-  }
-  this.cleanup();
+Inflate.prototype['inflateAll'] = function( ){
+    for (; this.offset < this.src.length; this.offset += this.chunkSize)
+    {
+        this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
+        this.inflate();
+    }
+    this.cleanup();
 };
 
-/**
- * @constructor
- * @extends BaseDeflate
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {number} [params.compressionLevel=6] - compression level
- * @param {number} [params.chunkSize=32*1024] - chunk size
- * @param {Uint8Array|Buffer} params.input - input buffer
- * @param {Function} streamFn - stream function
- * @param {boolean} [shareMemory=false] - share memory flag
- */
-function Deflate(zlibHeader, params) {
-  BaseDeflate.call(this, zlibHeader, params);
-  this.src = params.input;
-  this.streamFn = params.streamFn;
-  this.shareMemory = params.shareMemory;
-  this.offset = 0;
-  this.srcSize = 0;
+function Deflate( zlibHeader, params )
+{
+    BaseDeflate.call(this, zlibHeader, params);
+    this.src = params.input;
+    this.streamFn = params.streamFn;
+    this.shareMemory = params.shareMemory;
+    this.offset = 0;
+    this.srcSize = 0;
 }
 common.assign(Deflate.prototype, BaseDeflate.prototype, ReaderWriterMixin);
 Deflate.prototype.constructor = Deflate;
 
-/**
- * deflate whole input buffer.
- */
-Deflate.prototype['deflateAll'] = function() {
-  for (; this.offset < this.src.length; this.offset += this.chunkSize) {
-    this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
-    this.deflate(this.src.length - this.offset <= this.chunkSize);
-  }
-  this.cleanup();
+Deflate.prototype['deflateAll'] = function( ){
+    for (; this.offset < this.src.length; this.offset += this.chunkSize)
+    {
+        this.srcSize = Math.min(this.src.length - this.offset, this.chunkSize);
+        this.deflate(this.src.length - this.offset <= this.chunkSize);
+    }
+    this.cleanup();
 };
 
-/**
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {Uint8Array|Buffer} input - input buffer
- * @param {number} [chunkSize=32*1024] - chunk size
- * @return {Uint8Array|Buffer}
- */
-function zlibInflate(zlibHeader, input, chunkSize) {
-  var buffers = [];
-  var inf = new Inflate(zlibHeader, {
-    input: input,
-    chunkSize: chunkSize,
-    shareMemory: false,
-    streamFn: function(bytes) {
-      buffers.push(bytes);
-    }
-  });
-  inf.inflateAll();
-  return common.concat(buffers);
+function zlibInflate( zlibHeader, input, chunkSize )
+{
+    var buffers = [];
+    var inf = new Inflate(zlibHeader, {
+        input: input,
+        chunkSize: chunkSize,
+        shareMemory: false,
+        streamFn: function(bytes) {
+            buffers.push(bytes);
+        }
+    });
+    inf.inflateAll();
+    return common.concat(buffers);
 }
 
-/**
- * @param {number} zlibHeader - zlib header flag. 1: zlib, -1: raw deflate
- * @param {Uint8Array|Buffer} input - input buffer
- * @param {number} [compressionLevel=6] - compression level
- * @param {number} [chunkSize=32*1024] - chunk size
- * @return {Uint8Array|Buffer}
- */
-function zlibDeflate(zlibHeader, input, compressionLevel, chunkSize) {
-  var buffers = [];
-  var def = new Deflate(zlibHeader, {
-    input: input,
-    compressionLevel: compressionLevel,
-    chunkSize: chunkSize,
-    shareMemory: false,
-    streamFn: function(bytes) {
-      buffers.push(bytes);
-    }
-  });
-  def.deflateAll();
-  return common.concat(buffers);
+function zlibDeflate( zlibHeader, input, compressionLevel, chunkSize )
+{
+    var buffers = [];
+    var def = new Deflate(zlibHeader, {
+        input: input,
+        compressionLevel: compressionLevel,
+        chunkSize: chunkSize,
+        shareMemory: false,
+        streamFn: function(bytes) {
+            buffers.push(bytes);
+        }
+    });
+    def.deflateAll();
+    return common.concat(buffers);
 }
 
 FILTER.Util.ZLib = {
     Module: Module,
-    
-    inflate: function( data, chunkSize ) {
+
+    inflate: function( data, chunkSize ){
         return zlibInflate(1, data, chunkSize);
     },
-    
-    rawinflate: function( data, chunkSize ) {
+
+    rawinflate: function( data, chunkSize ){
         return zlibInflate(-1, data, chunkSize);
     },
-    
-    deflate: function( data, compressionLevel, chunkSize ) {
+
+    deflate: function( data, compressionLevel, chunkSize ){
         return zlibDeflate(1, data, compressionLevel, chunkSize);
     },
-    
-    rawdeflate: function( data, compressionLevel, chunkSize ) {
+
+    rawdeflate: function( data, compressionLevel, chunkSize ){
         return zlibDeflate(-1, data, compressionLevel, chunkSize);
-    },
-    
-    createDeflate: function( options ) {
     }
 };
 

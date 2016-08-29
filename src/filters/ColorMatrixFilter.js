@@ -480,8 +480,24 @@ var ColorMatrixFilter = FILTER.Create({
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
+        for (i=0; i<rem; i+=4)
+        {
+            t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+            pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+            pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
+            
+            // clamp them manually
+            pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
+            pr[1] = pr[1]<0 ? 0 : (pr[1]>255 ? 255 : pr[1]);
+            pr[2] = pr[2]<0 ? 0 : (pr[2]>255 ? 255 : pr[2]);
+            pr[3] = pr[3]<0 ? 0 : (pr[3]>255 ? 255 : pr[3]);
+            
+            im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
+        }
         // partial loop unrolling (1/8 iterations)
-        for (i=0; i<imLen; i+=32)
+        for (i=rem; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
             p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
@@ -574,26 +590,6 @@ var ColorMatrixFilter = FILTER.Create({
             im[i+24] = p[24]|0; im[i+25] = p[25]|0; im[i+26] = p[26]|0; im[i+27] = p[27]|0;
             im[i+28] = p[28]|0; im[i+29] = p[29]|0; im[i+30] = p[30]|0; im[i+31] = p[31]|0;
         }
-        // loop unrolling remainder
-        if ( rem )
-        {
-            for (i=imLen-rem; i<imLen; i+=4)
-            {
-                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
-                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
-                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
-                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
-                
-                // clamp them manually
-                pr[0] = pr[0]<0 ? 0 : (pr[0]>255 ? 255 : pr[0]);
-                pr[1] = pr[1]<0 ? 0 : (pr[1]>255 ? 255 : pr[1]);
-                pr[2] = pr[2]<0 ? 0 : (pr[2]>255 ? 255 : pr[2]);
-                pr[3] = pr[3]<0 ? 0 : (pr[3]>255 ? 255 : pr[3]);
-                
-                im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
-            }
-        }
         return im;
     } : function( im, w, h ) {
         var self = this, M = self.matrix;
@@ -604,8 +600,18 @@ var ColorMatrixFilter = FILTER.Create({
 
         // apply filter (algorithm implemented directly based on filter definition, with some optimizations)
         // linearize array
+        for (i=0; i<rem; i+=4)
+        {
+            t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
+            pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
+            pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
+            pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
+            pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
+            
+            im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
+        }
         // partial loop unrolling (1/8 iterations)
-        for (i=0; i<imLen; i+=32)
+        for (i=rem; i<imLen; i+=32)
         {
             t[0]   =  im[i  ]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
             p[0 ]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4 ];
@@ -663,20 +669,6 @@ var ColorMatrixFilter = FILTER.Create({
             im[i+20] = p[20]|0; im[i+21] = p[21]|0; im[i+22] = p[22]|0; im[i+23] = p[23]|0;
             im[i+24] = p[24]|0; im[i+25] = p[25]|0; im[i+26] = p[26]|0; im[i+27] = p[27]|0;
             im[i+28] = p[28]|0; im[i+29] = p[29]|0; im[i+30] = p[30]|0; im[i+31] = p[31]|0;
-        }
-        // loop unrolling remainder
-        if ( rem )
-        {
-            for (i=imLen-rem; i<imLen; i+=4)
-            {
-                t[0]   =  im[i]; t[1] = im[i+1]; t[2] = im[i+2]; t[3] = im[i+3];
-                pr[0]  =  M[0 ]*t[0] +  M[1 ]*t[1] +  M[2 ]*t[2] +  M[3 ]*t[3] +  M[4];
-                pr[1]  =  M[5 ]*t[0] +  M[6 ]*t[1] +  M[7 ]*t[2] +  M[8 ]*t[3] +  M[9];
-                pr[2]  =  M[10]*t[0] +  M[11]*t[1] +  M[12]*t[2] +  M[13]*t[3] +  M[14];
-                pr[3]  =  M[15]*t[0] +  M[16]*t[1] +  M[17]*t[2] +  M[18]*t[3] +  M[19];
-                
-                im[i  ] = pr[0]|0; im[i+1] = pr[1]|0; im[i+2] = pr[2]|0; im[i+3] = pr[3]|0;
-            }
         }
         return im;
     }

@@ -98,17 +98,20 @@ FILTER.IO.FileLoader = FILTER.IO.FileReader = FILTER.IO.FileWriter = FileManager
 FILTER.IO.BinaryManager = Class(FileManager, {
     name: "IO.BinaryManager",
     
-    constructor: function BinaryManager( codec ) {
+    constructor: function BinaryManager( codec, opts ) {
         var self = this;
-        if ( !(self instanceof BinaryManager) ) return new BinaryManager( codec );
+        if ( !(self instanceof BinaryManager) ) return new BinaryManager( codec, opts );
         self._codec = "object" === typeof codec ? codec : null;
+        self._opts = opts || null;
         self.$super("constructor");
     },
     
     _codec: null,
+    _opts: null,
     
     dispose: function( ) {
         var self = this;
+        self._opts = null;
         self._codec = null;
         self.$super("dispose");
         return self;
@@ -124,6 +127,19 @@ FILTER.IO.BinaryManager = Class(FileManager, {
         else
         {
             return self._codec;
+        }
+    },
+    
+    options: function( options ) {
+        var self = this;
+        if ( arguments.length )
+        {
+            self._opts = "object" === typeof options ? options : null;
+            return self;
+        }
+        else
+        {
+            return self._opts;
         }
     },
     
@@ -159,7 +175,7 @@ FILTER.IO.BinaryManager = Class(FileManager, {
         if ( image && ('function' === typeof encoder) )
         {
             try {
-                buffer = encoder( image.getPixelData( ) );
+                buffer = encoder( image.getPixelData( ), self._opts||{} );
             } catch ( e ) {
                 exc = e;
                 buffer = null;

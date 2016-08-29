@@ -11,9 +11,11 @@
 // you may provide your own zlib implementation if needed by setting/overriding FILTER.Util.ZLib
 //var zlib = FILTER.Util.ZLib;
 
+var CodecUtil = FILTER.Util.Codec, readUInt16 = CodecUtil.readUInt16BE,
+    readUInt32 = CodecUtil.readUInt32BE, readBytes = CodecUtil.readBytes;
+
 // adapted from https://github.com/devongovett/png.js/
 // and from https://github.com/lukeapage/pngjs
-
 var
 APNG_DISPOSE_OP_NONE = 0,
 APNG_DISPOSE_OP_BACKGROUND = 1,
@@ -58,7 +60,7 @@ PNG.prototype = {
         frame = null;
         while( true ) 
         {
-            chunkSize = self.readUInt32();
+            chunkSize = readUInt32( self.data, self );
             section = ((function() {
                 var _i, _results;
                 _results = [];
@@ -71,8 +73,8 @@ PNG.prototype = {
             switch (section) 
             {
                 case 'IHDR':
-                    self.width = self.readUInt32();
-                    self.height = self.readUInt32();
+                    self.width = readUInt32( self.data, self );
+                    self.height = readUInt32( self.data, self );
                     self.bits = self.data[self.pos++];
                     self.colorType = self.data[self.pos++];
                     self.compressionMethod = self.data[self.pos++];
@@ -81,13 +83,13 @@ PNG.prototype = {
                     break;
                 case 'acTL':
                     self.animation = {
-                        numFrames: self.readUInt32(),
-                        numPlays: self.readUInt32() || Infinity,
+                        numFrames: readUInt32( self.data, self ),
+                        numPlays: readUInt32( self.data, self ) || Infinity,
                         frames: []
                     };
                     break;
                 case 'PLTE':
-                    self.palette = self.read(chunkSize);
+                    self.palette = readBytes(chunkSize, self.data, self);
                     break;
                 case 'fcTL':
                     if (frame) 
@@ -96,13 +98,13 @@ PNG.prototype = {
                     }
                     self.pos += 4;
                     frame = {
-                        width: self.readUInt32(),
-                        height: self.readUInt32(),
-                        xOffset: self.readUInt32(),
-                        yOffset: self.readUInt32()
+                        width: readUInt32( self.data, self ),
+                        height: readUInt32( self.data, self ),
+                        xOffset: readUInt32( self.data, self ),
+                        yOffset: readUInt32( self.data, self )
                     };
-                    delayNum = self.readUInt16();
-                    delayDen = self.readUInt16() || 100;
+                    delayNum = readUInt16( self.data, self );
+                    delayDen = readUInt16( self.data, self ) || 100;
                     frame.delay = 1000 * delayNum / delayDen;
                     frame.disposeOp = self.data[self.pos++];
                     frame.blendOp = self.data[self.pos++];
@@ -126,7 +128,7 @@ PNG.prototype = {
                     switch (self.colorType) 
                     {
                         case 3:
-                            self.transparency.indexed = self.read(chunkSize);
+                            self.transparency.indexed = readBytes(chunkSize, self.data, self);
                             short = 255 - self.transparency.indexed.length;
                             if (short > 0) 
                             {
@@ -137,14 +139,14 @@ PNG.prototype = {
                             }
                             break;
                         case 0:
-                            self.transparency.grayscale = self.read(chunkSize)[0];
+                            self.transparency.grayscale = readBytes(chunkSize, self.data, self)[0];
                             break;
                         case 2:
-                            self.transparency.rgb = self.read(chunkSize);
+                            self.transparency.rgb = readBytes(chunkSize, self.data, self);
                     }
                     break;
                 case 'tEXt':
-                    text = self.read(chunkSize);
+                    text = readBytes(chunkSize, self.data, self);
                     index = text.indexOf(0);
                     key = String.fromCharCode.apply(String, text.slice(0, index));
                     self.text[key] = String.fromCharCode.apply(String, text.slice(index + 1));
@@ -191,32 +193,6 @@ PNG.prototype = {
         }
     },
     
-    read: function( bytes ) {
-        var self = this, i, _i, _results;
-        _results = [];
-        for (i = _i = 0; 0 <= bytes ? _i < bytes : _i > bytes; i = 0 <= bytes ? ++_i : --_i) 
-        {
-            _results.push(self.data[self.pos++]);
-        }
-        return _results;
-    },
-
-    readUInt32: function( ) {
-        var self = this, b1, b2, b3, b4;
-        b1 = self.data[self.pos++] << 24;
-        b2 = self.data[self.pos++] << 16;
-        b3 = self.data[self.pos++] << 8;
-        b4 = self.data[self.pos++];
-        return b1 | b2 | b3 | b4;
-    },
-
-    readUInt16: function( ) {
-        var self = this, b1, b2;
-        b1 = self.data[self.pos++] << 8;
-        b2 = self.data[self.pos++];
-        return b1 | b2;
-    },
-
     decodePixels: function( data ) {
         var self = this, byte, c, col, i, left, length, 
             p, pa, paeth, pb, pc, pixelBytes, pixels, pos, row, 
@@ -229,9 +205,7 @@ PNG.prototype = {
         {
             return new Uint8Array(0);
         }
-        /*data = FlateStream( data );
-        data = data.getBytes();*/
-        data = new FILTER.Util.ZLib.inflate( data );
+        data = FILTER.Util.ZLib.inflate( data );
         pixelBytes = self.pixelBitlength / 8;
         scanlineLength = pixelBytes * self.width;
         pixels = new Uint8Array(scanlineLength * self.height);
@@ -442,21 +416,21 @@ function computeCRCTable( )
   }
 }
 
-var CrcCalculator = function() {
+function CrcStream( )
+{
   this._crc = -1;
-};
-var CrcStream = CrcCalculator;
-CrcCalculator.prototype.write = function( data ) {
+}
+CrcStream.prototype.write = function( data ){
   if ( null === crcTable ) computeCRCTable( );
   for (var i = 0; i < data.length; i++) {
     this._crc = crcTable[(this._crc ^ data[i]) & 0xff] ^ (this._crc >>> 8);
   }
   return true;
 };
-CrcCalculator.prototype.crc32 = function( ) {
+CrcStream.prototype.crc32 = function( ){
   return this._crc ^ -1;
 };
-CrcCalculator.crc32 = function( buf ) {
+CrcStream.crc32 = function( buf ){
   if ( null === crcTable ) computeCRCTable( );
   var crc = -1;
   for (var i = 0; i < buf.length; i++) {
@@ -465,7 +439,8 @@ CrcCalculator.crc32 = function( buf ) {
   return crc ^ -1;
 };
 
-function bitPacker(data, width, height, options) {
+function bitPacker(data, width, height, options)
+{
   var outHasAlpha = options.colorType === constants.COLORTYPE_COLOR_ALPHA;
   if (options.inputHasAlpha && outHasAlpha) {
     return data;

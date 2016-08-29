@@ -3,7 +3,7 @@
 var parse_args = require('./commargs.js'),
     path = require('path'),
     F = require('../../build/filter.bundle.js'),
-    imgFormat = F.IO.BinaryManager( F.Codec.PNG );
+    imgFormat = F.IO.BinaryManager( F.Codec.PNG, {deflateLevel: 9} );
 
 console.log('Loading image..');
 imgFormat.read( path.join(__dirname,'./yin_yang_blank.png'), function( yin_yang ){
