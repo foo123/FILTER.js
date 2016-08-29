@@ -7,7 +7,7 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like Canvas, WebWorkers, WebGL and SVG (in progress) or analogs in Node.js.  
 
 
-**version 0.9.5**
+**version 0.9.6**
 
 
 * [filter.core.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.js) / [filter.core.min.js](https://raw.githubusercontent.com/foo123/FILTER.js/master/build/filter.core.min.js)
@@ -59,7 +59,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Video Processing with Filter.js](http://foo123.github.com/examples/filter-video/)
 * [Sound Visualization with Filter.js](http://foo123.github.com/examples/filter-sound/)
 * [Filter.js with Three.js](http://foo123.github.com/examples/filter-three/)
-* [Filter.js Image Codecs test](http://foo123.github.com/examples/filter-codecs/)
+<!--* [Filter.js Image Codecs test](http://foo123.github.com/examples/filter-codecs/)-->
 * [Filter.js in Node.js](/examples/node)
 
 
@@ -107,7 +107,7 @@ The library dependencies are:
 * [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a number of utilities like `Color` Class, [Image Loader classes](/api-reference.md#loader--binaryloader--htmlimageloader-classes), [Image Codecs](/api-reference.md#codecs), and 17 generic `Filter` types (some having `glsl`/`svg` analogs) plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a number of utilities like `Color` Class, [Image Loader classes](/api-reference.md#file-input-output), [Image Codecs](/api-reference.md#codecs), and 17 generic `Filter` types (some having `glsl`/`svg` analogs) plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter) 
