@@ -22,8 +22,8 @@ var parse_args = require('./commargs.js'),
         [[0,0],[10,10],[20,10],[10,20]] /* octave offsets */
     ),
     patternFill = new F.CompositeFilter([
-        new F.PatternFillFilter(25/* x0 */,75/* y0 */,pattern2, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
-        new F.PatternFillFilter(75/* x0 */,112/* y0 */,pattern2, 0,0, F.MODE.TILE, 0.5/* tolerance */),
+        new F.PatternFillFilter(25/* x0 */,75/* y0 */,pattern2, 0,0, F.MODE.STRETCH, 0.5/* tolerance */, 0x0/* border */),
+        new F.PatternFillFilter(75/* x0 */,112/* y0 */,pattern2, 0,0, F.MODE.TILE, 0.5/* tolerance */, 0x0/* border */),
         new F.PatternFillFilter(125/* x0 */,75/* y0 */,pattern1, 0,0, F.MODE.STRETCH, 0.5/* tolerance */),
         new F.PatternFillFilter(75/* x0 */,36/* y0 */,pattern1, 0,0, F.MODE.TILE, 0.5/* tolerance */)
     ]),

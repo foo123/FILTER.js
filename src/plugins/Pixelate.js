@@ -69,9 +69,10 @@ FILTER.Create({
             p5 = (pxc + pyc) << 2;
             
             // compute rectangular interpolation
-            r = 0.2*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+im[p5  ]);
-            g = 0.2*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+im[p5+1]);
-            b = 0.2*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+im[p5+2]);
+            // base interpolated color on center pixel plus peripheral pixels
+            r = 0.125*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+4*im[p5  ]);
+            g = 0.125*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+4*im[p5+1]);
+            b = 0.125*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+4*im[p5+2]);
             dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
             
             // next pixel
@@ -160,9 +161,10 @@ FILTER.Create({
             }
             
             // compute triangular interpolation
-            r = 0.25*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]);
-            g = 0.25*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]);
-            b = 0.25*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]);
+            // base interpolated color on center pixel plus peripheral pixels
+            r = 0.2*(im[p1  ]+im[p2  ]+im[p3  ]+2*im[p4  ]);
+            g = 0.2*(im[p1+1]+im[p2+1]+im[p3+1]+2*im[p4+1]);
+            b = 0.2*(im[p1+2]+im[p2+2]+im[p3+2]+2*im[p4+2]);
             dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
             
             // next pixel
@@ -173,6 +175,123 @@ FILTER.Create({
                 if ( sy >= step ) { sy=0; syw=0; }
             }
             if ( sx >= step ) { sx=0; }
+        }
+        // return the pixelated image data
+        return dst;
+    }
+});
+// a simple fast Rhomboid Pixelate filter
+FILTER.Create({
+    name: "RhomboidPixelateFilter"
+    
+    // parameters
+    ,scale: 1
+    
+    // this is the filter constructor
+    ,init: function( scale ) {
+        var self = this;
+        self.scale = scale || 1;
+    }
+    
+    // support worker serialize/unserialize interface
+    ,path: FILTER_PLUGINS_PATH
+    
+    ,serialize: function( ) {
+        var self = this;
+        return {
+            scale: self.scale
+        };
+    }
+    
+    ,unserialize: function( params ) {
+        var self = this;
+        self.scale = params.scale;
+        return self;
+    }
+    
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h) {
+        var self = this;
+        if ( self.scale <= 1 ) return im;
+        if ( self.scale > 100 ) self.scale = 100;
+        
+        var dst, imLen = im.length, imArea = (imLen>>>2),
+            step, step2, stepy, stepy2, step_2, odd,
+            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5, r, g, b,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+        
+        dst = new IMG(imLen);
+        step = (sqrt(imArea)*self.scale*0.007)|0;
+        step2 = 2*step; stepy = w*step; stepy2 = 2*stepy;
+        step_2 = (0.5*step)|0;
+         
+        // do pixelation via interpolation on 5 points of a certain triangle
+        x=yw=sx=sy=syw=0; odd = 0;
+        for (i=0; i<imLen; i+=4)
+        {
+            // these edge conditions create the various rhomboid patterns
+            if ( odd )
+            {
+                // odd row
+                if ( sx+sy > step2 ) 
+                { 
+                    // third triangle /\.
+                    pxa = min(bx, x-sx+step); pya = max(0, yw-syw);
+                }
+                else if ( sx+step-sy > step ) 
+                { 
+                    // second triangle \/.
+                    pxa = max(0, x-sx); pya = max(0, yw-syw-stepy);
+                }
+                else
+                {
+                    // first triangle /\.
+                    pxa = max(0,x-sx-step); pya = max(0, yw-syw);
+                }
+            }
+            else
+            {
+                // even row
+                if ( sx+step-sy > step2 ) 
+                { 
+                    // third triangle \/.
+                    pxa = min(bx, x-sx+step); pya = max(0, yw-syw-stepy);
+                }
+                else if ( sx+sy > step ) 
+                { 
+                    // second triangle /\.
+                    pxa = max(0, x-sx); pya = max(0, yw-syw);
+                }
+                else
+                {
+                    // first triangle \/.
+                    pxa = max(0,x-sx-step); pya = max(0, yw-syw-stepy);
+                }
+            }
+            pxb = min(bx, pxa+step2); pyb = min(by, pya+stepy2);
+            pxc = min(bx, pxa+step); pyc = min(by, pya+stepy);
+            
+            p1 = (pxa + pya) << 2;
+            p2 = (pxa + pyb) << 2;
+            p3 = (pxb + pya) << 2;
+            p4 = (pxb + pyb) << 2;
+            p5 = (pxc + pyc) << 2;
+            
+            // compute triangular interpolation
+            // base interpolated color on center pixel plus peripheral pixels
+            r = 0.125*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+4*im[p5  ]);
+            g = 0.125*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+4*im[p5+1]);
+            b = 0.125*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+4*im[p5+2]);
+            dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
+            
+            // next pixel
+            x++; sx++; 
+            if ( x >= w ) 
+            { 
+                sx=0; x=0; sy++; syw+=w; yw+=w;
+                if ( sy >= step ) { sy=0; syw=0; odd = 1-odd; }
+            }
+            if ( sx >= step2 ) { sx=0; }
         }
         // return the pixelated image data
         return dst;

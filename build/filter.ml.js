@@ -218,7 +218,7 @@ function connected_components( stride, labeled, D, w, h, connectivity, invert, d
     }
     return labeled;
 }
-function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta )
+function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta, exterior_border )
 {
     var imLen = im.length, imSize = imLen>>>2, xm, ym, xM, yM,
         y, yy, dy = w<<2, ymin = 0, ymax = imLen-dy, xmin = 0, xmax = (w-1)<<2,
@@ -248,103 +248,208 @@ function connected_component( x0, y0, r0, g0, b0, bounding_box, im, w, h, delta 
     stack[slen+3]=-dy;
     slen += 4;
     
-    while ( 0 < slen ) 
+    if ( exterior_border ) // check for exterior border instead of similar interior color
     {
-        /* pop segment off stack and fill a neighboring scan line */
-        slen -= 4;
-        dy = stack[slen+3];
-        yw = stack[slen  ]+dy;
-        x1 = stack[slen+1];
-        x2 = stack[slen+2];
-        ym = min(ym, yw); yM = max(yM, yw);
-        xm = min(xm, x1); xM = max(xM, x2);
-        
-        /*
-         * segment of scan line y-dy for x1<=x<=x2 was previously filled,
-         * now explore adjacent pixels in scan line y
-         */
-        for (x=x1; x>=xmin; x-=4)
+        while ( 0 < slen ) 
         {
-            i = x+yw; k = i>>>2;
-            if ( /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+            /* pop segment off stack and fill a neighboring scan line */
+            slen -= 4;
+            dy = stack[slen+3];
+            yw = stack[slen  ]+dy;
+            x1 = stack[slen+1];
+            x2 = stack[slen+2];
+            ym = min(ym, yw); yM = max(yM, yw);
+            xm = min(xm, x1); xM = max(xM, x2);
+            
+            /*
+             * segment of scan line y-dy for x1<=x<=x2 was previously filled,
+             * now explore adjacent pixels in scan line y
+             */
+            for (x=x1; x>=xmin; x-=4)
             {
-                //labeled[k] = 255;
-                labeled[k>>>5] |= 1<<(k&31);
-                xm = min(xm, x);
-            }
-            else break;
-        }
-        if ( x >= x1 ) 
-        {
-            // goto skip:
-            i = x+yw; k = i>>>2;
-            while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
-            {
-                x+=4;
                 i = x+yw; k = i>>>2;
-            }
-            l = x;
-            notdone = (x <= x2);
-        }
-        else
-        {
-            l = x+4;
-            if ( l < x1 ) 
-            {
-                if ( yw-dy >= ymin && yw-dy <= ymax )
+                if ( /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && (abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
                 {
-                    //stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                    //labeled[k] = 255;
+                    labeled[k>>>5] |= 1<<(k&31);
+                    xm = min(xm, x);
+                }
+                else break;
+            }
+            if ( x >= x1 ) 
+            {
+                // goto skip:
+                i = x+yw; k = i>>>2;
+                while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || (abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta)) )
+                {
+                    x+=4;
+                    i = x+yw; k = i>>>2;
+                }
+                l = x;
+                notdone = (x <= x2);
+            }
+            else
+            {
+                l = x+4;
+                if ( l < x1 ) 
+                {
+                    if ( yw-dy >= ymin && yw-dy <= ymax )
+                    {
+                        //stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                        stack[slen  ]=yw;
+                        stack[slen+1]=l;
+                        stack[slen+2]=x1-4;
+                        stack[slen+3]=-dy;
+                        slen += 4;
+                    }
+                }
+                x = x1+4;
+                notdone = true;
+            }
+            
+            while ( notdone ) 
+            {
+                i = x+yw; k = i>>>2;
+                while ( x<=xmax && /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && (abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
+                {
+                    //labeled[k] = 255;
+                    labeled[k>>>5] |= 1<<(k&31);
+                    xM = max(xM, x);
+                    x+=4; i = x+yw; k = i>>>2;
+                }
+                if ( yw+dy >= ymin && yw+dy <= ymax)
+                {
+                    //stack[slen++]=[yw, l, x-4, dy];
                     stack[slen  ]=yw;
                     stack[slen+1]=l;
-                    stack[slen+2]=x1-4;
-                    stack[slen+3]=-dy;
-                    slen += 4;
-                }
-            }
-            x = x1+4;
-            notdone = true;
-        }
-        
-        while ( notdone ) 
-        {
-            i = x+yw; k = i>>>2;
-            while ( x<=xmax && /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
-            {
-                //labeled[k] = 255;
-                labeled[k>>>5] |= 1<<(k&31);
-                xM = max(xM, x);
-                x+=4; i = x+yw; k = i>>>2;
-            }
-            if ( yw+dy >= ymin && yw+dy <= ymax)
-            {
-                //stack[slen++]=[yw, l, x-4, dy];
-                stack[slen  ]=yw;
-                stack[slen+1]=l;
-                stack[slen+2]=x-4;
-                stack[slen+3]=dy;
-                slen += 4;
-            }
-            if ( x > x2+4 ) 
-            {
-                if ( yw-dy >= ymin && yw-dy <= ymax)
-                {
-                    //stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
-                    stack[slen  ]=yw;
-                    stack[slen+1]=x2+4;
                     stack[slen+2]=x-4;
-                    stack[slen+3]=-dy;
+                    stack[slen+3]=dy;
                     slen += 4;
                 }
-            }
-    /*skip:*/   
-            i = x+yw; k = i>>>2;
-            while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) ) 
-            {
-                x+=4;
+                if ( x > x2+4 ) 
+                {
+                    if ( yw-dy >= ymin && yw-dy <= ymax)
+                    {
+                        //stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                        stack[slen  ]=yw;
+                        stack[slen+1]=x2+4;
+                        stack[slen+2]=x-4;
+                        stack[slen+3]=-dy;
+                        slen += 4;
+                    }
+                }
+        /*skip:*/   
                 i = x+yw; k = i>>>2;
+                while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || (abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta)) ) 
+                {
+                    x+=4;
+                    i = x+yw; k = i>>>2;
+                }
+                l = x;
+                notdone = (x <= x2);
             }
-            l = x;
-            notdone = (x <= x2);
+        }
+    }
+    else
+    {
+        while ( 0 < slen ) 
+        {
+            /* pop segment off stack and fill a neighboring scan line */
+            slen -= 4;
+            dy = stack[slen+3];
+            yw = stack[slen  ]+dy;
+            x1 = stack[slen+1];
+            x2 = stack[slen+2];
+            ym = min(ym, yw); yM = max(yM, yw);
+            xm = min(xm, x1); xM = max(xM, x2);
+            
+            /*
+             * segment of scan line y-dy for x1<=x<=x2 was previously filled,
+             * now explore adjacent pixels in scan line y
+             */
+            for (x=x1; x>=xmin; x-=4)
+            {
+                i = x+yw; k = i>>>2;
+                if ( /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+                {
+                    //labeled[k] = 255;
+                    labeled[k>>>5] |= 1<<(k&31);
+                    xm = min(xm, x);
+                }
+                else break;
+            }
+            if ( x >= x1 ) 
+            {
+                // goto skip:
+                i = x+yw; k = i>>>2;
+                while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) )
+                {
+                    x+=4;
+                    i = x+yw; k = i>>>2;
+                }
+                l = x;
+                notdone = (x <= x2);
+            }
+            else
+            {
+                l = x+4;
+                if ( l < x1 ) 
+                {
+                    if ( yw-dy >= ymin && yw-dy <= ymax )
+                    {
+                        //stack[slen++]=[yw, l, x1-4, -dy];  /* leak on left? */
+                        stack[slen  ]=yw;
+                        stack[slen+1]=l;
+                        stack[slen+2]=x1-4;
+                        stack[slen+3]=-dy;
+                        slen += 4;
+                    }
+                }
+                x = x1+4;
+                notdone = true;
+            }
+            
+            while ( notdone ) 
+            {
+                i = x+yw; k = i>>>2;
+                while ( x<=xmax && /*0===labeled[k]*/!(labeled[k>>>5]&(1<<(k&31))) && abs(r0-im[i])<=delta && abs(g0-im[i+1])<=delta && abs(b0-im[i+2])<=delta )
+                {
+                    //labeled[k] = 255;
+                    labeled[k>>>5] |= 1<<(k&31);
+                    xM = max(xM, x);
+                    x+=4; i = x+yw; k = i>>>2;
+                }
+                if ( yw+dy >= ymin && yw+dy <= ymax)
+                {
+                    //stack[slen++]=[yw, l, x-4, dy];
+                    stack[slen  ]=yw;
+                    stack[slen+1]=l;
+                    stack[slen+2]=x-4;
+                    stack[slen+3]=dy;
+                    slen += 4;
+                }
+                if ( x > x2+4 ) 
+                {
+                    if ( yw-dy >= ymin && yw-dy <= ymax)
+                    {
+                        //stack[slen++]=[yw, x2+4, x-4, -dy];	/* leak on right? */
+                        stack[slen  ]=yw;
+                        stack[slen+1]=x2+4;
+                        stack[slen+2]=x-4;
+                        stack[slen+3]=-dy;
+                        slen += 4;
+                    }
+                }
+        /*skip:*/   
+                i = x+yw; k = i>>>2;
+                while ( x<=x2 && (/*0!==labeled[k]*/(labeled[k>>>5]&(1<<(k&31))) || abs(r0-im[i])>delta || abs(g0-im[i+1])>delta || abs(b0-im[i+2])>delta) ) 
+                {
+                    x+=4;
+                    i = x+yw; k = i>>>2;
+                }
+                l = x;
+                notdone = (x <= x2);
+            }
         }
     }
     bounding_box[0] = xm; bounding_box[1] = ym;
