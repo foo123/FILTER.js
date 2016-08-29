@@ -55,12 +55,11 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 
 ###Live Examples
-* [Image Processing with Filter.js](http://foo123.github.com/examples/filter/)
-* [Video Processing with Filter.js](http://foo123.github.com/examples/filter-video/)
-* [Sound Visualization with Filter.js](http://foo123.github.com/examples/filter-sound/)
-* [Filter.js with Three.js](http://foo123.github.com/examples/filter-three/)
-<!--* [Filter.js Image Codecs test](http://foo123.github.com/examples/filter-codecs/)-->
-* [Filter.js in Node.js](/examples/node)
+* [Image Processing with `Filter.js`](http://foo123.github.com/examples/filter/)
+* [Video Processing with `Filter.js`](http://foo123.github.com/examples/filter-video/)
+* [Sound Visualization with `Filter.js` (Trioptic)](http://foo123.github.com/examples/filter-sound/)
+* [Filter.js with `Three.js`](http://foo123.github.com/examples/filter-three/)
+* [Filter.js in `Node.js`](/examples/node)
 
 
 ###Browser Support
