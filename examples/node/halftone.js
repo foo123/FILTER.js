@@ -7,7 +7,7 @@ var parse_args = require('./commargs.js'),
         F.ColorMatrixFilter().grayscale(),
         F.HalftoneFilter(1).threshold(0.4)/*.setMode(F.MODE.GRAY)*/
     ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG );
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
 console.log('Loading image..');
 binaryManager.read( path.join(__dirname,'./che.jpg'), function( che ){

@@ -11,12 +11,9 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
-    MODE = FILTER.MODE, A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
-;
+var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed,
+    Min = Math.min, Max = Math.max, Floor = Math.floor;
 
-//
-//
 // DisplacementMap Filter
 FILTER.Create({
     name: "DisplacementMapFilter"
@@ -83,6 +80,7 @@ FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, Map;
         
         Map = self.input("map"); if ( !Map ) return im;
@@ -94,8 +92,8 @@ FILTER.Create({
             SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
             applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
-            mode = self.mode||IGNORE
-        ;
+            mode = self.mode||IGNORE, IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy,
+            A16I = FILTER.Array16I;
         
         map = Map[0]; mapW = Map[1]; mapH = Map[2]; 
         mapLen = map.length; mapArea = mapLen>>>2;

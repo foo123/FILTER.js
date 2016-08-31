@@ -12,12 +12,9 @@
 !function(FILTER, undef){
 "use strict";
 
-var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
-    IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
-    integral_convolution = FilterUtil.integral_convolution,
-    separable_convolution = FilterUtil.separable_convolution,
-    blend = FilterUtil.cm_combine, convolve = FilterUtil.cm_convolve, MODE = FILTER.MODE,
+    convolve = FILTER.Util.Filter.cm_convolve,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
     sqrt2 = Math.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
@@ -216,7 +213,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = d === undef ? 3 : (d&1 ? d : d+1);
         var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
-        return this.set(blend(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0); 
+        return this.set(FILTER.Util.Filter.cm_combine(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0); 
     }
     
     // X-gradient, partial X-derivative (Prewitt)
@@ -243,7 +240,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,prewittDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blend(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(FILTER.Util.Filter.cm_combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     ,gradDirectional: null
     
@@ -277,7 +274,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,sobelDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blend(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(FILTER.Util.Filter.cm_combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     
     // gradient magnitude (Sobel)
@@ -352,17 +349,18 @@ var ConvolutionMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: notSupportClamp ? function( im, w, h ) {
+        //"use asm";
         var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return FILTER.Util.Filter.separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
@@ -552,17 +550,18 @@ var ConvolutionMatrixFilter = FILTER.Create({
         }
         return dst;
     } : function( im, w, h ) {
+        //"use asm";
         var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return FILTER.Util.Filter.separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 

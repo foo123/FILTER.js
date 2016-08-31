@@ -10,7 +10,7 @@ var parse_args = require('./commargs.js'),
         F.ConvolutionMatrixFilter().fastGauss(6, 3).setMode(F.MODE.GRAY),
         F.CannyEdgesFilter(35, 70, false)
     ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG );
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if ( parallel ) edge_detector.worker( true );

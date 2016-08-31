@@ -11,10 +11,10 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U, MODE = FILTER.MODE,
-    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Statistical;
+var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
+    A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
     
-//
 //  Statistical Filter
 var StatisticalFilter = FILTER.Create({
     name: "StatisticalFilter"
@@ -114,7 +114,7 @@ var StatisticalFilter = FILTER.Create({
     ,_apply: function(im, w, h) {
         var self = this;
         if ( !self.d )  return im;
-        return Statistical[self._filter]( self, im, w, h );
+        return STAT[self._filter]( self, im, w, h );
     }
         
     ,canRun: function( ) {
@@ -126,8 +126,9 @@ StatisticalFilter.prototype.erode = StatisticalFilter.prototype.minimum;
 StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 
 // private methods
-Statistical = {
+STAT = {
      "1th": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx = w-1, by = imArea-w,
@@ -178,6 +179,7 @@ Statistical = {
         return dst;
     }
     ,"0th": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx = w-1, by = imArea-w,
@@ -228,6 +230,7 @@ Statistical = {
         return dst;
     }
     ,"kth": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,

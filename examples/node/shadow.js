@@ -9,7 +9,7 @@ var parse_args = require('./commargs.js'),
         F.GradientFilter( ).radial( [[255,0,0,255], [255,255,255,0]], [0.2,0.3], 0.4, 0.4 ),
         F.DropShadowFilter( 10, 10, shadow_only ? 0xffffff : 0x0, 0.5, 1, shadow_only )
     ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG )
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} )
 ;
 
 console.log('Applying ..');

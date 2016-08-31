@@ -3,7 +3,7 @@
 var parse_args = require('./commargs.js'),
     path = require('path'),
     F = require('../../build/filter.bundle.js'),
-    perlin, binaryManager = F.IO.BinaryManager( F.Codec.JPG );
+    perlin, binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
 console.log('Generating perlin noise..');
 perlin = F.Image.PerlinNoise(

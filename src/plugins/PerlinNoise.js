@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var perlin_noise = FILTER.Util.Image.perlin, MODE = FILTER.MODE;
+var MODE = FILTER.MODE;
 
 // an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
@@ -112,7 +112,7 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this;
+        var self = this, perlin_noise = FILTER.Util.Image.perlin;
         if ( !perlin_noise ) return im;
         if ( self._seed )
         {

@@ -432,7 +432,14 @@ FILTER.Util.ZLib = {
 
 // @requires FILTER/util/zlib.js
 // you may provide your own zlib implementation if needed by setting/overriding FILTER.Util.ZLib
-//var zlib = FILTER.Util.ZLib;
+function zlib_inflate( data, chuckSize )
+{
+    return FILTER.Util.ZLib.inflate( data, chuckSize );
+}
+function zlib_deflate( data, deflateLevel, chuckSize )
+{
+    return FILTER.Util.ZLib.deflate( data, deflateLevel, chuckSize );
+}
 
 var CodecUtil = FILTER.Util.Codec, readUInt16 = CodecUtil.readUInt16BE,
     readUInt32 = CodecUtil.readUInt32BE, readBytes = CodecUtil.readBytes;
@@ -628,7 +635,7 @@ PNG.prototype = {
         {
             return new Uint8Array(0);
         }
-        data = FILTER.Util.ZLib.inflate( data );
+        data = zlib_inflate( data );
         pixelBytes = self.pixelBitlength / 8;
         scanlineLength = pixelBytes * self.width;
         pixels = new Uint8Array(scanlineLength * self.height);
@@ -1225,7 +1232,7 @@ FILTER.Codec.PNG = {
 
         // compress it
         var deflateOpts = packer.getDeflateOptions();
-        var compressedData = FILTER.Util.ZLib.deflate(filteredData, deflateOpts.level, deflateOpts.chuckSize);
+        var compressedData = zlib_deflate(filteredData, deflateOpts.level, deflateOpts.chuckSize);
         filteredData = null;
 
         if (!compressedData || !compressedData.length) throw new Error('bad png - invalid compressed data response');

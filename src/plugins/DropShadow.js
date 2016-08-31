@@ -7,11 +7,11 @@
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    MODE = FILTER.MODE, boxKernel_3x3 = new FILTER.ConvolutionMatrix([
-        1/9,1/9,1/9,
-        1/9,1/9,1/9,
-        1/9,1/9,1/9
+var MODE = FILTER.MODE,
+    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
+    1/9,1/9,1/9,
+    1/9,1/9,1/9,
+    1/9,1/9,1/9
     ]);
 
 // adapted from http://www.jhlabs.com/ip/filters/
@@ -93,7 +93,7 @@ FILTER.Create({
         if ( 0 >= quality ) quality = 1;
         if ( 3 < quality ) quality = 3;
         
-        shadow = new IMG(imSize);
+        shadow = new FILTER.ImArray(imSize);
         
         // generate shadow from image alpha channel
         for(i=0; i<imSize; i+=4)
@@ -116,7 +116,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = FILTER.Util.Filter.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;

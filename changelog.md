@@ -8,17 +8,21 @@ __0.9.6__
 * optimise and fix some typos in `connectedcomponents` filter and machinelearning method
 * fix `container` meta parameter in `compositefilter` after each `apply` call (could be overwritten deeper in apply chain)
 * canny gradient pruning in haar detector computed using wrong indices in previous optimisations, fixed
+* custom partial selection not computed correctly in haar detector filter, fixed (needs more extensive check)
 * the way extra filter inputs were handled has a bug, if same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version, fixed
-* re-implement `FloodFill`, `PatternFill` as scanline `connected_component` with seed algorithm
+* re-implement, extend and optimise `FloodFill`, `PatternFill` as scanline `connected_component` with seed algorithm
 * make `FloodFill`, `PatternFill` function also given an exterior border color (i.e match connected component  while not exterior border found) instead of only interior color (i.e match connected component while similar interior color found)
+* `FloodFill` in `FILTER.MODE.HUE` replaces only `hue` so it can be used to fill/replace a gradient connected region
+* fix `FILTER.Color.RGB2HSV` for gray values (was changed in previous update)
 * make image/filter selections accept both relative and absolute coordinates (default relative)
-* add initial versions of some machine learning algorithms, `kmeans`, `kmedoids`, `svd`, move `connected_components` algorithm under `machinelearning` package
+* add initial versions (in progress) of some machine learning algorithms, `kmeans`, `kmedoids`, `svd`, move `connected_components` algorithm under `machinelearning` package
 * add new util `blas` (Basic Linear Algebra Subroutines), refactor and re-organise existing utils into `core`, `array`, ..
 * simplify `IO` and `CODECS` packages into one manager with `codec` parameter
 * add full `zlib` (`zlib-asm.js`) util implementation and native node `zlib` module alternative (`zlib-node.js`) (can be set/overriden by user if necesary)
 * add `png` encoder method (to write image files in `png` format)
 * fix a typo in `convolutionmatrix` filter (missing `stride` parameter in `convolution_clamp`)
-* add new `RhomboidPixelate` plugin
+* add new `RhomboidPixelate`, `HexagonalPixelate` (almost done) plugins
+* simplify and unify `PixelateFilter`, supports ALL the pixelation filters by setting `pattern` parameter (default `"rectangular"`, see examples)
 * update references, examples
 
 

@@ -7,7 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, rand = Math.random;
+var notSupportClamp = FILTER._notSupportClamp;
 
 // a sample noise filter
 // used for illustration purposes on how to create a plugin filter
@@ -50,9 +50,8 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
-        if ( !self._isOn ) return im;
-        var range=self.max-self.min, m=self.min,
-            i, l=im.length, n, r, g, b, t0, t1, t2;
+        var rand = FILTER.Util.Math.random, range = self.max-self.min,
+            m = self.min, i, l = im.length, n, r, g, b, t0, t1, t2;
         
         // add noise
         if (notSupportClamp)

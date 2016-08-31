@@ -9,9 +9,8 @@
 
 var HAS = 'hasOwnProperty', IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     Min = Math.min, Round = Math.round, hasArraySet = FILTER.Util.Array.hasArrayset,
-    arrayset = FILTER.Util.Array.arrayset, notSupportClamp = FILTER._notSupportClamp, BLEND = FILTER.Color.Blend;
+    arrayset = FILTER.Util.Array.arrayset, notSupportClamp = FILTER._notSupportClamp;
 
-//
 // Blend Filter, photoshop-like image blending
 FILTER.Create({
     name: "BlendFilter"
@@ -79,12 +78,14 @@ FILTER.Create({
     }
     
     ,_apply: function(im, w, h) {
+        //"use asm";
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         
         var i, k, l = matrix.length, imLen = im.length, input,
             alpha, startX, startY, startX2, startY2, W, H, im2, w2, h2, 
-            W1, W2, start, end, x, y, x2, y2, pix2, blend, mode, blended;
+            W1, W2, start, end, x, y, x2, y2, pix2, blend, mode, blended,
+            BLEND = FILTER.Color.Blend;
         
         //blended = im;
         // clone original image since same image may also blend with itself

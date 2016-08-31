@@ -156,7 +156,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add `2d-fft` routines, frequency-domain filtering (todo)
 * add `SVG`, `CSS` Filters interface support for some Filters (todo)
 * add machine learning (image) segmentation/clustering algorithms (e.g `kmeans`, `kmedoids`, `connected components`, `deterministic annealing`, `svd`, `jade`, ..) [DONE partially]
-* implement some numeric routines (e.g `blas`, `filter` routines) using faster [`asm.js`](http://asmjs.org/spec/latest/) (browser &amp; nodejs) and/or [`simd.js`](https://hacks.mozilla.org/2014/10/introducing-simd-js/) (TODO)
+* implement some numeric routines (e.g `blas`, `filter` routines) using faster [`asm.js`](http://asmjs.org/spec/latest/) (browser &amp; nodejs) and/or [`simd.js`](https://hacks.mozilla.org/2014/10/introducing-simd-js/) [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add (generic/native) codec support for image formats, e.g `.TGA`, `.HDR`/`.RGBE`, `.GIF`, `.BMP`, `.PNG`, `.JPG`/`.JPEG` etc.. [DONE]

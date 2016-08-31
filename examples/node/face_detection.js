@@ -7,9 +7,10 @@ var parse_args = require('./commargs.js'),
     haarcascade_frontalface_alt = require('./haarcascade_frontalface_alt.js'),
     face_detector = F.CompositeFilter([
         F.ColorMatrixFilter().grayscale(),
+        F.HistogramEqualizeFilter(F.MODE.GRAY),
         F.HaarDetectorFilter(haarcascade_frontalface_alt)
-    ]),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG );
+    ]).update(false),
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if ( parallel ) face_detector.worker( true );
@@ -20,7 +21,7 @@ binaryManager.read( path.join(__dirname,'./che.jpg'), function( che ){
     face_detector.apply( che, function( ){
         if ( parallel ) face_detector.worker( false );
         console.log('Detection completed');
-        var features = face_detector.filter(1).metaData().objects;
+        var features = face_detector.filter(2).metaData().objects;
         console.log(features.length + (1 === features.length ? ' feature was found' : ' features were found'));
         if ( features.length )
         {

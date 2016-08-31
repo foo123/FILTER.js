@@ -10,9 +10,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var max = Math.max, min = Math.min, select = FILTER.Util.Image.get_data;
+var max = Math.max, min = Math.min;
 
-//
 //  Selection Filter 
 FILTER.Create({
     name: "SelectionFilter"
@@ -48,7 +47,7 @@ FILTER.Create({
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
         self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
-        return select( im, w, h, x1, y1, x2, y2, true );
+        return FILTER.Util.Image.get_data( im, w, h, x1, y1, x2, y2, true );
     }
 });
 FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter;

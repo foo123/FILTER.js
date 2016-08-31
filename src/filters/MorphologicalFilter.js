@@ -11,17 +11,17 @@
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
-    MODE = FILTER.MODE, Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
+var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray,
+    STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
+    Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     // return a box structure element
     box = function( d ) {
         var i, size=d*d, ones = new STRUCT(size);
         for (i=0; i<size; i++) ones[i]=1;
         return ones;
     },
-    box3 = box(3), Morphological;
+    box3 = box(3);
 
-//
 //  Morphological Filter
 FILTER.Create({
     name: "MorphologicalFilter"
@@ -71,8 +71,8 @@ FILTER.Create({
         self._structureElement = TypedArray( params._structureElement, STRUCT );
         self._indices = TypedArray( params._indices, A32I );
         self._filterName = params._filterName;
-        if ( self._filterName && Morphological[ self._filterName ] )
-            self._filter = Morphological[ self._filterName ];
+        if ( self._filterName && MORPHO[ self._filterName ] )
+            self._filter = MORPHO[ self._filterName ];
         return self;
     }
     
@@ -108,7 +108,7 @@ FILTER.Create({
     ,set: function( structureElement, filtName ) {
         var self = this;
         self._filterName = filtName;
-        self._filter = Morphological[ filtName ];
+        self._filter = MORPHO[ filtName ];
         if ( structureElement && structureElement.length )
         {
             // structure Element given
@@ -167,8 +167,9 @@ FILTER.Create({
 });
 
 // private methods
-Morphological = {
+MORPHO = {
     "dilate": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -226,6 +227,7 @@ Morphological = {
         return dst;
     }
     ,"erode": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -286,6 +288,7 @@ Morphological = {
     }
     // dilation of erotion
     ,"open": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -392,6 +395,7 @@ Morphological = {
     }
     // erotion of dilation
     ,"close": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -498,6 +502,7 @@ Morphological = {
     }
     // 1/2 (dilation - erosion)
     ,"gradient": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -602,6 +607,7 @@ Morphological = {
     }
     // 1/2 (dilation + erosion -2IM)
     ,"laplacian": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,

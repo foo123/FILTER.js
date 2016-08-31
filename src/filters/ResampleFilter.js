@@ -10,9 +10,6 @@
 !function(FILTER, undef){
 "use strict";
 
-var Interpolation = FILTER.Interpolation;
-
-//
 //  Resample Filter 
 FILTER.Create({
     name: "ResampleFilter"
@@ -61,7 +58,7 @@ FILTER.Create({
         self.hasMeta = false; self.meta = null;
         if ( 1 === sX && 1 === sY ) return im;
         
-        interpolate = Interpolation[self.interpolation||"bilinear"];
+        interpolate = FILTER.Interpolation[self.interpolation||"bilinear"];
         if ( !interpolate ) return im;
         
         nw = (self.sX*w)|0; nh = (self.sY*h)|0;

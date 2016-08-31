@@ -7,15 +7,11 @@
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
-    min = Math.min, max = Math.max, ceil = Math.ceil,
-    MODE = FILTER.MODE, connected_component = FILTER.MachineLearning.connected_component;
+var MODE = FILTER.MODE;
     
-// a fast flood fill filter using scanline algorithm
+// an extended and fast flood fill and flood pattern fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
-// http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
-// http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
 FILTER.Create({
     name : "FloodFillFilter"
     ,x: 0
@@ -23,6 +19,7 @@ FILTER.Create({
     ,color: null
     ,border: null
     ,tolerance: 1e-6
+    ,mode: MODE.COLOR
     
     ,path: FILTER_PLUGINS_PATH
     
@@ -33,6 +30,7 @@ FILTER.Create({
         self.color = color || 0;
         self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.border = null != border ? border||0 : null;
+        self.mode = MODE.COLOR;
     }
     
     ,serialize: function( ) {
@@ -56,58 +54,99 @@ FILTER.Create({
         return self;
     }
     
-    // this is the filter actual apply method routine
-    /* adapted from:
-     * A Seed Fill Algorithm
-     * by Paul Heckbert
-     * from "Graphics Gems", Academic Press, 1990
-     */
     ,apply: function( im, w, h ) {
-        var self = this, //borderColor = self.borderColor,
-            color = self.color||0, x0 = self.x||0, y0 = self.y||0,
-            r, g, b, r0, g0, b0, r1, g1, b1, x, y, k, i, bb, mask, x1, y1, x2, y2,
-            border = self.border;
+        var self = this, mode = self.mode || MODE.COLOR,
+            color = self.color||0, border = self.border, exterior = null != border,
+            x0 = self.x||0, y0 = self.y||0, x, y, x1, y1, x2, y2, k, i, l, 
+            r, g, b, r0, g0, b0, rb, gb, bb, hsv, dist, D0, D1, region, box, mask, block_mask,
+            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB;
             
         if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
         
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
-        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
         r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
-        if ( null != border )
+        if ( exterior )
         {
-           r1 = (border>>>16)&255;
-           g1 = (border>>>8)&255;
-           b1 = (border)&255;
-           if ( r0 === r1 && g0 === g1 && b0 === b1 ) return im;
-           r0 = r1; g0 = g1; b0 = b1;
+           rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
+           if ( r0 === rb && g0 === gb && b0 === bb ) return im;
+           r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        else
+        else if ( MODE.COLOR === mode && r0 === r && g0 === g && b0 === b )
         {
-            if ( r === r0 && g === g0 && b === b0 ) return im;
+            return im;
         }
         
-        bb = [0,0,0,0];
-        /* seems to have issues when tolerance is exactly 1.0*/
-        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, null != border);
+        /* seems to have issues when tolerance is exactly 1.0 */
+        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
+        // mask is a packed bit array for efficiency
+        mask = region.mask;
         
-        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>2; y2 = bb[3]>>>2;
-        for(x=x1,y=y1; y<=y2; )
+        if ( (MODE.MASK === mode) || (MODE.COLORMASK === mode) )
         {
-            k = x+y;
-            if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+            // MODE.MASK returns the region mask, rest image is put blank
+            block_mask = MODE.MASK === mode;
+            x=0; y=0;
+            for(i=0,l=im.length; i<l; i+=4,x++)
             {
-                i = k << 2;
-                im[i  ] = r;
-                im[i+1] = g;
-                im[i+2] = b;
+                if ( x>=w ) { x=0; y+=w; }
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    // use mask color
+                    if ( block_mask ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; }
+                    // else leave original color
+                }
+                else
+                {
+                    im[i  ] = 0; im[i+1] = 0; im[i+2] = 0;
+                }
             }
-            if ( ++x>x2 ){ x=x1; y+=w; }
+        }
+        else if ( MODE.HUE === mode )
+        {
+            // MODE.HUE enables to fill/replace color gradients in a connected region
+            box = region.box;
+            x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
+            hsv = new FILTER.Array32F(3);
+            
+            for(x=x1,y=y1; y<=y2; )
+            {
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    i = k << 2;
+                    hsv[0] = im[i  ]; hsv[1] = im[i+1]; hsv[2] = im[i+2];
+                    RGB2HSV(hsv, 0, 1); hsv[0] = color; HSV2RGB(hsv, 0, 1);
+                    im[i  ] = hsv[0]|0; im[i+1] = hsv[1]|0; im[i+2] = hsv[2]|0;
+                }
+                if ( ++x>x2 ){ x=x1; y+=w; }
+            }
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            // fill/replace color in region
+            box = region.box;
+            x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
+            for(x=x1,y=y1; y<=y2; )
+            {
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    i = k << 2;
+                    im[i  ] = r;
+                    im[i+1] = g;
+                    im[i+2] = b;
+                }
+                if ( ++x>x2 ){ x=x1; y+=w; }
+            }
         }
         // return the new image data
         return im;
     }
 });
-//FILTER.ColorFillFilter = FILTER.FloodFillFilter;
+FILTER.ColorFillFilter = FILTER.FloodFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"
@@ -116,22 +155,22 @@ FILTER.Create({
     ,offsetX: 0
     ,offsetY: 0
     ,tolerance: 1e-6
-    ,mode: MODE.TILE
     ,border: null
+    ,mode: MODE.TILE
     ,hasInputs: true
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance, border ) {
+    ,init: function( x, y, pattern, offsetX, offsetY, tolerance, border ) {
         var self = this;
         self.x = x || 0;
         self.y = y || 0;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
         if ( pattern ) self.setInput( "pattern", pattern );
-        self.mode = mode || MODE.TILE;
         self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.border = null != border ? border||0 : null;
+        self.mode = MODE.TILE;
     }
     
     ,dispose: function( ) {
@@ -176,37 +215,41 @@ FILTER.Create({
         if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
-        var STRETCH = MODE.STRETCH, mode = self.mode, pattern = Pat[0],
-            pw = Pat[1], ph = Pat[2], px0 = self.offsetX||0, py0 = self.offsetY||0,
-            r0, g0, b0, r, g, b, x, y, k, i, pi, px, py, bb, mask, x1, y1, x2, y2, sx, sy,
-            border = self.border;
+        var mode = self.mode||MODE.TILE, border = self.border, exterior = null != border, delta,
+            pattern = Pat[0], pw = Pat[1], ph = Pat[2], px0 = self.offsetX||0, py0 = self.offsetY||0,
+            r0, g0, b0, rb, gb, bb, x, y, k, i, pi, px, py, x1, y1, x2, y2, sx, sy,
+            dist, D0, D1, region, box, mask, yy;
         
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
-        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
-        if ( null != border )
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
+        if ( exterior )
         {
-           r = (border>>>16)&255;
-           g = (border>>>8)&255;
-           b = (border)&255;
-           if ( r0 === r && g0 === g && b0 === b ) return im;
-           r0 = r; g0 = g; b0 = b;
+           rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
+           if ( r0 === rb && g0 === gb && b0 === bb ) return im;
+           r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        bb = [0,0,0,0];
-        /* seems to have issues when tolerance is exactly 1.0*/
-        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, null != border);
         
-        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>>2; y2 = bb[3]>>>2;
-        if ( STRETCH === mode )
+        /* seems to have issues when tolerance is exactly 1.0 */
+        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
+        // mask is a packed bit array for efficiency
+        mask = region.mask; box = region.box;
+        x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>>2; y2 = box[3]>>>2;
+        
+        if ( MODE.STRETCH === mode )
         {
+            // MODE.STRETCH stretches (rescales) pattern to fit and fill region
             sx = pw/(x2-x1+1); sy = ph/(y2-y1+w);
             for(x=x1,y=y1; y<=y2; )
             {
                 k = x+y;
-                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+                if ( mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
-                    //px = (pw*(x-x1)/(x2-x1+1))|0; py = (ph*(y-y1)/(y2-y1+w))|0;
-                    px = (sx*(x-x1))|0; py = (sy*(y-y1))|0;
+                    // stretch here
+                    px = (sx*(x-x1))|0;
+                    py = (sy*(y-y1))|0;
+                    // pattern fill here
                     pi = (px + py*pw) << 2;
                     im[i  ] = pattern[pi  ];
                     im[i+1] = pattern[pi+1];
@@ -215,24 +258,28 @@ FILTER.Create({
                 if ( ++x>x2 ){ x=x1; y+=w; }
             }
         }
-        else //if ( TILE === mode )
+        else //if ( MODE.TILE === mode )
         {
+            // MODE.TILE tiles (repeats) pattern to fit and fill region
             if ( 0 > px0 ) px0 += pw;
             if ( 0 > py0 ) py0 += ph;
-            for(x=x1,y=y1; y<=y2; )
+            x2 = x2-x1+1;
+            for(x=0,y=0,yy=y1; yy<=y2; )
             {
-                k = x+y;
-                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+                k = x+x1 + yy;
+                if ( mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
-                    px = (x-x1+px0) % pw;
-                    py = (y-y1+py0) % ph;
+                    // tile here
+                    px = (x + px0) % pw;
+                    py = (y + py0) % ph;
+                    // pattern fill here
                     pi = (px + py*pw) << 2;
                     im[i  ] = pattern[pi  ];
                     im[i+1] = pattern[pi+1];
                     im[i+2] = pattern[pi+2];
                 }
-                if ( ++x>x2 ){ x=x1; y+=w; }
+                if ( ++x>=x2 ){ x=0; yy+=w; y++; }
             }
         }
         // return the new image data

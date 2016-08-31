@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var Gradient = FILTER.Color.Gradient, MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
+var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
 
 FILTER.Create({
      name: "GradientFilter"
@@ -41,7 +41,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = Gradient.stops( colors, stops );
+            var c = FILTER.Color.Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -95,7 +95,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         if ( !self.colors ) return im;
-        return MODE.RADIAL === self.mode ? Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate ) : Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
+        return MODE.RADIAL === self.mode ? FILTER.Color.Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, FILTER.Color.Gradient.interpolate ) : FILTER.Color.Gradient.linear( im, w, h, self.colors, self.stops, self.angle, FILTER.Color.Gradient.interpolate );
     }
 });
 

@@ -64,8 +64,7 @@ FILTER.Create({
             d, dx, dy, blur, blurw, wt,
             xOff1, yOff1, xOff2, yOff2,
             p1, p2, p3, p4, t0, t1, t2,
-            bx1, bx2, by1, by2
-        ;
+            bx1, bx2, by1, by2;
         
         if ( m<=0 ) return im;
         
@@ -77,7 +76,7 @@ FILTER.Create({
         cY = Floor(cY*(h-1));
         
         integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-        integral = new A32F(integralLen);
+        integral = new FILTER.Array32F(integralLen);
         
         // compute integral of image in one pass
         // first row

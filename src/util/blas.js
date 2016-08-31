@@ -15,6 +15,41 @@ var BLAS = FILTER.Util.BLAS = FILTER.Util.BLAS || {},
     fabs = Math.abs, fmax = Math.max, fmin = Math.min,
     sqrt = Math.sqrt, sign = /*Math.sign*/FILTER.Util.Math.sign;
 
+BLAS.ARY = function ARY( ao, ro, co, ai, ri, ci, v0, stride ) {
+    var i, j, ko, ki;
+    
+    v0 = v0 || 0.0;
+    if ( null != stride )
+    {
+        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
+            for(j=0; j<co; j++)
+                ao[ko+j] = i < ri && j < ci ? ai[(ki+j)<<stride] : v0;
+    }
+    else
+    {
+        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
+            for(j=0; j<co; j++)
+                ao[ko+j] = i < ri && j < ci ? ai[i][j] : v0;
+    }
+    return ao;
+};
+BLAS.TRANSP = function TRANSP( ta, a, r, c, stride ) {
+    var i, j, ko, ki;
+    if ( null != stride )
+    {
+        for(i=0,ko=0; i<c; i++,ko+=r)
+            for(j=0,ki=0; j<r; j++,ki+=c)
+                ta[ko+j] = a[(ki+i)<<stride];
+    }
+    else
+    {
+        for(i=0,ko=0; i<c; i++,ko+=r)
+            for(j=0; j<r; j++)
+                ta[ko+j] = a[j][i];
+    }
+    return ta;
+};
+
 // BLAS 1
 BLAS.NRM2 = function NRM2( n, x, x0, dx ) {
     //"use asm";

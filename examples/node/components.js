@@ -11,7 +11,7 @@ binaryManager.codec( F.Codec.GIF ).read( path.join(__dirname,'./snoopy.gif'), fu
     console.log('Finding connected components..');
     connected_components.apply( snoopy, function( ){
         console.log('Saving connected components image..');
-        binaryManager.codec( F.Codec.JPG ).write( path.join(__dirname,'./snoopy_components.jpg'), snoopy,
+        binaryManager.codec( F.Codec.JPG ).options({quality: 100}).write( path.join(__dirname,'./snoopy_components.jpg'), snoopy,
         function( file ){
             console.log('image saved to: ' + './snoopy_components.jpg');
         }, function( err ){

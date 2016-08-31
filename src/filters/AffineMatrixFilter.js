@@ -11,11 +11,8 @@
 "use strict";
 
 var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
-    FUtil = FILTER.Util.Filter, eye = FUtil.am_eye, mult = FUtil.am_multiply,
-    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan
-;
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan;
 
-//
 // AffineMatrixFilter
 var AffineMatrixFilter = FILTER.Create({
     name: "AffineMatrixFilter"
@@ -112,7 +109,7 @@ var AffineMatrixFilter = FILTER.Create({
     
     ,set: function( matrix ) {
         var self = this;
-        self.matrix = self.matrix ? mult(self.matrix, matrix) : new AM(matrix); 
+        self.matrix = self.matrix ? FILTER.Util.Filter.am_multiply(self.matrix, matrix) : new AM(matrix); 
         return self;
     }
     
@@ -127,6 +124,7 @@ var AffineMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, T = self.matrix;
         if ( !T ) return im;
         var x, y, yw, nx, ny, i, j, imLen = im.length,

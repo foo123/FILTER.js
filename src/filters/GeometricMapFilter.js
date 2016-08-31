@@ -11,11 +11,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var MODE = FILTER.MODE, Maps, function_body = FILTER.Util.String.function_body;
+var MAP, MODE = FILTER.MODE, function_body = FILTER.Util.String.function_body;
 
-
-//
-//
 // GeometricMapFilter
 FILTER.Create({
     name: "GeometricMapFilter"
@@ -94,7 +91,7 @@ FILTER.Create({
         
         //self._mapName = params._mapName;
         //self._map = params._map;
-        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+        if ( !params._map && params._mapName && MAP.hasOwnProperty(params._mapName) )
         {
             self.set(params._mapName);
         }
@@ -147,13 +144,13 @@ FILTER.Create({
     
     ,set: function( T, preample ) {
         var self = this;
-        if ( T && Maps.hasOwnProperty(String(T)) )
+        if ( T && MAP.hasOwnProperty(String(T)) )
         {
             if ( self._mapName !== String(T) )
             {
                 self._mapName = String(T);
-                self._map = Maps[self._mapName];
-                self._mapInit = Maps["init__"+self._mapName];
+                self._map = MAP[self._mapName];
+                self._mapInit = MAP["init__"+self._mapName];
                 self._apply = apply__( self._map, self._mapInit );
             }
             self._mapChanged = false;
@@ -186,6 +183,7 @@ FILTER.Create({
 function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
+        //"use asm";
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
@@ -286,8 +284,7 @@ function apply__( map, preample )
 
 //
 // private geometric maps
-Maps = {
-    
+MAP = {
     // adapted from http://je2050.de/imageprocessing/ TwirlMap
      "twirl": "function( ){\
         TX = t[0]-CX; TY = t[1]-CY;\

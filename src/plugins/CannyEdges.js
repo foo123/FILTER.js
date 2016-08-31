@@ -7,8 +7,7 @@
 !function(FILTER){
 "use strict";
 
-var canny_gradient = FILTER.Util.Filter.gradient,
-    MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
+var MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 
 // an efficient Canny Edges Detector
@@ -58,7 +57,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return canny_gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+        return FILTER.Util.Filter.gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 

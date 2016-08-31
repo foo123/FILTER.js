@@ -26,10 +26,10 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Displacement Map Filter](#displacement-map-filter) (analogous to ActionScript filter)
 * [Convolution Matrix Filter](#convolution-matrix-filter) (analogous to the ActionScript filter)
 * [Morphological Filter](#morphological-filter)
-* [Statistical Filter](#statistical-filter)  (previously called `NonLinearFilter`)
+* [Statistical Filter](#statistical-filter)
 * [Blend Filter](#blend-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
-* [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, to be added)
+* [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, in progress)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
 * [Resample Filter](#resample-filter)
 * [Selection Filter](#selection-filter)
@@ -72,7 +72,7 @@ __Methods:__
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
 * `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
 * `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
-* `spectrum(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image fourier frequency spectrum per channel (TODO)
+* `spectrum(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image fourier frequency spectrum per channel (not implemented yet)
 * `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
 ###ScaledImage Class
@@ -509,8 +509,8 @@ The class has some pre-defined filters to use.
 * `generic( )` Apply a a user-defined generic geometric mapping to the image
 * `twirl( )`  Apply a twirling map
 * `sphere( )`  Apply a spherical map
-* `polar( )`  Transform image to polar coords (TODO)
-* `cartesian( )`  Inverse of polar (TODO)
+* `polar( )`  Transform image to polar coords (not implemented yet)
+* `cartesian( )`  Inverse of polar (not implemented yet)
 
 Geometric Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
@@ -637,7 +637,6 @@ The class has various pre-defined filters to use.
 * `laplace()`  Total second gradient of the image (fast Laplacian)
 * `emboss() / bump()`   Apply emboss effect to the image
 * `edges()`  Apply an edge filter to the image
-* `motionblur()`  __deprecated__  (use `directionalBlur`)
 * `setMode( FILTER.MODE.GRAY )` Use faster convolution filters for grayscale images
 
 These filters are pre-computed, however any custom filter can be created by setting the filter weights manually (in the constructor).
@@ -690,7 +689,7 @@ The class has some pre-defined filters to use.
 * `closing( )` Apply morphological closing operation
 * `gradient( )` Apply morphological gradient operation
 * `laplacian( )` Apply morphological laplacian (2nd-order gradient) operation
-* `smoothing( )` Apply morphological smoothing operation (TODO)
+* `smoothing( )` Apply morphological smoothing operation (not implemented yet)
 * `setMode( FILTER.MODE.GRAY )` Use faster morphological filters for grayscale images
 
 Morphological Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)
@@ -1022,7 +1021,7 @@ glsl-based filters for `webgl`/`node-gl` (in progress)
 
 ###SVG Filter
 
-svg-based filters for `svg` (todo)
+svg-based filters for `svg` (not implemented yet)
 
 
 ###Plugins and Extra Filters
@@ -1045,7 +1044,7 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Gradient</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>AdaptiveHistogramEqualize</td>    <td>apply fast adaptive histogram equalization (intensity-based, grayscale-based or per separate rgb channel) (TO BE ADDED)</td></tr>
-<tr><td>Pixelate<br />TriangularPixelate<br />RhomboidPixelate<br />HexagonalPixelate</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast rhomboid pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale (TO BE ADDED)</td></tr>
+<tr><td>Pixelate<br />TriangularPixelate<br />RhomboidPixelate<br />HexagonalPixelate</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast rhomboid pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale</td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
 <tr><td>FloodFill<br />PatternFill</td> <td>apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)<br />apply a (fast) pattern fill to an (connected) area of an image using another image as pattern</td></tr>
@@ -1056,8 +1055,8 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
 <tr><td>ColorDetector</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
-<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TO BE ADDED)</td></tr>
-<tr><td>MSER</td>  <td>extract fast maximaly stable extremal regions (MSER) from image (TO BE ADDED)</td></tr>
+<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TODOD)</td></tr>
+<tr><td>MSER</td>  <td>extract fast maximaly stable extremal regions (MSER) from image (TODO)</td></tr>
 <tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
 <tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
 </tbody>

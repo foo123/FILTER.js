@@ -4,7 +4,7 @@ var parse_args = require('./commargs.js'),
     path = require('path'),
     F = require('../../build/filter.bundle.js'),
     parallel = !!parse_args().options['parallel'],
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG );
+    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
 console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 var grayscale = new F.ColorMatrixFilter( ).grayscale( ).contrast( 1 );

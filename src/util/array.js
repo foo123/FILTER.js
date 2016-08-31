@@ -10,7 +10,8 @@
 if ( FILTER.Util.LOADED_ARRAY ) return;
 FILTER.Util.LOADED_ARRAY = true;
 
-var ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
+var A32U = FILTER.Array32U, ceil = Math.ceil,
+    ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
     ListUtil = FILTER.Util.List = FILTER.Util.List || {};
 
 ArrayUtil.stride = function array_stride( a, m, n, A, stride, transpose ) {
@@ -51,40 +52,41 @@ ArrayUtil.unstride = function array_unstride( a, m, n, stride, transpose ) {
     return b;
 };
 
-ArrayUtil.copy = function array_copy( ao, ro, co, ai, ri, ci, v0, stride ) {
-    var i, j, ko, ki;
-    
-    v0 = v0 || 0.0;
-    if ( null != stride )
+ArrayUtil.pack = function array_pack( a, stride ) {
+    stride = stride||0;
+    var i, k, ii = 1<<stride, size = a.length, psize = ceil((size>>>stride)/32), p = new A32U(psize);
+    for (i=0; i<size; i+=ii)
     {
-        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
-            for(j=0; j<co; j++)
-                ao[ko+j] = i < ri && j < ci ? ai[(ki+j)<<stride] : v0;
+        if ( 0 < a[i] )
+        {
+            k = i>>>stride;
+            p[k>>>5] |= 1<<(k&31);
+        }
     }
-    else
-    {
-        for(i=0,ko=0,ki=0; i<ro; i++,ko+=co,ki+=ci)
-            for(j=0; j<co; j++)
-                ao[ko+j] = i < ri && j < ci ? ai[i][j] : v0;
-    }
-    return ao;
+    return p;
 };
 
-ArrayUtil.transpose = function array_transpose( ta, a, r, c, stride ) {
-    var i, j, ko, ki;
-    if ( null != stride )
+ArrayUtil.unpack = function array_unpack( p, a, size, stride, v0, v1 ) {
+    stride = stride||0; v0 = v0||0; v1 = v1||255;
+    var i, k, ii = 1<<stride;
+    for (i=0; i<size; i+=ii)
     {
-        for(i=0,ko=0; i<c; i++,ko+=r)
-            for(j=0,ki=0; j<r; j++,ki+=c)
-                ta[ko+j] = a[(ki+i)<<stride];
+        k = i>>>stride;
+        a[i] = p[k>>>5] & (1<<(k&31)) ? v1 : v0;
     }
-    else
-    {
-        for(i=0,ko=0; i<c; i++,ko+=r)
-            for(j=0; j<r; j++)
-                ta[ko+j] = a[j][i];
-    }
-    return ta;
+    return a;
+};
+
+ArrayUtil.packed_isset = function packed_isset( packed, index ){
+    return packed[index>>>5] & (1<<(index&31));
+};
+
+ArrayUtil.packed_set = function packed_set( packed, index ){
+    packed[index>>>5] |= 1<<(index&31);
+};
+
+ArrayUtil.packed_unset = function packed_set( packed, index ){
+    packed[index>>>5] &= ~(1<<(index&31));
 };
 
 ListUtil.each = function each( x, F, i0, i1, stride, offset ) {

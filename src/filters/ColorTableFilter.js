@@ -16,13 +16,9 @@
 
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
-    FilterUtil = FILTER.Util.Filter, eye = FilterUtil.ct_eye, ct_mult = FilterUtil.ct_multiply,
     Floor = Math.floor, Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
-    TypedArray = FILTER.Util.Array.typed
-;
+    TypedArray = FILTER.Util.Array.typed;
 
-//
-//
 // ColorTableFilter
 var ColorTableFilter = FILTER.Create({
     name: "ColorTableFilter"
@@ -72,13 +68,14 @@ var ColorTableFilter = FILTER.Create({
     
     ,functional: function( fR, fG, fB ) {
         if ( "function" !== typeof fR ) return this;
-        var tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
+        var eye = FILTER.Util.Filter.ct_eye,
+            tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
         return this.set(tR, tG, tB);
     }
     
     ,channel: function( channel ) {
         if ( null == channel ) return this;
-        var tR, tG, tB;
+        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B: 
@@ -112,7 +109,7 @@ var ColorTableFilter = FILTER.Create({
     
     ,channelInvert: function( channel ) {
         if ( null == channel ) return this;
-        var tR, tG, tB;
+        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B: 
@@ -149,7 +146,7 @@ var ColorTableFilter = FILTER.Create({
     }*/
     
     ,invert: function( ) {
-        return this.set(eye(-1,255));
+        return this.set(FILTER.Util.Filter.ct_eye(-1,255));
     }
     
     ,thresholds: function( thresholdsR, thresholdsG, thresholdsB ) {
@@ -202,7 +199,7 @@ var ColorTableFilter = FILTER.Create({
         if ( numLevels < 2 ) numLevels = 2;
         var j, q=new CT(numLevels), nL=255/(numLevels-1), nR=numLevels/256;
         for(j=0; j<numLevels; j++) q[j] = clamp(nL * j)|0;
-        return this.set(eye(function( i ){ return q[ (nR * i)|0 ]; }));
+        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return q[ (nR * i)|0 ]; }));
     }
     ,posterize: null
     
@@ -236,7 +233,7 @@ var ColorTableFilter = FILTER.Create({
                 return q>threshold ? 255-255*q : 255*q-255;
             };
         }
-        return this.set(eye(solar));
+        return this.set(FILTER.Util.Filter.ct_eye(solar));
     }
     
     ,solarize2: function( threshold ) {
@@ -249,14 +246,16 @@ var ColorTableFilter = FILTER.Create({
     
     // apply a binary mask to the image color channels
     ,mask: function( mask ) {
-        var maskR=(mask>>>16)&255, maskG=(mask>>>8)&255, maskB=mask&255;
+        var eye = FILTER.Util.Filter.ct_eye,
+            maskR = (mask>>>16)&255, maskG = (mask>>>8)&255, maskB = mask&255;
         return this.set(eye(function( i ){ return i & maskR; }), eye(function( i ){ return i & maskG; }), eye(function( i ){ return i & maskB; }));
     }
     
     // replace a color with another
     ,replace: function( color, replacecolor ) {
         if (color == replacecolor) return this;
-        var tR = eye(), tG = eye(), tB = eye();
+        var eye = FILTER.Util.Filter.ct_eye,
+            tR = eye(), tG = eye(), tB = eye();
         tR[(color>>>16)&255] = (replacecolor>>>16)&255;
         tG[(color>>>8)&255] = (replacecolor>>>8)&255;
         tB[(color)&255] = (replacecolor)&255;
@@ -267,7 +266,8 @@ var ColorTableFilter = FILTER.Create({
     ,extract: function( channel, range, background ) {
         if (!range || !range.length) return this;
         background = background||0;
-        var tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255), s, f;
+        var eye = FILTER.Util.Filter.ct_eye, s, f,
+            tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255);
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B:
@@ -293,36 +293,40 @@ var ColorTableFilter = FILTER.Create({
         gammaB = gammaB || gammaG;
         // gamma correction uses inverse gamma
         gammaR = 1.0/gammaR; gammaG = 1.0/gammaG; gammaB = 1.0/gammaB;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(function( i ){ return 255*Power(nF*i, gammaR); }), eye(function( i ){ return 255*Power(nF*i, gammaG); }), eye(function( i ){ return 255*Power(nF*i, gammaB); }));
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
     ,exposure: function( exposure ) {
         if ( null == exposure ) exposure = 1;
-        return this.set(eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
+        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
     }
     
     ,contrast: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
         r += 1.0; g += 1.0; b += 1.0;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(r,128*(1 - r)), eye(g,128*(1 - g)), eye(b,128*(1 - b)));
     }
     
     ,brightness: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(1,r), eye(1,g), eye(1,b));
     }
     
     ,quickContrastCorrection: function( contrast ) {
-        return this.set(eye(null == contrast ? 1.2 : +contrast));
+        return this.set(FILTER.Util.Filter.ct_eye(null == contrast ? 1.2 : +contrast));
     }
     
     ,set: function( tR, tG, tB, tA ) {
         if ( !tR ) return this;
         
-        var i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        var eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply,
+            i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
         
         if ( tG || tB )
         {
@@ -361,6 +365,7 @@ var ColorTableFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, T = self.table;
         if ( !T || !T[CHANNEL.R] ) return im;
         

@@ -7,10 +7,9 @@
 !function(FILTER, undef){
 "use strict";
 
-var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get;
+var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
+    slice = AP.slice, splice = AP.splice, concat = AP.push;
 
-//
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({
     name: "CompositeFilter"
@@ -84,7 +83,7 @@ var CompositeFilter = FILTER.Create({
             
             for (i=0; i<l; i++)
             {
-                filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
+                filter = filters[ i ] && filters[ i ].filter ? FILTER.Filter.get( filters[ i ].filter ) : null;
                 if ( filter )
                 {
                     stack.push( new filter( ).unserializeFilter( filters[ i ] ) );

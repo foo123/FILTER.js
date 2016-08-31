@@ -7,10 +7,8 @@
 !function(FILTER, undef){
 "use strict";
 
-var A32F = FILTER.Array32F, MODE = FILTER.MODE,
-    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity,
-    min = Math.min, max = Math.max, cos = Math.cos, toRad = FILTER.CONST.toRad,
-    connected_components = FILTER.MachineLearning.connected_components;
+var MODE = FILTER.MODE, min = Math.min, max = Math.max,
+    cos = Math.cos, toRad = FILTER.CONST.toRad;
 
 FILTER.Create({
     name: "ConnectedComponentsFilter"
@@ -61,7 +59,8 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            i, j, D = new A32F(imSize);
+            i, j, D = new FILTER.Array32F(imSize),
+            HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
         
         if ( MODE.HUE === mode )
         {
@@ -78,12 +77,12 @@ FILTER.Create({
         else //if ( MODE.COLOR === mode )
         {
             delta = (delta*0xff)|0;
-            delta = (delta<<16)|(delta<<8)|delta;
+            delta = (delta<<16) | (delta<<8) | delta;
             for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16)|(im[i+1]<<8)|im[i+2];
+                D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16) | (im[i+1]<<8) | im[i+2];
         }
         // return the connected image data
-        return connected_components(2, im, D, w, h, self.connectivity, self.invert, delta, color);
+        return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
     }
 });
 

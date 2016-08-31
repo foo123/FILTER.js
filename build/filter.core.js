@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-29 21:09:20
+*   @built on 2016-08-31 21:24:07
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -27,7 +27,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 0.9.6
-*   @built on 2016-08-29 21:09:20
+*   @built on 2016-08-31 21:24:07
 *   @dependencies: Classy.js, Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -163,7 +163,7 @@ FILTER.MODE = {
     GRAY: 9, GRAYSCALE: 9, RGB: 10, RGBA: 11, HSV: 12, CMY: 13, CMYK: 13, PATTERN: 14,
     COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
     MATRIX: 18, LINEAR: 19, RADIAL: 20, NONLINEAR: 21,
-    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24, HISTOGRAM: 25, MONO: 26
+    STATISTICAL: 22, ADAPTIVE: 23, THRESHOLD: 24, HISTOGRAM: 25, MONO: 26, MASK: 27
 };
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
@@ -2801,11 +2801,11 @@ function cm_multiply( cm1, cm2 )
 }
 function cm_rechannel( m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao )
 {
-    var cm = new ColorMatrix(20);
-    cm[Ro*5+Ri] = m[0 ]; cm[Ro*5+Gi] = m[1 ]; cm[Ro*5+Bi] = m[2 ]; cm[Ro*5+Ai] = m[3 ]; cm[Ro*5+4] = m[4 ];
-    cm[Go*5+Ri] = m[5 ]; cm[Go*5+Gi] = m[6 ]; cm[Go*5+Bi] = m[7 ]; cm[Go*5+Ai] = m[8 ]; cm[Go*5+4] = m[9 ];
-    cm[Bo*5+Ri] = m[10]; cm[Bo*5+Gi] = m[11]; cm[Bo*5+Bi] = m[12]; cm[Bo*5+Ai] = m[13]; cm[Bo*5+4] = m[14];
-    cm[Ao*5+Ri] = m[15]; cm[Ao*5+Gi] = m[16]; cm[Ao*5+Bi] = m[17]; cm[Ao*5+Ai] = m[18]; cm[Ao*5+4] = m[19];
+    var cm = new ColorMatrix(20), RO = Ro*5, GO = Go*5, BO = Bo*5, AO = Ao*5;
+    cm[RO+Ri] = m[0 ]; cm[RO+Gi] = m[1 ]; cm[RO+Bi] = m[2 ]; cm[RO+Ai] = m[3 ]; cm[RO+4] = m[4 ];
+    cm[GO+Ri] = m[5 ]; cm[GO+Gi] = m[6 ]; cm[GO+Bi] = m[7 ]; cm[GO+Ai] = m[8 ]; cm[GO+4] = m[9 ];
+    cm[BO+Ri] = m[10]; cm[BO+Gi] = m[11]; cm[BO+Bi] = m[12]; cm[BO+Ai] = m[13]; cm[BO+4] = m[14];
+    cm[AO+Ri] = m[15]; cm[AO+Gi] = m[16]; cm[AO+Bi] = m[17]; cm[AO+Ai] = m[18]; cm[AO+4] = m[19];
     return cm;
 }
 /*
@@ -2854,6 +2854,274 @@ function cm_convolve( cm1, cm2, matrix )
     return cm12;
 }
 
+function dissimilarity_rgb( r, g, b, O, I, delta )
+{
+    //"use asm";
+    O = O|0; I = I|0; delta = delta|0;
+    // a fast rgb (dis-)similarity matrix
+    var D = new A8U(256), c = 0;
+    // full loop unrolling
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
+    return D;
+}
+
+// can be overriden
+MathUtil.random = Math.random;
 MathUtil.clamp = clamp;
 MathUtil.sign = function sign( x ){ return 0 > x ? -1.0 : 1.0; };
 
@@ -2869,15 +3137,7 @@ ArrayUtil.typed_obj = FILTER.Browser.isNode ? function( o, unserialise ) {
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function( a, b, offset ){ a.set(b, offset||0); } : arrayset_shim;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function( a, i1, i2 ){ return a.subarray(i1, i2); } : function( a, i1, i2 ){ return a.slice(i1, i2); };
-/*ArrayUtil.packed_isset = function packed_isset( packed, index ){
-    return packed[index>>>5] & (1<<(index&31));
-};
-ArrayUtil.packed_set = function packed_set( packed, index ){
-    packed[index>>>5] |= 1<<(index&31);
-};
-ArrayUtil.packed_unset = function packed_set( packed, index ){
-    packed[index>>>5] &= ~(1<<(index&31));
-};*/
+
 
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim 
@@ -2969,6 +3229,7 @@ FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
+FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
 
 }(FILTER);/**
 *
@@ -3321,40 +3582,43 @@ var Color = FILTER.Color = FILTER.Class({
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/colo
-        RGB2HSV: function( ccc, p )  {
+        RGB2HSV: function( ccc, p, unscaled )  {
             //p = p || 0;
             var m, M, delta, r = ccc[p+0], g = ccc[p+1], b = ccc[p+2], h, s, v;
             
-            M = max( r, g, b );
+            M = max( r, g, b ); m = min( r, g, b );
             v = M;                // v
 
-            if ( r === g && g === b )
+            if ( 0 === M/*r === g && g === b*/ )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0; h = 0; //h = -1;
             }
             else
             {
-                m = min( r, g, b );
                 delta = M - m;
                 s = delta / M;        // s
 
                 if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
-                else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
-                else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
+                else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;  // between cyan & yellow
+                else                h = 240 + 60 * abs( r - g ) / delta;  // between magenta & cyan
                 //h *= 60;                // degrees
                 //if( h < 0 )  h += 360;
             }
-            ccc[p+0] = h*0.70833333333333333333333333333333; ccc[p+1] = s*255; ccc[p+2] = v
+            ccc[p+0] = unscaled ? h : h*0.70833333333333333333333333333333;
+            ccc[p+1] = unscaled ? s : s*255;
+            ccc[p+2] = v
             return ccc;
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
-        HSV2RGB: function( ccc, p ) {
+        HSV2RGB: function( ccc, p, unscaled ) {
             //p = p || 0;
-            var i, f, o, q, t, r, g, b, h = ccc[p+0]*1.4117647058823529411764705882353,
-                s = ccc[p+1]*0.0039215686274509803921568627451, v = ccc[p+2];
+            var i, f, o, q, t, r, g, b,
+                h = unscaled ? ccc[p+0] : ccc[p+0]*1.4117647058823529411764705882353,
+                s = unscaled ? ccc[p+1] : ccc[p+1]*0.0039215686274509803921568627451,
+                v = ccc[p+2];
             
             if( 0 === s ) 
             {
@@ -3371,7 +3635,7 @@ var Color = FILTER.Color = FILTER.Class({
                 t = v * ( 1 - s * ( 1 - f ) );
 
                 if ( 0 === i )      { r = v; g = t; b = o; }
-                else if ( 1 === i ) { r = q;  g = v; b = o; }
+                else if ( 1 === i ) { r = q; g = v; b = o; }
                 else if ( 2 === i ) { r = o; g = v; b = t; }
                 else if ( 3 === i ) { r = o; g = q; b = v; }
                 else if ( 4 === i ) { r = t; g = o; b = v; }

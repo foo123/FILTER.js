@@ -297,40 +297,43 @@ var Color = FILTER.Color = FILTER.Class({
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/colo
-        RGB2HSV: function( ccc, p )  {
+        RGB2HSV: function( ccc, p, unscaled )  {
             //p = p || 0;
             var m, M, delta, r = ccc[p+0], g = ccc[p+1], b = ccc[p+2], h, s, v;
             
-            M = max( r, g, b );
+            M = max( r, g, b ); m = min( r, g, b );
             v = M;                // v
 
-            if ( r === g && g === b )
+            if ( 0 === M/*r === g && g === b*/ )
             {
                 // r = g = b = 0        // s = 0, v is undefined
                 s = 0; h = 0; //h = -1;
             }
             else
             {
-                m = min( r, g, b );
                 delta = M - m;
                 s = delta / M;        // s
 
                 if ( r === M )      h = 60 * abs( g - b ) / delta;        // between yellow & magenta
-                else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;    // between cyan & yellow
-                else                h = 240 + 60 * abs( r - g ) / delta;   // between magenta & cyan
+                else if ( g === M ) h = 120 + 60 * abs( b - r ) / delta;  // between cyan & yellow
+                else                h = 240 + 60 * abs( r - g ) / delta;  // between magenta & cyan
                 //h *= 60;                // degrees
                 //if( h < 0 )  h += 360;
             }
-            ccc[p+0] = h*0.70833333333333333333333333333333; ccc[p+1] = s*255; ccc[p+2] = v
+            ccc[p+0] = unscaled ? h : h*0.70833333333333333333333333333333;
+            ccc[p+1] = unscaled ? s : s*255;
+            ccc[p+2] = v
             return ccc;
         },
         
         // http://en.wikipedia.org/wiki/HSL_color_space
         // adapted from http://www.cs.rit.edu/~ncs/color/t_convert.html
-        HSV2RGB: function( ccc, p ) {
+        HSV2RGB: function( ccc, p, unscaled ) {
             //p = p || 0;
-            var i, f, o, q, t, r, g, b, h = ccc[p+0]*1.4117647058823529411764705882353,
-                s = ccc[p+1]*0.0039215686274509803921568627451, v = ccc[p+2];
+            var i, f, o, q, t, r, g, b,
+                h = unscaled ? ccc[p+0] : ccc[p+0]*1.4117647058823529411764705882353,
+                s = unscaled ? ccc[p+1] : ccc[p+1]*0.0039215686274509803921568627451,
+                v = ccc[p+2];
             
             if( 0 === s ) 
             {
@@ -347,7 +350,7 @@ var Color = FILTER.Color = FILTER.Class({
                 t = v * ( 1 - s * ( 1 - f ) );
 
                 if ( 0 === i )      { r = v; g = t; b = o; }
-                else if ( 1 === i ) { r = q;  g = v; b = o; }
+                else if ( 1 === i ) { r = q; g = v; b = o; }
                 else if ( 2 === i ) { r = o; g = v; b = t; }
                 else if ( 3 === i ) { r = o; g = q; b = v; }
                 else if ( 4 === i ) { r = t; g = o; b = v; }

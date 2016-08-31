@@ -10,12 +10,9 @@
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, Maps,
-    function_body = FILTER.Util.String.function_body;
+var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body;
 
-//
-//
 // ColorMapFilter
 var ColorMapFilter = FILTER.Create({
     name: "ColorMapFilter"
@@ -68,7 +65,7 @@ var ColorMapFilter = FILTER.Create({
         
         //self._mapName = params._mapName;
         //self._map = params._map;
-        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+        if ( !params._map && params._mapName && MAP.hasOwnProperty(params._mapName) )
         {
             self.set(params._mapName);
         }
@@ -125,13 +122,13 @@ var ColorMapFilter = FILTER.Create({
     
     ,set: function( M, preample ) {
         var self = this;
-        if ( M && Maps.hasOwnProperty(String(M)) )
+        if ( M && MAP.hasOwnProperty(String(M)) )
         {
             if ( self._mapName !== String(M) )
             {
                 self._mapName = String(M);
-                self._map = Maps[self._mapName];
-                self._mapInit = Maps["init__"+self._mapName];
+                self._map = MAP[self._mapName];
+                self._mapInit = MAP["init__"+self._mapName];
                 self._apply = apply__( self._map, self._mapInit );
             }
             self._mapChanged = false;
@@ -171,6 +168,7 @@ function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
+        //"use asm";
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
@@ -245,7 +243,7 @@ function apply__( map, preample )
 
 //
 // private color maps
-Maps = {
+MAP = {
     
     "rgb2hsv": "function( ){\
         if ( 0 !== c[3] )\

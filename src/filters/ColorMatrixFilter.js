@@ -15,14 +15,10 @@
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
-    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, blend = FUtil.cm_combine, rechannel = FUtil.cm_rechannel,
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
-;
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp;
 
-//
-//
 // ColorMatrixFilter
 var ColorMatrixFilter = FILTER.Create({
     name: "ColorMatrixFilter"
@@ -151,7 +147,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,invert: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             -1, 0,  0, 0, 255,
             0, -1,  0, 0, 255,
             0,  0, -1, 0, 255,
@@ -165,7 +161,7 @@ var ColorMatrixFilter = FILTER.Create({
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,desaturate: function( LUMA ) {
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
@@ -182,7 +178,7 @@ var ColorMatrixFilter = FILTER.Create({
         var sInv, irlum, iglum, iblum, L = LUMA || FILTER.LUMA;
         sInv = 1 - s;  irlum = sInv * L[0];
         iglum = sInv * L[1];  iblum = sInv * L[2];
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             (irlum + s), iglum, iblum, 0, 0, 
             irlum, (iglum + s), iblum, 0, 0, 
             irlum, iglum, (iblum + s), 0, 0, 
@@ -201,7 +197,7 @@ var ColorMatrixFilter = FILTER.Create({
         g = ((rgb >> 8) & 255) / 255;
         b = (rgb & 255) / 255;
         inv_amount = 1 - amount;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
             ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
             ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
@@ -217,7 +213,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == g ) g = r;
         if ( null == b ) b = r;
         r += 1.0; g += 1.0; b += 1.0;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             r, 0, 0, 0, (128 * (1 - r)), 
             0, g, 0, 0, (128 * (1 - g)), 
             0, 0, b, 0, (128 * (1 - b)), 
@@ -232,7 +228,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,brightness: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 0, 0, 0, r, 
             0, 1, 0, 0, g, 
             0, 0, 1, 0, b, 
@@ -247,7 +243,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,adjustHue: function( degrees, LUMA ) {
         degrees *= toRad;
         var cos = Cos(degrees), sin = Sin(degrees), L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * -((1 - L[0])))), ((L[1] + (cos * -(L[1]))) + (sin * L[1])), ((L[2] + (cos * (1 - L[2]))) + (sin * L[2])), 0, 0, 
@@ -264,7 +260,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == r ) r = 0.3333;
         if ( null == g ) g = 0.3333;
         if ( null == b ) b = 0.3333;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
@@ -277,7 +273,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     ,quickContrastCorrection: function( contrast ) {
         if ( null == contrast ) contrast = 1.2;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
             0, 0, contrast, 0, 0, 
@@ -295,7 +291,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == amount ) amount = 0.5;
         if ( amount > 1 ) amount = 1;
         else if ( amount < 0 ) amount = 0;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1.0 - (0.607 * amount), 0.769 * amount, 0.189 * amount, 0, 0, 
             0.349 * amount, 1.0 - (0.314 * amount), 0.168 * amount, 0, 0, 
             0.272 * amount, 0.534 * amount, 1.0 - (0.869 * amount), 0, 0, 
@@ -311,7 +307,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             L[0], L[1], L[2], 0, 40, 
             L[0], L[1], L[2], 0, 20, 
             L[0], L[1], L[2], 0, -amount, 
@@ -326,7 +322,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,threshold: function( threshold, factor, LUMA ) {
         if ( null == factor ) factor = 256;
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel(false !== LUMA
+        return this.set(FILTER.Util.Filter.cm_rechannel(false !== LUMA
         ? [
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
@@ -398,7 +394,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             0.299, 0.587, 0.114, 0, 0,
             -0.168736, -0.331264, 0.5, 0, 128,
             0.5, -0.418688, -0.081312, 0, 128,
@@ -411,7 +407,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 0, 1.402, 0, -179.456,
             1, -0.34414, -0.71414, 0, 135.45984,
             1, 1.772, 0, 0, -226.816,
@@ -424,7 +420,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // RGB to YIQ
     ,RGB2YIQ: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             0.299, 0.587, 0.114, 0, 0,
             0.701, -0.587, -0.114, 0, 0,
             -0.299, -0.587, 0.886, 0, 0,
@@ -437,7 +433,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // YIQ to RGB
     ,YIQ2RGB: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 1, 0, 0, 0,
             1, -0.509, -0.194, 0, 0,
             1, 0, 1, 0, 0,
@@ -451,13 +447,13 @@ var ColorMatrixFilter = FILTER.Create({
     // blend with another filter
     ,blend: function( filt, amount ) {
         var self = this;
-        self.matrix = self.matrix ? blend(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
+        self.matrix = self.matrix ? FILTER.Util.Filter.cm_combine(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
         return self;
     }
     
     ,set: function( matrix ) {
         var self = this;
-        self.matrix = self.matrix ? mult(self.matrix, matrix) : new CM(matrix); 
+        self.matrix = self.matrix ? FILTER.Util.Filter.cm_multiply(self.matrix, matrix) : new CM(matrix); 
         return self;
     }
     
@@ -472,6 +468,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: notSupportClamp ? function( im, w, h ) {
+        //"use asm";
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -592,6 +589,7 @@ var ColorMatrixFilter = FILTER.Create({
         }
         return im;
     } : function( im, w, h ) {
+        //"use asm";
         var self = this, M = self.matrix;
         if ( !M ) return im;
         

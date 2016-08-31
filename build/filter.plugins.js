@@ -41,7 +41,7 @@ var FILTER_PLUGINS_PATH = FILTER.getPath( ModuleFactory__FILTER_PLUGINS.moduleUr
 !function(FILTER){
 "use strict";
 
-var notSupportClamp = FILTER._notSupportClamp, rand = Math.random;
+var notSupportClamp = FILTER._notSupportClamp;
 
 // a sample noise filter
 // used for illustration purposes on how to create a plugin filter
@@ -84,9 +84,8 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
-        if ( !self._isOn ) return im;
-        var range=self.max-self.min, m=self.min,
-            i, l=im.length, n, r, g, b, t0, t1, t2;
+        var rand = FILTER.Util.Math.random, range = self.max-self.min,
+            m = self.min, i, l = im.length, n, r, g, b, t0, t1, t2;
         
         // add noise
         if (notSupportClamp)
@@ -131,7 +130,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var perlin_noise = FILTER.Util.Image.perlin, MODE = FILTER.MODE;
+var MODE = FILTER.MODE;
 
 // an efficient perlin noise and simplex noise plugin
 // http://en.wikipedia.org/wiki/Perlin_noise
@@ -236,7 +235,7 @@ FILTER.Create({
     
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
-        var self = this;
+        var self = this, perlin_noise = FILTER.Util.Image.perlin;
         if ( !perlin_noise ) return im;
         if ( self._seed )
         {
@@ -256,7 +255,7 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var Gradient = FILTER.Color.Gradient, MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
+var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed, Floor = Math.floor;
 
 FILTER.Create({
      name: "GradientFilter"
@@ -290,7 +289,7 @@ FILTER.Create({
         var self = this;
         if ( colors && colors.length )
         {
-            var c = Gradient.stops( colors, stops );
+            var c = FILTER.Color.Gradient.stops( colors, stops );
             self.colors = c[0]; self.stops = c[1];
         }
         return self;
@@ -344,7 +343,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         if ( !self.colors ) return im;
-        return MODE.RADIAL === self.mode ? Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, Gradient.interpolate ) : Gradient.linear( im, w, h, self.colors, self.stops, self.angle, Gradient.interpolate );
+        return MODE.RADIAL === self.mode ? FILTER.Color.Gradient.radial( im, w, h, self.colors, self.stops, Floor((self.centerX||0.0)*(w-1)), Floor((self.centerY||0.0)*(h-1)), self.radiusX, self.radiusY, FILTER.Color.Gradient.interpolate ) : FILTER.Color.Gradient.linear( im, w, h, self.colors, self.stops, self.angle, FILTER.Color.Gradient.interpolate );
     }
 });
 
@@ -790,26 +789,28 @@ FILTER.Create({
 
 }(FILTER);/**
 *
-* Rectangular Pixelate Filter, Triangular Pixelate Filter, Hexagonal Pixelate Filter Plugins
+* (Rectangular) Pixelate, Triangular Pixelate, Rhomboid Pixelate, Hexagonal Pixelate Filter Plugins
 * @package FILTER.js
 *
 **/
 !function(FILTER){
 "use strict";
 
-var IMG = FILTER.ImArray, sqrt = Math.sqrt, min = Math.min, max = Math.max, SQRT_3 = sqrt(3.0);
+var PIXELATION, sqrt = Math.sqrt, min = Math.min, max = Math.max, SQRT_3 = sqrt(3);
 
-// a simple fast Rectangular Pixelate filter
+// a simple and fast Pixelate filter for various patterns
+// TODO: add some smoothing/dithering in patterns which have diagonal lines separating cells, e.g triangular,..
 FILTER.Create({
     name: "PixelateFilter"
     
     // parameters
     ,scale: 1
+    ,pattern: "rectangular"
     
-    // this is the filter constructor
-    ,init: function( scale ) {
+    ,init: function( scale, pattern ) {
         var self = this;
         self.scale = scale || 1;
+        self.pattern = pattern || "rectangular";
     }
     
     // support worker serialize/unserialize interface
@@ -818,52 +819,65 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-            scale: self.scale
+             scale: self.scale
+            ,pattern: self.pattern
         };
     }
     
     ,unserialize: function( params ) {
         var self = this;
         self.scale = params.scale;
+        self.pattern = params.pattern;
         return self;
     }
     
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this;
-        if ( self.scale <= 1 ) return im;
+    ,apply: function( im, w, h ) {
+        var self = this, pattern = self.pattern;
+        if ( self.scale <= 1  || !pattern || !PIXELATION[pattern] ) return im;
         if ( self.scale > 100 ) self.scale = 100;
         
-        var dst, imLen = im.length, imArea = imLen>>>2,
-            step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5, r, g, b,
+        var output = new FILTER.ImArray(im.length);
+        PIXELATION[pattern]( self.scale, output, im, w, h );
+        return output;
+    }
+});
+// aliases and compatibility to prev versions
+FILTER.RectangularPixelateFilter = function( scale ){ return new FILTER.PixelateFilter( scale, 'rectangular'); };
+FILTER.TriangularPixelateFilter = function( scale ){ return new FILTER.PixelateFilter( scale, 'triangular'); };
+FILTER.RhomboidPixelateFilter = function( scale ){ return new FILTER.PixelateFilter( scale, 'rhomboidal'); };
+FILTER.HexagonalPixelateFilter = function( scale ){ return new FILTER.PixelateFilter( scale, 'hexagonal'); };
+
+FILTER.PixelateFilter.PATTERN = PIXELATION = {
+    "rectangular": function rectangular( scale, output, input, w, h ){
+        var imLen = input.length, imArea = imLen>>>2,
+            step, step, step_2, stepw, stepw_2,
+            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
             i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
         
-        dst = new IMG(imLen);
-        step = (sqrt(imArea)*self.scale*0.01)|0;
-        stepx = step-1; stepy = w*stepx;
+        step = (sqrt(imArea)*scale*1e-2)|0;
+        step_2 = (0.5*step)|0; stepw = step*w; stepw_2 = step_2*w;
         
         // do pixelation via interpolation on 5 points of a certain rectangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
-            pxc = min(bx, pxa+((0.5*step)|0)); pyc = min(by, pya+((0.5*step)|0)*w);
+            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
+            pxc = min(bx, pxa+step_2); pyc = min(by, pya+stepw_2);
             
             // these edge conditions create the rectangular pattern
+            p0 = (pxc + pyc) << 2;
             p1 = (pxa + pya) << 2;
             p2 = (pxa + pyb) << 2;
             p3 = (pxb + pya) << 2;
             p4 = (pxb + pyb) << 2;
-            p5 = (pxc + pyc) << 2;
             
             // compute rectangular interpolation
-            // base interpolated color on center pixel plus peripheral pixels
-            r = 0.125*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+4*im[p5  ]);
-            g = 0.125*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+4*im[p5+1]);
-            b = 0.125*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+4*im[p5+2]);
-            dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
+            // base interpolated color on center pixel plus corner pixels
+            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
+            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
+            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
+            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
             
             // next pixel
             x++; sx++; 
@@ -874,88 +888,50 @@ FILTER.Create({
             }
             if ( sx >= step ) { sx=0; }
         }
-        // return the pixelated image data
-        return dst;
-    }
-});
-
-// a simple fast Triangular Pixelate filter
-FILTER.Create({
-    name: "TriangularPixelateFilter"
-    
-    // parameters
-    ,scale: 1
-    
-    // this is the filter constructor
-    ,init: function( scale ) {
-        var self = this;
-        self.scale = scale || 1;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            scale: self.scale
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.scale = params.scale;
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this;
-        if ( self.scale <= 1 ) return im;
-        if ( self.scale > 100 ) self.scale = 100;
-        
-        var dst, imLen = im.length, imArea = (imLen>>>2),
-            step, stepx, stepy,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4, r, g, b,
+        //return output;
+    },
+    "triangular": function triangular( scale, output, input, w, h ){
+        var imLen = input.length, imArea = imLen>>>2,
+            step, step_2, step1_3, step2_3, stepw, stepw_2,
+            bx = w-1, by = imArea-w, p0, p1, p2, p3, r, g, b,
             i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
-        
-        dst = new IMG(imLen);
-        step = (sqrt(imArea)*self.scale*0.01)|0;
-        stepx = step-1; stepy = w*stepx;
-        
+
+        step = (sqrt(imArea)*scale*1.25e-2)|0;
+        step_2 = (0.5*step)|0; step1_3 = (0.333*step)|0; step2_3 = (0.666*step)|0;
+        stepw = step*w; stepw_2 = step_2*w;
+
         // do pixelation via interpolation on 4 points of a certain triangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
+            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
             
             // these edge conditions create the various triangular patterns
-            if ( sx+sy > stepx ) 
+            if ( sx+sy > step ) 
             { 
-                // second triangle
-                pxc = min(bx, pxa+((0.666*step)|0)); pyc = min(by, pya+((0.5*step)|0)*w);
-                p1 = (pxb + pya) << 2;
-                p2 = (pxb + pyb) << 2;
-                p3 = (pxa + pya) << 2;
-                p4 = (pxc + pyc) << 2;
+                // second (right) triangle
+                pxc = min(bx, pxa+step2_3); pyc = min(by, pya+stepw_2);
+                p0 = (pxc + pyc) << 2;
+                p1 = (pxb + pyb) << 2;
             }
             else
             {
-                // first triangle
-                pxc = min(bx, pxa+((0.333*step)|0)); pyc = min(by, pya+((0.5*step)|0)*w);
-                p1 = (pxa + pya) << 2;
-                p2 = (pxa + pyb) << 2;
-                p3 = (pxb + pya) << 2;
-                p4 = (pxc + pyc) << 2;
+                // first (left) triangle
+                pxc = min(bx, pxa+step1_3); pyc = min(by, pya+stepw_2);
+                p0 = (pxc + pyc) << 2;
+                p1 = (pxa + pyb) << 2;
             }
             
+            p2 = (pxa + pya) << 2;
+            p3 = (pxb + pya) << 2;
+            
             // compute triangular interpolation
-            // base interpolated color on center pixel plus peripheral pixels
-            r = 0.2*(im[p1  ]+im[p2  ]+im[p3  ]+2*im[p4  ]);
-            g = 0.2*(im[p1+1]+im[p2+1]+im[p3+1]+2*im[p4+1]);
-            b = 0.2*(im[p1+2]+im[p2+2]+im[p3+2]+2*im[p4+2]);
-            dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
+            // base interpolated color on center pixel plus corner pixels
+            r = 0.2*(input[p1  ]+input[p2  ]+input[p3  ]+2*input[p0  ]);
+            g = 0.2*(input[p1+1]+input[p2+1]+input[p3+1]+2*input[p0+1]);
+            b = 0.2*(input[p1+2]+input[p2+2]+input[p3+2]+2*input[p0+2]);
+            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
             
             // next pixel
             x++; sx++; 
@@ -966,113 +942,75 @@ FILTER.Create({
             }
             if ( sx >= step ) { sx=0; }
         }
-        // return the pixelated image data
-        return dst;
-    }
-});
-// a simple fast Rhomboid Pixelate filter
-FILTER.Create({
-    name: "RhomboidPixelateFilter"
-    
-    // parameters
-    ,scale: 1
-    
-    // this is the filter constructor
-    ,init: function( scale ) {
-        var self = this;
-        self.scale = scale || 1;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            scale: self.scale
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.scale = params.scale;
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this;
-        if ( self.scale <= 1 ) return im;
-        if ( self.scale > 100 ) self.scale = 100;
-        
-        var dst, imLen = im.length, imArea = (imLen>>>2),
-            step, step2, stepy, stepy2, step_2, odd,
-            bx = w-1, by = imArea-w, p1, p2, p3, p4, p5, r, g, b,
+        //return output;
+    },
+    "rhomboidal": function rhomboidal( scale, output, input, w, h ){
+        var imLen = input.length, imArea = imLen>>>2,
+            step, step2, stepw, stepw2, odd,
+            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
             i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
         
-        dst = new IMG(imLen);
-        step = (sqrt(imArea)*self.scale*0.007)|0;
-        step2 = 2*step; stepy = w*step; stepy2 = 2*stepy;
-        step_2 = (0.5*step)|0;
+        step = (sqrt(imArea)*scale*7e-3)|0;
+        step2 = 2*step; stepw = step*w; stepw2 = step2*w;
          
-        // do pixelation via interpolation on 5 points of a certain triangle
+        // do pixelation via interpolation on 5 points of a certain rhomboid
         x=yw=sx=sy=syw=0; odd = 0;
         for (i=0; i<imLen; i+=4)
         {
             // these edge conditions create the various rhomboid patterns
             if ( odd )
             {
-                // odd row
+                // second row, bottom half of rhombii
                 if ( sx+sy > step2 ) 
                 { 
                     // third triangle /\.
-                    pxa = min(bx, x-sx+step); pya = max(0, yw-syw);
+                    pxa = min(bx, x-sx+step); pya = yw-syw;
                 }
                 else if ( sx+step-sy > step ) 
                 { 
                     // second triangle \/.
-                    pxa = max(0, x-sx); pya = max(0, yw-syw-stepy);
+                    pxa = x-sx; pya = max(0, yw-syw-stepw);
                 }
                 else
                 {
                     // first triangle /\.
-                    pxa = max(0,x-sx-step); pya = max(0, yw-syw);
+                    pxa = max(0, x-sx-step); pya = yw-syw;
                 }
             }
             else
             {
-                // even row
+                // first row, top half of rhombii
                 if ( sx+step-sy > step2 ) 
                 { 
                     // third triangle \/.
-                    pxa = min(bx, x-sx+step); pya = max(0, yw-syw-stepy);
+                    pxa = min(bx, x-sx+step); pya = max(0, yw-syw-stepw);
                 }
                 else if ( sx+sy > step ) 
                 { 
                     // second triangle /\.
-                    pxa = max(0, x-sx); pya = max(0, yw-syw);
+                    pxa = x-sx; pya = yw-syw;
                 }
                 else
                 {
                     // first triangle \/.
-                    pxa = max(0,x-sx-step); pya = max(0, yw-syw-stepy);
+                    pxa = max(0, x-sx-step); pya = max(0, yw-syw-stepw);
                 }
             }
-            pxb = min(bx, pxa+step2); pyb = min(by, pya+stepy2);
-            pxc = min(bx, pxa+step); pyc = min(by, pya+stepy);
+            pxb = min(bx, pxa+step2); pyb = min(by, pya+stepw2);
+            pxc = min(bx, pxa+step); pyc = min(by, pya+stepw);
             
-            p1 = (pxa + pya) << 2;
-            p2 = (pxa + pyb) << 2;
-            p3 = (pxb + pya) << 2;
-            p4 = (pxb + pyb) << 2;
-            p5 = (pxc + pyc) << 2;
+            p0 = (pxc + pyc) << 2;
+            p1 = (pxc + pya) << 2;
+            p2 = (pxa + pyc) << 2;
+            p3 = (pxb + pyc) << 2;
+            p4 = (pxc + pyb) << 2;
             
-            // compute triangular interpolation
-            // base interpolated color on center pixel plus peripheral pixels
-            r = 0.125*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+4*im[p5  ]);
-            g = 0.125*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+4*im[p5+1]);
-            b = 0.125*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+4*im[p5+2]);
-            dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
+            // compute rhomboidal interpolation
+            // base interpolated color on center pixel plus corner pixels
+            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
+            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
+            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
+            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
             
             // next pixel
             x++; sx++; 
@@ -1083,118 +1021,124 @@ FILTER.Create({
             }
             if ( sx >= step2 ) { sx=0; }
         }
-        // return the pixelated image data
-        return dst;
-    }
-});
-/*
-// a simple fast Hexagonal Pixelate filter
-FILTER.Create({
-    name: "HexagonalPixelateFilter"
-    
-    // parameters
-    ,scale: 1
-    
-    // this is the filter constructor
-    ,init: function( scale ) {
-        var self = this;
-        self.scale = scale || 1;
-    }
-    
-    // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
-            scale: self.scale
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.scale = params.scale;
-        return self;
-    }
-    
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this;
-        if ( self.scale <= 1 ) return im;
-        if ( self.scale > 100 ) self.scale = 100;
+        //return output;
+    },
+    "hexagonal": function hexagonal( scale, output, input, w, h ){
+        var imLen = input.length, imArea = imLen>>>2,
+            xstep, xstep2, xstep_2, xstep3_2, ystep, ystepw,
+            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, p5, p6, r, g, b,
+            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc, pxd, pyd, pxe,
+            xparity, yparity;
         
-        var dst, imLen = im.length, imArea = (imLen>>>2),
-            step, step_1, step_2, stepx, stepy, stepx_2, stepy_2,
-            bx = w-1, by = imArea-w,
-            p1, p2, p3, p4, p5, p6, p7, d, r, g, b, s, swap,
-            i, x, yw, sx, sy, syw, sx2, sy2, pxa, pya, pxb, pyb, pxc, pyc, pxd;
-        
-        dst = new IMG(imLen);
-        step = (sqrt(imArea)*self.scale*0.01)|0; d = (SQRT_3/2-1)*step;
-        step_1 = step-1; step_2 = step >>> 1; stepx = step_1;
-        stepy_2 = w*step_2; stepy = w*step_1;
-        s = step + d + d; swap = 1;
-        
-        // do pixelation via interpolation on 5 points of a certain ractangle
-        x=yw=0; sx=sy=syw=0;
+        xstep2 = (SQRT_3*scale*sqrt(imArea)*1e-2)|0;
+        xstep = (0.5*xstep2)|0; xstep_2 = (0.25*xstep2)|0; xstep3_2 = xstep2-xstep_2;
+        ystep = (0.25*xstep2)|0; ystepw = ystep*w;
+         
+        // do pixelation via interpolation on 7 points of a certain hexagon
+        x=yw=sx=sy=syw=0; xparity=yparity=1;
         for (i=0; i<imLen; i+=4)
         {
             // these edge conditions create the various hexagonal patterns
-            if ( 2*SQRT_3*sx+2*sy < s ) 
-            { 
-                // top left hexagon
-                pxa = max(0, x-sx-stepx); pya = max(0, yw-syw-stepy_2);
-            }
-            else if ( 2*SQRT_3*sx+sy < s ) 
-            { 
-                // bottom left hexagon
-                pxa = max(0, x-sx-stepx); pya = min(by, yw-syw+stepy_2);
-            }
-            else if ( SQRT_3*sx+2*sy < s ) 
-            { 
-                // top right hexagon
-                pxa = min(bx, x-sx+stepx); pya = max(0, yw-syw-stepy_2);
-            }
-            else if ( SQRT_3*sx+sy < s ) 
-            { 
-                // bottom right hexagon
-                pxa = min(bx, x-sx+stepx); pya = min(by, yw-syw+stepy_2);
+            if ( yparity )
+            {
+                if ( 2===xparity )
+                {
+                    // center hexagon bottom
+                    pxa = max(0, x-sx-xstep_2); pya = yw-syw;
+                }
+                else if ( 1===xparity )
+                {
+                    if ( SQRT_3*sx+ystep-sy > xstep )
+                    {
+                        // top right hexagon
+                        pxa = min(bx, x-sx+xstep_2); pya = yw-syw;
+                    }
+                    else
+                    {
+                        // center hexagon
+                        pxa = max(0, x-sx-xstep); pya = min(by, yw-syw+ystepw);
+                    }
+                }
+                else
+                {
+                    if ( SQRT_3*sx+sy < xstep )
+                    {
+                        // top left hexagon
+                        pxa = max(0, x-sx-xstep3_2); pya = yw-syw;
+                    }
+                    else
+                    {
+                        // center hexagon
+                        pxa = x-sx; pya = min(by, yw-syw+ystepw);
+                    }
+                }
             }
             else
-            { 
-                // center hexagon
-                pxa = min(bx, x-sx); pya = max(0, yw-syw);
+            {
+                if ( 2===xparity )
+                {
+                    // center hexagon top
+                    pxa = max(0, x-sx-xstep_2); pya = min(by, yw-syw+ystepw);
+                }
+                else if ( 1===xparity )
+                {
+                    if ( SQRT_3*sx+sy > xstep )
+                    {
+                        // bottom right hexagon
+                        pxa = min(bx, x-sx+xstep_2); pya = min(by, yw-syw+ystepw);
+                    }
+                    else
+                    {
+                        // center hexagon
+                        pxa = max(0, x-sx-xstep); pya = yw-syw;
+                    }
+                }
+                else
+                {
+                    if ( SQRT_3*sx+ystep-sy < xstep )
+                    {
+                        // bottom left hexagon
+                        pxa = max(0, x-sx-xstep3_2); pya = min(by, yw-syw+ystepw);
+                    }
+                    else
+                    {
+                        // center hexagon
+                        pxa = x-sx; pya = yw-syw;
+                    }
+                }
             }
+            pxb = min(bx, pxa+xstep_2); pyb = max(0, pya-ystepw);
+            pxc = min(bx, pxa+xstep); pyc = pya;
+            pxd = min(bx, pxa+xstep2); pyd = min(by, pya+ystepw);
+            pxe = min(bx, pxa+xstep3_2);
             
-            pxb = min(bx, pxa+stepx); pyb = min(by, pya+stepy);
-            pxc = min(bx, pxa+((0.5*step)|0)); pyc = min(by, pya+((0.5*step)|0)*w);
-            
+            p0 = (pxc + pyc) << 2;
             p1 = (pxa + pya) << 2;
-            p2 = (pxb + pya) << 2;
-            p3 = (pxb + pyb) << 2;
-            p4 = (pxa + pyb) << 2;
-            p5 = (pxc + pyc) << 2;
+            p2 = (pxb + pyb) << 2;
+            p3 = (pxe + pyb) << 2;
+            p4 = (pxd + pya) << 2;
+            p5 = (pxe + pyd) << 2;
+            p6 = (pxb + pyd) << 2;
             
             // compute hexagonal interpolation
-            r = 0.2*(im[p1  ]+im[p2  ]+im[p3  ]+im[p4  ]+im[p5  ]);
-            g = 0.2*(im[p1+1]+im[p2+1]+im[p3+1]+im[p4+1]+im[p5+1]);
-            b = 0.2*(im[p1+2]+im[p2+2]+im[p3+2]+im[p4+2]+im[p5+2]);
-            dst[i] = r|0; dst[i+1] = g|0; dst[i+2] = b|0; dst[i+3] = im[i+3];
+            // base interpolated color on center pixel plus corner pixels
+            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+input[p5  ]+input[p6  ]+2*input[p0  ]);
+            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+input[p5+1]+input[p6+1]+2*input[p0+1]);
+            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+input[p5+2]+input[p6+2]+2*input[p0+2]);
+            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
             
             // next pixel
             x++; sx++; 
             if ( x >= w ) 
             { 
-                sx = swap*d; swap = 1-swap;
-                x=0; sy++; syw+=w; yw+=w;
-                if ( sy > step_1 ) { sy=0; syw=0; }
+                sx=0; x=0; sy++; syw+=w; yw+=w; xparity=0;
+                if ( sy >= ystep ) { sy=0; syw=0; yparity=1-yparity; }
             }
-            if ( sx >= s ) { sx = 0; }
+            if ( sx >= xstep ) { sx=0; xparity=(xparity+1)%3; }
         }
-        // return the pixelated image data
-        return dst;
+        //return output;
     }
-});*/
+};
 
 }(FILTER);/**
 *
@@ -1396,11 +1340,11 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, integral_convolution = FILTER.Util.Filter.integral_convolution,
-    MODE = FILTER.MODE, boxKernel_3x3 = new FILTER.ConvolutionMatrix([
-        1/9,1/9,1/9,
-        1/9,1/9,1/9,
-        1/9,1/9,1/9
+var MODE = FILTER.MODE,
+    boxKernel_3x3 = new FILTER.ConvolutionMatrix([
+    1/9,1/9,1/9,
+    1/9,1/9,1/9,
+    1/9,1/9,1/9
     ]);
 
 // adapted from http://www.jhlabs.com/ip/filters/
@@ -1482,7 +1426,7 @@ FILTER.Create({
         if ( 0 >= quality ) quality = 1;
         if ( 3 < quality ) quality = 3;
         
-        shadow = new IMG(imSize);
+        shadow = new FILTER.ImArray(imSize);
         
         // generate shadow from image alpha channel
         for(i=0; i<imSize; i+=4)
@@ -1505,7 +1449,7 @@ FILTER.Create({
         }
         
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = FILTER.Util.Filter.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
         
         // offset and combine with original image
         offY *= w;
@@ -1614,8 +1558,7 @@ FILTER.Create({
             d, dx, dy, blur, blurw, wt,
             xOff1, yOff1, xOff2, yOff2,
             p1, p2, p3, p4, t0, t1, t2,
-            bx1, bx2, by1, by2
-        ;
+            bx1, bx2, by1, by2;
         
         if ( m<=0 ) return im;
         
@@ -1627,7 +1570,7 @@ FILTER.Create({
         cY = Floor(cY*(h-1));
         
         integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-        integral = new A32F(integralLen);
+        integral = new FILTER.Array32F(integralLen);
         
         // compute integral of image in one pass
         // first row
@@ -1868,15 +1811,11 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var TypedArray = FILTER.Util.Array.typed, abs = Math.abs,
-    min = Math.min, max = Math.max, ceil = Math.ceil,
-    MODE = FILTER.MODE, connected_component = FILTER.MachineLearning.connected_component;
+var MODE = FILTER.MODE;
     
-// a fast flood fill filter using scanline algorithm
+// an extended and fast flood fill and flood pattern fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
-// http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
-// http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
 FILTER.Create({
     name : "FloodFillFilter"
     ,x: 0
@@ -1884,6 +1823,7 @@ FILTER.Create({
     ,color: null
     ,border: null
     ,tolerance: 1e-6
+    ,mode: MODE.COLOR
     
     ,path: FILTER_PLUGINS_PATH
     
@@ -1894,6 +1834,7 @@ FILTER.Create({
         self.color = color || 0;
         self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.border = null != border ? border||0 : null;
+        self.mode = MODE.COLOR;
     }
     
     ,serialize: function( ) {
@@ -1917,58 +1858,99 @@ FILTER.Create({
         return self;
     }
     
-    // this is the filter actual apply method routine
-    /* adapted from:
-     * A Seed Fill Algorithm
-     * by Paul Heckbert
-     * from "Graphics Gems", Academic Press, 1990
-     */
     ,apply: function( im, w, h ) {
-        var self = this, //borderColor = self.borderColor,
-            color = self.color||0, x0 = self.x||0, y0 = self.y||0,
-            r, g, b, r0, g0, b0, r1, g1, b1, x, y, k, i, bb, mask, x1, y1, x2, y2,
-            border = self.border;
+        var self = this, mode = self.mode || MODE.COLOR,
+            color = self.color||0, border = self.border, exterior = null != border,
+            x0 = self.x||0, y0 = self.y||0, x, y, x1, y1, x2, y2, k, i, l, 
+            r, g, b, r0, g0, b0, rb, gb, bb, hsv, dist, D0, D1, region, box, mask, block_mask,
+            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB;
             
         if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
         
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
-        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
         r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
-        if ( null != border )
+        if ( exterior )
         {
-           r1 = (border>>>16)&255;
-           g1 = (border>>>8)&255;
-           b1 = (border)&255;
-           if ( r0 === r1 && g0 === g1 && b0 === b1 ) return im;
-           r0 = r1; g0 = g1; b0 = b1;
+           rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
+           if ( r0 === rb && g0 === gb && b0 === bb ) return im;
+           r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        else
+        else if ( MODE.COLOR === mode && r0 === r && g0 === g && b0 === b )
         {
-            if ( r === r0 && g === g0 && b === b0 ) return im;
+            return im;
         }
         
-        bb = [0,0,0,0];
-        /* seems to have issues when tolerance is exactly 1.0*/
-        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, null != border);
+        /* seems to have issues when tolerance is exactly 1.0 */
+        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
+        // mask is a packed bit array for efficiency
+        mask = region.mask;
         
-        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>2; y2 = bb[3]>>>2;
-        for(x=x1,y=y1; y<=y2; )
+        if ( (MODE.MASK === mode) || (MODE.COLORMASK === mode) )
         {
-            k = x+y;
-            if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+            // MODE.MASK returns the region mask, rest image is put blank
+            block_mask = MODE.MASK === mode;
+            x=0; y=0;
+            for(i=0,l=im.length; i<l; i+=4,x++)
             {
-                i = k << 2;
-                im[i  ] = r;
-                im[i+1] = g;
-                im[i+2] = b;
+                if ( x>=w ) { x=0; y+=w; }
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    // use mask color
+                    if ( block_mask ) { im[i  ] = r; im[i+1] = g; im[i+2] = b; }
+                    // else leave original color
+                }
+                else
+                {
+                    im[i  ] = 0; im[i+1] = 0; im[i+2] = 0;
+                }
             }
-            if ( ++x>x2 ){ x=x1; y+=w; }
+        }
+        else if ( MODE.HUE === mode )
+        {
+            // MODE.HUE enables to fill/replace color gradients in a connected region
+            box = region.box;
+            x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
+            hsv = new FILTER.Array32F(3);
+            
+            for(x=x1,y=y1; y<=y2; )
+            {
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    i = k << 2;
+                    hsv[0] = im[i  ]; hsv[1] = im[i+1]; hsv[2] = im[i+2];
+                    RGB2HSV(hsv, 0, 1); hsv[0] = color; HSV2RGB(hsv, 0, 1);
+                    im[i  ] = hsv[0]|0; im[i+1] = hsv[1]|0; im[i+2] = hsv[2]|0;
+                }
+                if ( ++x>x2 ){ x=x1; y+=w; }
+            }
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            // fill/replace color in region
+            box = region.box;
+            x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
+            for(x=x1,y=y1; y<=y2; )
+            {
+                k = x+y;
+                if ( mask[k>>>5]&(1<<(k&31)) )
+                {
+                    i = k << 2;
+                    im[i  ] = r;
+                    im[i+1] = g;
+                    im[i+2] = b;
+                }
+                if ( ++x>x2 ){ x=x1; y+=w; }
+            }
         }
         // return the new image data
         return im;
     }
 });
-//FILTER.ColorFillFilter = FILTER.FloodFillFilter;
+FILTER.ColorFillFilter = FILTER.FloodFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"
@@ -1977,22 +1959,22 @@ FILTER.Create({
     ,offsetX: 0
     ,offsetY: 0
     ,tolerance: 1e-6
-    ,mode: MODE.TILE
     ,border: null
+    ,mode: MODE.TILE
     ,hasInputs: true
     
     ,path: FILTER_PLUGINS_PATH
     
-    ,init: function( x, y, pattern, offsetX, offsetY, mode, tolerance, border ) {
+    ,init: function( x, y, pattern, offsetX, offsetY, tolerance, border ) {
         var self = this;
         self.x = x || 0;
         self.y = y || 0;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
         if ( pattern ) self.setInput( "pattern", pattern );
-        self.mode = mode || MODE.TILE;
         self.tolerance = null == tolerance ? 1e-6 : +tolerance;
         self.border = null != border ? border||0 : null;
+        self.mode = MODE.TILE;
     }
     
     ,dispose: function( ) {
@@ -2037,37 +2019,41 @@ FILTER.Create({
         if ( x0 < 0 || x0 >= w || y0 < 0 || y0 >= h ) return im;
         Pat = self.input("pattern"); if ( !Pat ) return im;
         
-        var STRETCH = MODE.STRETCH, mode = self.mode, pattern = Pat[0],
-            pw = Pat[1], ph = Pat[2], px0 = self.offsetX||0, py0 = self.offsetY||0,
-            r0, g0, b0, r, g, b, x, y, k, i, pi, px, py, bb, mask, x1, y1, x2, y2, sx, sy,
-            border = self.border;
+        var mode = self.mode||MODE.TILE, border = self.border, exterior = null != border, delta,
+            pattern = Pat[0], pw = Pat[1], ph = Pat[2], px0 = self.offsetX||0, py0 = self.offsetY||0,
+            r0, g0, b0, rb, gb, bb, x, y, k, i, pi, px, py, x1, y1, x2, y2, sx, sy,
+            dist, D0, D1, region, box, mask, yy;
         
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
-        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2];
-        if ( null != border )
+        r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
+        if ( exterior )
         {
-           r = (border>>>16)&255;
-           g = (border>>>8)&255;
-           b = (border)&255;
-           if ( r0 === r && g0 === g && b0 === b ) return im;
-           r0 = r; g0 = g; b0 = b;
+           rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
+           if ( r0 === rb && g0 === gb && b0 === bb ) return im;
+           r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        bb = [0,0,0,0];
-        /* seems to have issues when tolerance is exactly 1.0*/
-        mask = connected_component(x0, y0, r0, g0, b0, bb, im, w, h, (255*(self.tolerance>=1.0 ? 0.999 : self.tolerance))|0, null != border);
         
-        x1 = bb[0]>>>2; y1 = bb[1]>>>2; x2 = bb[2]>>>2; y2 = bb[3]>>>2;
-        if ( STRETCH === mode )
+        /* seems to have issues when tolerance is exactly 1.0 */
+        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
+        // mask is a packed bit array for efficiency
+        mask = region.mask; box = region.box;
+        x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>>2; y2 = box[3]>>>2;
+        
+        if ( MODE.STRETCH === mode )
         {
+            // MODE.STRETCH stretches (rescales) pattern to fit and fill region
             sx = pw/(x2-x1+1); sy = ph/(y2-y1+w);
             for(x=x1,y=y1; y<=y2; )
             {
                 k = x+y;
-                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+                if ( mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
-                    //px = (pw*(x-x1)/(x2-x1+1))|0; py = (ph*(y-y1)/(y2-y1+w))|0;
-                    px = (sx*(x-x1))|0; py = (sy*(y-y1))|0;
+                    // stretch here
+                    px = (sx*(x-x1))|0;
+                    py = (sy*(y-y1))|0;
+                    // pattern fill here
                     pi = (px + py*pw) << 2;
                     im[i  ] = pattern[pi  ];
                     im[i+1] = pattern[pi+1];
@@ -2076,24 +2062,28 @@ FILTER.Create({
                 if ( ++x>x2 ){ x=x1; y+=w; }
             }
         }
-        else //if ( TILE === mode )
+        else //if ( MODE.TILE === mode )
         {
+            // MODE.TILE tiles (repeats) pattern to fit and fill region
             if ( 0 > px0 ) px0 += pw;
             if ( 0 > py0 ) py0 += ph;
-            for(x=x1,y=y1; y<=y2; )
+            x2 = x2-x1+1;
+            for(x=0,y=0,yy=y1; yy<=y2; )
             {
-                k = x+y;
-                if ( /*0 < mask[k]*/mask[k>>>5]&(1<<(k&31)) )
+                k = x+x1 + yy;
+                if ( mask[k>>>5]&(1<<(k&31)) )
                 {
                     i = k << 2;
-                    px = (x-x1+px0) % pw;
-                    py = (y-y1+py0) % ph;
+                    // tile here
+                    px = (x + px0) % pw;
+                    py = (y + py0) % ph;
+                    // pattern fill here
                     pi = (px + py*pw) << 2;
                     im[i  ] = pattern[pi  ];
                     im[i+1] = pattern[pi+1];
                     im[i+2] = pattern[pi+2];
                 }
-                if ( ++x>x2 ){ x=x1; y+=w; }
+                if ( ++x>=x2 ){ x=0; yy+=w; y++; }
             }
         }
         // return the new image data
@@ -2110,10 +2100,8 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var A32F = FILTER.Array32F, MODE = FILTER.MODE,
-    HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity,
-    min = Math.min, max = Math.max, cos = Math.cos, toRad = FILTER.CONST.toRad,
-    connected_components = FILTER.MachineLearning.connected_components;
+var MODE = FILTER.MODE, min = Math.min, max = Math.max,
+    cos = Math.cos, toRad = FILTER.CONST.toRad;
 
 FILTER.Create({
     name: "ConnectedComponentsFilter"
@@ -2164,7 +2152,8 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            i, j, D = new A32F(imSize);
+            i, j, D = new FILTER.Array32F(imSize),
+            HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
         
         if ( MODE.HUE === mode )
         {
@@ -2181,12 +2170,12 @@ FILTER.Create({
         else //if ( MODE.COLOR === mode )
         {
             delta = (delta*0xff)|0;
-            delta = (delta<<16)|(delta<<8)|delta;
+            delta = (delta<<16) | (delta<<8) | delta;
             for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16)|(im[i+1]<<8)|im[i+2];
+                D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16) | (im[i+1]<<8) | im[i+2];
         }
         // return the connected image data
-        return connected_components(2, im, D, w, h, self.connectivity, self.invert, delta, color);
+        return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
     }
 });
 
@@ -2199,8 +2188,7 @@ FILTER.Create({
 !function(FILTER){
 "use strict";
 
-var canny_gradient = FILTER.Util.Filter.gradient,
-    MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
+var MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT, round = Math.round;
 
 // an efficient Canny Edges Detector
@@ -2250,7 +2238,7 @@ FILTER.Create({
     ,apply: function( im, w, h ) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return canny_gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+        return FILTER.Util.Filter.gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 
@@ -2263,26 +2251,24 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var Array32F = FILTER.Array32F, Array8U = FILTER.Array8U,
-    Abs = Math.abs, Max = Math.max, Min = Math.min, 
+var Abs = Math.abs, Max = Math.max, Min = Math.min, 
     Floor = Math.floor, Round = Math.round, Sqrt = Math.sqrt,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push,
-    FilterUtil = FILTER.Util.Filter, sat_image = FilterUtil.sat, sat_canny_gradient = FilterUtil.gradient
-;
+    HAS = 'hasOwnProperty', MAX_FEATURES = 10, push = Array.prototype.push;
 
-function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScale, scaleIncrement, stepIncrement, SAT, RSAT, SAT2, GSAT, cL, cH)
+function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
+                    haar, baseScale, scaleIncrement, stepIncrement,
+                    SAT, RSAT, SAT2, GSAT, cL, cH)
 {
-    var doCannyEdges = null != GSAT,
-        selw = sel_x2-sel_x1+1, selh = sel_y2-sel_y1+1,
-        imSize = selw*selh, imArea1 = imSize-1,
+    var thresholdEdgesDensity = null != GSAT,
+        selw = (sel_x2-sel_x1+1)|0, selh = (sel_y2-sel_y1+1)|0,
+        imSize = w*h, imArea1 = imSize-1,
         haar_stages = haar.stages, sl = haar_stages.length,
         sizex = haar.size1, sizey = haar.size2,
-        scale, maxScale = Min(selw/sizex, selh/sizey),
-        xstep, ystep, xsize, ysize,
-        startx = sel_x1, starty = sel_y1, startty,
+        scale, maxScale, xstep, ystep, xsize, ysize,
+        startx, starty, startty, //minScale, 
         x, y, ty, tyw, tys, p0, p1, p2, p3, xl, yl, s, t,
-        bx1, bx2, by1, by2, swh, inv_area,
+        bx, by, swh, inv_area,
         total_x, total_x2, vnorm, edges_density, pass,
         
         stage, threshold, trees, tl,
@@ -2292,9 +2278,11 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
         x3, y3, x4, y4, rw, rh, yw, yh, sum
     ;
     
-    bx1=0; bx2=selw-1; by1=0; by2=imSize-selw;
-    scale = baseScale;
-    for(scale=baseScale; scale<=maxScale; scale*=scaleIncrement)
+    bx=w-1; by=imSize-w;
+    startx = sel_x1|0; starty = sel_y1|0;
+    maxScale = Min(selw/sizex, selh/sizey);
+    //minScale = Max(selw/w, selh/h);
+    for(scale=baseScale/* *minScale*/; scale<=maxScale; scale*=scaleIncrement)
     {
         // Viola-Jones Single Scale Detector
         xsize = (scale * sizex)|0;
@@ -2302,7 +2290,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
         ysize = (scale * sizey)|0;
         ystep = (ysize * stepIncrement)|0;
         //ysize = xsize; ystep = xstep;
-        tyw = ysize*selw; tys = ystep*selw; 
+        tyw = ysize*w; tys = ystep*w; 
         startty = starty*tys; 
         xl = selw-xsize; yl = selh-ysize;
         swh = xsize*ysize; inv_area = 1.0/swh;
@@ -2311,17 +2299,19 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
         {
             for (x=startx; x<xl; x+=xstep) 
             {
-                p0 = x-1 + ty-selw;  p1 = p0 + xsize;
+                p0 = x-1 + ty-w;  p1 = p0 + xsize;
                 p2 = p0 + tyw;    p3 = p2 + xsize;
                 
                 // clamp
-                p0 = p0<0 ? 0 : (p0>imArea1 ? imArea1 : p0);
-                p1 = p1<0 ? 0 : (p1>imArea1 ? imArea1 : p1);
-                p2 = p2<0 ? 0 : (p2>imArea1 ? imArea1 : p2);
-                p3 = p3<0 ? 0 : (p3>imArea1 ? imArea1 : p3);
+                p0 = Min(imArea1,Max(0,p0));
+                p1 = Min(imArea1,Max(0,p1));
+                p2 = Min(imArea1,Max(0,p2));
+                p3 = Min(imArea1,Max(0,p3));
                 
-                if ( doCannyEdges )
+                if ( thresholdEdgesDensity )
                 {
+                    // prune search space based on canny edges density
+                    // i.e too few = no feature, too much = noise
                     // avoid overflow
                     edges_density = inv_area * (GSAT[p3] - GSAT[p2] - GSAT[p1] + GSAT[p0]);
                     if ( edges_density < cL || edges_density > cH ) continue;
@@ -2335,7 +2325,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                 total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
                 
                 vnorm = total_x2 - total_x * total_x;
-                vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm  /*1*/ ;  
+                vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;  
                 
                 pass = false;
                 for(s=0; s<sl; s++) 
@@ -2374,23 +2364,23 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     
                                     // this produces better/larger features, possible rounding effects??
                                     x1 = x + (scale * r[0])|0;
-                                    y1 = (y-1 + (scale * r[1])|0) * selw;
+                                    y1 = (y-1 + (scale * r[1])|0) * w;
                                     x2 = x + (scale * (r[0] + r[2]))|0;
-                                    y2 = (y-1 + (scale * (r[1] + r[2]))|0) * selw;
+                                    y2 = (y-1 + (scale * (r[1] + r[2]))|0) * w;
                                     x3 = x + (scale * (r[0] - r[3]))|0;
-                                    y3 = (y-1 + (scale * (r[1] + r[3]))|0) * selw;
+                                    y3 = (y-1 + (scale * (r[1] + r[3]))|0) * w;
                                     x4 = x + (scale * (r[0] + r[2] - r[3]))|0;
-                                    y4 = (y-1 + (scale * (r[1] + r[2] + r[3]))|0) * selw;
+                                    y4 = (y-1 + (scale * (r[1] + r[2] + r[3]))|0) * w;
                                     
                                     // clamp
-                                    x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
-                                    x2 = x2<bx1 ? bx1 : (x2>bx2 ? bx2 : x2);
-                                    x3 = x3<bx1 ? bx1 : (x3>bx2 ? bx2 : x3);
-                                    x4 = x4<bx1 ? bx1 : (x4>bx2 ? bx2 : x4);
-                                    y1 = y1<by1 ? by1 : (y1>by2 ? by2 : y1);
-                                    y2 = y2<by1 ? by1 : (y2>by2 ? by2 : y2);
-                                    y3 = y3<by1 ? by1 : (y3>by2 ? by2 : y3);
-                                    y4 = y4<by1 ? by1 : (y4>by2 ? by2 : y4);
+                                    x1 = Min(bx,Max(0,x1));
+                                    x2 = Min(bx,Max(0,x2));
+                                    x3 = Min(bx,Max(0,x3));
+                                    x4 = Min(bx,Max(0,x4));
+                                    y1 = Min(by,Max(0,y1));
+                                    y2 = Min(by,Max(0,y2));
+                                    y3 = Min(by,Max(0,y3));
+                                    y4 = Min(by,Max(0,y4));
                                     
                                     // RSAT(x-h+w, y+w+h-1) + RSAT(x, y-1) - RSAT(x-h, y+h-1) - RSAT(x+w, y+w-1)
                                     //        x4     y4            x1  y1          x3   y3            x2   y2
@@ -2407,14 +2397,14 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2, haar, baseScal
                                     // this produces better/larger features, possible rounding effects??
                                     x1 = x-1 + (scale * r[0])|0; 
                                     x2 = x-1 + (scale * (r[0] + r[2]))|0;
-                                    y1 = selw * (y-1 + (scale * r[1])|0); 
-                                    y2 = selw * (y-1 + (scale * (r[1] + r[3]))|0);
+                                    y1 = w * (y-1 + (scale * r[1])|0); 
+                                    y2 = w * (y-1 + (scale * (r[1] + r[3]))|0);
                                     
                                     // clamp
-                                    x1 = x1<bx1 ? bx1 : (x1>bx2 ? bx2 : x1);
-                                    x2 = x2<bx1 ? bx1 : (x2>bx2 ? bx2 : x2);
-                                    y1 = y1<by1 ? by1 : (y1>by2 ? by2 : y1);
-                                    y2 = y2<by1 ? by1 : (y2>by2 ? by2 : y2);
+                                    x1 = Min(bx,Max(0,x1));
+                                    x2 = Min(bx,Max(0,x2));
+                                    y1 = Min(by,Max(0,y1));
+                                    y2 = Min(by,Max(0,y2));
                                     
                                     // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
                                     //      x1   y1         x2      y2          x1   y1            x2    y1
@@ -2576,8 +2566,9 @@ function merge_features( rects, min_neighbors, tolerance )
 // 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
 // 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
 // expose as static utility methods
-FilterUtil.haar_detect = haar_detect;
-FilterUtil.merge_features = merge_features;
+FILTER.Util.Filter.haar_detect = haar_detect;
+FILTER.Util.Filter.merge_features = merge_features;
+
 FILTER.Create({
     name: "HaarDetectorFilter"
     
@@ -2700,8 +2691,8 @@ FILTER.Create({
         
         var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
-            SAT=null, SAT2=null, RSAT=null, GSAT=null, 
-            x1, y1, x2, y2, features;
+            A32F = FILTER.Array32F, SAT=null, SAT2=null, RSAT=null, GSAT=null, 
+            x1, y1, x2, y2, features, FilterUtil = FILTER.Util.Filter;
         
         if ( selection )
         {
@@ -2736,7 +2727,7 @@ FILTER.Create({
         else
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
-            sat_image(im, w, h, 2, 0, SAT=new Array32F(imSize), SAT2=new Array32F(imSize), RSAT=new Array32F(imSize));
+            FilterUtil.sat(im, w, h, 2, 0, SAT=new A32F(imSize), SAT2=new A32F(imSize), RSAT=new A32F(imSize));
             if ( metaData ) { metaData.haarfilter_SAT = SAT; metaData.haarfilter_SAT2 = SAT2; metaData.haarfilter_RSAT = RSAT; }
         }
         
@@ -2749,19 +2740,19 @@ FILTER.Create({
             }
             else
             {
-                GSAT = sat_canny_gradient(im, w, h, 2, 0, 1, 1);
+                GSAT = FilterUtil.gradient(im, w, h, 2, 0, 1, 1);
                 if ( metaData ) { metaData.haarfilter_GSAT = GSAT; }
             }
         }
         
         // synchronous detection loop
         features = new Array(MAX_FEATURES); features.count = 0;
-        haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, GSAT, self.cannyLow, self.cannyHigh);
+        FilterUtil.haar_detect(features, w, h, x1, y1, x2, y2, self.haardata, self.baseScale, self.scaleIncrement, self.stepIncrement, SAT, RSAT, SAT2, GSAT, self.cannyLow, self.cannyHigh);
         // truncate if needed
         if ( features.length > features.count ) features.length = features.count;
         
         // return results as meta
-        self.meta = {objects: merge_features(features, self.minNeighbors, self.tolerance)};
+        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance)};
         
         // return im back
         return im;

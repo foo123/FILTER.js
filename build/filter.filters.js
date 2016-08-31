@@ -40,10 +40,9 @@ var FILTER_FILTERS_PATH = FILTER.getPath( ModuleFactory__FILTER_FILTERS.moduleUr
 !function(FILTER, undef){
 "use strict";
 
-var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype
-    ,slice = AP.slice, splice = AP.splice, concat = AP.push, getFilter = FILTER.Filter.get;
+var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
+    slice = AP.slice, splice = AP.splice, concat = AP.push;
 
-//
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({
     name: "CompositeFilter"
@@ -117,7 +116,7 @@ var CompositeFilter = FILTER.Create({
             
             for (i=0; i<l; i++)
             {
-                filter = filters[ i ] && filters[ i ].filter ? getFilter( filters[ i ].filter ) : null;
+                filter = filters[ i ] && filters[ i ].filter ? FILTER.Filter.get( filters[ i ].filter ) : null;
                 if ( filter )
                 {
                     stack.push( new filter( ).unserializeFilter( filters[ i ] ) );
@@ -301,7 +300,6 @@ FILTER.CompositionFilter = FILTER.CompositeFilter;
 var min = Math.min, max = Math.max, floor = Math.floor,
     A32F = FILTER.Array32F, notSupportClamp = FILTER._notSupportClamp;
 
-//
 // Algebraic Filter
 FILTER.Create({
     name: "AlgebraicFilter"
@@ -380,6 +378,7 @@ FILTER.Create({
     }
     
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         var i, j, k, ii, kk, x1, y1, x2, y2, tx, ty, c, a, b, ci, co, im2, w2, h2, wm, hm,
@@ -491,9 +490,8 @@ FILTER.Create({
 
 var HAS = 'hasOwnProperty', IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     Min = Math.min, Round = Math.round, hasArraySet = FILTER.Util.Array.hasArrayset,
-    arrayset = FILTER.Util.Array.arrayset, notSupportClamp = FILTER._notSupportClamp, BLEND = FILTER.Color.Blend;
+    arrayset = FILTER.Util.Array.arrayset, notSupportClamp = FILTER._notSupportClamp;
 
-//
 // Blend Filter, photoshop-like image blending
 FILTER.Create({
     name: "BlendFilter"
@@ -561,12 +559,14 @@ FILTER.Create({
     }
     
     ,_apply: function(im, w, h) {
+        //"use asm";
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         
         var i, k, l = matrix.length, imLen = im.length, input,
             alpha, startX, startY, startX2, startY2, W, H, im2, w2, h2, 
-            W1, W2, start, end, x, y, x2, y2, pix2, blend, mode, blended;
+            W1, W2, start, end, x, y, x2, y2, pix2, blend, mode, blended,
+            BLEND = FILTER.Color.Blend;
         
         //blended = im;
         // clone original image since same image may also blend with itself
@@ -628,13 +628,9 @@ FILTER.CombineFilter = FILTER.BlendFilter;
 
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
-    FilterUtil = FILTER.Util.Filter, eye = FilterUtil.ct_eye, ct_mult = FilterUtil.ct_multiply,
     Floor = Math.floor, Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
-    TypedArray = FILTER.Util.Array.typed
-;
+    TypedArray = FILTER.Util.Array.typed;
 
-//
-//
 // ColorTableFilter
 var ColorTableFilter = FILTER.Create({
     name: "ColorTableFilter"
@@ -684,13 +680,14 @@ var ColorTableFilter = FILTER.Create({
     
     ,functional: function( fR, fG, fB ) {
         if ( "function" !== typeof fR ) return this;
-        var tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
+        var eye = FILTER.Util.Filter.ct_eye,
+            tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
         return this.set(tR, tG, tB);
     }
     
     ,channel: function( channel ) {
         if ( null == channel ) return this;
-        var tR, tG, tB;
+        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B: 
@@ -724,7 +721,7 @@ var ColorTableFilter = FILTER.Create({
     
     ,channelInvert: function( channel ) {
         if ( null == channel ) return this;
-        var tR, tG, tB;
+        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B: 
@@ -761,7 +758,7 @@ var ColorTableFilter = FILTER.Create({
     }*/
     
     ,invert: function( ) {
-        return this.set(eye(-1,255));
+        return this.set(FILTER.Util.Filter.ct_eye(-1,255));
     }
     
     ,thresholds: function( thresholdsR, thresholdsG, thresholdsB ) {
@@ -814,7 +811,7 @@ var ColorTableFilter = FILTER.Create({
         if ( numLevels < 2 ) numLevels = 2;
         var j, q=new CT(numLevels), nL=255/(numLevels-1), nR=numLevels/256;
         for(j=0; j<numLevels; j++) q[j] = clamp(nL * j)|0;
-        return this.set(eye(function( i ){ return q[ (nR * i)|0 ]; }));
+        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return q[ (nR * i)|0 ]; }));
     }
     ,posterize: null
     
@@ -848,7 +845,7 @@ var ColorTableFilter = FILTER.Create({
                 return q>threshold ? 255-255*q : 255*q-255;
             };
         }
-        return this.set(eye(solar));
+        return this.set(FILTER.Util.Filter.ct_eye(solar));
     }
     
     ,solarize2: function( threshold ) {
@@ -861,14 +858,16 @@ var ColorTableFilter = FILTER.Create({
     
     // apply a binary mask to the image color channels
     ,mask: function( mask ) {
-        var maskR=(mask>>>16)&255, maskG=(mask>>>8)&255, maskB=mask&255;
+        var eye = FILTER.Util.Filter.ct_eye,
+            maskR = (mask>>>16)&255, maskG = (mask>>>8)&255, maskB = mask&255;
         return this.set(eye(function( i ){ return i & maskR; }), eye(function( i ){ return i & maskG; }), eye(function( i ){ return i & maskB; }));
     }
     
     // replace a color with another
     ,replace: function( color, replacecolor ) {
         if (color == replacecolor) return this;
-        var tR = eye(), tG = eye(), tB = eye();
+        var eye = FILTER.Util.Filter.ct_eye,
+            tR = eye(), tG = eye(), tB = eye();
         tR[(color>>>16)&255] = (replacecolor>>>16)&255;
         tG[(color>>>8)&255] = (replacecolor>>>8)&255;
         tB[(color)&255] = (replacecolor)&255;
@@ -879,7 +878,8 @@ var ColorTableFilter = FILTER.Create({
     ,extract: function( channel, range, background ) {
         if (!range || !range.length) return this;
         background = background||0;
-        var tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255), s, f;
+        var eye = FILTER.Util.Filter.ct_eye, s, f,
+            tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255);
         switch(channel || CHANNEL.R)
         {
             case CHANNEL.B:
@@ -905,36 +905,40 @@ var ColorTableFilter = FILTER.Create({
         gammaB = gammaB || gammaG;
         // gamma correction uses inverse gamma
         gammaR = 1.0/gammaR; gammaG = 1.0/gammaG; gammaB = 1.0/gammaB;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(function( i ){ return 255*Power(nF*i, gammaR); }), eye(function( i ){ return 255*Power(nF*i, gammaG); }), eye(function( i ){ return 255*Power(nF*i, gammaB); }));
     }
     
     // adapted from http://www.jhlabs.com/ip/filters/
     ,exposure: function( exposure ) {
         if ( null == exposure ) exposure = 1;
-        return this.set(eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
+        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
     }
     
     ,contrast: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
         r += 1.0; g += 1.0; b += 1.0;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(r,128*(1 - r)), eye(g,128*(1 - g)), eye(b,128*(1 - b)));
     }
     
     ,brightness: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
+        var eye = FILTER.Util.Filter.ct_eye;
         return this.set(eye(1,r), eye(1,g), eye(1,b));
     }
     
     ,quickContrastCorrection: function( contrast ) {
-        return this.set(eye(null == contrast ? 1.2 : +contrast));
+        return this.set(FILTER.Util.Filter.ct_eye(null == contrast ? 1.2 : +contrast));
     }
     
     ,set: function( tR, tG, tB, tA ) {
         if ( !tR ) return this;
         
-        var i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
+        var eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply,
+            i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
         
         if ( tG || tB )
         {
@@ -973,6 +977,7 @@ var ColorTableFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, T = self.table;
         if ( !T || !T[CHANNEL.R] ) return im;
         
@@ -1065,14 +1070,10 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U, FUtil = FILTER.Util.Filter,
-    eye = FUtil.cm_eye, mult = FUtil.cm_multiply, blend = FUtil.cm_combine, rechannel = FUtil.cm_rechannel,
+var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U,
     Sin = Math.sin, Cos = Math.cos, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp
-;
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp;
 
-//
-//
 // ColorMatrixFilter
 var ColorMatrixFilter = FILTER.Create({
     name: "ColorMatrixFilter"
@@ -1201,7 +1202,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,invert: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             -1, 0,  0, 0, 255,
             0, -1,  0, 0, 255,
             0,  0, -1, 0, 255,
@@ -1215,7 +1216,7 @@ var ColorMatrixFilter = FILTER.Create({
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,desaturate: function( LUMA ) {
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
             L[0], L[1], L[2], 0, 0, 
@@ -1232,7 +1233,7 @@ var ColorMatrixFilter = FILTER.Create({
         var sInv, irlum, iglum, iblum, L = LUMA || FILTER.LUMA;
         sInv = 1 - s;  irlum = sInv * L[0];
         iglum = sInv * L[1];  iblum = sInv * L[2];
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             (irlum + s), iglum, iblum, 0, 0, 
             irlum, (iglum + s), iblum, 0, 0, 
             irlum, iglum, (iblum + s), 0, 0, 
@@ -1251,7 +1252,7 @@ var ColorMatrixFilter = FILTER.Create({
         g = ((rgb >> 8) & 255) / 255;
         b = (rgb & 255) / 255;
         inv_amount = 1 - amount;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             (inv_amount + ((amount * r) * L[0])), ((amount * r) * L[1]), ((amount * r) * L[2]), 0, 0, 
             ((amount * g) * L[0]), (inv_amount + ((amount * g) * L[1])), ((amount * g) * L[2]), 0, 0, 
             ((amount * b) * L[0]), ((amount * b) * L[1]), (inv_amount + ((amount * b) * L[2])), 0, 0, 
@@ -1267,7 +1268,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == g ) g = r;
         if ( null == b ) b = r;
         r += 1.0; g += 1.0; b += 1.0;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             r, 0, 0, 0, (128 * (1 - r)), 
             0, g, 0, 0, (128 * (1 - g)), 
             0, 0, b, 0, (128 * (1 - b)), 
@@ -1282,7 +1283,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,brightness: function( r, g, b ) {
         if ( null == g ) g = r;
         if ( null == b ) b = r;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 0, 0, 0, r, 
             0, 1, 0, 0, g, 
             0, 0, 1, 0, b, 
@@ -1297,7 +1298,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,adjustHue: function( degrees, LUMA ) {
         degrees *= toRad;
         var cos = Cos(degrees), sin = Sin(degrees), L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             ((L[0] + (cos * (1 - L[0]))) + (sin * -(L[0]))), ((L[1] + (cos * -(L[1]))) + (sin * -(L[1]))), ((L[2] + (cos * -(L[2]))) + (sin * (1 - L[2]))), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * 0.143)), ((L[1] + (cos * (1 - L[1]))) + (sin * 0.14)), ((L[2] + (cos * -(L[2]))) + (sin * -0.283)), 0, 0, 
             ((L[0] + (cos * -(L[0]))) + (sin * -((1 - L[0])))), ((L[1] + (cos * -(L[1]))) + (sin * L[1])), ((L[2] + (cos * (1 - L[2]))) + (sin * L[2])), 0, 0, 
@@ -1314,7 +1315,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == r ) r = 0.3333;
         if ( null == g ) g = 0.3333;
         if ( null == b ) b = 0.3333;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
             r, g, b, 0, 0, 
@@ -1327,7 +1328,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     ,quickContrastCorrection: function( contrast ) {
         if ( null == contrast ) contrast = 1.2;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             contrast, 0, 0, 0, 0, 
             0, contrast, 0, 0, 0, 
             0, 0, contrast, 0, 0, 
@@ -1345,7 +1346,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( null == amount ) amount = 0.5;
         if ( amount > 1 ) amount = 1;
         else if ( amount < 0 ) amount = 0;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1.0 - (0.607 * amount), 0.769 * amount, 0.189 * amount, 0, 0, 
             0.349 * amount, 1.0 - (0.314 * amount), 0.168 * amount, 0, 0, 
             0.272 * amount, 0.534 * amount, 1.0 - (0.869 * amount), 0, 0, 
@@ -1361,7 +1362,7 @@ var ColorMatrixFilter = FILTER.Create({
         if ( amount > 100 ) amount = 100;
         amount *= 2.55;
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             L[0], L[1], L[2], 0, 40, 
             L[0], L[1], L[2], 0, 20, 
             L[0], L[1], L[2], 0, -amount, 
@@ -1376,7 +1377,7 @@ var ColorMatrixFilter = FILTER.Create({
     ,threshold: function( threshold, factor, LUMA ) {
         if ( null == factor ) factor = 256;
         var L = LUMA || FILTER.LUMA;
-        return this.set(rechannel(false !== LUMA
+        return this.set(FILTER.Util.Filter.cm_rechannel(false !== LUMA
         ? [
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
             L[0] * factor, L[1] * factor, L[2] * factor, 0, (-(factor-1) * threshold), 
@@ -1448,7 +1449,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // RGB to YCbCr
     ,RGB2YCbCr: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             0.299, 0.587, 0.114, 0, 0,
             -0.168736, -0.331264, 0.5, 0, 128,
             0.5, -0.418688, -0.081312, 0, 128,
@@ -1461,7 +1462,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // YCbCr to RGB
     ,YCbCr2RGB: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 0, 1.402, 0, -179.456,
             1, -0.34414, -0.71414, 0, 135.45984,
             1, 1.772, 0, 0, -226.816,
@@ -1474,7 +1475,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // RGB to YIQ
     ,RGB2YIQ: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             0.299, 0.587, 0.114, 0, 0,
             0.701, -0.587, -0.114, 0, 0,
             -0.299, -0.587, 0.886, 0, 0,
@@ -1487,7 +1488,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // YIQ to RGB
     ,YIQ2RGB: function( ) {
-        return this.set(rechannel([
+        return this.set(FILTER.Util.Filter.cm_rechannel([
             1, 1, 0, 0, 0,
             1, -0.509, -0.194, 0, 0,
             1, 0, 1, 0, 0,
@@ -1501,13 +1502,13 @@ var ColorMatrixFilter = FILTER.Create({
     // blend with another filter
     ,blend: function( filt, amount ) {
         var self = this;
-        self.matrix = self.matrix ? blend(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
+        self.matrix = self.matrix ? FILTER.Util.Filter.cm_combine(self.matrix, filt.matrix, 1-amount, amount, CM) : new CM(filt.matrix);
         return self;
     }
     
     ,set: function( matrix ) {
         var self = this;
-        self.matrix = self.matrix ? mult(self.matrix, matrix) : new CM(matrix); 
+        self.matrix = self.matrix ? FILTER.Util.Filter.cm_multiply(self.matrix, matrix) : new CM(matrix); 
         return self;
     }
     
@@ -1522,6 +1523,7 @@ var ColorMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: notSupportClamp ? function( im, w, h ) {
+        //"use asm";
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -1642,6 +1644,7 @@ var ColorMatrixFilter = FILTER.Create({
         }
         return im;
     } : function( im, w, h ) {
+        //"use asm";
         var self = this, M = self.matrix;
         if ( !M ) return im;
         
@@ -1745,12 +1748,9 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 !function(FILTER, undef){
 "use strict";
 
-var CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, Maps,
-    function_body = FILTER.Util.String.function_body;
+var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body;
 
-//
-//
 // ColorMapFilter
 var ColorMapFilter = FILTER.Create({
     name: "ColorMapFilter"
@@ -1803,7 +1803,7 @@ var ColorMapFilter = FILTER.Create({
         
         //self._mapName = params._mapName;
         //self._map = params._map;
-        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+        if ( !params._map && params._mapName && MAP.hasOwnProperty(params._mapName) )
         {
             self.set(params._mapName);
         }
@@ -1860,13 +1860,13 @@ var ColorMapFilter = FILTER.Create({
     
     ,set: function( M, preample ) {
         var self = this;
-        if ( M && Maps.hasOwnProperty(String(M)) )
+        if ( M && MAP.hasOwnProperty(String(M)) )
         {
             if ( self._mapName !== String(M) )
             {
                 self._mapName = String(M);
-                self._map = Maps[self._mapName];
-                self._mapInit = Maps["init__"+self._mapName];
+                self._map = MAP[self._mapName];
+                self._mapInit = MAP["init__"+self._mapName];
                 self._apply = apply__( self._map, self._mapInit );
             }
             self._mapChanged = false;
@@ -1906,6 +1906,7 @@ function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
+        //"use asm";
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
@@ -1980,7 +1981,7 @@ function apply__( map, preample )
 
 //
 // private color maps
-Maps = {
+MAP = {
     
     "rgb2hsv": "function( ){\
         if ( 0 !== c[3] )\
@@ -2088,11 +2089,8 @@ Maps = {
 "use strict";
 
 var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
-    FUtil = FILTER.Util.Filter, eye = FUtil.am_eye, mult = FUtil.am_multiply,
-    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan
-;
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan;
 
-//
 // AffineMatrixFilter
 var AffineMatrixFilter = FILTER.Create({
     name: "AffineMatrixFilter"
@@ -2189,7 +2187,7 @@ var AffineMatrixFilter = FILTER.Create({
     
     ,set: function( matrix ) {
         var self = this;
-        self.matrix = self.matrix ? mult(self.matrix, matrix) : new AM(matrix); 
+        self.matrix = self.matrix ? FILTER.Util.Filter.am_multiply(self.matrix, matrix) : new AM(matrix); 
         return self;
     }
     
@@ -2204,6 +2202,7 @@ var AffineMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, T = self.matrix;
         if ( !T ) return im;
         var x, y, yw, nx, ny, i, j, imLen = im.length,
@@ -2313,12 +2312,9 @@ AffineMatrixFilter.prototype.shift = AffineMatrixFilter.prototype.translate;
 !function(FILTER, undef){
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy, TypedArray = FILTER.Util.Array.typed,
-    MODE = FILTER.MODE, A16I = FILTER.Array16I, Min = Math.min, Max = Math.max, Floor = Math.floor
-;
+var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed,
+    Min = Math.min, Max = Math.max, Floor = Math.floor;
 
-//
-//
 // DisplacementMap Filter
 FILTER.Create({
     name: "DisplacementMapFilter"
@@ -2385,6 +2381,7 @@ FILTER.Create({
     
     // used for internal purposes
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, Map;
         
         Map = self.input("map"); if ( !Map ) return im;
@@ -2396,8 +2393,8 @@ FILTER.Create({
             SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625, X = self.componentX, Y = self.componentY, 
             applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP, COLOR = MODE.COLOR, WRAP = MODE.WRAP,
-            mode = self.mode||IGNORE
-        ;
+            mode = self.mode||IGNORE, IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy,
+            A16I = FILTER.Array16I;
         
         map = Map[0]; mapW = Map[1]; mapH = Map[2]; 
         mapLen = map.length; mapArea = mapLen>>>2;
@@ -2581,11 +2578,8 @@ FILTER.Create({
 !function(FILTER, undef){
 "use strict";
 
-var MODE = FILTER.MODE, Maps, function_body = FILTER.Util.String.function_body;
+var MAP, MODE = FILTER.MODE, function_body = FILTER.Util.String.function_body;
 
-
-//
-//
 // GeometricMapFilter
 FILTER.Create({
     name: "GeometricMapFilter"
@@ -2664,7 +2658,7 @@ FILTER.Create({
         
         //self._mapName = params._mapName;
         //self._map = params._map;
-        if ( !params._map && params._mapName && Maps.hasOwnProperty(params._mapName) )
+        if ( !params._map && params._mapName && MAP.hasOwnProperty(params._mapName) )
         {
             self.set(params._mapName);
         }
@@ -2717,13 +2711,13 @@ FILTER.Create({
     
     ,set: function( T, preample ) {
         var self = this;
-        if ( T && Maps.hasOwnProperty(String(T)) )
+        if ( T && MAP.hasOwnProperty(String(T)) )
         {
             if ( self._mapName !== String(T) )
             {
                 self._mapName = String(T);
-                self._map = Maps[self._mapName];
-                self._mapInit = Maps["init__"+self._mapName];
+                self._map = MAP[self._mapName];
+                self._mapInit = MAP["init__"+self._mapName];
                 self._apply = apply__( self._map, self._mapInit );
             }
             self._mapChanged = false;
@@ -2756,6 +2750,7 @@ FILTER.Create({
 function apply__( map, preample )
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
+        //"use asm";
     return new Function("FILTER", "\"use strict\"; return function( im, w, h ){\
     var self = this;\
     if ( !self._map ) return im;\
@@ -2856,8 +2851,7 @@ function apply__( map, preample )
 
 //
 // private geometric maps
-Maps = {
-    
+MAP = {
     // adapted from http://je2050.de/imageprocessing/ TwirlMap
      "twirl": "function( ){\
         TX = t[0]-CX; TY = t[1]-CY;\
@@ -2934,12 +2928,9 @@ Maps = {
 !function(FILTER, undef){
 "use strict";
 
-var FilterUtil = FILTER.Util.Filter, CM = FILTER.ConvolutionMatrix,
-    IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
-    integral_convolution = FilterUtil.integral_convolution,
-    separable_convolution = FilterUtil.separable_convolution,
-    blend = FilterUtil.cm_combine, convolve = FilterUtil.cm_convolve, MODE = FILTER.MODE,
+    convolve = FILTER.Util.Filter.cm_convolve,
     TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
     
     sqrt2 = Math.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
@@ -3138,7 +3129,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = d === undef ? 3 : (d&1 ? d : d+1);
         var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
-        return this.set(blend(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0); 
+        return this.set(FILTER.Util.Filter.cm_combine(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0); 
     }
     
     // X-gradient, partial X-derivative (Prewitt)
@@ -3165,7 +3156,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,prewittDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blend(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(FILTER.Util.Filter.cm_combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     ,gradDirectional: null
     
@@ -3199,7 +3190,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,sobelDirectional: function( theta, d ) {
         d = d === undef ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(blend(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(FILTER.Util.Filter.cm_combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
     
     // gradient magnitude (Sobel)
@@ -3274,17 +3265,18 @@ var ConvolutionMatrixFilter = FILTER.Create({
     
     // used for internal purposes
     ,_apply: notSupportClamp ? function( im, w, h ) {
+        //"use asm";
         var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return FILTER.Util.Filter.separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
@@ -3474,17 +3466,18 @@ var ConvolutionMatrixFilter = FILTER.Create({
         }
         return dst;
     } : function( im, w, h ) {
+        //"use asm";
         var self = this, mode = self.mode;
         if ( !self.matrix ) return im;
         
         // do a faster convolution routine if possible
         if ( self._doIntegral ) 
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self.matrix2 ? FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : FILTER.Util.Filter.integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if ( self._doSeparable )
         {
-            return separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
+            return FILTER.Util.Filter.separable_convolution(mode, im, w, h, 2, self._mat, self._mat2, self._indices, self._indices2, self._coeff[0], self._coeff[1]);
         }
         
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen), 
@@ -3860,17 +3853,17 @@ function twos2( d, c, s, cf )
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
-    MODE = FILTER.MODE, Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
+var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray,
+    STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
+    Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     // return a box structure element
     box = function( d ) {
         var i, size=d*d, ones = new STRUCT(size);
         for (i=0; i<size; i++) ones[i]=1;
         return ones;
     },
-    box3 = box(3), Morphological;
+    box3 = box(3);
 
-//
 //  Morphological Filter
 FILTER.Create({
     name: "MorphologicalFilter"
@@ -3920,8 +3913,8 @@ FILTER.Create({
         self._structureElement = TypedArray( params._structureElement, STRUCT );
         self._indices = TypedArray( params._indices, A32I );
         self._filterName = params._filterName;
-        if ( self._filterName && Morphological[ self._filterName ] )
-            self._filter = Morphological[ self._filterName ];
+        if ( self._filterName && MORPHO[ self._filterName ] )
+            self._filter = MORPHO[ self._filterName ];
         return self;
     }
     
@@ -3957,7 +3950,7 @@ FILTER.Create({
     ,set: function( structureElement, filtName ) {
         var self = this;
         self._filterName = filtName;
-        self._filter = Morphological[ filtName ];
+        self._filter = MORPHO[ filtName ];
         if ( structureElement && structureElement.length )
         {
             // structure Element given
@@ -4016,8 +4009,9 @@ FILTER.Create({
 });
 
 // private methods
-Morphological = {
+MORPHO = {
     "dilate": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4075,6 +4069,7 @@ Morphological = {
         return dst;
     }
     ,"erode": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4135,6 +4130,7 @@ Morphological = {
     }
     // dilation of erotion
     ,"open": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4241,6 +4237,7 @@ Morphological = {
     }
     // erotion of dilation
     ,"close": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4347,6 +4344,7 @@ Morphological = {
     }
     // 1/2 (dilation - erosion)
     ,"gradient": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4451,6 +4449,7 @@ Morphological = {
     }
     // 1/2 (dilation + erosion -2IM)
     ,"laplacian": function( self, im, w, h ) {
+        //"use asm";
         var structureElement = self._structureElement,
             matArea = structureElement.length, //matRadius*matRadius,
             matRadius = self._dim, indices = self._indices,
@@ -4568,10 +4567,10 @@ Morphological = {
 "use strict";
 
 // used for internal purposes
-var IMG = FILTER.ImArray, A32I = FILTER.Array32I, A32U = FILTER.Array32U, MODE = FILTER.MODE,
-    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max, Statistical;
+var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
+    A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
     
-//
 //  Statistical Filter
 var StatisticalFilter = FILTER.Create({
     name: "StatisticalFilter"
@@ -4671,7 +4670,7 @@ var StatisticalFilter = FILTER.Create({
     ,_apply: function(im, w, h) {
         var self = this;
         if ( !self.d )  return im;
-        return Statistical[self._filter]( self, im, w, h );
+        return STAT[self._filter]( self, im, w, h );
     }
         
     ,canRun: function( ) {
@@ -4683,8 +4682,9 @@ StatisticalFilter.prototype.erode = StatisticalFilter.prototype.minimum;
 StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 
 // private methods
-Statistical = {
+STAT = {
      "1th": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx = w-1, by = imArea-w,
@@ -4735,6 +4735,7 @@ Statistical = {
         return dst;
     }
     ,"0th": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, r, g, b, rM, gM, bM, bx = w-1, by = imArea-w,
@@ -4785,6 +4786,7 @@ Statistical = {
         return dst;
     }
     ,"kth": function( self, im, w, h ) {
+        //"use asm";
         var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
             imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
             i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
@@ -4998,9 +5000,6 @@ FILTER.CustomFilter = FILTER.InlineFilter;
 !function(FILTER, undef){
 "use strict";
 
-var Interpolation = FILTER.Interpolation;
-
-//
 //  Resample Filter 
 FILTER.Create({
     name: "ResampleFilter"
@@ -5049,7 +5048,7 @@ FILTER.Create({
         self.hasMeta = false; self.meta = null;
         if ( 1 === sX && 1 === sY ) return im;
         
-        interpolate = Interpolation[self.interpolation||"bilinear"];
+        interpolate = FILTER.Interpolation[self.interpolation||"bilinear"];
         if ( !interpolate ) return im;
         
         nw = (self.sX*w)|0; nh = (self.sY*h)|0;
@@ -5071,9 +5070,8 @@ FILTER.InterpolationFilter = FILTER.ResizeFilter = FILTER.RescaleFilter = FILTER
 !function(FILTER, undef){
 "use strict";
 
-var max = Math.max, min = Math.min, select = FILTER.Util.Image.get_data;
+var max = Math.max, min = Math.min;
 
-//
 //  Selection Filter 
 FILTER.Create({
     name: "SelectionFilter"
@@ -5109,7 +5107,7 @@ FILTER.Create({
         if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
         
         self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
-        return select( im, w, h, x1, y1, x2, y2, true );
+        return FILTER.Util.Image.get_data( im, w, h, x1, y1, x2, y2, true );
     }
 });
 FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter;

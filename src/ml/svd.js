@@ -13,7 +13,7 @@
 
 var BLAS = FILTER.Util.BLAS, ArrayUtil = FILTER.Util.Array,
     A32F = FILTER.Array32F, sqrt = Math.sqrt, ABS = Math.abs, MAX = Math.max, MIN = Math.min,
-    array_c = ArrayUtil.copy, array_t = ArrayUtil.transpose, SIGN = FILTER.Util.Math.sign,
+    array_c = BLAS.ARY, array_t = BLAS.TRANSP, SIGN = FILTER.Util.Math.sign,
     CPY = BLAS.CPY, SET = BLAS.SET, SWAP = BLAS.SWAP, SCALE = BLAS.SCALE, AXPY = BLAS.AXPY,
     DOTP = BLAS.DOTP, NRM2 = BLAS.NRM2, PROT = BLAS.PROT, PROTG = BLAS.PROTG;
 

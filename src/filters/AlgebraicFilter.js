@@ -13,7 +13,6 @@
 var min = Math.min, max = Math.max, floor = Math.floor,
     A32F = FILTER.Array32F, notSupportClamp = FILTER._notSupportClamp;
 
-//
 // Algebraic Filter
 FILTER.Create({
     name: "AlgebraicFilter"
@@ -92,6 +91,7 @@ FILTER.Create({
     }
     
     ,_apply: function( im, w, h ) {
+        //"use asm";
         var self = this, matrix = self.matrix;
         if ( !matrix || !matrix.length ) return im;
         var i, j, k, ii, kk, x1, y1, x2, y2, tx, ty, c, a, b, ci, co, im2, w2, h2, wm, hm,
