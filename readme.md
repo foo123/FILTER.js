@@ -79,6 +79,8 @@ Some filters code has been adapted from open source libraries (mostly `c`, `java
 * [**glfx.js**](https://github.com/evanw/glfx.js)
 * [**JViolaJones**](http://code.google.com/p/jviolajones/)
 * [**OpenCV, HAAR cascades**](http://opencv.org/)
+* [**zlib (`asm.js` emscripten version)**](http://www.zlib.net/)
+* [**ffmpeg (`asm.js` emscripten version)**](https://ffmpeg.org/)
 
 
 
