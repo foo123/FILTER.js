@@ -19,6 +19,7 @@ __0.9.6__
 * add new util `blas` (Basic Linear Algebra Subroutines), refactor and re-organise existing utils into `core`, `array`, ..
 * simplify `IO` and `CODECS` packages into one manager with `codec` parameter
 * add full `zlib` (`zlib-asm.js`) util implementation and native node `zlib` module alternative (`zlib-node.js`) (can be set/overriden by user if necesary)
+* add full `ffmpeg` (`ffmpeg-asm.js`) util implementation and native node `ffmpeg` module alternative (`ffmpeg-node.js`) (can be set/overriden by user if necesary)
 * add `png` encoder method (to write image files in `png` format)
 * fix a typo in `convolutionmatrix` filter (missing `stride` parameter in `convolution_clamp`)
 * add new `RhomboidPixelate`, `HexagonalPixelate` (almost done) plugins
