@@ -1,5 +1,11 @@
-**Some image processing/computer vision theory, basics and tutorials:**
+**Open-source libraries (used or related in one way or another)**
 
+* [zlib](http://www.zlib.net/)
+* [ffmpeg](https://ffmpeg.org/)
+* [OpenCV](http://opencv.org/)
+
+
+**Some image processing/computer vision theory, basics and tutorials:**
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
@@ -18,7 +24,6 @@
 * [computer vision: algorithms and applications (draft)](http://szeliski.org/Book/)
 * [(Blind) Source Separation](https://en.wikipedia.org/wiki/Blind_signal_separation)
 * [Independent Component Analysis](https://en.wikipedia.org/wiki/Independent_component_analysis)
-* [OpenCV, open source computer vision](http://opencv.org/)
 * [General-purpose GPU Scientific Computing](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units)
 
 

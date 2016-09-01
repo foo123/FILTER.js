@@ -10,12 +10,13 @@
 if ( FILTER.Util.LOADED_FFMPEG ) return;
 FILTER.Util.LOADED_FFMPEG = true;
 
+// https://ffmpeg.org/
 // https://github.com/damianociarla/node-ffmpeg
 var ffmpeg = require('ffmpeg');
 
 FILTER.Util.FFMpeg = {
     Module: ffmpeg,
-    command: function( opts ){
+    exec: function( opts ){
         return ffmpeg( opts );
     }
 };

@@ -83,7 +83,6 @@ Some filters code has been adapted from open source libraries (mostly `c`, `java
 * [**ffmpeg (`asm.js` emscripten version)**](https://ffmpeg.org/)
 
 
-
 Some image processing/computer vision theory, basics and tutorials (see [references](/references.md)):
 
 

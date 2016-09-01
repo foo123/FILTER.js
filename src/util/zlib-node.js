@@ -10,6 +10,7 @@
 if ( FILTER.Util.LOADED_ZLIB ) return;
 FILTER.Util.LOADED_ZLIB = true;
 
+// http://www.zlib.net/
 // https://nodejs.org/api/zlib.html
 var zlib = require('zlib');
 
