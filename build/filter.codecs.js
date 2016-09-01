@@ -43,6 +43,7 @@ var FILTER_CODECS_PATH = FILTER.getPath( ModuleFactory__FILTER_CODECS.moduleUri 
 if ( FILTER.Util.LOADED_ZLIB ) return;
 FILTER.Util.LOADED_ZLIB = true;
 
+// http://www.zlib.net/
 // adapted from emscripten version at https://github.com/ukyo/zlib-asm
 var Module = {ENVIRONMENT: FILTER.Browser.isNode ? "NODE" : (FILTER.Browser.isInsideWorker ? "WORKER" : "WEB")};
 

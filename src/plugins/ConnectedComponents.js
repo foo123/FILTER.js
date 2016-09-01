@@ -8,7 +8,22 @@
 "use strict";
 
 var MODE = FILTER.MODE, min = Math.min, max = Math.max,
-    cos = Math.cos, toRad = FILTER.CONST.toRad;
+    abs = Math.abs, cos = Math.cos, toRad = FILTER.CONST.toRad;
+
+function dist_v( a, b, delta )
+{
+    return (abs(a-b) <= delta);
+}
+
+function dist_rgb( a, b, delta )
+{
+    return (a === b) || (
+        (-1 !== a && -1 !== b) && 
+        (abs(((a>>16)&255)-((b>>16)&255))<=delta) &&
+        (abs(((a>>8)&255)-((b>>8)&255))<=delta) &&
+        (abs((a&255)-(b&255))<=delta)
+    );
+}
 
 FILTER.Create({
     name: "ConnectedComponentsFilter"
@@ -23,13 +38,13 @@ FILTER.Create({
     //,hasMeta: true
     
     // this is the filter constructor
-    ,init: function( connectivity, tolerance, mode, color, invert ) {
+    ,init: function( connectivity, tolerance, color, invert ) {
         var self = this;
         self.connectivity = 8 === connectivity ? 8 : 4;
         self.tolerance = null == tolerance ? 1e-6 : +tolerance;
-        self.mode = mode || MODE.COLOR;
         self.color = null == color ? null : +color;
         self.invert = !!invert;
+        self.mode = MODE.COLOR;
     }
     
     // support worker serialize/unserialize interface
@@ -59,30 +74,33 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            i, j, D = new FILTER.Array32F(imSize),
+            i, j, D = new FILTER.Array32F(imSize), dist,
             HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
         
         if ( MODE.HUE === mode )
         {
+            dist = dist_v;
             if ( null != color ) color = cos(toRad*color);
             for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? -10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
+                D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
         }
         else if ( MODE.INTENSITY === mode )
         {
+            dist = dist_v;
             delta *= 255;
             for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? -10000 : INTENSITY(im[i],im[i+1],im[i+2]);
+                D[j] = 0 === im[i+3] ? 10000 : INTENSITY(im[i],im[i+1],im[i+2]);
         }
         else //if ( MODE.COLOR === mode )
         {
+            dist = dist_rgb;
             delta = (delta*0xff)|0;
-            delta = (delta<<16) | (delta<<8) | delta;
+            //delta = (delta<<16) | (delta<<8) | delta;
             for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? -0xffffffff : (im[i]<<16) | (im[i+1]<<8) | im[i+2];
+                D[j] = 0 === im[i+3] ? -1 : (im[i]<<16) | (im[i+1]<<8) | im[i+2];
         }
         // return the connected image data
-        return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
+        return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, dist, delta, color, self.invert);
     }
 });
 

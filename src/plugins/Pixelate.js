@@ -241,7 +241,7 @@ FILTER.PixelateFilter.PATTERN = PIXELATION = {
             i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc, pxd, pyd, pxe,
             xparity, yparity;
         
-        xstep2 = (SQRT_3*scale*sqrt(imArea)*1e-2)|0;
+        xstep2 = (SQRT_3*scale*sqrt(imArea)*1.2e-2)|0;
         xstep = (0.5*xstep2)|0; xstep_2 = (0.25*xstep2)|0; xstep3_2 = xstep2-xstep_2;
         ystep = (0.25*xstep2)|0; ystepw = ystep*w;
          

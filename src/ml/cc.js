@@ -66,64 +66,70 @@ function copy_label( id, x, y, labels )
     return id;
 }
 // TODO: add bounding boxes, so it can be used as connected color/hue detector/tracker as well efficiently
-function connected_components( im, w, h, stride, D, K, delta, V0, invert )
+function connected_components( output, w, h, stride, D, K, dist, delta, V0, invert )
 {
     stride = stride|0;
-    var i, j, k, imLen = im.length, imSize = imLen>>>stride,
-        K8_CONNECTIVITY = 8 === K, d0 = K8_CONNECTIVITY ? -1 : 0,
-        mylab, c, r, d, row, labels, labelimg, background_label = null,
+    var i, j, k, len = output.length, size = len>>>stride, K8_CONNECTIVITY = 8 === K,
+        mylab, c, r, d, row, labels, label, background_label = null,
         need_match = null != V0, highest, tag, color;//, box
     
-    labels = new Array(NUM_LABELS);
-    labels.next = 0;
-    labelimg = new A32U(imSize);
+    labels = new Array(NUM_LABELS); labels.next = 0;
+    label = new A32U(size);
     background_label = need_match ? new_label(0, 0, labels) : null;
 
-    labelimg[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new_label(0, 0, labels);
+    label[0] = need_match && !dist(D[0],V0,delta) ? background_label : new_label(0, 0, labels);
 
     // label the first row.
     for(c=1; c<w; c++)
-        labelimg[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? labelimg[c-1]/*copy_label(labelimg[c-1], c, 0, labels)*/ : new_label(c, 0, labels));
+        label[c] = need_match && !dist(D[c],V0,delta) ? background_label : (dist(D[c],D[c-1],delta) ? label[c-1]/*copy_label(label[c-1], c, 0, labels)*/ : new_label(c, 0, labels));
 
     // label subsequent rows.
     for(r=1,row=w; r<h; r++,row+=w)
     {
         // label the first pixel on this row.
-        labelimg[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? labelimg[row-w]/*copy_label(labelimg[row-w], 0, r, labels)*/ : new_label(0, r, labels));
+        label[row] = need_match && !dist(D[row],V0,delta) ? background_label : (dist(D[row],D[row-w],delta) ? label[row-w]/*copy_label(label[row-w], 0, r, labels)*/ : new_label(0, r, labels));
 
         // label subsequent pixels on this row.
         for(c=1; c<w; c++)
         {
-            if ( need_match && (abs(D[row+c]-V0)>delta) )
+            if ( need_match && !dist(D[row+c],V0,delta) )
             {
-                labelimg[row+c] = background_label;
+                label[row+c] = background_label;
                 continue;
             }
             // inherit label from pixel on the left if we're in the same blob.
-            mylab = background_label === labelimg[row+c-1] ? -1 : (abs(D[row+c]-D[row+c-1])<=delta ? labelimg[row+c-1]/*copy_label(labelimg[row+c-1], c, r, labels)*/ : -1);
+            mylab = background_label === label[row+c-1] ? -1 : (dist(D[row+c],D[row+c-1],delta) ? label[row+c-1]/*copy_label(label[row+c-1], c, r, labels)*/ : -1);
 
-            for(d=d0; d<1; d++)
+            //for(d=d0; d<1; d++)
+            // full loop unrolling
+            // if we're in the same blob, inherit value from above pixel.
+            // if we've already been assigned, merge its label with ours.
+            if ( K8_CONNECTIVITY )
             {
-                // if we're in the same blob, inherit value from above pixel.
-                // if we've already been assigned, merge its label with ours.
-                if( (background_label !== labelimg[row-w+c+d]) && (abs(D[row+c]-D[row-w+c+d])<=delta) )
+                //d = -1;
+                if( (background_label !== label[row-w+c-1/*+d*/]) && dist(D[row+c],D[row-w+c-1/*+d*/],delta) )
                 {
-                    if( mylab >= 0 ) merge(mylab, labelimg[row-w+c+d], labels);
-                    else mylab = labelimg[row-w+c+d]/*copy_label(labelimg[row-w+c+d], c+d, r, labels)*/;
+                    if( mylab > -1 ) merge(mylab, label[row-w+c-1/*+d*/], labels);
+                    else mylab = label[row-w+c-1/*+d*/]/*copy_label(label[row-w+c-1/*+d* /], c-1/*+d* /, r, labels)*/;
                 }
             }
-            labelimg[row+c] = mylab >= 0 ? mylab/*copy_label(mylab, c, r, labels)*/ : new_label(c, r, labels);
+            //d = 0;
+            if( (background_label !== label[row-w+c/*+d*/]) && dist(D[row+c],D[row-w+c/*+d*/],delta) )
+            {
+                if( mylab > -1 ) merge(mylab, label[row-w+c/*+d*/], labels);
+                else mylab = label[row-w+c/*+d*/]/*copy_label(label[row-w+c/*+d* /], c/*+d* /, r, labels)*/;
+            }
+            
+            label[row+c] = mylab > -1 ? mylab/*copy_label(mylab, c, r, labels)*/ : new_label(c, r, labels);
 
-            if( K8_CONNECTIVITY && 
-                (background_label !== labelimg[row+c-1]) && 
-                (background_label !== labelimg[row-w+c]) && 
-                (abs(D[row+c-1]-D[row-w+c])<=delta)
-            )
-                merge(labelimg[row+c-1], labelimg[row-w+c], labels);
+            if( K8_CONNECTIVITY &&
+                (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) && 
+                dist(D[row+c-1],D[row-w+c],delta) )
+                merge(label[row+c-1], label[row-w+c], labels);
         }
     }
 
-    // relabel image
+    // relabel output
     if ( 0 === background_label )
     {
         for(i=0,highest=labels.next,tag=0; i<highest; i++)
@@ -141,22 +147,22 @@ function connected_components( im, w, h, stride, D, K, delta, V0, invert )
     {
         if ( stride )
         {
-            for(c=0,i=0; i<imLen; i+=4,c++)
+            for(c=0,i=0; i<len; i+=4,c++)
             {
-                color = labels[root_of(labelimg[c], labels)][2];
+                color = labels[root_of(label[c], labels)][2];
                 color = (255-255*color/tag)|0;
-                im[i] = im[i+1] = im[i+2] = color;
-                //im[i+3] = im[i+3];
+                output[i] = output[i+1] = output[i+2] = color;
+                //output[i+3] = output[i+3];
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
         else
         {
-            for(c=0; c<imLen; c++)
+            for(c=0; c<len; c++)
             {
-                color = labels[root_of(labelimg[c], labels)][2];
+                color = labels[root_of(label[c], labels)][2];
                 color = (255-255*color/tag)|0;
-                im[c] = color;
+                output[c] = color;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
@@ -165,27 +171,27 @@ function connected_components( im, w, h, stride, D, K, delta, V0, invert )
     {
         if ( stride )
         {
-            for(c=0,i=0; i<imLen; i+=4,c++)
+            for(c=0,i=0; i<len; i+=4,c++)
             {
-                color = labels[root_of(labelimg[c], labels)][2];
+                color = labels[root_of(label[c], labels)][2];
                 color = (255*color/tag)|0;
-                im[i] = im[i+1] = im[i+2] = color;
-                //im[i+3] = im[i+3];
+                output[i] = output[i+1] = output[i+2] = color;
+                //output[i+3] = output[i+3];
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
         else
         {
-            for(c=0; c<imLen; c++)
+            for(c=0; c<len; c++)
             {
-                color = labels[root_of(labelimg[c], labels)][2];
+                color = labels[root_of(label[c], labels)][2];
                 color = (255*color/tag)|0;
-                im[c] = color;
+                output[c] = color;
                 //box[tag] = [mylab[2], mylab[3], mylab[4], mylab[5]];
             }
         }
     }
-    return im;
+    return output;
 }
 
 

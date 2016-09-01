@@ -1044,10 +1044,10 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Gradient</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>AdaptiveHistogramEqualize</td>    <td>apply fast adaptive histogram equalization (intensity-based, grayscale-based or per separate rgb channel) (TO BE ADDED)</td></tr>
-<tr><td>Pixelate<br />TriangularPixelate<br />RhomboidPixelate<br />HexagonalPixelate</td>  <td>fast (rectangular) pixelate the image to the given scale<br />fast triangular pixelate the image to the given scale<br />fast rhomboid pixelate the image to the given scale<br />fast hexagonal pixelate the image to the given scale</td></tr>
+<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"</td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
-<tr><td>FloodFill<br />PatternFill</td> <td>apply a (fast) flood fill (scanline seed fill) to paint an (connected) area of an image (with given tolerance factor)<br />apply a (fast) pattern fill to an (connected) area of an image using another image as pattern</td></tr>
+<tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
 <tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)</td></tr>
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>

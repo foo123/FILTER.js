@@ -13,7 +13,7 @@ var MODE = FILTER.MODE;
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
 // http://en.wikipedia.org/wiki/Flood_fill
 FILTER.Create({
-    name : "FloodFillFilter"
+    name : "ColorFillFilter"
     ,x: 0
     ,y: 0
     ,color: null
@@ -146,7 +146,7 @@ FILTER.Create({
         return im;
     }
 });
-FILTER.ColorFillFilter = FILTER.FloodFillFilter;
+FILTER.FloodFillFilter = FILTER.ColorFillFilter;
 
 FILTER.Create({
     name : "PatternFillFilter"
