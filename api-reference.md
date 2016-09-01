@@ -32,7 +32,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, in progress)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
 * [Resample Filter](#resample-filter)
-* [Selection Filter](#selection-filter)
+* [Croppad Filter](#croppad-filter)
 * [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
 * [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
@@ -1005,13 +1005,13 @@ This filter resamples (interpolates) an image to change its size, i.e up- or dow
 * lanczos (not implemented yet)
 
 
-###Selection Filter
+###Croppad Filter
 
 ````javascript
-new FILTER.SelectionFilter( selection:Array=null );
+new FILTER.CroppadFilter( crop:Array=null, pad:Array=null );
 ````
 
-This filter selects (or crops) part of image specified by the selection array containing relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
+This filter crops (or selects) part of image specified by the `crop` array containing absolute or relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing and (then)/or pads an image left/right/top/bottom specified by `pad` array, with `zeroes`. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
 
 
 ###GLSL Filter
@@ -1055,7 +1055,7 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
 <tr><td>ColorDetector</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
-<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TODOD)</td></tr>
+<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TODO)</td></tr>
 <tr><td>MSER</td>  <td>extract fast maximaly stable extremal regions (MSER) from image (TODO)</td></tr>
 <tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
 <tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>

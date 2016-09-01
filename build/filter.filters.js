@@ -5060,9 +5060,9 @@ FILTER.InterpolationFilter = FILTER.ResizeFilter = FILTER.RescaleFilter = FILTER
 
 }(FILTER);/**
 *
-* Selection Filter
+* Croppad Filter
 *
-* Filter that selects part of image data for further processing
+* Filter that crops and/or pads part of image data for further processing
 *
 * @package FILTER.js
 *
@@ -5072,45 +5072,100 @@ FILTER.InterpolationFilter = FILTER.ResizeFilter = FILTER.RescaleFilter = FILTER
 
 var max = Math.max, min = Math.min;
 
-//  Selection Filter 
+//  Croppad (Crop-Pad) Filter
 FILTER.Create({
-    name: "SelectionFilter"
+    name: "CroppadFilter"
     
-    ,init: function SelectionFilter( selection ) {
+    ,crop: null
+    ,pad: null
+    
+    ,init: function CroppadFilter( crop, pad ) {
         var self = this;
-        self.selection = selection || null;
+        self.crop = crop || null;
+        self.pad = pad || null;
     }
     
     ,path: FILTER_FILTERS_PATH
     
+    ,serialize: function( ) {
+        var self = this;
+        return {
+             crop: self.crop || null
+            ,pad: self.pad || null
+        };
+    }
+    
+    ,unserialize: function( params ) {
+        var self = this;
+        self.crop = params.crop;
+        self.pad = params.pad;
+        return self;
+    }
+    
     ,_apply: function( im, w, h ) {
-        var self = this, selection = self.selection, x1, y1, x2, y2;
+        var self = this, nw = w, nh = h, crop = null, pad = self.pad,
+            x1, y1, x2, y2, pad_right, pad_bot, pad_left, pad_top;
+        
+        if ( !self.crop && self.selection ) crop = self.selection;
+        else if ( self.crop /*&& !self.selection*/ ) crop = self.crop;
+        
         self.hasMeta = false; self.meta = null;
+        if ( !crop && !pad ) return im;
         
-        if ( !selection ) return im;
-        if ( selection[4] )
+        if ( crop )
         {
-            // selection is relative, make absolute
-            x1 = min(w-1,max(0, selection[0]*(w-1)))|0;
-            y1 = min(h-1,max(0, selection[1]*(h-1)))|0;
-            x2 = min(w-1,max(0, selection[2]*(w-1)))|0;
-            y2 = min(h-1,max(0, selection[3]*(h-1)))|0;
+            if ( crop[4] )
+            {
+                // crop selection is relative, make absolute
+                x1 = min(w-1,max(0, crop[0]*(w-1)))|0;
+                y1 = min(h-1,max(0, crop[1]*(h-1)))|0;
+                x2 = min(w-1,max(0, crop[2]*(w-1)))|0;
+                y2 = min(h-1,max(0, crop[3]*(h-1)))|0;
+            }
+            else
+            {
+                // crop selection is absolute
+                x1 = min(w-1,max(0, crop[0]))|0;
+                y1 = min(h-1,max(0, crop[1]))|0;
+                x2 = min(w-1,max(0, crop[2]))|0;
+                y2 = min(h-1,max(0, crop[3]))|0;
+            }
+            if ( (0 === x1) && (0 === y1) && (nw === x2+1) && (nh === y2+1) )
+            {
+                /* nothing */
+            }
+            else
+            {
+                im = FILTER.Util.Image.get_data( im, nw, nh, x1, y1, x2, y2, true );
+                nw = x2-x1+1; nh = y2-y1+1;
+            }
         }
-        else
+        if ( pad )
         {
-            // selection is absolute
-            x1 = min(w-1,max(0, selection[0]))|0;
-            y1 = min(h-1,max(0, selection[1]))|0;
-            x2 = min(w-1,max(0, selection[2]))|0;
-            y2 = min(h-1,max(0, selection[3]))|0;
+            pad_left  = pad[0]||0;
+            pad_right = pad[2]||0;
+            pad_top   = pad[1]||0;
+            pad_bot   = pad[3]||0;
+            
+            if ( (0 === pad_left) && (0 === pad_right) && (0 === pad_top) && (0 === pad_bot) )
+            {
+                /* nothing */
+            }
+            else
+            {
+                im = FILTER.Util.Image.pad( im, nw, nh, pad_right, pad_bot, pad_left, pad_top );
+                nw += pad_left+pad_right; nh += pad_bot+pad_top;
+            }
         }
-        if ( (0 === x1) && (0 === y1) && (w === x2+1) && (h === y2+1) ) return im;
-        
-        self.hasMeta = true; self.meta = {_IMG_WIDTH: x2-x1+1, _IMG_HEIGHT: y2-y1+1};
-        return FILTER.Util.Image.get_data( im, w, h, x1, y1, x2, y2, true );
+        if ( (nw !== w) || (nh !== h) )
+        {
+            self.hasMeta = true;
+            self.meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
+        }
+        return im;
     }
 });
-FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter;
+FILTER.PadFilter = FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter;
 
 }(FILTER);
 /* main code ends here */
