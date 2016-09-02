@@ -4990,9 +4990,9 @@ FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);/**
 *
-* Resample Filter
+* Dimension Filter
 *
-* Allows to resample the image data up or down with various interpolation methods
+* Filter that alters image dimensions by croping, sampling and padding or any combination thereof for further processing
 *
 * @package FILTER.js
 *
@@ -5000,28 +5000,30 @@ FILTER.CustomFilter = FILTER.InlineFilter;
 !function(FILTER, undef){
 "use strict";
 
-//  Resample Filter 
+var max = Math.max, min = Math.min, round = Math.round;
+
+//  Dimension (crop-sample-pad) Filter
 FILTER.Create({
-    name: "ResampleFilter"
+    name: "DimensionFilter"
     
-    ,init: function ResampleFilter( sX, sY, interpolate ) {
+    ,crop: null
+    ,scale: null
+    ,pad: null
+    
+    ,init: function DimensionFilter( crop, scale, pad ) {
         var self = this;
-        self.sX = sX || 1;
-        self.sY = sY || 1;
-        self.interpolation = interpolate;
+        self.crop = crop || null;
+        self.scale = scale || null;
+        self.pad = pad || null;
     }
     
     ,path: FILTER_FILTERS_PATH
-    ,sX: 1
-    ,sY: 1
-    ,interpolation: null
-    ,hasMeta: true
     
     ,dispose: function( ) {
         var self = this;
-        self.sX = null;
-        self.sY = null;
-        self.interpolation = null;
+        self.crop = null;
+        self.scale = null;
+        self.pad = null;
         self.$super('dispose');
         return self;
     }
@@ -5029,68 +5031,8 @@ FILTER.Create({
     ,serialize: function( ) {
         var self = this;
         return {
-             sX: self.sX
-            ,sY: self.sY
-            ,interpolation: self.interpolation
-        };
-    }
-    
-    ,unserialize: function( params ) {
-        var self = this;
-        self.sX = params.sX;
-        self.sY = params.sY;
-        self.interpolation = params.interpolation;
-        return self;
-    }
-    
-    ,_apply: function( im, w, h ) {
-        var self = this, sX = self.sX, sY = self.sY, nw, nh, interpolate;
-        self.hasMeta = false; self.meta = null;
-        if ( 1 === sX && 1 === sY ) return im;
-        
-        interpolate = FILTER.Interpolation[self.interpolation||"bilinear"];
-        if ( !interpolate ) return im;
-        
-        nw = (self.sX*w)|0; nh = (self.sY*h)|0;
-        self.hasMeta = true; self.meta = {_IMG_WIDTH: nw, _IMG_HEIGHT: nh};
-        return interpolate( im, w, h, nw, nh );
-    }
-});
-FILTER.InterpolationFilter = FILTER.ResizeFilter = FILTER.RescaleFilter = FILTER.ResampleFilter;
-
-}(FILTER);/**
-*
-* Croppad Filter
-*
-* Filter that crops and/or pads part of image data for further processing
-*
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var max = Math.max, min = Math.min;
-
-//  Croppad (Crop-Pad) Filter
-FILTER.Create({
-    name: "CroppadFilter"
-    
-    ,crop: null
-    ,pad: null
-    
-    ,init: function CroppadFilter( crop, pad ) {
-        var self = this;
-        self.crop = crop || null;
-        self.pad = pad || null;
-    }
-    
-    ,path: FILTER_FILTERS_PATH
-    
-    ,serialize: function( ) {
-        var self = this;
-        return {
              crop: self.crop || null
+            ,scale: self.scale || null
             ,pad: self.pad || null
         };
     }
@@ -5098,37 +5040,40 @@ FILTER.Create({
     ,unserialize: function( params ) {
         var self = this;
         self.crop = params.crop;
+        self.scale = params.scale;
         self.pad = params.pad;
         return self;
     }
     
     ,_apply: function( im, w, h ) {
-        var self = this, nw = w, nh = h, crop = null, pad = self.pad,
-            x1, y1, x2, y2, pad_right, pad_bot, pad_left, pad_top;
+        var self = this, nw = w, nh = h,
+            crop = null, scale = self.scale||null, pad = self.pad||null,
+            sx, sy, sw, sh, interpolate, x1, y1, x2, y2,
+            pad_right, pad_bot, pad_left, pad_top;
         
         if ( !self.crop && self.selection ) crop = self.selection;
         else if ( self.crop /*&& !self.selection*/ ) crop = self.crop;
         
         self.hasMeta = false; self.meta = null;
-        if ( !crop && !pad ) return im;
+        if ( !crop && !scale && !pad ) return im;
         
         if ( crop )
         {
             if ( crop[4] )
             {
                 // crop selection is relative, make absolute
-                x1 = min(w-1,max(0, crop[0]*(w-1)))|0;
-                y1 = min(h-1,max(0, crop[1]*(h-1)))|0;
-                x2 = min(w-1,max(0, crop[2]*(w-1)))|0;
-                y2 = min(h-1,max(0, crop[3]*(h-1)))|0;
+                x1 = min(w-1,max(0, round( crop[0]*(w-1) )));
+                y1 = min(h-1,max(0, round( crop[1]*(h-1) )));
+                x2 = min(w-1,max(0, round( crop[2]*(w-1) )));
+                y2 = min(h-1,max(0, round( crop[3]*(h-1) )));
             }
             else
             {
                 // crop selection is absolute
-                x1 = min(w-1,max(0, crop[0]))|0;
-                y1 = min(h-1,max(0, crop[1]))|0;
-                x2 = min(w-1,max(0, crop[2]))|0;
-                y2 = min(h-1,max(0, crop[3]))|0;
+                x1 = min(w-1,max(0, round( crop[0] )));
+                y1 = min(h-1,max(0, round( crop[1] )));
+                x2 = min(w-1,max(0, round( crop[2] )));
+                y2 = min(h-1,max(0, round( crop[3] )));
             }
             if ( (0 === x1) && (0 === y1) && (nw === x2+1) && (nh === y2+1) )
             {
@@ -5140,12 +5085,29 @@ FILTER.Create({
                 nw = x2-x1+1; nh = y2-y1+1;
             }
         }
+        if ( scale )
+        {
+            sx = scale[0];
+            sy = scale[1];
+            interpolate = FILTER.Interpolation[scale[2]||"bilinear"];
+            
+            if ( !interpolate || ((1 === sx) && (1 === sy)) )
+            {
+                /* nothing */
+            }
+            else
+            {
+                sw = round( sx*nw ); sh = round( sy*nh );
+                im = interpolate( im, nw, nh, sw, sh );
+                nw = sw; nh = sh;
+            }
+        }
         if ( pad )
         {
-            pad_left  = pad[0]||0;
-            pad_right = pad[2]||0;
-            pad_top   = pad[1]||0;
-            pad_bot   = pad[3]||0;
+            pad_left  = round( pad[0]||0 );
+            pad_right = round( pad[2]||0 );
+            pad_top   = round( pad[1]||0 );
+            pad_bot   = round( pad[3]||0 );
             
             if ( (0 === pad_left) && (0 === pad_right) && (0 === pad_top) && (0 === pad_bot) )
             {
@@ -5165,7 +5127,8 @@ FILTER.Create({
         return im;
     }
 });
-FILTER.PadFilter = FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter;
+// aliases
+FILTER.InterpolationFilter = FILTER.ResizeFilter = FILTER.RescaleFilter = FILTER.ResampleFilter = FILTER.PadFilter = FILTER.CropFilter = FILTER.SubSelectionFilter = FILTER.SelectionFilter = FILTER.SelectFilter = FILTER.DimensionFilter;
 
 }(FILTER);
 /* main code ends here */

@@ -31,8 +31,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, in progress)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
-* [Resample Filter](#resample-filter)
-* [Croppad Filter](#croppad-filter)
+* [Dimension Filter](#dimension-filter)
 * [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
 * [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
@@ -988,13 +987,13 @@ image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
 
 ````
 
-###Resample Filter
+###Dimension Filter
 
 ````javascript
-new FILTER.ResampleFilter( scaleX:Number, scaleY:Number, interpolationMethod:String="bilinear" );
+new FILTER.DimensionFilter( crop:Array=null, scale:Array=null, pad:Array=null );
 ````
 
-This filter resamples (interpolates) an image to change its size, i.e up- or down- scale it. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can down-sample an image at any stage to speed-up further process and then up-sample it again if needed at another stage.
+This filter alters image dimensions by cropping (or selecting) part of image specified by the `crop` array containing absolute or relative coordinates (in `0..1` range) `x1, y1, x2, y2` then/or resamples (scales) image by scaling and interpolation method (default `bilinear`) specified in `scale` array then/or pads an image left/right/top/bottom specified by `pad` array, with `zeroes`. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can crop/re-sample/pad part of image at any stage for further processing.
 
 **Supported Interpolation Methods:** (you have to build the library with the respective interpolation routines added)
     
@@ -1003,15 +1002,6 @@ This filter resamples (interpolates) an image to change its size, i.e up- or dow
 * nearest
 * biquadric (not implemented yet)
 * lanczos (not implemented yet)
-
-
-###Croppad Filter
-
-````javascript
-new FILTER.CroppadFilter( crop:Array=null, pad:Array=null );
-````
-
-This filter crops (or selects) part of image specified by the `crop` array containing absolute or relative coordinates (in `0..1` range) `x1, y1, x2, y2` for further processing and (then)/or pads an image left/right/top/bottom specified by `pad` array, with `zeroes`. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can select only a part of image at any stage for further processing.
 
 
 ###GLSL Filter

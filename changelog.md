@@ -24,7 +24,7 @@ __0.9.6__
 * fix a typo in `convolutionmatrix` filter (missing `stride` parameter in `convolution_clamp`)
 * add new `RhomboidPixelate`, `HexagonalPixelate` (almost done) plugins
 * simplify and unify `PixelateFilter`, supports ALL the pixelation filters by setting `pattern` parameter (default `"rectangular"`, see examples)
-* extend and rename `SelectionFilter` into `CroppadFilter`
+* extend and rename `ResampleFilter`, `SelectionFilter` into `DimensionFilter`
 * update references, examples
 
 

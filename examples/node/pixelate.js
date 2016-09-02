@@ -10,7 +10,7 @@ var path = require('path'),
     pixelate = new F.PixelateFilter( scale, pattern ),
     binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
 
-console.log('Pixelation = "' + pattern + '", '+scale+'%');
+console.log('Pixelation = "' + pattern + '" '+scale+'%');
 console.log('Loading..');
 binaryManager.read( path.join(__dirname,'./che.jpg'), function( che ){
     console.log('Procesing..');
