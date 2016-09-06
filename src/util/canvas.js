@@ -8,7 +8,7 @@
 "use strict";
 
 if ( FILTER.Util.LOADED_CANVAS ) return;
-FILTER.Util.LOADED_CANVASL = true;
+FILTER.Util.LOADED_CANVAS = true;
 
 var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.Image,
     Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
