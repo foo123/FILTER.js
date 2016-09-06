@@ -56,16 +56,39 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         }
         else
         {
-            FILTER.Util.XHR.create({
-                url: path,
-                responseType: self._responseType,
-                onComplete: function( xhr ) {
-                    if ( 'function' === typeof onComplete ) onComplete( xhr.response );
-                },
-                onError: function( xhr ) {
-                    if ( 'function' === typeof onError ) onError( xhr.statusText );
-                }
-            }, null);
+            if ( ("undefined" !== typeof FileReader) &&
+                ('.' !== path.slice(0,1)) && ('file://' !== path.slice(0,7)) &&
+                ('http://' !== path.slice(0,7)) && ('https://' !== path.slice(0,8)) )
+            {
+                // handle local file input using html native FileReader API
+                // https://developer.mozilla.org/en-US/docs/Web/API/FileReader
+                // https://developer.mozilla.org/en-US/docs/Web/API/FileReader/readAsArrayBuffer
+                var fileReader = new FileReader( );
+                fileReader.addEventListener('load', function( evt ) {
+                    if ( (/*DONE*/2 === fileReader.readyState) && ('function' === typeof onComplete) )
+                        onComplete( fileReader.result );
+                });
+                fileReader.addEventListener('error', function( evt ) {
+                    if ( 'function' === typeof onError )
+                        onError( fileReader.error/*, evt*/ );
+                });
+                if ( 'arraybuffer' === self._responseType ) fileReader.readAsArrayBuffer( path );
+                else fileReader.readAsText( path );
+            }
+            else
+            {
+                // handle local/remote file input using XmlHttpRequest
+                FILTER.Util.XHR.create({
+                    url: path,
+                    responseType: self._responseType,
+                    onComplete: function( xhr ) {
+                        if ( 'function' === typeof onComplete ) onComplete( xhr.response );
+                    },
+                    onError: function( xhr ) {
+                        if ( 'function' === typeof onError ) onError( xhr.statusText );
+                    }
+                }, null);
+            }
         }
         return self;
     },
@@ -89,6 +112,19 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
                   if ( 'function' === typeof onComplete ) onComplete( path );
               }
             });
+        }
+        else
+        {
+            // use blobs to write data and return download links
+            if ( "undefined" !== typeof Blob )
+            {
+                // https://developer.mozilla.org/en-US/docs/Web/API/Blob
+                // https://developer.mozilla.org/en-US/docs/Web/API/File
+                if ( 'function' === typeof onComplete )
+                    onComplete(new Blob([ data ], {
+                        type : 'arraybuffer' === self._encoding ? 'application/octet-binary' : 'text'
+                    }), path);
+            }
         }
         return self;
     }
