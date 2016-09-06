@@ -11,8 +11,7 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     CHANNEL = FILTER.CHANNEL, FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
     Color = FILTER.Color, Gradient = Color.Gradient,
-    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter,
-    Canvas = FILTER.Canvas, CanvasProxy = FILTER.CanvasProxy,
+    ImageUtil = FILTER.Util.Image, FilterUtil = FILTER.Util.Filter, Canvas,
     ArrayUtil = FILTER.Util.Array, arrayset = ArrayUtil.arrayset, subarray = ArrayUtil.subarray,
     Min = Math.min, Floor = Math.floor,
 
@@ -22,6 +21,22 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT, SEL = ISEL|OSEL, DATA = IDATA|ODATA,
     CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL, CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT, CLEAR_SPECTRUM = ~SPECTRUM
 ;
+
+Canvas = FILTER.Canvas = function( w, h ) {
+    var canvas = FILTER.Browser.isNode ? new FILTER.CanvasProxy( ) : document.createElement( 'canvas' );
+    w = w || 0; h = h || 0;
+    
+    // set the display size of the canvas.
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+     
+    // set the size of the drawingBuffer
+    canvas.width = w * FILTER.devicePixelRatio;
+    canvas.height = h * FILTER.devicePixelRatio;
+    
+    return canvas;
+};
+
 
 // resize/scale/interpolate image data
 ImageUtil.scale = ImageUtil.resize = FILTER.Interpolation.bilinear;
@@ -607,7 +622,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (FILTER.CanvasProxy && img instanceof FILTER.CanvasProxy);
         isImage = ("undefined" !== typeof Image) && (img instanceof Image);
         //isImageData = img instanceof Object || "object" === typeof img;
         
@@ -670,7 +685,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         
         if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (FILTER.CanvasProxy && img instanceof FILTER.CanvasProxy);
         isImage = ("undefined" !== typeof Image) && (img instanceof Image);
         //isImageData = img instanceof Object || "object" === typeof img;
         
@@ -975,7 +990,7 @@ var FilterScaledImage = FILTER.ScaledImage = FILTER.Class( FilterImage, {
         
         if ( img instanceof FilterImage ) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (img instanceof CanvasProxy);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (FILTER.CanvasProxy && img instanceof FILTER.CanvasProxy);
         isImage = ("undefined" !== typeof Image) && (img instanceof Image);
         //isImageData = img instanceof Object || "object" === typeof img;
         

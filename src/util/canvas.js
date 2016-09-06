@@ -1,11 +1,14 @@
 /**
 *
-* Canvas Proxy Class
+* Filter Utils, Canvas Proxy Class
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
+
+if ( FILTER.Util.LOADED_CANVAS ) return;
+FILTER.Util.LOADED_CANVASL = true;
 
 var CanvasProxy, CanvasProxyCtx, IMG = FILTER.ImArray, ImageUtil = FILTER.Util.Image,
     Color = FILTER.Color, Min = Math.min, Max = Math.max, resize = FILTER.Interpolation.bilinear,
@@ -183,7 +186,7 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
     
     getContext: function( ctx, options ) {
         var self = this;
-        if ( -1 < ctx.indexOf("webgl") ) return FILTER.GL( self, options );
+        if ( -1 < ctx.indexOf("webgl") ) return FILTER.GL ? FILTER.GL( self, options ) : null;
         if ( !self._ctx ) self._ctx = new CanvasProxyCtx( self );
         return self._ctx;
     },
@@ -192,56 +195,5 @@ CanvasProxy = FILTER.CanvasProxy = FILTER.Class({
         return '';
     }
 });
-
-FILTER.Canvas = function( w, h ) {
-    var canvas = FILTER.Browser.isNode ? new CanvasProxy( ) : document.createElement( 'canvas' );
-    w = w || 0; h = h || 0;
-    
-    // set the display size of the canvas.
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
-     
-    // set the size of the drawingBuffer
-    canvas.width = w * FILTER.devicePixelRatio;
-    canvas.height = h * FILTER.devicePixelRatio;
-    
-    return canvas;
-};
-//
-// glsl (webgl/node-gl) support, override this for node-gl support
-var GLExt = null;
-FILTER.GL = FILTER.Browser.isNode
-? function( canvas, options ){ return null; }
-: function( canvas, options ){
-    options = options || {
-        depth: false,
-        alpha: true,
-        premultipliedAlpha: false,
-        antialias: true,
-        stencil: false,
-        preserveDrawingBuffer: false
-    };
-    var gl = null;
-    if ( !GLExt )
-    {
-        var names = ["webgl2", "experimental-webgl2", "webgl", "experimental-webgl", "webkit-3d", "moz-webgl"],
-            nl = names.length, i;
-
-        for(i=0; i<nl; ++i) 
-        {
-            try {
-                gl = canvas.getContext(names[i], options);
-            } catch(e) {
-                gl = null;
-            }
-            if ( gl )  { GLExt = names[i]; break; }
-        }
-    }
-    else
-    {
-        gl = canvas.getContext(GLExt, options);
-    }
-    return gl;
-};
 
 }(FILTER);
