@@ -180,10 +180,20 @@ FILTER.IO.BinaryManager = Class(FileManager, {
         }
     },
     
-    read: function( path, onComplete, onError ){
-        var self = this, image = new FILTER.Image( ), decoder = self._codec ? self._codec.decoder : null;
+    read: function( path, onComplete, onError, image ){
+        var self = this, decoder = self._codec ? self._codec.decoder : null;
         if ( 'function' === typeof decoder )
         {
+            if ( onComplete instanceof FILTER.Image )
+            {
+                image = onComplete;
+                onComplete = onError;
+            }
+            else
+            {
+                image = image || new FILTER.Image( );
+            }
+        
             self.responseType( 'arraybuffer' ).$super( 'read', path, function( buffer ){
                 var exc = null, metaData = {}, imData;
                 try {

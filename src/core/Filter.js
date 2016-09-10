@@ -686,8 +686,8 @@ FILTER.IO.Manager = FILTER.Class({
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( path, onComplete, onError ) {
-                return new $class().read(path, onComplete, onError);
+              return function( path, onComplete, onError, rest ) {
+                return new $class().read(path, onComplete, onError, rest);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
         
@@ -705,8 +705,8 @@ FILTER.IO.Manager = FILTER.Class({
               // $super is the direct reference to the superclass itself (NOT the prototype)
               // $private is the direct reference to the private methods of this class (if any)
               // $class is the direct reference to this class itself (NOT the prototype)
-              return function( path, onComplete, onError ) {
-                return new $class().read(path, onComplete, onError);
+              return function( path, onComplete, onError, rest ) {
+                return new $class().read(path, onComplete, onError, rest);
             }
         }, FILTER.Classy.LATE|FILTER.Classy.STATIC ),
         

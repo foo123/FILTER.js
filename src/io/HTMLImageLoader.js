@@ -15,8 +15,18 @@ FILTER.IO.HTMLImageManager = FILTER.Class(FILTER.IO.Manager, {
         this.$super('constructor');
     },
     
-    read: function( url, onComplete, onError ){
-        var scope = this, loader = new Image( ), image = new FILTER.Image( );
+    read: function( url, onComplete, onError, image ){
+        var scope = this, loader = new Image( );
+        
+        if ( onComplete instanceof FILTER.Image )
+        {
+            image = onComplete;
+            onComplete = onError;
+        }
+        else
+        {
+            image = image || new FILTER.Image( );
+        }
         
         loader.onload = function( event ){
             image.image( loader );
