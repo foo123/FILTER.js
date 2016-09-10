@@ -56,28 +56,29 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
         }
         else
         {
-            if ( ("undefined" !== typeof FileReader) &&
-                ('.' !== path.slice(0,1)) && ('file://' !== path.slice(0,7)) &&
-                ('http://' !== path.slice(0,7)) && ('https://' !== path.slice(0,8)) )
+            if ( ("undefined" !== typeof File) && (path instanceof File) )
             {
-                // handle local file input using html native FileReader API
-                // https://developer.mozilla.org/en-US/docs/Web/API/FileReader
-                // https://developer.mozilla.org/en-US/docs/Web/API/FileReader/readAsArrayBuffer
-                var fileReader = new FileReader( );
-                fileReader.addEventListener('load', function( evt ) {
-                    if ( (/*DONE*/2 === fileReader.readyState) && ('function' === typeof onComplete) )
-                        onComplete( fileReader.result );
-                });
-                fileReader.addEventListener('error', function( evt ) {
-                    if ( 'function' === typeof onError )
-                        onError( fileReader.error/*, evt*/ );
-                });
-                if ( 'arraybuffer' === self._responseType ) fileReader.readAsArrayBuffer( path );
-                else fileReader.readAsText( path );
+                // handle local file File input using FileReader API
+                if ( "undefined" !== typeof FileReader )
+                {
+                    // https://developer.mozilla.org/en-US/docs/Web/API/FileReader
+                    // https://developer.mozilla.org/en-US/docs/Web/API/FileReader/readAsArrayBuffer
+                    var fileReader = new FileReader( );
+                    fileReader.addEventListener('load', function( evt ) {
+                        if ( (/*DONE*/2 === fileReader.readyState) && ('function' === typeof onComplete) )
+                            onComplete( fileReader.result );
+                    });
+                    fileReader.addEventListener('error', function( evt ) {
+                        if ( 'function' === typeof onError )
+                            onError( fileReader.error/*, evt*/ );
+                    });
+                    if ( 'arraybuffer' === self._responseType ) fileReader.readAsArrayBuffer( path );
+                    else fileReader.readAsText( path );
+                }
             }
             else
             {
-                // handle local/remote file input using XmlHttpRequest
+                // handle local/remote file input using XmlHttpRequest API
                 FILTER.Util.XHR.create({
                     url: path,
                     responseType: self._responseType,
