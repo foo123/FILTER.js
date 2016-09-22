@@ -32,6 +32,8 @@
 * [What Every Computer Scientist Should Know About Floating-Point Arithmetic, Goldberg 1991](http://perso.ens-lyon.fr/jean-michel.muller/goldberg.pdf)
 * [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)
 * [Color Subspaces as Photometric Invariants, Zickler, Mallick, Kriegman, Belhumeu 2006](http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf)
+* [A Perception-based Color Space for Illumination-invariant Image Processing, Chong, Gortler, Zickler 2008](https://www.cs.harvard.edu/~sjg/papers/cspace.pdf)
+* [Covariant Derivatives and Vision, Georgiev 2006](http://www.tgeorgiev.net/CovariantDerivatives.pdf)
 * [An Image Synthesizer, Perlin 1985](https://design.osu.edu/carlson/history/PDFs/p287-perlin.pdf)
 * [Improving Noise, Perlin 2001](http://mrl.nyu.edu/~perlin/paper445.pdf)
 * [Optimizations in perlin noise-generated procedural terrain, Marinescu 2012](http://www.cs.ubbcluj.ro/~studia-i/2012-2/05-Marinescu.pdf)
@@ -67,6 +69,10 @@
 * [High Performance Median Filtering Algorithm Based on NVIDIA GPU Computing, Battiato 2016](http://ceur-ws.org/Vol-1543/p1.pdf)
 * [Fine-tuned high-speed implementation of a GPU-based median filter, Perrot 2013](http://rge.u-strasbg.fr/reunions/belfort140213/pdf/Perrot.pdf)
 * [Efficient Histogram Generation Using Scattering on GPUs, Scheuermann, Hensley 2007](https://developer.amd.com/wordpress/media/2012/10/GPUHistogramGeneration_preprint.pdf)
+* [Photoshop Healing Brush: a Tool for Seamless Cloning, Georgiev 2004](http://www.tgeorgiev.net/Photoshop_Healing.pdf)
+* [Poisson Image Editing, Perez, Gangnet, Blake 2003](https://www.cs.jhu.edu/~misha/Fall07/Papers/Perez03.pdf)
+* [Poisson Image Editing Extended (poster 0216), Leventhal, Gordon, Sibley 2006](http://cs.brown.edu/~bernie/224/paper.pdf)
+* [Simultaneous Matting and Compositing, Wang, Cohen 2007](http://www.juew.org/publication/sm%26c.pdf)
 * [Blind Signal Separation: Statistical Principles, Cardoso 1998](http://www.tsi.enst.fr/~cardoso/Papers.PS/ProcIEEE.a4.ps)
 * [Equivariant adaptive source separation, Cardoso, Laheld 1996](http://www.tsi.enst.fr/~cardoso/Papers.PS/easi.ps)
 * [Natural Gradient works efficiently in Learning, Amari 1998](http://www.maths.tcd.ie/~mnl/store/Amari1998a.pdf)
@@ -79,6 +85,7 @@ WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&
 * [Improved clustering using deterministic annealing with a gradient descent technique, Qiu, Varley, Terrell 1992](http://ima.ac.uk/papers/qiu1994a.pdf)
 * [Pairwise Data Clustering by Deterministic Annealing, Hofmann, Buhmann 1996](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.9812&rep=rep1&type=pdf)
 * [Generalizing Swendsen-Wang for Image Analysis, Barbu, Zhu 2007](http://stat.fsu.edu/~abarbu/papers/jcgs.pdf)
+* [Geometric Methods in Perceptual Image Processing, Hamilton Yu-Ik Chong PhD Thesis 2008](http://www.cs.harvard.edu/~sjg/papers/hamthesis.pdf)
 * [Grammar-based Image Processing (draft)](https://github.com/foo123/grammar-based-image-processing)
 
 <!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
