@@ -34,6 +34,8 @@
 * [Color Subspaces as Photometric Invariants, Zickler, Mallick, Kriegman, Belhumeu 2006](http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf)
 * [A Perception-based Color Space for Illumination-invariant Image Processing, Chong, Gortler, Zickler 2008](https://www.cs.harvard.edu/~sjg/papers/cspace.pdf)
 * [The decolorize algorithm for contrast enhancing, color to grayscale conversion, Grundland, Dodgson 2005](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-649.pdf)
+* [Color2Gray: Salience-Preserving Color Removal, Gooch, Olsen, Tumblin, Gooch 2005](http://www.cs.northwestern.edu/~ago820/color2gray/color2gray.pdf)
+* [Color to Gray and Back: Color Embedding Into Textured Gray Images, de Queiroz, Braun 2006](https://www.lirmm.fr/~wpuech/enseignement/old/DEA_info/publication/06_IEEE.pdf)
 * [Color-to-Grayscale: Does the Method Matter in Image Recognition?, Kanan, Cottrell 2012](http://cseweb.ucsd.edu/~ckanan/publications/Kanan_Cottrell_PloS_ONE_2012.pdf)
 * [An Image Synthesizer, Perlin 1985](https://design.osu.edu/carlson/history/PDFs/p287-perlin.pdf)
 * [Improving Noise, Perlin 2001](http://mrl.nyu.edu/~perlin/paper445.pdf)
