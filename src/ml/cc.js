@@ -118,14 +118,17 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
         }
     }
 
-    // relabel output
-    for(c=0,numlabels=0; c<size; c++)
+    if ( invert ) { a = -255; b = 255; }
+    else { a = 255; b = 0; }
+    // compute num of distinct labels and assign ids
+    if ( null !== background_label ) { background_label.id = 0; numlabels = 1; }
+    else { numlabels = 0; }
+    for(c=0; c<size; c++)
     {
         label[c] = root_of(label[c]);
         if ( 0 > label[c].id ) label[c].id = numlabels++;
     }
-    if ( invert ) { a = -255; b = 255; }
-    else { a = 255; b = 0; }
+    // relabel output
     if ( stride )
     {
         for(c=0,i=0; i<len; i+=4,c++)
