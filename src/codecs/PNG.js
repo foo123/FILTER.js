@@ -805,7 +805,7 @@ FILTER.Codec.PNG = {
         chunks.push(packer.packIHDR(imgData.width, imgData.height));
         if (metaData.gamma) chunks.push(packer.packGAMA(metaData.gamma));
 
-        var filteredData = packer.filterData(imgData.data, imgData.width, imgData.height);
+        var filteredData = packer.filterData(new Buffer(imgData.data), imgData.width, imgData.height);
 
         // compress it
         var deflateOpts = packer.getDeflateOptions();

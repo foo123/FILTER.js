@@ -60,7 +60,7 @@ FILTER.Create({
         if ( values )
         {
             if ( !matrix ) matrix = self.matrix = ["normal", 0, 0, 1, 1];
-            index = (inputIndex-1)<<2;
+            index = (inputIndex-1)*5;
             if ( undef !== values.mode )    matrix[index  ] =  values.mode||"normal";
             if ( null != values.startX )    matrix[index+1] = +values.startX;
             if ( null != values.startY )    matrix[index+2] = +values.startY;

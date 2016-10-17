@@ -794,8 +794,8 @@ FILTER.Codec.RAW = {
     },
     decoder: function( buffer, metaData ) {
         return {
-            width: metaData.width || 1,
-            height: metaData.height || 1,
+            width: metaData.width || 0,
+            height: metaData.height || 0,
             data: new Uint8Array( buffer )
         };
     }

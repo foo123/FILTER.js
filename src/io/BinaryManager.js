@@ -154,11 +154,12 @@ FILTER.IO.BinaryManager = Class(FileManager, {
         return self;
     },
     
-    codec: function( codec ) {
+    codec: function( codec, options ) {
         var self = this;
         if ( arguments.length )
         {
             self._codec = "object" === typeof codec ? codec : null;
+            if ( arguments.length > 1 ) self._opts = "object" === typeof options ? options : null;
             return self;
         }
         else

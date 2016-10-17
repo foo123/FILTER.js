@@ -11,10 +11,10 @@ var A32I = FILTER.Array32I, A32U = FILTER.Array32U, A32F = FILTER.Array32F, A8U 
     ceil = Math.ceil, min = Math.min, max = Math.max, abs = Math.abs;
 
 // adapted from http://xenia.media.mit.edu/~rahimi/connected/
-function Label( id, x, y, root )
+function Label( x, y, root )
 {
     var self = this;
-    self.id = id||0;
+    self.id = -1;
     self.root = root||self;
     /*self.x1 = x;
     self.y1 = y;
@@ -25,7 +25,6 @@ function root_of( label )
 {
     while( label !== label.root )
     {
-        label.id = label.root.id;
         /*label.root.x1 = min(label.root.x1, label.x1);
         label.root.y1 = min(label.root.y1, label.y1);
         label.root.x2 = max(label.root.x2, label.x2);
@@ -34,13 +33,12 @@ function root_of( label )
     }
     return label;
 }
-function merge( l1, l2, numlabels )
+function merge( l1, l2 )
 {
     l1 = root_of( l1 ); l2 = root_of( l2 );
     if ( l1 !== l2 )
     {
         l1.root = l2;
-        l1.id = l2.id;
         /*l2.x1 = min(l2.x1, l1.x1);
         l2.y1 = min(l2.y1, l1.y1);
         l2.x2 = max(l2.x2, l1.x2);
@@ -56,20 +54,20 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
         mylab, c, r, d, row, numlabels, label, background_label = null,
         need_match = null != V0, color, a, b;
     
-    label = new Array(size); numlabels = 0;
-    background_label = need_match ? new Label(numlabels++,0,0) : null;
+    label = new Array(size);
+    background_label = need_match ? new Label(0,0) : null;
 
-    label[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new Label(numlabels++,0,0);
+    label[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new Label(0,0);
 
     // label the first row.
     for(c=1; c<w; c++)
-        label[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? label[c-1] : new Label(numlabels++,c,0));
+        label[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? label[c-1] : new Label(c,0));
 
     // label subsequent rows.
     for(r=1,row=w; r<h; r++,row+=w)
     {
         // label the first pixel on this row.
-        label[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? label[row-w] : new Label(numlabels++,0,r));
+        label[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? label[row-w] : new Label(0,r));
 
         // label subsequent pixels on this row.
         for(c=1; c<w; c++)
@@ -91,14 +89,14 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
                 //d = -1;
                 if( (background_label !== label[row-w+c-1/*+d*/]) && (abs(D[row+c]-D[row-w+c-1/*+d*/])<=delta) )
                 {
-                    if( null !== mylab ) merge(mylab, label[row-w+c-1/*+d*/], numlabels--);
+                    if( null !== mylab ) merge(mylab, label[row-w+c-1/*+d*/]);
                     else mylab = label[row-w+c-1/*+d*/];
                 }
             }
             //d = 0;
             if( (background_label !== label[row-w+c/*+d*/]) && (abs(D[row+c]-D[row-w+c/*+d*/])<=delta) )
             {
-                if( null !== mylab ) merge(mylab, label[row-w+c/*+d*/], numlabels--);
+                if( null !== mylab ) merge(mylab, label[row-w+c/*+d*/]);
                 else mylab = label[row-w+c/*+d*/];
             }
             
@@ -110,24 +108,29 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
             }
             else
             {
-                label[row+c] = new Label(numlabels++,c,r);
+                label[row+c] = new Label(c,r);
             }
 
             if( K8_CONNECTIVITY &&
                 (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) && 
                 (abs(D[row+c-1]-D[row-w+c])<=delta) )
-                merge(label[row+c-1], label[row-w+c], numlabels--);
+                merge(label[row+c-1], label[row-w+c]);
         }
     }
 
     // relabel output
+    for(c=0,numlabels=0; c<size; c++)
+    {
+        label[c] = root_of(label[c]);
+        if ( 0 > label[c].id ) label[c].id = numlabels++;
+    }
     if ( invert ) { a = -255; b = 255; }
     else { a = 255; b = 0; }
     if ( stride )
     {
         for(c=0,i=0; i<len; i+=4,c++)
         {
-            color = (b+a*root_of(label[c]).id/numlabels)|0;
+            color = (b+a*label[c].id/numlabels)|0;
             output[i] = output[i+1] = output[i+2] = color;
             //output[i+3] = output[i+3];
         }
@@ -136,7 +139,7 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
     {
         for(c=0; c<len; c++)
         {
-            color = (b+a*root_of(label[c]).id/numlabels)|0;
+            color = (b+a*label[c].id/numlabels)|0;
             output[c] = color;
         }
     }
