@@ -333,11 +333,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
     
-    // TODO
-    /*,draw: function( drawable, x, y, blendMode ) {
-        return this;
-    }*/
-    
     // clear the image contents
     ,clear: function( ) {
         var self = this, w = self.width, h = self.height;
@@ -417,7 +412,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // fill image region with a specific (background) color
     ,fill: function( color, x, y, w, h ) {
         var self = this, sel = self.selection, 
-            W = self.width, H = self.height, xs, ys, ws, hs;
+            W = self.width, H = self.height, xs, ys, ws, hs,
+            isVideo, isCanvas, isImage;
         if (sel)
         {
             xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
@@ -458,6 +454,37 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.nref++;
         return self;
     }
+    
+    ,paste: function( img, x, y/*, blendMode*/ ) {
+        if ( !img ) return this;
+        var self = this, isVideo, isCanvas, isImage, ictx, octx;
+        
+        if ( img instanceof FilterImage ) img = img.oCanvas;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (("undefined" !== typeof HTMLCanvasElement) && (img instanceof HTMLCanvasElement)) || (FILTER.CanvasProxy && img instanceof FILTER.CanvasProxy);
+        isImage = ("undefined" !== typeof Image) && (img instanceof Image);
+        if ( !isImage && !isCanvas && !isVideo ) return self;
+        
+        if ( self._restorable ) 
+        {
+        ictx = self.ictx = self.iCanvas.getContext('2d');
+        ictx.drawImage(img, x|0, y|0);
+        }
+        octx = self.octx = self.oCanvas.getContext('2d');
+        octx.drawImage(img, x|0, y|0);
+        self._refresh |= DATA;
+        self._refresh |= HIST | SAT | SPECTRUM;
+        self._hstRefresh = ALL_CHANNELS;
+        self._intRefresh = ALL_CHANNELS;
+        self._spcRefresh = ALL_CHANNELS;
+        if (self.selection) self._refresh |= SEL;
+        self.nref++;
+        return self;
+    }
+    /*,draw: function( drawable, x, y, blendMode ) {
+        return this;
+    }*/
+    ,draw: null
     
     // get direct data array
     ,getData: function( processed ) {
@@ -861,27 +888,23 @@ var FilterImage = FILTER.Image = FILTER.Class({
     
     ,linearGradient: function( colors, stops, angle, interpolate ) {
         var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
-        /*if ( FILTER.Browser.isNode )
-        {*/
-            self.setData( Gradient.linear( new IMG((w*h)<<2), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
-        /*}
-        else
+        if ( ("native" === interpolate) && !FILTER.Browser.isNode )
         {
             var t = Math.tan(angle), ctx = self.octx, grd = ctx.createLinearGradient(0, 0, (1-t)*(w-1), t*(h-1));
             for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
             ctx.fillStyle = grd;
             ctx.fillRect(0, 0, w, h);
-        }*/
+        }
+        else
+        {
+            self.setData( Gradient.linear( new IMG((w*h)<<2), w, h, c[0], c[1], angle, interpolate||Gradient.interpolate ) );
+        }
         return self;
     }
     
     ,radialGradient: function( colors, stops, centerX, centerY, radiusX, radiusY, interpolate ) {
         var self = this, w = self.width, h = self.height, c = Gradient.stops( colors, stops );
-        /*if ( FILTER.Browser.isNode )
-        {*/
-            self.setData( Gradient.radial( new IMG((w*h)<<2), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
-        /*}
-        else
+        if ( ("native" === interpolate) && !FILTER.Browser.isNode )
         {
             var ctx = self.octx, grd = ctx.createRadialGradient(centerX, centerY, radiusX*w, centerX, centerY, radiusY*h);
             for(var i=0,l=c[0].length; i<l; i++) grd.addColorStop(c[1][i], "rgba("+c[0][i].join(",")+")");
@@ -889,7 +912,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ctx.beginPath();
             ctx.arc(centerX, centerY, radiusX*w, 0, Math.PI*2, true);
             ctx.fill();
-        }*/
+        }
+        else
+        {
+            self.setData( Gradient.radial( new IMG((w*h)<<2), w, h, c[0], c[1], centerX, centerY, radiusX, radiusY, interpolate||Gradient.interpolate ) );
+        }
         return self;
     }
     
@@ -926,6 +953,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
+FilterImage[PROTO].draw = FilterImage[PROTO].paste;
 FilterImage[PROTO].sat = FilterImage[PROTO].integral;
 FilterImage[PROTO].fft = FilterImage[PROTO].spectrum;
 // static

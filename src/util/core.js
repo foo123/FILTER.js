@@ -2258,6 +2258,55 @@ function dissimilarity_rgb( r, g, b, O, I, delta )
     D[c] = ((Abs(b-c)<=delta?O:I)<<2)|((Abs(g-c)<=delta?O:I)<<1)|((Abs(r-c)<=delta?O:I)<<0); ++c;
     return D;
 }
+function dissimilarity_rgb_2( im, w, h, stride, D, delta, mode )
+{
+    var MODE = FILTER.MODE, HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity,
+        cos = Math.cos, toRad = FILTER.CONST.toRad, i, j, imLen = im.length, dLen = D.length;
+        
+    if ( 0 < stride )
+    {
+        if ( MODE.HUE === mode )
+        {
+            //if ( null != color ) color = cos(toRad*color);
+            for(i=0,j=0; j<dLen; i+=4,j++)
+                D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
+        }
+        else if ( MODE.INTENSITY === mode )
+        {
+            delta *= 255;
+            for(i=0,j=0; j<dLen; i+=4,j++)
+                D[j] = 0 === im[i+3] ? 10000 : INTENSITY(im[i],im[i+1],im[i+2]);
+        }
+        else if ( MODE.GRAY === mode )
+        {
+            delta *= 255;
+            for(i=0,j=0; j<dLen; i+=4,j++)
+                D[j] = 0 === im[i+3] ? 10000 : im[i];
+        }
+        else //if ( MODE.COLOR === mode )
+        {
+            delta = 10000*delta + 1000*delta + 100*delta + 10*delta + delta;
+            for(i=0,j=0; j<dLen; i+=4,j++)
+                D[j] = 0 === im[i+3] ? 100000 : 10000*(im[i]+im[i+1]+im[i+2])/3/255 + 1000*(im[i]+im[i+1])/2/255 + 100*(im[i+1]+im[i+2])/2/255 + 10*(im[i]+im[i+2])/2/255 + im[i]/255;
+        }
+    }
+    else
+    {
+        if ( MODE.HUE === mode )
+        {
+            //if ( null != color ) color = cos(toRad*color);
+            for(i=0,j=0; j<dLen; i++,j++)
+                D[j] = cos(toRad*im[i]);
+        }
+        else //if ( (MODE.INTENSITY === mode) || (MODE.GRAY === mode) || (MODE.COLOR === mode) )
+        {
+            delta *= 255;
+            for(i=0,j=0; j<dLen; i++,j++)
+                D[j] = im[i];
+        }
+    }
+    return delta;
+}
 
 // can be overriden
 MathUtil.random = Math.random;
@@ -2369,5 +2418,6 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
 FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
+FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
 
 }(FILTER);

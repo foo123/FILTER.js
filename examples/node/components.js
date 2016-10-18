@@ -3,7 +3,7 @@
 var parse_args = require('./commargs.js'),
     path = require('path'),
     F = require('../../build/filter.bundle.js'),
-    connected_components = F.ConnectedComponentsFilter(),
+    connected_components = F.ConnectedComponentsFilter(8, null, null, true)/*.setMode(F.MODE.GRAY)*/,
     binaryManager = F.IO.BinaryManager();
 
 binaryManager.codec( F.Codec.GIF ).read( path.join(__dirname,'./snoopy.gif'), function( snoopy ){

@@ -52,33 +52,33 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
     stride = stride|0;
     var i, j, k, len = output.length, size = len>>>stride, K8_CONNECTIVITY = 8 === K,
         mylab, c, r, d, row, numlabels, label, background_label = null,
-        need_match = null != V0, color, a, b;
+        need_match = null != V0, color, a, b, delta2 = 2*delta;
     
     label = new Array(size);
     background_label = need_match ? new Label(0,0) : null;
 
-    label[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new Label(0,0);
+    label[0] = need_match && (abs(delta+D[0]-V0)>delta2) ? background_label : new Label(0,0);
 
     // label the first row.
     for(c=1; c<w; c++)
-        label[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? label[c-1] : new Label(c,0));
+        label[c] = need_match && (abs(delta+D[c]-V0)>delta2) ? background_label : (abs(delta+D[c]-D[c-1])<=delta2 ? label[c-1] : new Label(c,0));
 
     // label subsequent rows.
     for(r=1,row=w; r<h; r++,row+=w)
     {
         // label the first pixel on this row.
-        label[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? label[row-w] : new Label(0,r));
+        label[row] = need_match && (abs(delta+D[row]-V0)>delta2) ? background_label : (abs(delta+D[row]-D[row-w])<=delta2 ? label[row-w] : new Label(0,r));
 
         // label subsequent pixels on this row.
         for(c=1; c<w; c++)
         {
-            if ( need_match && (abs(D[row+c]-V0)>delta) )
+            if ( need_match && (abs(delta+D[row+c]-V0)>delta2) )
             {
                 label[row+c] = background_label;
                 continue;
             }
             // inherit label from pixel on the left if we're in the same blob.
-            mylab = background_label === label[row+c-1] ? null : (abs(D[row+c]-D[row+c-1])<=delta ? label[row+c-1] : null);
+            mylab = background_label === label[row+c-1] ? null : (abs(delta+D[row+c]-D[row+c-1])<=delta2 ? label[row+c-1] : null);
 
             //for(d=d0; d<1; d++)
             // full loop unrolling
@@ -87,14 +87,14 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
             if( K8_CONNECTIVITY )
             {
                 //d = -1;
-                if( (background_label !== label[row-w+c-1/*+d*/]) && (abs(D[row+c]-D[row-w+c-1/*+d*/])<=delta) )
+                if( (background_label !== label[row-w+c-1/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c-1/*+d*/])<=delta2) )
                 {
                     if( null !== mylab ) merge(mylab, label[row-w+c-1/*+d*/]);
                     else mylab = label[row-w+c-1/*+d*/];
                 }
             }
             //d = 0;
-            if( (background_label !== label[row-w+c/*+d*/]) && (abs(D[row+c]-D[row-w+c/*+d*/])<=delta) )
+            if( (background_label !== label[row-w+c/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c/*+d*/])<=delta2) )
             {
                 if( null !== mylab ) merge(mylab, label[row-w+c/*+d*/]);
                 else mylab = label[row-w+c/*+d*/];
@@ -113,7 +113,7 @@ function connected_components( output, w, h, stride, D, K, delta, V0, invert )
 
             if( K8_CONNECTIVITY &&
                 (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) && 
-                (abs(D[row+c-1]-D[row-w+c])<=delta) )
+                (abs(delta+D[row+c-1]-D[row-w+c])<=delta2) )
                 merge(label[row+c-1], label[row-w+c]);
         }
     }

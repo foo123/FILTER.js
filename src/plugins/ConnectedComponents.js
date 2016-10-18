@@ -74,34 +74,22 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            i, j, D = new FILTER.Array32F(imSize), //dist,
-            HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity;
+            D = new FILTER.Array32F(imSize);
         
-        if ( MODE.HUE === mode )
+        if ( null != color )
         {
-            if ( null != color ) color = cos(toRad*color);
-            for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
+            if ( MODE.HUE === mode )
+            {
+                color = cos(toRad*color);
+            }
+            else if ( MODE.COLOR === mode )
+            {
+                var r = ((color >>> 16)&255)/255, g = ((color >>> 8)&255)/255, b = ((color)&255)/255;
+                color = 10000*(r+g+b)/3 + 1000*(r+g)/2 + 100*(g+b)/2 + 10*(r+b)/2 + r;
+            }
         }
-        else if ( MODE.INTENSITY === mode )
-        {
-            delta *= 255;
-            for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? 10000 : INTENSITY(im[i],im[i+1],im[i+2]);
-        }
-        else if ( MODE.GRAY === mode )
-        {
-            delta *= 255;
-            for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? 10000 : im[i];
-        }
-        else //if ( MODE.COLOR === mode )
-        {
-            delta = (delta*0xff)|0;
-            delta = (delta<<16) | (delta<<8) | delta;
-            for(i=0,j=0; i<imLen; i+=4,j++)
-                D[j] = 0 === im[i+3] ? 0xffffffff : (im[i]<<16) | (im[i+1]<<8) | im[i+2];
-        }
+        // compute an appropriate (relational) dissimilarity matrix, based on filter operation mode
+        delta = FILTER.Util.Filter.dissimilarity_rgb_2(im, w, h, 2, D, delta, mode);
         // return the connected image data
         return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
     }
