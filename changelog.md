@@ -1,5 +1,18 @@
 ##ChangeLog
 
+__0.9.7__
+
+* new `Image` method `paste`/`draw`, enable to paste or put or draw or replace a part of the image with another image at specified location (e.g create one big sprite image from multiple image sprites)
+* `IO.FileManager` and `IO.BinaryManager` can also read from a (browser) `File`/`Blob` object and write to (browser) `Blob`
+* `DropShadowFilter` filter can also (optionaly) pad output image if shadow offset falls outside the original image area
+* new morphological filter parameter `iterations`, enable to run same morpholigical filter multiple times by itself (i.e much easier and faster than using `composite` filter)
+* new `RGB2XYZ`, `XYZ2RGB`, `RGB2ILL`, `Color` space/transformation methods and `ColorMatrix` and `ColorMap` filter methods
+* updated `connected_components` algorithm and associated `dissimilarity_matrix` methods
+* typo fix in `BlendFilter.setInputValues` method (matrix index not computed correctly)
+* some typos/fixes in `FILTER.Codec.PNG`
+* new node example `css-sprite-animation` generator
+
+
 __0.9.6__
 
 * new morphological filters (methods), `gradient`, `laplacian`

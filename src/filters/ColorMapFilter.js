@@ -96,6 +96,10 @@ var ColorMapFilter = FILTER.Create({
         return this.set("rgb2cmyk");
     }
     
+    ,RGB2ILL: function( ) {
+        return this.set("rgb2ill");
+    }
+    
     ,hue: function( ) {
         return this.set("hue");
     }
@@ -279,6 +283,18 @@ MAP = {
     }"
     ,"init__rgb2cmyk": "function( ){\
         var C0, C1, C2, CY = FILTER.CHANNEL.CY, MA = FILTER.CHANNEL.MA, YE = FILTER.CHANNEL.YE, RGB2CMYK = FILTER.Color.RGB2CMYK;\
+    }"
+    
+    ,"rgb2ill": "function( ){\
+        if ( 0 !== c[3] )\
+        {\
+            RGB2ILL(c, 0);\
+            C0 = c[0]; C1 = c[1]; C2 = c[2];\
+            c[ILL1] = min(255, max(0, 255-127*C0)); c[ILL2] = min(255, max(0, 255-127*C1)); c[ILL3] = min(255, max(0, 255-127*C2));\
+        }\
+    }"
+    ,"init__rgb2ill": "function( ){\
+        var C0, C1, C2, ILL1 = FILTER.CHANNEL.ILL1, ILL2 = FILTER.CHANNEL.ILL2, ILL3 = FILTER.CHANNEL.ILL3, RGB2ILL = FILTER.Color.RGB2ILL, min = Math.min, max = Math.max;\
     }"
     
     ,"hue": "function( ){\

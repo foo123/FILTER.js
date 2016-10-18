@@ -123,7 +123,7 @@ var FileManager = FILTER.IO.FileManager = Class(FILTER.IO.Manager, {
                 // https://developer.mozilla.org/en-US/docs/Web/API/File
                 if ( 'function' === typeof onComplete )
                     onComplete(new Blob([ data ], {
-                        type : 'arraybuffer' === self._encoding ? 'application/octet-binary' : 'text'
+                        type : 'arraybuffer' === self._encoding ? 'application/octet-binary' : (null != self._encoding ? self._encoding : 'text')
                     }), path);
             }
         }
