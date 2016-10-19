@@ -6,11 +6,12 @@ __0.9.7__
 * `IO.FileManager` and `IO.BinaryManager` can also read from a (browser) `File`/`Blob` object and write to (browser) `Blob`
 * `DropShadowFilter` filter can also (optionaly) pad output image if shadow offset falls outside the original image area
 * new morphological filter parameter `iterations`, enable to run same morpholigical filter multiple times by itself (i.e much easier and faster than using `composite` filter)
-* new `RGB2XYZ`, `XYZ2RGB`, `RGB2ILL`, `Color` space/transformation methods and `ColorMatrix` and `ColorMap` filter methods
+* optimise morphological processing by enabling repeated and separable primitive operations
+* new `RGB2XYZ`, `XYZ2RGB`, `RGB2ILL`, `ILL2RGB` `Color` space/transformation methods and `ColorMatrix` and `ColorMap` filter methods
 * updated `connected_components` algorithm and associated `dissimilarity_matrix` methods
 * typo fix in `BlendFilter.setInputValues` method (matrix index not computed correctly)
 * some typos/fixes in `FILTER.Codec.PNG`
-* new node example `css-sprite-animation` generator
+* new node example `css-sprite-animation` generator, new references
 
 
 __0.9.6__
