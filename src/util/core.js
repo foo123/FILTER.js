@@ -2307,6 +2307,178 @@ function dissimilarity_rgb_2( im, w, h, stride, D, delta, mode )
     }
     return delta;
 }
+function morph_prim_op( mode, inp, out, w, h, stride, index, index2, op, op0, iter/*, fa, fb, fc*/ )
+{
+    //"use asm";
+    var tmp, it, x, ty, i, j, k, imLen = inp.length, imArea = imLen>>>stride,
+        rM, gM, bM, r, g, b, xOff, yOff, srcOff, bx=w-1, by=imArea-w, coverArea;
+    
+    tmp = inp; inp = out; out = tmp;
+    /*if ( (0 === stride) || (FILTER.MODE.MONO === mode) )
+    {
+        coverArea = index.length;
+        for (it=0; it<iter; it++)
+        {
+            tmp = inp; inp = out; out = tmp;
+            for (x=0,ty=0,i=0; i<imLen; i++,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=op0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+index[j]; yOff = ty+index[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff);
+                    r = inp[srcOff];
+                    rM = op(r, rM);
+                }
+                // output
+                //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
+                out[i] = rM;
+            }
+        }
+        
+        if ( index2 )
+        {
+            index = index2; coverArea = index.length;
+            for (it=0; it<iter; it++)
+            {
+                tmp = inp; inp = out; out = tmp;
+                for (x=0,ty=0,i=0; i<imLen; i++,x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the image pixels that
+                    // fall under the structure matrix
+                    for (rM=op0,j=0; j<coverArea; j+=2)
+                    {
+                        xOff = x+index[j]; yOff = ty+index[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff);
+                        r = inp[srcOff];
+                        rM = op(r, rM);
+                    }
+                    // output
+                    //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
+                    out[i] = rM;
+                }
+            }
+        }
+    }
+    else*/ if ( FILTER.MODE.GRAY === mode )
+    {
+        coverArea = index.length;
+        for (it=0; it<iter; it++)
+        {
+            tmp = inp; inp = out; out = tmp;
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=op0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+index[j]; yOff = ty+index[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = inp[srcOff];
+                    rM = op(r, rM);
+                }
+                // output
+                //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
+                out[i] = rM; out[i+1] = rM; out[i+2] = rM; out[i+3] = inp[i+3];
+            }
+        }
+        
+        if ( index2 )
+        {
+            index = index2; coverArea = index.length;
+            for (it=0; it<iter; it++)
+            {
+                tmp = inp; inp = out; out = tmp;
+                for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the image pixels that
+                    // fall under the structure matrix
+                    for (rM=op0,j=0; j<coverArea; j+=2)
+                    {
+                        xOff = x+index[j]; yOff = ty+index[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2;
+                        r = inp[srcOff];
+                        rM = op(r, rM);
+                    }
+                    // output
+                    //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
+                    out[i] = rM; out[i+1] = rM; out[i+2] = rM; out[i+3] = inp[i+3];
+                }
+            }
+        }
+    }
+    else
+    {
+        coverArea = index.length;
+        for (it=0; it<iter; it++)
+        {
+            tmp = inp; inp = out; out = tmp;
+            for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+            {
+                // update image coordinates
+                if (x>=w) { x=0; ty+=w; }
+                
+                // calculate the image pixels that
+                // fall under the structure matrix
+                for (rM=gM=bM=op0,j=0; j<coverArea; j+=2)
+                {
+                    xOff = x+index[j]; yOff = ty+index[j+1];
+                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                    srcOff = (xOff + yOff)<<2;
+                    r = inp[srcOff]; g = inp[srcOff+1]; b = inp[srcOff+2];
+                    rM = op(r, rM); gM = op(g, gM); bM = op(b, bM);
+                }
+                // output
+                //rM = (fa*out[i]+fb*rM+fc*inp[i])|0; gM = (fa*out[i+1]+fb*gM+fc*inp[i+1])|0; bM = (fa*out[i+2]+fb*bM+fc*inp[i+2])|0;
+                out[i] = rM; out[i+1] = gM; out[i+2] = bM; out[i+3] = inp[i+3];
+            }
+        }
+        if ( index2 )
+        {
+            index = index2; coverArea = index.length;
+            for (it=0; it<iter; it++)
+            {
+                tmp = inp; inp = out; out = tmp;
+                for (x=0,ty=0,i=0; i<imLen; i+=4,x++)
+                {
+                    // update image coordinates
+                    if (x>=w) { x=0; ty+=w; }
+                    
+                    // calculate the image pixels that
+                    // fall under the structure matrix
+                    for (rM=gM=bM=op0,j=0; j<coverArea; j+=2)
+                    {
+                        xOff = x+index[j]; yOff = ty+index[j+1];
+                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
+                        srcOff = (xOff + yOff)<<2;
+                        r = inp[srcOff]; g = inp[srcOff+1]; b = inp[srcOff+2];
+                        rM = op(r, rM); gM = op(g, gM); bM = op(b, bM);
+                    }
+                    // output
+                    //rM = (fa*out[i]+fb*rM+fc*inp[i])|0; gM = (fa*out[i+1]+fb*gM+fc*inp[i+1])|0; bM = (fa*out[i+2]+fb*bM+fc*inp[i+2])|0;
+                    out[i] = rM; out[i+1] = gM; out[i+2] = bM; out[i+3] = inp[i+3];
+                }
+            }
+        }
+    }
+}
 
 // can be overriden
 MathUtil.random = Math.random;
@@ -2419,5 +2591,6 @@ FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
 FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
 FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
+FilterUtil.primitive_morphology_operator = morph_prim_op;
 
 }(FILTER);

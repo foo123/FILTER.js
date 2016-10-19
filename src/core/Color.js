@@ -181,7 +181,7 @@ var // utils
 
 // static Color Methods and Transforms
 // http://en.wikipedia.org/wiki/Color_space
-
+// http://www.poynton.com/PDFs/coloureq.pdf
 function lerp( data, index, c1, c2, t )
 {
     data[index  ] = ((c1[0] + t*(c2[0]-c1[0]))|0) & 255;
@@ -298,16 +298,16 @@ var Color = FILTER.Color = FILTER.Class({
         // https://www.cs.harvard.edu/~sjg/papers/cspace.pdf
         RGB2ILL: function( ccc, p ) {
             //p = p || 0;
-            var r = ccc[p+0]/255, g = ccc[p+1]/255, b = ccc[p+2]/255, x, y, z, xi, yi, zi, log = Math.log;
+            var r = ccc[p+0]/255, g = ccc[p+1]/255, b = ccc[p+2]/255, x, y, z, xi, yi, zi, ln = Math.log;
             // RGB to XYZ
             // each take full range from 0-255
             x = ( 0.412453*r + 0.357580*g + 0.180423*b );
             y = ( 0.212671*r + 0.715160*g + 0.072169*b );
             z = ( 0.019334*r + 0.119193*g + 0.950227*b );
             // B matrix and logarithm transformation
-            xi = log( 0.9465229*x + 0.2946927*y - 0.1313419*z );
-            yi = log(-0.1179179*x + 0.9929960*y + 0.007371554*z );
-            zi = log( 0.09230461*x - 0.04645794*y + 0.9946464*z );
+            xi = ln( 0.9465229*x + 0.2946927*y - 0.1313419*z );
+            yi = ln(-0.1179179*x + 0.9929960*y + 0.007371554*z );
+            zi = ln( 0.09230461*x - 0.04645794*y + 0.9946464*z );
             // A matrix
             ccc[p+0] = ( 27.07439*xi - 22.80783*yi - 1.806681*zi );
             ccc[p+1] = (-5.646736*xi - 7.722125*yi + 12.86503*zi );
@@ -315,23 +315,38 @@ var Color = FILTER.Color = FILTER.Class({
             return ccc;
         },
         
-        
         // https://www.cs.harvard.edu/~sjg/papers/cspace.pdf
-        /*ILL2RGB: function( ccc, p ) {
+        // http://matrix.reshish.com/inverCalculation.php
+        ILL2RGB: function( ccc, p ) {
             //p = p || 0;
             var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2], x, y, z, xi, yi, zi, exp = Math.exp;
-            // inverse A matrix and inverse logarithm TODO
-            xi = exp( 27.07439*r - 22.80783*g - 1.806681*b );
-            yi = exp(-5.646736*r - 7.722125*g + 12.86503*b );
-            zi = exp(-4.163133*r - 4.579428*g - 4.576049*b );
-            // inverse B matrix TODO
-            x = log( 0.9465229*xi + 0.2946927*yi - 0.1313419*zi );
-            y = log(-0.1179179*xi + 0.9929960*yi + 0.007371554*zi );
-            z = log( 0.09230461*xi - 0.04645794*yi + 0.9946464*zi );
+            // inverse A matrix and inverse logarithm
+            xi = exp( 0.021547742011105847*r - 0.021969518919866274*g - 0.07027206572176435*b );
+            yi = exp(-0.018152109501074376*r - 0.03004415376911152*g - 0.07729896865586937*b );
+            zi = exp(-0.0014378861182725712*r + 0.050053456205559545*g - 0.07724195758868482*b );
+            // inverse B matrix
+            x = ( 1.0068824301911365*xi - 0.2924918682640871*yi + 0.13512537828457516*zi );
+            y = ( 0.12021888110585245*xi + 0.9717816461525606*yi + 0.008672665360769691*zi );
+            z = (-0.08782494811157235*xi + 0.07253363731909634*yi + 0.9932476695469974*zi );
             // XYZ to RGB
             ccc[p+0] = ( 3.240479*x - 1.537150*y - 0.498535*z )|0;
             ccc[p+1] = (-0.969256*x + 1.875992*y + 0.041556*z )|0;
             ccc[p+2] = ( 0.055648*x - 0.204043*y + 1.057311*z )|0;
+            return ccc;
+        },
+        
+        // http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf
+        /*
+        RGB2SUV: function( ccc, p, rotS, thetaS ) {
+            //p = p || 0;
+            var r = ccc[p+0]/255, g = ccc[p+1]/255, b = ccc[p+2]/255, s, u, v, cos = Math.cos, sin = Math.sin;
+            if ( null = rotS )
+                rotS = [
+                
+                ];
+            ccc[p+0] = ( 27.07439*xi - 22.80783*yi - 1.806681*zi );
+            ccc[p+1] = (-5.646736*xi - 7.722125*yi + 12.86503*zi );
+            ccc[p+2] = (-4.163133*xi - 4.579428*yi - 4.576049*zi );
             return ccc;
         },*/
         

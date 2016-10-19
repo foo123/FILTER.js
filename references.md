@@ -8,6 +8,8 @@
 **Some image processing/computer vision theory, basics and tutorials:**
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
+* [Frequently Asked Questions about Color, Poynton](http://www.poynton.com/PDFs/ColorFAQ.pdf)
+* [Frequently Asked Questions about Gamma, Poynton](http://www.poynton.com/PDFs/GammaFAQ.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
 * [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
 * [image processing basics](http://www.csd.uwo.ca/courses/CS4487a/Lectures/lec03_image_proc.pdf)
@@ -30,7 +32,10 @@
 **Advanced references:**
 
 * [What Every Computer Scientist Should Know About Floating-Point Arithmetic, Goldberg 1991](http://perso.ens-lyon.fr/jean-michel.muller/goldberg.pdf)
+* [Colour Space Conversions, Ford, Roberts 1998](http://www.poynton.com/PDFs/coloureq.pdf)
+* [New simple and efficient color space transformations for lossless image compression, Starosolski 2014](http://sun.aei.polsl.pl/~rstaros/papers/s2014-jvcir-AAM.pdf)
 * [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)
+* [A Class of Photometric Invariants: Separating Material from Shape and Illumination, Narasimhan, Ramesh, Nayar 2003](https://www.cs.cmu.edu/~ILIM/publications/PDFs/NRN-ICCV03.pdf)
 * [Color Subspaces as Photometric Invariants, Zickler, Mallick, Kriegman, Belhumeu 2006](http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf)
 * [A Perception-based Color Space for Illumination-invariant Image Processing, Chong, Gortler, Zickler 2008](https://www.cs.harvard.edu/~sjg/papers/cspace.pdf)
 * [The decolorize algorithm for contrast enhancing, color to grayscale conversion, Grundland, Dodgson 2005](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-649.pdf)
@@ -46,6 +51,14 @@
 * [Morphological Filters-Part II: Their Relations to Median, Order-Statistic, and Stack Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part2_ieeetASSP_+corrections1989.pdf)
 * [Morphological Grayscale Reconstruction: Definition, Efficient Algorithm and Applications in Image Analysis, Vincent 1992](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.116.5241&rep=rep1&type=pdf)
 * [Morphological Grayscale Reconstruction in Image Analysis: Applications and Efficient Algorithms, Vincent 1993](http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=0145A5BEB32B8FEC5ECA5C734B381F51?doi=10.1.1.92.1083&rep=rep1&type=pdf)
+* [Attribute Openings, Thinnings, and Granulometries, Breen, Jones, 1996](http://dl.acm.org/citation.cfm?id=246245)
+* [Morphological Image Processing, Girod 2013 slides](http://web.stanford.edu/class/ee368/Handouts/Lectures/2014_Spring/Combined_Slides/7-Morphological-Image-Processing-Combined.pdf)
+* [Fast Morphological Attribute Operations using Tarjan's Union-Find Algorithm, Wilkinson, Roerdink 2000](http://www.cs.rug.nl/~michael/ismm2000.pdf)
+* [An Efficient Algorithm for Attribute Openings and Closings, Darbon, Akgül 2005](http://jerome.berbiqui.org/papers/darbon.05.eusipco.pdf)
+* [A fast thresholded linear convolution representation of morphological operations, Kisacanin, Schonfeld 1994](http://dl.acm.org/citation.cfm?id=2321917)
+* [A Fast Algorithm for computing Morphological Image Processing Primitives, Hagyard, Razaz, Atkin 1997](http://www.iwaenc.org/proceedings/1997/nsip97/pdf/scan/ns970221.pdf)
+* [Efficient convolution based algorithms for erosion and dilation, Razaz, Hagyard 1999](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.98.1196&rep=rep1&type=pdf)
+* [Fast implementations of morphological operations using Fast Fourier Transform (FFT), Kosheleva, Cabrera, Gibson, Koshelev 1999](http://www.cs.utep.edu/vladik/misha5.pdf)
 * [Filtering by repeated Integration, Heckbert 1986](https://www.cs.cmu.edu/~ph/rif.ps.gz)
 * [Fast Almost-Gaussian Filtering using integral filters, Kovesi 2010](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
 * [Adaptive Histogram Equalization and Its Variations, Pizer et al,  1986](http://www.cs.unc.edu/Research/MIDAG/pubs/papers/Adaptive%20Histogram%20Equalization%20and%20Its%20Variations.pdf)
