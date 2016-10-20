@@ -3,6 +3,8 @@
     "dimension": [300, 521],
     "grid": [8, 2],
     "fps": 12,
+    "responsive": true,
+    "color": "transparent",
     "sprites": [
      "./sprites/CapGuyWalk0001.png"
     ,"./sprites/CapGuyWalk0002.png"

@@ -46,15 +46,25 @@ function finish( imgManager, config, sprite )
         }
         var animation_name = '', animation_duration = '', animation_delay = '',
             animation_timing = '', animation_iteration = '', animation_keyframes = '',
-            attX, attY, iniX, iniY, finX, finY, anim, two_dim_grid = true;
+            attX, attY, iniX, iniY, finX, finY, factX = 1, factY = 1,
+            aspect_ratio = 100*config.dimension[1]/config.dimension[0],
+            background_size = ''+(100*config.grid[0])+'% '+(100*config.grid[1])+'%',
+            unit = 'px', two_dim_grid = true;
+        
+        if ( config.responsive )
+        {
+            unit = '%';
+            factX = 100/(config.dimension[0]);
+            factY = 100/(config.dimension[1]);
+        }
             
         if ( (1 < config.grid[0]) && (1 < config.grid[1]) )
         {
             // background-position-x, background-position-y NOT supported very good
             two_dim_grid = true;
             attX = "background-position-x"; attY = "background-position-y";
-            iniX = "0px"; iniY = "0px";
-            finX = "-"+(config.grid[0]*config.dimension[0])+"px"; finY = "-"+(config.grid[1]*config.dimension[1])+"px";
+            iniX = "0"+unit; iniY = "0"+unit;
+            finX = "-"+(factX*config.grid[0]*config.dimension[0])+unit; finY = "-"+(factY*config.grid[1]*config.dimension[1])+unit;
             animation_name = config.name+"-grid-x, "+config.name+"-grid-y";
             animation_duration = ''+(dur/config.grid[1])+'s, '+dur+'s';
             animation_delay = '0s, 0s';
@@ -65,8 +75,8 @@ function finish( imgManager, config, sprite )
         {
             two_dim_grid = false;
             attX = "background-position";
-            iniX = "0px 0px";
-            finX = "0px -"+(config.grid[1]*config.dimension[1])+"px";
+            iniX = "0"+unit+" 0"+unit;
+            finX = "0"+unit+" -"+(factY*config.grid[1]*config.dimension[1])+unit;
             animation_name = config.name+"-grid-x";
             animation_duration = ''+dur+'s';
             animation_delay = '0s';
@@ -77,8 +87,8 @@ function finish( imgManager, config, sprite )
         {
             two_dim_grid = false;
             attX = "background-position";
-            iniX = "0px 0px";
-            finX = "-"+(config.grid[0]*config.dimension[0])+"px 0px";
+            iniX = "0"+unit+" 0"+unit;
+            finX = "-"+(factX*config.grid[0]*config.dimension[0])+unit+" 0"+unit;
             animation_name = config.name+"-grid-x";
             animation_duration = ''+dur+'s';
             animation_delay = '0s';
@@ -138,6 +148,9 @@ function finish( imgManager, config, sprite )
                 .split('#animation-class#').join(config.name+'-class')
                 .split('#width#').join(config.dimension[0]).split('#height#').join(config.dimension[1])
                 .split('#sprite#').join(sprite_img)
+                .split('#background-color#').join(String(config.color))
+                .split('#aspect-ratio#').join(''+aspect_ratio+'%')
+                .split('#background-size#').join(background_size)
                 .split('#animation-name#').join(animation_name)
                 .split('#animation-duration#').join(animation_duration)
                 .split('#animation-delay#').join(animation_delay)
@@ -161,7 +174,7 @@ function finish( imgManager, config, sprite )
             String(data)
                 .split('#stylesheet#').join('./'+config.name+'.css')
                 .split('#title#').join(config.name + ' sprite animation')
-                .split('#animation-class#').join(config.name+'-class'),
+                .split('#animation-class#').join(config.responsive ? ('responsive-sprite '+config.name+'-class') : (config.name+'-class')),
             'utf8',
             function( err ) {
                 if ( err ) echo('Error writing html file: ' + err);
@@ -210,6 +223,7 @@ fs.readFile('.' === config_file.charAt(0) ? path.join(__dirname, config_file) : 
     config.fps = fps || config.fps || 12;
     config.format = config.format ? config.format.toLowerCase() : 'png';
     if ( config.grid === +config.grid ) config.grid = [+config.grid, 1];
+    config.color = config.color || "transparent";
     config.grid = config.grid ? config.grid : [config.sprites.length, 1];
     var imgManager = 'jpg' === config.format ? F.IO.BinaryManager( F.Codec.JPG, {quality: 100} ) : F.IO.BinaryManager( F.Codec.PNG, {deflateLevel: 9} );
     var sprite = F.Image().restorable(false).createImageData(config.grid[0]*config.dimension[0], config.grid[1]*config.dimension[1]);
