@@ -1,149 +1,218 @@
 "use strict";
 
 var path = require('path'),
-    parse_args = require('../commargs.js'),
-    F = require('../../../build/filter.bundle.js'),
+    fs = require('fs'),
+    parse_args = require('./commargs.js'),
     echo = console.log,
+    F = require('../../build/filter.bundle.js'),
     args = parse_args(),
-    format = 'png',//(args.options['format'] || 'png').toLowerCase(),
-    type = 'hor',//(args.options['type'] || 'hor').toLowerCase(),
-    width = 300,//parseInt(args.options['width']||'100', 10),
-    height = 521,//parseInt(args.options['height']||'100', 10),
-    fps = 12,
-    imgs = [
-    './sprites/CapGuyWalk0001.png',
-    './sprites/CapGuyWalk0002.png',
-    './sprites/CapGuyWalk0003.png',
-    './sprites/CapGuyWalk0004.png',
-    './sprites/CapGuyWalk0005.png',
-    './sprites/CapGuyWalk0006.png',
-    './sprites/CapGuyWalk0007.png',
-    './sprites/CapGuyWalk0008.png',
-    './sprites/CapGuyWalk0009.png',
-    './sprites/CapGuyWalk0010.png',
-    './sprites/CapGuyWalk0011.png',
-    './sprites/CapGuyWalk0012.png',
-    './sprites/CapGuyWalk0013.png',
-    './sprites/CapGuyWalk0014.png',
-    './sprites/CapGuyWalk0015.png',
-    './sprites/CapGuyWalk0016.png'
-    ]//(args.options['sprites'] || '').split(',')
-    //, blend = F.BlendFilter(new Array(5*imgs.length));
+    config_file = args.options['config'] || null,
+    inline = !!args.options['inline'],
+    name = args.options['name'] || 'spriteanimation',
+    fps = parseInt(args.options['fps']||'0', 10)
 ;
 
-function start( imMan, i, sprite, format, type, imgs, width, height, fps )
+function pass( ){ }
+function start( index, row, col, imgManager, config, sprite )
 {
-    if ( 0 === i ) echo('Generating Animation..');
-    if ( i >= imgs.length )
-    {
-        if ( 0 < imgs.length ) finish( imMan, sprite, format, type, imgs, width, height, fps );
-        return;
-    }
-    var img_file = '.' === imgs[i].charAt(0) ? path.join(__dirname, imgs[i]) : imgs[i];
-    imMan.read( img_file, function( img ){
-        imgs[i] = img;
-        /*blend.setInput(i+1, img).setInputValues(i+1, {
-                mode: "normal",
-                alpha: 1,
-                enabled: 1,
-                startX: i*width,
-                startY: 0
-        });*/
-        sprite.paste(img, i*width, 0);
+    if ( index >= config.sprites.length ) { finish( imgManager, config, sprite ); return; }
+    var img_file = '.' === config.sprites[index].charAt(0) ? path.join(__dirname, config.sprites[index]) : config.sprites[index];
+    imgManager.read( img_file, function( img ){
+        sprite.paste(img, col*config.dimension[0], row*config.dimension[1]);
+        if ( (++col) >= config.grid[0] ) { col = 0; row++; }
         echo('animation sprite: "' + img_file + '" pasted');
-        start( imMan, i+1, sprite, format, type, imgs, width, height, fps );
+        start( index+1, row, col, imgManager, config, sprite );
     }, function( err ){
-        imgs[i] = null;
         echo('error while loading sprite image: ' + err);
-        start( imMan, i+1, sprite, format, type, imgs, width, height, fps );
+        if ( (++col) >= config.grid[0] ) { col = 0; row++; }
+        start( index+1, row, col, imgManager, config, sprite );
     });
 }
-function finish( imMan, sprite, format, type, imgs, width, height, fps )
+function finish( imgManager, config, sprite )
 {
     echo('Output animation files..');
-    var sprite_img = './animation-sprite'+('jpg' === format?'.jpg':'.png');
-    //blend.apply( sprite );
-    imMan.write(
-        path.join(__dirname, sprite_img), sprite,
-        function( ){
-        var nframes = imgs.length, dur = nframes/fps;
-        F.IO.FileManager().responseType('text').write(path.join(__dirname,'./animation-sprite.html'), '\
-<!DOCTYPE html>\
-<html lang="en">\
-<head>\
-<meta http-equiv="content-type" content="text/html; charset=UTF-8">\
-<meta charset="utf-8">\
-\
-<title>Css Sprite Animation Generator</title>\
-\
-<style type="text/css">\
-    .sprite-animation {\
-        position: relative;\
-        display: block;\
-        width: '+width+'px;\
-        height: '+height+'px;\
-        overflow: hidden;\
-        background-image: url("'+sprite_img+'");\
-        background-position: 0px 0px;\
-    }\
-    .sprite-animation.animated {\
-        -webkit-animation-name: spriteanimation;\
-        -webkit-animation-duration: '+dur+'s;\
-        -webkit-animation-iteration-count: infinite;\
-        -webkit-animation-timing-function: steps('+nframes+');\
-        -moz-animation-name: spriteanimation;\
-        -moz-animation-duration: '+dur+'s;\
-        -moz-animation-iteration-count: infinite;\
-        -moz-animation-timing-function: steps('+nframes+');\
-        -ms-animation-name: spriteanimation;\
-        -ms-animation-duration: '+dur+'s;\
-        -ms-animation-iteration-count: infinite;\
-        -ms-animation-timing-function: steps('+nframes+');\
-        -o-animation-name: spriteanimation;\
-        -o-animation-duration: '+dur+'s;\
-        -o-animation-iteration-count: infinite;\
-        -o-animation-timing-function: steps('+nframes+');\
-        animation-name: spriteanimation;\
-        animation-duration: '+dur+'s;\
-        animation-iteration-count: infinite;\
-        animation-timing-function: steps('+nframes+');\
-    }\
-    @-webkit-keyframes spriteanimation {\
-        0% { background-position: 0px 0px; }\
-        100% { background-position: -'+(nframes*width)+'px 0px; }\
-    }\
-    @keyframes spriteanimation {\
-        0% { background-position: 0px 0px; }\
-        100% { background-position: -'+(nframes*width)+'px 0px; }\
-    }\
-</style>\
-</head>\
-<body>\
-<div class="sprite-animation animated">&nbsp;</div>\
-</body>\
-</html>\
-', function(){
-            echo('completed.');
-        });
-    }, function( err ){
-        echo('error while writing output sprite: ' + err);
+    var sprite_img = './'+config.name+('jpg' === config.format?'.jpg':'.png');
+    var nframes = config.sprites.length, dur = nframes/config.fps;
+    
+    imgManager.write( path.join(__dirname, sprite_img), sprite, pass, function( err ){
+        echo('Error writing sprite image: ' + err);
+    });
+    
+    fs.readFile(path.join(__dirname,'./animation-sprite.tpl.css'), 'utf8', function( err, data ){
+        if ( err )
+        {
+            echo('Error reading css tpl file: ' + err);
+            return;
+        }
+        var animation_name = '', animation_duration = '', animation_delay = '',
+            animation_timing = '', animation_iteration = '', animation_keyframes = '',
+            attX, attY, iniX, iniY, finX, finY, anim, two_dim_grid = true;
+            
+        if ( (1 < config.grid[0]) && (1 < config.grid[1]) )
+        {
+            // background-position-x, background-position-y NOT supported very good
+            two_dim_grid = true;
+            attX = "background-position-x"; attY = "background-position-y";
+            iniX = "0px"; iniY = "0px";
+            finX = "-"+(config.grid[0]*config.dimension[0])+"px"; finY = "-"+(config.grid[1]*config.dimension[1])+"px";
+            animation_name = config.name+"-grid-x, "+config.name+"-grid-y";
+            animation_duration = ''+(dur/config.grid[1])+'s, '+dur+'s';
+            animation_delay = '0s, 0s';
+            animation_timing = "steps("+config.grid[0]+"), steps("+config.grid[1]+")";
+            animation_iteration = "infinite, infinite";
+        }
+        else if ( 1 < config.grid[1] )
+        {
+            two_dim_grid = false;
+            attX = "background-position";
+            iniX = "0px 0px";
+            finX = "0px -"+(config.grid[1]*config.dimension[1])+"px";
+            animation_name = config.name+"-grid-x";
+            animation_duration = ''+dur+'s';
+            animation_delay = '0s';
+            animation_timing = "steps("+config.grid[1]+")";
+            animation_iteration = "infinite";
+        }
+        else
+        {
+            two_dim_grid = false;
+            attX = "background-position";
+            iniX = "0px 0px";
+            finX = "-"+(config.grid[0]*config.dimension[0])+"px 0px";
+            animation_name = config.name+"-grid-x";
+            animation_duration = ''+dur+'s';
+            animation_delay = '0s';
+            animation_timing = "steps("+config.grid[0]+")";
+            animation_iteration = "infinite";
+        }
+        animation_keyframes = '\
+@-webkit-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-moz-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-ms-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-o-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+';
+        if ( two_dim_grid )
+        {
+            animation_keyframes += "\n"+'\
+@-webkit-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-moz-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-ms-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-o-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+';
+        }
+        fs.writeFile(
+            path.join(__dirname,'./'+config.name+'.css'),
+            String(data)
+                .split('#animation-class#').join(config.name+'-class')
+                .split('#width#').join(config.dimension[0]).split('#height#').join(config.dimension[1])
+                .split('#sprite#').join(sprite_img)
+                .split('#animation-name#').join(animation_name)
+                .split('#animation-duration#').join(animation_duration)
+                .split('#animation-delay#').join(animation_delay)
+                .split('#animation-timing#').join(animation_timing)
+                .split('#animation-iteration#').join(animation_iteration)
+                .split('#animation-keyframes#').join(animation_keyframes),
+            'utf8',
+            function( err ) {
+                if ( err ) echo('Error writing css file: ' + err);
+            }
+        );
+    });
+    fs.readFile(path.join(__dirname,'./animation-sprite.tpl.html'), 'utf8', function( err, data ){
+        if ( err )
+        {
+            echo('Error reading html tpl file: ' + err);
+            return;
+        }
+        fs.writeFile(
+            path.join(__dirname,'./'+config.name+'.html'),
+            String(data)
+                .split('#stylesheet#').join('./'+config.name+'.css')
+                .split('#title#').join(config.name + ' sprite animation')
+                .split('#animation-class#').join(config.name+'-class'),
+            'utf8',
+            function( err ) {
+                if ( err ) echo('Error writing html file: ' + err);
+            }
+        );
     });
 }
 
-if ( imgs.length > 0 )
+if ( !config_file )
 {
-    start( 'jpg' === format ? F.IO.BinaryManager( F.Codec.JPG, {quality: 100} ) : F.IO.BinaryManager( F.Codec.PNG, {deflateLevel: 9} ),
-        0,
-        F.Image().restorable(false).createImageData(imgs.length*width, height),
-        format,
-        type,
-        imgs,
-        width,
-        height,
-        fps
-    );
+    echo('No configuration file given!');
+    process.exit();
 }
-else
-{
-    echo('No sprite images!');
-}
+
+echo('Reading configuration file..');
+fs.readFile('.' === config_file.charAt(0) ? path.join(__dirname, config_file) : config_file, 'utf8', function( err, data ){
+    if ( err )
+    {
+        echo('Error reading configuration file: ' + err);
+        process.exit();
+    }
+    var config = null;
+    try {
+        config = JSON.parse(String(data));
+    } catch (e) {
+        config = null;
+        echo('Error parsing configuration file: ' + e);
+    }
+    if ( !config )
+    {
+        echo('No configuration file!');
+        process.exit();
+    }
+    if ( !config.sprites || !config.sprites.length )
+    {
+        echo('No sprite images!');
+        process.exit();
+    }
+    if ( !config.dimension || !config.dimension[0] || !config.dimension[1] )
+    {
+        echo('Invalid sprite dimensions!');
+        process.exit();
+    }
+    config.name = name;
+    config.inline = inline;
+    config.fps = fps || config.fps || 12;
+    config.format = config.format ? config.format.toLowerCase() : 'png';
+    if ( config.grid === +config.grid ) config.grid = [+config.grid, 1];
+    config.grid = config.grid ? config.grid : [config.sprites.length, 1];
+    var imgManager = 'jpg' === config.format ? F.IO.BinaryManager( F.Codec.JPG, {quality: 100} ) : F.IO.BinaryManager( F.Codec.PNG, {deflateLevel: 9} );
+    var sprite = F.Image().restorable(false).createImageData(config.grid[0]*config.dimension[0], config.grid[1]*config.dimension[1]);
+    echo('Generating Animation..');
+    start( 0, 0, 0, imgManager, config, sprite );
+});

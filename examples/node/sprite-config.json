@@ -1,0 +1,24 @@
+{
+    "format": "png",
+    "dimension": [300, 521],
+    "grid": [8, 2],
+    "fps": 12,
+    "sprites": [
+     "./sprites/CapGuyWalk0001.png"
+    ,"./sprites/CapGuyWalk0002.png"
+    ,"./sprites/CapGuyWalk0003.png"
+    ,"./sprites/CapGuyWalk0004.png"
+    ,"./sprites/CapGuyWalk0005.png"
+    ,"./sprites/CapGuyWalk0006.png"
+    ,"./sprites/CapGuyWalk0007.png"
+    ,"./sprites/CapGuyWalk0008.png"
+    ,"./sprites/CapGuyWalk0009.png"
+    ,"./sprites/CapGuyWalk0010.png"
+    ,"./sprites/CapGuyWalk0011.png"
+    ,"./sprites/CapGuyWalk0012.png"
+    ,"./sprites/CapGuyWalk0013.png"
+    ,"./sprites/CapGuyWalk0014.png"
+    ,"./sprites/CapGuyWalk0015.png"
+    ,"./sprites/CapGuyWalk0016.png"
+    ]
+}
