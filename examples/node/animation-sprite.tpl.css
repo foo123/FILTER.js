@@ -32,9 +32,8 @@
     animation-timing-function: #animation-timing#;
     animation-iteration-count: #animation-iteration#;
 }
-.sprite.responsive-sprite.#animation-class#
+.sprite.responsive.#animation-class#
 {
-     width: 100% !important; height: auto !important; /* responsive dimensions */
      padding-bottom: #aspect-ratio# !important; /* maintain aspect-ratio with responsive padding-bottom */
      background-size: #background-size# !important; /* responsive background-size */
 }

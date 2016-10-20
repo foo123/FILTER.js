@@ -46,20 +46,28 @@ function finish( imgManager, config, sprite )
         }
         var animation_name = '', animation_duration = '', animation_delay = '',
             animation_timing = '', animation_iteration = '', animation_keyframes = '',
-            attX, attY, iniX, iniY, finX, finY, factX = config.grid[0], factY = config.grid[1],
+            attX, attY, iniX, iniY, finX, finY, factX = 1, factY = 1,
             aspect_ratio = 100*config.dimension[1]/config.dimension[0],
-            background_size = ""+(100*factX)+"% "+(100*factY)+"%", two_dim_grid = true;
+            background_size = ''+(100*config.grid[0])+'% '+(100*config.grid[1])+'%',
+            unit = 'px', two_dim_grid = true;
         
+        if ( config.responsive )
+        {
+            unit = '%';
+            factX = 100/(config.dimension[0]);
+            factY = 100/(config.dimension[1]);
+        }
+            
         if ( (1 < config.grid[0]) && (1 < config.grid[1]) )
         {
             // background-position-x, background-position-y NOT supported very good
             two_dim_grid = true;
             attX = "background-position-x"; attY = "background-position-y";
-            iniX = "0%"; iniY = "0%";
-            finX = "-"+(100*factX)+"%"; finY = "-"+(100*factY)+"%";
+            iniX = "0"+unit; iniY = "0"+unit;
+            finX = "-"+(factX*config.grid[0]*config.dimension[0])+unit; finY = "-"+(factY*config.grid[1]*config.dimension[1])+unit;
             animation_name = config.name+"-grid-x, "+config.name+"-grid-y";
-            animation_duration = ""+(dur/config.grid[1])+"s, "+dur+"s";
-            animation_delay = "0s, 0s";
+            animation_duration = ''+(dur/config.grid[1])+'s, '+dur+'s';
+            animation_delay = '0s, 0s';
             animation_timing = "steps("+config.grid[0]+"), steps("+config.grid[1]+")";
             animation_iteration = "infinite, infinite";
         }
@@ -67,11 +75,11 @@ function finish( imgManager, config, sprite )
         {
             two_dim_grid = false;
             attX = "background-position";
-            iniX = "0% 0%";
-            finX = "0% -"+(100*factY)+"%";
+            iniX = "0"+unit+" 0"+unit;
+            finX = "0"+unit+" -"+(factY*config.grid[1]*config.dimension[1])+unit;
             animation_name = config.name+"-grid-x";
-            animation_duration = ""+dur+"s";
-            animation_delay = "0s";
+            animation_duration = ''+dur+'s';
+            animation_delay = '0s';
             animation_timing = "steps("+config.grid[1]+")";
             animation_iteration = "infinite";
         }
@@ -79,60 +87,60 @@ function finish( imgManager, config, sprite )
         {
             two_dim_grid = false;
             attX = "background-position";
-            iniX = "0% 0%";
-            finX = "-"+(100*factX)+"% 0%";
+            iniX = "0"+unit+" 0"+unit;
+            finX = "-"+(factX*config.grid[0]*config.dimension[0])+unit+" 0"+unit;
             animation_name = config.name+"-grid-x";
-            animation_duration = ""+dur+"s";
-            animation_delay = "0s";
+            animation_duration = ''+dur+'s';
+            animation_delay = '0s';
             animation_timing = "steps("+config.grid[0]+")";
             animation_iteration = "infinite";
         }
-        animation_keyframes = "\
-@-webkit-keyframes "+config.name+"-grid-x {\n\
-    0% { "+attX+": "+iniX+"; }\n\
-    100% { "+attX+": "+finX+"; }\n\
-}\n\
-@-moz-keyframes "+config.name+"-grid-x {\n\
-    0% { "+attX+": "+iniX+"; }\n\
-    100% { "+attX+": "+finX+"; }\n\
-}\n\
-@-ms-keyframes "+config.name+"-grid-x {\n\
-    0% { "+attX+": "+iniX+"; }\n\
-    100% { "+attX+": "+finX+"; }\n\
-}\n\
-@-o-keyframes "+config.name+"-grid-x {\n\
-    0% { "+attX+": "+iniX+"; }\n\
-    100% { "+attX+": "+finX+"; }\n\
-}\n\
-@keyframes "+config.name+"-grid-x {\n\
-    0% { "+attX+": "+iniX+"; }\n\
-    100% { "+attX+": "+finX+"; }\n\
-}\n\
-";
+        animation_keyframes = '\
+@-webkit-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-moz-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-ms-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@-o-keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+@keyframes '+config.name+'-grid-x {\
+    0% { '+attX+': '+iniX+'; }\
+    100% { '+attX+': '+finX+'; }\
+}\
+';
         if ( two_dim_grid )
         {
-            animation_keyframes += "\n\
-@-webkit-keyframes "+config.name+"-grid-y {\n\
-    0% { "+attY+": "+iniY+"; }\n\
-    100% { "+attY+": "+finY+"; }\n\
-}\n\
-@-moz-keyframes "+config.name+"-grid-y {\n\
-    0% { "+attY+": "+iniY+"; }\n\
-    100% { "+attY+": "+finY+"; }\n\
-}\n\
-@-ms-keyframes "+config.name+"-grid-y {\n\
-    0% { "+attY+": "+iniY+"; }\n\
-    100% { "+attY+": "+finY+"; }\n\
-}\n\
-@-o-keyframes "+config.name+"-grid-y {\n\
-    0% { "+attY+": "+iniY+"; }\n\
-    100% { "+attY+": "+finY+"; }\n\
-}\n\
-@keyframes "+config.name+"-grid-y {\n\
-    0% { "+attY+": "+iniY+"; }\n\
-    100% { "+attY+": "+finY+"; }\n\
-}\n\
-";
+            animation_keyframes += "\n"+'\
+@-webkit-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-moz-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-ms-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@-o-keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+@keyframes '+config.name+'-grid-y {\
+    0% { '+attY+': '+iniY+'; }\
+    100% { '+attY+': '+finY+'; }\
+}\
+';
         }
         fs.writeFile(
             path.join(__dirname,'./'+config.name+'.css'),
@@ -165,8 +173,8 @@ function finish( imgManager, config, sprite )
             path.join(__dirname,'./'+config.name+'.html'),
             String(data)
                 .split('#stylesheet#').join('./'+config.name+'.css')
-                .split('#title#').join(config.name + ' (responsive) sprite animation')
-                .split('#animation-class#').join(config.name + '-class'),
+                .split('#title#').join(config.name + ' sprite animation')
+                .split('#animation-class#').join(config.responsive ? ('responsive-sprite '+config.name+'-class') : (config.name+'-class')),
             'utf8',
             function( err ) {
                 if ( err ) echo('Error writing html file: ' + err);

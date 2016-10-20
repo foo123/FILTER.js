@@ -32,11 +32,50 @@
     animation-timing-function: steps(8), steps(2);
     animation-iteration-count: infinite, infinite;
 }
-.sprite.responsive-sprite.spriteanimation-class
+.sprite.responsive.spriteanimation-class
 {
-     width: 100% !important; height: auto !important; /* responsive dimensions */
      padding-bottom: 173.66666666666666% !important; /* maintain aspect-ratio with responsive padding-bottom */
      background-size: 800% 200% !important; /* responsive background-size */
 }
-@-webkit-keyframes spriteanimation-grid-x {    0% { background-position-x: 0%; }    100% { background-position-x: -800%; }}@-moz-keyframes spriteanimation-grid-x {    0% { background-position-x: 0%; }    100% { background-position-x: -800%; }}@-ms-keyframes spriteanimation-grid-x {    0% { background-position-x: 0%; }    100% { background-position-x: -800%; }}@-o-keyframes spriteanimation-grid-x {    0% { background-position-x: 0%; }    100% { background-position-x: -800%; }}@keyframes spriteanimation-grid-x {    0% { background-position-x: 0%; }    100% { background-position-x: -800%; }}
-@-webkit-keyframes spriteanimation-grid-y {    0% { background-position-y: 0%; }    100% { background-position-y: -200%; }}@-moz-keyframes spriteanimation-grid-y {    0% { background-position-y: 0%; }    100% { background-position-y: -200%; }}@-ms-keyframes spriteanimation-grid-y {    0% { background-position-y: 0%; }    100% { background-position-y: -200%; }}@-o-keyframes spriteanimation-grid-y {    0% { background-position-y: 0%; }    100% { background-position-y: -200%; }}@keyframes spriteanimation-grid-y {    0% { background-position-y: 0%; }    100% { background-position-y: -200%; }}
+@-webkit-keyframes spriteanimation-grid-x {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: -800%; }
+}
+@-moz-keyframes spriteanimation-grid-x {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: -800%; }
+}
+@-ms-keyframes spriteanimation-grid-x {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: -800%; }
+}
+@-o-keyframes spriteanimation-grid-x {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: -800%; }
+}
+@keyframes spriteanimation-grid-x {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: -800%; }
+}
+
+@-webkit-keyframes spriteanimation-grid-y {
+    0% { background-position-y: 0%; }
+    100% { background-position-y: -200%; }
+}
+@-moz-keyframes spriteanimation-grid-y {
+    0% { background-position-y: 0%; }
+    100% { background-position-y: -200%; }
+}
+@-ms-keyframes spriteanimation-grid-y {
+    0% { background-position-y: 0%; }
+    100% { background-position-y: -200%; }
+}
+@-o-keyframes spriteanimation-grid-y {
+    0% { background-position-y: 0%; }
+    100% { background-position-y: -200%; }
+}
+@keyframes spriteanimation-grid-y {
+    0% { background-position-y: 0%; }
+    100% { background-position-y: -200%; }
+}
+
