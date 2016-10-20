@@ -59,6 +59,8 @@
 * [A Fast Algorithm for computing Morphological Image Processing Primitives, Hagyard, Razaz, Atkin 1997](http://www.iwaenc.org/proceedings/1997/nsip97/pdf/scan/ns970221.pdf)
 * [Efficient convolution based algorithms for erosion and dilation, Razaz, Hagyard 1999](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.98.1196&rep=rep1&type=pdf)
 * [Fast implementations of morphological operations using Fast Fourier Transform (FFT), Kosheleva, Cabrera, Gibson, Koshelev 1999](http://www.cs.utep.edu/vladik/misha5.pdf)
+* [Toonify: Cartoon Photo Effect Application, Dade](https://stacks.stanford.edu/file/druid:yt916dh6570/Dade_Toonify.pdf)
+* [Converting Color Real Image to Cartoon Image Using Non-Parametric Mean-Shift Technique, Abdulmunen 2012](http://www.iasj.net/iasj?func=fulltext&aId=65525)
 * [Filtering by repeated Integration, Heckbert 1986](https://www.cs.cmu.edu/~ph/rif.ps.gz)
 * [Fast Almost-Gaussian Filtering using integral filters, Kovesi 2010](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
 * [Adaptive Histogram Equalization and Its Variations, Pizer et al,  1986](http://www.cs.unc.edu/Research/MIDAG/pubs/papers/Adaptive%20Histogram%20Equalization%20and%20Its%20Variations.pdf)
