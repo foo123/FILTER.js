@@ -89,7 +89,7 @@ FILTER.Create({
             }
         }
         // compute an appropriate (relational) dissimilarity matrix, based on filter operation mode
-        delta = FILTER.Util.Filter.dissimilarity_rgb_2(im, w, h, 2, D, delta, mode);
+        delta = FILTER.MachineLearning.dissimilarity_rgb_2(im, w, h, 2, D, delta, mode);
         // return the connected image data
         return FILTER.MachineLearning.connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
     }

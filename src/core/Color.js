@@ -1351,6 +1351,36 @@ Color.Gradient = {
 Color.Blend = {
     //p1 = p1 || 0; p2 = p2 || 0;
     
+    copy: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
+        var amount = alpha*rgba2[p2+3]*0.003921568627451,
+            rb, gb, bb,
+            r = rgba1[p1], g = rgba1[p1+1], b = rgba1[p1+2],
+            r2 = rgba2[p2], g2 = rgba2[p2+1], b2 = rgba2[p2+2]
+        ;
+        
+        // normal mode
+        rb = r2;  
+        gb = g2;  
+        bb = b2;
+        
+        // amount compositing
+        r = r + amount * (rb-r);
+        g = g + amount * (gb-g);
+        b = b + amount * (bb-b);
+        
+        if (do_clamp)
+        {
+            // clamp them manually
+            r = r<0 ? 0 : (r>255 ? 255 : r);
+            g = g<0 ? 0 : (g>255 ? 255 : g);
+            b = b<0 ? 0 : (b>255 ? 255 : b);
+        }
+        
+        // output
+        rgba1[p1] = r|0; rgba1[p1+1] = g|0; rgba1[p1+2] = b|0;
+        if ( 0 === rgba1[p1+3] ) rgba1[p1+3] = rgba2[p2+3];//255;
+    },
+
     normal: function(rgba1, rgba2, p1, p2, alpha, do_clamp) { 
         var amount = alpha*rgba2[p2+3]*0.003921568627451,
             rb, gb, bb,

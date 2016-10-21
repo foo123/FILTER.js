@@ -2,7 +2,7 @@
     "format": "png",
     "dimension": [300, 521],
     "grid": [8, 2],
-    "fps": 12,
+    "fps": 16,
     "color": "transparent",
     "sprites": [
      "./sprites/CapGuyWalk0001.png"

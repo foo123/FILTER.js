@@ -77,10 +77,10 @@ Some filters code has been adapted from open source libraries (mostly `c`, `java
 * [**AS3 ColorMatrix**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html) **by @GSkinner**
 * [**Simplex Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c) and [**Perlin Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c) by **Stefan Gustavson**
 * [**glfx.js**](https://github.com/evanw/glfx.js)
-* [**JViolaJones**](http://code.google.com/p/jviolajones/)
+* [**JViolaJones**](http://code.google.com/p/jviolajones/), [**HAAR.js**](https://github.com/foo123/HAAR.js)
 * [**OpenCV, HAAR cascades**](http://opencv.org/)
-* [**zlib (`asm.js` emscripten version)**](http://www.zlib.net/)
-* [**ffmpeg (`asm.js` emscripten version)**](https://ffmpeg.org/)
+* [**zlib**](http://www.zlib.net/) ([`asm.js` emscripten version](https://github.com/ukyo/zlib-asm))
+* [**ffmpeg**](https://ffmpeg.org/) ([`asm.js` emscripten version](https://github.com/bgrins/videoconverter.js))
 
 
 Some image processing/computer vision theory, basics and tutorials (see [references](/references.md)):
@@ -88,14 +88,6 @@ Some image processing/computer vision theory, basics and tutorials (see [referen
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
-* [digital image filtering (with emphasis on imagemagick)](http://www.fmwconcepts.com/imagemagick/digital_image_filtering.pdf)
-* [image processing basics](http://www.csd.uwo.ca/courses/CS4487a/Lectures/lec03_image_proc.pdf)
-* [fundamentals of image processing]( http://www.tnw.tudelft.nl/fileadmin/Faculteit/TNW/Over_de_faculteit/Afdelingen/Imaging_Science_and_Technology/Research/Research_Groups/Quantitative_Imaging/Education/doc/FIP2_3.pdf)
-* [fundamentals of image processing](http://www.cs.dartmouth.edu/farid/downloads/tutorials/fip.pdf)
-* [image filtering basics for machine vision](http://www.cse.usf.edu/~r1k/MachineVisionBook/MachineVision.files/MachineVision_Chapter4.pdf)
-* [image segmentation techniques](http://www.bioss.ac.uk/people/chris/ch4.pdf)
-* [Procedural Noise](https://en.wikipedia.org/wiki/Procedural_generation)
-* [Perlin Noise](https://en.wikipedia.org/wiki/Perlin_noise)
 * [OpenCV, open source computer vision](http://opencv.org/)
 * [General-purpose GPU Scientific Computing](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) (..moving towards)
 

@@ -5,6 +5,8 @@ var path = require('path'),
     parse_args = require('./commargs.js'),
     echo = console.log,
     F = require('../../build/filter.bundle.js'),
+    cur_dir = process.cwd(),//__dirname,
+    config_dir = cur_dir,
     args = parse_args(),
     config_file = args.options['config'] || null,
     inline = !!args.options['inline'],
@@ -16,7 +18,7 @@ function pass( ){ }
 function start( index, row, col, imgManager, config, sprite )
 {
     if ( index >= config.sprites.length ) { finish( imgManager, config, sprite ); return; }
-    var img_file = '.' === config.sprites[index].charAt(0) ? path.join(__dirname, config.sprites[index]) : config.sprites[index];
+    var img_file = '.' === config.sprites[index].charAt(0) ? path.join(config_dir, config.sprites[index]) : config.sprites[index];
     imgManager.read( img_file, function( img ){
         sprite.paste(img, col*config.dimension[0], row*config.dimension[1]);
         if ( (++col) >= config.grid[0] ) { col = 0; row++; }
@@ -34,11 +36,11 @@ function finish( imgManager, config, sprite )
     var sprite_img = './'+config.name+('jpg' === config.format?'.jpg':'.png');
     var nframes = config.sprites.length, dur = nframes/config.fps;
     
-    imgManager.write( path.join(__dirname, sprite_img), sprite, pass, function( err ){
+    imgManager.write( path.join(cur_dir, sprite_img), sprite, pass, function( err ){
         echo('Error writing sprite image: ' + err);
     });
     
-    fs.readFile(path.join(__dirname,'./animation-sprite.tpl.css'), 'utf8', function( err, data ){
+    fs.readFile(path.join(cur_dir, './animation-sprite.tpl.css'), 'utf8', function( err, data ){
         if ( err )
         {
             echo('Error reading css tpl file: ' + err);
@@ -135,7 +137,7 @@ function finish( imgManager, config, sprite )
 ";
         }
         fs.writeFile(
-            path.join(__dirname,'./'+config.name+'.css'),
+            path.join(cur_dir, './'+config.name+'.css'),
             String(data)
                 .split('#animation-class#').join(config.name+'-class')
                 .split('#width#').join(config.dimension[0]).split('#height#').join(config.dimension[1])
@@ -155,14 +157,14 @@ function finish( imgManager, config, sprite )
             }
         );
     });
-    fs.readFile(path.join(__dirname,'./animation-sprite.tpl.html'), 'utf8', function( err, data ){
+    fs.readFile(path.join(cur_dir, './animation-sprite.tpl.html'), 'utf8', function( err, data ){
         if ( err )
         {
             echo('Error reading html tpl file: ' + err);
             return;
         }
         fs.writeFile(
-            path.join(__dirname,'./'+config.name+'.html'),
+            path.join(cur_dir, './'+config.name+'.html'),
             String(data)
                 .split('#stylesheet#').join('./'+config.name+'.css')
                 .split('#title#').join(config.name + ' (responsive) sprite animation')
@@ -182,7 +184,9 @@ if ( !config_file )
 }
 
 echo('Reading configuration file..');
-fs.readFile('.' === config_file.charAt(0) ? path.join(__dirname, config_file) : config_file, 'utf8', function( err, data ){
+config_file = '.' === config_file.charAt(0) ? path.join(cur_dir, config_file) : config_file;
+config_dir = path.dirname(config_file);
+fs.readFile(config_file, 'utf8', function( err, data ){
     if ( err )
     {
         echo('Error reading configuration file: ' + err);

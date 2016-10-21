@@ -78,7 +78,7 @@ FILTER.Create({
         }
         
         /* seems to have issues when tolerance is exactly 1.0 */
-        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        dist = FILTER.MachineLearning.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
         region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
         // mask is a packed bit array for efficiency
         mask = region.mask;
@@ -230,7 +230,7 @@ FILTER.Create({
         }
         
         /* seems to have issues when tolerance is exactly 1.0 */
-        dist = FILTER.Util.Filter.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
+        dist = FILTER.MachineLearning.dissimilarity_rgb(r0, g0, b0, D0, D1, 255*(self.tolerance>=1.0 ? 0.999 : self.tolerance));
         region = FILTER.MachineLearning.flood_region(im, w, h, 2, dist, 8, x0, y0);
         // mask is a packed bit array for efficiency
         mask = region.mask; box = region.box;
