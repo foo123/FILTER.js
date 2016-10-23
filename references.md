@@ -37,7 +37,6 @@
 * [Cultural Effects on Visual Perception, Masuda 2009](https://sites.ualberta.ca/~tmasuda/PublishedPapers/Masuda2009.pdf)
 * [Culture and Visual Perception: Does Perceptual Inference Depend on Culture?, Ishii, Tsukasaki, Kitayama 2009 ](http://www2.kobe-u.ac.jp/~ishiik/perceptinfer.pdf)
 * [Seeing Black: Race, Crime, and Visual Processing, Eberhardt, Goff, Purdie, Davies 2004](http://fairandimpartialpolicing.com/docs/pob5.pdf)
-* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](http://www.gbv.de/dms/ilmenau/toc/614625408.PDF)
 * [The effect of culture on perception and cognition: a conceptual framework, Kastanakis, Voyer 2013](http://eprints.lse.ac.uk/50048/1/__lse.ac.uk_storage_LIBRARY_Secondary_libfile_shared_repository_Content_Voyer,%20B_Effect%20culture%20perception_Voyer_Effect%20culture%20perception_2014.pdf)
 * [Colour Space Conversions, Ford, Roberts 1998](http://www.poynton.com/PDFs/coloureq.pdf)
 * [New simple and efficient color space transformations for lossless image compression, Starosolski 2014](http://sun.aei.polsl.pl/~rstaros/papers/s2014-jvcir-AAM.pdf)
@@ -58,7 +57,7 @@
 * [Morphological Filters-Part II: Their Relations to Median, Order-Statistic, and Stack Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part2_ieeetASSP_+corrections1989.pdf)
 * [Morphological Grayscale Reconstruction: Definition, Efficient Algorithm and Applications in Image Analysis, Vincent 1992](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.116.5241&rep=rep1&type=pdf)
 * [Morphological Grayscale Reconstruction in Image Analysis: Applications and Efficient Algorithms, Vincent 1993](http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=0145A5BEB32B8FEC5ECA5C734B381F51?doi=10.1.1.92.1083&rep=rep1&type=pdf)
-* [A fast two-dimensional median filtering algorithm, Huang Yang Tang 1979](https://www.researchgate.net/publication/3176558_A_fast_two-dimensional_media_filtering_algorithm)
+* [A fast two-dimensional median filtering algorithm, Huang, Yang, Tang 1979](https://www.researchgate.net/publication/3176558_A_fast_two-dimensional_media_filtering_algorithm)
 * [Fast Algorithms for Running Ordering and Max/Min Calculation, Pitas 1989](http://anothersample.net/fast-algorithms-for-running-ordering-and-max-min-calculation)
 * [Computing 2-D Min, Median, and Max Filters, Werman 1993](https://www.computer.org/csdl/trans/tp/1993/05/i0504.pdf)
 * [A very fast algorithm for max/min filtering, Coltuc, Brulea, Buzuloiu 1996](http://ieeexplore.ieee.org/document/582906/?reload=true&arnumber=582906)
@@ -79,7 +78,7 @@
 * [Integral Histogram:  A Fast Way to Extract Histograms in
 Cartesian Spaces, Porikli 2005](http://www.merl.com/publications/docs/TR2005-057.pdf)
 * [Accelerating Integral Histograms Using an Adaptive Approach, Müller, Lenz, Barner, Knoll 2008](http://www6.in.tum.de/Main/Publications/Mueller2008a.pdf)
-* [Line Histogram: A Fast Method for Rotated Rectangular Area Histogramming, Hou1, Hannuna, Xie, Mirmehdi 2015](http://www.cs.bris.ac.uk/Publications/Papers/2001474.pdf)
+* [Line Histogram: A Fast Method for Rotated Rectangular Area Histogramming, Hou, Hannuna, Xie, Mirmehdi 2015](http://www.cs.bris.ac.uk/Publications/Papers/2001474.pdf)
 * [Bilateral Filtering for Gray and Color Images, Tomasi, Manduchi 1998](https://users.soe.ucsc.edu/~manduchi/Papers/ICCV98.pdf)
 * [Constant Time O(1) Bilateral Filtering, Porikli 2008](http://www.merl.com/publications/docs/TR2008-030.pdf)
 * [Real-Time O(1) Bilateral Filtering, Yang, Tan, Ahuja 2009](http://vision.ai.illinois.edu/publications/yang_cvpr09.pdf)
@@ -153,4 +152,5 @@ WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&
 * [Grammar-based Image Processing (draft)](https://github.com/foo123/grammar-based-image-processing)
 
 <!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
+<!--* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](http://www.gbv.de/dms/ilmenau/toc/614625408.PDF)-->
 <!-- https://www.researchgate.net/publication/264423504_The_Social_Psychology_of_Visual_Perception -->
