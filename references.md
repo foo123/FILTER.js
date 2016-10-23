@@ -8,6 +8,8 @@
 **Some image processing/computer vision theory, basics and tutorials:**
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
+* [Visual Perception](https://en.wikipedia.org/wiki/Visual_perception)
+* [The Influence of Culture on Visual Perception (CHAPTER 14), Segall, Campbell, Herskovit 1966](https://bin.sc/Collection/Net/allanmc/web/socialperception14.pdf)
 * [Frequently Asked Questions about Color](http://www.poynton.com/PDFs/ColorFAQ.pdf)
 * [Frequently Asked Questions about Gamma](http://www.poynton.com/PDFs/GammaFAQ.pdf)
 * [a beginners guide to bitmaps **by Paul Burke**](http://paulbourke.net/dataformats/bitmaps/)
@@ -31,6 +33,11 @@
 **Advanced references:**
 
 * [What Every Computer Scientist Should Know About Floating-Point Arithmetic, Goldberg 1991](http://perso.ens-lyon.fr/jean-michel.muller/goldberg.pdf)
+* [Sight, Symbol and Society: Toward a History of Visual Perception, Wartofsky 1981](http://digitalcommons.brockport.edu/cgi/viewcontent.cgi?article=1222&context=phil_ex)
+* [Cultural Effects on Visual Perception, Masuda 2009](https://sites.ualberta.ca/~tmasuda/PublishedPapers/Masuda2009.pdf)
+* [The effect of culture on perception and cognition: a conceptual framework, Kastanakis, Voyer 2013](http://eprints.lse.ac.uk/50048/1/__lse.ac.uk_storage_LIBRARY_Secondary_libfile_shared_repository_Content_Voyer,%20B_Effect%20culture%20perception_Voyer_Effect%20culture%20perception_2014.pdf)
+* [Seeing Black: Race, Crime, and Visual Processing, Eberhardt, Goff, Purdie, Davies 2004](http://fairandimpartialpolicing.com/docs/pob5.pdf)
+* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](https://www.researchgate.net/publication/264423504_The_Social_Psychology_of_Visual_Perception)
 * [Colour Space Conversions, Ford, Roberts 1998](http://www.poynton.com/PDFs/coloureq.pdf)
 * [New simple and efficient color space transformations for lossless image compression, Starosolski 2014](http://sun.aei.polsl.pl/~rstaros/papers/s2014-jvcir-AAM.pdf)
 * [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)

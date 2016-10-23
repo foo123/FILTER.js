@@ -87,6 +87,7 @@ Some image processing/computer vision theory, basics and tutorials (see [referen
 
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
+* [the influence of history &amp; culture on visual perception](https://bin.sc/Collection/Net/allanmc/web/socialperception14.pdf)
 * [a beginners guide to bitmaps](http://paulbourke.net/dataformats/bitmaps/) **by Paul Burke**
 * [OpenCV, open source computer vision](http://opencv.org/)
 * [General-purpose GPU Scientific Computing](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) (..moving towards)
