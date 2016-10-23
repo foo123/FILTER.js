@@ -37,7 +37,7 @@
 * [Cultural Effects on Visual Perception, Masuda 2009](https://sites.ualberta.ca/~tmasuda/PublishedPapers/Masuda2009.pdf)
 * [The effect of culture on perception and cognition: a conceptual framework, Kastanakis, Voyer 2013](http://eprints.lse.ac.uk/50048/1/__lse.ac.uk_storage_LIBRARY_Secondary_libfile_shared_repository_Content_Voyer,%20B_Effect%20culture%20perception_Voyer_Effect%20culture%20perception_2014.pdf)
 * [Seeing Black: Race, Crime, and Visual Processing, Eberhardt, Goff, Purdie, Davies 2004](http://fairandimpartialpolicing.com/docs/pob5.pdf)
-* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](https://www.researchgate.net/publication/264423504_The_Social_Psychology_of_Visual_Perception)
+* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](http://www.gbv.de/dms/ilmenau/toc/614625408.PDF)
 * [Colour Space Conversions, Ford, Roberts 1998](http://www.poynton.com/PDFs/coloureq.pdf)
 * [New simple and efficient color space transformations for lossless image compression, Starosolski 2014](http://sun.aei.polsl.pl/~rstaros/papers/s2014-jvcir-AAM.pdf)
 * [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)
@@ -152,3 +152,4 @@ WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&
 * [Grammar-based Image Processing (draft)](https://github.com/foo123/grammar-based-image-processing)
 
 <!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
+<!-- https://www.researchgate.net/publication/264423504_The_Social_Psychology_of_Visual_Perception -->
