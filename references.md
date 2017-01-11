@@ -90,6 +90,7 @@ Cartesian Spaces, Porikli 2005](http://www.merl.com/publications/docs/TR2005-057
 kernels, Chaudhury ](https://84399c2a-a-62cb3a1a-s-sites.googlegroups.com/site/kunalnchaudhury/Research/Publications/manuscript.pdf?attachauth=ANoY7cpB6tbT2U7KlHfbUwMPLPme0gaj_0iIUW0qfsC1T6_gnbk2gDfEyHJQN4doyU8DpADEte1qKuUrZ--9gF4TEDGaya5wVHuoUoDJMy9ZtYYM-SCzdIIm3u_leSb7rmZ9xCcSx7zC1ERANIM84_ywSJEFYOEGscnXh2MFITjzM5vjk7VD3Bt9hoEuMEAwcVXEDxsl8z5qX51zbXT_Jg6s53dNohLjpXB8jxRB-aZtPHRJZ7G0mi09dCk-9XvOThCVmkOEbvyt&attredirects=0)
 * [Fast and Provably Accurate Bilateral Filtering, Chaudhury, Dabhade 2016](https://arxiv.org/pdf/1603.08109.pdf)
 * [Guided Image Filtering, He, Sun, Tang 2010](http://research.microsoft.com/en-us/um/people/jiansun/papers/guidedfilter_eccv10.pdf)
+* [Sparse Fast Fourier Transform](https://groups.csail.mit.edu/netmit/sFFT/index.html)
 * [Toonify: Cartoon Photo Effect Application, Dade](https://stacks.stanford.edu/file/druid:yt916dh6570/Dade_Toonify.pdf)
 * [Converting Color Real Image to Cartoon Image Using Non-Parametric Mean-Shift Technique, Abdulmunen 2012](http://www.iasj.net/iasj?func=fulltext&aId=65525)
 * [Comparing images using joint histograms, Pass, Zabih 1999](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.39.4200&rep=rep1&type=pdf)
