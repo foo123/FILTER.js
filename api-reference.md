@@ -1,4 +1,4 @@
-##API Reference
+## API Reference
 
 
 The library dependencies are:
@@ -12,7 +12,7 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
 
 
-###Contents
+### Contents
 
 * [Image](#image-class)
 * [File Input Output](#file-input-output)
@@ -38,7 +38,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 
-###Image Class
+### Image Class
 
 ````javascript
 new FILTER.Image( image:Image|Video|Canvas|FILTER.Image|ImageData=null );
@@ -74,7 +74,7 @@ __Methods:__
 * `spectrum(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image fourier frequency spectrum per channel (not implemented yet)
 * `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
 
-###ScaledImage Class
+### ScaledImage Class
 
 ````javascript
 new FILTER.ScaledImage(scaleX:Number, scaleY:Number [, image:Image|Video|Canvas|FILTER.Image|ImageData]);
@@ -88,7 +88,7 @@ __Methods:__
 
 
 
-###File Input Output
+### File Input Output
 
 `FILTER` lib includes a number of I/O (input/output) managers which can be included and used optionaly.
 
@@ -137,7 +137,7 @@ new FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).write( path:String, ima
 This manager is a subclass of `FILTER.IO.FileManager` and reads/writes **binary** data files directly into and from a `FILTER.Image` using appropriate `codec` (encoder/decoder). The `codec` parameter is an object having at least one of `encoder` and/or `decoder` methods. *(see below for more codec examples)*
 
 
-###Codecs
+### Codecs
 
 Native javascript `codecs` (`encoders` / `decoders`) are included for various `image` formats (both `browser` and `nodejs`):
 
@@ -226,7 +226,7 @@ customFormat.write( path, filterImageInstance [, onComplete, onError] );
 ````
 
 
-###Generic Abstract Filter
+### Generic Abstract Filter
 
 Each filter (and plugin) is an extension of the generic abstract filter, which provides some common methods.
 
@@ -265,7 +265,7 @@ __Methods:__
 * `apply( srcImg:Image [, destImg:Image=srcImg] [, callback:Function] )`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
 
 
-###Color Table Filter
+### Color Table Filter
 
 ````javascript
 new FILTER.ColorTableFilter( colorTable:ImageArray [, colorTableG:ImageArray, colorTableB:ImageArray] );
@@ -328,7 +328,7 @@ image.apply( invertPosterize );   // image is a FILTER.Image instance, see examp
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Color Matrix Filter
+### Color Matrix Filter
 
 ````javascript
 new FILTER.ColorMatrixFilter( colorMatrix:Array );
@@ -396,7 +396,7 @@ image.apply( grc );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Color Map Filter
+### Color Map Filter
 
 ````javascript
 new FILTER.ColorMapFilter( colorMap:Function );
@@ -441,7 +441,7 @@ image.apply( hsv );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Affine Matrix Filter
+### Affine Matrix Filter
 
 ````javascript
 new FILTER.AffineMatrixFilter( affineMatrix:Array );
@@ -493,7 +493,7 @@ image.apply( flipX );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Geometric Map Filter
+### Geometric Map Filter
 
 ````javascript
 new FILTER.GeometricMapFilter( geometricMap:Function );
@@ -543,7 +543,7 @@ image.apply( twirl );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Displacement Map Filter
+### Displacement Map Filter
 
 ````javascript
 new FILTER.DisplacementMapFilter( displaceMap:Image );
@@ -595,7 +595,7 @@ image.apply( dF );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Convolution Matrix Filter
+### Convolution Matrix Filter
 
 ````javascript
 new FILTER.ConvolutionMatrixFilter( convolutionMatrix:Array, factor:Number );
@@ -672,7 +672,7 @@ image.apply( emboss );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Morphological Filter
+### Morphological Filter
 
 ````javascript
 new FILTER.MorphologicalFilter( );
@@ -731,7 +731,7 @@ image.apply( dilate );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Statistical Filter
+### Statistical Filter
 
 ````javascript
 new FILTER.StatisticalFilter( );
@@ -781,7 +781,7 @@ image.apply( median );   // image is a FILTER.Image instance, see examples
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Blend Filter
+### Blend Filter
 
 ````javascript
 new FILTER.BlendFilter( blendMatrix:Array );
@@ -840,7 +840,7 @@ image.apply( blend3Images );   // image is a FILTER.Image instance, see examples
 
 ````
 
-###Composite Filter
+### Composite Filter
 
 
 ````javascript
@@ -905,7 +905,7 @@ emboss.turnOn( false );    // turn off the emboss filter while on the chain with
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-###Algebraic Filter
+### Algebraic Filter
 
 *(in progress)*
 
@@ -942,7 +942,7 @@ image.apply( combine );   // image is a FILTER.Image instance, see examples
 ````
 
 
-###Inline Filter
+### Inline Filter
 
 ````javascript
 new FILTER.InlineFilter( filterFunc:Function );
@@ -987,7 +987,7 @@ image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
 
 ````
 
-###Dimension Filter
+### Dimension Filter
 
 ````javascript
 new FILTER.DimensionFilter( crop:Array=null, scale:Array=null, pad:Array=null );
@@ -1004,17 +1004,17 @@ This filter alters image dimensions by cropping (or selecting) part of image spe
 * lanczos (not implemented yet)
 
 
-###GLSL Filter
+### GLSL Filter
 
 glsl-based filters for `webgl`/`node-gl` (in progress)
 
 
-###SVG Filter
+### SVG Filter
 
 svg-based filters for `svg` (not implemented yet)
 
 
-###Plugins and Extra Filters
+### Plugins and Extra Filters
 
 The library can be extended by custom plugins which add new filters.
 A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at `/src/plugins/Noise.js` etc..)

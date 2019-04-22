@@ -1,4 +1,4 @@
-#FILTER.js 
+# FILTER.js 
 
 
 __A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
@@ -36,7 +36,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [RT](https://github.com/foo123/RT) client-side real-time communication for Node/XPCOM/JS with support for Poll/BOSH/WebSockets
 
 
-###Contents
+### Contents
 
 * [Live Examples](#live-examples)
 * [Browser Support](#browser-support)
@@ -48,26 +48,26 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Todo](#todo)
 
 
-[![Filter.js](/screenshots/filters-image-process.png)](https://foo123.github.com/examples/filter/)
-[![Filter.js](/screenshots/filters-video-process.png)](https://foo123.github.com/examples/filter-video/)
-[![Filter.js](/screenshots/filter-sound-vis.png)](https://foo123.github.com/examples/filter-sound/)
+[![Filter.js](/screenshots/filters-image-process.png)](http://foo123.github.com/examples/filter/)
+[![Filter.js](/screenshots/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
+[![Filter.js](/screenshots/filter-sound-vis.png)](http://foo123.github.com/examples/filter-sound/)
 
 
 
-###Live Examples
-* [Image Processing with `Filter.js`](https://foo123.github.com/examples/filter/)
-* [Video Processing with `Filter.js`](https://foo123.github.com/examples/filter-video/)
-* [Sound Visualization with `Filter.js` (Trioptic)](https://foo123.github.com/examples/filter-sound/)
-* [`Filter.js` with `Three.js`](https://foo123.github.com/examples/filter-three/)
+### Live Examples
+* [Image Processing with `Filter.js`](http://foo123.github.com/examples/filter/)
+* [Video Processing with `Filter.js`](http://foo123.github.com/examples/filter-video/)
+* [Sound Visualization with `Filter.js` (Trioptic)](http://foo123.github.com/examples/filter-sound/)
+* [`Filter.js` with `Three.js`](http://foo123.github.com/examples/filter-three/)
 * [`Filter.js` in `Node.js`](/examples/node)
 
 
-###Browser Support
+### Browser Support
 
 ![firefox](/screenshots/firefox.png) ![chrome](/screenshots/chrome.png) ![opera](/screenshots/opera.png) ![ie](/screenshots/ie.png) ![nodejs](/screenshots/node.png)
 
 
-###Credits
+### Credits
 
 Some filters code has been adapted from open source libraries (mostly `c`, `java` and `flash`, plus a couple from `javascript` libraries), see the comments in the code for details.
 
@@ -93,7 +93,7 @@ Some image processing/computer vision theory, basics and tutorials (see [referen
 * [General-purpose GPU Scientific Computing](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) (..moving towards)
 
 
-###Features
+### Features
 
 The library dependencies are:
 
@@ -142,7 +142,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 
 
-###Todo
+### Todo
 * add `GLSL` (`webgl`/`node-gl`) support for various generic Filters (in progress, possibly in next update)
 * add some needed signal processing graph node filters (eg `algebraic`, `switch`, `delay`  etc..) (in progress)
 * add active-shape geometric filters, color/histogram-detector filters, .. (todo)
@@ -158,8 +158,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add caching of filter parameters where applicable [DONE]
 * increase performance for `Opera`, `IE`  [DONE partially]
 
-<!--
+
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  
 *URL* [WorkingClassCode](http://workingclasscode.uphero.com/ "Working Class Code")  
--->
