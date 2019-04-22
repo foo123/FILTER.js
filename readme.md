@@ -48,17 +48,17 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Todo](#todo)
 
 
-[![Filter.js](/screenshots/filters-image-process.png)](http://foo123.github.com/examples/filter/)
-[![Filter.js](/screenshots/filters-video-process.png)](http://foo123.github.com/examples/filter-video/)
-[![Filter.js](/screenshots/filter-sound-vis.png)](http://foo123.github.com/examples/filter-sound/)
+[![Filter.js](/screenshots/filters-image-process.png)](https://foo123.github.com/examples/filter/)
+[![Filter.js](/screenshots/filters-video-process.png)](https://foo123.github.com/examples/filter-video/)
+[![Filter.js](/screenshots/filter-sound-vis.png)](https://foo123.github.com/examples/filter-sound/)
 
 
 
 ### Live Examples
-* [Image Processing with `Filter.js`](http://foo123.github.com/examples/filter/)
-* [Video Processing with `Filter.js`](http://foo123.github.com/examples/filter-video/)
-* [Sound Visualization with `Filter.js` (Trioptic)](http://foo123.github.com/examples/filter-sound/)
-* [`Filter.js` with `Three.js`](http://foo123.github.com/examples/filter-three/)
+* [Image Processing with `Filter.js`](https://foo123.github.com/examples/filter/)
+* [Video Processing with `Filter.js`](https://foo123.github.com/examples/filter-video/)
+* [Sound Visualization with `Filter.js` (Trioptic)](https://foo123.github.com/examples/filter-sound/)
+* [`Filter.js` with `Three.js`](https://foo123.github.com/examples/filter-three/)
 * [`Filter.js` in `Node.js`](/examples/node)
 
 
@@ -158,7 +158,8 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * add caching of filter parameters where applicable [DONE]
 * increase performance for `Opera`, `IE`  [DONE partially]
 
-
+<!--
 *URL* [Nikos Web Development](http://nikos-web-development.netai.net/ "Nikos Web Development")  
 *URL* [FILTER.js blog post](http://nikos-web-development.netai.net/blog/image-processing-in-javascript-and-html5-canvas/ "FILTER.js blog post")  
 *URL* [WorkingClassCode](http://workingclasscode.uphero.com/ "Working Class Code")  
+-->
