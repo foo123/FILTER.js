@@ -1,3 +1,0 @@
-TODO:
-
-WebGL Filters Interfaces for Filter.js

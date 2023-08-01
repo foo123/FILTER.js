@@ -3,7 +3,6 @@
 
 The library dependencies are:
 
-* [Classy.js](https://github.com/foo123/classy.js) micro Object-Oriented framework.
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
 
@@ -15,8 +14,6 @@ Change the dependencies file(s) to include your own selection of filters and plu
 ### Contents
 
 * [Image](#image-class)
-* [File Input Output](#file-input-output)
-* [Codecs](#codecs) 
 * [Abstract Filter](#generic-abstract-filter)
 * [Color Table Filter](#color-table-filter) 
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
@@ -32,8 +29,6 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, in progress)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
 * [Dimension Filter](#dimension-filter)
-* [GLSL Filter](#glsl-filter) (glsl-based filters i.e webgl/node-gl, in progress)
-* [SVG Filter](#svg-filter) (svg-based filters)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
 
 
@@ -71,8 +66,7 @@ __Methods:__
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
 * `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
 * `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
-* `spectrum(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image fourier frequency spectrum per channel (not implemented yet)
-* `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according tol format (default FILTER.FORMAT.PNG)
+* `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according to format (default FILTER.FORMAT.PNG)
 
 ### ScaledImage Class
 
@@ -85,145 +79,6 @@ This is a placeholder for an image, which is automatically up/down scaled (for f
 __Methods:__
 
 * `setScale(sx, sy)`  Sets/Alters the scaling ratios
-
-
-
-### File Input Output
-
-`FILTER` lib includes a number of I/O (input/output) managers which can be included and used optionaly.
-
-* **`FILTER.IO.HTMLImageManager`**
-
-````javascript
-filterImageInstance = FILTER.IO.HTMLImageLoader.load( imageUrl:String [, onComplete:Function, onError:Function] );
-
-// this is same as (factory-constructor pattern):
-
-filterImageInstance = new FILTER.IO.HTMLImageLoader( ).load( imageUrl [, onComplete, onError] );
-````
-
-Loads an image url into a `FILTER.Image` instance using an HTMl Image as underlying loader (`browser` only). 
-
-**NOTE:** The same functionality to load a url into a `FILTER.Image` has been **removed from the `FILTER.Image` Class**. Use the `FILTER.IO.HTMLImageLoader` instead.
-
-
-* **`FILTER.IO.FileManager`**
-
-````javascript
-data = FILTER.IO.FileManager.read( path_or_url:String [, onComplete:Function, onError:Function] );
-FILTER.IO.FileManager.write( path:String, data:Buffer|String [, onComplete:Function, onError:Function] );
-
-// this is same as (factory-constructor pattern):
-
-data = new FILTER.IO.FileManager( ).read( path_or_url:String [, onComplete:Function, onError:Function] );
-new FILTER.IO.FileManager( ).write( path:String, data:Buffer|String [, onComplete:Function, onError:Function] );
-````
-
-This manager reads/writes files using generic data of any form (not necesarily images). Including local files (in `nodejs`) and/or remote/internet files (via `XmlHttpRequest`, `browser` and `nodejs`)
-
-
-* **`FILTER.IO.BinaryManager`**
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).read( path_or_url:String [, onComplete:Function, onError:Function] );
-FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
-
-// this is same as (factory-constructor pattern):
-
-filterImageInstance = new FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).read( path_or_url:String [, onComplete:Function, onError:Function] );
-new FILTER.IO.BinaryManager( codec:Object|FILTER.Codec ).write( path:String, image:FILTER.Image [, onComplete:Function, onError:Function] );
-````
-
-This manager is a subclass of `FILTER.IO.FileManager` and reads/writes **binary** data files directly into and from a `FILTER.Image` using appropriate `codec` (encoder/decoder). The `codec` parameter is an object having at least one of `encoder` and/or `decoder` methods. *(see below for more codec examples)*
-
-
-### Codecs
-
-Native javascript `codecs` (`encoders` / `decoders`) are included for various `image` formats (both `browser` and `nodejs`):
-
-1. `RAW` (reads/writes the raw binary data as is)
-2. `PNG` (adapted from https://github.com/devongovett/png.js/ and https://github.com/lukeapage/pngjs) (**encoder + decoder**)
-3. `JPG`/`JPEG` (adapted from https://github.com/eugeneware/jpeg-js) (**encoder + decoder**)
-4. `BMP` (adapted from https://github.com/shaozilee/bmp-js) (**encoder + decoder**)
-5. `GIF` (adapted from: https://github.com/buzzfeed/libgif-js) (**decoder only**)
-6. `TGA` (adapted from: https://github.com/vthibault/roBrowser/blob/master/src/Loaders/Targa.js) (**decoder only**)
-7. `RGBE`/`HDR` (adapted from: http://www.graphics.cornell.edu/~bjw/rgbe.html) (**encoder + decoder**)
-8. Any object having at least one of `encoder` and/or `decoder` methods can be used on-the-fly as custom codec.
-
-Instead of separate loaders per image format, only one `binary manager` (see above) is used, with the appropriate codec as parameter.
-This makes code more flexible and shorter, loaders can be adapted for `nodejs` easier and custom codecs can be used on the fly.
-
-**`PNG` example**
-Loads an image url in PNG format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.PNG ).read( path [, onComplete, onError] );
-FILTER.IO.BinaryManager( FILTER.Codec.PNG ).write( path, filterImageInstance [, onComplete, onError] );
-````
-
-**`JPG` example**
-Loads an image url in JPG format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.JPG ).read( path [, onComplete, onError] );
-FILTER.IO.BinaryManager( FILTER.Codec.JPG ).write( path, filterImageInstance [, onComplete, onError] );
-````
-
-**`GIF` example**
-Loads an image url in GIF format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.GIF ).read( path [, onComplete, onError] );
-````
-
-**`BMP` example**
-Loads an image url in BMP format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.BMP ).read( path [, onComplete, onError] );
-FILTER.IO.BinaryManager( FILTER.Codec.BMP ).write( path, filterImageInstance [, onComplete, onError] );
-````
-
-**`TGA` example**
-Loads an image url in TGA format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.TGA ).read( path [, onComplete, onError] );
-````
-
-**`RGBE` example**
-Loads an image url in RGBE format into a `FILTER.Image` instance. 
-
-````javascript
-filterImageInstance = FILTER.IO.BinaryManager( FILTER.Codec.RGBE ).read( path [, onComplete, onError] );
-FILTER.IO.BinaryManager( FILTER.Codec.RGBE ).write( path, filterImageInstance [, onComplete, onError] );
-````
-
-
-**custom example**
-
-````javascript
-var customFormat = FILTER.IO.BinaryManager({
-    decoder: function( buffer, metaData ) {
-        // your custom decoder here
-        // ..
-        return {
-            width: image_width,
-            height: image_height,
-            data: decoded_image_data
-        };
-    },
-    encoder: function( imageData ) {
-        // your custom encoder here
-        // ..
-        return write_buffer;
-    }
-});
-// NOTE: same instance can read and write data (if both encoder and decoder methods exist of course)
-filterImageInstance = customFormat.read( path [, onComplete, onError] );
-// maybe do some processing here.. then write result
-customFormat.write( path, filterImageInstance [, onComplete, onError] );
-````
 
 
 ### Generic Abstract Filter
@@ -240,9 +95,6 @@ __Properties:__
 * `meta` the (optional) filter's metadata object or null if filter has no metadata
 * `hasInputs`  whether the filter has multiple extra inputs (except the current image data input), for example blend filters or displacement map filters or alpha mask filters have an extra image input (the blending image or displacement image or mask image respectively)
 * `inputs` the extra filter's inputs object (by key)
-
-**NOTE** **FIXED** <del>The way extra filter inputs are handled has a bug at present. If same image is used as extra input in more than one filter and image is updated through another filter, it is possible depending on order of application that some filters will get the previous version of the image as input (because it is cached and not resent to save bandwidth) while only the first filter will get the updated (correct) version. It is going to be fixed in a next update in an optimum manner.</del>
-
 
 __Methods:__
 
@@ -737,8 +589,6 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.StatisticalFilter( );
 ````
 
-__NOTE:__  *This was in older versions called `NonLinearFilter`*
-
 This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and `kth`-order statistics concepts.
 
 The class has some pre-defined filters to use.
@@ -787,7 +637,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.BlendFilter( blendMatrix:Array );
 ````
 
-The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `5` items, total = `5N` for `N` images) describing the `blendMode`, start `x,y` positions and `alpha` (opacity) factor and `enabled` flag for each of the blend images to be blended with the main image (see below).
+The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `enabled` flag for each of the blend images to be blended with the main image (see below).
 
 **Supported Blend Modes:**
     
@@ -820,12 +670,12 @@ The filter blends multiple images together with photoshop-like blending modes us
 In order to use a blend filter do the following:
 
 ````javascript
-                                          /* blendMode, startX, startY, alpha, enabled, .. */
-var blend3Images = new FILTER.BlendFilter( ["screen",    0,      0,      1,    1,/*input1*/
-                                            "overlay",   10,    10,      0.7,  1 /*input2*/] ).setInput(1, blendImg).setInput(2, anotherBlendImg);
+                                          /* blendMode, startX, startY, enabled, .. */
+var blend3Images = new FILTER.BlendFilter( ["screen",    0,      0,      1,/*input1*/
+                                            "overlay",   10,    10,      1 /*input2*/] ).setInput(1, blendImg).setInput(2, anotherBlendImg);
 // this also works
-var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set( ["screen", 0, 0, 1, 1,
-                                                                     "overlay", 10, 10, 0.7, 1] );
+var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set( ["screen", 0, 0, 1,
+                                                                     "overlay", 10, 10, 1] );
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 blend3Images.worker( );
@@ -950,7 +800,7 @@ new FILTER.InlineFilter( filterFunc:Function );
 
 This filter creates inline filters dynamicaly at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
 
-**NOTE** Inline Filters **DO SUPPORT** parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literaly at instantiation, so it can be serialized correctly)
+Inline Filters support parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literaly at instantiation, so it can be serialized correctly)
 
 
 Example:
@@ -1000,18 +850,6 @@ This filter alters image dimensions by cropping (or selecting) part of image spe
 * bilinear (default)
 * bicubic
 * nearest
-* biquadric (not implemented yet)
-* lanczos (not implemented yet)
-
-
-### GLSL Filter
-
-glsl-based filters for `webgl`/`node-gl` (in progress)
-
-
-### SVG Filter
-
-svg-based filters for `svg` (not implemented yet)
 
 
 ### Plugins and Extra Filters
@@ -1019,7 +857,7 @@ svg-based filters for `svg` (not implemented yet)
 The library can be extended by custom plugins which add new filters.
 A comprehensive framework is provided for creating plugins that function the same as built-in filters (see examples at `/src/plugins/Noise.js` etc..)
 
-**NOTE** Included Plugins **DO SUPPORT** parallel thread/worker filters (see code and examples)
+Included Plugins support parallel thread/worker filters (see code and examples)
 
 
 __Included Plugins__ (see examples for how to use)
@@ -1031,9 +869,7 @@ __Included Plugins__ (see examples for how to use)
 <tbody>
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>perlin noise also as filter plugin</td></tr>
-<tr><td>Gradient</td> <td>linear gradient and radial gradient image effect also as filter plugin</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
-<tr><td>AdaptiveHistogramEqualize</td>    <td>apply fast adaptive histogram equalization (intensity-based, grayscale-based or per separate rgb channel) (TO BE ADDED)</td></tr>
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"</td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
@@ -1044,10 +880,5 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from [HAAR.js](https://github.com/foo123/HAAR.js))</td></tr>
-<tr><td>ColorDetector</td>    <td>fast detect and track color regions and their statistics (centroid, bounding box, histogram, ..) (TO BE ADDED)</td></tr>
-<tr><td>LocalBinaryPatterns</td>  <td>extract local binary patterns (LBPs) from image (TODO)</td></tr>
-<tr><td>MSER</td>  <td>extract fast maximaly stable extremal regions (MSER) from image (TODO)</td></tr>
-<tr><td>ActiveShape</td>  <td>adapt and extract active shapes/contours from image using gradient fields (TO BE ADDED)</td></tr>
-<tr><td>LipContourExtractor</td>  <td>extract lip shape contour using Enevo's Jumping Snake (active shape) algorithm (TO BE ADDED)</td></tr>
 </tbody>
 </table>

@@ -1,3 +1,0 @@
-TODO:
-
-SVG Filters Interfaces for Filter.js

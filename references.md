@@ -1,10 +1,3 @@
-**Open-source libraries (used or related in one way or another)**
-
-* [zlib](http://www.zlib.net/)
-* [ffmpeg](https://ffmpeg.org/)
-* [OpenCV](http://opencv.org/)
-
-
 **Some image processing/computer vision theory, basics and tutorials:**
 
 * [light, color, perception and color space theory](https://www.cs.unm.edu/~williams/cs422/color.pdf)
@@ -75,8 +68,7 @@
 * [Filtering by repeated Integration, Heckbert 1986](https://www.cs.cmu.edu/~ph/rif.ps.gz)
 * [Fast Almost-Gaussian Filtering using integral filters, Kovesi 2010](http://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf)
 * [Adaptive Histogram Equalization and Its Variations, Pizer et al,  1986](http://www.cs.unc.edu/Research/MIDAG/pubs/papers/Adaptive%20Histogram%20Equalization%20and%20Its%20Variations.pdf)
-* [Integral Histogram:  A Fast Way to Extract Histograms in
-Cartesian Spaces, Porikli 2005](http://www.merl.com/publications/docs/TR2005-057.pdf)
+* [Integral Histogram:  A Fast Way to Extract Histograms in Cartesian Spaces, Porikli 2005](http://www.merl.com/publications/docs/TR2005-057.pdf)
 * [Accelerating Integral Histograms Using an Adaptive Approach, Müller, Lenz, Barner, Knoll 2008](http://www6.in.tum.de/Main/Publications/Mueller2008a.pdf)
 * [Line Histogram: A Fast Method for Rotated Rectangular Area Histogramming, Hou, Hannuna, Xie, Mirmehdi 2015](http://www.cs.bris.ac.uk/Publications/Papers/2001474.pdf)
 * [Bilateral Filtering for Gray and Color Images, Tomasi, Manduchi 1998](https://users.soe.ucsc.edu/~manduchi/Papers/ICCV98.pdf)
@@ -86,8 +78,7 @@ Cartesian Spaces, Porikli 2005](http://www.merl.com/publications/docs/TR2005-057
 * [Fast O(1) bilateral filtering using trigonometric range kernels, Chaudhury, Sage, Unser 2011](http://bigwww.epfl.ch/algorithms/bilateral-filter/manuscript.pdf)
 * [Addendum to “Fast O(1) bilateral filtering using trigonometric range kernels”, Chaudhury, Sage, Unser 2011](http://bigwww.epfl.ch/preprints/chaudhury1101pdoc01.pdf)
 * [Fast and Accurate Bilateral Filtering using Gauss-Polynomial Decomposition, Chaudhury 2015](https://www.researchgate.net/publication/275836184_Fast_and_Accurate_Bilateral_Filtering_using_Gauss-Polynomial_Decomposition)
-* [Constant-time filtering using shiftable
-kernels, Chaudhury ](https://84399c2a-a-62cb3a1a-s-sites.googlegroups.com/site/kunalnchaudhury/Research/Publications/manuscript.pdf?attachauth=ANoY7cpB6tbT2U7KlHfbUwMPLPme0gaj_0iIUW0qfsC1T6_gnbk2gDfEyHJQN4doyU8DpADEte1qKuUrZ--9gF4TEDGaya5wVHuoUoDJMy9ZtYYM-SCzdIIm3u_leSb7rmZ9xCcSx7zC1ERANIM84_ywSJEFYOEGscnXh2MFITjzM5vjk7VD3Bt9hoEuMEAwcVXEDxsl8z5qX51zbXT_Jg6s53dNohLjpXB8jxRB-aZtPHRJZ7G0mi09dCk-9XvOThCVmkOEbvyt&attredirects=0)
+* [Constant-time filtering using shiftable kernels, Chaudhury](https://84399c2a-a-62cb3a1a-s-sites.googlegroups.com/site/kunalnchaudhury/Research/Publications/manuscript.pdf?attachauth=ANoY7cpB6tbT2U7KlHfbUwMPLPme0gaj_0iIUW0qfsC1T6_gnbk2gDfEyHJQN4doyU8DpADEte1qKuUrZ--9gF4TEDGaya5wVHuoUoDJMy9ZtYYM-SCzdIIm3u_leSb7rmZ9xCcSx7zC1ERANIM84_ywSJEFYOEGscnXh2MFITjzM5vjk7VD3Bt9hoEuMEAwcVXEDxsl8z5qX51zbXT_Jg6s53dNohLjpXB8jxRB-aZtPHRJZ7G0mi09dCk-9XvOThCVmkOEbvyt&attredirects=0)
 * [Fast and Provably Accurate Bilateral Filtering, Chaudhury, Dabhade 2016](https://arxiv.org/pdf/1603.08109.pdf)
 * [Guided Image Filtering, He, Sun, Tang 2010](http://research.microsoft.com/en-us/um/people/jiansun/papers/guidedfilter_eccv10.pdf)
 * [Sparse Fast Fourier Transform](https://groups.csail.mit.edu/netmit/sFFT/index.html)
@@ -131,8 +122,7 @@ kernels, Chaudhury ](https://84399c2a-a-62cb3a1a-s-sites.googlegroups.com/site/k
 * [Equivariant adaptive source separation, Cardoso, Laheld 1996](http://www.tsi.enst.fr/~cardoso/Papers.PS/easi.ps)
 * [Natural Gradient works efficiently in Learning, Amari 1998](http://www.maths.tcd.ie/~mnl/store/Amari1998a.pdf)
 * [Adaptive On-Line Learning algorithms for Blind Separation, Yang, Amari 1997](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.37.7984&rep=rep1&type=pdf)
-* [Method for Image Source Separation by Means of Independent Component Analysis: ICA, Maximum Entory Method: MEM, and Wavelet Based Method:
-WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&type=pdf)
+* [Method for Image Source Separation by Means of Independent Component Analysis: ICA, Maximum Entory Method: MEM, and Wavelet Based Method: WBM](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.675.4494&rep=rep1&type=pdf)
 * [K-means Recovers ICA Filters when Independent Components are Sparse, Vinnikov, Shalev-Shwartz 2014](http://www.cs.huji.ac.il/~shais/papers/KmeansICA_ICML2014.pdf)
 * [Blind signal separation and identification of mixtures of images, Carmo, Teixeira de Assis, Estrela, Coelho 2009](https://arxiv.org/ftp/arxiv/papers/1603/1603.08095.pdf)
 * [Deterministic Annealing for Clustering, Compression, Classification, Regression and Related Optimization Problems, Rose 1998](https://scl.ece.ucsb.edu/sites/scl.ece.ucsb.edu/files/publications/b98_2_0.pdf)

@@ -1,5 +1,15 @@
 ## ChangeLog
 
+__1.0.0__
+
+* remove classy dependency
+* remove not-implemented filters (webgl, svg, some plugins)
+* remove ml code (svg, jade, kmeans, ..)
+* remove zlib, ffmpeg libs
+* remove nodejs specific code (use CanvasLite or node-canvas)
+* update/fix HAARDetector, Pixelate, Blend plugins
+* simplify/minify codebase
+
 __0.9.7__
 
 * new `Image` method `paste`/`draw`, enable to paste or put or draw or replace a part of the image with another image at specified location (e.g create one big sprite image from multiple image sprites)
@@ -199,7 +209,7 @@ __0.6.7, 0.6.8__
 __0.6.6__
 
 * fix some issues with `Opera`, `IE` (eg. `GeometricMap` filter)
-* add alternative `solarize` effects 
+* add alternative `solarize` effects
 * minor refactoring, optimisations, inheritance mechanism
 * add `turnOn()`, `turnOff()`, `isOn()`, methods for filters/plugins
 * typos/edits
