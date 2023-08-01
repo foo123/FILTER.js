@@ -26,9 +26,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Statistical Filter](#statistical-filter)
 * [Blend Filter](#blend-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
-* [Algebraic Filter](#algebraic-filter) (an abstraction of algebraic combination of input images/filters, in progress)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
-* [Dimension Filter](#dimension-filter)
 * [Plugins / Extra Filters](#plugins-and-extra-filters) 
 
 
@@ -755,43 +753,6 @@ emboss.turnOn( false );    // turn off the emboss filter while on the chain with
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
 
-### Algebraic Filter
-
-*(in progress)*
-
-````javascript
-new FILTER.AlgebraicFilter( algebraicMatrix:Array );
-````
-
-The filter algebraicaly combines inputs (i.e images or other filter outputs) into an output image using an `algebraicMatrix` that is a (flat) array of rows (each row having `7` items, total=`7N` for `N` images), describing the multiplication factors, bias term, relative offset `x,y` positions and optional input/output channels for each of the images to be algebraicaly combined with the main image (see below).
-
-The filter can also be used as an `IIR` (infinite impulse response) recursive filter (by mixing with original image).
-
-In order to use an algebraic filter do the following:
-
-````javascript
-
-                                    /* factor1, factor2, bias, relOffsetX, relOffsetY, outputChannel, inputChannel, .. */
-var combine = new FILTER.AlgebraicFilter( [0,      1,     0,   0.5,        0.5,      FILTER.CHANNEL.A, FILTER.CHANNEL.G, /*input1*/
-                                          1/2,    1/2,    0,   0,           0,       null,            null, /*input2*/] ).setInput(1, anotherImg).setInput(2, anotherImg);
-// this also works
-var combine = FILTER.AlgebraicFilter.set( [0, 1, 0, 0.5, 0.5, FILTER.CHANNEL.A, FILTER.CHANNEL.G, /*input1*/
-                                          1/2, 1/2, 0, 0, 0,   null,           null, /*input2*/] ).setInput(1, anotherImg).setInput(2, anotherImg);
-
-// if you want to make this filter work in another thread in parallel through a worker, do:
-combine.worker( );
-
-// if you want to stop and dispose the worker for this filter, do:
-combine.worker( false );
-
-// this is same even if filter uses a parallel worker filter
-combine.apply( image );   // image is a FILTER.Image instance, see examples
-// this will also work:
-image.apply( combine );   // image is a FILTER.Image instance, see examples
-
-````
-
-
 ### Inline Filter
 
 ````javascript
@@ -837,21 +798,6 @@ image.apply( FILTER.CompositeFilter([filter1, filter2, inlinefilter]) );
 
 ````
 
-### Dimension Filter
-
-````javascript
-new FILTER.DimensionFilter( crop:Array=null, scale:Array=null, pad:Array=null );
-````
-
-This filter alters image dimensions by cropping (or selecting) part of image specified by the `crop` array containing absolute or relative coordinates (in `0..1` range) `x1, y1, x2, y2` then/or resamples (scales) image by scaling and interpolation method (default `bilinear`) specified in `scale` array then/or pads an image left/right/top/bottom specified by `pad` array, with `zeroes`. This can be useful filter because it can be combined arbitrarily with other filters, for example inside a composite filter which can crop/re-sample/pad part of image at any stage for further processing.
-
-**Supported Interpolation Methods:** (you have to build the library with the respective interpolation routines added)
-    
-* bilinear (default)
-* bicubic
-* nearest
-
-
 ### Plugins and Extra Filters
 
 The library can be extended by custom plugins which add new filters.
@@ -868,7 +814,7 @@ __Included Plugins__ (see examples for how to use)
 </thead>
 <tbody>
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
-<tr><td>PerlinNoise</td>  <td>perlin noise also as filter plugin</td></tr>
+<tr><td>PerlinNoise</td>  <td>perlin noise as filter plugin</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"</td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
