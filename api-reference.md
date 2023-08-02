@@ -47,7 +47,7 @@ __Methods:__
 * `select(false)/deselect()`  remove previous selection (selected part becomes whole image)
 * `store()`  store the current filtered/processed image as the original image
 * `restore()` restore the original image, remove any filters applied to this image
-* `restorable( bool:Boolean )` whether the image is restorable (it can be faster if not)
+* `restorable(bool:Boolean)` whether the image is restorable (it can be faster if not)
 * `apply(filter:Filter [, callback:Function])` shorthand to apply method of a FILTER.Filter instance, image will change after application
 * `apply2(filter:Filter, destImage:Image [, callback:Function])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
 * `clone(original:Boolean)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
@@ -64,7 +64,7 @@ __Methods:__
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
 * `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
 * `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
-* `toImage(format:FILTER.FORMAT)`  return a data uri or an HTMLImage object of the current image according to format (default FILTER.FORMAT.PNG)
+* `toImage(callback:Function, format:FILTER.FORMAT)` call callback with a data uri or an Image object of the current image according to format (only FILTER.FORMAT.PNG)
 
 ### ScaledImage Class
 

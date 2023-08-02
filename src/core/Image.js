@@ -614,10 +614,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (self._restorable)
         {
             ictx = self.ictx = self.iCanvas.getContext('2d');
-            ictx.createImageData(w, h);
+            //ictx.createImageData(w, h);
         }
         octx = self.octx = self.oCanvas.getContext('2d');
-        octx.createImageData(w, h);
+        //octx.createImageData(w, h);
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
@@ -869,17 +869,39 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
     ,fft: null
 
-    ,toImage: async function(format, quality) {
+    ,toImage: function(cb, format) {
         format = format || 0;
-        // only PNG image, toDataURL may be asynchronous
-        var uri = await this.oCanvas.toDataURL('image/png'), img;
-        if (format & FORMAT.IMAGE)
+        // only PNG image, toDataURL may return a promise
+        var uri = this.oCanvas.toDataURL('image/png'), img;
+        if (('function' === typeof uri.then) && ('function' === typeof uri.catch))
         {
-            img = Canvas.Image();
-            img.src = uri;
-            return img;
+            // if promise
+            uri.then(function(uri) {
+                if (format & FORMAT.IMAGE)
+                {
+                    img = Canvas.Image();
+                    img.src = uri;
+                    cb(img);
+                }
+                else
+                {
+                    cb(uri);
+                }
+            }).catch(function() {});
         }
-        return uri;
+        else
+        {
+            if (format & FORMAT.IMAGE)
+            {
+                img = Canvas.Image();
+                img.src = uri;
+                cb(img);
+            }
+            else
+            {
+                cb(uri);
+            }
+        }
     }
 
     ,toString: function( ) {

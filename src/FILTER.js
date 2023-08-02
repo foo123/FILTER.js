@@ -9,7 +9,7 @@
 *   https://github.com/foo123/FILTER.js
 *
 **/
-var FILTER = (function(){
+var FILTER = (function() {
 "use strict";
 var PROTO = 'prototype',
     HAS = Object[PROTO].hasOwnProperty,
@@ -38,6 +38,11 @@ function makeClass(superklass, klass, statik)
     {
         klass = superklass;
         superklass = null;
+    }
+    if (HAS.call(klass, '__static__'))
+    {
+        statik = klass.__static__;
+        delete klass.__static__;
     }
     var C = HAS.call(klass, 'constructor') ? klass.constructor : function() {}, p;
     if (superklass)
@@ -208,4 +213,4 @@ FILTER.FORMAT = {
     IMAGE: 1024, DATA: 2048
 };
 return FILTER;
-});
+})();
