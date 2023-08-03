@@ -8,10 +8,10 @@ REM #
 REM ###################################################
 
 REM to use the python build tool do:
-REM python %BUILDTOOLS%\Beeld.py --config ".\beeld.config" --tasks build_core,build_filters,build_plugins,bundle_src
+REM python %BUILDTOOLS%\Beeld.py --config ".\beeld.config" --tasks build,bundle_src
 
 REM to use the php build tool do:
-REM php -f %BUILDTOOLS%\Beeld.php --  --config=".\beeld.config" --tasks=build_core,build_filters,build_plugins,bundle_src
+REM php -f %BUILDTOOLS%\Beeld.php --  --config=".\beeld.config" --tasks=build,bundle_src
 
 REM to use the node build tool do:
-node %BUILDTOOLS%\Beeld.js  --config ".\beeld.config" --tasks build_core,build_filters,build_plugins,bundle_src
+node %BUILDTOOLS%\Beeld.js  --config ".\beeld.config" --tasks build,bundle_src
