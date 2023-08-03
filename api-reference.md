@@ -25,10 +25,10 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Morphological Filter](#morphological-filter)
 * [Statistical Filter](#statistical-filter)
 * [Blend Filter](#blend-filter)
+* [Dimension Filter](#dimension-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
 * [Plugins / Extra Filters](#plugins-and-extra-filters)
-
 
 
 ### Image Class
@@ -65,18 +65,6 @@ __Methods:__
 * `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
 * `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
 * `toImage(callback:Function, format:FILTER.FORMAT)` call callback with a data uri or an Image object of the current image according to format (only FILTER.FORMAT.PNG)
-
-### ScaledImage Class
-
-````javascript
-new FILTER.ScaledImage(scaleX:Number, scaleY:Number [, image:Image|Video|Canvas|FILTER.Image|ImageData]);
-````
-
-This is a placeholder for an image, which is automatically up/down scaled (for faster processing). It is a subclass of FILTER.Image and shares the same common methods.
-
-__Methods:__
-
-* `setScale(sx, sy)`  Sets/Alters the scaling ratios
 
 
 ### Generic Abstract Filter
@@ -683,6 +671,15 @@ blend3Images.apply(image);   // image is a FILTER.Image instance, see examples
 image.apply(blend3Images);   // image is a FILTER.Image instance, see examples
 
 ````
+
+### Dimension Filter
+
+````javascript
+new FILTER.DimensionFilter(mode:String, x, y, width, height);
+````
+
+The filter changes the dimension of the image by (re-)scaling, cropping, or padding the image.
+
 
 ### Composite Filter
 

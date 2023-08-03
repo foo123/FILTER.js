@@ -61,7 +61,7 @@ The library dependencies are:
 
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
-The framework defines an [Image Proxy class](/api-reference.md#image-class), which represents an Image, a number of utilities like `Color` Class and 17 generic `Filter` types plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [Image](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter)
@@ -74,9 +74,10 @@ The framework defines an [Image Proxy class](/api-reference.md#image-class), whi
 8. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
 9. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called `NonLinearFilter`)
 10. [__BlendFilter__](/api-reference.md#blend-filter)
-11. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
-12. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicaly at run-time using your custom functions)
-13. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
+11. [__DimensionFilter__](/api-reference.md#dimension-filter)
+12. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
+13. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicaly at run-time using your custom functions)
+14. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)

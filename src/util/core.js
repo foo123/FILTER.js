@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp, noTypedArraySet = FILTER._noTypedArraySet,
+var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,

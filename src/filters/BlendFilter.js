@@ -7,12 +7,12 @@
 !function(FILTER, undef){
 "use strict";
 
-var HAS = 'hasOwnProperty', IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
     stdMath = Math, Min = stdMath.min, Round = stdMath.round,
     hasArraySet = FILTER.Util.Array.hasArrayset, arrayset = FILTER.Util.Array.arrayset,
-    notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel, BLEND = FILTER.Color.Blend;
+    notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel;
 
-// Blend Filter, photoshop-like image blending
+// Blend Filter, svg-like image blending
 FILTER.Create({
     name: "BlendFilter"
 
@@ -84,7 +84,7 @@ FILTER.Create({
 
         var i, j, j2, k, l = matrix.length, imLen = im.length, input,
             alpha, startX, startY, startX2, startY2, W, H, A, w2, h2,
-            W1, W2, start, end, x, y, x2, y2, f, B,
+            W1, W2, start, end, x, y, x2, y2, f, B, mode,
             rb, gb, bb, ab, ra, ga, ba, aa, a;
 
         //B = im;
@@ -94,7 +94,8 @@ FILTER.Create({
         for (i=0,k=1; i<l; i+=4,++k)
         {
             if (!matrix[i+3]) continue; // not enabled, skip
-            f = BLEND[matrix[i] || "normal"];
+            mode = matrix[i] || 'normal';
+            f = BLEND[mode];
             if (!f) continue;
 
             input = self.input(k);
@@ -128,7 +129,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = aa + ab - aa*ab;
+                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
                     if (0 < a)
                     {
                         B[j  ] = clamp(Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a));
@@ -162,7 +163,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = aa + ab - aa*ab;
+                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
                     if (0 < a)
                     {
                         B[j  ] = Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a);
@@ -188,5 +189,31 @@ FILTER.Create({
 });
 // aliases
 FILTER.CombineFilter = FILTER.BlendFilter;
+
+var BLEND = FILTER.Color.Blend = {
+//https://dev.w3.org/SVG/modules/compositing/master/
+'normal': function(Dca, Da, Sca, Sa){return Sca + Dca * (1 - Sa);},
+'multiply': function(Dca, Da, Sca, Sa){return Sca*Dca + Sca*(1 - Da) + Dca*(1 - Sa);},
+'screen': function(Dca, Da, Sca, Sa){return Sca + Dca - Sca * Dca;},
+'overlay': function(Dca, Da, Sca, Sa){return 2*Dca <= Da ? (2*Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - 2 * Dca * Sca - Da * Sa);},
+'darken': function(Dca, Da, Sca, Sa){return stdMath.min(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'lighten': function(Dca, Da, Sca, Sa){return stdMath.max(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'color-dodge': function(Dca, Da, Sca, Sa){return Sca === Sa && 0 === Dca ? (Sca * (1 - Da)) : (Sca === Sa ? (Sa * Da + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sa * Da * stdMath.min(1, Dca/Da * Sa/(Sa - Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
+'color-burn': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 0 === Sca && Dca === Da ? (Sa * Da + Dca * (1 - Sa)) : (0 === Sca ? (Dca * (1 - Sa)) : (Sa * Da * (1 - stdMath.min(1, (1 - m) * Sa/Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
+'hard-light': function(Dca, Da, Sca, Sa){return 2 * Sca <= Sa ? (2 * Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - Sa * Da - 2 * Sca * Dca);},
+'soft-light': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 2 * Sca <= Sa ? (Dca * (Sa + (2 * Sca - Sa) * (1 - m)) + Sca * (1 - Da) + Dca * (1 - Sa)) : (2 * Sca > Sa && 4 * Dca <= Da ? (Da * (2 * Sca - Sa) * (16 * stdMath.pow(m, 3) - 12 * stdMath.pow(m, 2) - 3 * m) + Sca - Sca * Da + Dca) : (Da * (2 * Sca - Sa) * (stdMath.pow(m, 0.5) - m) + Sca - Sca * Da + Dca));},
+'difference': function(Dca, Da, Sca, Sa){return Sca + Dca - 2 * stdMath.min(Sca * Da, Dca * Sa);},
+'exclusion': function(Dca, Da, Sca, Sa){return (Sca * Da + Dca * Sa - 2 * Sca * Dca) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'average': function(Dca, Da, Sca, Sa){return (Sca + Dca) / 2;},
+// linear-dodge
+'add': function(Dca, Da, Sca, Sa){return stdMath.min(1, Sca + Dca);},
+// linear-burn
+'subtract': function(Dca, Da, Sca, Sa){return stdMath.max(0, Dca + Sca - 1);},
+'negation': function(Dca, Da, Sca, Sa){return 1 - stdMath.abs(1 - Sca - Dca);},
+'linear-light': function(Dca, Da, Sca, Sa){return Sca < 0.5 ? BLEND.subtract(Dca, Da, 2*Sca, Sa) : BLEND.add(Dca, Da, 2*(1 - Sca), Sa);}
+};
+// aliases
+BLEND['linear-dodge'] = BLEND['add'];
+BLEND['linear-burn'] = BLEND['subtract'];
 
 }(FILTER);
