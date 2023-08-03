@@ -1,10 +1,10 @@
 /**
 *
-* Perlin Noise Plugin
+* Perlin Noise
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER) {
 "use strict";
 
 var MODE = FILTER.MODE;
@@ -26,10 +26,10 @@ FILTER.Create({
     ,_perlin: false
 
     // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
+    ,path: FILTER.Path
 
     // constructor
-    ,init: function( baseX, baseY, octaves, stitch, fractal, offsets, seed, use_perlin ) {
+    ,init: function(baseX, baseY, octaves, stitch, fractal, offsets, seed, use_perlin) {
         var self = this;
         self.mode = MODE.GRAY;
         self._baseX = baseX || 1;
@@ -38,52 +38,52 @@ FILTER.Create({
         self._stitch = !!stitch;
         self._fractal = false !== fractal;
         self._perlin = !!use_perlin;
-        self.octaves( octaves||1, offsets );
+        self.octaves(octaves||1, offsets);
     }
 
-    ,seed: function( randSeed ) {
+    ,seed: function(randSeed) {
         var self = this;
         self._seed = randSeed || 0;
         return self;
     }
 
-    ,octaves: function( octaves, offsets ) {
+    ,octaves: function(octaves, offsets) {
         var self = this;
         self._octaves = octaves || 1;
         self._offsets = !offsets ? [] : offsets.slice(0);
-        while (self._offsets.length < self._octaves) self._offsets.push([0,0]);
+        while (self._offsets.length < self._octaves) self._offsets.push([0, 0]);
         return self;
     }
 
-    ,seamless: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
+    ,seamless: function(enabled) {
+        if (!arguments.length) enabled = true;
         this._stitch = !!enabled;
         return this;
     }
 
-    ,colors: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
+    ,colors: function(enabled) {
+        if (!arguments.length) enabled = true;
         this.mode = !!enabled ? MODE.COLOR : MODE.GRAY;
         return this;
     }
 
-    ,turbulence: function( enabled ) {
-        if ( !arguments.length ) enabled = true;
+    ,turbulence: function(enabled) {
+        if (!arguments.length) enabled = true;
         this._fractal = !enabled;
         return this;
     }
 
-    ,simplex: function( ) {
+    ,simplex: function() {
         this._perlin = false;
         return this;
     }
 
-    ,perlin: function( ) {
+    ,perlin: function() {
         this._perlin = true;
         return this;
     }
 
-    ,serialize: function( ) {
+    ,serialize: function() {
         var self = this;
         return {
              _baseX: self._baseX
@@ -97,7 +97,7 @@ FILTER.Create({
         };
     }
 
-    ,unserialize: function( params ) {
+    ,unserialize: function(params) {
         var self = this;
         self._baseX = params._baseX;
         self._baseY = params._baseY;
@@ -113,17 +113,17 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
-        if ( !perlin_noise ) return im;
-        if ( self._seed )
+        if (self._seed)
         {
-            perlin.seed( self._seed );
+            perlin.seed(self._seed);
             self._seed = 0;
         }
-        return perlin( im, w, h, self._stitch, MODE.COLOR !== self.mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin );
+        return perlin(im, w, h, self._stitch, MODE.COLOR !== self.mode, self._baseX, self._baseY, self._octaves, self._offsets, 1.0, 0.5, self._perlin);
     }
 });
 
-var FLOOR = Math.floor, sin = Math.sin, cos = Math.cos, PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
+var stdMath = Math, FLOOR = stdMath.floor, sin = stdMath.sin, cos = stdMath.cos,
+    PI2 = FILTER.CONST.PI2, Array8U = FILTER.Array8U;
 
 // adapted from:
 
@@ -205,17 +205,17 @@ var p = new Array8U([151,160,137,91,90,15,
 
 // This isn't a very good seeding function, but it works ok. It supports 2^16
 // different seed values. Write something better if you need more seeds.
-function seed( seed )
+function seed(seed)
 {
     var v, i;
     // Scale the seed out
-    if ( seed > 0 && seed < 1 ) seed *= 65536;
+    if (seed > 0 && seed < 1) seed *= 65536;
 
-    seed = FLOOR( seed );
-    if ( seed < 256 ) seed |= seed << 8;
-    for (i = 0; i < 256; i++)
+    seed = FLOOR(seed);
+    if (seed < 256) seed |= seed << 8;
+    for (i = 0; i < 256; ++i)
     {
-        v = ( i & 1 ) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
+        v = (i & 1) ? (p[i] ^ (seed & 255)) : (p[i] ^ ((seed>>8) & 255));
         perm[i] = perm[i + 256] = v;
     }
 }
@@ -234,15 +234,15 @@ function seed( seed )
  * float SLnoise = (noise(x,y,z) + 1.0) * 0.5;
  */
 
-function grad1( hash, x )
+function grad1(hash, x)
 {
     var h = hash & 15;
     var grad = 1.0 + (h & 7);   // Gradient value 1.0, 2.0, ..., 8.0
     if (h&8) grad = -grad;         // Set a random sign for the gradient
-    return ( grad * x );           // Multiply the gradient with the distance
+    return (grad * x);           // Multiply the gradient with the distance
 }
 
-function grad2( hash, x, y )
+function grad2(hash, x, y)
 {
     var h = hash & 7;      // Convert low 3 bits of hash code
     var u = h<4 ? x : y;  // into 8 simple gradient directions,
@@ -250,7 +250,7 @@ function grad2( hash, x, y )
     return ((h&1)? -u : u) + ((h&2)? -2.0*v : 2.0*v);
 }
 
-function grad3( hash, x, y, z )
+function grad3(hash, x, y, z)
 {
     var h = hash & 15;     // Convert low 4 bits of hash code into 12 simple
     var u = h<8 ? x : y; // gradient directions, and compute dot product.
@@ -258,7 +258,7 @@ function grad3( hash, x, y, z )
     return ((h&1)? -u : u) + ((h&2)? -v : v);
 }
 
-function grad4( hash, x, y, z, t )
+function grad4(hash, x, y, z, t)
 {
     var h = hash & 31;      // Convert low 5 bits of hash code into 32 simple
     var u = h<24 ? x : y; // gradient directions, and compute dot product.
@@ -282,7 +282,7 @@ var simplex = [
 ];
 
 // 2D simplex noise
-function simplex2( x, y )
+function simplex2(x, y)
 {
     var F2 = 0.366025403; // F2 = 0.5*(sqrt(3.0)-1.0)
     var G2 = 0.211324865; // G2 = (3.0-Math.sqrt(3.0))/6.0
@@ -305,7 +305,7 @@ function simplex2( x, y )
     // For the 2D case, the simplex shape is an equilateral triangle.
     // Determine which simplex we are in.
     var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
-    if ( x0>y0 ) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+    if (x0>y0) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
     else {i1=0; j1=1;}      // upper triangle, YX order: (0,0)->(0,1)->(1,1)
 
     // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
@@ -323,7 +323,7 @@ function simplex2( x, y )
 
     // Calculate the contribution from the three corners
     var t0 = 0.5 - x0*x0-y0*y0;
-    if ( t0 < 0.0 ) n0 = 0.0;
+    if (t0 < 0.0) n0 = 0.0;
     else
     {
         t0 *= t0;
@@ -352,18 +352,18 @@ function simplex2( x, y )
 }
 
 // This is the new and improved, C(2) continuous interpolant
-function FADE(t) { return t * t * t * ( t * ( t * 6 - 15 ) + 10 ); }
-function LERP(t, a, b) { return a + t*(b-a); }
+function FADE(t) {return t * t * t * ( t * ( t * 6 - 15 ) + 10 );}
+function LERP(t, a, b) {return a + t*(b-a);}
 
 // 2D float Perlin noise.
-function perlin2( x, y )
+function perlin2(x, y)
 {
     var ix0, iy0, ix1, iy1;
     var fx0, fy0, fx1, fy1;
     var s, t, nx0, nx1, n0, n1;
 
-    ix0 = FLOOR( x ); // Integer part of x
-    iy0 = FLOOR( y ); // Integer part of y
+    ix0 = FLOOR(x); // Integer part of x
+    iy0 = FLOOR(y); // Integer part of y
     fx0 = x - ix0;        // Fractional part of x
     fy0 = y - iy0;        // Fractional part of y
     fx1 = fx0 - 1.0;
@@ -373,51 +373,29 @@ function perlin2( x, y )
     ix0 = ix0 & 0xff;
     iy0 = iy0 & 0xff;
 
-    t = FADE( fy0 );
-    s = FADE( fx0 );
+    t = FADE(fy0);
+    s = FADE(fx0);
 
     nx0 = grad2(perm[ix0 + perm[iy0]], fx0, fy0);
     nx1 = grad2(perm[ix0 + perm[iy1]], fx0, fy1);
-    n0 = LERP( t, nx0, nx1 );
+    n0 = LERP(t, nx0, nx1);
 
     nx0 = grad2(perm[ix1 + perm[iy0]], fx1, fy0);
     nx1 = grad2(perm[ix1 + perm[iy1]], fx1, fy1);
     n1 = LERP(t, nx0, nx1);
 
-    return 0.507 * ( LERP( s, n0, n1 ) );
+    return 0.507 * LERP(s, n0, n1);
 }
 
-// adapted from: http://www.java-gaming.org/index.php?topic=31637.0
-/*function octaved(seamless, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
-{
-    var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0,
-        octave, nx, ny, w2 = w>>>1, h2 = h>>>1;
-
-    for (octave=0; octave<octaves; octave++)
-    {
-        nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
-        if ( seamless )
-        {
-            // simulate seamless stitching, i.e circular/tileable symmetry
-            if ( nx > w2 ) nx = w-1-nx;
-            if ( ny > h2 ) ny = h-1-ny;
-        }
-        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
-        layerFrequency *= 2;
-        weightSum += layerWeight;
-        layerWeight *= roughness;
-    }
-    return noiseSum / weightSum;
-}*/
 function octaved(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets, scale, roughness)
 {
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0,
         octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
 
-    for (octave=0; octave<octaves; octave++)
+    for (octave=0; octave<octaves; ++octave)
     {
         nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
-        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        noiseSum += noise(layerFrequency*nx*ibx, layerFrequency*ny*iby) * layerWeight;
         layerFrequency *= 2;
         weightSum += layerWeight;
         layerWeight *= roughness;
@@ -433,10 +411,10 @@ function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets,
     var noiseSum = 0, layerFrequency = scale, layerWeight = 1, weightSum = 0,
         octave, nx, ny, w2 = w>>>1, h2 = h>>>1, v;
 
-    for (octave=0; octave<octaves; octave++)
+    for (octave=0; octave<octaves; ++octave)
     {
         nx = (x + offsets[octave][0]) % w; ny = (y + offsets[octave][1]) % h;
-        noiseSum += noise( layerFrequency*nx*ibx, layerFrequency*ny*iby ) * layerWeight;
+        noiseSum += noise(layerFrequency*nx*ibx, layerFrequency*ny*iby) * layerWeight;
         layerFrequency *= 2;
         weightSum += layerWeight;
         layerWeight *= roughness;
@@ -451,7 +429,7 @@ function octaved_rgb(data, index, noise, x, y, w, h, ibx, iby, octaves, offsets,
 /*function turbulence()
 {
 }*/
-function perlin( n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin )
+function perlin(n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, scale, roughness, use_perlin)
 {
     var invBaseX = 1.0/baseX, invBaseY = 1.0/baseY,
         noise = use_perlin ? perlin2 : simplex2,
@@ -459,15 +437,15 @@ function perlin( n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, s
         x, y, nx, ny, i, j, size = n.length, w2 = w>>>1, h2 = h>>>1;
     scale = scale || 1.0; roughness = roughness || 0.5;
     octaves = octaves || 1; offsets = offsets || [[0,0]];
-    if ( seamless )
+    if (seamless)
     {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        for (x=0,y=0,i=0; i<size; i+=4,++x)
         {
-            if ( x >= w ) { x=0; y++; }
+            if (x >= w) {x=0; ++y;}
             // simulate seamless stitching, i.e circular/tileable symmetry
             nx = x > w2 ? w-1-x : x;
             ny = y > h2 ? h-1-y : y;
-            if ( (nx < x) || (ny < y) )
+            if ((nx < x) || (ny < y))
             {
                 j = (ny*w + nx) << 2;
                 n[ i   ] = n[ j   ];
@@ -483,9 +461,9 @@ function perlin( n, w, h, seamless, grayscale, baseX, baseY, octaves, offsets, s
     }
     else
     {
-        for(x=0,y=0,i=0; i<size; i+=4,x++)
+        for (x=0,y=0,i=0; i<size; i+=4,++x)
         {
-            if ( x >= w ) { x=0; y++; }
+            if (x >= w) {x=0; ++y;}
             generate(n, i, noise, x, y, w, h, invBaseX, invBaseY, octaves, offsets, scale, roughness);
         }
     }

@@ -1,10 +1,12 @@
 /**
 *
-* Histogram Equalize Plugin, Histogram Equalize for grayscale images Plugin, RGB Histogram Equalize Plugin
+* Histogram Equalize,
+* Histogram Equalize for grayscale images,
+* RGB Histogram Equalize
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER, undef){
 "use strict";
 
 var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
@@ -13,24 +15,24 @@ var notSupportClamp = FILTER._notSupportClamp, A32F = FILTER.Array32F,
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
 FILTER.Create({
     name : "HistogramEqualizeFilter"
-    
-    ,path: FILTER_PLUGINS_PATH
-    
+
+    ,path: FILTER.Path
+
     ,mode: MODE.INTENSITY
-    
-    ,init: function( mode ) {
+
+    ,init: function(mode) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
     }
-    
-    ,_apply_rgb: function( im, w, h ) {
+
+    ,_apply_rgb: function(im, w, h) {
         var self = this,
             r,g,b, rangeR, rangeG, rangeB,
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
             cdfR, cdfG, cdfB,
             accumR, accumG, accumB, t0, t1, t2,
             i, l=im.length, l2=l>>>2;
-        
+
         // initialize the arrays
         cdfR=new A32F(256); cdfG=new A32F(256); cdfB=new A32F(256);
         // compute pdf and maxima/minima
@@ -45,10 +47,10 @@ FILTER.Create({
             minG = Min(g, minG);
             minB = Min(b, minB);
         }
-        
+
         // compute cdf
         for (accumR=accumG=accumB=0,i=0; i<256; i+=32)
-        { 
+        {
             // partial loop unrolling
             accumR += cdfR[i   ]; cdfR[i   ] = accumR;
             accumR += cdfR[i+1 ]; cdfR[i+1 ] = accumR;
@@ -82,7 +84,7 @@ FILTER.Create({
             accumR += cdfR[i+29]; cdfR[i+29] = accumR;
             accumR += cdfR[i+30]; cdfR[i+30] = accumR;
             accumR += cdfR[i+31]; cdfR[i+31] = accumR;
-        
+
             accumG += cdfG[i   ]; cdfG[i   ] = accumG;
             accumG += cdfG[i+1 ]; cdfG[i+1 ] = accumG;
             accumG += cdfG[i+2 ]; cdfG[i+2 ] = accumG;
@@ -115,7 +117,7 @@ FILTER.Create({
             accumG += cdfG[i+29]; cdfG[i+29] = accumG;
             accumG += cdfG[i+30]; cdfG[i+30] = accumG;
             accumG += cdfG[i+31]; cdfG[i+31] = accumG;
-        
+
             accumB += cdfB[i   ]; cdfB[i   ] = accumB;
             accumB += cdfB[i+1 ]; cdfB[i+1 ] = accumB;
             accumB += cdfB[i+2 ]; cdfB[i+2 ] = accumB;
@@ -149,53 +151,53 @@ FILTER.Create({
             accumB += cdfB[i+30]; cdfB[i+30] = accumB;
             accumB += cdfB[i+31]; cdfB[i+31] = accumB;
         }
-        
+
         // equalize each channel separately
         rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
         if (notSupportClamp)
-        {   
+        {
             for (i=0; i<l; i+=4)
-            { 
-                r = im[i]; g = im[i+1]; b = im[i+2]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
+            {
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB;
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
                 t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2;
             }
         }
         else
         {
             for (i=0; i<l; i+=4)
-            { 
-                r = im[i]; g = im[i+1]; b = im[i+2]; 
-                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB; 
-                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2; 
+            {
+                r = im[i]; g = im[i+1]; b = im[i+2];
+                t0 = cdfR[r]*rangeR + minR; t1 = cdfG[g]*rangeG + minG; t2 = cdfB[b]*rangeB + minB;
+                im[i] = ~~t0; im[i+1] = ~~t1; im[i+2] = ~~t2;
             }
         }
         // return the new image data
         return im;
     }
-    
-    ,apply: function( im, w, h ) {
+
+    ,apply: function(im, w, h) {
         var self = this;
-        
-        if ( MODE.RGB === self.mode ) return self._apply_rgb( im, w, h );
-        
+
+        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
+
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
             cdf, accum, i, l = im.length, l2 = l>>>2,
             is_grayscale = MODE.GRAY === self.mode;
-        
+
         // initialize the arrays
-        cdf = new A32F( 256 );
+        cdf = new A32F(256);
         // compute pdf and maxima/minima
-        if ( is_grayscale )
+        if (is_grayscale)
         {
             for (i=0; i<l; i+=4)
             {
                 r = im[i];
-                cdf[ r ]++;
+                cdf[r]++;
                 max = Max(r, max);
                 min = Min(r, min);
             }
@@ -213,15 +215,15 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                cdf[ y ]++;
+                cdf[y]++;
                 max = Max(y, max);
                 min = Min(y, min);
             }
         }
-        
+
         // compute cdf
         for (accum=0,i=0; i<256; i+=32)
-        { 
+        {
             // partial loop unrolling
             accum += cdf[i   ]; cdf[i   ] = accum;
             accum += cdf[i+1 ]; cdf[i+1 ] = accum;
@@ -256,25 +258,25 @@ FILTER.Create({
             accum += cdf[i+30]; cdf[i+30] = accum;
             accum += cdf[i+31]; cdf[i+31] = accum;
         }
-        
+
         // equalize only the intesity channel
         range = (max-min)/l2;
         if (notSupportClamp)
-        {   
-            if ( is_grayscale )
+        {
+            if (is_grayscale)
             {
                 for (i=0; i<l; i+=4)
-                { 
+                {
                     r = ~~(cdf[im[i]]*range + min);
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    im[i] = r; im[i+1] = r; im[i+2] = r;
                 }
             }
             else
             {
                 for (i=0; i<l; i+=4)
-                { 
+                {
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
                     g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
@@ -283,29 +285,29 @@ FILTER.Create({
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     g = g<0 ? 0 : (g>255 ? 255 : g);
                     b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    im[i] = r; im[i+1] = g; im[i+2] = b;
                 }
             }
         }
         else
         {
-            if ( is_grayscale )
+            if (is_grayscale)
             {
                 for (i=0; i<l; i+=4)
-                { 
+                {
                     r = ~~(cdf[im[i]]*range + min);
-                    im[i] = r; im[i+1] = r; im[i+2] = r; 
+                    im[i] = r; im[i+1] = r; im[i+2] = r;
                 }
             }
             else
             {
                 for (i=0; i<l; i+=4)
-                { 
+                {
                     y = cdf[im[i+1]]*range + min; cb = im[i+2]; cr = im[i];
                     r = ~~( y                      + 1.402   * (cr-128) );
                     g = ~~( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) );
                     b = ~~( y + 1.772   * (cb-128) );
-                    im[i] = r; im[i+1] = g; im[i+2] = b; 
+                    im[i] = r; im[i+1] = g; im[i+2] = b;
                 }
             }
         }

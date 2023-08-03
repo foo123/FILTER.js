@@ -1,6 +1,6 @@
 /**
 *
-* Noise Plugin
+* Noise
 * @package FILTER.js
 *
 **/
@@ -11,38 +11,38 @@ var notSupportClamp = FILTER._notSupportClamp;
 
 // a sample noise filter
 // used for illustration purposes on how to create a plugin filter
-FILTER.Create({
+var NoiseFilter = FILTER.Create({
     name: "NoiseFilter"
-    
+
     // parameters
     ,min: -127
     ,max: 127
-    
+
     // this is the filter constructor
-    ,init: function( min, max ) {
+    ,init: function(min, max) {
         var self = this;
-        self.min = min||-127;
-        self.max = max||127;
+        self.min = min||0;
+        self.max = max||0;
     }
-    
+
     // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
-    ,serialize: function( ) {
+    ,path: FILTER.Path
+
+    ,serialize: function() {
         var self = this;
         return {
              min: self.min
             ,max: self.max
         };
     }
-    
-    ,unserialize: function( params ) {
+
+    ,unserialize: function(params) {
         var self = this;
         self.min = params.min;
         self.max = params.max;
         return self;
     }
-    
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         // im is a copy of the image data as an image array
@@ -50,17 +50,17 @@ FILTER.Create({
         // image is the original image instance reference, generally not needed
         // for this filter, no need to clone the image data, operate in-place
         var self = this;
-        var rand = FILTER.Util.Math.random, range = self.max-self.min,
+        var rand = NoiseFilter.random, range = self.max-self.min,
             m = self.min, i, l = im.length, n, r, g, b, t0, t1, t2;
-        
+
         // add noise
         if (notSupportClamp)
-        {   
+        {
             for (i=0; i<l; i+=4)
-            { 
+            {
                 r = im[i]; g = im[i+1]; b = im[i+2];
                 n = range*rand()+m;
-                t0 = r+n; t1 = g+n; t2 = b+n; 
+                t0 = r+n; t1 = g+n; t2 = b+n;
                 // clamp them manually
                 if (t0<0) t0=0;
                 else if (t0>255) t0=255;
@@ -74,17 +74,18 @@ FILTER.Create({
         else
         {
             for (i=0; i<l; i+=4)
-            { 
+            {
                 r = im[i]; g = im[i+1]; b = im[i+2];
                 n = range*rand()+m;
-                t0 = r+n; t1 = g+n; t2 = b+n; 
+                t0 = r+n; t1 = g+n; t2 = b+n;
                 im[i] = t0|0; im[i+1] = t1|0; im[i+2] = t2|0;
             }
         }
-        
+
         // return the new image data
         return im;
     }
 });
+NoiseFilter.random = stdMath.random;
 
 }(FILTER);

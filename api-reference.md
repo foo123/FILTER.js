@@ -62,9 +62,7 @@ __Methods:__
 * `getData(processed:Boolean=false)` gets a copy of image (original or processed/filtered) pixel data
 * `setSelectedData()` sets the image pixel data for the current selection
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
-* `integral(channel:FILTER.CHANNEL=RGB)`  Computes (and caches) the image integral (SAT image) per channel
-* `histogram(channel:FILTER.CHANNEL=RGB, as_pdf:Boolean=false)`  Computes (and caches) the image histogram (as pdf or cdf) per channel
-* `toImage(callback:Function, format:FILTER.FORMAT)` call callback with a data uri or an Image object of the current image according to format (only FILTER.FORMAT.PNG)
+* `toImage(callback:Function, type:String="image")` call callback with an Image object or a data uri of the current image according to type ("uri" or "image")
 
 
 ### Generic Abstract Filter
@@ -685,7 +683,6 @@ if `mode` is `"scale"`, `a` is horizontal scaling and `b` is vertical scaling.
 
 If complicated cropping, padding and scaling is needed use multiple Dimension Filters.
 
-`DimensionFilter` **does not work inside a worker thread**, only in main thread.
 
 ### Composite Filter
 

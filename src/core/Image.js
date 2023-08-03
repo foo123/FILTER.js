@@ -22,10 +22,11 @@ var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     GREEN = 1 << CHANNEL.G,
     BLUE = 1 << CHANNEL.B,
     ALPHA = 1 << CHANNEL.A,
-    ALL_CHANNELS = RED|GREEN|BLUE|ALPHA,
-    IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8, HIST = 16, SAT = 32, SPECTRUM = 64,
-    WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT, SEL = ISEL|OSEL, DATA = IDATA|ODATA,
-    CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL, CLEAR_HIST = ~HIST, CLEAR_SAT = ~SAT, CLEAR_SPECTRUM = ~SPECTRUM
+    ALL_CHANNELS = RED | GREEN | BLUE | ALPHA,
+    IDATA = 1, ODATA = 2, ISEL = 4, OSEL = 8,
+    WIDTH = 2, HEIGHT = 4, WIDTH_AND_HEIGHT = WIDTH | HEIGHT,
+    SEL = ISEL | OSEL, DATA = IDATA | ODATA,
+    CLEAR_DATA = ~DATA, CLEAR_SEL = ~SEL
 ;
 
 // Image (Proxy) Class
@@ -49,14 +50,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._restorable = true;
         self.gray = false;
         self.selection = null;
-        self._histogram = [null, null, null, null];
-        self._integral = [null, null, null, null];
-        self._spectrum = [null, null, null, null];
-        // lazy
         self._refresh = 0;
-        self._hstRefresh = 0;
-        self._intRefresh = 0;
-        self._spcRefresh = 0;
         self.nref = 0;
         if (img) self.image(img);
     }
@@ -75,13 +69,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,oDataSel: null
     ,domElement: null
     ,_restorable: true
-    ,_histogram: null
-    ,_integral: null
-    ,_spectrum: null
     ,_refresh: 0
-    ,_hstRefresh: 0
-    ,_intRefresh: 0
-    ,_spcRefresh: 0
     ,nref: 0
 
     ,dispose: function() {
@@ -92,8 +80,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
         self.domElement = self.iCanvas = self.oCanvas = null;
         self._restorable = null;
-        self._histogram = self._integral = self._spectrum = null;
-        self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = self.nref = null;
+        self._refresh = self.nref = null;
         return self;
     }
 
@@ -191,10 +178,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (self._restorable)
         {
             self.oCanvas.getContext('2d').drawImage(self.iCanvas, 0, 0);
-            self._refresh |= ODATA | HIST | SAT | SPECTRUM;
-            self._hstRefresh = ALL_CHANNELS;
-            self._intRefresh = ALL_CHANNELS;
-            self._spcRefresh = ALL_CHANNELS;
+            self._refresh |= ODATA;
             if (self.selection) self._refresh |= OSEL;
             ++self.nref;
         }
@@ -203,10 +187,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,dimensions: function(w, h, refresh) {
         var self = this;
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
@@ -250,10 +231,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         return self;
@@ -277,9 +255,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
-        self._refresh |= DATA | SAT | SPECTRUM;
-        self._intRefresh = ALL_CHANNELS;
-        //self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         return self;
@@ -303,9 +279,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
-        self._refresh |= DATA | SAT | SPECTRUM;
-        self._intRefresh = ALL_CHANNELS;
-        //self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         return self;
@@ -318,10 +292,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if (self._restorable) self.iCanvas.getContext('2d').clearRect(0, 0, w, h);
             self.oCanvas.getContext('2d').clearRect(0, 0, w, h);
-            self._refresh |= DATA | HIST | SAT | SPECTRUM;
-            self._hstRefresh = ALL_CHANNELS;
-            self._intRefresh = ALL_CHANNELS;
-            self._spcRefresh = ALL_CHANNELS;
+            self._refresh |= DATA;
             if (self.selection) self._refresh |= SEL;
             ++self.nref;
         }
@@ -396,10 +367,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = w;
         self.height = h;
 
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (sel) self._refresh |= SEL;
         ++self.nref;
         return self;
@@ -458,16 +426,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
         octx.fillStyle = color;
         octx.fillRect(x, y, w, h);
 
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (sel) self._refresh |= SEL;
         ++self.nref;
         return self;
     }
 
-    ,paste: function(img, x, y/*, blendMode*/) {
+    ,draw: function(img, x, y/*, blendMode*/) {
         if (!img) return this;
         var self = this, isVideo, isCanvas, isImage;
 
@@ -479,15 +444,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, x|0, y|0);
         self.oCanvas.getContext('2d').drawImage(img, x|0, y|0);
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         return self;
     }
-    ,draw: null
+    ,paste: null
 
     // get direct data array
     ,getData: function(processed) {
@@ -544,10 +506,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setData: function(a) {
         var self = this;
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
-        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         ++self.nref;
         return self;
@@ -580,10 +539,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, w, h), 0, 0);
         }
-        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= ODATA;
+        if (self.selection) self._refresh |= OSEL;
         ++self.nref;
         return self;
     }
@@ -623,10 +580,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, 0, 0);
             self.oCanvas.getContext('2d').putImageData(img, 0, 0);
         }
-        self._refresh |= DATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
         ++self.nref;
         return self;
@@ -645,10 +599,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         if (0 > x || x >= w || 0 > y || y >= h) return self;
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(rgba, 1, 1), x, y);
-        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         ++self.nref;
         return self;
@@ -664,97 +615,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setPixelData: function(data) {
         var self = this;
         self.oCanvas.getContext('2d').putImageData(data, 0, 0);
-        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
+        self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         ++self.nref;
         return self;
     }
 
-    ,integral: function(channel) {
-        var self = this, gray = self.gray, CHANNEL,
-            I = FilterUtil.integral, integral = self._integral;
-        if (null == channel)
-        {
-            if (self._refresh & SAT)
-            {
-                var data = self.getPixelData().data, w = self.width, h = self.height, i0;
-                integral[0] = i0 = I(data, w, h, 2, 0);
-                integral[1] = gray ? i0 : I(data, w, h, 2, 1);
-                integral[2] = gray ? i0 : I(data, w, h, 2, 2);
-                integral[3] = null;
-                self._intRefresh = 0; self._refresh &= CLEAR_SAT;
-            }
-        }
-        else
-        {
-            channel = channel || 0; CHANNEL = 1 << channel;
-            if ((self._refresh & SAT) || (self._intRefresh & CHANNEL))
-            {
-                if (gray && !(self._intRefresh & RED))
-                    integral[channel] = integral[0];
-                else if (gray && !(self._intRefresh & GREEN))
-                    integral[channel] = integral[1];
-                else if (gray && !(self._intRefresh & BLUE))
-                    integral[channel] = integral[2];
-                else
-                    integral[channel] = I(self.getPixelData().data, self.width, self.height, 2, channel);
-                self._intRefresh &= ~CHANNEL; self._refresh &= CLEAR_SAT;
-            }
-        }
-        return null == channel ? integral : integral[channel||0];
-    }
-    ,sat: null
-
-    ,histogram: function(channel, pdf) {
-        var self = this, gray = self.gray, CHANNEL,
-            H = FilterUtil.histogram, histogram = self._histogram;
-        if (null == channel)
-        {
-            if (self._refresh & HIST)
-            {
-                var data = self.getPixelData().data, w = self.width, h = self.height, h0;
-                histogram[0] = h0 = H(data, w, h, 2, 0, pdf);
-                histogram[1] = gray ? h0 : H(data, w, h, 2, 1, pdf);
-                histogram[2] = gray ? h0 : H(data, w, h, 2, 2, pdf);
-                histogram[3] = null;
-                self._hstRefresh = 0; self._refresh &= CLEAR_HIST;
-            }
-        }
-        else
-        {
-            channel = channel || 0; CHANNEL = 1 << channel;
-            if ((self._refresh & HIST) || (self._hstRefresh & CHANNEL))
-            {
-                if (gray && !(self._hstRefresh & RED))
-                    histogram[channel] = histogram[0];
-                else if (gray && !(self._hstRefresh & GREEN))
-                    histogram[channel] = histogram[1];
-                else if (gray && !(self._hstRefresh & BLUE))
-                    histogram[channel] = histogram[2];
-                else
-                    histogram[channel] = H(self.getPixelData().data, self.width, self.height, 2, channel, pdf);
-                self._hstRefresh &= ~CHANNEL; self._refresh &= CLEAR_HIST;
-            }
-        }
-        return null == channel ? histogram : histogram[channel||0];
-    }
-
-    // TODO
-    ,spectrum: function(channel) {
-        var self = this, /*F = FilterUtil.spectrum,*/ spectrum = self._spectrum;
-        return null == channel ? spectrum : spectrum[channel||0];
-    }
-    ,fft: null
-
-    ,toImage: function(cb, format) {
-        format = format || 0;
+    ,toImage: function(cb, type) {
         // only PNG image, toDataURL may return a promise
         var uri = this.oCanvas.toDataURL('image/png'),
             ret = function(uri) {
-                    if (format & FORMAT.IMAGE)
+                    if ('uri' !== type)
                     {
                         var img = FILTER.Canvas.Image();
                         img.src = uri;
@@ -783,9 +654,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
-FilterImage[PROTO].draw = FilterImage[PROTO].paste;
-FilterImage[PROTO].sat = FilterImage[PROTO].integral;
-FilterImage[PROTO].fft = FilterImage[PROTO].spectrum;
+FilterImage[PROTO].paste = FilterImage[PROTO].draw;
 
 // auxilliary (private) methods
 function set_dimensions(scope, w, h, what)
@@ -836,13 +705,10 @@ function refresh_selected_data(scope, what)
     if (scope.selection)
     {
         var sel = scope.selection, ow = scope.oCanvas.width-1, oh = scope.oCanvas.height-1,
-            xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3], ws, hs;
-        if (sel[4])
-        {
-            // relative
-            xs = Floor(xs*ow); ys = Floor(ys*oh);
-            xf = Floor(xf*ow); yf = Floor(sel[3]*oh);
-        }
+            xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3],
+            fx = sel[4] ? ow : 1, fy = sel[4] ? oh : 1, ws, hs;
+        xs = Floor(xs*fx); ys = Floor(ys*fy);
+        xf = Floor(xf*fx); yf = Floor(yf*fy);
         ws = xf-xs+1; hs = yf-ys+1;
         what = what || 255;
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))

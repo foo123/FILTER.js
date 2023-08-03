@@ -10,10 +10,13 @@
 !function(FILTER, undef) {
 "use strict";
 
-var ImArrayCopy = FILTER.ImArrayCopy, stdMath = Math;
+var stdMath = Math,
+    crop = FILTER.Util.Image.crop,
+    pad = FILTER.Util.Image.pad,
+    resize = FILTER.Util.Image.interpolate
+;
 
 // Dimension Filter, change image dimension
-// does not work in worker because it uses canvas
 FILTER.Create({
     name: "DimensionFilter"
 
@@ -29,15 +32,11 @@ FILTER.Create({
     ,b: 0
     ,c: 0
     ,d: 0
-    ,cnv: null
-    ,cnv2: null
     ,meta: null
     ,hasMeta: false
 
     ,dispose: function() {
         var self = this;
-        self.cnv = null;
-        self.cnv2 = null;
         self.mode = null;
         self.$super('dispose');
         return self;
@@ -56,7 +55,7 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.set(null/*params.mode, params.a, params.b, params.c, params.d*/);
+        self.set(params.mode, params.a, params.b, params.c, params.d);
         return self;
     }
 
@@ -81,63 +80,50 @@ FILTER.Create({
         else
         {
             self.mode = null;
+            self.a = 0;
+            self.b = 0;
+            self.c = 0;
+            self.d = 0;
         }
         return self;
     }
 
     ,reset: function() {
-        var self = this;
-        self.mode = null;
-        return self;
+        return this.set(null);
     }
 
     ,_apply: function(im, w, h, metaData) {
         var self = this, mode = self.mode,
-            canvas, canvas2, ctx, ctx2, out,
-            Canvas = FILTER.Canvas, ImageData = FILTER.Canvas.ImageData
             a = self.a, b = self.b, c = self.c, d = self.d;
         self.meta = null;
         self.hasMeta = false;
         if (!mode) return im;
-        if (!self.cnv) self.cnv = Canvas();
-        canvas = self.cnv;
         switch (mode)
         {
             case 'pad':
-                canvas.width = a + c + w;
-                canvas.height = b + d + h;
-                ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.putImageData(ImageData(im, w, h), a, b);
-                out = ctx.getImageData();
-                im = new ImArrayCopy(out.data);
-                self.meta = {_IMG_WIDTH:out.width, _IMG_HEIGHT:out.height};
+                a = stdMath.round(a);
+                b = stdMath.round(b);
+                c = stdMath.round(c);
+                d = stdMath.round(d);
+                im = pad(im, w, h, c, d, a, b);
+                self.meta = {_IMG_WIDTH:b + d + h, _IMG_HEIGHT:a + c + w};
                 self.hasMeta = true;
             break;
             case 'crop':
-                canvas.width = w;
-                canvas.height = h;
-                ctx = canvas.getContext('2d');
-                ctx.putImageData(ImageData(im, w, h), 0, 0);
-                out = ctx.getImageData(a, b, c, d);
-                im = new ImArrayCopy(out.data);
-                self.meta = {_IMG_WIDTH:out.width, _IMG_HEIGHT:out.height};
+                a = stdMath.round(a);
+                b = stdMath.round(b);
+                c = stdMath.round(c);
+                d = stdMath.round(d);
+                im = crop(im, w, h, a, b, a+c-1, b+d-1)
+                self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
                 self.hasMeta = true;
             break;
             case 'scale':
             default:
-                if (!self.cnv2) self.cnv2 = Canvas();
-                canvas2 = self.cnv2;
-                canvas2.width = w;
-                canvas2.height = h;
-                ctx2 = canvas2.getContext('2d');
-                ctx2.putImageData(ImageData(im, w, h), 0, 0);
-                canvas.width = stdMath.round(a*w);
-                canvas.height = stdMath.round(b*h);
-                ctx = canvas2.getContext('2d');
-                ctx.drawImage(canvas2, 0, 0, canvas2.width, canvas2.height, 0, 0, canvas.width, canvas.height);
-                out = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                self.meta = {_IMG_WIDTH:out.width, _IMG_HEIGHT:out.height};
+                a = stdMath.round(a*w);
+                b = stdMath.round(b*h);
+                im = resize(im, w, h, a, b)
+                self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
                 self.hasMeta = true;
             break;
         }
