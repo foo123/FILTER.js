@@ -8,7 +8,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 var HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toString;

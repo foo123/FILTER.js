@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER){
+!function(FILTER) {
 "use strict";
 
 var PROTO = 'prototype'

@@ -675,11 +675,17 @@ image.apply(blend3Images);   // image is a FILTER.Image instance, see examples
 ### Dimension Filter
 
 ````javascript
-new FILTER.DimensionFilter(mode:String, x, y, width, height);
+new FILTER.DimensionFilter(mode:String, a:Number, b:Number, c:Number, d:Number);
 ````
 
 The filter changes the dimension of the image by (re-)scaling, cropping, or padding the image.
+if `mode` is `"pad"`, `a` is left padding, `b` is top padding, `c` is right padding and `d` is bottom padding.
+if `mode` is `"crop"`, `a` is left offset, `b` is top offset, `c` is width and `d` is height.
+if `mode` is `"scale"`, `a` is horizontal scaling and `b` is vertical scaling.
 
+If complicated cropping, padding and scaling is needed use multiple Dimension Filters.
+
+`DimensionFilter` **does not work inside a worker thread**, only in main thread.
 
 ### Composite Filter
 

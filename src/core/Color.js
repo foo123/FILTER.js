@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 // adapted from https://github.com/foo123/css-color

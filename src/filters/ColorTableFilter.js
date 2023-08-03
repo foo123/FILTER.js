@@ -11,7 +11,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 // color table

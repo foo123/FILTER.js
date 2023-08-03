@@ -4,13 +4,13 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
     CHANNEL = FILTER.CHANNEL, FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
-    Canvas = FILTER.Canvas, Color = FILTER.Color,
+    Color = FILTER.Color,
     ImageUtil = FILTER.Util.Image,
     FilterUtil = FILTER.Util.Filter,
     ArrayUtil = FILTER.Util.Array,
@@ -39,8 +39,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.id = ++ID;
         self.width = w;
         self.height = h;
-        self.iCanvas = Canvas(w, h);
-        self.oCanvas = Canvas(w, h);
+        self.iCanvas = FILTER.Canvas(w, h);
+        self.oCanvas = FILTER.Canvas(w, h);
         self.iData = null; self.iDataSel = null;
         self.oData = null; self.oDataSel = null;
         self.ictx = self.iCanvas.getContext('2d');
@@ -222,7 +222,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if ((1 === sx) && (1 === sy)) return self;
 
         // lazy
-        var tmpCanvas = Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(self.width, self.height),
             ctx = tmpCanvas.getContext('2d'),
             w = self.width, h = self.height;
 
@@ -265,7 +265,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,flipHorizontal: function() {
         var self = this;
         // lazy
-        var tmpCanvas = Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(self.width, self.height),
             ctx = tmpCanvas.getContext('2d');
 
         ctx.translate(self.width, 0);
@@ -291,7 +291,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,flipVertical: function() {
         var self = this;
         // lazy
-        var tmpCanvas = Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(self.width, self.height),
             ctx = tmpCanvas.getContext('2d');
 
         ctx.translate(0, self.height);
@@ -358,7 +358,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
 
         // lazy
-        var tmpCanvas = Canvas( self.width, self.height ),
+        var tmpCanvas = FILTER.Canvas(self.width, self.height),
             ctx = tmpCanvas.getContext('2d');
 
         ctx.drawImage(self.oCanvas, 0, 0, W, H, x, y, w, h);
@@ -446,7 +446,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (img instanceof FilterImage) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
         isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof Canvas.Image().constructor);
+        isImage = (img instanceof FILTER.Canvas.Image().constructor);
         if (!isImage && !isCanvas && !isVideo) return self;
 
         if (self._restorable)
@@ -634,7 +634,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (img instanceof FilterImage) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
         isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof Canvas.Image().constructor);
+        isImage = (img instanceof FILTER.Canvas.Image().constructor);
         //isImageData = (null != img.data && null != img.width && null != img.height);
 
         if (isVideo)
@@ -697,7 +697,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (img instanceof FilterImage) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
         isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof Canvas.Image().constructor);
+        isImage = (img instanceof FILTER.Canvas.Image().constructor);
         //isImageData = (null != img.data && null != img.width && null != img.height);
 
         if (isVideo)
@@ -879,7 +879,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             uri.then(function(uri) {
                 if (format & FORMAT.IMAGE)
                 {
-                    img = Canvas.Image();
+                    img = FILTER.Canvas.Image();
                     img.src = uri;
                     cb(img);
                 }
@@ -893,7 +893,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if (format & FORMAT.IMAGE)
             {
-                img = Canvas.Image();
+                img = FILTER.Canvas.Image();
                 img.src = uri;
                 cb(img);
             }

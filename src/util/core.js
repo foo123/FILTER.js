@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,

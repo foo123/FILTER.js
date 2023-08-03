@@ -4,7 +4,7 @@
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,

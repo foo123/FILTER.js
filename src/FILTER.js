@@ -275,6 +275,9 @@ FILTER.Canvas = function(w, h) {
 FILTER.Canvas.Image = function() {
     return new Image();
 };
+FILTER.Canvas.ImageData = function(data, width, height) {
+    return 'undefined' !== typeof ImageData ? new ImageData(data, width, height) : {data:data, width:width, height:height};
+};
 
 return FILTER;
 })();
