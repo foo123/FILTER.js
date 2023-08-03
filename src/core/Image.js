@@ -41,10 +41,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
-        self.iData = null; self.iDataSel = null;
-        self.oData = null; self.oDataSel = null;
-        self.ictx = self.iCanvas.getContext('2d');
-        self.octx = self.oCanvas.getContext('2d');
+        self.iData = null;
+        self.iDataSel = null;
+        self.oData = null;
+        self.oDataSel = null;
         self.domElement = self.oCanvas;
         self._restorable = true;
         self.gray = false;
@@ -69,8 +69,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,selection: null
     ,iCanvas: null
     ,oCanvas: null
-    ,ictx: null
-    ,octx: null
     ,iData: null
     ,iDataSel: null
     ,oData: null
@@ -92,7 +90,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = self.height = null;
         self.selection = self.gray = null;
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
-        self.domElement = self.iCanvas = self.oCanvas = self.ictx = self.octx = null;
+        self.domElement = self.iCanvas = self.oCanvas = null;
         self._restorable = null;
         self._histogram = self._integral = self._spectrum = null;
         self._hstRefresh = self._intRefresh = self._spcRefresh = self._refresh = self.nref = null;
@@ -105,7 +103,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,grayscale: function(bool) {
         var self = this;
-        if (!arguments.length)  return self.gray;
+        if (!arguments.length) return self.gray;
         self.gray = !!bool;
         return self;
     }
@@ -178,7 +176,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._restorable)
         {
-            self.ictx.drawImage(self.oCanvas, 0, 0);
+            self.iCanvas.getContext('2d').drawImage(self.oCanvas, 0, 0);
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
             ++self.nref;
@@ -192,7 +190,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._restorable)
         {
-            self.octx.drawImage(self.iCanvas, 0, 0);
+            self.oCanvas.getContext('2d').drawImage(self.iCanvas, 0, 0);
             self._refresh |= ODATA | HIST | SAT | SPECTRUM;
             self._hstRefresh = ALL_CHANNELS;
             self._intRefresh = ALL_CHANNELS;
@@ -217,18 +215,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setDimensions: null
 
     ,scale: function(sx, sy) {
-        var self = this;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         sx = sx || 1; sy = sy || sx;
         if ((1 === sx) && (1 === sy)) return self;
 
         // lazy
-        var tmpCanvas = FILTER.Canvas(self.width, self.height),
-            ctx = tmpCanvas.getContext('2d'),
-            w = self.width, h = self.height;
+        var tmpCanvas = FILTER.Canvas(w, h),
+            ctx = tmpCanvas.getContext('2d');
 
         ctx.scale(sx, sy);
-        w = self.width = stdMath.round(sx*w);
-        h = self.height = stdMath.round(sy*h);
+        w = self.width = stdMath.round(sx*self.width);
+        h = self.height = stdMath.round(sy*self.height);
 
         ctx.drawImage(self.oCanvas, 0, 0);
         self.oCanvas.width = w * devicePixelRatio;
@@ -238,7 +235,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.style.width = String(w) + 'px';
             self.oCanvas.style.height = String(h) + 'px';
         }
-        self.octx.drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
@@ -250,7 +247,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
             }
-            self.ictx.drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA | HIST | SAT | SPECTRUM;
@@ -263,21 +260,21 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     ,flipHorizontal: function() {
-        var self = this;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         // lazy
-        var tmpCanvas = FILTER.Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(w, h),
             ctx = tmpCanvas.getContext('2d');
 
-        ctx.translate(self.width, 0);
+        ctx.translate(w, 0);
         ctx.scale(-1, 1);
 
         ctx.drawImage(self.oCanvas, 0, 0);
-        self.octx.drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, 0, 0);
-            self.ictx.drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA | SAT | SPECTRUM;
@@ -289,21 +286,21 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     ,flipVertical: function() {
-        var self = this;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         // lazy
-        var tmpCanvas = FILTER.Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(w, h),
             ctx = tmpCanvas.getContext('2d');
 
-        ctx.translate(0, self.height);
+        ctx.translate(0, h);
         ctx.scale(1, -1);
 
         ctx.drawImage(self.oCanvas, 0, 0);
-        self.octx.drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, 0, 0);
-            self.ictx.drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA | SAT | SPECTRUM;
@@ -316,11 +313,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     // clear the image contents
     ,clear: function() {
-        var self = this, w = self.width, h = self.height;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         if (w && h)
         {
-            if (self._restorable) self.ictx.clearRect(0, 0, w, h);
-            self.octx.clearRect(0, 0, w, h);
+            if (self._restorable) self.iCanvas.getContext('2d').clearRect(0, 0, w, h);
+            self.oCanvas.getContext('2d').clearRect(0, 0, w, h);
             self._refresh |= DATA | HIST | SAT | SPECTRUM;
             self._hstRefresh = ALL_CHANNELS;
             self._intRefresh = ALL_CHANNELS;
@@ -334,17 +331,29 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // crop image region
     ,crop: function(x1, y1, x2, y2) {
         var self = this, sel = self.selection,
-            W = self.width, H = self.height, xs, ys, ws, hs, x, y, w, h;
+            W = self.oCanvas.width, H = self.oCanvas.height,
+            xf, yf, x, y, w, h;
         if (!arguments.length)
         {
             if (sel)
             {
-                xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
-                ws = Floor(sel[2]*(W-1))-xs+1; hs = Floor(sel[3]*(H-1))-ys+1;
-                x = xs; y = ys;
-                w = ws; h = hs;
+                if (sel[4])
+                {
+                    xf = W - 1;
+                    yf = H - 1;
+                }
+                else
+                {
+                    xf = 1;
+                    yf = 1;
+                }
+                x = Floor(sel[0]*xf);
+                y = Floor(sel[1]*yf);
+                w = Floor(sel[2]*xf)-x+1;
+                h = Floor(sel[3]*yf)-y+1;
                 sel[0] = 0; sel[1] = 0;
                 sel[2] = 1; sel[3] = 1;
+                sel[4] = 1;
             }
             else
             {
@@ -353,15 +362,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         else
         {
-            x = x1; y = y1;
-            w = x2-x1+1; h = y2-y1+1;
+            x = x1;
+            y = y1;
+            w = x2-x1+1;
+            h = y2-y1+1;
         }
 
         // lazy
-        var tmpCanvas = FILTER.Canvas(self.width, self.height),
+        var tmpCanvas = FILTER.Canvas(w, h),
             ctx = tmpCanvas.getContext('2d');
 
-        ctx.drawImage(self.oCanvas, 0, 0, W, H, x, y, w, h);
+        ctx.drawImage(self.oCanvas, x, y, w, h, 0, 0, w, h);
         self.oCanvas.width = w * devicePixelRatio;
         self.oCanvas.height = h * devicePixelRatio;
         if (self.oCanvas.style)
@@ -369,11 +380,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.style.width = String(w) + 'px';
             self.oCanvas.style.height = String(h) + 'px';
         }
-        self.octx.drawImage(tmpCanvas, 0, 0);
-
+        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         if (self._restorable)
         {
-            ctx.drawImage(self.iCanvas, 0, 0, W, H, x, y, w, h);
+            ctx.drawImage(self.iCanvas, x, y, w, h, 0, 0, w, h);
             self.iCanvas.width = self.oCanvas.width;
             self.iCanvas.height = self.oCanvas.height;
             if (self.iCanvas.style)
@@ -381,8 +391,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
             }
-            self.ictx.drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
+        self.width = w;
+        self.height = h;
 
         self._refresh |= DATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
@@ -396,12 +408,33 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // fill image region with a specific (background) color
     ,fill: function(color, x, y, w, h) {
         var self = this, sel = self.selection,
-            W = self.width, H = self.height, xs, ys, ws, hs,
-            isVideo, isCanvas, isImage;
+            W = self.oCanvas.width,
+            H = self.oCanvas.height,
+            xf, yf, xs, ys, ws, hs;
+
+        if ((w && !W) || (h && !H))
+        {
+            set_dimensions(self, x+w, y+h, WIDTH_AND_HEIGHT);
+            W = self.oCanvas.width;
+            H = self.oCanvas.height;
+        }
+
         if (sel)
         {
-            xs = Floor(sel[0]*(W-1)); ys = Floor(sel[1]*(H-1));
-            ws = Floor(sel[2]*(W-1))-xs+1; hs = Floor(sel[3]*(H-1))-ys+1;
+            if (sel[4])
+            {
+                xf = W - 1;
+                yf = H - 1;
+            }
+            else
+            {
+                xf = 1;
+                yf = 1;
+            }
+            xs = Floor(sel[0]*xf);
+            ys = Floor(sel[1]*yf);
+            ws = Floor(sel[2]*xf)-xs+1;
+            hs = Floor(sel[3]*yf)-ys+1;
         }
         else
         {
@@ -413,20 +446,15 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (null == w) w = ws;
         if (null == h) h = hs;
 
-        // create the image data if needed
-        if (w && !W && h && !H) self.createImageData(w, h);
+        var octx = self.oCanvas.getContext('2d'),
+            ictx = self.iCanvas.getContext('2d');
 
-        var ictx = self.ictx, octx = self.octx;
         color = color || 0;
-        /*x = x||0; y = y||0;
-        w = w||W; h = h||H;*/
-
         if (self._restorable)
         {
             ictx.fillStyle = color;
             ictx.fillRect(x, y, w, h);
         }
-
         octx.fillStyle = color;
         octx.fillRect(x, y, w, h);
 
@@ -441,7 +469,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,paste: function(img, x, y/*, blendMode*/) {
         if (!img) return this;
-        var self = this, isVideo, isCanvas, isImage, ictx, octx;
+        var self = this, isVideo, isCanvas, isImage;
 
         if (img instanceof FilterImage) img = img.oCanvas;
         isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
@@ -449,15 +477,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         isImage = (img instanceof FILTER.Canvas.Image().constructor);
         if (!isImage && !isCanvas && !isVideo) return self;
 
-        if (self._restorable)
-        {
-            ictx = self.ictx = self.iCanvas.getContext('2d');
-            ictx.drawImage(img, x|0, y|0);
-        }
-        octx = self.octx = self.oCanvas.getContext('2d');
-        octx.drawImage(img, x|0, y|0);
-        self._refresh |= DATA;
-        self._refresh |= HIST | SAT | SPECTRUM;
+        if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, x|0, y|0);
+        self.oCanvas.getContext('2d').drawImage(img, x|0, y|0);
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
@@ -465,26 +487,23 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ++self.nref;
         return self;
     }
-    /*,draw: function(drawable, x, y, blendMode) {
-        return this;
-    }*/
     ,draw: null
 
     // get direct data array
     ,getData: function(processed) {
-        var self = this, Data;
+        var self = this, data;
         if (self._restorable && !processed)
         {
             if (self._refresh & IDATA) refresh_data(self, IDATA);
-            Data = self.iData;
+            data = self.iData;
         }
         else
         {
             if (self._refresh & ODATA) refresh_data(self, ODATA);
-            Data = self.oData;
+            data = self.oData;
         }
         // clone it
-        return new IMGcpy(Data.data);
+        return new IMGcpy(data.data);
     }
 
     // get direct data array of selected part
@@ -522,24 +541,10 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     // set direct data array
-    ,setData: ArrayUtil.hasArrayset ? function(a) {
+    ,setData: function(a) {
         var self = this;
-        if (self._refresh & ODATA) refresh_data(self, ODATA);
-        self.oData.data.set(a);
-        self.octx.putImageData(self.oData, 0, 0);
-        self._refresh |= HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
-        if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
-        return self;
-    } : function(a) {
-        var self = this;
-        if (self._refresh & ODATA) refresh_data(self, ODATA);
-        arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
-        self.octx.putImageData(self.oData, 0, 0);
-        self._refresh |= HIST | SAT | SPECTRUM;
+        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
+        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
@@ -549,57 +554,33 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     // set direct data array of selected part
-    ,setSelectedData: ArrayUtil.hasArrayset ? function(a) {
-        var self = this, sel = self.selection;
+    ,setSelectedData: function(a) {
+        var self = this, sel = self.selection,
+            w = self.oCanvas.width, h = self.oCanvas.height;
         if (sel)
         {
-            var xs = sel[0], ys = sel[1];
+            var xs, ys, ws, hs, xf, yf;
             if (sel[4])
             {
-                // relative
-                xs = Floor(xs*(self.width-1));
-                ys = Floor(ys*(self.height-1));
+                xf = W - 1;
+                yf = H - 1;
             }
-            if (self._refresh & OSEL) refresh_selected_data(self, OSEL);
-            self.oDataSel.data.set(a);
-            self.octx.putImageData(self.oDataSel, xs, ys);
-            self._refresh |= ODATA;
+            else
+            {
+                xf = 1;
+                yf = 1;
+            }
+            xs = Floor(sel[0]*xf);
+            ys = Floor(sel[1]*yf);
+            ws = Floor(sel[2]*xf)-xs+1;
+            hs = Floor(sel[3]*yf)-ys+1;
+            self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, ws, hs), xs, ys);
         }
         else
         {
-            if (self._refresh & ODATA) refresh_data(self, ODATA);
-            self.oData.data.set(a);
-            self.octx.putImageData(self.oData, 0, 0);
+            self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, w, h), 0, 0);
         }
-        self._refresh |= HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
-        ++self.nref;
-        return self;
-    } : function(a) {
-        var self = this, sel = self.selection;
-        if (sel)
-        {
-            var xs = sel[0], ys = sel[1];
-            if (sel[4])
-            {
-                // relative
-                xs = Floor(xs*(self.width-1));
-                ys = Floor(ys*(self.height-1));
-            }
-            if (self._refresh & OSEL) refresh_selected_data(self, OSEL);
-            arrayset(self.oDataSel.data, a); // not supported in Opera, IE, Safari
-            self.octx.putImageData(self.oDataSel, xs, ys);
-            self._refresh |= ODATA;
-        }
-        else
-        {
-            if (self._refresh & ODATA) refresh_data(self, ODATA);
-            arrayset(self.oData.data, a); // not supported in Opera, IE, Safari
-            self.octx.putImageData(self.oData, 0, 0);
-        }
-        self._refresh |= HIST | SAT | SPECTRUM;
+        self._refresh |= ODATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
@@ -607,143 +588,42 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
 
+    ,image: function(img) {
+        if (!img) return this;
 
-    ,createImageData: function(w, h) {
-        var self = this, ictx, octx;
+        var self = this, w, h,
+            isVideo, isCanvas, isImage//, isImageData
+        ;
+
+        if (img instanceof FilterImage) img = img.oCanvas;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (img instanceof self.oCanvas.constructor);
+        isImage = (img instanceof FILTER.Canvas.Image().constructor);
+        //isImageData = (null != img.data && null != img.width && null != img.height);
+
+        if (isVideo)
+        {
+            w = img.videoWidth;
+            h = img.videoHeight;
+        }
+        else
+        {
+            w = img.width;
+            h = img.height;
+        }
+
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
-        if (self._restorable)
-        {
-            ictx = self.ictx = self.iCanvas.getContext('2d');
-            //ictx.createImageData(w, h);
-        }
-        octx = self.octx = self.oCanvas.getContext('2d');
-        //octx.createImageData(w, h);
-        self._refresh |= DATA;
-        if (self.selection) self._refresh |= SEL;
-        ++self.nref;
-        return self;
-    }
-
-    ,image: ArrayUtil.hasArrayset ? function(img) {
-        if (!img) return this;
-
-        var self = this, ictx, octx, w, h,
-            isVideo, isCanvas, isImage//, isImageData
-        ;
-
-        if (img instanceof FilterImage) img = img.oCanvas;
-        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof FILTER.Canvas.Image().constructor);
-        //isImageData = (null != img.data && null != img.width && null != img.height);
-
-        if (isVideo)
-        {
-            w = img.videoWidth;
-            h = img.videoHeight;
-        }
-        else
-        {
-            w = img.width;
-            h = img.height;
-        }
-
         if (isImage || isCanvas || isVideo)
         {
-            set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
-            if (self._restorable)
-            {
-                ictx = self.ictx = self.iCanvas.getContext('2d');
-                ictx.drawImage(img, 0, 0);
-            }
-            octx = self.octx = self.oCanvas.getContext('2d');
-            octx.drawImage(img, 0, 0);
-            self._refresh |= DATA;
+            if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, 0, 0, self.iCanvas.width, self.iCanvas.height);
+            self.oCanvas.getContext('2d').drawImage(img, 0, 0, self.oCanvas.width, self.oCanvas.height);
         }
         else
         {
-            if (!self.oData)
-            {
-                self.createImageData(w, h);
-                refresh_data(self, DATA);
-            }
-
-            if (self._restorable)
-            {
-                ictx = self.ictx = self.iCanvas.getContext('2d');
-                self.iData.data.set(img.data);
-                ictx.putImageData(self.iData, 0, 0);
-            }
-
-            octx = self.octx = self.oCanvas.getContext('2d');
-            self.oData.data.set(img.data);
-            octx.putImageData(self.oData, 0, 0);
-            //self._refresh &= CLEAR_DATA;
+            if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, 0, 0);
+            self.oCanvas.getContext('2d').putImageData(img, 0, 0);
         }
-        self._refresh |= HIST | SAT | SPECTRUM;
-        self._hstRefresh = ALL_CHANNELS;
-        self._intRefresh = ALL_CHANNELS;
-        self._spcRefresh = ALL_CHANNELS;
-        if (self.selection) self._refresh |= SEL;
-        ++self.nref;
-        return self;
-    } : function(img) {
-        if (!img) return this;
-
-        var self = this, ictx, octx, w, h,
-            isVideo, isCanvas, isImage//, isImageData
-        ;
-
-        if (img instanceof FilterImage) img = img.oCanvas;
-        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof FILTER.Canvas.Image().constructor);
-        //isImageData = (null != img.data && null != img.width && null != img.height);
-
-        if (isVideo)
-        {
-            w = img.videoWidth;
-            h = img.videoHeight;
-        }
-        else
-        {
-            w = img.width;
-            h = img.height;
-        }
-
-        if (isImage || isCanvas || isVideo)
-        {
-            set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
-            if (self._restorable)
-            {
-                ictx = self.ictx = self.iCanvas.getContext('2d');
-                ictx.drawImage(img, 0, 0);
-            }
-            octx = self.octx = self.oCanvas.getContext('2d');
-            octx.drawImage(img, 0, 0);
-            //self._refresh |= DATA;
-        }
-        else
-        {
-            if (!self.oData)
-            {
-                self.createImageData(w, h);
-                refresh_data(self, DATA);
-            }
-
-            if (self._restorable)
-            {
-                ictx = self.ictx = self.iCanvas.getContext('2d');
-                arrayset(self.iData.data, img.data); // not supported in Opera, IE, Safari
-                ictx.putImageData(self.iData, 0, 0);
-            }
-
-            octx = self.octx = self.oCanvas.getContext('2d');
-            arrayset(self.oData.data, img.data); // not supported in Opera, IE, Safari
-            octx.putImageData(self.oData, 0, 0);
-            //self._refresh &= CLEAR_DATA;
-        }
-        self._refresh |= HIST | SAT | SPECTRUM;
+        self._refresh |= DATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
         self._spcRefresh = ALL_CHANNELS;
@@ -754,7 +634,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setImage: null
 
     ,getPixel: function(x, y) {
-        var self = this, w = self.width, h = self.height, offset;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height, offset;
         if (0 > x || x >= w || 0 > y || y >= h) return null;
         if (self._refresh & ODATA) refresh_data(self, ODATA);
         offset = ((y*w+x)|0) << 2;
@@ -762,9 +642,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     ,setPixel: function(x, y, rgba) {
-        var self = this, w = self.width, h = self.height;
+        var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         if (0 > x || x >= w || 0 > y || y >= h) return self;
-        self.octx.putImageData(rgba, x, y);
+        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(rgba, 1, 1), x, y);
         self._refresh |= ODATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
@@ -783,7 +663,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // set the imageData object
     ,setPixelData: function(data) {
         var self = this;
-        self.octx.putImageData(data, 0, 0);
+        self.oCanvas.getContext('2d').putImageData(data, 0, 0);
         self._refresh |= ODATA | HIST | SAT | SPECTRUM;
         self._hstRefresh = ALL_CHANNELS;
         self._intRefresh = ALL_CHANNELS;
@@ -872,35 +752,27 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,toImage: function(cb, format) {
         format = format || 0;
         // only PNG image, toDataURL may return a promise
-        var uri = this.oCanvas.toDataURL('image/png'), img;
+        var uri = this.oCanvas.toDataURL('image/png'),
+            ret = function(uri) {
+                    if (format & FORMAT.IMAGE)
+                    {
+                        var img = FILTER.Canvas.Image();
+                        img.src = uri;
+                        cb(img);
+                    }
+                    else
+                    {
+                        cb(uri);
+                    }
+            };
         if (('function' === typeof uri.then) && ('function' === typeof uri.catch))
         {
-            // if promise
-            uri.then(function(uri) {
-                if (format & FORMAT.IMAGE)
-                {
-                    img = FILTER.Canvas.Image();
-                    img.src = uri;
-                    cb(img);
-                }
-                else
-                {
-                    cb(uri);
-                }
-            }).catch(function() {});
+            // promise
+            uri.then(ret).catch(function() {});
         }
         else
         {
-            if (format & FORMAT.IMAGE)
-            {
-                img = FILTER.Canvas.Image();
-                img.src = uri;
-                cb(img);
-            }
-            else
-            {
-                cb(uri);
-            }
+            ret(uri);
         }
     }
 
@@ -941,37 +813,29 @@ function set_dimensions(scope, w, h, what)
             scope.iCanvas.height = scope.oCanvas.height;
         }
     }
-    /*if (false !== refresh)
-    {
-        refresh_data(scope, DATA);
-        if (scope.selection) refresh_selected_data(scope, SEL);
-    }*/
     return scope;
 }
 function refresh_data(scope, what)
 {
-    var w = scope.width, h = scope.height;
+    var w = scope.oCanvas.width, h = scope.oCanvas.height;
     what = what || 255;
     if (scope._restorable && (what & IDATA) && (scope._refresh & IDATA))
     {
-        scope.iData = scope.ictx.getImageData(0, 0, w, h);
-        //scope.iData.cpy = new IMGcpy(scope.iData.data);
+        scope.iData = scope.iCanvas.getContext('2d').getImageData(0, 0, w, h);
         scope._refresh &= ~IDATA;
     }
     if ((what & ODATA) && (scope._refresh & ODATA))
     {
-        scope.oData = scope.octx.getImageData(0, 0, w, h);
-        //scope.oData.cpy = new IMGcpy(scope.oData.data);
+        scope.oData = scope.oCanvas.getContext('2d').getImageData(0, 0, w, h);
         scope._refresh &= ~ODATA;
     }
-    //scope._refresh &= CLEAR_DATA;
     return scope;
 }
 function refresh_selected_data(scope, what)
 {
     if (scope.selection)
     {
-        var sel = scope.selection, ow = scope.width-1, oh = scope.height-1,
+        var sel = scope.selection, ow = scope.oCanvas.width-1, oh = scope.oCanvas.height-1,
             xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3], ws, hs;
         if (sel[4])
         {
@@ -983,18 +847,15 @@ function refresh_selected_data(scope, what)
         what = what || 255;
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
-            scope.iDataSel = scope.ictx.getImageData(xs, ys, ws, hs);
-            //scope.iDataSel.cpy = new IMGcpy(scope.iDataSel.data);
+            scope.iDataSel = scope.iCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
             scope._refresh &= ~ISEL;
         }
         if ((what & OSEL) && (scope._refresh & OSEL))
         {
-            scope.oDataSel = scope.octx.getImageData(xs, ys, ws, hs);
-            //scope.oDataSel.cpy = new IMGcpy(scope.oDataSel.data);
+            scope.oDataSel = scope.oCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
             scope._refresh &= ~OSEL;
         }
     }
-    //scope._refresh &= CLEAR_SEL;
     return scope;
 }
 

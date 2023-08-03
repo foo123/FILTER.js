@@ -120,7 +120,6 @@ var Async = Asynchronous
     ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
-    ,devicePixelRatio = FILTER.devicePixelRatio = /*(isBrowser && !isInsideThread ? window.devicePixelRatio : 1) ||*/ 1
 ;
 
 // Browser Sniffing support
@@ -170,6 +169,9 @@ FILTER.getPath = Async.path;
 FILTER.log = isThread ? Async.log : (("undefined" !== typeof console) && console.log ? function(s) {console.log(s);} : function(s) {/* do nothing*/});
 FILTER.warning = function(s) {FILTER.log('WARNING: ' + s);};
 FILTER.error = function(s, throwErr) {FILTER.log('ERROR: ' + s); if (throwErr) throw new Error(String(s));};
+
+// devicePixelRatio
+FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1;
 
 // Typed Arrays Substitute(s)
 FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray;
@@ -243,40 +245,44 @@ FILTER.FORMAT = {
 
 // packages
 FILTER.Util = {
+    String  : {},
     Array   : {
         // IE still does not support Uint8ClampedArray and some methods on it, add the method "set"
          hasClampedArray: "undefined" !== typeof Uint8ClampedArray
         ,hasArrayset: ("undefined" !== typeof Int16Array) && ("function" === typeof Int16Array[PROTO].set)
         ,hasSubarray: "function" === typeof FILTER.Array32F[PROTO].subarray
     },
-    String  : {},
     Math    : {},
     Filter  : {},
     Image   : {}
 };
 
-// Canvas/Image for Browser
-// override if needed to provide Canvas/Image alternatives for Nodejs
+// Canvas for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas = function(w, h) {
-    var canvas = document.createElement('canvas');
+    var canvas = document.createElement('canvas'),
+        dpr = FILTER.devicePixelRatio || 1;
     w = w || 0;
     h = h || 0;
     // set the size of the drawingBuffer
-    canvas.width = w * FILTER.devicePixelRatio;
-    canvas.height = h * FILTER.devicePixelRatio;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
     if (canvas.style)
     {
         // set the display size of the canvas if displayed
-        canvas.style.width = String(w) + "px";
-        canvas.style.height = String(h) + "px";
+        canvas.style.width = String(w) + 'px';
+        canvas.style.height = String(h) + 'px';
+        canvas.style.transformOrigin = 'top left';
+        canvas.style.transform = 'scale('+(1/dpr)+','+(1/dpr)+')';
     }
     return canvas;
 };
+// Image for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas.Image = function() {
     return new Image();
 };
+// ImageData for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas.ImageData = function(data, width, height) {
-    return 'undefined' !== typeof ImageData ? new ImageData(data, width, height) : {data:data, width:width, height:height};
+    return 'undefined' !== typeof ImageData ? (new ImageData(data, width, height)) : {data:data, width:width, height:height};
 };
 
 return FILTER;

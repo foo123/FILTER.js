@@ -180,16 +180,6 @@ var // utils
 
 // adapted from https://github.com/foo123/css-color
 
-// static Color Methods and Transforms
-// http://en.wikipedia.org/wiki/Color_space
-// http://www.poynton.com/PDFs/coloureq.pdf
-function lerp(data, index, c1, c2, t)
-{
-    data[index  ] = ((c1[0] + t*(c2[0]-c1[0]))|0) & 255;
-    data[index+1] = ((c1[1] + t*(c2[1]-c1[1]))|0) & 255;
-    data[index+2] = ((c1[2] + t*(c2[2]-c1[2]))|0) & 255;
-    data[index+3] = ((c1[3] + t*(c2[3]-c1[3]))|0) & 255;
-}
 function hsl2rgb(h, s, l)
 {
     var c, hp, d, x, m, r, g, b;
