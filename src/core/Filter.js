@@ -11,18 +11,8 @@ var PROTO = 'prototype'
     ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     ,HAS = OP.hasOwnProperty, KEYS = Object.keys, stdMath = Math
     ,FILTERPath = FILTER.Path
-    ,Merge = FILTER.Class.Merge
     ,Async = FILTER.Asynchronous
-
-    ,isNode = Async.isPlatform(Async.Platform.NODE)
-    ,isBrowser = Async.isPlatform(Async.Platform.BROWSER)
-    ,supportsThread = Async.supportsMultiThreading()
-    ,isThread = Async.isThread(null, true)
-    ,isInsideThread = Async.isThread()
-    ,userAgent = "undefined" !== typeof navigator && navigator.userAgent ? navigator.userAgent : ""
-    ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
-    ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
-
+    ,Merge = FILTER.Class.Merge
     ,initPlugin = function() {}
     ,constructorPlugin = function(init) {
         return function PluginFilter() {
@@ -44,66 +34,10 @@ var PROTO = 'prototype'
             init.apply(self, (1===arguments.length) && (true===arguments[0].__arguments__) ? arguments[0] : arguments);
         };
     }
-    ,devicePixelRatio = FILTER.devicePixelRatio = /*(isBrowser && !isInsideThread ? window.devicePixelRatio : 1) ||*/ 1
     ,notSupportClamp = FILTER._notSupportClamp
-    ,log, Min = stdMath.min, Max = stdMath.max
+    ,log = FILTER.log, Min = stdMath.min, Max = stdMath.max
 ;
 
-// Browser Sniffing support
-var Browser = FILTER.Browser = {
-// http://stackoverflow.com/questions/4224606/how-to-check-whether-a-script-is-running-under-node-js
-isNode                  : isNode,
-isBrowser               : isBrowser,
-isWorker                : isThread,
-isInsideWorker          : isInsideThread,
-supportsWorker          : supportsThread,
-isPhantom               : /PhantomJS/.test(userAgent),
-
-// http://www.quirksmode.org/js/detect.html
-// http://my.opera.com/community/openweb/idopera/
-// http://stackoverflow.com/questions/1998293/how-to-determine-the-opera-browser-using-javascript
-isOpera                 : isBrowser && /Opera|OPR\//.test(userAgent),
-isFirefox               : isBrowser && /Firefox\//.test(userAgent),
-isChrome                : isBrowser && /Chrome\//.test(userAgent),
-isSafari                : isBrowser && /Apple Computer/.test(vendor),
-isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
-// IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
-isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
-
-// adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
-isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
-isWebkit                : isBrowser && /WebKit\//.test(userAgent),
-isMac_geLion            : isBrowser && /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(userAgent),
-isMac_geMountainLion    : isBrowser && /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent),
-
-isMobile                : false,
-isIOS                   : /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent),
-isWin                   : /windows/i.test(platform),
-isMac                   : false,
-isIE_lt8                : false,
-isIE_lt9                : false,
-isQtWebkit              : false
-};
-Browser.isMobile = Browser.isIOS || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
-Browser.isMac = Browser.isIOS || /Mac/.test(platform);
-Browser.isIE_lt8 = Browser.isIE  && !isInsideThread && (null == document.documentMode || document.documentMode < 8);
-Browser.isIE_lt9 = Browser.isIE && !isInsideThread && (null == document.documentMode || document.documentMode < 9);
-Browser.isQtWebkit = Browser.isWebkit && /Qt\/\d+\.\d+/.test(userAgent);
-
-FILTER.getPath = Async.path;
-
-// Typed Arrays Substitute(s)
-// opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
-// however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-FILTER.ColorTable = FILTER.ImArrayCopy;
-
-notSupportClamp = FILTER._notSupportClamp = notSupportClamp || Browser.isOpera;
-
-// logging
-log = FILTER.log = isThread ? Async.log : (("undefined" !== typeof console) && console.log ? function(s) {console.log(s);} : function(s) {/* do nothing*/});
-FILTER.warning = function(s) {log('WARNING: ' + s);};
-FILTER.error = function(s, throwErr) {log('ERROR: ' + s); if (throwErr) throw new Error(String(s));};
 
 // Thread Filter Interface (internal)
 var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {

@@ -293,42 +293,6 @@ function histogram(im, w, h, stride, channel, pdf_only, cdf)
 
     // initialize the arrays
     cdf = cdf || new A32F(256);
-    /*for (i=0; i<256; i+=32)
-    {
-        // partial loop unrolling
-        cdf[i   ]=0;
-        cdf[i+1 ]=0;
-        cdf[i+2 ]=0;
-        cdf[i+3 ]=0;
-        cdf[i+4 ]=0;
-        cdf[i+5 ]=0;
-        cdf[i+6 ]=0;
-        cdf[i+7 ]=0;
-        cdf[i+8 ]=0;
-        cdf[i+9 ]=0;
-        cdf[i+10]=0;
-        cdf[i+11]=0;
-        cdf[i+12]=0;
-        cdf[i+13]=0;
-        cdf[i+14]=0;
-        cdf[i+15]=0;
-        cdf[i+16]=0;
-        cdf[i+17]=0;
-        cdf[i+18]=0;
-        cdf[i+19]=0;
-        cdf[i+20]=0;
-        cdf[i+21]=0;
-        cdf[i+22]=0;
-        cdf[i+23]=0;
-        cdf[i+24]=0;
-        cdf[i+25]=0;
-        cdf[i+26]=0;
-        cdf[i+27]=0;
-        cdf[i+28]=0;
-        cdf[i+29]=0;
-        cdf[i+30]=0;
-        cdf[i+31]=0;
-    }*/
     // compute pdf
     for (i=channel; i<rem; i+=ii)
     {
@@ -1646,33 +1610,11 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
-/*
-function algebraic_combination( /*c, f1, im1, f2, im2, ..* / )
-{
-    var args = arguments, argslen = args.length, c = args[0],
-        f = args[1], im = args[2], imLen = im.length, res = new IMG(imLen), r, g, b, a, i, k = 0;
-    while ( k+2 < argslen )
-    {
-        f = args[++k]; im = args[++k];
-        for(i=0; i<imLen; i+=4)
-        {
-            r = f*im[i  ] + c;
-            g = f*im[i+1] + c;
-            b = f*im[i+2] + c;
-            a = f*im[i+3] + c;
-            res[i  ] = r|0;
-            res[i+1] = g|0;
-            res[i+2] = b|0;
-            res[i+3] = a|0;
-        }
-        c = 0;
-    }
-    return res;
-}*/
+
 function ct_eye(c1, c0)
 {
-    if ( null == c0 ) c0 = 0;
-    if ( null == c1 ) c1 = 1;
+    if (null == c0) c0 = 0;
+    if (null == c1) c1 = 1;
     var i, t = new ColorTable(256);
     if ("function" === typeof c1)
     {
@@ -1939,62 +1881,7 @@ function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, ite
         rM, gM, bM, r, g, b, xOff, yOff, srcOff, bx=w-1, by=imArea-w, coverArea;
 
     tmp = inp; inp = out; out = tmp;
-    /*if ( (0 === stride) || (FILTER.MODE.MONO === mode) )
-    {
-        coverArea = index.length;
-        for (it=0; it<iter; it++)
-        {
-            tmp = inp; inp = out; out = tmp;
-            for (x=0,ty=0,i=0; i<imLen; i++,x++)
-            {
-                // update image coordinates
-                if (x>=w) { x=0; ty+=w; }
-
-                // calculate the image pixels that
-                // fall under the structure matrix
-                for (rM=op0,j=0; j<coverArea; j+=2)
-                {
-                    xOff = x+index[j]; yOff = ty+index[j+1];
-                    if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                    srcOff = (xOff + yOff);
-                    r = inp[srcOff];
-                    rM = op(r, rM);
-                }
-                // output
-                //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
-                out[i] = rM;
-            }
-        }
-
-        if ( index2 )
-        {
-            index = index2; coverArea = index.length;
-            for (it=0; it<iter; it++)
-            {
-                tmp = inp; inp = out; out = tmp;
-                for (x=0,ty=0,i=0; i<imLen; i++,x++)
-                {
-                    // update image coordinates
-                    if (x>=w) { x=0; ty+=w; }
-
-                    // calculate the image pixels that
-                    // fall under the structure matrix
-                    for (rM=op0,j=0; j<coverArea; j+=2)
-                    {
-                        xOff = x+index[j]; yOff = ty+index[j+1];
-                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                        srcOff = (xOff + yOff);
-                        r = inp[srcOff];
-                        rM = op(r, rM);
-                    }
-                    // output
-                    //rM = (fa*out[i]+fb*rM+fc*inp[i])|0;
-                    out[i] = rM;
-                }
-            }
-        }
-    }
-    else*/ if (FILTER.MODE.GRAY === mode)
+    if (FILTER.MODE.GRAY === mode)
     {
         coverArea = index.length;
         for (it=0; it<iter; ++it)
@@ -2144,7 +2031,6 @@ FilterUtil.cm_combine = cm_combine;
 FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
-//FilterUtil.algebraic_combination = algebraic_combination;
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;

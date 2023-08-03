@@ -11,68 +11,70 @@
 "use strict";
 
 var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
-    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad, Sin = Math.sin, Cos = Math.cos, Tan = Math.tan;
+    MODE = FILTER.MODE, toRad = FILTER.CONST.toRad,
+    stdMath = Math, Sin = stdMath.sin, Cos = stdMath.cos, Tan = stdMath.tan,
+    am_multiply = FILTER.Util.Filter.am_multiply;
 
 // AffineMatrixFilter
 var AffineMatrixFilter = FILTER.Create({
     name: "AffineMatrixFilter"
-    
-    ,init: function AffineMatrixFilter( matrix ) {
+
+    ,init: function AffineMatrixFilter(matrix) {
         var self = this;
         self.matrix = matrix && matrix.length ? new AM(matrix) : null;
     }
-    
-    ,path: FILTER_FILTERS_PATH
+
+    ,path: FILTER.Path
     // parameters
     ,matrix: null
     ,mode: MODE.CLAMP
     ,color: 0
-    
-    ,dispose: function( ) {
+
+    ,dispose: function() {
         var self = this;
         self.matrix = null;
         self.color = null;
         self.$super('dispose');
         return self;
     }
-    
-    ,serialize: function( ) {
+
+    ,serialize: function() {
         var self = this;
         return {
              matrix: self.matrix
             ,color: self.color
         };
     }
-    
-    ,unserialize: function( params ) {
+
+    ,unserialize: function(params) {
         var self = this;
-        self.matrix = TypedArray( params.matrix, AM );
+        self.matrix = TypedArray(params.matrix, AM);
         self.color = params.color;
         return self;
     }
-    
-    ,flipX: function( ) {
+
+    ,flipX: function() {
         return this.set([
             -1, 0, 0, 1,
             0, 1, 0, 0
         ]);
     }
-    
-    ,flipY: function( ) {
+
+    ,flipY: function() {
         return this.set([
             1, 0, 0, 0,
             0, -1, 0, 1
         ]);
     }
-    
-    ,flipXY: function( ) {
+
+    ,flipXY: function() {
         return this.set([
             -1, 0, 0, 1,
             0, -1, 0, 1
         ]);
     }
-    
-    ,translate: function( tx, ty, rel ) {
+
+    ,translate: function(tx, ty, rel) {
         return this.set(rel
         ? [
             1, 0, 0, tx,
@@ -84,49 +86,49 @@ var AffineMatrixFilter = FILTER.Create({
         ]);
     }
     ,shift: null
-    
-    ,rotate: function( theta ) {
+
+    ,rotate: function(theta) {
         var s = Sin(theta), c = Cos(theta);
         return this.set([
             c, -s, 0, 0,
             s, c, 0, 0
         ]);
     }
-    
-    ,scale: function( sx, sy ) {
+
+    ,scale: function(sx, sy) {
         return this.set([
             sx, 0, 0, 0,
             0, sy, 0, 0
         ]);
     }
-    
-    ,skew: function( thetax, thetay ) {
+
+    ,skew: function(thetax, thetay) {
         return this.set([
             1, thetax ? Tan(thetax) : 0, 0, 0,
             thetay ? Tan(thetay) : 0, 1, 0, 0
         ]);
     }
-    
-    ,set: function( matrix ) {
+
+    ,set: function(matrix) {
         var self = this;
-        self.matrix = self.matrix ? FILTER.Util.Filter.am_multiply(self.matrix, matrix) : new AM(matrix); 
+        self.matrix = self.matrix ? am_multiply(self.matrix, matrix) : new AM(matrix);
         return self;
     }
-    
-    ,reset: function( ) {
-        this.matrix = null; 
+
+    ,reset: function() {
+        this.matrix = null;
         return this;
     }
-    
-    ,combineWith: function( filt ) {
-        return this.set( filt.matrix );
+
+    ,combineWith: function(filt) {
+        return this.set(filt.matrix);
     }
-    
+
     // used for internal purposes
-    ,_apply: function( im, w, h ) {
+    ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, T = self.matrix;
-        if ( !T ) return im;
+        if (!T) return im;
         var x, y, yw, nx, ny, i, j, imLen = im.length,
             imArea = imLen>>>2, bx = w-1, by = imArea-w,
             dst = new IMG(imLen), color = self.color||0, r, g, b, a,
@@ -135,20 +137,20 @@ var AffineMatrixFilter = FILTER.Create({
             Tcw = T[4]*w, Td = T[5], Tyw = T[6]*w+T[7]*by,
             mode = self.mode || IGNORE
         ;
-        
-        if ( COLOR === mode )
+
+        if (COLOR === mode)
         {
             a = (color >>> 24)&255;
             r = (color >>> 16)&255;
             g = (color >>> 8)&255;
             b = (color)&255;
-            
-            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,++x)
             {
-                if (x>=w) { x=0; y++; yw+=w; }
-                
+                if (x>=w) {x=0; ++y; yw+=w;}
+
                 nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
-                if ( 0>nx || nx>bx || 0>ny || ny>by )
+                if (0>nx || nx>bx || 0>ny || ny>by)
                 {
                     // color
                     dst[i] = r;   dst[i+1] = g;
@@ -160,35 +162,35 @@ var AffineMatrixFilter = FILTER.Create({
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }
         }
-        else if ( IGNORE === mode )
+        else if (IGNORE === mode)
         {
-            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,++x)
             {
-                if (x>=w) { x=0; y++; yw+=w; }
-                
+                if (x>=w) {x=0; ++y; yw+=w;}
+
                 nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
-                
+
                 // ignore
                 ny = ny > by || ny < 0 ? yw : ny;
                 nx = nx > bx || nx < 0 ? x : nx;
-                
+
                 j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
             }
         }
-        else if ( WRAP === mode )
+        else if (WRAP === mode)
         {
-            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,++x)
             {
-                if (x>=w) { x=0; y++; yw+=w; }
-                
+                if (x>=w) {x=0; ++y; yw+=w;}
+
                 nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
-                
+
                 // wrap
                 ny = ny > by ? ny-imArea : (ny < 0 ? ny+imArea : ny);
                 nx = nx > bx ? nx-w : (nx < 0 ? nx+w : nx);
-                
+
                 j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
@@ -196,16 +198,16 @@ var AffineMatrixFilter = FILTER.Create({
         }
         else //if ( CLAMP === mode )
         {
-            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,x++)
+            for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,++x)
             {
-                if (x>=w) { x=0; y++; yw+=w; }
-                
+                if (x>=w) {x=0; ++y; yw+=w;}
+
                 nx = Ta*x + Tb*y + Tx; ny = Tcw*x + Td*yw + Tyw;
-                
+
                 // clamp
                 ny = ny > by ? by : (ny < 0 ? 0 : ny);
                 nx = nx > bx ? bx : (nx < 0 ? 0 : nx);
-                
+
                 j = ((nx|0) + (ny|0)) << 2;
                 dst[i] = im[j];   dst[i+1] = im[j+1];
                 dst[i+2] = im[j+2];  dst[i+3] = im[j+3];
@@ -213,8 +215,8 @@ var AffineMatrixFilter = FILTER.Create({
         }
         return dst;
     }
-        
-    ,canRun: function( ) {
+
+    ,canRun: function() {
         return this._isOn && this.matrix;
     }
 });

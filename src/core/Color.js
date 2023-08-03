@@ -499,7 +499,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
 
         saturation: function(r, g, b) {
-            return rgb2sat(r, g, b, false, 'hsv');
+            return rgb2sat(r, g, b, false, 'hsv')*2.55;
         },
 
         dist: function(ccc1, ccc2, p1, p2) {

@@ -13,84 +13,84 @@ var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({
     name: "CompositeFilter"
-    
-    ,init: function CompositeFilter( filters ) { 
+
+    ,init: function CompositeFilter(filters) {
         var self = this;
-        self.filters = filters && filters.length ? filters : [ ];
+        self.filters = filters && filters.length ? filters : [];
     }
-    
-    ,path: FILTER_FILTERS_PATH
+
+    ,path: FILTER.Path
     ,filters: null
     ,hasInputs: true
     ,_stable: true
-    
-    ,dispose: function( withFilters ) {
+
+    ,dispose: function(withFilters) {
         var self = this, i, stack = self.filters;
-        
-        if ( true === withFilters )
+
+        if (true === withFilters)
         {
-            for (i=0; i<stack.length; i++)
+            for (i=0; i<stack.length; ++i)
             {
-                stack[ i ] && stack[ i ].dispose( withFilters );
-                stack[ i ] = null;
+                stack[i] && stack[i].dispose(withFilters);
+                stack[i] = null;
             }
         }
         self.filters = null;
         self.$super('dispose');
         return self;
     }
-    
-    ,serializeInputs: function( curIm ) {
+
+    ,serializeInputs: function(curIm) {
         var self = this, i, stack = self.filters, l, inputs = [ ], hasInputs = false, input;
-        for (i=0,l=stack.length; i<l; i++)
+        for (i=0,l=stack.length; i<l; ++i)
         {
-            inputs.push( input=stack[ i ].serializeInputs( curIm ) );
-            if ( input ) hasInputs = true;
+            inputs.push(input=stack[i].serializeInputs(curIm));
+            if (input) hasInputs = true;
         }
         return hasInputs ? inputs : null;
     }
-    
-    ,unserializeInputs: function( inputs, curImData ) {
+
+    ,unserializeInputs: function(inputs, curImData) {
         var self = this;
-        if ( !inputs ) return self;
+        if (!inputs) return self;
         var i, stack = self.filters, l;
-        for (i=0,l=stack.length; i<l; i++) if ( inputs[ i ] ) stack[ i ].unserializeInputs( inputs[ i ], curImData );
+        for (i=0,l=stack.length; i<l; ++i) if (inputs[i]) stack[i].unserializeInputs(inputs[i], curImData);
         return self;
     }
-    
-    ,serialize: function( ) {
-        var self = this, i, stack = self.filters, l, filters = [ ];
-        for (i=0,l=stack.length; i<l; i++) filters.push( stack[ i ].serializeFilter( ) );
+
+    ,serialize: function() {
+        var self = this, i, stack = self.filters, l, filters = [];
+        for (i=0,l=stack.length; i<l; ++i) filters.push(stack[i].serializeFilter());
         return {_stable: self._stable, filters: filters};
     }
-    
-    ,unserialize: function( params ) {
+
+    ,unserialize: function(params) {
         var self = this, i, l, ls, filters, filter, stack = self.filters;
-        
+
         self._stable = params._stable;
-        filters = params.filters || [ ];
+        filters = params.filters || [];
         l = filters.length; ls = stack.length;
-        
-        if ( (l !== ls) || (!self._stable) )
+
+        if ((l !== ls) || (!self._stable))
         {
             // dispose any prev filters
-            for (i=0; i<ls; i++)
+            for (i=0; i<ls; ++i)
             {
-                stack[ i ] && stack[ i ].dispose( true );
-                stack[ i ] = null;
+                stack[i] && stack[i].dispose(true);
+                stack[i] = null;
             }
-            stack = [ ];
-            
-            for (i=0; i<l; i++)
+            stack = [];
+
+            for (i=0; i<l; ++i)
             {
-                filter = filters[ i ] && filters[ i ].filter ? FILTER.Filter.get( filters[ i ].filter ) : null;
-                if ( filter )
+                filter = filters[i] && filters[i].filter ? FILTER.Filter.get(filters[i].filter) : null;
+                if (filter)
                 {
-                    stack.push( new filter( ).unserializeFilter( filters[ i ] ) );
+                    stack.push((new filter()).unserializeFilter(filters[i]));
                 }
                 else
                 {
-                    throw new Error('Filter "' + filters[ i ].filter + '" could not be created');
+                    throw new Error('Filter "' + filters[i].filter + '" could not be created');
                     return;
                 }
             }
@@ -98,117 +98,117 @@ var CompositeFilter = FILTER.Create({
         }
         else
         {
-            for (i=0; i<l; i++) stack[ i ].unserializeFilter( filters[ i ] );
+            for (i=0; i<l; ++i) stack[i].unserializeFilter(filters[i]);
         }
         return self;
     }
-    
-    ,setMetaData: function( meta, serialisation ) {
+
+    ,setMetaData: function(meta, serialisation) {
         var self = this, stack = self.filters, i, l;
-        if ( meta && meta.filters && (l=meta.filters.length) && stack.length )
-            for (i=0; i<l; i++) stack[ meta.filters[i][0] ].setMetaData( meta.filters[i][1], serialisation );
-        if ( meta && (null != meta._IMG_WIDTH) )
+        if (meta && meta.filters && (l=meta.filters.length) && stack.length)
+            for (i=0; i<l; ++i) stack[meta.filters[i][0]].setMetaData(meta.filters[i][1], serialisation);
+        if (meta && (null != meta._IMG_WIDTH))
         {
             self.meta = {_IMG_WIDTH: meta._IMG_WIDTH, _IMG_HEIGHT: meta._IMG_HEIGHT};
             self.hasMeta = true;
         }
         return self;
     }
-    
-    ,stable: function( bool ) {
-        if ( !arguments.length ) bool = true;
+
+    ,stable: function(bool) {
+        if (!arguments.length) bool = true;
         this._stable = !!bool;
         return this;
     }
-    
+
     // manipulate the filter chain, methods
-    ,set: function( filters ) {
-        if ( filters && filters.length ) this.filters = filters;
+    ,set: function(filters) {
+        if (filters && filters.length) this.filters = filters;
         return this;
     }
-    
-    ,filter: function( i, filter ) {
-        if ( arguments.length > 1 )
+
+    ,filter: function(i, filter) {
+        if (arguments.length > 1)
         {
-            if ( this.filters.length > i ) this.filters[ i ] = filter;
-            else this.filters.push( filter );
+            if (this.filters.length > i) this.filters[i] = filter;
+            else this.filters.push(filter);
             return this;
         }
         else
         {
-            return this.filters.length > i ? this.filters[ i ] : null;
+            return this.filters.length > i ? this.filters[i] : null;
         }
     }
     ,get: null
-    
+
     ,push: function(/* variable args here.. */) {
-        if ( arguments.length ) concat.apply(this.filters, arguments);
+        if (arguments.length) concat.apply(this.filters, arguments);
         return this;
     }
     ,concat: null
-    
-    ,pop: function( ) {
-        return this.filters.pop( );
+
+    ,pop: function() {
+        return this.filters.pop();
     }
-    
-    ,shift: function( ) {
-        return this.filters.shift( );
+
+    ,shift: function() {
+        return this.filters.shift();
     }
-    
+
     ,unshift: function(/* variable args here.. */) {
-        if ( arguments.length ) splice.apply(this.filters, concat.apply([0, 0], arguments));
+        if (arguments.length) splice.apply(this.filters, concat.apply([0, 0], arguments));
         return this;
     }
-    
-    ,insertAt: function( i /*, filter1, filter2, filter3..*/) {
+
+    ,insertAt: function(i /*, filter1, filter2, filter3..*/) {
         var args = slice.call(arguments), arglen = args.length;
-        if ( argslen > 1 )
+        if (argslen > 1)
         {
-            args.shift( );
-            splice.apply( this.filters, [i, 0].concat( args ) );
+            args.shift();
+            splice.apply(this.filters, [i, 0].concat(args));
         }
         return this;
     }
-    
-    ,removeAt: function( i ) {
-        return this.filters.splice( i, 1 );
+
+    ,removeAt: function(i) {
+        return this.filters.splice(i, 1);
     }
-    
-    ,remove: function( filter ) {
+
+    ,remove: function(filter) {
         var i = this.filters.length;
-        while ( --i >= 0 ) 
-        { 
-            if ( filter === this.filters[i] ) 
-                this.filters.splice( i, 1 ); 
+        while (--i >= 0)
+        {
+            if (filter === this.filters[i])
+                this.filters.splice(i, 1);
         }
         return this;
     }
-    
-    ,reset: function( ) {
-        this.filters.length = 0;  
+
+    ,reset: function() {
+        this.filters.length = 0;
         return this;
     }
     ,empty: null
-    
+
     // used for internal purposes
-    ,_apply: function( im, w, h, metaData ) {
+    ,_apply: function(im, w, h, metaData) {
         var self = this, meta, filtermeta = null, metalen = 0, IMGW = null, IMGH = null;
-        if ( self.filters.length )
+        if (self.filters.length)
         {
             metaData = metaData || {};
             var filterstack = self.filters, stacklength = filterstack.length, fi, filter;
             filtermeta = new Array(stacklength);
-            for (fi=0; fi<stacklength; fi++)
+            for (fi=0; fi<stacklength; ++fi)
             {
-                filter = filterstack[fi]; 
-                if ( filter && filter._isOn ) 
+                filter = filterstack[fi];
+                if (filter && filter._isOn)
                 {
                     metaData.container = self;  metaData.index = fi;
                     im = filter._apply(im, w, h, metaData);
-                    if ( filter.hasMeta )
+                    if (filter.hasMeta)
                     {
                         filtermeta[metalen++] = [fi, meta=filter.metaData()];
-                        if ( null != meta._IMG_WIDTH )
+                        if (null != meta._IMG_WIDTH)
                         {
                             // width/height changed during process, update and pass on
                             IMGW = w = meta._IMG_WIDTH;
@@ -218,12 +218,12 @@ var CompositeFilter = FILTER.Create({
                 }
             }
         }
-        if ( metalen > 0 )
+        if (metalen > 0)
         {
-            if ( filtermeta.length > metalen ) filtermeta.length = metalen;
+            if (filtermeta.length > metalen) filtermeta.length = metalen;
             self.hasMeta = true;
             self.meta = {filters: filtermeta};
-            if ( null != IMGW ) { self.meta._IMG_WIDTH = IMGW; self.meta._IMG_HEIGHT = IMGH; }
+            if (null != IMGW) {self.meta._IMG_WIDTH = IMGW; self.meta._IMG_HEIGHT = IMGH;}
         }
         else
         {
@@ -232,14 +232,14 @@ var CompositeFilter = FILTER.Create({
         }
         return im;
     }
-        
-    ,canRun: function( ) {
+
+    ,canRun: function() {
         return this._isOn && this.filters.length;
     }
-    
-    ,toString: function( ) {
+
+    ,toString: function() {
         var tab = "\t", s = this.filters, out = [], i, l = s.length;
-        for (i=0; i<l; i++) out.push( tab + s[i].toString( ).split("\n").join("\n"+tab) );
+        for (i=0; i<l; ++i) out.push(tab + s[i].toString().split("\n").join("\n"+tab));
         return [
              "[FILTER: " + this.name + "]"
              ,"[",out.join( "\n" ),"]",""

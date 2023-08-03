@@ -6,8 +6,8 @@ The library dependencies are:
 * [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
 
 
-**TIP:**  You can create your custom build of the library with the filters/plugins you choose. 
-Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included. 
+**TIP:**  You can create your custom build of the library with the filters/plugins you choose.
+Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included.
 Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
 
 
@@ -15,7 +15,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 
 * [Image](#image-class)
 * [Abstract Filter](#generic-abstract-filter)
-* [Color Table Filter](#color-table-filter) 
+* [Color Table Filter](#color-table-filter)
 * [Color Matrix Filter](#color-matrix-filter) (analogous to the ActionScript filter)
 * [Color Map Filter](#color-map-filter)
 * [Affine Matrix Filter](#affine-matrix-filter)
@@ -27,7 +27,7 @@ Change the dependencies file(s) to include your own selection of filters and plu
 * [Blend Filter](#blend-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
-* [Plugins / Extra Filters](#plugins-and-extra-filters) 
+* [Plugins / Extra Filters](#plugins-and-extra-filters)
 
 
 
@@ -38,7 +38,7 @@ new FILTER.Image(image:Image|Video|Canvas|FILTER.Image|ImageData = null);
 ````
 
 This is a placeholder for an image, along with basic methods to access the image data
-and alter them. 
+and alter them.
 
 __Methods:__
 
@@ -184,7 +184,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.ColorMatrixFilter(colorMatrix:Array);
 ````
 
-This filter is analogous to the ActionScript filter of same name. 
+This filter is analogous to the ActionScript filter of same name.
 The (optional) `colorMatrix` parameter is an array of 20 numbers which define the multipliers and bias terms
 for the RGBA components of each pixel in an image.
 
@@ -399,8 +399,8 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.DisplacementMapFilter(displaceMap:Image);
 ````
 
-This filter is analogous to the ActionScript filter of same name. 
-The displaceMap parameter is a (FILTER.Image instance) image that acts as the displacement Map. 
+This filter is analogous to the ActionScript filter of same name.
+The displaceMap parameter is a (FILTER.Image instance) image that acts as the displacement Map.
 
 The filter scans an image and maps each pixel position non-linearly according to the (coloring of the) displacement map image.
 
@@ -451,7 +451,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.ConvolutionMatrixFilter(convolutionMatrix:Array, factor:Number);
 ````
 
-This filter is analogous to the ActionScript filter of same name. 
+This filter is analogous to the ActionScript filter of same name.
 The (optional) convolutionMatrix parameter is a square matrix of convolution coefficients represented as an array.
 The (optional) factor is the normalization factor for the convoltuon matrix. The matrix elements should sum up to 1,
 in order for the filtered image to have same brightness as original.
@@ -635,35 +635,27 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.BlendFilter(blendMatrix:Array);
 ````
 
-The filter blends multiple images together with photoshop-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `enabled` flag for each of the blend images to be blended with the main image (see below).
+The filter blends multiple images together with svg-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `enabled` flag for each of the blend images to be blended with the main image (see below).
 
 **Supported Blend Modes:**
-    
+
 * normal
-* lighten
-* darken
 * multiply
-* average
-* add
-* subtract
-* difference
-* negation
 * screen
-* exclusion
 * overlay
-* softlight
-* hardlight
-* colordodge
-* colorburn
-* linearlight
-* reflect
-* glow
-* phoenix
-* vividlight
-* pinlight
-* hardmix
-* lineardodge (alias of add)
-* linearburn (alias of subtract)
+* darken
+* lighten
+* color-dodge
+* color-burn
+* hard-light
+* soft-light
+* difference
+* exclusion
+* average
+* linear-dodge/add
+* linear-burn/subtract
+* negation
+* linear-light
 
 In order to use a blend filter do the following:
 
@@ -704,7 +696,7 @@ The class implements these methods:
 * `pop()` remove a filter from the end of stack
 * `shift()`  remove a filter from the start of stack
 * `unshift()` add filter(s) to the start of stack
-* `remove()` remove a filter by instance 
+* `remove()` remove a filter by instance
 * `removeAt()` remove the filter at specified location/order
 * `insertAt()` insert filter(s) at specified location/order
 * `filter()` get/set the filter at this location
@@ -774,7 +766,7 @@ var inlinefilter = new FILTER.InlineFilter(function(filterParameters, im, w, h, 
     // "filterParameters"  are custom parameters added to inline filter instance, useful if you need to use extra parameters
     // for example extra/custom parameters are available as `filterParameters.myCustomColorParameter`
     // "im"     is (a copy of) the image pixel data,
-    // "w"      is the image width, 
+    // "w"      is the image width,
     // "h"      is the image height
     // "metaData" is an optional object containing information about `src` and `dst` images (can also be used to pass information between filters inside a filter chain)
     // make sure to return the data back

@@ -16,14 +16,14 @@
 
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
-    Floor = Math.floor, Power = Math.pow, Exponential = Math.exp, nF = 1.0/255,
-    TypedArray = FILTER.Util.Array.typed;
+    stdMath = Math, Floor = stdMath.floor, Power = stdMath.pow, Exponential = stdMath.exp, nF = 1.0/255,
+    TypedArray = FILTER.Util.Array.typed, eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply;
 
 // ColorTableFilter
 var ColorTableFilter = FILTER.Create({
     name: "ColorTableFilter"
-    
-    ,init: function ColorTableFilter( tR, tG, tB, tA ) {
+
+    ,init: function ColorTableFilter(tR, tG, tB, tA) {
         var self = this;
         self.table = [null, null, null, null];
         tR = tR || null;
@@ -35,19 +35,19 @@ var ColorTableFilter = FILTER.Create({
         self.table[CHANNEL.B] = tB;
         self.table[CHANNEL.A] = tA;
     }
-    
+
     ,path: FILTER_FILTERS_PATH
     // parameters
     ,table: null
-    
-    ,dispose: function( ) {
+
+    ,dispose: function() {
         var self = this;
         self.table = null;
         self.$super('dispose');
         return self;
     }
-    
-    ,serialize: function( ) {
+
+    ,serialize: function() {
         var self = this;
         return {
              tableR: self.table[CHANNEL.R]
@@ -56,8 +56,8 @@ var ColorTableFilter = FILTER.Create({
             ,tableA: self.table[CHANNEL.A]
         };
     }
-    
-    ,unserialize: function( params ) {
+
+    ,unserialize: function(params) {
         var self = this;
         self.table[CHANNEL.R] = TypedArray(params.tableR, CT);
         self.table[CHANNEL.G] = TypedArray(params.tableG, CT);
@@ -65,314 +65,298 @@ var ColorTableFilter = FILTER.Create({
         self.table[CHANNEL.A] = TypedArray(params.tableA, CT);
         return self;
     }
-    
-    ,functional: function( fR, fG, fB ) {
-        if ( "function" !== typeof fR ) return this;
-        var eye = FILTER.Util.Filter.ct_eye,
-            tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
+
+    ,functional: function(fR, fG, fB) {
+        if ("function" !== typeof fR) return this;
+        var tR = eye(fR), tG = fG ? eye(fG) : tR, tB = fB ? eye(fB) : tG;
         return this.set(tR, tG, tB);
     }
-    
-    ,channel: function( channel ) {
-        if ( null == channel ) return this;
-        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
-        switch(channel || CHANNEL.R)
+
+    ,channel: function(channel) {
+        if (null == channel) return this;
+        var tR, tG, tB;
+        switch (channel || CHANNEL.R)
         {
-            case CHANNEL.B: 
-                tR = eye(0,0); tG = eye(0,0); tB = eye(); 
+            case CHANNEL.B:
+                tR = eye(0,0); tG = eye(0,0); tB = eye();
                 break;
-            
-            case CHANNEL.G: 
-                tR = eye(0,0); tG = eye(); tB = eye(0,0); 
+
+            case CHANNEL.G:
+                tR = eye(0,0); tG = eye(); tB = eye(0,0);
                 break;
-            
-            case CHANNEL.R: 
+
+            case CHANNEL.R:
             default:
-                tR = eye(); tG = eye(0,0); tB = eye(0,0); 
+                tR = eye(); tG = eye(0,0); tB = eye(0,0);
                 break;
-            
+
         }
         return this.set(tR, tG, tB);
     }
-    
-    ,redChannel: function( ) {
-        return this.channel( CHANNEL.R );
+
+    ,redChannel: function() {
+        return this.channel(CHANNEL.R);
     }
-    
-    ,greenChannel: function( ) {
-        return this.channel( CHANNEL.G );
+
+    ,greenChannel: function() {
+        return this.channel(CHANNEL.G);
     }
-    
-    ,blueChannel: function( ) {
-        return this.channel( CHANNEL.B );
+
+    ,blueChannel: function() {
+        return this.channel(CHANNEL.B);
     }
-    
-    ,channelInvert: function( channel ) {
-        if ( null == channel ) return this;
-        var eye = FILTER.Util.Filter.ct_eye, tR, tG, tB;
-        switch(channel || CHANNEL.R)
+
+    ,channelInvert: function(channel) {
+        if (null == channel) return this;
+        var tR, tG, tB;
+        switch (channel || CHANNEL.R)
         {
-            case CHANNEL.B: 
-                tR = eye(); tG = eye(); tB = eye(-1,255); 
+            case CHANNEL.B:
+                tR = eye(); tG = eye(); tB = eye(-1,255);
                 break;
-            
-            case CHANNEL.G: 
-                tR = eye(); tG = eye(-1,255); tB = eye(); 
+
+            case CHANNEL.G:
+                tR = eye(); tG = eye(-1,255); tB = eye();
                 break;
-            
-            case CHANNEL.R: 
+
+            case CHANNEL.R:
             default:
-                tR = eye(-1,255); tG = eye(); tB = eye(); 
+                tR = eye(-1,255); tG = eye(); tB = eye();
                 break;
-            
+
         }
         return this.set(tR, tG, tB);
     }
-    
-    ,redInvert: function( ) {
-        return this.channelInvert( CHANNEL.R );
+
+    ,redInvert: function() {
+        return this.channelInvert(CHANNEL.R);
     }
-    
-    ,greenInvert: function( ) {
-        return this.channelInvert( CHANNEL.G );
+
+    ,greenInvert: function() {
+        return this.channelInvert(CHANNEL.G);
     }
-    
-    ,blueInvert: function( ) {
-        return this.channelInvert( CHANNEL.B );
+
+    ,blueInvert: function() {
+        return this.channelInvert(CHANNEL.B);
     }
-    
-    /*,alphaInvert: function( ) {
-        return this.channelInvert( CHANNEL.A );
-    }*/
-    
-    ,invert: function( ) {
+
+    ,invert: function() {
         return this.set(FILTER.Util.Filter.ct_eye(-1,255));
     }
-    
-    ,thresholds: function( thresholdsR, thresholdsG, thresholdsB ) {
+
+    ,thresholds: function(thresholdsR, thresholdsG, thresholdsB) {
         // assume thresholds are given in pointwise scheme as pointcuts
         // not in cumulative scheme
         // [ 0.5 ] => [0, 1]
         // [ 0.3, 0.3, 0.3 ] => [0, 0.3, 0.6, 1]
-        if (!thresholdsR.length) thresholdsR=[thresholdsR];
-        if (!thresholdsG) thresholdsG=thresholdsR;
-        if (!thresholdsB) thresholdsB=thresholdsG;
+        if (!thresholdsR.length) thresholdsR = [thresholdsR];
+        if (!thresholdsG) thresholdsG = thresholdsR;
+        if (!thresholdsB) thresholdsB = thresholdsG;
 
-        var tLR = thresholdsR.length, numLevelsR = tLR+1, 
-            tLG = thresholdsG.length, numLevelsG = tLG+1, 
-            tLB = thresholdsB.length, numLevelsB = tLB+1, 
-            tR = new CT(256), qR = new CT(numLevelsR), 
-            tG = new CT(256), qG = new CT(numLevelsG), 
-            tB = new CT(256), qB = new CT(numLevelsB), 
+        var tLR = thresholdsR.length, numLevelsR = tLR+1,
+            tLG = thresholdsG.length, numLevelsG = tLG+1,
+            tLB = thresholdsB.length, numLevelsB = tLB+1,
+            tR = new CT(256), qR = new CT(numLevelsR),
+            tG = new CT(256), qG = new CT(numLevelsG),
+            tB = new CT(256), qB = new CT(numLevelsB),
             i, j, nLR=255/(numLevelsR-1), nLG=255/(numLevelsG-1), nLB=255/(numLevelsB-1);
-        for(i=0; i<numLevelsR; i++) qR[i] = (nLR * i)|0;
+        for (i=0; i<numLevelsR; ++i) qR[i] = (nLR * i)|0;
         thresholdsR[0] = (255*thresholdsR[0])|0;
-        for(i=1; i<tLR; i++) thresholdsR[i] = thresholdsR[i-1] + (255*thresholdsR[i])|0;
-        for(i=0; i<numLevelsG; i++) qG[i] = (nLG * i)|0;
+        for (i=1; i<tLR; ++i) thresholdsR[i] = thresholdsR[i-1] + (255*thresholdsR[i])|0;
+        for (i=0; i<numLevelsG; ++i) qG[i] = (nLG * i)|0;
         thresholdsG[0] = (255*thresholdsG[0])|0;
-        for(i=1; i<tLG; i++) thresholdsG[i] = thresholdsG[i-1] + (255*thresholdsG[i])|0;
-        for(i=0; i<numLevelsB; i++) qB[i] = (nLB * i)|0;
+        for (i=1; i<tLG; ++i) thresholdsG[i] = thresholdsG[i-1] + (255*thresholdsG[i])|0;
+        for (i=0; i<numLevelsB; ++i) qB[i] = (nLB * i)|0;
         thresholdsB[0] = (255*thresholdsB[0])|0;
-        for(i=1; i<tLB; i++) thresholdsB[i] = thresholdsB[i-1] + (255*thresholdsB[i])|0;
-        for(i=0; i<256; i++)
-        { 
+        for (i=1; i<tLB; ++i) thresholdsB[i] = thresholdsB[i-1] + (255*thresholdsB[i])|0;
+        for (i=0; i<256; ++i)
+        {
             // the non-linear mapping is here
-            j=0; while (j<tLR && i>thresholdsR[j]) j++;
-            tR[ i ] = clamp(qR[ j ]); 
-            j=0; while (j<tLG && i>thresholdsG[j]) j++;
-            tG[ i ] = clamp(qG[ j ]); 
-            j=0; while (j<tLB && i>thresholdsB[j]) j++;
-            tB[ i ] = clamp(qB[ j ]); 
+            j=0; while (j<tLR && i>thresholdsR[j]) ++j;
+            tR[i] = clamp(qR[j]);
+            j=0; while (j<tLG && i>thresholdsG[j]) ++j;
+            tG[i] = clamp(qG[j]);
+            j=0; while (j<tLB && i>thresholdsB[j]) ++j;
+            tB[i] = clamp(qB[j]);
         }
         return this.set(tR, tG, tB);
     }
-    
-    ,threshold: function( thresholdR, thresholdG, thresholdB ) {
+
+    ,threshold: function(thresholdR, thresholdG, thresholdB) {
         thresholdR = null == thresholdR ? 0.5 : thresholdR;
         thresholdG = null == thresholdG ? thresholdR : thresholdG;
         thresholdB = null == thresholdB ? thresholdG : thresholdB;
         return this.thresholds([thresholdR], [thresholdG], [thresholdB]);
     }
-    
-    ,quantize: function( numLevels ) {
-        if ( null == numLevels ) numLevels = 64;
-        if ( numLevels < 2 ) numLevels = 2;
+
+    ,quantize: function(numLevels) {
+        if (null == numLevels) numLevels = 64;
+        if (numLevels < 2) numLevels = 2;
         var j, q=new CT(numLevels), nL=255/(numLevels-1), nR=numLevels/256;
-        for(j=0; j<numLevels; j++) q[j] = clamp(nL * j)|0;
-        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return q[ (nR * i)|0 ]; }));
+        for (j=0; j<numLevels; ++j) q[j] = clamp(nL * j)|0;
+        return this.set(eye(function(i) {return q[(nR * i)|0];}));
     }
     ,posterize: null
-    
-    ,binarize: function( ) {
+
+    ,binarize: function() {
         return this.quantize(2);
     }
-    
+
     // adapted from http://www.jhlabs.com/ip/filters/
-    ,solarize: function( threshold, type ) {
-        if ( null == type ) type = 1;
-        if ( null == threshold ) threshold=0.5;
-        
+    ,solarize: function(threshold, type) {
+        if (null == type) type = 1;
+        if (null == threshold) threshold = 0.5;
+
         var solar;
-        if ( -1 === type ) // inverse
+        if (-1 === type) // inverse
         {
-            threshold *= 256; 
-            solar = function( i ){ return i>threshold ? 255-i : i; };
-        }
-        else if ( 2 === type ) // variation
-        {
-            threshold = 1-threshold;
-            solar = function( i ){
-                var q = 2*i/255; 
-                return q<threshold ? 255-255*q : 255*q-255;
-            };
+            threshold *= 256;
+            solar = function(i) {return i>threshold ? (255-i) : i;};
         }
         else
         {
-            solar = function( i ){
-                var q = 2*i/255; 
-                return q>threshold ? 255-255*q : 255*q-255;
+            if (2 === type) // variation
+            {
+                threshold = 1 - threshold;
+            }
+            solar = function(i) {
+                var q = 2*i/255;
+                return q<threshold ? (255-255*q) : (255*q-255);
             };
         }
-        return this.set(FILTER.Util.Filter.ct_eye(solar));
+        return this.set(eye(solar));
     }
-    
-    ,solarize2: function( threshold ) {
-        return this.solarize( threshold, 2 );
+
+    ,solarize2: function(threshold) {
+        return this.solarize(threshold, 2);
     }
-    
-    ,solarizeInverse: function( threshold ) {
-        return this.solarize( threshold, -1 );
+
+    ,solarizeInverse: function(threshold) {
+        return this.solarize(threshold, -1);
     }
-    
+
     // apply a binary mask to the image color channels
-    ,mask: function( mask ) {
-        var eye = FILTER.Util.Filter.ct_eye,
-            maskR = (mask>>>16)&255, maskG = (mask>>>8)&255, maskB = mask&255;
-        return this.set(eye(function( i ){ return i & maskR; }), eye(function( i ){ return i & maskG; }), eye(function( i ){ return i & maskB; }));
+    ,mask: function(mask) {
+        var maskR = (mask>>>16)&255, maskG = (mask>>>8)&255, maskB = mask&255;
+        return this.set(eye(function(i) {return i & maskR;}), eye(function(i) {return i & maskG;}), eye(function(i) {return i & maskB;}));
     }
-    
+
     // replace a color with another
-    ,replace: function( color, replacecolor ) {
+    ,replace: function(color, replacecolor) {
         if (color == replacecolor) return this;
-        var eye = FILTER.Util.Filter.ct_eye,
-            tR = eye(), tG = eye(), tB = eye();
+        var tR = eye(), tG = eye(), tB = eye();
         tR[(color>>>16)&255] = (replacecolor>>>16)&255;
         tG[(color>>>8)&255] = (replacecolor>>>8)&255;
         tB[(color)&255] = (replacecolor)&255;
         return this.set(tR, tG, tB);
     }
-    
+
     // extract a range of color values from a specific color channel and set the rest to background color
-    ,extract: function( channel, range, background ) {
+    ,extract: function(channel, range, background) {
         if (!range || !range.length) return this;
         background = background||0;
-        var eye = FILTER.Util.Filter.ct_eye, s, f,
-            tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255);
-        switch(channel || CHANNEL.R)
+        var tR = eye(0,(background>>>16)&255), tG = eye(0,(background>>>8)&255), tB = eye(0,background&255);
+        switch (channel || CHANNEL.R)
         {
             case CHANNEL.B:
-                for(s=range[0],f=range[1]; s<=f; s++) tB[s] = clamp(s);
+                for (s=range[0],f=range[1]; s<=f; ++s) tB[s] = clamp(s);
                 break;
-            
+
             case CHANNEL.G:
-                for(s=range[0],f=range[1]; s<=f; s++) tG[s] = clamp(s);
+                for (s=range[0],f=range[1]; s<=f; ++s) tG[s] = clamp(s);
                 break;
-            
+
             case CHANNEL.R:
             default:
-                for(s=range[0],f=range[1]; s<=f; s++) tR[s] = clamp(s);
+                for (s=range[0],f=range[1]; s<=f; ++s) tR[s] = clamp(s);
                 break;
         }
         return this.set(tR, tG, tB);
     }
-    
+
     // adapted from http://www.jhlabs.com/ip/filters/
-    ,gammaCorrection: function( gammaR, gammaG, gammaB ) {
+    ,gammaCorrection: function(gammaR, gammaG, gammaB) {
         gammaR = gammaR || 1;
         gammaG = gammaG || gammaR;
         gammaB = gammaB || gammaG;
         // gamma correction uses inverse gamma
         gammaR = 1.0/gammaR; gammaG = 1.0/gammaG; gammaB = 1.0/gammaB;
-        var eye = FILTER.Util.Filter.ct_eye;
-        return this.set(eye(function( i ){ return 255*Power(nF*i, gammaR); }), eye(function( i ){ return 255*Power(nF*i, gammaG); }), eye(function( i ){ return 255*Power(nF*i, gammaB); }));
+        return this.set(eye(function(i) {return 255*Power(nF*i, gammaR);}), eye(function(i) {return 255*Power(nF*i, gammaG);}), eye(function(i) {return 255*Power(nF*i, gammaB);}));
     }
-    
+
     // adapted from http://www.jhlabs.com/ip/filters/
-    ,exposure: function( exposure ) {
-        if ( null == exposure ) exposure = 1;
-        return this.set(FILTER.Util.Filter.ct_eye(function( i ){ return 255 * (1 - Exponential(-exposure * i *nF)); }));
+    ,exposure: function(exposure) {
+        if (null == exposure) exposure = 1;
+        return this.set(eye(function(i) {return 255 * (1 - Exponential(-exposure * i *nF));}));
     }
-    
-    ,contrast: function( r, g, b ) {
-        if ( null == g ) g = r;
-        if ( null == b ) b = r;
+
+    ,contrast: function(r, g, b) {
+        if (null == g) g = r;
+        if (null == b) b = r;
         r += 1.0; g += 1.0; b += 1.0;
-        var eye = FILTER.Util.Filter.ct_eye;
-        return this.set(eye(r,128*(1 - r)), eye(g,128*(1 - g)), eye(b,128*(1 - b)));
+        return this.set(eye(r, 128*(1 - r)), eye(g, 128*(1 - g)), eye(b, 128*(1 - b)));
     }
-    
-    ,brightness: function( r, g, b ) {
-        if ( null == g ) g = r;
-        if ( null == b ) b = r;
-        var eye = FILTER.Util.Filter.ct_eye;
-        return this.set(eye(1,r), eye(1,g), eye(1,b));
+
+    ,brightness: function(r, g, b) {
+        if (null == g) g = r;
+        if (null == b) b = r;
+        return this.set(eye(1, r), eye(1, g), eye(1, b));
     }
-    
-    ,quickContrastCorrection: function( contrast ) {
-        return this.set(FILTER.Util.Filter.ct_eye(null == contrast ? 1.2 : +contrast));
+
+    ,quickContrastCorrection: function(contrast) {
+        return this.set(eye(null == contrast ? 1.2 : +contrast));
     }
-    
-    ,set: function( tR, tG, tB, tA ) {
-        if ( !tR ) return this;
-        
-        var eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply,
-            i, T = this.table, R = T[CHANNEL.R] || eye( ), G, B, A;
-        
-        if ( tG || tB )
+
+    ,set: function(tR, tG, tB, tA) {
+        if (!tR) return this;
+
+        var i, T = this.table, R = T[CHANNEL.R] || eye(), G, B, A;
+
+        if (tG || tB)
         {
             tG = tG || tR; tB = tB || tG;
             G = T[CHANNEL.G] || R; B = T[CHANNEL.B] || G;
-            T[CHANNEL.R] = ct_mult( tR, R );
-            T[CHANNEL.G] = ct_mult( tG, G );
-            T[CHANNEL.B] = ct_mult( tB, B );
+            T[CHANNEL.R] = ct_mult(tR, R);
+            T[CHANNEL.G] = ct_mult(tG, G);
+            T[CHANNEL.B] = ct_mult(tB, B);
         }
         else
         {
-            T[CHANNEL.R] = ct_mult( tR, R );
+            T[CHANNEL.R] = ct_mult(tR, R);
             T[CHANNEL.G] = T[CHANNEL.R];
             T[CHANNEL.B] = T[CHANNEL.R];
         }
         return this;
     }
-    
-    ,reset: function( ) {
-        this.table = [null, null, null, null]; 
+
+    ,reset: function() {
+        this.table = [null, null, null, null];
         return this;
     }
-    
-    ,combineWith: function( filt ) {
+
+    ,combineWith: function(filt) {
         return this.set(filt.getTable(CHANNEL.R), filt.getTable(CHANNEL.G), filt.getTable(CHANNEL.B));
     }
-    
-    ,getTable: function ( channel ) {
+
+    ,getTable: function(channel) {
         return this.table[channel || CHANNEL.R] || null;
     }
-    
-    ,setTable: function ( table, channel ) {
+
+    ,setTable: function(table, channel) {
         this.table[channel || CHANNEL.R] = table || null;
         return this;
     }
-    
+
     // used for internal purposes
-    ,_apply: function( im, w, h ) {
+    ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, T = self.table;
-        if ( !T || !T[CHANNEL.R] ) return im;
-        
+        if (!T || !T[CHANNEL.R]) return im;
+
         var i, j, l=im.length, l2=l>>>2, rem=(l2&15)<<2, R = T[0], G = T[1], B = T[2], A = T[3];
-        
+
         // apply filter (algorithm implemented directly based on filter definition)
-        if ( A )
+        if (A)
         {
             // array linearization
             for (i=0; i<rem; i+=4)
@@ -432,8 +416,8 @@ var ColorTableFilter = FILTER.Create({
         }
         return im;
     }
-        
-    ,canRun: function( ) {
+
+    ,canRun: function() {
         return this._isOn && this.table && this.table[CHANNEL.R];
     }
 });
