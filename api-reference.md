@@ -254,12 +254,16 @@ new FILTER.ColorMapFilter(colorMap:Function);
 
 The filter scans an image and maps each pixel colors non-linearly according to the color mapping function.
 
-The class has various pre-defined filters which can be combined in any order.
+The class has various pre-defined filters.
 
 * `threshold/quantize(thresholds:Array, quantizedcolors:Array)`  applies a full 32-bit threshods to the image with quantized colors
 * `extract/mask(min:Number, max:Number, background:HEX)`  applies a color mask to (i.e extracts range of colors from) image
 * `RGB2HSV()`  transforms RGB to HSV color space
 * `HSV2RGB()`  transforms HSV to RGB color space
+* `RGB2HSL()`  transforms RGB to HSL color space
+* `HSL2RGB()`  transforms HSL to RGB color space
+* `RGB2HWB()`  transforms RGB to HWB color space
+* `HWB2RGB()`  transforms HWB to RGB color space
 * `RGB2CMYK()`  transforms RGB to CMY(K) color space
 * `hue()`  transforms to grayscale based on hue
 * `saturation()`  transforms to grayscale based on saturation
