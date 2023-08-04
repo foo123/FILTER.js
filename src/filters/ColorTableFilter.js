@@ -36,7 +36,7 @@ var ColorTableFilter = FILTER.Create({
         self.table[CHANNEL.A] = tA;
     }
 
-    ,path: FILTER_FILTERS_PATH
+    ,path: FILTER.Path
     // parameters
     ,table: null
 

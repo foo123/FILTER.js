@@ -197,267 +197,6 @@ function interpolate_bilinear(im, w, h, nw, nh)
     return interpolated;
 }
 
-// compute integral image (Summed Area Table, SAT) (for a given channel)
-function integral(im, w, h, stride, channel, integ)
-{
-    //"use asm";
-    stride = stride||0; channel = channel||0;
-    var len = im.length, size = len>>>stride, rowLen = w<<stride,
-        rem = (w&31)<<stride, i32 = 32<<stride, ii = 1<<stride,
-        integ, sum, i, j, i0, x;
-
-    integ = integ || new A32F(size);
-    // compute integral of image in one pass
-    // first row
-    sum = 0; j = 0;
-    for (i=channel; i<rem; i+=ii)
-    {
-        sum += im[i]; integ[j++] = sum;
-    }
-    for (i0=rem+channel; i0<rowlen; i0+=i32)
-    {
-        i =i0; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-        i+=ii; sum += im[i]; integ[j++] = sum;
-    }
-
-    // other rows
-    x=0; j=0; sum=0; rem += rowlen;
-    for (i=rowLen+channel; i<rem; i+=ii)
-    {
-        sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-    }
-    for (i0=rem+channel; i0<len; i0+=i32)
-    {
-        i =i0; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-        i+=ii; sum += im[i]; integ[j+w] = integ[j] + sum; ++j;
-        if (++x >=w) {x=0; sum=0;}
-    }
-    return integ;
-}
-// compute image histogram (for a given channel)
-function histogram(im, w, h, stride, channel, pdf_only, cdf)
-{
-    //"use asm";
-    stride = stride||0; channel = channel||0;
-    var i, i0, i32 = 32<<stride, ii = 1<<stride,
-        l = im.length, l2 = l>>>stride, accum, rem = (l2&31)<<stride;
-
-    // initialize the arrays
-    cdf = cdf || new A32F(256);
-    // compute pdf
-    for (i=channel; i<rem; i+=ii)
-    {
-        cdf[im[i]]++;
-    }
-    for (i0=rem+channel; i0<l; i0+=i32)
-    {
-        // partial loop unrolling
-        i =i0; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-        i+=ii; cdf[im[i]]++;
-    }
-
-    // return pdf NOT cdf
-    if (true === pdf_only) return cdf;
-
-    // compute cdf
-    for (accum=0,i=0; i<256; i+=64)
-    {
-        // partial loop unrolling
-        accum += cdf[i   ]; cdf[i   ] = accum;
-        accum += cdf[i+1 ]; cdf[i+1 ] = accum;
-        accum += cdf[i+2 ]; cdf[i+2 ] = accum;
-        accum += cdf[i+3 ]; cdf[i+3 ] = accum;
-        accum += cdf[i+4 ]; cdf[i+4 ] = accum;
-        accum += cdf[i+5 ]; cdf[i+5 ] = accum;
-        accum += cdf[i+6 ]; cdf[i+6 ] = accum;
-        accum += cdf[i+7 ]; cdf[i+7 ] = accum;
-        accum += cdf[i+8 ]; cdf[i+8 ] = accum;
-        accum += cdf[i+9 ]; cdf[i+9 ] = accum;
-        accum += cdf[i+10]; cdf[i+10] = accum;
-        accum += cdf[i+11]; cdf[i+11] = accum;
-        accum += cdf[i+12]; cdf[i+12] = accum;
-        accum += cdf[i+13]; cdf[i+13] = accum;
-        accum += cdf[i+14]; cdf[i+14] = accum;
-        accum += cdf[i+15]; cdf[i+15] = accum;
-        accum += cdf[i+16]; cdf[i+16] = accum;
-        accum += cdf[i+17]; cdf[i+17] = accum;
-        accum += cdf[i+18]; cdf[i+18] = accum;
-        accum += cdf[i+19]; cdf[i+19] = accum;
-        accum += cdf[i+20]; cdf[i+20] = accum;
-        accum += cdf[i+21]; cdf[i+21] = accum;
-        accum += cdf[i+22]; cdf[i+22] = accum;
-        accum += cdf[i+23]; cdf[i+23] = accum;
-        accum += cdf[i+24]; cdf[i+24] = accum;
-        accum += cdf[i+25]; cdf[i+25] = accum;
-        accum += cdf[i+26]; cdf[i+26] = accum;
-        accum += cdf[i+27]; cdf[i+27] = accum;
-        accum += cdf[i+28]; cdf[i+28] = accum;
-        accum += cdf[i+29]; cdf[i+29] = accum;
-        accum += cdf[i+30]; cdf[i+30] = accum;
-        accum += cdf[i+31]; cdf[i+31] = accum;
-        accum += cdf[i+32]; cdf[i+32] = accum;
-        accum += cdf[i+33]; cdf[i+33] = accum;
-        accum += cdf[i+34]; cdf[i+34] = accum;
-        accum += cdf[i+35]; cdf[i+35] = accum;
-        accum += cdf[i+36]; cdf[i+36] = accum;
-        accum += cdf[i+37]; cdf[i+37] = accum;
-        accum += cdf[i+38]; cdf[i+38] = accum;
-        accum += cdf[i+39]; cdf[i+39] = accum;
-        accum += cdf[i+40]; cdf[i+40] = accum;
-        accum += cdf[i+41]; cdf[i+41] = accum;
-        accum += cdf[i+42]; cdf[i+42] = accum;
-        accum += cdf[i+43]; cdf[i+43] = accum;
-        accum += cdf[i+44]; cdf[i+44] = accum;
-        accum += cdf[i+45]; cdf[i+45] = accum;
-        accum += cdf[i+46]; cdf[i+46] = accum;
-        accum += cdf[i+47]; cdf[i+47] = accum;
-        accum += cdf[i+48]; cdf[i+48] = accum;
-        accum += cdf[i+49]; cdf[i+49] = accum;
-        accum += cdf[i+50]; cdf[i+50] = accum;
-        accum += cdf[i+51]; cdf[i+51] = accum;
-        accum += cdf[i+52]; cdf[i+52] = accum;
-        accum += cdf[i+53]; cdf[i+53] = accum;
-        accum += cdf[i+54]; cdf[i+54] = accum;
-        accum += cdf[i+55]; cdf[i+55] = accum;
-        accum += cdf[i+56]; cdf[i+56] = accum;
-        accum += cdf[i+57]; cdf[i+57] = accum;
-        accum += cdf[i+58]; cdf[i+58] = accum;
-        accum += cdf[i+59]; cdf[i+59] = accum;
-        accum += cdf[i+60]; cdf[i+60] = accum;
-        accum += cdf[i+61]; cdf[i+61] = accum;
-        accum += cdf[i+62]; cdf[i+62] = accum;
-        accum += cdf[i+63]; cdf[i+63] = accum;
-    }
-    return cdf;
-}
-function spectrum(im, w, h, stride, channel)
-{
-    // TODO
-    return null;
-}
-
 function integral2(im, w, h, stride, channel, sat, sat2, rsat)
 {
     //"use asm";
@@ -678,7 +417,7 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         w_1 = w-1, h_1 = h-1, i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
         g = new A32F(count), xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
         nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag, gg,
-        x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge;
+        x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge, tm, tM;
 
     // non-maximal supression
     for (i=1,j=1,k=w; j<h_1; ++i)
@@ -697,27 +436,45 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
 
         xGrad = gX[i0]; yGrad = gY[i0];
         absxGrad = Abs(xGrad); absyGrad = Abs(yGrad);
-        gradMag = absxGrad+absyGrad;
-        nMag = Abs(gX[i1n])+Abs(gY[i1n]);
-        sMag = Abs(gX[i1s])+Abs(gY[i1s]);
-        wMag = Abs(gX[i1w])+Abs(gY[i1w]);
-        eMag = Abs(gX[i1e])+Abs(gY[i1e]);
-        neMag = Abs(gX[ine])+Abs(gY[ine]);
-        seMag = Abs(gX[ise])+Abs(gY[ise]);
-        swMag = Abs(gX[isw])+Abs(gY[isw]);
-        nwMag = Abs(gX[inw])+Abs(gY[inw]);
+        tM = Max(absxGrad, absyGrad);
+        tm = Min(absxGrad, absyGrad);
+        gradMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[i1n]),Abs(gY[i1n]));
+        tm = Min(Abs(gX[i1n]),Abs(gY[i1n]));
+        nMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[i1s]),Abs(gY[i1s]));
+        tm = Min(Abs(gX[i1s]),Abs(gY[i1s]));
+        sMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[i1w]),Abs(gY[i1w]));
+        tm = Min(Abs(gX[i1w]),Abs(gY[i1w]));
+        wMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[i1e]),Abs(gY[i1e]));
+        tm = Min(Abs(gX[i1e]),Abs(gY[i1e]));
+        eMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[ine]),Abs(gY[ine]));
+        tm = Min(Abs(gX[ine]),Abs(gY[ine]));
+        neMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[ise]),Abs(gY[ise]));
+        tm = Min(Abs(gX[ise]),Abs(gY[ise]));
+        seMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[isw]),Abs(gY[isw]));
+        tm = Min(Abs(gX[isw]),Abs(gY[isw]));
+        swMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
+        tM = Max(Abs(gX[inw]),Abs(gY[inw]));
+        tm = Min(Abs(gX[inw]),Abs(gY[inw]));
+        nwMag = tM ? (tM*(1+0.43*tm/tM*tm/tM)) : 0; // approximation
 
-        gg = (xGrad * yGrad <= 0
-            ? absxGrad >= absyGrad
-                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
-                    && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag)
-                : (tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
-                    && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)
-            : absxGrad >= absyGrad
-                ? (tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
-                    && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag)
-                : (tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
-                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag));
+        gg = xGrad * yGrad <= 0
+            ? (absxGrad >= absyGrad
+                ? ((tmp = absxGrad * gradMag) >= Abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > Abs(yGrad * swMag - (xGrad + yGrad) * wMag))
+                : ((tmp = absyGrad * gradMag) >= Abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > Abs(xGrad * swMag - (yGrad + xGrad) * sMag)))
+            : (absxGrad >= absyGrad
+                ? ((tmp = absxGrad * gradMag) >= Abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag))
+                : ((tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)));
         g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag)) : 0;
     }
     if (sat)
@@ -1943,9 +1700,6 @@ ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
 ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.interpolate = interpolate_bilinear;
 
-FilterUtil.integral = integral;
-FilterUtil.histogram = histogram;
-FilterUtil.spectrum = spectrum;
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
 FilterUtil.cm_eye = cm_eye;

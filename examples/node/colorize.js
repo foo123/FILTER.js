@@ -1,22 +1,28 @@
 "use strict";
 
-var parse_args = require('./commargs.js'),
-    path = require('path'),
-    F = require('../../build/filter.bundle.js'),
-    colorize = F.ColorMatrixFilter().colorize(0xff0010),
-    binaryManager = F.IO.BinaryManager( F.Codec.JPG, {quality: 100} );
+var FILTER = require('./filterwithcanvas'),
+    colorize = FILTER.ColorMatrixFilter().colorize(0xff0010);
 
 console.log('Loading image..');
-binaryManager.read( path.join(__dirname,'./fidel_halfone.jpg'), function( che ){
-    console.log('./fidel_halfone.jpg' + ' loaded with dims: ' + che.width + ',' + che.height);
-    console.log('Processing..');
-    colorize.apply( che, function( ){
-        console.log('Saving..');
-        binaryManager.write( path.join(__dirname,'./fidel_halfone.jpg'), che,
-        function( file ){
-            console.log('image saved to: ' + './fidel_halfone.jpg');
-        }, function( err ){
-            console.log('error while saving image: ' + err);
+require('fs').readFile(__dirname+'/che.jpg', function(err, buffer) {
+    if (err) return console.log(err);
+    var img = FILTER.Canvas.Image();
+    img.onload = function() {
+        var fimg = FILTER.Image(img);
+        console.log('Processing..');
+        colorize/*.worker(true)*/.apply(fimg, function() {
+            console.log('Saving..');
+            fimg.oCanvas.toPNG().then(function(png) {
+                require('fs').writeFile(__dirname+'/checolor.png', png, function(err) {
+                    if (err) return console.log('error while saving image: ' + err);
+                    console.log('image saved to: ' + './checolor.png');
+                    colorize.dispose();
+                });
+            }).catch(function(err) {
+                console.log('error while saving image: ' + err);
+                colorize.dispose();
+            });
         });
-    });
+    };
+    img.src = buffer;
 });

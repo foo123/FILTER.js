@@ -1,15 +1,4 @@
-/**
-*
-*   FILTER.js
-*   @version: @@VERSION@@
-*   @built on @@DATE@@
-*   @dependencies: Asynchronous.js
-*
-*   JavaScript Image Processing Library
-*   https://github.com/foo123/FILTER.js
-*
-**/
-var FILTER = (function() {
+!function(FILTER, undef) {
 "use strict";
 var PROTO = 'prototype',
     HAS = Object[PROTO].hasOwnProperty,
@@ -52,7 +41,7 @@ function makeClass(superklass, klass, statik)
     }
     else
     {
-        C[PROTO].$super = NOP;
+        C[PROTO].$super = NOOP;
     }
     C[PROTO].constructor = C;
     for (p in klass)
@@ -94,24 +83,20 @@ function merge(/*args*/)
 }
 makeClass.Merge = merge;
 
-var FILTER = {
-    VERSION: "@@VERSION@@",
-    Class: makeClass,
-    Asynchronous: Asynchronous,
-    Path: Asynchronous.path(ModuleFactory__FILTER.moduleUri),
-    uuid: function(namespace) {
-        return [namespace||'filter', new Date().getTime(), ++_uuid].join('_');
-    },
-    NotImplemented: function(method) {
-        return method ? function() {
-            throw new Error('Method "'+method+'" not Implemented!');
-        } : function() {
-            throw new Error('Method not Implemented!');
-        };
-    }
+FILTER.Class = makeClass;
+FILTER.Path = FILTER.Asynchronous.path(ModuleFactory__FILTER.moduleUri);
+FILTER.uuid = function(namespace) {
+    return [namespace||'filter', new Date().getTime(), ++_uuid].join('_');
+};
+FILTER.NotImplemented = function(method) {
+    return method ? function() {
+        throw new Error('Method "'+method+'" not Implemented!');
+    } : function() {
+        throw new Error('Method not Implemented!');
+    };
 };
 
-var Async = Asynchronous
+var Async = FILTER.Asynchronous
     ,isNode = Async.isPlatform(Async.Platform.NODE)
     ,isBrowser = Async.isPlatform(Async.Platform.BROWSER)
     ,supportsThread = Async.supportsMultiThreading()
@@ -269,8 +254,8 @@ FILTER.Canvas = function(w, h) {
     if (canvas.style)
     {
         // set the display size of the canvas if displayed
-        canvas.style.width = String(w) + 'px';
-        canvas.style.height = String(h) + 'px';
+        canvas.style.width = String(canvas.width) + 'px';
+        canvas.style.height = String(canvas.height) + 'px';
         canvas.style.transformOrigin = 'top left';
         canvas.style.transform = 'scale('+(1/dpr)+','+(1/dpr)+')';
     }
@@ -285,5 +270,4 @@ FILTER.Canvas.ImageData = function(data, width, height) {
     return 'undefined' !== typeof ImageData ? (new ImageData(data, width, height)) : {data:data, width:width, height:height};
 };
 
-return FILTER;
-})();
+}(FILTER);

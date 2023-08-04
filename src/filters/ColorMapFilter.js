@@ -277,7 +277,7 @@ MAP = {
         var C0, C1, C2, CH = FILTER.CHANNEL.H, CS = FILTER.CHANNEL.S, CV = FILTER.CHANNEL.V, RGB2HSV = FILTER.Color.RGB2HSV;\
     }"
 
-    "rgb2hsl": "function() {\
+    ,"rgb2hsl": "function() {\
         if (0 !== c[3])\
         {\
             RGB2HSL(c, 0);\
@@ -289,7 +289,7 @@ MAP = {
         var C0, C1, C2, CH = FILTER.CHANNEL.H, CS = FILTER.CHANNEL.S, CL = FILTER.CHANNEL.L, RGB2HSL = FILTER.Color.RGB2HSL;\
     }"
 
-    "rgb2hwb": "function() {\
+    ,"rgb2hwb": "function() {\
         if (0 !== c[3])\
         {\
             RGB2HWB(c, 0);\

@@ -1,10 +1,10 @@
 /**
 *
-* Drop Shadow Filter Plugin
+* Drop Shadow Filter
 * @package FILTER.js
 *
 **/
-!function(FILTER, undef){
+!function(FILTER, undef) {
 "use strict";
 
 var MODE = FILTER.MODE,
@@ -12,13 +12,14 @@ var MODE = FILTER.MODE,
     1/9,1/9,1/9,
     1/9,1/9,1/9,
     1/9,1/9,1/9
-    ]);
+    ]),
+    stdMath = Math;
 
 // adapted from http://www.jhlabs.com/ip/filters/
 // analogous to ActionScript filter
 FILTER.Create({
      name: "DropShadowFilter"
-    
+
     // parameters
     ,offsetX: null
     ,offsetY: null
@@ -27,12 +28,12 @@ FILTER.Create({
     ,quality: 1
     ,pad: true
     ,onlyShadow: false
-    
+
     // support worker serialize/unserialize interface
-    ,path: FILTER_PLUGINS_PATH
-    
+    ,path: FILTER.Path
+
     // constructor
-    ,init: function( offsetX, offsetY, color, opacity, quality, pad, onlyShadow ) {
+    ,init: function(offsetX, offsetY, color, opacity, quality, pad, onlyShadow) {
         var self = this;
         self.offsetX = offsetX || 0;
         self.offsetY = offsetY || 0;
@@ -42,8 +43,8 @@ FILTER.Create({
         self.pad = null == pad ? true : !!pad;
         self.onlyShadow = !!onlyShadow;
     }
-    
-    ,dispose: function( ) {
+
+    ,dispose: function() {
         var self = this;
         self.offsetX = null;
         self.offsetY = null;
@@ -55,8 +56,8 @@ FILTER.Create({
         self.$super('dispose');
         return self;
     }
-    
-    ,serialize: function( ) {
+
+    ,serialize: function() {
         var self = this;
         return {
              offsetX: self.offsetX
@@ -68,8 +69,8 @@ FILTER.Create({
             ,onlyShadow: self.onlyShadow
         };
     }
-    
-    ,unserialize: function( params ) {
+
+    ,unserialize: function(params) {
         var self = this;
         self.offsetX = params.offsetX;
         self.offsetY = params.offsetY;
@@ -80,34 +81,37 @@ FILTER.Create({
         self.onlyShadow = params.onlyShadow;
         return self;
     }
-    
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
         self.hasMeta = false;
-        if ( !self._isOn ) return im;
-        var max = Math.max, color = self.color||0, a = self.opacity, quality = self.quality,
-            pad = self.pad, onlyShadow = self.onlyShadow, offX = self.offsetX||0, offY = self.offsetY||0,
-            r, g, b, imSize = im.length, imArea = imSize>>>2, shSize = imSize, i, x, y, sw = w, sh = h, sx, sy, si, ai, aa, shadow;
-            
-        if ( 0.0 > a ) a = 0.0;
-        if ( 1.0 < a ) a = 1.0;
-        if ( 0.0 === a ) return im;
-        
+        if (!self._isOn) return im;
+        var max = stdMath.max, color = self.color||0,
+            a = self.opacity, quality = self.quality,
+            pad = self.pad, onlyShadow = self.onlyShadow,
+            offX = self.offsetX||0, offY = self.offsetY||0,
+            r, g, b, imSize = im.length, imArea = imSize>>>2, shSize = imSize,
+            i, x, y, sw = w, sh = h, sx, sy, si, ai, aa, shadow;
+
+        if (0.0 > a) a = 0.0;
+        if (1.0 < a) a = 1.0;
+        if (0.0 === a) return im;
+
         r = (color>>>16)&255; g = (color>>>8)&255; b = (color)&255;
-        
-        if ( 0 >= quality ) quality = 1;
-        if ( 3 < quality ) quality = 3;
-        
+
+        if (0 >= quality) quality = 1;
+        if (3 < quality) quality = 3;
+
         shadow = new FILTER.ImArray(shSize);
-        
+
         // generate shadow from image alpha channel
         var maxx = 0, maxy = 0;
-        for(i=0,x=0,y=0; i<shSize; i+=4,x++)
+        for (i=0,x=0,y=0; i<shSize; i+=4,++x)
         {
-            if ( x >= sw ) { x=0; y++; }
+            if (x >= sw) {x=0; ++y;}
             ai = im[i+3];
-            if ( ai > 0 )
+            if (ai > 0)
             {
                 shadow[i  ] = r;
                 shadow[i+1] = g;
@@ -124,13 +128,13 @@ FILTER.Create({
                 shadow[i+3] = 0;
             }*/
         }
-        
+
         // blur shadow, quality is applied multiple times for smoother effect
         shadow = FILTER.Util.Filter.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
-        
+
         // pad image to fit whole offseted shadow
         maxx += offX; maxy += offY;
-        if ( pad && (maxx >= w || maxx < 0 || maxy >= h || maxy < 0) )
+        if (pad && (maxx >= w || maxx < 0 || maxy >= h || maxy < 0))
         {
             var pad_left = maxx < 0 ? -maxx : 0, pad_right = maxx >= w ? maxx-w : 0,
                 pad_top = maxy < 0 ? -maxy : 0, pad_bot = maxy >= h ? maxy-h : 0;
@@ -142,14 +146,14 @@ FILTER.Create({
         }
         // offset and combine with original image
         offY *= w;
-        if ( onlyShadow )
+        if (onlyShadow)
         {
             // return only the shadow
-            for(x=0,y=0,si=0; si<shSize; si+=4,x++)
+            for (x=0,y=0,si=0; si<shSize; si+=4,++x)
             {
-                if ( x >= sw ) {x=0; y+=w;}
+                if (x >= sw) {x=0; y+=w;}
                 sx = x+offX; sy = y+offY;
-                if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/ ) continue;
+                if (0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/ ) continue;
                 i = (sx + sy) << 2;
                 im[i  ] = shadow[si  ]; im[i+1] = shadow[si+1]; im[i+2] = shadow[si+2]; im[i+3] = shadow[si+3];
             }
@@ -157,13 +161,13 @@ FILTER.Create({
         else
         {
             // return image with shadow
-            for(x=0,y=0,si=0; si<shSize; si+=4,x++)
+            for (x=0,y=0,si=0; si<shSize; si+=4,++x)
             {
-                if ( x >= sw ) {x=0; y+=w;}
+                if (x >= sw) {x=0; y+=w;}
                 sx = x+offX; sy = y+offY;
-                if ( 0 > sx || sx >= w || 0 > sy || sy >= imArea ) continue;
+                if (0 > sx || sx >= w || 0 > sy || sy >= imArea) continue;
                 i = (sx + sy) << 2; ai = im[i+3]; a = shadow[si+3];
-                if ( (255 === ai) || (0 === a) ) continue;
+                if ((255 === ai) || (0 === a)) continue;
                 a /= 255; //ai /= 255; //aa = ai + a*(1.0-ai);
                 // src over composition
                 // https://en.wikipedia.org/wiki/Alpha_compositing

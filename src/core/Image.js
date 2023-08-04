@@ -9,15 +9,13 @@
 
 var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
     IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
-    CHANNEL = FILTER.CHANNEL, FORMAT = FILTER.FORMAT, MIME = FILTER.MIME, ID = 0,
+    CHANNEL = FILTER.CHANNEL,
     Color = FILTER.Color,
-    ImageUtil = FILTER.Util.Image,
-    FilterUtil = FILTER.Util.Filter,
-    ArrayUtil = FILTER.Util.Array,
-    arrayset = ArrayUtil.arrayset,
-    subarray = ArrayUtil.subarray,
+    subarray = FILTER.Util.Array.subarray,
+    clamp = FILTER.Util.Math.clamp,
     stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
 
+    ID = 0,
     RED = 1 << CHANNEL.R,
     GREEN = 1 << CHANNEL.G,
     BLUE = 1 << CHANNEL.B,
@@ -213,8 +211,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.height = h * devicePixelRatio;
         if (self.oCanvas.style)
         {
-            self.oCanvas.style.width = String(w) + 'px';
-            self.oCanvas.style.height = String(h) + 'px';
+            self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
+            self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
         }
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
@@ -348,8 +346,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.height = h * devicePixelRatio;
         if (self.oCanvas.style)
         {
-            self.oCanvas.style.width = String(w) + 'px';
-            self.oCanvas.style.height = String(h) + 'px';
+            self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
+            self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
         }
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         if (self._restorable)
@@ -413,6 +411,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         if (null == y) y = ys;
         if (null == w) w = ws;
         if (null == h) h = hs;
+
+        if (w > ws) w = ws;
+        if (h > hs) h = hs;
+        x = clamp(x, xs, ws);
+        y = clamp(y, ys, hs);
 
         var octx = self.oCanvas.getContext('2d'),
             ictx = self.iCanvas.getContext('2d');
@@ -663,23 +666,23 @@ function set_dimensions(scope, w, h, what)
     if (what & WIDTH)
     {
         scope.width = w;
-        if (scope.oCanvas.style) scope.oCanvas.style.width = String(w) + 'px';
         scope.oCanvas.width = w * devicePixelRatio;
+        if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.oCanvas.width) + 'px';
         if (scope._restorable)
         {
-            if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
             scope.iCanvas.width = scope.oCanvas.width;
+            if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
         }
     }
     if (what & HEIGHT)
     {
         scope.height = h;
-        if (scope.oCanvas.style) scope.oCanvas.style.height = String(h) + 'px';
         scope.oCanvas.height = h * devicePixelRatio;
+        if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.oCanvas.height) + 'px';
         if (scope._restorable)
         {
-            if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
             scope.iCanvas.height = scope.oCanvas.height;
+            if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
         }
     }
     return scope;
@@ -704,9 +707,16 @@ function refresh_selected_data(scope, what)
 {
     if (scope.selection)
     {
-        var sel = scope.selection, ow = scope.oCanvas.width-1, oh = scope.oCanvas.height-1,
-            xs = sel[0], ys = sel[1], xf = sel[2], yf = sel[3],
-            fx = sel[4] ? ow : 1, fy = sel[4] ? oh : 1, ws, hs;
+        var sel = scope.selection,
+            ow = scope.oCanvas.width-1,
+            oh = scope.oCanvas.height-1,
+            xs = sel[0],
+            ys = sel[1],
+            xf = sel[2],
+            yf = sel[3],
+            fx = sel[4] ? ow : 1,
+            fy = sel[4] ? oh : 1,
+            ws, hs;
         xs = Floor(xs*fx); ys = Floor(ys*fy);
         xf = Floor(xf*fx); yf = Floor(yf*fy);
         ws = xf-xs+1; hs = yf-ys+1;

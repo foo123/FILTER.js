@@ -21,6 +21,8 @@ var NoiseFilter = FILTER.Create({
     // this is the filter constructor
     ,init: function(min, max) {
         var self = this;
+        if (null == min) min = -127;
+        if (null == max) max = 127;
         self.min = min||0;
         self.max = max||0;
     }
@@ -86,6 +88,6 @@ var NoiseFilter = FILTER.Create({
         return im;
     }
 });
-NoiseFilter.random = stdMath.random;
+NoiseFilter.random = Math.random;
 
 }(FILTER);

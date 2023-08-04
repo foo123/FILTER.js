@@ -29,7 +29,7 @@ var StatisticalFilter = FILTER.Create({
         self.mode = MODE.RGB;
     }
 
-    ,path: FILTER_FILTERS_PATH
+    ,path: FILTER.Path
     ,d: 0
     ,k: 0
     ,_filter: null
@@ -194,7 +194,8 @@ STAT = {
             r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
             rhist, ghist, bhist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
+            matArea = matArea2>>>1, imIndex = new A32I(matArea2),
+            rt, gt, bt, rtc, gtc, btc;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -203,31 +204,36 @@ STAT = {
 
         if (MODE.GRAY === self.mode)
         {
+            gt = new IMG(256);
             ghist = new A32U(256/*268*/);
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
             {
                 if (x>=w) {x=0; ty+=w;}
 
-                tot=0; gmin=255; gmax=0;
+                tot=0;
+                //gmin=255;
+                //gmax=0;
+                gtc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
                     if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
                     srcOff = (xOff + yOff)<<2;
                     g = im[srcOff];
-                    if (g < gmin) gmin = g; if (g > gmax) gmax = g;
+                    //if (g < gmin) gmin = g; if (g > gmax) gmax = g;
                     // compute histogram, similar to counting sort
                     ++tot; ++ghist[g];
+                    if (1 === ghist[g]) gt[gtc++] = g;
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
                 // can it be made faster??
                 tot *= kth;
-                for (sum=0,kthG=-1,j=gmin; j<=gmax; ++j)
+                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
                 {
-                    sum += ghist[j]; ghist[j] = 0;
-                    if (0 > kthG && sum >= tot) kthG = j;
+                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    if (0 > kthG && sum >= tot) kthG = g;
                 }
 
                 // output
@@ -236,6 +242,9 @@ STAT = {
         }
         else
         {
+            rt = new IMG(256);
+            gt = new IMG(256);
+            bt = new IMG(256);
             rhist = new A32U(256/*268*/);
             ghist = new A32U(256/*268*/);
             bhist = new A32U(256/*268*/);
@@ -243,7 +252,10 @@ STAT = {
             {
                 if (x>=w) {x=0; ty+=w;}
 
-                tot=0; rmin=gmin=bmin=255; rmax=gmax=bmax=0;
+                tot=0;
+                //rmin=gmin=bmin=255;
+                //rmax=gmax=bmax=0;
+                rtc=gtc=btc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -252,28 +264,31 @@ STAT = {
                     r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
                     // compute histogram, similar to counting sort
                     ++rhist[r]; ++ghist[g]; ++bhist[b]; ++tot;
-                    if (r < rmin) rmin = r; if (g < gmin) gmin = g; if (b < bmin) bmin = b;
-                    if (r > rmax) rmax = r; if (g > gmax) gmax = g; if (b > bmax) bmax = b;
+                    //if (r < rmin) rmin = r; if (g < gmin) gmin = g; if (b < bmin) bmin = b;
+                    //if (r > rmax) rmax = r; if (g > gmax) gmax = g; if (b > bmax) bmax = b;
+                    if (1 === fhist[r]) rt[rtc++] = r;
+                    if (1 === ghist[g]) gt[gtc++] = g;
+                    if (1 === bhist[b]) bt[btc++] = b;
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
                 // can it be made faster??
                 tot *= kth;
-                for (sum=0,kthR=-1,j=rmin; j<=rmax; ++j)
+                for (sum=0,kthR=-1,j=0; j<rtc; ++j)
                 {
-                    sum += rhist[j]; rhist[j] = 0;
-                    if (0 > kthR && sum >= tot) kthR = j;
+                    r = rt[j]; sum += rhist[r]; rhist[r] = 0;
+                    if (0 > kthR && sum >= tot) kthR = r;
                 }
-                for (sum=0,kthG=-1,j=gmin; j<=gmax; ++j)
+                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
                 {
-                    sum += ghist[j]; ghist[j] = 0;
-                    if (0 > kthG && sum >= tot) kthG = j;
+                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    if (0 > kthG && sum >= tot) kthG = g;
                 }
-                for (sum=0,kthB=-1,j=bmin; j<=bmax; ++j)
+                for (sum=0,kthB=-1,j=0; j<btc; ++j)
                 {
-                    sum += bhist[j]; bhist[j] = 0;
-                    if (0 > kthB && sum >= tot) kthB = j;
+                    b = bt[j]; sum += bhist[b]; bhist[b] = 0;
+                    if (0 > kthB && sum >= tot) kthB = b;
                 }
 
                 // output

@@ -10,8 +10,13 @@
 var PROTO = 'prototype'
     ,OP = Object[PROTO], FP = Function[PROTO], AP = Array[PROTO]
     ,HAS = OP.hasOwnProperty, KEYS = Object.keys, stdMath = Math
-    ,FILTERPath = FILTER.Path
     ,Async = FILTER.Asynchronous
+    ,isNode = Async.isPlatform(Async.Platform.NODE)
+    ,isBrowser = Async.isPlatform(Async.Platform.BROWSER)
+    ,supportsThread = Async.supportsMultiThreading()
+    ,isThread = Async.isThread(null, true)
+    ,isInsideThread = Async.isThread()
+    ,FILTERPath = FILTER.Path
     ,Merge = FILTER.Class.Merge
     ,initPlugin = function() {}
     ,constructorPlugin = function(init) {
@@ -414,7 +419,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2;
+        var self = this, im, im2, w, h;
 
         if (!self.canRun()) return src;
 
@@ -442,6 +447,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         {
             cb = cb || self.onComplete;
             im = src.getSelectedData();
+            w = im[1]; h = im[2];
             if (self.$thread)
             {
                 self._listener.cb = function(data) {
@@ -454,7 +460,10 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                         if (data.meta) self.setMetaData(data.meta, true);
                         if (data.im && self._update)
                         {
-                            if (self.hasMeta && (null != self.meta._IMG_WIDTH))
+                            if (self.hasMeta && (
+                                (null != self.meta._IMG_WIDTH && w !== self.meta._IMG_WIDTH)
+                             || (null != self.meta._IMG_HEIGHT && h !== self.meta._IMG_HEIGHT)
+                            ))
                                 dst.dimensions(self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT);
                             dst.setSelectedData(FILTER.Util.Array.typed(data.im, FILTER.ImArray));
                         }
@@ -466,14 +475,17 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             }
             else
             {
-                im2 = self._apply(im[0], im[1], im[2], {src:src, dst:dst});
+                im2 = self._apply(im[0], w, h, {src:src, dst:dst});
                 // update image only if needed
                 // some filters do not actually change the image data
                 // but instead process information from the data,
                 // no need to update in such a case
                 if (self._update)
                 {
-                    if (self.hasMeta && (null != self.meta._IMG_WIDTH))
+                    if (self.hasMeta && (
+                        (null != self.meta._IMG_WIDTH && w !== self.meta._IMG_WIDTH)
+                     || (null != self.meta._IMG_HEIGHT && h !== self.meta._IMG_HEIGHT)
+                    ))
                         dst.dimensions(self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT);
                     dst.setSelectedData(im2);
                 }
