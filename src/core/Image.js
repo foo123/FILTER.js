@@ -50,6 +50,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._refresh = 0;
         self.nref = 0;
+        self._refresh |= DATA | SEL;
         if (img) self.image(img);
     }
 
@@ -518,14 +519,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // set direct data array of selected part
     ,setSelectedData: function(a) {
         var self = this, sel = self.selection,
-            w = self.oCanvas.width, h = self.oCanvas.height;
+            w = self.oCanvas.width, h = self.oCanvas.height,
+            xs, ys, ws, hs, xf, yf;
         if (sel)
         {
-            var xs, ys, ws, hs, xf, yf;
             if (sel[4])
             {
-                xf = W - 1;
-                yf = H - 1;
+                xf = w - 1;
+                yf = h - 1;
             }
             else
             {
@@ -694,11 +695,13 @@ function refresh_data(scope, what)
     if (scope._restorable && (what & IDATA) && (scope._refresh & IDATA))
     {
         scope.iData = scope.iCanvas.getContext('2d').getImageData(0, 0, w, h);
+        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d').createImageData(0, 0, w, h);
         scope._refresh &= ~IDATA;
     }
     if ((what & ODATA) && (scope._refresh & ODATA))
     {
         scope.oData = scope.oCanvas.getContext('2d').getImageData(0, 0, w, h);
+        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d').createImageData(0, 0, w, h);
         scope._refresh &= ~ODATA;
     }
     return scope;
@@ -724,11 +727,13 @@ function refresh_selected_data(scope, what)
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
             scope.iDataSel = scope.iCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
+            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d').createImageData(0, 0, ws, hs);
             scope._refresh &= ~ISEL;
         }
         if ((what & OSEL) && (scope._refresh & OSEL))
         {
             scope.oDataSel = scope.oCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
+            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
             scope._refresh &= ~OSEL;
         }
     }

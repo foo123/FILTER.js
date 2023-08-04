@@ -22,6 +22,7 @@ var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //I
 
     stdMath = Math, sqrt2 = stdMath.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = stdMath.abs, Sqrt = stdMath.sqrt, Sin = stdMath.sin, Cos = stdMath.cos,
+    Min = stdMath.min, Max = stdMath.max,
 
     // hardcode Pascal numbers, used for binomial kernels
     _pascal = [
@@ -371,7 +372,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
-            mArea, matArea, imageIndices;
+            mArea, matArea, imageIndices, tm, tM;
 
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
         if (MODE.GRAY === mode)
@@ -408,7 +409,19 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // output
                     if (_isGrad)
                     {
-                        t0 = Abs(r)+Abs(r2);
+                        r = Abs(r);
+                        r2 = Abs(r2);
+                        tM = Max(r, r2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(r, r2);
+                            t0 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t0 = 0;
+                        }
                     }
                     else
                     {
@@ -501,7 +514,45 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // output
                     if (_isGrad)
                     {
-                        t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                        r = Abs(r);
+                        r2 = Abs(r2);
+                        tM = Max(r, r2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(r, r2);
+                            t0 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t0 = 0;
+                        }
+                        g = Abs(g);
+                        g2 = Abs(g2);
+                        tM = Max(g, g2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(g, g2);
+                            t1 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t1 = 0;
+                        }
+                        b = Abs(b);
+                        b2 = Abs(b2);
+                        tM = Max(b, b2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(b, b2);
+                            t2 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t2 = 0;
+                        }
                     }
                     else
                     {

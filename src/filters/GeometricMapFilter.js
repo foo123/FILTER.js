@@ -13,6 +13,13 @@
 
 var MAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
+    stdMath = Math, floor = stdMath.floor,
+    sqrt = stdMath.sqrt, atan = stdMath.atan2,
+    sin = stdMath.sin, cos = stdMath.cos,
+    max = stdMath.max, min = stdMath.min,
+    PI = stdMath.PI, TWOPI = 2*PI,
+    clamp = FILTER.Util.Math.clamp,
+    Z = [0,0,0,0],
     HAS = Object.prototype.hasOwnProperty,
     toString = Function.prototype.toString;
 
@@ -36,9 +43,6 @@ FILTER.Create({
     ,centerY: 0
     ,angle: 0
     ,radius: 0
-    //,wavelength: 0
-    //,amplitude: 0
-    //,phase: 0
     ,mode: MODE.CLAMP
 
     ,dispose: function() {
@@ -54,9 +58,6 @@ FILTER.Create({
         self.centerY = null;
         self.angle = null;
         self.radius = null;
-        //self.wavelength = null;
-        //self.amplitude = null;
-        //self.phase = null;
         self.$super('dispose');
 
         return self;
@@ -66,16 +67,13 @@ FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? toString.call(self._map) : null
-            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? toString.call(self._mapInit) : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,color: self.color
             ,centerX: self.centerX
             ,centerY: self.centerY
             ,angle: self.angle
             ,radius: self.radius
-            //,wavelength: self.wavelength
-            //,amplitude: self.amplitude
-            //,phase: self.phase
         };
         self._mapChanged = false;
         return json;
@@ -88,12 +86,7 @@ FILTER.Create({
         self.centerY = params.centerY;
         self.angle = params.angle;
         self.radius = params.radius;
-        //self.wavelength = params.wavelength;
-        //self.amplitude = params.amplitude;
-        //self.phase = params.phase;
 
-        //self._mapName = params._mapName;
-        //self._map = params._map;
         if (!params._map && params._mapName && HAS.call(MAP, params._mapName))
         {
             self.set(params._mapName);
@@ -114,11 +107,15 @@ FILTER.Create({
     }
 
     ,polar: function(centerX, centerY) {
-        return this;
+        var self = this;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("polar");
     }
 
     ,cartesian: function(centerX, centerY) {
-        return this;
+        var self = this;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("cartesian");
     }
 
     ,twirl: function(angle, radius, centerX, centerY) {
@@ -134,20 +131,25 @@ FILTER.Create({
         return self.set("sphere");
     }
 
-    /*,ripple: function(radius, wavelength, amplitude, phase, centerX, centerY) {
-        var self = this;
-        self.radius = radius!==undef ? radius : 50;
-        self.centerX = centerX||0;
-        self.centerY = centerY||0;
-        self.wavelength = wavelength!==undef ? wavelength : 16;
-        self.amplitude = amplitude!==undef ? amplitude : 10;
-        self.phase = phase||0;
-        return self.set("ripple");
-    }*/
-
     ,set: function(T, preample) {
         var self = this;
-        if (T && HAS.call(MAP, String(T)))
+        if ('polar' === T)
+        {
+            self._mapName = 'polar';
+            self._map = 'polar';
+            self._mapInit = null;
+            self._apply = polar.bind(self);
+            self._mapChanged = false;
+        }
+        else if ('cartesian' === T)
+        {
+            self._mapName = 'cartesian';
+            self._map = 'cartesian';
+            self._mapInit = null;
+            self._apply = cartesian.bind(self);
+            self._mapChanged = false;
+        }
+        else if (T && HAS.call(MAP, String(T)))
         {
             if (self._mapName !== String(T))
             {
@@ -285,6 +287,109 @@ function apply__(map, preample)
 };")(FILTER);
 }
 
+function polar(im, w, h)
+{
+    var self = this, x, y, xx, yy, a, r, i, j,
+        imLen = im.length, W = w-1, H = h-1,
+        cx = self.centerX*W, cy = self.centerY*H,
+		height = 360, width = floor(max(
+        sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
+        sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
+        sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
+        sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
+        )),
+        dst = new FILTER.ImArray((width*height) << 2);
+    self.hasMeta = false;
+    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+    {
+        if (xx >= width) {xx=0; ++yy;}
+
+        r = xx;
+        a = (yy / height) * TWOPI;
+        x = r*cos(a) + cx;
+        y = r*sin(a) + cy;
+        interpolate(dst, i, x, y, im, w, h);
+    }
+    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
+    self.hasMeta = true;
+    return dst;
+}
+function cartesian(im, w, h)
+{
+    var self = this, x, y, xx, yy, a, r, i, j,
+        imLen = im.length, W = w-1, H = h-1,
+        cx = self.centerX*W, cy = self.centerY*H,
+		height = 2*w+1, width = 2*w+1,
+        dst = new FILTER.ImArray((width*height) << 2);
+    self.hasMeta = false;
+    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+    {
+        if (xx >= width) {xx=0; ++yy;}
+
+        // -- For each Cartesian pixel, need to convert it to Polar
+        // coordinates
+        x = xx - cx;
+        y = yy - cy;
+        r = sqrt(x*x + y*y);
+        a = atan(y, x);
+        if (0 > a) a += TWOPI;
+        x = r;
+        y = a * (height / 360);
+        interpolate(dst, i, x, y, im, w, h);
+    }
+    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
+    self.hasMeta = true;
+    return dst;
+}
+function interpolate(rgba, index, x, y, im, w, h)
+{
+
+    var xL, yL, xLyL, xLyH, xHyL, xHyH, i;
+
+    xL = floor(x);
+    yL = floor(y);
+    if (0 > xL || 0 > yL || xL >= w || yL >= h)
+    {
+        xLyL = Z;
+    }
+    else
+    {
+        i = (xL + yL*w) << 2;
+        xLyL = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL || 0 > yL+1 || xL >= w || yL+1 >= h)
+    {
+        xLyH = Z;
+    }
+    else
+    {
+        i = (xL + (yL+1)*w) << 2;
+        xLyH = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL+1 || 0 > yL || xL+1 >= w || yL >= h)
+    {
+        xHyL = Z;
+    }
+    else
+    {
+        i = (xL+1 + yL*w) << 2;
+        xHyL = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL+1 || 0 > yL+1 || xL+1 >= w || yL+1 >= h)
+    {
+        xHyH = Z;
+    }
+    else
+    {
+        i = (xL+1 + (yL+1)*w) << 2;
+        xHyH = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    for (i=0; i<3; ++i)
+    {
+        rgba[index+i] = clamp(floor((xL + 1 - x) * (yL + 1 - y) * xLyL[i] +(x - xL) * (yL + 1 - y) * xHyL[i] + (xL + 1 - x) * (y - yL) * xLyH[i] + (x - xL) * (y - yL) * xHyH[i]), 0, 255);
+    }
+}
+
 //
 // private geometric maps
 MAP = {
@@ -325,29 +430,6 @@ MAP = {
             R = self.radius, R2 = R*R,\
             D, TX, TY, TX2, TY2, R2, D2, thetax, thetay;\
     }"
-    /*
-    // adapted from https://github.com/JoelBesada/JSManipulate
-    ,"ripple": function(t) {
-        TX = t[0]-CX;  TY = t[1]-CY;
-        TX2 = TX*TX; TY2 = TY*TY;
-        D2 = TX2 + TY2;
-        if (D2 < R2)
-        {
-            D = Sqrt(D2);
-            amount = amplitude * Sin(D/wavelength * twoPI - phase);
-            amount *= (R-D)/R;
-            if (D)  amount *= wavelength/D;
-            t[0] = t[0] + TX*amount;  t[1] = t[1] + TY*amount;
-        }
-    }
-    ,"init__ripple": function()  {
-        var Sqrt = Math.sqrt, Sin = Math.asin, twoPI = 2*Math.PI,
-            CX = self.centerX*(w-1), CY = self.centerY*(h-1),
-            invrefraction = 1-0.555556,
-            R = self.radius, R2 = R*R, amount,
-            wavelength = self.wavelength, amplitude = self.amplitude, phase = self.phase,
-            D, TX, TY, TX2, TY2, D2;
-    }*/
 };
 
 }(FILTER);

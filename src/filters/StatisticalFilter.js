@@ -86,7 +86,7 @@ var StatisticalFilter = FILTER.Create({
 
     ,set: function(d, k) {
         var self = this;
-        self.d = d = d||3;
+        self.d = d = d||0;
         self.k = k = Min(1, Max(0, k||0));
         self._filter = 0 === k ? "0th" : (1 === k ? "1th" : "kth");
         // pre-compute indices,
@@ -137,10 +137,6 @@ STAT = {
             matArea = matArea2>>>1, imIndex = new A32I(matArea2),
             op, op0 ;
 
-        // pre-compute indices,
-        // reduce redundant computations inside the main convolution loop (faster)
-        // translate to image dimensions the y coordinate
-        for (j=0; j<matArea2; j+=2) {imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w;}
         if ('0th' === self._filter)
         {
             op = Min;
@@ -151,6 +147,10 @@ STAT = {
             op = Max;
             op0 = 0;
         }
+        // pre-compute indices,
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<matArea2; j+=2) {imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w;}
         if (MODE.GRAY === self.mode)
         {
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
@@ -188,14 +188,17 @@ STAT = {
     }
     ,"kth": function(self, im, w, h) {
         //"use asm";
-        var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
-            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
-            r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
+        var matRadius = self.d, kth = self.k,
+            matHalfSide = matRadius>>1,
+            imLen = im.length, imArea = imLen>>>2,
+            dst = new IMG(imLen),
+            i, j, x, ty, xOff, yOff,
+            srcOff, bx = w-1, by = imArea-w,
+            r, g, b, kthR, kthG, kthB,
+            rh, gh, bh, rhc, ghc, bhc,
             rhist, ghist, bhist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2),
-            rt, gt, bt, rtc, gtc, btc;
+            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -204,35 +207,33 @@ STAT = {
 
         if (MODE.GRAY === self.mode)
         {
-            gt = new IMG(256);
-            ghist = new A32U(256/*268*/);
+            gh = new IMG(matArea);
+            ghist = new A32U(256);
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
             {
                 if (x>=w) {x=0; ty+=w;}
 
                 tot=0;
-                //gmin=255;
-                //gmax=0;
-                gtc=0;
+                ghc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
                     if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
                     srcOff = (xOff + yOff)<<2;
                     g = im[srcOff];
-                    //if (g < gmin) gmin = g; if (g > gmax) gmax = g;
                     // compute histogram, similar to counting sort
                     ++tot; ++ghist[g];
-                    if (1 === ghist[g]) gt[gtc++] = g;
+                    // maintain min-heap
+                    if (1 === ghist[g]) heap_push(gh, ghc++, g);
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
-                // can it be made faster??
+                // can it be made faster?? (used min-heap)
                 tot *= kth;
-                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
+                for (sum=0,kthG=-1,j=ghc; j>0; --j)
                 {
-                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    g = heap_pop(gh, j); sum += ghist[g]; ghist[g] = 0;
                     if (0 > kthG && sum >= tot) kthG = g;
                 }
 
@@ -242,20 +243,18 @@ STAT = {
         }
         else
         {
-            rt = new IMG(256);
-            gt = new IMG(256);
-            bt = new IMG(256);
-            rhist = new A32U(256/*268*/);
-            ghist = new A32U(256/*268*/);
-            bhist = new A32U(256/*268*/);
+            rh = new IMG(matArea);
+            gh = new IMG(matArea);
+            bh = new IMG(matArea);
+            rhist = new A32U(256);
+            ghist = new A32U(256);
+            bhist = new A32U(256);
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
             {
                 if (x>=w) {x=0; ty+=w;}
 
                 tot=0;
-                //rmin=gmin=bmin=255;
-                //rmax=gmax=bmax=0;
-                rtc=gtc=btc=0;
+                rhc=ghc=bhc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -264,30 +263,29 @@ STAT = {
                     r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
                     // compute histogram, similar to counting sort
                     ++rhist[r]; ++ghist[g]; ++bhist[b]; ++tot;
-                    //if (r < rmin) rmin = r; if (g < gmin) gmin = g; if (b < bmin) bmin = b;
-                    //if (r > rmax) rmax = r; if (g > gmax) gmax = g; if (b > bmax) bmax = b;
-                    if (1 === fhist[r]) rt[rtc++] = r;
-                    if (1 === ghist[g]) gt[gtc++] = g;
-                    if (1 === bhist[b]) bt[btc++] = b;
+                    // maintain min-heap
+                    if (1 === rhist[r]) heap_push(rh, rhc++, r);
+                    if (1 === ghist[g]) heap_push(gh, ghc++, g);
+                    if (1 === bhist[b]) heap_push(bh, bhc++, b);
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
-                // can it be made faster??
+                // can it be made faster?? (used min-heap)
                 tot *= kth;
-                for (sum=0,kthR=-1,j=0; j<rtc; ++j)
+                for (sum=0,kthR=-1,j=rhc; j>0; --j)
                 {
-                    r = rt[j]; sum += rhist[r]; rhist[r] = 0;
+                    r = heap_pop(rh, j); sum += rhist[r]; rhist[r] = 0;
                     if (0 > kthR && sum >= tot) kthR = r;
                 }
-                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
+                for (sum=0,kthG=-1,j=ghc; j>0; --j)
                 {
-                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    g = heap_pop(gh, j); sum += ghist[g]; ghist[g] = 0;
                     if (0 > kthG && sum >= tot) kthG = g;
                 }
-                for (sum=0,kthB=-1,j=0; j<btc; ++j)
+                for (sum=0,kthB=-1,j=bhc; j>0; --j)
                 {
-                    b = bt[j]; sum += bhist[b]; bhist[b] = 0;
+                    b = heap_pop(bh, j); sum += bhist[b]; bhist[b] = 0;
                     if (0 > kthB && sum >= tot) kthB = b;
                 }
 
@@ -298,5 +296,57 @@ STAT = {
         return dst;
     }
 };
+function heap_push(heap, items, item)
+{
+    // Push item onto heap, maintaining the heap invariant.
+    heap[items] = item;
+    _siftdown(heap, 0, items);
+}
+function heap_pop(heap, items)
+{
+    // Pop the smallest item off the heap, maintaining the heap invariant.
+    var lastelt = heap[items-1], returnitem;
+    if (items-1)
+    {
+        returnitem = heap[0];
+        heap[0] = lastelt;
+        _siftup(heap, 0, items-1);
+        return returnitem;
+    }
+    return lastelt;
+}
+function _siftdown(heap, startpos, pos)
+{
+    var newitem = heap[pos], parentpos, parent;
+    while (pos > startpos)
+    {
+        parentpos = (pos - 1) >>> 1;
+        parent = heap[parentpos];
+        if (newitem < parent)
+        {
+            heap[pos] = parent;
+            pos = parentpos;
+            continue;
+        }
+        break;
+    }
+    heap[pos] = newitem;
+}
+function _siftup(heap, pos, numitems)
+{
+    var endpos = numitems, startpos = pos, newitem = heap[pos], childpos, rightpos;
+    childpos = 2*pos + 1;
+    while (childpos < endpos)
+    {
+        rightpos = childpos + 1;
+        if (rightpos < endpos && heap[childpos] >= heap[rightpos])
+            childpos = rightpos;
+        heap[pos] = heap[childpos];
+        pos = childpos;
+        childpos = 2*pos + 1;
+    }
+    heap[pos] = newitem;
+    _siftdown(heap, startpos, pos);
+}
 
 }(FILTER);

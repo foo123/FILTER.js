@@ -7,7 +7,7 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, node processes).
 
 
-**version 1.0.0 in progress** (193 kB minified)
+**version 1.0.0** (195 kB minified)
 
 
 ### Contents
@@ -43,25 +43,19 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 ### Credits
 
-Some filters code has been adapted from open source libraries (mostly `c`, `java` and `flash`, plus a couple from `javascript` libraries), see the comments in the code for details.
-
+Some filters code has been adapted from open source libraries, see the comments in the code for details.
 
 * [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
 * [**AS3 Image Processing Library**](http://je2050.de/imageprocessing/)
 * [**AS3 ColorMatrix**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html) **by @GSkinner**
 * [**Simplex Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c) and [**Perlin Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c) by **Stefan Gustavson**
 * [**glfx.js**](https://github.com/evanw/glfx.js)
-* [**JViolaJones**](http://code.google.com/p/jviolajones/), [**HAAR.js**](https://github.com/foo123/HAAR.js)
-* [**OpenCV, HAAR cascades**](http://opencv.org/)
+* [**HAAR.js**](https://github.com/foo123/HAAR.js)
 
 
 ### Features
 
-The library dependencies are:
-
-* [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
-
-The framework defines an [Image](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter)
@@ -72,12 +66,12 @@ The framework defines an [Image](/api-reference.md#image-class) class, which rep
 6. [__DisplacementMapFilter__](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
 7. [__ConvolutionMatrixFilter__](/api-reference.md#convolution-matrix-filter) (analogous to the ActionScript filter)
 8. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
-9. [__StatisticalFilter__](/api-reference.md#statistical-filter)  (previously called `NonLinearFilter`)
+9. [__StatisticalFilter__](/api-reference.md#statistical-filter)
 10. [__BlendFilter__](/api-reference.md#blend-filter)
 11. [__DimensionFilter__](/api-reference.md#dimension-filter)
-12. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container stack for multiple filters)
+12. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
 13. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicaly at run-time using your custom functions)
-14. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (a number of plugin filters which cover a wide(r) range of functionality and use cases)
+14. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (plugin filters which cover a wider range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
@@ -85,15 +79,12 @@ Each of the generic filters is prototype but it also includes a number of implem
 
 __Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
 
-__Image Blending Modes__ (analogous to PhotoShop blend modes)
-
-
-The filters, and the way they operate, naturaly represent a system of interconnected nodes which process and interchange (image) data (not necesarily synchronously), a.k.a *a signal processing graph system*. The result is a streamlined flow for image processing and computer vision in JavaScript.
+__Image Blending Modes__ (analogous to SVG blend modes)
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose.
 Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included.
-Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
+Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
 * make convolutions/statistics faster [DONE partially]

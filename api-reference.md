@@ -348,8 +348,8 @@ The class has some pre-defined filters to use.
 * `generic()` Apply a a user-defined generic geometric mapping to the image
 * `twirl()`  Apply a twirling map
 * `sphere()`  Apply a spherical map
-* `polar()`  Transform image to polar coords (not implemented yet)
-* `cartesian()`  Inverse of polar (not implemented yet)
+* `polar()`  Transform image to polar coords
+* `cartesian()`  Inverse of polar
 
 Geometric Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
@@ -528,7 +528,6 @@ The class has some pre-defined filters to use.
 * `closing()` Apply morphological closing operation
 * `gradient()` Apply morphological gradient operation
 * `laplacian()` Apply morphological laplacian (2nd-order gradient) operation
-* `smoothing()` Apply morphological smoothing operation (not implemented yet)
 * `setMode(FILTER.MODE.GRAY)` Use faster morphological filters for grayscale images
 
 Morphological Filters cannot be combined very easily since they operate **on varying pixel neighborhoods** at a time with non-linear processing. Use a composite filter (see below)

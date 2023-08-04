@@ -1,4 +1,14 @@
-!function( root, name, factory ){
+/**
+*
+*   FILTER.js
+*   @version: 1.0.0
+*   @built on 2023-08-04 21:18:44
+*   @dependencies: Asynchronous.js
+*
+*   JavaScript Image Processing Library
+*   https://github.com/foo123/FILTER.js
+*
+**/!function( root, name, factory ){
 "use strict";
 if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
     (module.$deps = module.$deps||{}) && (module.exports = module.$deps[name] = factory.call(root));
@@ -15,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-04 14:56:33
+*   @built on 2023-08-04 21:18:44
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1432,7 +1442,7 @@ function esc(s)
 }
 function function_body(func)
 {
-    return Function.prototype.toString.call(func).match(func_body_re)[1] || '';
+    return /*Function.prototype.toString.call(*/func.toString().match(func_body_re)[1] || '';
 }
 
 function clamp(x, m, M)
@@ -4900,6 +4910,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._refresh = 0;
         self.nref = 0;
+        self._refresh |= DATA | SEL;
         if (img) self.image(img);
     }
 
@@ -5368,14 +5379,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // set direct data array of selected part
     ,setSelectedData: function(a) {
         var self = this, sel = self.selection,
-            w = self.oCanvas.width, h = self.oCanvas.height;
+            w = self.oCanvas.width, h = self.oCanvas.height,
+            xs, ys, ws, hs, xf, yf;
         if (sel)
         {
-            var xs, ys, ws, hs, xf, yf;
             if (sel[4])
             {
-                xf = W - 1;
-                yf = H - 1;
+                xf = w - 1;
+                yf = h - 1;
             }
             else
             {
@@ -5544,11 +5555,13 @@ function refresh_data(scope, what)
     if (scope._restorable && (what & IDATA) && (scope._refresh & IDATA))
     {
         scope.iData = scope.iCanvas.getContext('2d').getImageData(0, 0, w, h);
+        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d').createImageData(0, 0, w, h);
         scope._refresh &= ~IDATA;
     }
     if ((what & ODATA) && (scope._refresh & ODATA))
     {
         scope.oData = scope.oCanvas.getContext('2d').getImageData(0, 0, w, h);
+        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d').createImageData(0, 0, w, h);
         scope._refresh &= ~ODATA;
     }
     return scope;
@@ -5574,11 +5587,13 @@ function refresh_selected_data(scope, what)
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
             scope.iDataSel = scope.iCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
+            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d').createImageData(0, 0, ws, hs);
             scope._refresh &= ~ISEL;
         }
         if ((what & OSEL) && (scope._refresh & OSEL))
         {
             scope.oDataSel = scope.oCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
+            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
             scope._refresh &= ~OSEL;
         }
     }
@@ -7381,8 +7396,8 @@ var ColorMapFilter = FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? toString.call(self._map) : null
-            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? toString.call(self._mapInit) : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
         };
@@ -8260,6 +8275,13 @@ FILTER.Create({
 
 var MAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
+    stdMath = Math, floor = stdMath.floor,
+    sqrt = stdMath.sqrt, atan = stdMath.atan2,
+    sin = stdMath.sin, cos = stdMath.cos,
+    max = stdMath.max, min = stdMath.min,
+    PI = stdMath.PI, TWOPI = 2*PI,
+    clamp = FILTER.Util.Math.clamp,
+    Z = [0,0,0,0],
     HAS = Object.prototype.hasOwnProperty,
     toString = Function.prototype.toString;
 
@@ -8283,9 +8305,6 @@ FILTER.Create({
     ,centerY: 0
     ,angle: 0
     ,radius: 0
-    //,wavelength: 0
-    //,amplitude: 0
-    //,phase: 0
     ,mode: MODE.CLAMP
 
     ,dispose: function() {
@@ -8301,9 +8320,6 @@ FILTER.Create({
         self.centerY = null;
         self.angle = null;
         self.radius = null;
-        //self.wavelength = null;
-        //self.amplitude = null;
-        //self.phase = null;
         self.$super('dispose');
 
         return self;
@@ -8313,16 +8329,13 @@ FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? toString.call(self._map) : null
-            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? toString.call(self._mapInit) : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,color: self.color
             ,centerX: self.centerX
             ,centerY: self.centerY
             ,angle: self.angle
             ,radius: self.radius
-            //,wavelength: self.wavelength
-            //,amplitude: self.amplitude
-            //,phase: self.phase
         };
         self._mapChanged = false;
         return json;
@@ -8335,12 +8348,7 @@ FILTER.Create({
         self.centerY = params.centerY;
         self.angle = params.angle;
         self.radius = params.radius;
-        //self.wavelength = params.wavelength;
-        //self.amplitude = params.amplitude;
-        //self.phase = params.phase;
 
-        //self._mapName = params._mapName;
-        //self._map = params._map;
         if (!params._map && params._mapName && HAS.call(MAP, params._mapName))
         {
             self.set(params._mapName);
@@ -8361,11 +8369,15 @@ FILTER.Create({
     }
 
     ,polar: function(centerX, centerY) {
-        return this;
+        var self = this;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("polar");
     }
 
     ,cartesian: function(centerX, centerY) {
-        return this;
+        var self = this;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("cartesian");
     }
 
     ,twirl: function(angle, radius, centerX, centerY) {
@@ -8381,20 +8393,25 @@ FILTER.Create({
         return self.set("sphere");
     }
 
-    /*,ripple: function(radius, wavelength, amplitude, phase, centerX, centerY) {
-        var self = this;
-        self.radius = radius!==undef ? radius : 50;
-        self.centerX = centerX||0;
-        self.centerY = centerY||0;
-        self.wavelength = wavelength!==undef ? wavelength : 16;
-        self.amplitude = amplitude!==undef ? amplitude : 10;
-        self.phase = phase||0;
-        return self.set("ripple");
-    }*/
-
     ,set: function(T, preample) {
         var self = this;
-        if (T && HAS.call(MAP, String(T)))
+        if ('polar' === T)
+        {
+            self._mapName = 'polar';
+            self._map = 'polar';
+            self._mapInit = null;
+            self._apply = polar.bind(self);
+            self._mapChanged = false;
+        }
+        else if ('cartesian' === T)
+        {
+            self._mapName = 'cartesian';
+            self._map = 'cartesian';
+            self._mapInit = null;
+            self._apply = cartesian.bind(self);
+            self._mapChanged = false;
+        }
+        else if (T && HAS.call(MAP, String(T)))
         {
             if (self._mapName !== String(T))
             {
@@ -8532,6 +8549,109 @@ function apply__(map, preample)
 };")(FILTER);
 }
 
+function polar(im, w, h)
+{
+    var self = this, x, y, xx, yy, a, r, i, j,
+        imLen = im.length, W = w-1, H = h-1,
+        cx = self.centerX*W, cy = self.centerY*H,
+		height = 360, width = floor(max(
+        sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
+        sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
+        sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
+        sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
+        )),
+        dst = new FILTER.ImArray((width*height) << 2);
+    self.hasMeta = false;
+    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+    {
+        if (xx >= width) {xx=0; ++yy;}
+
+        r = xx;
+        a = (yy / height) * TWOPI;
+        x = r*cos(a) + cx;
+        y = r*sin(a) + cy;
+        interpolate(dst, i, x, y, im, w, h);
+    }
+    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
+    self.hasMeta = true;
+    return dst;
+}
+function cartesian(im, w, h)
+{
+    var self = this, x, y, xx, yy, a, r, i, j,
+        imLen = im.length, W = w-1, H = h-1,
+        cx = self.centerX*W, cy = self.centerY*H,
+		height = 2*w+1, width = 2*w+1,
+        dst = new FILTER.ImArray((width*height) << 2);
+    self.hasMeta = false;
+    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+    {
+        if (xx >= width) {xx=0; ++yy;}
+
+        // -- For each Cartesian pixel, need to convert it to Polar
+        // coordinates
+        x = xx - cx;
+        y = yy - cy;
+        r = sqrt(x*x + y*y);
+        a = atan(y, x);
+        if (0 > a) a += TWOPI;
+        x = r;
+        y = a * (height / 360);
+        interpolate(dst, i, x, y, im, w, h);
+    }
+    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
+    self.hasMeta = true;
+    return dst;
+}
+function interpolate(rgba, index, x, y, im, w, h)
+{
+
+    var xL, yL, xLyL, xLyH, xHyL, xHyH, i;
+
+    xL = floor(x);
+    yL = floor(y);
+    if (0 > xL || 0 > yL || xL >= w || yL >= h)
+    {
+        xLyL = Z;
+    }
+    else
+    {
+        i = (xL + yL*w) << 2;
+        xLyL = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL || 0 > yL+1 || xL >= w || yL+1 >= h)
+    {
+        xLyH = Z;
+    }
+    else
+    {
+        i = (xL + (yL+1)*w) << 2;
+        xLyH = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL+1 || 0 > yL || xL+1 >= w || yL >= h)
+    {
+        xHyL = Z;
+    }
+    else
+    {
+        i = (xL+1 + yL*w) << 2;
+        xHyL = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    if (0 > xL+1 || 0 > yL+1 || xL+1 >= w || yL+1 >= h)
+    {
+        xHyH = Z;
+    }
+    else
+    {
+        i = (xL+1 + (yL+1)*w) << 2;
+        xHyH = [im[i], im[i+1], im[i+2], im[i+3]];
+    }
+    for (i=0; i<3; ++i)
+    {
+        rgba[index+i] = clamp(floor((xL + 1 - x) * (yL + 1 - y) * xLyL[i] +(x - xL) * (yL + 1 - y) * xHyL[i] + (xL + 1 - x) * (y - yL) * xLyH[i] + (x - xL) * (y - yL) * xHyH[i]), 0, 255);
+    }
+}
+
 //
 // private geometric maps
 MAP = {
@@ -8572,29 +8692,6 @@ MAP = {
             R = self.radius, R2 = R*R,\
             D, TX, TY, TX2, TY2, R2, D2, thetax, thetay;\
     }"
-    /*
-    // adapted from https://github.com/JoelBesada/JSManipulate
-    ,"ripple": function(t) {
-        TX = t[0]-CX;  TY = t[1]-CY;
-        TX2 = TX*TX; TY2 = TY*TY;
-        D2 = TX2 + TY2;
-        if (D2 < R2)
-        {
-            D = Sqrt(D2);
-            amount = amplitude * Sin(D/wavelength * twoPI - phase);
-            amount *= (R-D)/R;
-            if (D)  amount *= wavelength/D;
-            t[0] = t[0] + TX*amount;  t[1] = t[1] + TY*amount;
-        }
-    }
-    ,"init__ripple": function()  {
-        var Sqrt = Math.sqrt, Sin = Math.asin, twoPI = 2*Math.PI,
-            CX = self.centerX*(w-1), CY = self.centerY*(h-1),
-            invrefraction = 1-0.555556,
-            R = self.radius, R2 = R*R, amount,
-            wavelength = self.wavelength, amplitude = self.amplitude, phase = self.phase,
-            D, TX, TY, TX2, TY2, D2;
-    }*/
 };
 
 }(FILTER);/**
@@ -8621,6 +8718,7 @@ var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //I
 
     stdMath = Math, sqrt2 = stdMath.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = stdMath.abs, Sqrt = stdMath.sqrt, Sin = stdMath.sin, Cos = stdMath.cos,
+    Min = stdMath.min, Max = stdMath.max,
 
     // hardcode Pascal numbers, used for binomial kernels
     _pascal = [
@@ -8970,7 +9068,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
-            mArea, matArea, imageIndices;
+            mArea, matArea, imageIndices, tm, tM;
 
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
         if (MODE.GRAY === mode)
@@ -9007,7 +9105,19 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // output
                     if (_isGrad)
                     {
-                        t0 = Abs(r)+Abs(r2);
+                        r = Abs(r);
+                        r2 = Abs(r2);
+                        tM = Max(r, r2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(r, r2);
+                            t0 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t0 = 0;
+                        }
                     }
                     else
                     {
@@ -9100,7 +9210,45 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // output
                     if (_isGrad)
                     {
-                        t0 = Abs(r)+Abs(r2);  t1 = Abs(g)+Abs(g2);  t2 = Abs(b)+Abs(b2);
+                        r = Abs(r);
+                        r2 = Abs(r2);
+                        tM = Max(r, r2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(r, r2);
+                            t0 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t0 = 0;
+                        }
+                        g = Abs(g);
+                        g2 = Abs(g2);
+                        tM = Max(g, g2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(g, g2);
+                            t1 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t1 = 0;
+                        }
+                        b = Abs(b);
+                        b2 = Abs(b2);
+                        tM = Max(b, b2);
+                        if (tM)
+                        {
+                            // approximation
+                            tm = Min(b, b2);
+                            t2 = tM*(1+0.43*tm/tM*tm/tM);
+                        }
+                        else
+                        {
+                            t2 = 0;
+                        }
                     }
                     else
                     {
@@ -9913,7 +10061,7 @@ var StatisticalFilter = FILTER.Create({
 
     ,set: function(d, k) {
         var self = this;
-        self.d = d = d||3;
+        self.d = d = d||0;
         self.k = k = Min(1, Max(0, k||0));
         self._filter = 0 === k ? "0th" : (1 === k ? "1th" : "kth");
         // pre-compute indices,
@@ -9964,10 +10112,6 @@ STAT = {
             matArea = matArea2>>>1, imIndex = new A32I(matArea2),
             op, op0 ;
 
-        // pre-compute indices,
-        // reduce redundant computations inside the main convolution loop (faster)
-        // translate to image dimensions the y coordinate
-        for (j=0; j<matArea2; j+=2) {imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w;}
         if ('0th' === self._filter)
         {
             op = Min;
@@ -9978,6 +10122,10 @@ STAT = {
             op = Max;
             op0 = 0;
         }
+        // pre-compute indices,
+        // reduce redundant computations inside the main convolution loop (faster)
+        // translate to image dimensions the y coordinate
+        for (j=0; j<matArea2; j+=2) {imIndex[j]=indices[j]; imIndex[j+1]=indices[j+1]*w;}
         if (MODE.GRAY === self.mode)
         {
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
@@ -10015,14 +10163,17 @@ STAT = {
     }
     ,"kth": function(self, im, w, h) {
         //"use asm";
-        var matRadius = self.d, kth = self.k, matHalfSide = matRadius>>1,
-            imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            i, j, x, ty, xOff, yOff, srcOff, bx = w-1, by = imArea-w,
-            r, g, b, rmin, gmin, bmin, rmax, gmax, bmax, kthR, kthG, kthB,
+        var matRadius = self.d, kth = self.k,
+            matHalfSide = matRadius>>1,
+            imLen = im.length, imArea = imLen>>>2,
+            dst = new IMG(imLen),
+            i, j, x, ty, xOff, yOff,
+            srcOff, bx = w-1, by = imArea-w,
+            r, g, b, kthR, kthG, kthB,
+            rh, gh, bh, rhc, ghc, bhc,
             rhist, ghist, bhist, tot, sum,
             indices = self._indices, matArea2 = indices.length,
-            matArea = matArea2>>>1, imIndex = new A32I(matArea2),
-            rt, gt, bt, rtc, gtc, btc;
+            matArea = matArea2>>>1, imIndex = new A32I(matArea2);
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -10031,35 +10182,33 @@ STAT = {
 
         if (MODE.GRAY === self.mode)
         {
-            gt = new IMG(256);
-            ghist = new A32U(256/*268*/);
+            gh = new IMG(matArea);
+            ghist = new A32U(256);
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
             {
                 if (x>=w) {x=0; ty+=w;}
 
                 tot=0;
-                //gmin=255;
-                //gmax=0;
-                gtc=0;
+                ghc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
                     if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
                     srcOff = (xOff + yOff)<<2;
                     g = im[srcOff];
-                    //if (g < gmin) gmin = g; if (g > gmax) gmax = g;
                     // compute histogram, similar to counting sort
                     ++tot; ++ghist[g];
-                    if (1 === ghist[g]) gt[gtc++] = g;
+                    // maintain min-heap
+                    if (1 === ghist[g]) heap_push(gh, ghc++, g);
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
-                // can it be made faster??
+                // can it be made faster?? (used min-heap)
                 tot *= kth;
-                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
+                for (sum=0,kthG=-1,j=ghc; j>0; --j)
                 {
-                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    g = heap_pop(gh, j); sum += ghist[g]; ghist[g] = 0;
                     if (0 > kthG && sum >= tot) kthG = g;
                 }
 
@@ -10069,20 +10218,18 @@ STAT = {
         }
         else
         {
-            rt = new IMG(256);
-            gt = new IMG(256);
-            bt = new IMG(256);
-            rhist = new A32U(256/*268*/);
-            ghist = new A32U(256/*268*/);
-            bhist = new A32U(256/*268*/);
+            rh = new IMG(matArea);
+            gh = new IMG(matArea);
+            bh = new IMG(matArea);
+            rhist = new A32U(256);
+            ghist = new A32U(256);
+            bhist = new A32U(256);
             for (i=0,x=0,ty=0; i<imLen; i+=4,++x)
             {
                 if (x>=w) {x=0; ty+=w;}
 
                 tot=0;
-                //rmin=gmin=bmin=255;
-                //rmax=gmax=bmax=0;
-                rtc=gtc=btc=0;
+                rhc=ghc=bhc=0;
                 for (j=0; j<matArea2; j+=2)
                 {
                     xOff = x+imIndex[j]; yOff = ty+imIndex[j+1];
@@ -10091,30 +10238,29 @@ STAT = {
                     r = im[srcOff]; g = im[srcOff+1]; b = im[srcOff+2];
                     // compute histogram, similar to counting sort
                     ++rhist[r]; ++ghist[g]; ++bhist[b]; ++tot;
-                    //if (r < rmin) rmin = r; if (g < gmin) gmin = g; if (b < bmin) bmin = b;
-                    //if (r > rmax) rmax = r; if (g > gmax) gmax = g; if (b > bmax) bmax = b;
-                    if (1 === fhist[r]) rt[rtc++] = r;
-                    if (1 === ghist[g]) gt[gtc++] = g;
-                    if (1 === bhist[b]) bt[btc++] = b;
+                    // maintain min-heap
+                    if (1 === rhist[r]) heap_push(rh, rhc++, r);
+                    if (1 === ghist[g]) heap_push(gh, ghc++, g);
+                    if (1 === bhist[b]) heap_push(bh, bhc++, b);
                 }
 
                 // search histogram for kth statistic
                 // and also reset histogram for next round
-                // can it be made faster??
+                // can it be made faster?? (used min-heap)
                 tot *= kth;
-                for (sum=0,kthR=-1,j=0; j<rtc; ++j)
+                for (sum=0,kthR=-1,j=rhc; j>0; --j)
                 {
-                    r = rt[j]; sum += rhist[r]; rhist[r] = 0;
+                    r = heap_pop(rh, j); sum += rhist[r]; rhist[r] = 0;
                     if (0 > kthR && sum >= tot) kthR = r;
                 }
-                for (sum=0,kthG=-1,j=0; j<gtc; ++j)
+                for (sum=0,kthG=-1,j=ghc; j>0; --j)
                 {
-                    g = gt[j]; sum += ghist[g]; ghist[g] = 0;
+                    g = heap_pop(gh, j); sum += ghist[g]; ghist[g] = 0;
                     if (0 > kthG && sum >= tot) kthG = g;
                 }
-                for (sum=0,kthB=-1,j=0; j<btc; ++j)
+                for (sum=0,kthB=-1,j=bhc; j>0; --j)
                 {
-                    b = bt[j]; sum += bhist[b]; bhist[b] = 0;
+                    b = heap_pop(bh, j); sum += bhist[b]; bhist[b] = 0;
                     if (0 > kthB && sum >= tot) kthB = b;
                 }
 
@@ -10125,6 +10271,58 @@ STAT = {
         return dst;
     }
 };
+function heap_push(heap, items, item)
+{
+    // Push item onto heap, maintaining the heap invariant.
+    heap[items] = item;
+    _siftdown(heap, 0, items);
+}
+function heap_pop(heap, items)
+{
+    // Pop the smallest item off the heap, maintaining the heap invariant.
+    var lastelt = heap[items-1], returnitem;
+    if (items-1)
+    {
+        returnitem = heap[0];
+        heap[0] = lastelt;
+        _siftup(heap, 0, items-1);
+        return returnitem;
+    }
+    return lastelt;
+}
+function _siftdown(heap, startpos, pos)
+{
+    var newitem = heap[pos], parentpos, parent;
+    while (pos > startpos)
+    {
+        parentpos = (pos - 1) >>> 1;
+        parent = heap[parentpos];
+        if (newitem < parent)
+        {
+            heap[pos] = parent;
+            pos = parentpos;
+            continue;
+        }
+        break;
+    }
+    heap[pos] = newitem;
+}
+function _siftup(heap, pos, numitems)
+{
+    var endpos = numitems, startpos = pos, newitem = heap[pos], childpos, rightpos;
+    childpos = 2*pos + 1;
+    while (childpos < endpos)
+    {
+        rightpos = childpos + 1;
+        if (rightpos < endpos && heap[childpos] >= heap[rightpos])
+            childpos = rightpos;
+        heap[pos] = heap[childpos];
+        pos = childpos;
+        childpos = 2*pos + 1;
+    }
+    heap[pos] = newitem;
+    _siftdown(heap, startpos, pos);
+}
 
 }(FILTER);/**
 *
@@ -10170,7 +10368,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this, json;
         json = {
-             _filter: false === self._filter ? false : (self._changed && self._filter ? toString.call(self._filter) : null)
+             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString() : null)
             ,_params: self._params
         };
         self._changed = false;

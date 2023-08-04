@@ -42,7 +42,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this, json;
         json = {
-             _filter: false === self._filter ? false : (self._changed && self._filter ? toString.call(self._filter) : null)
+             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString() : null)
             ,_params: self._params
         };
         self._changed = false;

@@ -34,7 +34,7 @@ function esc(s)
 }
 function function_body(func)
 {
-    return Function.prototype.toString.call(func).match(func_body_re)[1] || '';
+    return /*Function.prototype.toString.call(*/func.toString().match(func_body_re)[1] || '';
 }
 
 function clamp(x, m, M)

@@ -49,8 +49,8 @@ var ColorMapFilter = FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? toString.call(self._map) : null
-            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? toString.call(self._mapInit) : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
         };
