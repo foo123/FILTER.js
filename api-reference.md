@@ -675,10 +675,11 @@ image.apply(blend3Images);   // image is a FILTER.Image instance, see examples
 new FILTER.DimensionFilter(mode:String, a:Number, b:Number, c:Number, d:Number);
 ````
 
-The filter changes the dimension of the image by (re-)scaling, cropping, or padding the image.
+The filter changes the dimensions of the image either by simply setting the new dimensions or (re-)scaling or cropping or padding the image.
+if `mode` is `"set"`, `a` is new width or zero, `b` is new height or zero, `c` is horizontal scaling or zero (given new width) and `d` is vertical scaling or zero (given new height).
 if `mode` is `"pad"`, `a` is left padding, `b` is top padding, `c` is right padding and `d` is bottom padding.
 if `mode` is `"crop"`, `a` is left offset, `b` is top offset, `c` is width and `d` is height.
-if `mode` is `"scale"`, `a` is horizontal scaling and `b` is vertical scaling.
+if `mode` is `"scale"`, `a` is new width or zero, `b` is new height or zero, `c` is horizontal scaling or zero (given new width) and `d` is vertical scaling or zero (given new height).
 
 If complicated cropping, padding and scaling is needed use multiple Dimension Filters.
 

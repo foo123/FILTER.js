@@ -170,13 +170,8 @@ FILTER.Array8U = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
 FILTER.Array16U = typeof Uint16Array !== "undefined" ? Uint16Array : Array;
 FILTER.Array32U = typeof Uint32Array !== "undefined" ? Uint32Array : Array;
 FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
-FILTER.ImArrayCopy = FILTER.ImArray;
-FILTER.ColorTable = FILTER.ImArrayCopy;
+FILTER.ColorTable = FILTER.ImArray;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
-// opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
-// however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-FILTER.ColorTable = FILTER.ImArrayCopy;
 FILTER._notSupportClamp = FILTER._notSupportClamp || Browser.isOpera;
 
 // Constants
@@ -245,7 +240,7 @@ FILTER.Util = {
 // Canvas for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas = function(w, h) {
     var canvas = document.createElement('canvas'),
-        dpr = FILTER.devicePixelRatio || 1;
+        dpr = 1;// / (FILTER.devicePixelRatio || 1);
     w = w || 0;
     h = h || 0;
     // set the size of the drawingBuffer

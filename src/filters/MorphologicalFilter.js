@@ -11,7 +11,7 @@
 "use strict";
 
 // used for internal purposes
-var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
     STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
     Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     primitive_morphology_operator = FILTER.Util.Filter.primitive_morphology_operator,
@@ -441,7 +441,7 @@ MORPHO = {
         }
 
         // dilate
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         morph_prim_op(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
@@ -470,10 +470,10 @@ MORPHO = {
         }
 
         // dilate
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {

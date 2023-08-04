@@ -7,9 +7,8 @@
 !function(FILTER, undef) {
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
     stdMath = Math, Min = stdMath.min, Round = stdMath.round,
-    hasArraySet = FILTER.Util.Array.hasArrayset, arrayset = FILTER.Util.Array.arrayset,
     notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel;
 
 // Blend Filter, svg-like image blending
@@ -89,7 +88,7 @@ FILTER.Create({
 
         //B = im;
         // clone original image since same image may also blend with itself
-        B = new IMG(imLen); if (hasArraySet) B.set(im); else arrayset(B, im);
+        B = copy(im);
 
         for (i=0,k=1; i<l; i+=4,++k)
         {

@@ -12,7 +12,7 @@
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     convolve = FILTER.Util.Filter.cm_convolve,
     combine = FILTER.Util.Filter.cm_combine,

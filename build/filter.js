@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-04 21:18:44
+*   @built on 2023-08-04 23:22:36
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-04 21:18:44
+*   @built on 2023-08-04 23:22:36
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1305,13 +1305,8 @@ FILTER.Array8U = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
 FILTER.Array16U = typeof Uint16Array !== "undefined" ? Uint16Array : Array;
 FILTER.Array32U = typeof Uint32Array !== "undefined" ? Uint32Array : Array;
 FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
-FILTER.ImArrayCopy = FILTER.ImArray;
-FILTER.ColorTable = FILTER.ImArrayCopy;
+FILTER.ColorTable = FILTER.ImArray;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
-// opera seems to have a bug which copies Uint8ClampedArrays by reference instead by value (eg. as Firefox and Chrome)
-// however Uint8 arrays are copied by value, so use that instead for doing fast copies of image arrays
-FILTER.ImArrayCopy = Browser.isOpera ? FILTER.Array8U : FILTER.ImArray;
-FILTER.ColorTable = FILTER.ImArrayCopy;
 FILTER._notSupportClamp = FILTER._notSupportClamp || Browser.isOpera;
 
 // Constants
@@ -1380,7 +1375,7 @@ FILTER.Util = {
 // Canvas for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas = function(w, h) {
     var canvas = document.createElement('canvas'),
-        dpr = FILTER.devicePixelRatio || 1;
+        dpr = 1;// / (FILTER.devicePixelRatio || 1);
     w = w || 0;
     h = h || 0;
     // set the size of the drawingBuffer
@@ -1416,7 +1411,7 @@ FILTER.Canvas.ImageData = function(data, width, height) {
 "use strict";
 
 var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
-    IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+    IMG = FILTER.ImArray, copy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
@@ -1604,6 +1599,16 @@ function interpolate_bilinear(im, w, h, nw, nh)
     }
     return interpolated;
 }
+ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
+    var b = new a.constructor(a.length);
+    b.set(a, 0);
+    return b;
+} : function(a) {
+    //var b = a.slice(0);
+    var b = new a.constructor(a.length);
+    arrayset_shim(b, a, 0, 0, a.length-1);
+    return b;
+};
 
 function integral2(im, w, h, stride, channel, sat, sat2, rsat)
 {
@@ -4867,10 +4872,11 @@ Color.toGray = Color.intensity;
 !function(FILTER, undef) {
 "use strict";
 
-var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
-    IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
+var PROTO = 'prototype', devicePixelRatio = 1,// / FILTER.devicePixelRatio,
+    IMG = FILTER.ImArray,
     CHANNEL = FILTER.CHANNEL,
     Color = FILTER.Color,
+    copy = FILTER.Util.Array.copy,
     subarray = FILTER.Util.Array.subarray,
     clamp = FILTER.Util.Math.clamp,
     stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
@@ -5329,7 +5335,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             data = self.oData;
         }
         // clone it
-        return new IMGcpy(data.data);
+        return copy(data.data);
     }
 
     // get direct data array of selected part
@@ -5363,7 +5369,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
         }
         // clone it
-        return [new IMGcpy(sel.data), sel.width, sel.height, 2];
+        return [copy(sel.data), sel.width, sel.height, 2];
     }
 
     // set direct data array
@@ -5863,9 +5869,8 @@ FILTER.CompositionFilter = FILTER.CompositeFilter;
 !function(FILTER, undef) {
 "use strict";
 
-var IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
     stdMath = Math, Min = stdMath.min, Round = stdMath.round,
-    hasArraySet = FILTER.Util.Array.hasArrayset, arrayset = FILTER.Util.Array.arrayset,
     notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel;
 
 // Blend Filter, svg-like image blending
@@ -5945,7 +5950,7 @@ FILTER.Create({
 
         //B = im;
         // clone original image since same image may also blend with itself
-        B = new IMG(imLen); if (hasArraySet) B.set(im); else arrayset(B, im);
+        B = copy(im);
 
         for (i=0,k=1; i<l; i+=4,++k)
         {
@@ -6174,6 +6179,23 @@ FILTER.Create({
         if (!mode) return im;
         switch (mode)
         {
+            case 'set':
+                if (c && d)
+                {
+                    // scale given
+                    a = stdMath.round(c*w);
+                    b = stdMath.round(d*h);
+                }
+                else
+                {
+                    // dimensions given
+                    a = stdMath.round(a);
+                    b = stdMath.round(b);
+                }
+                im = new FILTER.ImArray((a*b) << 2);
+                self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
+                self.hasMeta = true;
+            break;
             case 'pad':
                 a = stdMath.round(a);
                 b = stdMath.round(b);
@@ -6188,15 +6210,25 @@ FILTER.Create({
                 b = stdMath.round(b);
                 c = stdMath.round(c);
                 d = stdMath.round(d);
-                im = crop(im, w, h, a, b, a+c-1, b+d-1)
+                im = crop(im, w, h, a, b, a+c-1, b+d-1);
                 self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
                 self.hasMeta = true;
             break;
             case 'scale':
             default:
-                a = stdMath.round(a*w);
-                b = stdMath.round(b*h);
-                im = resize(im, w, h, a, b)
+                if (c && d)
+                {
+                    // scale given
+                    a = stdMath.round(c*w);
+                    b = stdMath.round(d*h);
+                }
+                else
+                {
+                    // dimensions given
+                    a = stdMath.round(a);
+                    b = stdMath.round(b);
+                }
+                im = resize(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
                 self.hasMeta = true;
             break;
@@ -8088,7 +8120,7 @@ FILTER.Create({
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP,
             COLOR = MODE.COLOR, WRAP = MODE.WRAP,
             mode = self.mode||IGNORE,
-            IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy,
+            IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
             A16I = FILTER.Array16I;
 
         map = Map[0]; mapW = Map[1]; mapH = Map[2];
@@ -8105,7 +8137,7 @@ FILTER.Create({
         bx = bxx-stx; by = byy-sty;
 
         displace = new A16I(mapArea<<1);
-        imcpy = new IMGcopy(im);
+        imcpy = copy(im);
 
         // pre-compute indices,
         // reduce redundant computations inside the main application loop (faster)
@@ -8708,7 +8740,7 @@ MAP = {
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray, //IMGcopy = FILTER.ImArrayCopy,
+var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     convolve = FILTER.Util.Filter.cm_convolve,
     combine = FILTER.Util.Filter.cm_combine,
@@ -9499,7 +9531,7 @@ function twos2(d, c, s, cf)
 "use strict";
 
 // used for internal purposes
-var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
     STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
     Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     primitive_morphology_operator = FILTER.Util.Filter.primitive_morphology_operator,
@@ -9929,7 +9961,7 @@ MORPHO = {
         }
 
         // dilate
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         morph_prim_op(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
@@ -9958,10 +9990,10 @@ MORPHO = {
         }
 
         // dilate
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
-        imcpy = new IMGcpy(im);
+        imcpy = copy(im);
         morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {

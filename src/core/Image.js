@@ -7,10 +7,11 @@
 !function(FILTER, undef) {
 "use strict";
 
-var PROTO = 'prototype', devicePixelRatio = FILTER.devicePixelRatio,
-    IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy, A32F = FILTER.Array32F,
+var PROTO = 'prototype', devicePixelRatio = 1,// / FILTER.devicePixelRatio,
+    IMG = FILTER.ImArray,
     CHANNEL = FILTER.CHANNEL,
     Color = FILTER.Color,
+    copy = FILTER.Util.Array.copy,
     subarray = FILTER.Util.Array.subarray,
     clamp = FILTER.Util.Math.clamp,
     stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
@@ -469,7 +470,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             data = self.oData;
         }
         // clone it
-        return new IMGcpy(data.data);
+        return copy(data.data);
     }
 
     // get direct data array of selected part
@@ -503,7 +504,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             }
         }
         // clone it
-        return [new IMGcpy(sel.data), sel.width, sel.height, 2];
+        return [copy(sel.data), sel.width, sel.height, 2];
     }
 
     // set direct data array

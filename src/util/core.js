@@ -8,7 +8,7 @@
 "use strict";
 
 var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
-    IMG = FILTER.ImArray, IMGcpy = FILTER.ImArrayCopy,
+    IMG = FILTER.ImArray, copy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
@@ -196,6 +196,16 @@ function interpolate_bilinear(im, w, h, nw, nh)
     }
     return interpolated;
 }
+ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
+    var b = new a.constructor(a.length);
+    b.set(a, 0);
+    return b;
+} : function(a) {
+    //var b = a.slice(0);
+    var b = new a.constructor(a.length);
+    arrayset_shim(b, a, 0, 0, a.length-1);
+    return b;
+};
 
 function integral2(im, w, h, stride, channel, sat, sat2, rsat)
 {

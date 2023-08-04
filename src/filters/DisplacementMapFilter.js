@@ -95,7 +95,7 @@ FILTER.Create({
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP,
             COLOR = MODE.COLOR, WRAP = MODE.WRAP,
             mode = self.mode||IGNORE,
-            IMG = FILTER.ImArray, IMGcopy = FILTER.ImArrayCopy,
+            IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
             A16I = FILTER.Array16I;
 
         map = Map[0]; mapW = Map[1]; mapH = Map[2];
@@ -112,7 +112,7 @@ FILTER.Create({
         bx = bxx-stx; by = byy-sty;
 
         displace = new A16I(mapArea<<1);
-        imcpy = new IMGcopy(im);
+        imcpy = copy(im);
 
         // pre-compute indices,
         // reduce redundant computations inside the main application loop (faster)

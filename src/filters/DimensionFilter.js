@@ -100,6 +100,23 @@ FILTER.Create({
         if (!mode) return im;
         switch (mode)
         {
+            case 'set':
+                if (c && d)
+                {
+                    // scale given
+                    a = stdMath.round(c*w);
+                    b = stdMath.round(d*h);
+                }
+                else
+                {
+                    // dimensions given
+                    a = stdMath.round(a);
+                    b = stdMath.round(b);
+                }
+                im = new FILTER.ImArray((a*b) << 2);
+                self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
+                self.hasMeta = true;
+            break;
             case 'pad':
                 a = stdMath.round(a);
                 b = stdMath.round(b);
@@ -114,15 +131,25 @@ FILTER.Create({
                 b = stdMath.round(b);
                 c = stdMath.round(c);
                 d = stdMath.round(d);
-                im = crop(im, w, h, a, b, a+c-1, b+d-1)
+                im = crop(im, w, h, a, b, a+c-1, b+d-1);
                 self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
                 self.hasMeta = true;
             break;
             case 'scale':
             default:
-                a = stdMath.round(a*w);
-                b = stdMath.round(b*h);
-                im = resize(im, w, h, a, b)
+                if (c && d)
+                {
+                    // scale given
+                    a = stdMath.round(c*w);
+                    b = stdMath.round(d*h);
+                }
+                else
+                {
+                    // dimensions given
+                    a = stdMath.round(a);
+                    b = stdMath.round(b);
+                }
+                im = resize(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
                 self.hasMeta = true;
             break;
