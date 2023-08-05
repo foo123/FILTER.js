@@ -7,7 +7,7 @@ __A pure JavaScript Library for Image/Video Processing, Filtering and Computer V
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, node processes).
 
 
-**version 1.0.0** (189 kB minified)
+**version 1.0.0** (190 kB minified)
 
 
 ### Contents

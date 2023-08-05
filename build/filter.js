@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-05 11:02:17
+*   @built on 2023-08-05 17:36:44
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-05 11:02:17
+*   @built on 2023-08-05 17:36:44
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -13769,7 +13769,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
     bx=w-1; by=imSize-w;
     startx = sel_x1|0; starty = sel_y1|0;
-    maxScale = Min(selw/sizex, selh/sizey);
+    maxScale = Min(/*selw*/w/sizex, /*selh*/h/sizey);
     //minScale = Max(selw/w, selh/h);
     for (scale=baseScale/* *minScale*/; scale<=maxScale; scale*=scaleIncrement)
     {
@@ -13781,7 +13781,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         //ysize = xsize; ystep = xstep;
         tyw = ysize*w; tys = ystep*w;
         startty = starty*tys;
-        xl = selw-xsize; yl = selh-ysize;
+        xl = startx+selw-xsize; yl = starty+selh-ysize;
         swh = xsize*ysize; inv_area = 1.0/swh;
 
         for (y=starty,ty=startty; y<yl; y+=ystep,ty+=tys)

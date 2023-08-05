@@ -240,7 +240,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
     bx=w-1; by=imSize-w;
     startx = sel_x1|0; starty = sel_y1|0;
-    maxScale = Min(selw/sizex, selh/sizey);
+    maxScale = Min(/*selw*/w/sizex, /*selh*/h/sizey);
     //minScale = Max(selw/w, selh/h);
     for (scale=baseScale/* *minScale*/; scale<=maxScale; scale*=scaleIncrement)
     {
@@ -252,7 +252,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         //ysize = xsize; ystep = xstep;
         tyw = ysize*w; tys = ystep*w;
         startty = starty*tys;
-        xl = selw-xsize; yl = selh-ysize;
+        xl = startx+selw-xsize; yl = starty+selh-ysize;
         swh = xsize*ysize; inv_area = 1.0/swh;
 
         for (y=starty,ty=startty; y<yl; y+=ystep,ty+=tys)
