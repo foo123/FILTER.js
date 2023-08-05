@@ -41,11 +41,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
+        self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
         self.oData = null;
         self.oDataSel = null;
-        self.domElement = self.oCanvas;
         self._restorable = true;
         self.gray = false;
         self.selection = null;
@@ -149,7 +149,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ];
             self._refresh |= SEL;
         }
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -166,7 +166,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iCanvas.getContext('2d').drawImage(self.oCanvas, 0, 0);
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -180,7 +180,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.getContext('2d').drawImage(self.iCanvas, 0, 0);
             self._refresh |= ODATA;
             if (self.selection) self._refresh |= OSEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -189,7 +189,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
@@ -211,11 +211,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.drawImage(self.oCanvas, 0, 0);
         self.oCanvas.width = w * devicePixelRatio;
         self.oCanvas.height = h * devicePixelRatio;
-        if (self.oCanvas.style)
+        /*if (self.oCanvas.style)
         {
             self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
             self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
-        }
+        }*/
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
@@ -223,17 +223,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ctx.drawImage(self.iCanvas, 0, 0);
             self.iCanvas.width = self.oCanvas.width;
             self.iCanvas.height = self.oCanvas.height;
-            if (self.iCanvas.style)
+            /*if (self.iCanvas.style)
             {
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
-            }
+            }*/
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -257,7 +257,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -281,7 +281,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -294,7 +294,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.getContext('2d').clearRect(0, 0, w, h);
             self._refresh |= DATA;
             if (self.selection) self._refresh |= SEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -346,22 +346,22 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.drawImage(self.oCanvas, x, y, w, h, 0, 0, w, h);
         self.oCanvas.width = w * devicePixelRatio;
         self.oCanvas.height = h * devicePixelRatio;
-        if (self.oCanvas.style)
+        /*if (self.oCanvas.style)
         {
             self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
             self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
-        }
+        }*/
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, x, y, w, h, 0, 0, w, h);
             self.iCanvas.width = self.oCanvas.width;
             self.iCanvas.height = self.oCanvas.height;
-            if (self.iCanvas.style)
+            /*if (self.iCanvas.style)
             {
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
-            }
+            }*/
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
         self.width = w;
@@ -433,28 +433,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (sel) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
-
-    ,draw: function(img, x, y/*, blendMode*/) {
-        if (!img) return this;
-        var self = this, isVideo, isCanvas, isImage;
-
-        if (img instanceof FilterImage) img = img.oCanvas;
-        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof FILTER.Canvas.Image().constructor);
-        if (!isImage && !isCanvas && !isVideo) return self;
-
-        if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, x|0, y|0);
-        self.oCanvas.getContext('2d').drawImage(img, x|0, y|0);
-        self._refresh |= DATA;
-        if (self.selection) self._refresh |= SEL;
-        ++self.nref;
-        return self;
-    }
-    ,paste: null
 
     // get direct data array
     ,getData: function(processed) {
@@ -513,7 +494,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -546,7 +527,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -587,7 +568,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
     ,setImage: null
@@ -606,7 +587,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(rgba, 1, 1), x, y);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -622,7 +603,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(data, 0, 0);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -659,7 +640,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
-FilterImage[PROTO].paste = FilterImage[PROTO].draw;
 
 // auxilliary (private) methods
 function set_dimensions(scope, w, h, what)
@@ -669,22 +649,22 @@ function set_dimensions(scope, w, h, what)
     {
         scope.width = w;
         scope.oCanvas.width = w * devicePixelRatio;
-        if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.oCanvas.width) + 'px';
+        //if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.oCanvas.width) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.width = scope.oCanvas.width;
-            if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
+            //if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
         }
     }
     if (what & HEIGHT)
     {
         scope.height = h;
         scope.oCanvas.height = h * devicePixelRatio;
-        if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.oCanvas.height) + 'px';
+        //if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.oCanvas.height) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.height = scope.oCanvas.height;
-            if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
+            //if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
         }
     }
     return scope;

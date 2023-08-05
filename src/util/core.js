@@ -1428,78 +1428,16 @@ function ct_eye(c1, c0)
     var i, t = new ColorTable(256);
     if ("function" === typeof c1)
     {
-        for (i=0; i<256; i+=32)
+        for (i=0; i<256; ++i)
         {
             t[i   ] = clamp(c1(i   ),0,255)|0;
-            t[i+1 ] = clamp(c1(i+1 ),0,255)|0;
-            t[i+2 ] = clamp(c1(i+2 ),0,255)|0;
-            t[i+3 ] = clamp(c1(i+3 ),0,255)|0;
-            t[i+4 ] = clamp(c1(i+4 ),0,255)|0;
-            t[i+5 ] = clamp(c1(i+5 ),0,255)|0;
-            t[i+6 ] = clamp(c1(i+6 ),0,255)|0;
-            t[i+7 ] = clamp(c1(i+7 ),0,255)|0;
-            t[i+8 ] = clamp(c1(i+8 ),0,255)|0;
-            t[i+9 ] = clamp(c1(i+9 ),0,255)|0;
-            t[i+10] = clamp(c1(i+10),0,255)|0;
-            t[i+11] = clamp(c1(i+11),0,255)|0;
-            t[i+12] = clamp(c1(i+12),0,255)|0;
-            t[i+13] = clamp(c1(i+13),0,255)|0;
-            t[i+14] = clamp(c1(i+14),0,255)|0;
-            t[i+15] = clamp(c1(i+15),0,255)|0;
-            t[i+16] = clamp(c1(i+16),0,255)|0;
-            t[i+17] = clamp(c1(i+17),0,255)|0;
-            t[i+18] = clamp(c1(i+18),0,255)|0;
-            t[i+19] = clamp(c1(i+19),0,255)|0;
-            t[i+20] = clamp(c1(i+20),0,255)|0;
-            t[i+21] = clamp(c1(i+21),0,255)|0;
-            t[i+22] = clamp(c1(i+22),0,255)|0;
-            t[i+23] = clamp(c1(i+23),0,255)|0;
-            t[i+24] = clamp(c1(i+24),0,255)|0;
-            t[i+25] = clamp(c1(i+25),0,255)|0;
-            t[i+26] = clamp(c1(i+26),0,255)|0;
-            t[i+27] = clamp(c1(i+27),0,255)|0;
-            t[i+28] = clamp(c1(i+28),0,255)|0;
-            t[i+29] = clamp(c1(i+29),0,255)|0;
-            t[i+30] = clamp(c1(i+30),0,255)|0;
-            t[i+31] = clamp(c1(i+31),0,255)|0;
         }
     }
     else
     {
-        for (i=0; i<256; i+=32)
+        for (i=0; i<256; ++i)
         {
             t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
-            t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
-            t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
-            t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
-            t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
-            t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
-            t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
-            t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
-            t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
-            t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
-            t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
-            t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
-            t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
-            t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
-            t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
-            t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
-            t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
-            t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
-            t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
-            t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
-            t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
-            t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
-            t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
-            t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
-            t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
-            t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
-            t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
-            t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
-            t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
-            t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
-            t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
-            t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
         }
     }
     return t;
@@ -1508,72 +1446,9 @@ function ct_eye(c1, c0)
 function ct_multiply(ct2, ct1)
 {
     var i, ct12 = new ColorTable(256);
-    for (i=0; i<256; i+=64)
+    for (i=0; i<256; ++i)
     {
-        ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255);
-        ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255);
-        ct12[i+2 ] = clamp(ct2[ clamp(ct1[i+2 ],0,255) ],0,255);
-        ct12[i+3 ] = clamp(ct2[ clamp(ct1[i+3 ],0,255) ],0,255);
-        ct12[i+4 ] = clamp(ct2[ clamp(ct1[i+4 ],0,255) ],0,255);
-        ct12[i+5 ] = clamp(ct2[ clamp(ct1[i+5 ],0,255) ],0,255);
-        ct12[i+6 ] = clamp(ct2[ clamp(ct1[i+6 ],0,255) ],0,255);
-        ct12[i+7 ] = clamp(ct2[ clamp(ct1[i+7 ],0,255) ],0,255);
-        ct12[i+8 ] = clamp(ct2[ clamp(ct1[i+8 ],0,255) ],0,255);
-        ct12[i+9 ] = clamp(ct2[ clamp(ct1[i+9 ],0,255) ],0,255);
-        ct12[i+10] = clamp(ct2[ clamp(ct1[i+10],0,255) ],0,255);
-        ct12[i+11] = clamp(ct2[ clamp(ct1[i+11],0,255) ],0,255);
-        ct12[i+12] = clamp(ct2[ clamp(ct1[i+12],0,255) ],0,255);
-        ct12[i+13] = clamp(ct2[ clamp(ct1[i+13],0,255) ],0,255);
-        ct12[i+14] = clamp(ct2[ clamp(ct1[i+14],0,255) ],0,255);
-        ct12[i+15] = clamp(ct2[ clamp(ct1[i+15],0,255) ],0,255);
-        ct12[i+16] = clamp(ct2[ clamp(ct1[i+16],0,255) ],0,255);
-        ct12[i+17] = clamp(ct2[ clamp(ct1[i+17],0,255) ],0,255);
-        ct12[i+18] = clamp(ct2[ clamp(ct1[i+18],0,255) ],0,255);
-        ct12[i+19] = clamp(ct2[ clamp(ct1[i+19],0,255) ],0,255);
-        ct12[i+20] = clamp(ct2[ clamp(ct1[i+20],0,255) ],0,255);
-        ct12[i+21] = clamp(ct2[ clamp(ct1[i+21],0,255) ],0,255);
-        ct12[i+22] = clamp(ct2[ clamp(ct1[i+22],0,255) ],0,255);
-        ct12[i+23] = clamp(ct2[ clamp(ct1[i+23],0,255) ],0,255);
-        ct12[i+24] = clamp(ct2[ clamp(ct1[i+24],0,255) ],0,255);
-        ct12[i+25] = clamp(ct2[ clamp(ct1[i+25],0,255) ],0,255);
-        ct12[i+26] = clamp(ct2[ clamp(ct1[i+26],0,255) ],0,255);
-        ct12[i+27] = clamp(ct2[ clamp(ct1[i+27],0,255) ],0,255);
-        ct12[i+28] = clamp(ct2[ clamp(ct1[i+28],0,255) ],0,255);
-        ct12[i+29] = clamp(ct2[ clamp(ct1[i+29],0,255) ],0,255);
-        ct12[i+30] = clamp(ct2[ clamp(ct1[i+30],0,255) ],0,255);
-        ct12[i+31] = clamp(ct2[ clamp(ct1[i+31],0,255) ],0,255);
-        ct12[i+32] = clamp(ct2[ clamp(ct1[i+32],0,255) ],0,255);
-        ct12[i+33] = clamp(ct2[ clamp(ct1[i+33],0,255) ],0,255);
-        ct12[i+34] = clamp(ct2[ clamp(ct1[i+34],0,255) ],0,255);
-        ct12[i+35] = clamp(ct2[ clamp(ct1[i+35],0,255) ],0,255);
-        ct12[i+36] = clamp(ct2[ clamp(ct1[i+36],0,255) ],0,255);
-        ct12[i+37] = clamp(ct2[ clamp(ct1[i+37],0,255) ],0,255);
-        ct12[i+38] = clamp(ct2[ clamp(ct1[i+38],0,255) ],0,255);
-        ct12[i+39] = clamp(ct2[ clamp(ct1[i+39],0,255) ],0,255);
-        ct12[i+40] = clamp(ct2[ clamp(ct1[i+40],0,255) ],0,255);
-        ct12[i+41] = clamp(ct2[ clamp(ct1[i+41],0,255) ],0,255);
-        ct12[i+42] = clamp(ct2[ clamp(ct1[i+42],0,255) ],0,255);
-        ct12[i+43] = clamp(ct2[ clamp(ct1[i+43],0,255) ],0,255);
-        ct12[i+44] = clamp(ct2[ clamp(ct1[i+44],0,255) ],0,255);
-        ct12[i+45] = clamp(ct2[ clamp(ct1[i+45],0,255) ],0,255);
-        ct12[i+46] = clamp(ct2[ clamp(ct1[i+46],0,255) ],0,255);
-        ct12[i+47] = clamp(ct2[ clamp(ct1[i+47],0,255) ],0,255);
-        ct12[i+48] = clamp(ct2[ clamp(ct1[i+48],0,255) ],0,255);
-        ct12[i+49] = clamp(ct2[ clamp(ct1[i+49],0,255) ],0,255);
-        ct12[i+50] = clamp(ct2[ clamp(ct1[i+50],0,255) ],0,255);
-        ct12[i+51] = clamp(ct2[ clamp(ct1[i+51],0,255) ],0,255);
-        ct12[i+52] = clamp(ct2[ clamp(ct1[i+52],0,255) ],0,255);
-        ct12[i+53] = clamp(ct2[ clamp(ct1[i+53],0,255) ],0,255);
-        ct12[i+54] = clamp(ct2[ clamp(ct1[i+54],0,255) ],0,255);
-        ct12[i+55] = clamp(ct2[ clamp(ct1[i+55],0,255) ],0,255);
-        ct12[i+56] = clamp(ct2[ clamp(ct1[i+56],0,255) ],0,255);
-        ct12[i+57] = clamp(ct2[ clamp(ct1[i+57],0,255) ],0,255);
-        ct12[i+58] = clamp(ct2[ clamp(ct1[i+58],0,255) ],0,255);
-        ct12[i+59] = clamp(ct2[ clamp(ct1[i+59],0,255) ],0,255);
-        ct12[i+60] = clamp(ct2[ clamp(ct1[i+60],0,255) ],0,255);
-        ct12[i+61] = clamp(ct2[ clamp(ct1[i+61],0,255) ],0,255);
-        ct12[i+62] = clamp(ct2[ clamp(ct1[i+62],0,255) ],0,255);
-        ct12[i+63] = clamp(ct2[ clamp(ct1[i+63],0,255) ],0,255);
+        ct12[i   ] = clamp(ct2[clamp(ct1[i   ],0,255)],0,255);
     }
     return ct12;
 }
@@ -1596,37 +1471,16 @@ function cm_eye()
 */
 function cm_multiply(cm1, cm2)
 {
-    var cm12 = new ColorMatrix(20);
+    var cm12 = new ColorMatrix(20), i;
 
-    // unroll the loop completely
-    // i=0
-    cm12[0] = cm2[0]*cm1[0] + cm2[1]*cm1[5] + cm2[2]*cm1[10] + cm2[3]*cm1[15];
-    cm12[1] = cm2[0]*cm1[1] + cm2[1]*cm1[6] + cm2[2]*cm1[11] + cm2[3]*cm1[16];
-    cm12[2] = cm2[0]*cm1[2] + cm2[1]*cm1[7] + cm2[2]*cm1[12] + cm2[3]*cm1[17];
-    cm12[3] = cm2[0]*cm1[3] + cm2[1]*cm1[8] + cm2[2]*cm1[13] + cm2[3]*cm1[18];
-    cm12[4] = cm2[0]*cm1[4] + cm2[1]*cm1[9] + cm2[2]*cm1[14] + cm2[3]*cm1[19] + cm2[4];
-
-    // i=5
-    cm12[5] = cm2[5]*cm1[0] + cm2[6]*cm1[5] + cm2[7]*cm1[10] + cm2[8]*cm1[15];
-    cm12[6] = cm2[5]*cm1[1] + cm2[6]*cm1[6] + cm2[7]*cm1[11] + cm2[8]*cm1[16];
-    cm12[7] = cm2[5]*cm1[2] + cm2[6]*cm1[7] + cm2[7]*cm1[12] + cm2[8]*cm1[17];
-    cm12[8] = cm2[5]*cm1[3] + cm2[6]*cm1[8] + cm2[7]*cm1[13] + cm2[8]*cm1[18];
-    cm12[9] = cm2[5]*cm1[4] + cm2[6]*cm1[9] + cm2[7]*cm1[14] + cm2[8]*cm1[19] + cm2[9];
-
-    // i=10
-    cm12[10] = cm2[10]*cm1[0] + cm2[11]*cm1[5] + cm2[12]*cm1[10] + cm2[13]*cm1[15];
-    cm12[11] = cm2[10]*cm1[1] + cm2[11]*cm1[6] + cm2[12]*cm1[11] + cm2[13]*cm1[16];
-    cm12[12] = cm2[10]*cm1[2] + cm2[11]*cm1[7] + cm2[12]*cm1[12] + cm2[13]*cm1[17];
-    cm12[13] = cm2[10]*cm1[3] + cm2[11]*cm1[8] + cm2[12]*cm1[13] + cm2[13]*cm1[18];
-    cm12[14] = cm2[10]*cm1[4] + cm2[11]*cm1[9] + cm2[12]*cm1[14] + cm2[13]*cm1[19] + cm2[14];
-
-    // i=15
-    cm12[15] = cm2[15]*cm1[0] + cm2[16]*cm1[5] + cm2[17]*cm1[10] + cm2[18]*cm1[15];
-    cm12[16] = cm2[15]*cm1[1] + cm2[16]*cm1[6] + cm2[17]*cm1[11] + cm2[18]*cm1[16];
-    cm12[17] = cm2[15]*cm1[2] + cm2[16]*cm1[7] + cm2[17]*cm1[12] + cm2[18]*cm1[17];
-    cm12[18] = cm2[15]*cm1[3] + cm2[16]*cm1[8] + cm2[17]*cm1[13] + cm2[18]*cm1[18];
-    cm12[19] = cm2[15]*cm1[4] + cm2[16]*cm1[9] + cm2[17]*cm1[14] + cm2[18]*cm1[19] + cm2[19];
-
+    for (i=0; i<20; i+=5)
+    {
+        cm12[i+0] = cm2[i]*cm1[0] + cm2[i+1]*cm1[5] + cm2[i+2]*cm1[10] + cm2[i+3]*cm1[15];
+        cm12[i+1] = cm2[i]*cm1[1] + cm2[i+1]*cm1[6] + cm2[i+2]*cm1[11] + cm2[i+3]*cm1[16];
+        cm12[i+2] = cm2[i]*cm1[2] + cm2[i+1]*cm1[7] + cm2[i+2]*cm1[12] + cm2[i+3]*cm1[17];
+        cm12[i+3] = cm2[i]*cm1[3] + cm2[i+1]*cm1[8] + cm2[i+2]*cm1[13] + cm2[i+3]*cm1[18];
+        cm12[i+4] = cm2[i]*cm1[4] + cm2[i+1]*cm1[9] + cm2[i+2]*cm1[14] + cm2[i+3]*cm1[19] + cm2[i+4];
+    }
     return cm12;
 }
 function cm_rechannel(m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao)

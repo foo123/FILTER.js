@@ -13,13 +13,13 @@
 
 var MAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
-    stdMath = Math, floor = stdMath.floor,
+    stdMath = Math, floor = stdMath.floor, round = stdMath.round,
     sqrt = stdMath.sqrt, atan = stdMath.atan2,
     sin = stdMath.sin, cos = stdMath.cos,
     max = stdMath.max, min = stdMath.min,
     PI = stdMath.PI, TWOPI = 2*PI,
     clamp = FILTER.Util.Math.clamp,
-    Z = [0,0,0,0],
+    X = FILTER.POS.X, Y = FILTER.POS.Y,
     HAS = Object.prototype.hasOwnProperty,
     toString = Function.prototype.toString;
 
@@ -41,6 +41,8 @@ FILTER.Create({
     ,color: 0
     ,centerX: 0
     ,centerY: 0
+    ,posX: 0
+    ,posY: 1
     ,angle: 0
     ,radius: 0
     ,mode: MODE.CLAMP
@@ -72,6 +74,8 @@ FILTER.Create({
             ,color: self.color
             ,centerX: self.centerX
             ,centerY: self.centerY
+            ,posX: self.posX
+            ,posY: self.posY
             ,angle: self.angle
             ,radius: self.radius
         };
@@ -84,6 +88,8 @@ FILTER.Create({
         self.color = params.color;
         self.centerX = params.centerX;
         self.centerY = params.centerY;
+        self.posX = params.posX;
+        self.posY = params.posY;
         self.angle = params.angle;
         self.radius = params.radius;
 
@@ -106,15 +112,17 @@ FILTER.Create({
         return self;
     }
 
-    ,polar: function(centerX, centerY) {
+    ,polar: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
+        self.posX = posX||0; self.posY = posY||0;
         return self.set("polar");
     }
 
-    ,cartesian: function(centerX, centerY) {
+    ,cartesian: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
+        self.posX = posX||0; self.posY = posY||0;
         return self.set("cartesian");
     }
 
@@ -287,31 +295,42 @@ function apply__(map, preample)
 };")(FILTER);
 }
 
+//
+// private geometric maps
 function polar(im, w, h)
 {
     var self = this, x, y, xx, yy, a, r, i, j,
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
-		height = 360, width = floor(max(
+        px = self.posX, py = self.posY,
+		aMax = TWOPI, rMax = floor(max(
         sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
         sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
         sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
         sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
         )),
-        dst = new FILTER.ImArray((width*height) << 2);
-    self.hasMeta = false;
-    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+        dst = new FILTER.ImArray(imLen);
+    for (i=0,yy=0,xx=0; i<imLen; ++xx,i+=4)
     {
-        if (xx >= width) {xx=0; ++yy;}
+        if (xx >= w) {xx=0; ++yy;}
 
-        r = xx;
-        a = (yy / height) * TWOPI;
-        x = r*cos(a) + cx;
-        y = r*sin(a) + cy;
-        interpolate(dst, i, x, y, im, w, h);
+        r = rMax*xx/W;
+        a = aMax*yy/H;
+        if (px === Y)
+        {
+            y = round(r*cos(a) + cx);
+            x = round(r*sin(a) + cy);
+        }
+        else
+        {
+            x = round(r*cos(a) + cx);
+            y = round(r*sin(a) + cy);
+        }
+        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        j = (x + y*w) << 2;
+        dst[i] = im[j]; dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
     }
-    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
-    self.hasMeta = true;
     return dst;
 }
 function cartesian(im, w, h)
@@ -319,79 +338,40 @@ function cartesian(im, w, h)
     var self = this, x, y, xx, yy, a, r, i, j,
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
-		height = 2*w+1, width = 2*w+1,
-        dst = new FILTER.ImArray((width*height) << 2);
-    self.hasMeta = false;
-    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+        px = self.posX, py = self.posY,
+		aMax = TWOPI, rMax = floor(max(
+        sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
+        sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
+        sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
+        sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
+        )),
+        dst = new FILTER.ImArray(imLen);
+    for (i=0,yy=0,xx=0; i<imLen; ++xx,i+=4)
     {
-        if (xx >= width) {xx=0; ++yy;}
+        if (xx >= w) {xx=0; ++yy;}
 
-        // -- For each Cartesian pixel, need to convert it to Polar
-        // coordinates
         x = xx - cx;
         y = yy - cy;
         r = sqrt(x*x + y*y);
         a = atan(y, x);
         if (0 > a) a += TWOPI;
-        x = r;
-        y = a * (height / 360);
-        interpolate(dst, i, x, y, im, w, h);
+        if (px === Y)
+        {
+            y = round(W*r/rMax);
+            x = round(H*a/aMax);
+        }
+        else
+        {
+            x = round(W*r/rMax);
+            y = round(H*a/aMax);
+        }
+        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        j = (x + y*w) << 2;
+        dst[i] = im[j]; dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
     }
-    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
-    self.hasMeta = true;
     return dst;
 }
-function interpolate(rgba, index, x, y, im, w, h)
-{
-
-    var xL, yL, xLyL, xLyH, xHyL, xHyH, i;
-
-    xL = floor(x);
-    yL = floor(y);
-    if (0 > xL || 0 > yL || xL >= w || yL >= h)
-    {
-        xLyL = Z;
-    }
-    else
-    {
-        i = (xL + yL*w) << 2;
-        xLyL = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL || 0 > yL+1 || xL >= w || yL+1 >= h)
-    {
-        xLyH = Z;
-    }
-    else
-    {
-        i = (xL + (yL+1)*w) << 2;
-        xLyH = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL+1 || 0 > yL || xL+1 >= w || yL >= h)
-    {
-        xHyL = Z;
-    }
-    else
-    {
-        i = (xL+1 + yL*w) << 2;
-        xHyL = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL+1 || 0 > yL+1 || xL+1 >= w || yL+1 >= h)
-    {
-        xHyH = Z;
-    }
-    else
-    {
-        i = (xL+1 + (yL+1)*w) << 2;
-        xHyH = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    for (i=0; i<3; ++i)
-    {
-        rgba[index+i] = clamp(floor((xL + 1 - x) * (yL + 1 - y) * xLyL[i] +(x - xL) * (yL + 1 - y) * xHyL[i] + (xL + 1 - x) * (y - yL) * xLyH[i] + (x - xL) * (y - yL) * xHyH[i]), 0, 255);
-    }
-}
-
-//
-// private geometric maps
 MAP = {
     // adapted from http://je2050.de/imageprocessing/ TwirlMap
      "twirl": "function() {\

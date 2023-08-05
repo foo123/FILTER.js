@@ -2,13 +2,18 @@
 
 __1.0.0__
 
-* remove classy dependency
-* remove not-implemented filters (webgl, svg, some plugins)
+* remove `classy` dependency
+* remove not implemented filters (webgl, svg, some plugins)
 * remove ml code (svg, jade, kmeans, ..)
-* remove zlib, ffmpeg libs
-* remove nodejs specific code (use CanvasLite or node-canvas)
-* update/fix HAARDetector, Pixelate, Blend plugins
+* remove `zlib`, `ffmpeg` asm libs
+* remove `nodejs` specific code (use `CanvasLite` or `node-canvas`)
+* remove `ScaledImage` (use `DimensionFilter` to up/down scale)
+* remove unused methods (eg `Image.draw`/`Image.paste`, ..)
+* update/fix `HAARDetector`, `Blend` filters
+* fix Image dimensions and display issues in mobile (not use `devicePixelRatio`)
+* implement `GeometricMapFilter.polar(cx, cy)`, `GeometricMapFilter.cartesian(cx, cy)`
 * simplify/minify codebase
+* update examples and tests
 
 __0.9.7__
 

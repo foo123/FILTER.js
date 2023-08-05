@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-04 23:22:36
+*   @built on 2023-08-05 09:48:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-04 23:22:36
+*   @built on 2023-08-05 09:48:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1294,7 +1294,7 @@ FILTER.error = function(s, throwErr) {FILTER.log('ERROR: ' + s); if (throwErr) t
 FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1;
 
 // Typed Arrays Substitute(s)
-FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray;
+FILTER._notSupportClamp = ("undefined" === typeof Uint8ClampedArray) || Browser.isOpera;
 FILTER.Array = Array;
 FILTER.Array32F = typeof Float32Array !== "undefined" ? Float32Array : Array;
 FILTER.Array64F = typeof Float64Array !== "undefined" ? Float64Array : Array;
@@ -1304,10 +1304,8 @@ FILTER.Array32I = typeof Int32Array !== "undefined" ? Int32Array : Array;
 FILTER.Array8U = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
 FILTER.Array16U = typeof Uint16Array !== "undefined" ? Uint16Array : Array;
 FILTER.Array32U = typeof Uint32Array !== "undefined" ? Uint32Array : Array;
-FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
-FILTER.ColorTable = FILTER.ImArray;
+FILTER.ColorTable = FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
-FILTER._notSupportClamp = FILTER._notSupportClamp || Browser.isOpera;
 
 // Constants
 FILTER.MODE = {
@@ -1332,6 +1330,9 @@ FILTER.CHANNEL = {
     CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3,
     XX: 0, YY: 1, ZZ: 2,
     ILL1: 0, ILL2: 1, ILL3: 2
+};
+FILTER.POS = {
+    X: 0, Y: 1
 };
 FILTER.STRIDE = {
     CHANNEL: [0,0,1], X: [0,1,4], Y: [1,0,4],
@@ -1381,14 +1382,14 @@ FILTER.Canvas = function(w, h) {
     // set the size of the drawingBuffer
     canvas.width = w * dpr;
     canvas.height = h * dpr;
-    if (canvas.style)
+    /*if (canvas.style)
     {
         // set the display size of the canvas if displayed
         canvas.style.width = String(canvas.width) + 'px';
         canvas.style.height = String(canvas.height) + 'px';
         canvas.style.transformOrigin = 'top left';
         canvas.style.transform = 'scale('+(1/dpr)+','+(1/dpr)+')';
-    }
+    }*/
     return canvas;
 };
 // Image for Browser, override if needed to provide alternative for Nodejs
@@ -2831,78 +2832,16 @@ function ct_eye(c1, c0)
     var i, t = new ColorTable(256);
     if ("function" === typeof c1)
     {
-        for (i=0; i<256; i+=32)
+        for (i=0; i<256; ++i)
         {
             t[i   ] = clamp(c1(i   ),0,255)|0;
-            t[i+1 ] = clamp(c1(i+1 ),0,255)|0;
-            t[i+2 ] = clamp(c1(i+2 ),0,255)|0;
-            t[i+3 ] = clamp(c1(i+3 ),0,255)|0;
-            t[i+4 ] = clamp(c1(i+4 ),0,255)|0;
-            t[i+5 ] = clamp(c1(i+5 ),0,255)|0;
-            t[i+6 ] = clamp(c1(i+6 ),0,255)|0;
-            t[i+7 ] = clamp(c1(i+7 ),0,255)|0;
-            t[i+8 ] = clamp(c1(i+8 ),0,255)|0;
-            t[i+9 ] = clamp(c1(i+9 ),0,255)|0;
-            t[i+10] = clamp(c1(i+10),0,255)|0;
-            t[i+11] = clamp(c1(i+11),0,255)|0;
-            t[i+12] = clamp(c1(i+12),0,255)|0;
-            t[i+13] = clamp(c1(i+13),0,255)|0;
-            t[i+14] = clamp(c1(i+14),0,255)|0;
-            t[i+15] = clamp(c1(i+15),0,255)|0;
-            t[i+16] = clamp(c1(i+16),0,255)|0;
-            t[i+17] = clamp(c1(i+17),0,255)|0;
-            t[i+18] = clamp(c1(i+18),0,255)|0;
-            t[i+19] = clamp(c1(i+19),0,255)|0;
-            t[i+20] = clamp(c1(i+20),0,255)|0;
-            t[i+21] = clamp(c1(i+21),0,255)|0;
-            t[i+22] = clamp(c1(i+22),0,255)|0;
-            t[i+23] = clamp(c1(i+23),0,255)|0;
-            t[i+24] = clamp(c1(i+24),0,255)|0;
-            t[i+25] = clamp(c1(i+25),0,255)|0;
-            t[i+26] = clamp(c1(i+26),0,255)|0;
-            t[i+27] = clamp(c1(i+27),0,255)|0;
-            t[i+28] = clamp(c1(i+28),0,255)|0;
-            t[i+29] = clamp(c1(i+29),0,255)|0;
-            t[i+30] = clamp(c1(i+30),0,255)|0;
-            t[i+31] = clamp(c1(i+31),0,255)|0;
         }
     }
     else
     {
-        for (i=0; i<256; i+=32)
+        for (i=0; i<256; ++i)
         {
             t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
-            t[i+1 ] = clamp(c0 + c1*(i+1 ),0,255)|0;
-            t[i+2 ] = clamp(c0 + c1*(i+2 ),0,255)|0;
-            t[i+3 ] = clamp(c0 + c1*(i+3 ),0,255)|0;
-            t[i+4 ] = clamp(c0 + c1*(i+4 ),0,255)|0;
-            t[i+5 ] = clamp(c0 + c1*(i+5 ),0,255)|0;
-            t[i+6 ] = clamp(c0 + c1*(i+6 ),0,255)|0;
-            t[i+7 ] = clamp(c0 + c1*(i+7 ),0,255)|0;
-            t[i+8 ] = clamp(c0 + c1*(i+8 ),0,255)|0;
-            t[i+9 ] = clamp(c0 + c1*(i+9 ),0,255)|0;
-            t[i+10] = clamp(c0 + c1*(i+10),0,255)|0;
-            t[i+11] = clamp(c0 + c1*(i+11),0,255)|0;
-            t[i+12] = clamp(c0 + c1*(i+12),0,255)|0;
-            t[i+13] = clamp(c0 + c1*(i+13),0,255)|0;
-            t[i+14] = clamp(c0 + c1*(i+14),0,255)|0;
-            t[i+15] = clamp(c0 + c1*(i+15),0,255)|0;
-            t[i+16] = clamp(c0 + c1*(i+16),0,255)|0;
-            t[i+17] = clamp(c0 + c1*(i+17),0,255)|0;
-            t[i+18] = clamp(c0 + c1*(i+18),0,255)|0;
-            t[i+19] = clamp(c0 + c1*(i+19),0,255)|0;
-            t[i+20] = clamp(c0 + c1*(i+20),0,255)|0;
-            t[i+21] = clamp(c0 + c1*(i+21),0,255)|0;
-            t[i+22] = clamp(c0 + c1*(i+22),0,255)|0;
-            t[i+23] = clamp(c0 + c1*(i+23),0,255)|0;
-            t[i+24] = clamp(c0 + c1*(i+24),0,255)|0;
-            t[i+25] = clamp(c0 + c1*(i+25),0,255)|0;
-            t[i+26] = clamp(c0 + c1*(i+26),0,255)|0;
-            t[i+27] = clamp(c0 + c1*(i+27),0,255)|0;
-            t[i+28] = clamp(c0 + c1*(i+28),0,255)|0;
-            t[i+29] = clamp(c0 + c1*(i+29),0,255)|0;
-            t[i+30] = clamp(c0 + c1*(i+30),0,255)|0;
-            t[i+31] = clamp(c0 + c1*(i+31),0,255)|0;
         }
     }
     return t;
@@ -2911,72 +2850,9 @@ function ct_eye(c1, c0)
 function ct_multiply(ct2, ct1)
 {
     var i, ct12 = new ColorTable(256);
-    for (i=0; i<256; i+=64)
+    for (i=0; i<256; ++i)
     {
-        ct12[i   ] = clamp(ct2[ clamp(ct1[i   ],0,255) ],0,255);
-        ct12[i+1 ] = clamp(ct2[ clamp(ct1[i+1 ],0,255) ],0,255);
-        ct12[i+2 ] = clamp(ct2[ clamp(ct1[i+2 ],0,255) ],0,255);
-        ct12[i+3 ] = clamp(ct2[ clamp(ct1[i+3 ],0,255) ],0,255);
-        ct12[i+4 ] = clamp(ct2[ clamp(ct1[i+4 ],0,255) ],0,255);
-        ct12[i+5 ] = clamp(ct2[ clamp(ct1[i+5 ],0,255) ],0,255);
-        ct12[i+6 ] = clamp(ct2[ clamp(ct1[i+6 ],0,255) ],0,255);
-        ct12[i+7 ] = clamp(ct2[ clamp(ct1[i+7 ],0,255) ],0,255);
-        ct12[i+8 ] = clamp(ct2[ clamp(ct1[i+8 ],0,255) ],0,255);
-        ct12[i+9 ] = clamp(ct2[ clamp(ct1[i+9 ],0,255) ],0,255);
-        ct12[i+10] = clamp(ct2[ clamp(ct1[i+10],0,255) ],0,255);
-        ct12[i+11] = clamp(ct2[ clamp(ct1[i+11],0,255) ],0,255);
-        ct12[i+12] = clamp(ct2[ clamp(ct1[i+12],0,255) ],0,255);
-        ct12[i+13] = clamp(ct2[ clamp(ct1[i+13],0,255) ],0,255);
-        ct12[i+14] = clamp(ct2[ clamp(ct1[i+14],0,255) ],0,255);
-        ct12[i+15] = clamp(ct2[ clamp(ct1[i+15],0,255) ],0,255);
-        ct12[i+16] = clamp(ct2[ clamp(ct1[i+16],0,255) ],0,255);
-        ct12[i+17] = clamp(ct2[ clamp(ct1[i+17],0,255) ],0,255);
-        ct12[i+18] = clamp(ct2[ clamp(ct1[i+18],0,255) ],0,255);
-        ct12[i+19] = clamp(ct2[ clamp(ct1[i+19],0,255) ],0,255);
-        ct12[i+20] = clamp(ct2[ clamp(ct1[i+20],0,255) ],0,255);
-        ct12[i+21] = clamp(ct2[ clamp(ct1[i+21],0,255) ],0,255);
-        ct12[i+22] = clamp(ct2[ clamp(ct1[i+22],0,255) ],0,255);
-        ct12[i+23] = clamp(ct2[ clamp(ct1[i+23],0,255) ],0,255);
-        ct12[i+24] = clamp(ct2[ clamp(ct1[i+24],0,255) ],0,255);
-        ct12[i+25] = clamp(ct2[ clamp(ct1[i+25],0,255) ],0,255);
-        ct12[i+26] = clamp(ct2[ clamp(ct1[i+26],0,255) ],0,255);
-        ct12[i+27] = clamp(ct2[ clamp(ct1[i+27],0,255) ],0,255);
-        ct12[i+28] = clamp(ct2[ clamp(ct1[i+28],0,255) ],0,255);
-        ct12[i+29] = clamp(ct2[ clamp(ct1[i+29],0,255) ],0,255);
-        ct12[i+30] = clamp(ct2[ clamp(ct1[i+30],0,255) ],0,255);
-        ct12[i+31] = clamp(ct2[ clamp(ct1[i+31],0,255) ],0,255);
-        ct12[i+32] = clamp(ct2[ clamp(ct1[i+32],0,255) ],0,255);
-        ct12[i+33] = clamp(ct2[ clamp(ct1[i+33],0,255) ],0,255);
-        ct12[i+34] = clamp(ct2[ clamp(ct1[i+34],0,255) ],0,255);
-        ct12[i+35] = clamp(ct2[ clamp(ct1[i+35],0,255) ],0,255);
-        ct12[i+36] = clamp(ct2[ clamp(ct1[i+36],0,255) ],0,255);
-        ct12[i+37] = clamp(ct2[ clamp(ct1[i+37],0,255) ],0,255);
-        ct12[i+38] = clamp(ct2[ clamp(ct1[i+38],0,255) ],0,255);
-        ct12[i+39] = clamp(ct2[ clamp(ct1[i+39],0,255) ],0,255);
-        ct12[i+40] = clamp(ct2[ clamp(ct1[i+40],0,255) ],0,255);
-        ct12[i+41] = clamp(ct2[ clamp(ct1[i+41],0,255) ],0,255);
-        ct12[i+42] = clamp(ct2[ clamp(ct1[i+42],0,255) ],0,255);
-        ct12[i+43] = clamp(ct2[ clamp(ct1[i+43],0,255) ],0,255);
-        ct12[i+44] = clamp(ct2[ clamp(ct1[i+44],0,255) ],0,255);
-        ct12[i+45] = clamp(ct2[ clamp(ct1[i+45],0,255) ],0,255);
-        ct12[i+46] = clamp(ct2[ clamp(ct1[i+46],0,255) ],0,255);
-        ct12[i+47] = clamp(ct2[ clamp(ct1[i+47],0,255) ],0,255);
-        ct12[i+48] = clamp(ct2[ clamp(ct1[i+48],0,255) ],0,255);
-        ct12[i+49] = clamp(ct2[ clamp(ct1[i+49],0,255) ],0,255);
-        ct12[i+50] = clamp(ct2[ clamp(ct1[i+50],0,255) ],0,255);
-        ct12[i+51] = clamp(ct2[ clamp(ct1[i+51],0,255) ],0,255);
-        ct12[i+52] = clamp(ct2[ clamp(ct1[i+52],0,255) ],0,255);
-        ct12[i+53] = clamp(ct2[ clamp(ct1[i+53],0,255) ],0,255);
-        ct12[i+54] = clamp(ct2[ clamp(ct1[i+54],0,255) ],0,255);
-        ct12[i+55] = clamp(ct2[ clamp(ct1[i+55],0,255) ],0,255);
-        ct12[i+56] = clamp(ct2[ clamp(ct1[i+56],0,255) ],0,255);
-        ct12[i+57] = clamp(ct2[ clamp(ct1[i+57],0,255) ],0,255);
-        ct12[i+58] = clamp(ct2[ clamp(ct1[i+58],0,255) ],0,255);
-        ct12[i+59] = clamp(ct2[ clamp(ct1[i+59],0,255) ],0,255);
-        ct12[i+60] = clamp(ct2[ clamp(ct1[i+60],0,255) ],0,255);
-        ct12[i+61] = clamp(ct2[ clamp(ct1[i+61],0,255) ],0,255);
-        ct12[i+62] = clamp(ct2[ clamp(ct1[i+62],0,255) ],0,255);
-        ct12[i+63] = clamp(ct2[ clamp(ct1[i+63],0,255) ],0,255);
+        ct12[i   ] = clamp(ct2[clamp(ct1[i   ],0,255)],0,255);
     }
     return ct12;
 }
@@ -2999,37 +2875,16 @@ function cm_eye()
 */
 function cm_multiply(cm1, cm2)
 {
-    var cm12 = new ColorMatrix(20);
+    var cm12 = new ColorMatrix(20), i;
 
-    // unroll the loop completely
-    // i=0
-    cm12[0] = cm2[0]*cm1[0] + cm2[1]*cm1[5] + cm2[2]*cm1[10] + cm2[3]*cm1[15];
-    cm12[1] = cm2[0]*cm1[1] + cm2[1]*cm1[6] + cm2[2]*cm1[11] + cm2[3]*cm1[16];
-    cm12[2] = cm2[0]*cm1[2] + cm2[1]*cm1[7] + cm2[2]*cm1[12] + cm2[3]*cm1[17];
-    cm12[3] = cm2[0]*cm1[3] + cm2[1]*cm1[8] + cm2[2]*cm1[13] + cm2[3]*cm1[18];
-    cm12[4] = cm2[0]*cm1[4] + cm2[1]*cm1[9] + cm2[2]*cm1[14] + cm2[3]*cm1[19] + cm2[4];
-
-    // i=5
-    cm12[5] = cm2[5]*cm1[0] + cm2[6]*cm1[5] + cm2[7]*cm1[10] + cm2[8]*cm1[15];
-    cm12[6] = cm2[5]*cm1[1] + cm2[6]*cm1[6] + cm2[7]*cm1[11] + cm2[8]*cm1[16];
-    cm12[7] = cm2[5]*cm1[2] + cm2[6]*cm1[7] + cm2[7]*cm1[12] + cm2[8]*cm1[17];
-    cm12[8] = cm2[5]*cm1[3] + cm2[6]*cm1[8] + cm2[7]*cm1[13] + cm2[8]*cm1[18];
-    cm12[9] = cm2[5]*cm1[4] + cm2[6]*cm1[9] + cm2[7]*cm1[14] + cm2[8]*cm1[19] + cm2[9];
-
-    // i=10
-    cm12[10] = cm2[10]*cm1[0] + cm2[11]*cm1[5] + cm2[12]*cm1[10] + cm2[13]*cm1[15];
-    cm12[11] = cm2[10]*cm1[1] + cm2[11]*cm1[6] + cm2[12]*cm1[11] + cm2[13]*cm1[16];
-    cm12[12] = cm2[10]*cm1[2] + cm2[11]*cm1[7] + cm2[12]*cm1[12] + cm2[13]*cm1[17];
-    cm12[13] = cm2[10]*cm1[3] + cm2[11]*cm1[8] + cm2[12]*cm1[13] + cm2[13]*cm1[18];
-    cm12[14] = cm2[10]*cm1[4] + cm2[11]*cm1[9] + cm2[12]*cm1[14] + cm2[13]*cm1[19] + cm2[14];
-
-    // i=15
-    cm12[15] = cm2[15]*cm1[0] + cm2[16]*cm1[5] + cm2[17]*cm1[10] + cm2[18]*cm1[15];
-    cm12[16] = cm2[15]*cm1[1] + cm2[16]*cm1[6] + cm2[17]*cm1[11] + cm2[18]*cm1[16];
-    cm12[17] = cm2[15]*cm1[2] + cm2[16]*cm1[7] + cm2[17]*cm1[12] + cm2[18]*cm1[17];
-    cm12[18] = cm2[15]*cm1[3] + cm2[16]*cm1[8] + cm2[17]*cm1[13] + cm2[18]*cm1[18];
-    cm12[19] = cm2[15]*cm1[4] + cm2[16]*cm1[9] + cm2[17]*cm1[14] + cm2[18]*cm1[19] + cm2[19];
-
+    for (i=0; i<20; i+=5)
+    {
+        cm12[i+0] = cm2[i]*cm1[0] + cm2[i+1]*cm1[5] + cm2[i+2]*cm1[10] + cm2[i+3]*cm1[15];
+        cm12[i+1] = cm2[i]*cm1[1] + cm2[i+1]*cm1[6] + cm2[i+2]*cm1[11] + cm2[i+3]*cm1[16];
+        cm12[i+2] = cm2[i]*cm1[2] + cm2[i+1]*cm1[7] + cm2[i+2]*cm1[12] + cm2[i+3]*cm1[17];
+        cm12[i+3] = cm2[i]*cm1[3] + cm2[i+1]*cm1[8] + cm2[i+2]*cm1[13] + cm2[i+3]*cm1[18];
+        cm12[i+4] = cm2[i]*cm1[4] + cm2[i+1]*cm1[9] + cm2[i+2]*cm1[14] + cm2[i+3]*cm1[19] + cm2[i+4];
+    }
     return cm12;
 }
 function cm_rechannel(m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao)
@@ -4906,11 +4761,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
+        self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
         self.oData = null;
         self.oDataSel = null;
-        self.domElement = self.oCanvas;
         self._restorable = true;
         self.gray = false;
         self.selection = null;
@@ -5014,7 +4869,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ];
             self._refresh |= SEL;
         }
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5031,7 +4886,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iCanvas.getContext('2d').drawImage(self.oCanvas, 0, 0);
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -5045,7 +4900,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.getContext('2d').drawImage(self.iCanvas, 0, 0);
             self._refresh |= ODATA;
             if (self.selection) self._refresh |= OSEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -5054,7 +4909,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         return self;
     }
@@ -5076,11 +4931,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.drawImage(self.oCanvas, 0, 0);
         self.oCanvas.width = w * devicePixelRatio;
         self.oCanvas.height = h * devicePixelRatio;
-        if (self.oCanvas.style)
+        /*if (self.oCanvas.style)
         {
             self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
             self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
-        }
+        }*/
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
@@ -5088,17 +4943,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ctx.drawImage(self.iCanvas, 0, 0);
             self.iCanvas.width = self.oCanvas.width;
             self.iCanvas.height = self.oCanvas.height;
-            if (self.iCanvas.style)
+            /*if (self.iCanvas.style)
             {
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
-            }
+            }*/
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5122,7 +4977,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5146,7 +5001,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5159,7 +5014,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.getContext('2d').clearRect(0, 0, w, h);
             self._refresh |= DATA;
             if (self.selection) self._refresh |= SEL;
-            ++self.nref;
+            self.nref = (self.nref+1) % 1000;
         }
         return self;
     }
@@ -5211,22 +5066,22 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.drawImage(self.oCanvas, x, y, w, h, 0, 0, w, h);
         self.oCanvas.width = w * devicePixelRatio;
         self.oCanvas.height = h * devicePixelRatio;
-        if (self.oCanvas.style)
+        /*if (self.oCanvas.style)
         {
             self.oCanvas.style.width = String(self.oCanvas.width) + 'px';
             self.oCanvas.style.height = String(self.oCanvas.height) + 'px';
-        }
+        }*/
         self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, x, y, w, h, 0, 0, w, h);
             self.iCanvas.width = self.oCanvas.width;
             self.iCanvas.height = self.oCanvas.height;
-            if (self.iCanvas.style)
+            /*if (self.iCanvas.style)
             {
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
-            }
+            }*/
             self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
         }
         self.width = w;
@@ -5298,28 +5153,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
         self._refresh |= DATA;
         if (sel) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
-
-    ,draw: function(img, x, y/*, blendMode*/) {
-        if (!img) return this;
-        var self = this, isVideo, isCanvas, isImage;
-
-        if (img instanceof FilterImage) img = img.oCanvas;
-        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
-        isCanvas = (img instanceof self.oCanvas.constructor);
-        isImage = (img instanceof FILTER.Canvas.Image().constructor);
-        if (!isImage && !isCanvas && !isVideo) return self;
-
-        if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, x|0, y|0);
-        self.oCanvas.getContext('2d').drawImage(img, x|0, y|0);
-        self._refresh |= DATA;
-        if (self.selection) self._refresh |= SEL;
-        ++self.nref;
-        return self;
-    }
-    ,paste: null
 
     // get direct data array
     ,getData: function(processed) {
@@ -5378,7 +5214,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5411,7 +5247,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5452,7 +5288,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         }
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
     ,setImage: null
@@ -5471,7 +5307,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(rgba, 1, 1), x, y);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5487,7 +5323,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.oCanvas.getContext('2d').putImageData(data, 0, 0);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
-        ++self.nref;
+        self.nref = (self.nref+1) % 1000;
         return self;
     }
 
@@ -5524,7 +5360,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
 // aliases
 FilterImage[PROTO].setImage = FilterImage[PROTO].image;
 FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
-FilterImage[PROTO].paste = FilterImage[PROTO].draw;
 
 // auxilliary (private) methods
 function set_dimensions(scope, w, h, what)
@@ -5534,22 +5369,22 @@ function set_dimensions(scope, w, h, what)
     {
         scope.width = w;
         scope.oCanvas.width = w * devicePixelRatio;
-        if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.oCanvas.width) + 'px';
+        //if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.oCanvas.width) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.width = scope.oCanvas.width;
-            if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
+            //if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
         }
     }
     if (what & HEIGHT)
     {
         scope.height = h;
         scope.oCanvas.height = h * devicePixelRatio;
-        if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.oCanvas.height) + 'px';
+        //if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.oCanvas.height) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.height = scope.oCanvas.height;
-            if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
+            //if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
         }
     }
     return scope;
@@ -8307,13 +8142,13 @@ FILTER.Create({
 
 var MAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
-    stdMath = Math, floor = stdMath.floor,
+    stdMath = Math, floor = stdMath.floor, round = stdMath.round,
     sqrt = stdMath.sqrt, atan = stdMath.atan2,
     sin = stdMath.sin, cos = stdMath.cos,
     max = stdMath.max, min = stdMath.min,
     PI = stdMath.PI, TWOPI = 2*PI,
     clamp = FILTER.Util.Math.clamp,
-    Z = [0,0,0,0],
+    X = FILTER.POS.X, Y = FILTER.POS.Y,
     HAS = Object.prototype.hasOwnProperty,
     toString = Function.prototype.toString;
 
@@ -8335,6 +8170,8 @@ FILTER.Create({
     ,color: 0
     ,centerX: 0
     ,centerY: 0
+    ,posX: 0
+    ,posY: 1
     ,angle: 0
     ,radius: 0
     ,mode: MODE.CLAMP
@@ -8366,6 +8203,8 @@ FILTER.Create({
             ,color: self.color
             ,centerX: self.centerX
             ,centerY: self.centerY
+            ,posX: self.posX
+            ,posY: self.posY
             ,angle: self.angle
             ,radius: self.radius
         };
@@ -8378,6 +8217,8 @@ FILTER.Create({
         self.color = params.color;
         self.centerX = params.centerX;
         self.centerY = params.centerY;
+        self.posX = params.posX;
+        self.posY = params.posY;
         self.angle = params.angle;
         self.radius = params.radius;
 
@@ -8400,15 +8241,17 @@ FILTER.Create({
         return self;
     }
 
-    ,polar: function(centerX, centerY) {
+    ,polar: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
+        self.posX = posX||0; self.posY = posY||0;
         return self.set("polar");
     }
 
-    ,cartesian: function(centerX, centerY) {
+    ,cartesian: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
+        self.posX = posX||0; self.posY = posY||0;
         return self.set("cartesian");
     }
 
@@ -8581,31 +8424,42 @@ function apply__(map, preample)
 };")(FILTER);
 }
 
+//
+// private geometric maps
 function polar(im, w, h)
 {
     var self = this, x, y, xx, yy, a, r, i, j,
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
-		height = 360, width = floor(max(
+        px = self.posX, py = self.posY,
+		aMax = TWOPI, rMax = floor(max(
         sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
         sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
         sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
         sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
         )),
-        dst = new FILTER.ImArray((width*height) << 2);
-    self.hasMeta = false;
-    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+        dst = new FILTER.ImArray(imLen);
+    for (i=0,yy=0,xx=0; i<imLen; ++xx,i+=4)
     {
-        if (xx >= width) {xx=0; ++yy;}
+        if (xx >= w) {xx=0; ++yy;}
 
-        r = xx;
-        a = (yy / height) * TWOPI;
-        x = r*cos(a) + cx;
-        y = r*sin(a) + cy;
-        interpolate(dst, i, x, y, im, w, h);
+        r = rMax*xx/W;
+        a = aMax*yy/H;
+        if (px === Y)
+        {
+            y = round(r*cos(a) + cx);
+            x = round(r*sin(a) + cy);
+        }
+        else
+        {
+            x = round(r*cos(a) + cx);
+            y = round(r*sin(a) + cy);
+        }
+        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        j = (x + y*w) << 2;
+        dst[i] = im[j]; dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
     }
-    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
-    self.hasMeta = true;
     return dst;
 }
 function cartesian(im, w, h)
@@ -8613,79 +8467,40 @@ function cartesian(im, w, h)
     var self = this, x, y, xx, yy, a, r, i, j,
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
-		height = 2*w+1, width = 2*w+1,
-        dst = new FILTER.ImArray((width*height) << 2);
-    self.hasMeta = false;
-    for (i=0,yy=0,xx=0; yy<height; ++xx,i+=4)
+        px = self.posX, py = self.posY,
+		aMax = TWOPI, rMax = floor(max(
+        sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
+        sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
+        sqrt((cx - 0) * (cx - 0) + (cy - H) * (cy - H)),
+        sqrt((cx - W) * (cx - W) + (cy - H) * (cy - H))
+        )),
+        dst = new FILTER.ImArray(imLen);
+    for (i=0,yy=0,xx=0; i<imLen; ++xx,i+=4)
     {
-        if (xx >= width) {xx=0; ++yy;}
+        if (xx >= w) {xx=0; ++yy;}
 
-        // -- For each Cartesian pixel, need to convert it to Polar
-        // coordinates
         x = xx - cx;
         y = yy - cy;
         r = sqrt(x*x + y*y);
         a = atan(y, x);
         if (0 > a) a += TWOPI;
-        x = r;
-        y = a * (height / 360);
-        interpolate(dst, i, x, y, im, w, h);
+        if (px === Y)
+        {
+            y = round(W*r/rMax);
+            x = round(H*a/aMax);
+        }
+        else
+        {
+            x = round(W*r/rMax);
+            y = round(H*a/aMax);
+        }
+        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        j = (x + y*w) << 2;
+        dst[i] = im[j]; dst[i+1] = im[j+1];
+        dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
     }
-    self.meta = {_IMG_WIDTH:width, _IMG_HEIGHT:height};
-    self.hasMeta = true;
     return dst;
 }
-function interpolate(rgba, index, x, y, im, w, h)
-{
-
-    var xL, yL, xLyL, xLyH, xHyL, xHyH, i;
-
-    xL = floor(x);
-    yL = floor(y);
-    if (0 > xL || 0 > yL || xL >= w || yL >= h)
-    {
-        xLyL = Z;
-    }
-    else
-    {
-        i = (xL + yL*w) << 2;
-        xLyL = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL || 0 > yL+1 || xL >= w || yL+1 >= h)
-    {
-        xLyH = Z;
-    }
-    else
-    {
-        i = (xL + (yL+1)*w) << 2;
-        xLyH = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL+1 || 0 > yL || xL+1 >= w || yL >= h)
-    {
-        xHyL = Z;
-    }
-    else
-    {
-        i = (xL+1 + yL*w) << 2;
-        xHyL = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    if (0 > xL+1 || 0 > yL+1 || xL+1 >= w || yL+1 >= h)
-    {
-        xHyH = Z;
-    }
-    else
-    {
-        i = (xL+1 + (yL+1)*w) << 2;
-        xHyH = [im[i], im[i+1], im[i+2], im[i+3]];
-    }
-    for (i=0; i<3; ++i)
-    {
-        rgba[index+i] = clamp(floor((xL + 1 - x) * (yL + 1 - y) * xLyL[i] +(x - xL) * (yL + 1 - y) * xHyL[i] + (xL + 1 - x) * (y - yL) * xLyH[i] + (x - xL) * (y - yL) * xHyH[i]), 0, 255);
-    }
-}
-
-//
-// private geometric maps
 MAP = {
     // adapted from http://je2050.de/imageprocessing/ TwirlMap
      "twirl": "function() {\

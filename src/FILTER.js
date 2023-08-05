@@ -159,7 +159,7 @@ FILTER.error = function(s, throwErr) {FILTER.log('ERROR: ' + s); if (throwErr) t
 FILTER.devicePixelRatio = (isBrowser && !isInsideThread ? window.devicePixelRatio : 1) || 1;
 
 // Typed Arrays Substitute(s)
-FILTER._notSupportClamp = "undefined" === typeof Uint8ClampedArray;
+FILTER._notSupportClamp = ("undefined" === typeof Uint8ClampedArray) || Browser.isOpera;
 FILTER.Array = Array;
 FILTER.Array32F = typeof Float32Array !== "undefined" ? Float32Array : Array;
 FILTER.Array64F = typeof Float64Array !== "undefined" ? Float64Array : Array;
@@ -169,10 +169,8 @@ FILTER.Array32I = typeof Int32Array !== "undefined" ? Int32Array : Array;
 FILTER.Array8U = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
 FILTER.Array16U = typeof Uint16Array !== "undefined" ? Uint16Array : Array;
 FILTER.Array32U = typeof Uint32Array !== "undefined" ? Uint32Array : Array;
-FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
-FILTER.ColorTable = FILTER.ImArray;
+FILTER.ColorTable = FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
-FILTER._notSupportClamp = FILTER._notSupportClamp || Browser.isOpera;
 
 // Constants
 FILTER.MODE = {
@@ -197,6 +195,9 @@ FILTER.CHANNEL = {
     CYAN: 2, MAGENTA: 0, YELLOW: 1, BLACK: 3,
     XX: 0, YY: 1, ZZ: 2,
     ILL1: 0, ILL2: 1, ILL3: 2
+};
+FILTER.POS = {
+    X: 0, Y: 1
 };
 FILTER.STRIDE = {
     CHANNEL: [0,0,1], X: [0,1,4], Y: [1,0,4],
@@ -246,14 +247,14 @@ FILTER.Canvas = function(w, h) {
     // set the size of the drawingBuffer
     canvas.width = w * dpr;
     canvas.height = h * dpr;
-    if (canvas.style)
+    /*if (canvas.style)
     {
         // set the display size of the canvas if displayed
         canvas.style.width = String(canvas.width) + 'px';
         canvas.style.height = String(canvas.height) + 'px';
         canvas.style.transformOrigin = 'top left';
         canvas.style.transform = 'scale('+(1/dpr)+','+(1/dpr)+')';
-    }
+    }*/
     return canvas;
 };
 // Image for Browser, override if needed to provide alternative for Nodejs

@@ -1,11 +1,6 @@
 ## API Reference
 
 
-The library dependencies are:
-
-* [Asynchronous](https://github.com/foo123/asynchronous.js) simple manager for async/parallel tasks.
-
-
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose.
 Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included.
 Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
