@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-05 09:48:34
+*   @built on 2023-08-05 11:02:17
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   FILTER.js
 *   @version: 1.0.0
-*   @built on 2023-08-05 09:48:34
+*   @built on 2023-08-05 11:02:17
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -8432,6 +8432,16 @@ function polar(im, w, h)
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
         px = self.posX, py = self.posY,
+        COLOR = FILTER.MODE.COLOR,
+        CLAMP = FILTER.MODE.CLAMP,
+        WRAP = FILTER.MODE.WRAP,
+        IGNORE = FILTER.MODE.IGNORE,
+        mode = self.mode||IGNORE,
+        color = self.color||0,
+        ca = (color >>> 24)&255,
+        cr = (color >>> 16)&255,
+        cg = (color >>> 8)&255,
+        cb = (color)&255,
 		aMax = TWOPI, rMax = floor(max(
         sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
         sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
@@ -8443,19 +8453,45 @@ function polar(im, w, h)
     {
         if (xx >= w) {xx=0; ++yy;}
 
-        r = rMax*xx/W;
-        a = aMax*yy/H;
         if (px === Y)
         {
-            y = round(r*cos(a) + cx);
-            x = round(r*sin(a) + cy);
+            r = rMax*yy/H;
+            a = aMax*xx/W;
+            y = round(r*cos(a) + cy);
+            x = round(r*sin(a) + cx);
         }
         else
         {
+            r = rMax*xx/W;
+            a = aMax*yy/H;
             x = round(r*cos(a) + cx);
             y = round(r*sin(a) + cy);
         }
-        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        if (0 > x || x >= w || 0 > y || y >= h)
+        {
+            if (COLOR === mode)
+            {
+                dst[i] = cr; dst[i+1] = cg;
+                dst[i+2] = cb; dst[i+3] = ca;
+                continue;
+            }
+            else if (WRAP === mode)
+            {
+                if (0 > x) x += w;
+                if (w <= x) x -= w;
+                if (0 > y) y += h;
+                if (h <= y) y -= h;
+            }
+            else if (CLAMP === mode)
+            {
+                x = clamp(x, 0, W);
+                y = clamp(y, 0, H);
+            }
+            else
+            {
+                continue;
+            }
+        }
         j = (x + y*w) << 2;
         dst[i] = im[j]; dst[i+1] = im[j+1];
         dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
@@ -8468,6 +8504,16 @@ function cartesian(im, w, h)
         imLen = im.length, W = w-1, H = h-1,
         cx = self.centerX*W, cy = self.centerY*H,
         px = self.posX, py = self.posY,
+        COLOR = FILTER.MODE.COLOR,
+        CLAMP = FILTER.MODE.CLAMP,
+        WRAP = FILTER.MODE.WRAP,
+        IGNORE = FILTER.MODE.IGNORE,
+        mode = self.mode||IGNORE,
+        color = self.color||0,
+        ca = (color >>> 24)&255,
+        cr = (color >>> 16)&255,
+        cg = (color >>> 8)&255,
+        cb = (color)&255,
 		aMax = TWOPI, rMax = floor(max(
         sqrt((cx - 0) * (cx - 0) + (cy - 0) * (cy - 0)),
         sqrt((cx - W) * (cx - W) + (cy - 0) * (cy - 0)),
@@ -8479,22 +8525,54 @@ function cartesian(im, w, h)
     {
         if (xx >= w) {xx=0; ++yy;}
 
-        x = xx - cx;
-        y = yy - cy;
+        if (px === Y)
+        {
+            y = xx - cx;
+            x = yy - cy;
+        }
+        else
+        {
+            x = xx - cx;
+            y = yy - cy;
+        }
         r = sqrt(x*x + y*y);
         a = atan(y, x);
         if (0 > a) a += TWOPI;
         if (px === Y)
         {
-            y = round(W*r/rMax);
-            x = round(H*a/aMax);
+            y = round(H*r/rMax);
+            x = round(W*a/aMax);
         }
         else
         {
             x = round(W*r/rMax);
             y = round(H*a/aMax);
         }
-        if (0 > x || x >= w || 0 > y || y >= h) continue;
+        if (0 > x || x >= w || 0 > y || y >= h)
+        {
+            if (COLOR === mode)
+            {
+                dst[i] = cr; dst[i+1] = cg;
+                dst[i+2] = cb; dst[i+3] = ca;
+                continue;
+            }
+            else if (WRAP === mode)
+            {
+                if (0 > x) x += w;
+                if (w <= x) x -= w;
+                if (0 > y) y += h;
+                if (h <= y) y -= h;
+            }
+            else if (CLAMP === mode)
+            {
+                x = clamp(x, 0, W);
+                y = clamp(y, 0, H);
+            }
+            else
+            {
+                continue;
+            }
+        }
         j = (x + y*w) << 2;
         dst[i] = im[j]; dst[i+1] = im[j+1];
         dst[i+2] = im[j+2]; dst[i+3] = im[j+3];
