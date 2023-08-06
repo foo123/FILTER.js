@@ -41,6 +41,7 @@ var PROTO = 'prototype'
     }
     ,notSupportClamp = FILTER._notSupportClamp
     ,log = FILTER.log, Min = stdMath.min, Max = stdMath.max
+    ,ID = 0
 ;
 
 
@@ -177,6 +178,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,constructor: function Filter() {
         var self = this;
         //self.$super('constructor', [100, false]);
+        self.id = ++ID;
         self.inputs = {};
         self.meta = null;
     }
@@ -496,7 +498,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
 
     ,toString: function() {
-        return "[FILTER: " + this.name + "]";
+        return "[FILTER: " + this.name + "(" + this.id + ")]";
     }
 });
 FILTER.Filter[PROTO].getMetaData = FILTER.Filter[PROTO].metaData;

@@ -87,6 +87,7 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
+* make GLSL versions of filters where possible
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE]

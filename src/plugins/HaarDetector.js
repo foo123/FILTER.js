@@ -274,7 +274,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                     // i.e too few = no feature, too much = noise
                     // avoid overflow
                     edges_density = inv_area * (GSAT[p3] - GSAT[p2] - GSAT[p1] + GSAT[p0]);
-                    if ( edges_density < cL || edges_density > cH ) continue;
+                    if (edges_density < cL || edges_density > cH) continue;
                 }
 
                 // pre-compute some values for speed
@@ -377,13 +377,13 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
                             if (rect_sum * inv_area < thresholdf * vnorm)
                             {
-                                if (feature.has_l) { sum += feature.l_val; break; }
-                                else { cur_node_ind = feature.l_node; }
+                                if (feature.has_l) {sum += feature.l_val; break;}
+                                else {cur_node_ind = feature.l_node;}
                             }
                             else
                             {
-                                if (feature.has_r) { sum += feature.r_val; break; }
-                                else { cur_node_ind = feature.r_node; }
+                                if (feature.has_r) {sum += feature.r_val; break;}
+                                else {cur_node_ind = feature.r_node;}
                             }
                         }
                         // END Viola-Jones HAAR-Tree evaluator

@@ -3,7 +3,7 @@
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose.
 Each filter and plugin is independent and can be used in a mix-n-match manner, as long as the core classes are always included.
-Change the dependencies file(s) to include your own selection of filters and plugins for your custom build
+Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 
 ### Contents
@@ -35,6 +35,10 @@ new FILTER.Image(image:Image|Video|Canvas|FILTER.Image|ImageData = null);
 This is a placeholder for an image, along with basic methods to access the image data
 and alter them.
 
+__Static Methods:__
+
+* `load(src [, done:Function]):FILTER.Image`  load image uri to FILTER.Image and call `done` callback when loaded
+
 __Methods:__
 
 * `image(image:Image|Video|Canvas|FILTER.Image|ImageData)`  Sets/Alters the underlying image
@@ -53,7 +57,7 @@ __Methods:__
 * `dimensions(w:Integer, h:Integer)`  set image dimensions
 * `flipHorizontal()`  flip image horizontally
 * `flipVertical()`  flip image vertically
-* `setData()` sets the image pixel data
+* `setData():ImageData` sets the image pixel data
 * `getData(processed:Boolean=false)` gets a copy of image (original or processed/filtered) pixel data
 * `setSelectedData()` sets the image pixel data for the current selection
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
@@ -90,7 +94,7 @@ __Methods:__
 * `serialize()`  serialize filter's parameters (for use during parallel processing)
 * `unserialize(data:Object)`  unserialize filter's parameters (for use during parallel processing)
 * `metaData()/getMetadata()`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
-* `select(x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false)` define a (relative or absolute) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `SelectionFilter` below and the `HaarDetectorFilter` plugin)
+* `select(x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false)` define a (relative or absolute) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `HaarDetectorFilter` plugin)
 * `select(false)/deselect()` deselect any selection made previously
 * `worker/thread([enabled:Boolean=true [, import_extra_scripts:Array]])`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply(srcImg:Image [, destImg:Image=srcImg] [, callback:Function])`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)

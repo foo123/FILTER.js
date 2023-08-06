@@ -13,14 +13,12 @@ var parse_args = require('./commargs.js'),
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if (parallel) face_detector.worker(true);
-console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 console.log('Loading image..');
 fs.readFile(__dirname+'/che.jpg', function(err, buffer) {
-    var che = F.Canvas.Image();
-    che.onload = function() {
-        console.log('./che.jpg' + ' loaded with dims: ' + che.width + ',' + che.height);
+    if (err) console.log('error while reading image: ' + err.toString());
+    else F.Image.load(buffer, function(img) {
+        console.log('./che.jpg' + ' loaded with dims: ' + img.width + ',' + img.height);
         console.log('Detecting..');
-        var img = F.Image(che);
         face_detector.apply(img, function() {
             if (parallel) face_detector.worker(false);
             console.log('Detection completed');
@@ -28,6 +26,5 @@ fs.readFile(__dirname+'/che.jpg', function(err, buffer) {
             console.log(features.length + (1 === features.length ? ' feature was found' : ' features were found'));
             if (features.length) console.log('1st feature is found at :' + JSON.stringify(features[0]));
         });
-    };
-    che.src = buffer;
+    });
 });
