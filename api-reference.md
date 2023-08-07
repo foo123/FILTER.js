@@ -151,6 +151,8 @@ invertPosterize.worker();
 // if you want to stop and dispose the worker for this filter, do:
 invertPosterize.worker(false);
 
+// if you want to make this filter work in webgl do:
+invertPosterize.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -221,6 +223,9 @@ grc.worker();
 // if you want to stop and dispose the worker for this filter, do:
 grc.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+grc.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -324,6 +329,9 @@ flipX.worker();
 // if you want to stop and dispose the worker for this filter, do:
 flipX.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+flipX.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -427,6 +435,9 @@ dF.worker();
 // if you want to stop and dispose the worker for this filter, do:
 dF.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+dF.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -506,6 +517,9 @@ emboss.worker();
 // if you want to stop and dispose the worker for this filter, do:
 emboss.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+emboss.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -566,6 +580,9 @@ dilate.worker();
 // if you want to stop and dispose the worker for this filter, do:
 dilate.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+dilate.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -743,6 +760,10 @@ combo.worker();
 // if you want to stop and dispose the worker for this filter, do:
 combo.worker(false);
 
+
+// if you want to make this filter work in webgl do:
+// depends on whether the filters contained support webgl
+combo.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -779,34 +800,40 @@ Example:
 
 ````javascript
 
-var inlinefilter = new FILTER.InlineFilter(function(filterParameters, im, w, h, metaData) {
-    // this is the inline filter apply method
-    // do your stuff here..
-    // "filterParameters"  are custom parameters added to inline filter instance, useful if you need to use extra parameters
-    // for example extra/custom parameters are available as `filterParameters.myCustomColorParameter`
-    // "im"     is (a copy of) the image pixel data,
-    // "w"      is the image width,
-    // "h"      is the image height
-    // "metaData" is an optional object containing information about `src` and `dst` images (can also be used to pass information between filters inside a filter chain)
-    // make sure to return the data back
-    return im;
-});
-// this also works
-var inlinefilter = FILTER.InlineFilter(function(filterParameters, im, w, h, metaData) {
-    // this is the inline filter apply method
-    // do your stuff here..
-    // make sure to return the data back
-    return im;
+var extractRedChannel = FILTER.InlineFilter({
+    filter: function(params, im, w, h) {
+        // get red channel using an inline filter that can run in parallel worker also
+        for (var i=0,l=im.length; i<l; i+=4)
+        {
+            im[i+1] = 0; // remove green channel
+            im[i+2] = 0; // remove blue channel
+        }
+        return im;
+    },
+    // provide webgl shader as well
+    shader: [
+    'precision highp float;',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'void main(void) {',
+    '   vec4 col = texture2D(img, pix);',
+    '   gl_FragColor = vec4(col.r, 0.0, 0.0, col.a);', // remove green,blue channel
+    '}'
+    ].join('\n')
 });
 
-// use it alone
-inlinefilter.apply(image);
-// or use it with any composite filter
-new FILTER.CompositeFilter([filter1, filter2, inlinefilter]).apply(image);
-// this will also work:
-image.apply(inlinefilter);   // image is a FILTER.Image instance, see examples
-image.apply(FILTER.CompositeFilter([filter1, filter2, inlinefilter]));
+// if you want to make this filter work in another thread in parallel through a worker, do:
+extractRedChannel.worker();
 
+// if you want to stop and dispose the worker for this filter, do:
+extractRedChannel.worker(false);
+
+
+// if you want to make this filter work in webgl do:
+extractRedChannel.makeGLSL(true);
+
+// if you want to cancel webgl for this filter do:
+extractRedChannel.makeGLSL(false);
 ````
 
 ### Plugins and Extra Filters

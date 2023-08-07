@@ -724,15 +724,15 @@ function glsl(filter)
     var m = filter.matrix;
     return {instance: filter, shader: m ? [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform float cm[20];',
 'void main(void) {',
-'   vec4 c = texture2D(texture, vUv);',
-'   gl_FragColor.r = cm[0 ]*c.r+cm[1 ]*c.g+cm[2 ]*c.b+cm[3 ]*c.a+cm[4 ];',
-'   gl_FragColor.g = cm[5 ]*c.r+cm[6 ]*c.g+cm[7 ]*c.b+cm[8 ]*c.a+cm[9 ];',
-'   gl_FragColor.b = cm[10]*c.r+cm[11]*c.g+cm[12]*c.b+cm[13]*c.a+cm[14];',
-'   gl_FragColor.a = cm[15]*c.r+cm[16]*c.g+cm[17]*c.b+cm[18]*c.a+cm[19];',
+'   vec4 col = texture2D(img, pix);',
+'   gl_FragColor.r = cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ];',
+'   gl_FragColor.g = cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ];',
+'   gl_FragColor.b = cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14];',
+'   gl_FragColor.a = cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19];',
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {

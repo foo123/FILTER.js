@@ -649,7 +649,7 @@ function glsl(filter)
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec4 c'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('vec4 c'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                 calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
@@ -664,7 +664,7 @@ function glsl(filter)
                 j = y-matHalfSide;
                 if (m2[k] || (0===i && 0===j))
                 {
-                    def.push('vec4 cc'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                    def.push('vec4 cc'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                     calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
                     //if (0===i && 0===j) ca = 'c'+k+'.a';
                 }
@@ -699,8 +699,8 @@ function glsl(filter)
     code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
     return {instance: filter, shader: [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform vec2 dp;',
 'void main(void) {',
 code[0],

@@ -278,8 +278,8 @@ function glsl(filter)
     if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform sampler2D map;',
 'uniform vec2 mapSize;',
 'uniform vec2 start;',
@@ -296,11 +296,11 @@ function glsl(filter)
 'const int ALPHA='+CHANNEL.A+';',
 'uniform int mode;',
 'void main(void) {',
-'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {',
-'      gl_FragColor = texture2D(texture, vUv);',
+'   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',
+'      gl_FragColor = texture2D(img, pix);',
 '   } else {',
-'       vec4 mc = texture2D(map, (vUv-start)*mapSize);',
-'       vec2 p = vec2(vUv.x, vUv.y);',
+'       vec4 mc = texture2D(map, (pix-start)/mapSize);',
+'       vec2 p = vec2(pix.x, pix.y);',
 '       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
 '       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',
 '       else if (GREEN == component.x) p.x += (mc.g - 0.5)*scale.x;',
@@ -311,17 +311,17 @@ function glsl(filter)
 '       else p.y += (mc.r - 0.5)*scale.y;',
 '       if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '           if (COLOR == mode) {gl_FragColor = color;}',
-'           else if (CLAMP == mode) {gl_FragColor = texture2D(texture, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+'           else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
 '           else if (WRAP == mode) {',
 '               if (0.0 > p.x) p.x += 1.0;',
 '               if (1.0 < p.x) p.x -= 1.0;',
 '               if (0.0 > p.y) p.y += 1.0;',
 '               if (1.0 < p.y) p.y -= 1.0;',
-'               gl_FragColor = texture2D(texture, p);',
+'               gl_FragColor = texture2D(img, p);',
 '           }',
-'           else {gl_FragColor = texture2D(texture, vUv);}',
+'           else {gl_FragColor = texture2D(img, pix);}',
 '       } else {',
-'           gl_FragColor = texture2D(texture, p);',
+'           gl_FragColor = texture2D(img, p);',
 '       }',
 '   }',
 '}'
@@ -330,9 +330,9 @@ function glsl(filter)
         GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
     },
     vars: function(gl, w, h, program) {
-        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, filter.scaleX/255, filter.scaleY/255);
+        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, 1.4*filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,

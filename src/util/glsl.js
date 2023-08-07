@@ -15,19 +15,19 @@ var proto = 'prototype',
     'precision highp float;',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
-    'varying vec2 vUv;',
+    'varying vec2 pix;',
     'uniform float flipY;',
     'void main(void) {',
-        'vUv = uv;',
+        'pix = uv;',
         'gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.);',
     '}'
 	].join('\n')),
 	FRAGMENT_DEFAULT = trim([
     'precision highp float;',
-    'varying vec2 vUv;',
-    'uniform sampler2D texture;',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
     'void main(void) {',
-        'gl_FragColor = texture2D(texture, vUv);',
+        'gl_FragColor = texture2D(img, pix);',
     '}',
 	].join('\n'))
 ;
@@ -121,18 +121,6 @@ GLSLProgram[proto] = {
         if ('dp' in self.uniform)
         {
             gl.uniform2f(self.uniform.dp, 1/w, 1/h);
-        }
-        if ('texture' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texture, 0);  // texture unit 0
-        }
-        if ('texturePrev1' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texturePrev1, 1);
-        }
-        if ('texturePrev2' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texturePrev2, 2);
         }
         if (filter.instance && ('mode' in self.uniform))
         {
@@ -271,29 +259,6 @@ GLSL.createFramebufferTexture = function(gl) {
     return {fbo: fbo, tex: tex};
 };
 GLSL.runOne = function(gl, glsl, cache, w, h, input, output, flipY, metaData, prev) {
-    if (!glsl._textures)
-    {
-        glsl._textures = glsl.textures;
-        glsl.textures = function(gl, w, h, prog) {
-            if (glsl._textures)
-            {
-                glsl._textures(gl, w, h, prog);
-            }
-            else
-            {
-                if (('texturePrev1' in prog.uniform) && prev[0])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 1);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[0].tex);
-                }
-                if (('texturePrev2' in prog.uniform) && prev[1])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 2);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[1].tex);
-                }
-            }
-        };
-    }
     var prog = GLSL.Program.getFromFilter(gl, glsl, w, h, cache);
     if (prog)
     {
@@ -326,9 +291,24 @@ GLSL.runOne = function(gl, glsl, cache, w, h, input, output, flipY, metaData, pr
             {
                 gl.uniform1f(prog.uniform.flipY, 1);
             }
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(prog.uniform.texture, 0);
+            if (('img_prev' in prog.uniform) && prev[0])
+            {
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, prev[0].tex);
+                gl.uniform1i(prog.uniform.img_prev, 1);
+            }
+            if (('img_prev_prev' in prog.uniform) && prev[1])
+            {
+                gl.activeTexture(gl.TEXTURE0 + 2);
+                gl.bindTexture(gl.TEXTURE_2D, prev[1].tex);
+                gl.uniform1i(prog.uniform.img_prev_prev, 2);
+            }
+            if ('img' in prog.uniform)
+            {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(prog.uniform.img, 0);
+            }
             gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
             // swap buffers
@@ -394,7 +374,7 @@ GLSL.run = function(gl, glsls, cache, im, w, h, input, output, flipY, metaData) 
     return im;
 };
 GLSL.getPixels = function(gl, width, height, pixels) {
-    pixels = pixels || new FILTER.Arrray8U((width * height) << 2);
+    pixels = pixels || new FILTER.ImArray((width * height) << 2);
                     //x, y, width, height, format, type, pixels
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return pixels;

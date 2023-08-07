@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-07 19:23:47
+*   @built on 2023-08-07 22:59:29
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-07 19:23:47
+*   @built on 2023-08-07 22:59:29
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3037,19 +3037,19 @@ var proto = 'prototype',
     'precision highp float;',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
-    'varying vec2 vUv;',
+    'varying vec2 pix;',
     'uniform float flipY;',
     'void main(void) {',
-        'vUv = uv;',
+        'pix = uv;',
         'gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.);',
     '}'
 	].join('\n')),
 	FRAGMENT_DEFAULT = trim([
     'precision highp float;',
-    'varying vec2 vUv;',
-    'uniform sampler2D texture;',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
     'void main(void) {',
-        'gl_FragColor = texture2D(texture, vUv);',
+        'gl_FragColor = texture2D(img, pix);',
     '}',
 	].join('\n'))
 ;
@@ -3143,18 +3143,6 @@ GLSLProgram[proto] = {
         if ('dp' in self.uniform)
         {
             gl.uniform2f(self.uniform.dp, 1/w, 1/h);
-        }
-        if ('texture' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texture, 0);  // texture unit 0
-        }
-        if ('texturePrev1' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texturePrev1, 1);
-        }
-        if ('texturePrev2' in self.uniform)
-        {
-             gl.uniform1i(self.uniform.texturePrev2, 2);
         }
         if (filter.instance && ('mode' in self.uniform))
         {
@@ -3293,29 +3281,6 @@ GLSL.createFramebufferTexture = function(gl) {
     return {fbo: fbo, tex: tex};
 };
 GLSL.runOne = function(gl, glsl, cache, w, h, input, output, flipY, metaData, prev) {
-    if (!glsl._textures)
-    {
-        glsl._textures = glsl.textures;
-        glsl.textures = function(gl, w, h, prog) {
-            if (glsl._textures)
-            {
-                glsl._textures(gl, w, h, prog);
-            }
-            else
-            {
-                if (('texturePrev1' in prog.uniform) && prev[0])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 1);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[0].tex);
-                }
-                if (('texturePrev2' in prog.uniform) && prev[1])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 2);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[1].tex);
-                }
-            }
-        };
-    }
     var prog = GLSL.Program.getFromFilter(gl, glsl, w, h, cache);
     if (prog)
     {
@@ -3348,9 +3313,24 @@ GLSL.runOne = function(gl, glsl, cache, w, h, input, output, flipY, metaData, pr
             {
                 gl.uniform1f(prog.uniform.flipY, 1);
             }
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(prog.uniform.texture, 0);
+            if (('img_prev' in prog.uniform) && prev[0])
+            {
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, prev[0].tex);
+                gl.uniform1i(prog.uniform.img_prev, 1);
+            }
+            if (('img_prev_prev' in prog.uniform) && prev[1])
+            {
+                gl.activeTexture(gl.TEXTURE0 + 2);
+                gl.bindTexture(gl.TEXTURE_2D, prev[1].tex);
+                gl.uniform1i(prog.uniform.img_prev_prev, 2);
+            }
+            if ('img' in prog.uniform)
+            {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(prog.uniform.img, 0);
+            }
             gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
             // swap buffers
@@ -3416,7 +3396,7 @@ GLSL.run = function(gl, glsls, cache, im, w, h, input, output, flipY, metaData) 
     return im;
 };
 GLSL.getPixels = function(gl, width, height, pixels) {
-    pixels = pixels || new FILTER.Arrray8U((width * height) << 2);
+    pixels = pixels || new FILTER.ImArray((width * height) << 2);
                     //x, y, width, height, format, type, pixels
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return pixels;
@@ -7023,14 +7003,14 @@ function glsl(filter)
     var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
     return {instance: filter, shader: [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform sampler2D map;',
 'uniform int hasAlpha;',
 'void main(void) {',
-'   vec4 c = texture2D(texture, vUv);',
-'   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,texture2D(map, vec2(c.a, 0.0)).a);',
-'   else gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,c.a);',
+'   vec4 col = texture2D(img, pix);',
+'   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
+'   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
 '}'
     ].join('\n'),
     textures: function(gl, w, h) {
@@ -7044,7 +7024,7 @@ function glsl(filter)
         GLSL.uploadTexture(gl, t, 256, 1, 1);
     },
     vars: function(gl, w, h, program) {
-        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
     }
     };
@@ -7776,15 +7756,15 @@ function glsl(filter)
     var m = filter.matrix;
     return {instance: filter, shader: m ? [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform float cm[20];',
 'void main(void) {',
-'   vec4 c = texture2D(texture, vUv);',
-'   gl_FragColor.r = cm[0 ]*c.r+cm[1 ]*c.g+cm[2 ]*c.b+cm[3 ]*c.a+cm[4 ];',
-'   gl_FragColor.g = cm[5 ]*c.r+cm[6 ]*c.g+cm[7 ]*c.b+cm[8 ]*c.a+cm[9 ];',
-'   gl_FragColor.b = cm[10]*c.r+cm[11]*c.g+cm[12]*c.b+cm[13]*c.a+cm[14];',
-'   gl_FragColor.a = cm[15]*c.r+cm[16]*c.g+cm[17]*c.b+cm[18]*c.a+cm[19];',
+'   vec4 col = texture2D(img, pix);',
+'   gl_FragColor.r = cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ];',
+'   gl_FragColor.g = cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ];',
+'   gl_FragColor.b = cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14];',
+'   gl_FragColor.a = cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19];',
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {
@@ -8454,8 +8434,8 @@ function glsl(filter)
     var m = filter.matrix, color = filter.color || 0;
     return {instance: filter, shader: m ? [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform float am[6];',
 'uniform vec4 color;',
 'const int IGNORE='+MODE.IGNORE+';',
@@ -8464,20 +8444,20 @@ function glsl(filter)
 'const int WRAP='+MODE.WRAP+';',
 'uniform int mode;',
 'void main(void) {',
-'   vec2 p = vec2(am[0]*vUv.x+am[1]*vUv.x+am[2], am[3]*vUv.x+am[4]*vUv.x+am[5]);',
+'   vec2 p = vec2(am[0]*pix.x+am[1]*pix.x+am[2], am[3]*pix.x+am[4]*pix.x+am[5]);',
 '   if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '       if (COLOR == mode) {gl_FragColor = color;}',
-'       else if (CLAMP == mode) {gl_FragColor = texture2D(texture, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+'       else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
 '       else if (WRAP == mode) {',
 '           if (0.0 > p.x) p.x += 1.0;',
 '           if (1.0 < p.x) p.x -= 1.0;',
 '           if (0.0 > p.y) p.y += 1.0;',
 '           if (1.0 < p.y) p.y -= 1.0;',
-'           gl_FragColor = texture2D(texture, p);',
+'           gl_FragColor = texture2D(img, p);',
 '       }',
-'       else {gl_FragColor = texture2D(texture, vUv);}',
+'       else {gl_FragColor = texture2D(img, pix);}',
 '   } else {',
-'       gl_FragColor = texture2D(texture, p);',
+'       gl_FragColor = texture2D(img, p);',
 '   }',
 '}'
 ].join('\n') : GLSL.DEFAULT,
@@ -8777,8 +8757,8 @@ function glsl(filter)
     if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform sampler2D map;',
 'uniform vec2 mapSize;',
 'uniform vec2 start;',
@@ -8795,11 +8775,11 @@ function glsl(filter)
 'const int ALPHA='+CHANNEL.A+';',
 'uniform int mode;',
 'void main(void) {',
-'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {',
-'      gl_FragColor = texture2D(texture, vUv);',
+'   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',
+'      gl_FragColor = texture2D(img, pix);',
 '   } else {',
-'       vec4 mc = texture2D(map, (vUv-start)*mapSize);',
-'       vec2 p = vec2(vUv.x, vUv.y);',
+'       vec4 mc = texture2D(map, (pix-start)/mapSize);',
+'       vec2 p = vec2(pix.x, pix.y);',
 '       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
 '       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',
 '       else if (GREEN == component.x) p.x += (mc.g - 0.5)*scale.x;',
@@ -8810,17 +8790,17 @@ function glsl(filter)
 '       else p.y += (mc.r - 0.5)*scale.y;',
 '       if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '           if (COLOR == mode) {gl_FragColor = color;}',
-'           else if (CLAMP == mode) {gl_FragColor = texture2D(texture, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+'           else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
 '           else if (WRAP == mode) {',
 '               if (0.0 > p.x) p.x += 1.0;',
 '               if (1.0 < p.x) p.x -= 1.0;',
 '               if (0.0 > p.y) p.y += 1.0;',
 '               if (1.0 < p.y) p.y -= 1.0;',
-'               gl_FragColor = texture2D(texture, p);',
+'               gl_FragColor = texture2D(img, p);',
 '           }',
-'           else {gl_FragColor = texture2D(texture, vUv);}',
+'           else {gl_FragColor = texture2D(img, pix);}',
 '       } else {',
-'           gl_FragColor = texture2D(texture, p);',
+'           gl_FragColor = texture2D(img, p);',
 '       }',
 '   }',
 '}'
@@ -8829,9 +8809,9 @@ function glsl(filter)
         GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
     },
     vars: function(gl, w, h, program) {
-        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, filter.scaleX/255, filter.scaleY/255);
+        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, 1.4*filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,
@@ -9987,7 +9967,7 @@ function glsl(filter)
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec4 c'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('vec4 c'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                 calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
@@ -10002,7 +9982,7 @@ function glsl(filter)
                 j = y-matHalfSide;
                 if (m2[k] || (0===i && 0===j))
                 {
-                    def.push('vec4 cc'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                    def.push('vec4 cc'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                     calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
                     //if (0===i && 0===j) ca = 'c'+k+'.a';
                 }
@@ -10037,8 +10017,8 @@ function glsl(filter)
     code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
     return {instance: filter, shader: [
 'precision highp float;',
-'varying vec2 vUv;',
-'uniform sampler2D texture;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
 'uniform vec2 dp;',
 'void main(void) {',
 code[0],
@@ -10439,21 +10419,21 @@ FILTER.Create({
 // private methods
 function glsl(filter)
 {
-    var matrix_code = function(m, d, op, op0, tex) {
+    var matrix_code = function(m, d, op, op0, img) {
         var def = [], ca = 'c0',
             x, y, k, i, j,
             matArea = m.length, matRadius = d,
             matHalfSide = matRadius>>>1;
         def.push('vec4 res=vec4('+op0+');');
         x=0; y=0; k=0;
-        tex = tex || 'texture';
+        img = img || 'img';
         while (k<matArea)
         {
             i = x-matHalfSide;
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec4 c'+k+'=texture2D('+tex+',  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('vec4 c'+k+'=texture2D('+img+',  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                 def.push('res='+op+'(res, c'+k+');')
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
@@ -10461,12 +10441,12 @@ function glsl(filter)
         }
         return [def.join('\n'), 'res', ca];
     };
-    var morph = function(m, op, op0, tex) {
-        var code = matrix_code(m, filter._dim, op, op0, tex);
+    var morph = function(m, op, op0, img) {
+        var code = matrix_code(m, filter._dim, op, op0, img);
         return {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D '+(tex||'texture')+';',
+        'varying vec2 pix;',
+        'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
         'void main(void) {',
         code[0],
@@ -10500,15 +10480,15 @@ function glsl(filter)
         case 'gradient':
         output = [
         morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D texture;',
-        'uniform sampler2D texturePrev1;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D img_prev;',
         'void main(void) {',
-        'vec4 dilate = texture2D(texturePrev1, vUv);',
-        'vec4 erode = texture2D(texture, vUv);',
+        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
         'gl_FragColor.rgb = ((dilate-erode)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
@@ -10518,18 +10498,18 @@ function glsl(filter)
         case 'laplacian':
         output = [
         morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D texture;',
-        'uniform sampler2D texturePrev1;',
-        'uniform sampler2D texturePrev2;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D img_prev;',
+        'uniform sampler2D img_prev_prev;',
         'void main(void) {',
-        'vec4 img = texture2D(texturePrev2, vUv);',
-        'vec4 dilate = texture2D(texturePrev1, vUv);',
-        'vec4 erode = texture2D(texture, vUv);',
-        'gl_FragColor.rgb = ((dilate+erode-img)*0.5).rgb;',
+        'vec4 original = texture2D(img_prev_prev, pix);',
+        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor.rgb = ((dilate+erode-original)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
         ].join('\n')}
@@ -11908,6 +11888,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this, Src;
@@ -11963,6 +11947,106 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    var color = filter.color||0, src = filter.input("source");
+    if (!src) return {instance: filter, shader: GLSL.DEFAULT};
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 pix;',
+'uniform sampler2D img;',
+'uniform sampler2D src;',
+'uniform vec2 srcSize;',
+'uniform vec2 center;',
+'uniform vec4 color;',
+'uniform int sC;',
+'uniform int tC;',
+'const int COLOR32='+MODE.COLOR32+';',
+'const int COLOR8='+MODE.COLOR8+';',
+'const int MASK32='+MODE.MASK32+';',
+'const int MASK8='+MODE.MASK8+';',
+'const int RED='+CHANNEL.R+';',
+'const int GREEN='+CHANNEL.G+';',
+'const int BLUE='+CHANNEL.B+';',
+'const int ALPHA='+CHANNEL.A+';',
+'uniform int mode;',
+'void main(void) {',
+'   vec4 tCol = vec4(0.0);',
+'   vec2 p = pix - center + 0.5*srcSize;',
+'   if (COLOR32 != mode) tCol = texture2D(img, pix);',
+'   if (0.0 > p.x || min(1.0, srcSize.x) < p.x || 0.0 > p.y || min(1.0, srcSize.y) < p.y) {',
+'       if (MASK32 == mode) {tCol *= color;}',
+'       else if (COLOR32 == mode) {tCol = color;}',
+'       else if (MASK8 == mode) {',
+'           if (ALPHA == tC) tCol.a *= color.a;',
+'           else if (BLUE == tC) tCol.b *= color.b;',
+'           else if (GREEN == tC) tCol.g *= color.g;',
+'           else tCol.r *= color.r;',
+'       }',
+'       else if (COLOR8 == mode) {',
+'           if (ALPHA == tC) tCol.a = color.a;',
+'           else if (BLUE == tC) tCol.b = color.b;',
+'           else if (GREEN == tC) tCol.g = color.g;',
+'           else tCol.r = color.r;',
+'       }',
+'   } else {',
+'       vec4 sCol = texture2D(src, p);',
+'       if (ALPHA == sC) {',
+'           if (ALPHA == tC) tCol.a = sCol.a;',
+'           else if (BLUE == tC) tCol.b = sCol.a;',
+'           else if (GREEN == tC) tCol.g = sCol.a;',
+'           else tCol.r = sCol.a;',
+'       } else if (BLUE == sC) {',
+'           if (ALPHA == tC) tCol.a = sCol.b;',
+'           else if (BLUE == tC) tCol.b = sCol.b;',
+'           else if (GREEN == tC) tCol.g = sCol.b;',
+'           else tCol.r = sCol.b;',
+'       } else if (GREEN == sC) {',
+'           if (ALPHA == tC) tCol.a = sCol.g;',
+'           else if (BLUE == tC) tCol.b = sCol.g;',
+'           else if (GREEN == tC) tCol.g = sCol.g;',
+'           else tCol.r = sCol.g;',
+'       } else {',
+'           if (ALPHA == tC) tCol.a = sCol.r;',
+'           else if (BLUE == tC) tCol.b = sCol.r;',
+'           else if (GREEN == tC) tCol.g = sCol.r;',
+'           else tCol.r = sCol.r;',
+'       }',
+'   }',
+'   gl_FragColor = tCol;',
+'}'
+    ].join('\n'),
+    textures: function(gl, w, h) {
+        GLSL.uploadTexture(gl, src[0], src[1], src[2], 1);
+    },
+    vars: function(gl, w, h, program) {
+        gl.uniform1i(program.uniform.src, 1);  // img unit 1
+        gl.uniform2f(program.uniform.srcSize, src[1]/w, src[2]/h);
+        gl.uniform2f(program.uniform.center, filter.centerX, filter.centerY);
+        gl.uniform1i(program.uniform.sC, filter.srcChannel);
+        gl.uniform1i(program.uniform.tC, filter.dstChannel);
+        if (MODE.COLOR8 === filter.mode || MODE.MASK8 === filter.mode)
+        {
+            gl.uniform4f(program.uniform.color,
+                (color & 255)/255,
+                (color & 255)/255,
+                (color & 255)/255,
+                (color & 255)/255
+            );
+        }
+        else
+        {
+            gl.uniform4f(program.uniform.color,
+                ((color >>> 16) & 255)/255,
+                ((color >>> 8) & 255)/255,
+                (color & 255)/255,
+                ((color >>> 24) & 255)/255
+            );
+        }
+    }
+    };
+}
 
 }(FILTER);/**
 *

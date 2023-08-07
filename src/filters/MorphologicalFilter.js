@@ -230,21 +230,21 @@ FILTER.Create({
 // private methods
 function glsl(filter)
 {
-    var matrix_code = function(m, d, op, op0, tex) {
+    var matrix_code = function(m, d, op, op0, img) {
         var def = [], ca = 'c0',
             x, y, k, i, j,
             matArea = m.length, matRadius = d,
             matHalfSide = matRadius>>>1;
         def.push('vec4 res=vec4('+op0+');');
         x=0; y=0; k=0;
-        tex = tex || 'texture';
+        img = img || 'img';
         while (k<matArea)
         {
             i = x-matHalfSide;
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec4 c'+k+'=texture2D('+tex+',  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('vec4 c'+k+'=texture2D('+img+',  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
                 def.push('res='+op+'(res, c'+k+');')
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
@@ -252,12 +252,12 @@ function glsl(filter)
         }
         return [def.join('\n'), 'res', ca];
     };
-    var morph = function(m, op, op0, tex) {
-        var code = matrix_code(m, filter._dim, op, op0, tex);
+    var morph = function(m, op, op0, img) {
+        var code = matrix_code(m, filter._dim, op, op0, img);
         return {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D '+(tex||'texture')+';',
+        'varying vec2 pix;',
+        'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
         'void main(void) {',
         code[0],
@@ -291,15 +291,15 @@ function glsl(filter)
         case 'gradient':
         output = [
         morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D texture;',
-        'uniform sampler2D texturePrev1;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D img_prev;',
         'void main(void) {',
-        'vec4 dilate = texture2D(texturePrev1, vUv);',
-        'vec4 erode = texture2D(texture, vUv);',
+        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
         'gl_FragColor.rgb = ((dilate-erode)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
@@ -309,18 +309,18 @@ function glsl(filter)
         case 'laplacian':
         output = [
         morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
-        'varying vec2 vUv;',
-        'uniform sampler2D texture;',
-        'uniform sampler2D texturePrev1;',
-        'uniform sampler2D texturePrev2;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D img_prev;',
+        'uniform sampler2D img_prev_prev;',
         'void main(void) {',
-        'vec4 img = texture2D(texturePrev2, vUv);',
-        'vec4 dilate = texture2D(texturePrev1, vUv);',
-        'vec4 erode = texture2D(texture, vUv);',
-        'gl_FragColor.rgb = ((dilate+erode-img)*0.5).rgb;',
+        'vec4 original = texture2D(img_prev_prev, pix);',
+        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor.rgb = ((dilate+erode-original)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
         ].join('\n')}
