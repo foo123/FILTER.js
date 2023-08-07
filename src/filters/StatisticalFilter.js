@@ -13,6 +13,7 @@
 // used for internal purposes
 var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
     A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    GLSL = FILTER.Util.GLSL,
     TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
 
 //  Statistical Filter
@@ -110,6 +111,10 @@ var StatisticalFilter = FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     // used for internal purposes
     ,_apply: function(im, w, h) {
         var self = this;
@@ -127,6 +132,10 @@ StatisticalFilter.prototype.erode = StatisticalFilter.prototype.minimum;
 StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 
 // private methods
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
 STAT = {
      "01th": function(self, im, w, h) {
         //"use asm";

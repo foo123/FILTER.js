@@ -96,6 +96,8 @@ __Methods:__
 * `metaData()/getMetadata()`  access filter's metadada (if filter supports process metaData, e.g `featureDetection` filters)
 * `select(x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false)` define a (relative or absolute) rectangular area as filter selection (this is available to each filter to handle as it sees fit, see for example the `HaarDetectorFilter` plugin)
 * `select(false)/deselect()` deselect any selection made previously
+* `makeGLSL([bool:Boolean=true])`  make the filter run in webgl (if filter supports it)
+* `isGLSL()`   check if filter is set to run in webgl
 * `worker/thread([enabled:Boolean=true [, import_extra_scripts:Array]])`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply(srcImg:Image [, destImg:Image=srcImg] [, callback:Function])`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
 
@@ -109,6 +111,8 @@ new FILTER.ColorTableFilter(colorTable:ImageArray [, colorTableG:ImageArray, col
 The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which define the color lookup map(s) (separately for Green and Blue channels if specified, else same table for all RGB channels).
 
 The filter scans an image and maps each pixel color according to the color table map per color
+
+**NEW Color Table Filter supports WebGL**
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -174,6 +178,8 @@ The (optional) `colorMatrix` parameter is an array of 20 numbers which define th
 for the RGBA components of each pixel in an image.
 
 The filter scans an image and maps each pixel colors linearly according to the color matrix.
+
+**NEW Color Matrix Filter supports WebGL**
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -393,6 +399,7 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 
 The filter scans an image and maps each pixel position non-linearly according to the (coloring of the) displacement map image.
 
+**NEW Displacement Map supports WebGL**
 
 Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
@@ -450,6 +457,8 @@ The filter scans an image and changes the current pixel by mixing the RGBA chann
 A convolution matrix with large dimesions (NxN) will use pixels from a larger neighborhood and hence it is slower.
 
 Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) This is related to the fact that the matrix must define a unique center element (ie. current pixel)  which only odd dimensions allow.
+
+**NEW Convolution Matrix Filter supports WebGL**
 
 The class has various pre-defined filters to use.
 
@@ -758,6 +767,7 @@ This filter creates inline filters dynamicaly at run-time using your custom func
 
 Inline Filters support parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literaly at instantiation, so it can be serialized correctly)
 
+**NEW Inline Filter supports WebGL if proper shader is passed**
 
 Example:
 

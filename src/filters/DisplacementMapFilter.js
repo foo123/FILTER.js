@@ -11,7 +11,8 @@
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed,
+var MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
+    TypedArray = FILTER.Util.Array.typed, GLSL = FILTER.Util.GLSL,
     stdMath = Math, Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
 
 // DisplacementMap Filter
@@ -76,6 +77,10 @@ FILTER.Create({
     ,reset: function() {
         this.unsetInput("map");
         return this;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     // used for internal purposes
@@ -266,5 +271,76 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    var displaceMap = filter.input("map"), color = filter.color || 0;
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform sampler2D map;',
+'uniform vec2 mapSize;',
+'uniform vec2 start;',
+'uniform vec2 scale;',
+'uniform vec4 color;',
+'uniform ivec2 component;',
+'const int IGNORE='+MODE.IGNORE+';',
+'const int CLAMP='+MODE.CLAMP+';',
+'const int COLOR='+MODE.COLOR+';',
+'const int WRAP='+MODE.WRAP+';',
+'const int RED='+CHANNEL.R+';',
+'const int GREEN='+CHANNEL.G+';',
+'const int BLUE='+CHANNEL.B+';',
+'const int ALPHA='+CHANNEL.A+';',
+'uniform int mode;',
+'void main(void) {',
+'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {','gl_FragColor = texture2D(texture, vUv);',
+'   } else {',
+'       vec4 mc = texture2D(map, (vUv-start)*mapSize);',
+'       vec2 p = vec2(vUv.x, vUv.y);',
+'       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
+'       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',
+'       else if (GREEN == component.x) p.x += (mc.g - 0.5)*scale.x;',
+'       else p.x += (mc.r - 0.5)*scale.x;',
+'       if (ALPHA == component.y) p.y += (mc.a - 0.5)*scale.y;',
+'       else if (BLUE == component.y) p.y += (mc.b - 0.5)*scale.y;',
+'       else if (GREEN == component.y) p.y += (mc.g - 0.5)*scale.y;',
+'       else p.y += (mc.r - 0.5)*scale.y;',
+'       if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
+'           if (COLOR == mode) {gl_FragColor = color;}',
+'           else if (CLAMP == mode) {gl_FragColor = texture2D(texture, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+'           else if (WRAP == mode) {',
+'               if (0.0 > p.x) p.x += 1.0;',
+'               if (1.0 < p.x) p.x -= 1.0;',
+'               if (0.0 > p.y) p.y += 1.0;',
+'               if (1.0 < p.y) p.y -= 1.0;',
+'               gl_FragColor = texture2D(texture, p);',
+'           }',
+'           else {gl_FragColor = texture2D(texture, vUv);}',
+'       } else {',
+'           gl_FragColor = texture2D(texture, p);',
+'       }',
+'   }',
+'}'
+    ].join('\n'),
+    textures: function(gl, w, h) {
+        GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
+    },
+    vars: function(gl, w, h, program) {
+        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
+        gl.uniform2f(program.uniform.scale, filter.scaleX, filter.scaleY);
+        gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
+        gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
+        gl.uniform4f(program.uniform.color,
+            ((color >>> 16) & 255)/255,
+            ((color >>> 8) & 255)/255,
+            (color & 255)/255,
+            ((color >>> 24) & 255)/255
+        );
+    }
+    };
+}
 
 }(FILTER);

@@ -12,6 +12,7 @@
 
 // used for internal purposes
 var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
+    GLSL = FILTER.Util.GLSL,
     STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
     Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     primitive_morphology_operator = FILTER.Util.Filter.primitive_morphology_operator,
@@ -211,6 +212,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;
@@ -223,6 +228,10 @@ FILTER.Create({
 });
 
 // private methods
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
 function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, iter)
 {
     //"use asm";

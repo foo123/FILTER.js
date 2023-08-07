@@ -4,10 +4,10 @@
 __A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
 
 
-This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, node processes).
+This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers and WebGL or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, node processes).
 
 
-**version 1.0.0** (190 kB minified)
+**version 1.5.0 in progress**
 
 
 ### Contents
@@ -55,7 +55,7 @@ Some filters code has been adapted from open source libraries, see the comments 
 
 ### Features
 
-The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for webgl, and parallel processing transparently both for `browser` and `nodejs`)
 
 0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
 1. [__ColorTableFilter__](/api-reference.md#color-table-filter)
@@ -87,7 +87,7 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
-* make GLSL versions of filters where possible
+* make GLSL versions of filters where possible [DONE partially]
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE]

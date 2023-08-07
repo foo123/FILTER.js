@@ -17,7 +17,7 @@
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
     stdMath = Math, Floor = stdMath.floor, Power = stdMath.pow, Exponential = stdMath.exp, nF = 1.0/255,
-    TypedArray = FILTER.Util.Array.typed, eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply;
+    TypedArray = FILTER.Util.Array.typed, eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply, GLSL = FILTER.Util.GLSL;
 
 // ColorTableFilter
 var ColorTableFilter = FILTER.Create({
@@ -334,6 +334,10 @@ var ColorTableFilter = FILTER.Create({
         return this;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,combineWith: function(filt) {
         return this.set(filt.getTable(CHANNEL.R), filt.getTable(CHANNEL.G), filt.getTable(CHANNEL.B));
     }
@@ -424,5 +428,38 @@ var ColorTableFilter = FILTER.Create({
 // aliases
 ColorTableFilter.prototype.posterize = ColorTableFilter.prototype.levels = ColorTableFilter.prototype.quantize;
 FILTER.TableLookupFilter = FILTER.ColorTableFilter;
+
+function glsl(filter)
+{
+    if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
+    var T = filter.table, R = T[0], R = T[1] || R, B = T[2] || G, A = T[3];
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform sampler2D map;',
+'uniform int hasAlpha;',
+'void main(void) {',
+'   c = texture2D(texture, vUv);',
+'   if (hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,texture2D(map, vec2(c.a, 0.0)).a);',
+'   else gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,c.a);',
+'}'
+    ].join('\n'),
+    textures: function(gl, w, h) {
+        for (var n=256 << 2,t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++jj)
+        {
+            t[i  ] = R[j];
+            t[i+1] = G[j];
+            t[i+2] = B[j];
+            t[i+3] = A ? A[j] : 255;
+        }
+        GLSL.uploadTexture(gl, t, 256, 1, 1);
+    },
+    vars: function(gl, w, h, program) {
+        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
+    }
+    };
+}
 
 }(FILTER);

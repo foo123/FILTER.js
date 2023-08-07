@@ -18,7 +18,9 @@ var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray,
     combine = FILTER.Util.Filter.cm_combine,
     integral_convolution = FILTER.Util.Filter.integral_convolution,
     separable_convolution = FILTER.Util.Filter.separable_convolution,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    TypedArray = FILTER.Util.Array.typed,
+    notSupportClamp = FILTER._notSupportClamp,
+    GLSL = FILTER.Util.GLSL,
 
     stdMath = Math, sqrt2 = stdMath.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = stdMath.abs, Sqrt = stdMath.sqrt, Sin = stdMath.sin, Cos = stdMath.cos,
@@ -137,7 +139,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic functional-based kernel filter
     ,functional: function(f, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         var kernel = functional1(d, f), fact = 1.0/summa(kernel);
         // this can be separable
         this.set(kernel, d, fact, fact, d, kernel);
@@ -146,7 +148,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // fast gauss filter
     ,fastGauss: function(quality, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         quality = (quality||1)|0;
         if (quality < 1) quality = 1;
         else if (quality > 7) quality = 7;
@@ -156,7 +158,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic box low-pass filter
     ,lowPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(ones(d), d, 1/(d*d), 0.0);
         this._doIntegral = 1; return this;
     }
@@ -164,8 +166,8 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic box high-pass filter (I-LP)
     ,highPass: function(d, f) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
-        f = f === undef ? 1 : f;
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        f = null == f ? 1 : f;
         // HighPass Filter = I - (respective)LowPass Filter
         var fact = -f/(d*d);
         this.set(ones(d, fact, 1+fact), d, 1.0, 0.0);
@@ -173,37 +175,37 @@ var ConvolutionMatrixFilter = FILTER.Create({
     }
 
     ,glow: function(f, d) {
-        f = f === undef ? 0.5 : f;
+        f = null == f ? 0.5 : f;
         return this.highPass(d, -f);
     }
 
     ,sharpen: function(f, d) {
-        f = f === undef ? 0.5 : f;
+        f = null == f ? 0.5 : f;
         return this.highPass(d, f);
     }
 
     ,verticalBlur: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(average1(d), 1, 1/d, 0.0, d);
         this._doIntegral = 1; return this;
     }
 
     ,horizontalBlur: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(average1(d), d, 1/d, 0.0, 1);
         this._doIntegral = 1; return this;
     }
 
     // supports only vertical, horizontal, diagonal
     ,directionalBlur: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, 1.0, 0.0);
     }
 
     // generic binomial(quasi-gaussian) low-pass filter
     ,binomialLowPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         /*var filt=binomial(d);
         return this.set(filt.kernel, d, 1/filt.sum); */
         var kernel = binomial1(d), fact = 1/(1<<(d-1));
@@ -214,7 +216,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic binomial(quasi-gaussian) high-pass filter
     ,binomialHighPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
         return this.set(combine(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0);
@@ -222,7 +224,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // X-gradient, partial X-derivative (Prewitt)
     ,prewittX: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 0), d, 1.0, 0.0);
         this.set(average1(d), d, 1.0, 0.0, d, derivative1(d,0));
@@ -232,7 +234,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // Y-gradient, partial Y-derivative (Prewitt)
     ,prewittY: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 1), d, 1.0, 0.0);
         this.set(derivative1(d,1), d, 1.0, 0.0, d, average1(d));
@@ -242,7 +244,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // directional gradient (Prewitt)
     ,prewittDirectional: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
@@ -250,7 +252,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // gradient magnitude (Prewitt)
     ,prewitt: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(prewitt(d, 0), d, 1.0, 0.0, d, prewitt(d, 1));
         this._isGrad = true; return this;
     }
@@ -258,7 +260,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // partial X-derivative (Sobel)
     ,sobelX: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 0), d, 1.0, 0.0);
         this.set(binomial1(d), d, 1.0, 0.0, d, derivative1(d,0));
@@ -267,7 +269,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // partial Y-derivative (Sobel)
     ,sobelY: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 1), d, 1.0, 0.0);
         this.set(derivative1(d,1), d, 1.0, 0.0, d, binomial1(d));
@@ -276,27 +278,27 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // directional gradient (Sobel)
     ,sobelDirectional: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
 
     // gradient magnitude (Sobel)
     ,sobel: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(sobel(d, 0), d, 1.0, 0.0, d, sobel(d, 1));
         this._isGrad = true; return this;
     }
 
     ,laplace: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(ones(d, -1, d*d-1), d, 1.0, 0.0);
         this._doIntegral = 1; return this;
     }
 
     ,emboss: function(angle, amount, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
-        angle = angle === undef ? -0.25*stdMath.PI : angle*toRad;
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        angle = null == angle ? -0.25*stdMath.PI : angle*toRad;
         amount = amount || 1;
         return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, 1.0, 0.0);
     }
@@ -343,6 +345,10 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         return self;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     ,combineWith: function(filt) {
@@ -654,7 +660,81 @@ function indices(m, d)
     }
     return [new A16I(indices), new A16I(indices2), new CM(mat)];
 }
-
+function glsl(filter)
+{
+    var matrix_code = function(m, m2, d, f, b, isGrad) {
+        var def = [], calc = [], calc2 = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = m.length, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        x=0; y=0; k=0;
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            if (m[k] || (0===i && 0===j))
+            {
+                def.push('vec4 c'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
+                if (0===i && 0===j) ca = 'c'+k+'.a';
+            }
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        if (m2)
+        {
+            x=0; y=0; k=0;
+            while (k<matArea)
+            {
+                i = x-matHalfSide;
+                j = y-matHalfSide;
+                if (m2[k] || (0===i && 0===j))
+                {
+                    def.push('vec4 cc'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                    calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
+                    //if (0===i && 0===j) ca = 'c'+k+'.a';
+                }
+                ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+            }
+            if (isGrad)
+            {
+                def.push('vec4 o1='+calc.join('')+';')
+                def.push('vec4 o2='+calc2.join('')+';')
+                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),1.0)', ca];
+            }
+            else
+            {
+                def.push('vec4 o1='+calc.join('')+';')
+                def.push('vec4 o2='+calc2.join('')+';')
+                return [def.join('\n'), toFloat(f)+'*o1'+toFloat(b,1)+'*o2', ca];
+            }
+        }
+        else
+        {
+            return [def.join('\n'), calc.join('')+'+vec4('+toFloat(b)+')', ca];
+        }
+    };
+    var toFloat = GLSL.formatFloat, code,
+        m = filter.matrix, m2 = filter.matrix2;
+    if (!m) return {instance: filter, shader: GLSL.DEFAULT};
+    if (filter._doIntegral) return null;
+    if (filter._doSeparable && m2)
+    {
+        m = convolve(m, m2);
+        m2 = null;
+    }
+    code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform vec2 dp;',
+'void main(void) {',
+code[0],
+'gl_FragColor = '+code[1]+';',
+'gl_FragColor.a = '+code[2]+';',
+'}'
+    ].join('\n')};
+}
 function functional1(d, f)
 {
     var x, y, i, ker = new Array(d);

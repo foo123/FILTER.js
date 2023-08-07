@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.0.0
-*   @built on 2023-08-06 11:42:43
+*   @version: 1.5.0
+*   @built on 2023-08-07 12:21:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.0.0
-*   @built on 2023-08-06 11:42:43
+*   @version: 1.5.0
+*   @built on 2023-08-07 12:21:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.0.0"};
+var FILTER = {VERSION: "1.5.0"};
 /**
 *
 *   Asynchronous.js
@@ -1369,7 +1369,8 @@ FILTER.Util = {
     },
     Math    : {},
     Filter  : {},
-    Image   : {}
+    Image   : {},
+    GLSL    : {}
 };
 
 // Canvas for Browser, override if needed to provide alternative for Nodejs
@@ -1398,6 +1399,43 @@ FILTER.Canvas.Image = function() {
 // ImageData for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas.ImageData = function(data, width, height) {
     return 'undefined' !== typeof ImageData ? (new ImageData(data, width, height)) : {data:data, width:width, height:height};
+};
+
+var supportsGLSL = null, glctx = null;
+FILTER.supportsGLSL = function() {
+    if (null == supportsGLSL)
+    {
+        var canvas = null,
+            gl = null,
+            ctxs = ['webgl', 'experimental-webgl'],
+            ctx = null, i;
+        try {
+            canvas = FILTER.Canvas(1, 1);
+        } catch(e) {
+            canvas = null;
+        }
+        if (canvas)
+        {
+            for (i=0; i<ctxs.length; ++i)
+            {
+                ctx = ctxs[i];
+                gl = null;
+                try {
+                    gl = canvas.getContext(ctx);
+                } catch(e) {
+                    gl = null;
+                }
+                if (gl) break;
+            }
+        }
+        supportsGLSL = !!gl;
+        if (supportsGLSL) glctx = ctx;
+    }
+    return supportsGLSL;
+};
+FILTER.getGL = function(canvas) {
+    if (canvas && FILTER.supportsGLSL())
+        return canvas.getContext(glctx);
 };
 
 }(FILTER);
@@ -2984,6 +3022,283 @@ FilterUtil.sat = integral2;
 
 }(FILTER);/**
 *
+* Filter GLSL Utils
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef) {
+"use strict";
+
+var proto = 'prototype',
+    stdMath = Math,
+    trim = FILTER.Util.String.trim,
+    GLSL = FILTER.Util.GLSL || {},
+	VERTEX_DEAULT = trim([
+    'precision highp float;',
+    'attribute vec2 pos;',
+    'attribute vec2 uv;',
+    'varying vec2 vUv;',
+    'uniform float flipY;',
+    'void main(void) {',
+        'vUv = uv;',
+        'gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.);',
+    '}'
+	].join('\n')),
+	FRAGMENT_DEFAULT = trim([
+    'precision highp float;',
+    'varying vec2 vUv;',
+    'uniform sampler2D texture;',
+    'void main(void) {',
+        'gl_FragColor = texture2D(texture, vUv);',
+    '}',
+	].join('\n'))
+;
+
+function extract(source, type, store)
+{
+    var r = new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig');
+    source.replace(r, function(match, varName) {
+        store[varName] = 0;
+        return match;
+    });
+    return store;
+}
+function compile(gl, source, type)
+{
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+    {
+        FILTER.error(gl.getShaderInfoLog(shader));
+        return null;
+    }
+    return shader;
+}
+function GLSLProgram(fragmentSource, gl)
+{
+	var self = this, vsh, fsh;
+
+    self.vertexSource = VERTEX_DEAULT;
+    self.fragmentSource = fragmentSource;
+
+    self.uniform = {};
+    self.attribute = {};
+    // extract attributes
+    extract(self.vertexSource, 'attribute', self.attribute);
+    // extract uniforms
+    extract(self.vertexSource, 'uniform', self.uniform);
+    extract(self.fragmentSource, 'uniform', self.uniform);
+
+    vsh = compile(gl, self.vertexSource, gl.VERTEX_SHADER);
+    fsh = vsh ? compile(gl, self.fragmentSource, gl.FRAGMENT_SHADER) : null;
+    if (vsh && fsh)
+    {
+        self.id = gl.createProgram();
+        gl.attachShader(self.id, vsh);
+        gl.attachShader(self.id, fsh);
+        gl.linkProgram(self.id);
+        if (!gl.getProgramParameter(self.id, gl.LINK_STATUS))
+        {
+            FILTER.error(gl.getProgramInfoLog(self.id));
+            self.id = null;
+        }
+    }
+    // release references
+    vsh = fsh = gl = null;
+}
+GLSLProgram[proto] = {
+    constructor: GLSLProgram,
+    id: null,
+    uniform: null,
+	attribute: null,
+    vertexSource: null,
+    fragmentSource: null,
+    use: function(gl) {
+        var self = this;
+        if (self.id) gl.useProgram(self.id);
+        return self;
+    },
+    vars: function(gl, filter, w, h) {
+        var self = this, a, u, floatSize, vertSize;
+        if (!self.id) return self;
+
+        for (a in self.attribute) self.attribute[a] = gl.getAttribLocation(self.id, a);
+        for (u in self.uniform) self.uniform[u] = gl.getUniformLocation(self.id, u);
+
+        floatSize = FILTER.Array32F.BYTES_PER_ELEMENT;
+        vertSize = 4 * floatSize;
+
+        if ('pos' in self.attribute)
+        {
+            gl.enableVertexAttribArray(self.attribute.pos);
+            gl.vertexAttribPointer(self.attribute.pos, 2, gl.FLOAT, false, vertSize , 0 * floatSize);
+        }
+        if ('uv' in self.attribute)
+        {
+            gl.enableVertexAttribArray(self.attribute.uv);
+            gl.vertexAttribPointer(self.attribute.uv, 2, gl.FLOAT, false, vertSize, 2 * floatSize);
+        }
+        if ('dp' in self.uniform)
+        {
+            gl.uniform2f(self.uniform.dp, 1/w, 1/h);
+        }
+        if ('texture' in self.uniform)
+        {
+             gl.uniform1i(self.uniform.texture, 0);  // texture unit 0
+        }
+        if (filter && ('mode' in self.uniform))
+        {
+            gl.uniform1i(self.uniform.mode, filter.mode);
+        }
+        return self;
+    }
+};
+function getFilterProgram(gl, filter, w, h, programCache)
+{
+    var shader = filter.shader, program;
+
+    if (!shader) return null;
+
+    shader = trim(shader);
+
+    if (program = programCache[shader])
+    {
+        // existing program
+        if (!program.id) return null;
+        program.use(gl);
+        return program;
+    }
+    else
+    {
+        // new program
+        program = new GLSLProgram(shader, gl);
+        if (program.id)
+        {
+            program.use(gl).vars(gl, filter.instance, w, h);
+            if (filter.vars) filter.vars(gl, w, h, program);
+        }
+        return programCache[fragmentSource] = program;
+    }
+}
+GLSLProgram.getFromFilter = getFilterProgram;
+GLSL.Program = GLSLProgram;
+GLSL.DEFAULT = FRAGMENT_DEFAULT;
+GLSL.formatFloat = function(x, signed) {
+    var s = x.toString();
+    return (signed ? (0 > x ? '' : '+') : '') + s + (-1 === s.indexOf('.') ? '.0' : '');
+};
+GLSL.formatInt = function(x, signed) {
+    x = stdMath.floor(x);
+    return (signed ? (0 > x ? '' : '+') : '') + x.toString();
+};
+GLSL.prepareImgForGL = function(img) {
+    if (img.glCanvas)
+    {
+        var ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
+        if (img.selection)
+        {
+            var sel = img.selection,
+                ow = img.width-1,
+                oh = img.height-1,
+                xs = sel[0],
+                ys = sel[1],
+                xf = sel[2],
+                yf = sel[3],
+                fx = sel[4] ? ow : 1,
+                fy = sel[4] ? oh : 1;
+            xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
+            xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
+            ws = xf-xs+DPR; hs = yf-ys+DPR;
+        }
+        else
+        {
+            ws = img.oCanvas.width;
+            hs = img.oCanvas.height;
+        }
+        if (img.glCanvas.width !== ws)
+            img.glCanvas.width = ws;
+        if (img.glCanvas.height !== hs)
+            img.glCanvas.height = hs;
+        var gl = FILTER.getGL(img.glCanvas);
+		if (!img.glVex)
+        {
+			// Create the vertex buffer for two triangles [x, y, u, v] * 6
+			img.glVex = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
+			gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
+            -1, -1, 0, 1,
+             1, -1, 1, 1,
+            -1,  1, 0, 0,
+            -1,  1, 0, 0,
+             1, -1, 1, 1,
+             1,  1, 1, 0
+			]), gl.STATIC_DRAW);
+			// Note sure if this is a good idea; at least it makes texture loading in Ejecta instant.
+			//gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+		}
+		gl.viewport(0, 0, img.glCanvas.width, img.glCanvas.height);
+        return gl;
+    }
+};
+GLSL.createTexture = function(gl) {
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return tex;
+};
+GLSL.uploadTexture = function(gl, pixels, width, height, index, useSub) {
+    var tex = GLSL.createTexture();
+    if (useSub)
+    {
+                    // target, level, xoffset, yoffset, width, height, format, type, pixels
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    }
+    else
+    {
+                    // target, level, internalformat, width, height, border, format, type, pixels
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    }
+    index = +(index || 0);
+    gl.activeTexture(gl.TEXTURE0 + index);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+  return tex;
+};
+GLSL.createFramebufferTexture = function(gl, width, height) {
+    var fbo, renderbuffer, texture;
+    fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+    renderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+
+    texture = GLSL.createTexture();
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    return {fbo: fbo, texture: texture};
+};
+GLSL.draw = function(gl, input, output, flipY) {
+    gl.bindTexture(gl.TEXTURE_2D, input);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, output);
+    gl.uniform1f(prog.uniform.flipY, flipY ? -1 : 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+};
+GLSL.getPixels = function(gl, width, height, pixels) {
+    pixels = pixels || new FILTER.Arrray8U((width * height) << 2);
+                    //x, y, width, height, format, type, pixels
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return pixels;
+};
+FILTER.Util.GLSL = GLSL;
+
+}(FILTER);/**
+*
 * Filter SuperClass, Interfaces and Utilities
 * @package FILTER.js
 *
@@ -3002,6 +3317,7 @@ var PROTO = 'prototype'
     ,isInsideThread = Async.isThread()
     ,FILTERPath = FILTER.Path
     ,Merge = FILTER.Class.Merge
+    ,GLSL = FILTER.Util.GLSL
     ,initPlugin = function() {}
     ,constructorPlugin = function(init) {
         return function PluginFilter() {
@@ -3068,7 +3384,6 @@ var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {
                 .listen('apply', function(data) {
                     if (filter && data && data.im)
                     {
-                        //log(data.im[0]);
                         var im = data.im; im[0] = FILTER.Util.Array.typed(im[0], FILTER.ImArray);
                         if (data.params) filter.unserializeFilter(data.params);
                         if (data.inputs) filter.unserializeInputs(data.inputs, im);
@@ -3169,6 +3484,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // filters can have id's
     ,_isOn: true
+    ,_isGLSL: false
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -3184,6 +3500,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.name = null;
         self.id = null;
         self._isOn = null;
+        self._isGLSL = null;
         self._update = null;
         self.onComplete = null;
         self.mode = null;
@@ -3360,6 +3677,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return this._isOn;
     }
 
+    // whether filter is GLSL
+    ,isGLSL: function() {
+        return this._isGLSL;
+    }
+
     // whether filter updates output image or not
     ,update: function(bool) {
         if (!arguments.length) bool = true;
@@ -3378,6 +3700,17 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,toggle: function() {
         this._isOn = !this._isOn;
         return this;
+    }
+
+    // allow filters to be GLSL
+    ,makeGLSL: function(bool) {
+        if (!arguments.length) bool = true;
+        this._isGLSL = !!bool;
+        return this;
+    }
+
+    // get GLSL code and variables, override
+    ,getGLSL: function() {
     }
 
     // @override
@@ -3405,7 +3738,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2, w, h;
+        var self = this, im, im2, w, h, gl, glsl, tex, prog, flipY;
 
         if (!self.canRun()) return src;
 
@@ -3458,6 +3791,34 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 };
                 // process request
                 self.send('apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
+            }
+            else if (!isInsideThread && self.isGLSL())
+            {
+                if (dst.glCanvas && (glsl = self.getGLSL()))
+                {
+                    im = src.getSelectedData();
+                    im2 = im[0]; w = im[1]; h = im[2];
+                    gl = GLSL.prepareImgForGL(dst);
+                    if (!dst.glTex)
+                    {
+                        dst.glTex = tex = GLSL.uploadTexture(gl, im2, w, h, 0);
+                    }
+                    else
+                    {
+                        tex = GLSL.uploadTexture(gl, im2, w, h, 0, 1);
+                    }
+                    if (glsl.textures) glsl.textures(gl, w, h);
+                    prog = GLSL.Program.getFromFilter(gl, glsl, w, h, dst.cache);
+                    if (prog)
+                    {
+                        //dst.glBuf[0] = dst.glBuf[0] || GLSL.createFramebufferTexture(gl, w, h);
+                        var source = dst.glTex, target = /*dst.glBuf[0].fbo*/null;
+                        flipY = true;
+                        GLSL.draw(gl, source, target, flipY);
+                        dst.setSelectedData(GLSL.getPixels(gl, w, h, im2));
+                    }
+                }
+                if (cb) cb.call(self);
             }
             else
             {
@@ -4735,7 +5096,8 @@ var PROTO = 'prototype', DPR = 1,// / FILTER.devicePixelRatio,
     copy = FILTER.Util.Array.copy,
     subarray = FILTER.Util.Array.subarray,
     clamp = FILTER.Util.Math.clamp,
-    stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
+    stdMath = Math, Min = stdMath.min,
+    Floor = stdMath.floor,
 
     ID = 0,
     RED = 1 << CHANNEL.R,
@@ -4762,6 +5124,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
+        self.glCanvas = FILTER.supportsGLSL() ? FILTER.Canvas(w, h) : null;
+        self.glBuf = [null, null];
         self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
@@ -4772,6 +5136,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._refresh = 0;
         self.nref = 0;
+        self.cache = {};
         self._refresh |= DATA | SEL;
         if (img) self.image(img);
     }
@@ -4784,14 +5149,19 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,selection: null
     ,iCanvas: null
     ,oCanvas: null
+    ,glCanvas: null
     ,iData: null
     ,iDataSel: null
     ,oData: null
     ,oDataSel: null
+    ,glTex: null
+    ,glVex: null
+    ,glBuf: null
     ,domElement: null
     ,_restorable: true
     ,_refresh: 0
     ,nref: 0
+    ,cache: null
 
     ,dispose: function() {
         var self = this;
@@ -4799,9 +5169,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = self.height = null;
         self.selection = self.gray = null;
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
-        self.domElement = self.iCanvas = self.oCanvas = null;
+        self.domElement = self.iCanvas = self.oCanvas = self.glCanvas = null;
         self._restorable = null;
         self._refresh = self.nref = null;
+        self.cache = null;
+        self.glTex = self.glVex = self.glBuf = null;
         return self;
     }
 
@@ -5434,7 +5806,6 @@ function refresh_selected_data(scope, what)
     }
     return scope;
 }
-
 }(FILTER);/**
 *
 * Composite Filter Class
@@ -6085,7 +6456,7 @@ FILTER.Create({
 // color table
 var CHANNEL = FILTER.CHANNEL, CT = FILTER.ColorTable, clamp = FILTER.Color.clampPixel,
     stdMath = Math, Floor = stdMath.floor, Power = stdMath.pow, Exponential = stdMath.exp, nF = 1.0/255,
-    TypedArray = FILTER.Util.Array.typed, eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply;
+    TypedArray = FILTER.Util.Array.typed, eye = FILTER.Util.Filter.ct_eye, ct_mult = FILTER.Util.Filter.ct_multiply, GLSL = FILTER.Util.GLSL;
 
 // ColorTableFilter
 var ColorTableFilter = FILTER.Create({
@@ -6402,6 +6773,10 @@ var ColorTableFilter = FILTER.Create({
         return this;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,combineWith: function(filt) {
         return this.set(filt.getTable(CHANNEL.R), filt.getTable(CHANNEL.G), filt.getTable(CHANNEL.B));
     }
@@ -6493,6 +6868,39 @@ var ColorTableFilter = FILTER.Create({
 ColorTableFilter.prototype.posterize = ColorTableFilter.prototype.levels = ColorTableFilter.prototype.quantize;
 FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 
+function glsl(filter)
+{
+    if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
+    var T = filter.table, R = T[0], R = T[1] || R, B = T[2] || G, A = T[3];
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform sampler2D map;',
+'uniform int hasAlpha;',
+'void main(void) {',
+'   c = texture2D(texture, vUv);',
+'   if (hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,texture2D(map, vec2(c.a, 0.0)).a);',
+'   else gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,c.a);',
+'}'
+    ].join('\n'),
+    textures: function(gl, w, h) {
+        for (var n=256 << 2,t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++jj)
+        {
+            t[i  ] = R[j];
+            t[i+1] = G[j];
+            t[i+2] = B[j];
+            t[i+3] = A ? A[j] : 255;
+        }
+        GLSL.uploadTexture(gl, t, 256, 1, 1);
+    },
+    vars: function(gl, w, h, program) {
+        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
+    }
+    };
+}
+
 }(FILTER);/**
 *
 * Color Matrix Filter(s)
@@ -6513,10 +6921,13 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U,
     stdMath = Math, Sin = stdMath.sin, Cos = stdMath.cos,
     toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    TypedArray = FILTER.Util.Array.typed,
+    notSupportClamp = FILTER._notSupportClamp,
     cm_rechannel = FILTER.Util.Filter.cm_rechannel,
     cm_combine = FILTER.Util.Filter.cm_combine,
-    cm_multiply = FILTER.Util.Filter.cm_multiply;
+    cm_multiply = FILTER.Util.Filter.cm_multiply,
+    GLSL = FILTER.Util.GLSL
+    ;
 
 // ColorMatrixFilter
 var ColorMatrixFilter = FILTER.Create({
@@ -6976,7 +7387,7 @@ var ColorMatrixFilter = FILTER.Create({
         return self;
     }
 
-    ,set: function( matrix ) {
+    ,set: function(matrix) {
         var self = this;
         self.matrix = self.matrix ? cm_multiply(self.matrix, matrix) : new CM(matrix);
         return self;
@@ -6985,6 +7396,10 @@ var ColorMatrixFilter = FILTER.Create({
     ,reset: function() {
         this.matrix = null;
         return this;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     ,combineWith: function(filt) {
@@ -7206,6 +7621,23 @@ ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
 
+// private
+function glsl(filter)
+{
+    var m = filter.matrix, toFloat = GLSL.formatFloat;
+    return {instance: filter, shader: m ? [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'void main(void) {',
+'   vec4 c = texture2D(texture, vUv);',
+'   gl_FragColor.r = '+toFloat(m[0 ])+'*c.r'+toFloat(m[1 ],1)+'*c.g'+toFloat(m[2 ],1)+'*c.b'+toFloat(m[3 ],1)+'*c.a'+toFloat(m[4 ]/255,1)+';',
+'   gl_FragColor.g = '+toFloat(m[5 ])+'*c.r'+toFloat(m[6 ],1)+'*c.g'+toFloat(m[7 ],1)+'*c.b'+toFloat(m[8 ],1)+'*c.a'+toFloat(m[9 ]/255,1)+';',
+'   gl_FragColor.b = '+toFloat(m[10])+'*c.r'+toFloat(m[11],1)+'*c.g'+toFloat(m[12],1)+'*c.b'+toFloat(m[13],1)+'*c.a'+toFloat(m[14]/255,1)+';',
+'   gl_FragColor.a = '+toFloat(m[15])+'*c.r'+toFloat(m[16],1)+'*c.g'+toFloat(m[17],1)+'*c.b'+toFloat(m[18],1)+'*c.a'+toFloat(m[19]/255,1)+';',
+'}'
+].join('\n') : GLSL.DEFAULT};
+}
 }(FILTER);/**
 *
 * Color Map Filter(s)
@@ -7640,6 +8072,7 @@ MAP = {
 "use strict";
 
 var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
+    GLSL = FILTER.Util.GLSL,
     MODE = FILTER.MODE, toRad = FILTER.CONST.toRad,
     stdMath = Math, Sin = stdMath.sin, Cos = stdMath.cos, Tan = stdMath.tan,
     am_multiply = FILTER.Util.Filter.am_multiply;
@@ -7749,6 +8182,10 @@ var AffineMatrixFilter = FILTER.Create({
         return this;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,combineWith: function(filt) {
         return this.set(filt.matrix);
     }
@@ -7852,6 +8289,11 @@ var AffineMatrixFilter = FILTER.Create({
 // aliases
 AffineMatrixFilter.prototype.shift = AffineMatrixFilter.prototype.translate;
 
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
+
 }(FILTER);/**
 *
 * Displacement Map Filter
@@ -7865,7 +8307,8 @@ AffineMatrixFilter.prototype.shift = AffineMatrixFilter.prototype.translate;
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, TypedArray = FILTER.Util.Array.typed,
+var MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
+    TypedArray = FILTER.Util.Array.typed, GLSL = FILTER.Util.GLSL,
     stdMath = Math, Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
 
 // DisplacementMap Filter
@@ -7930,6 +8373,10 @@ FILTER.Create({
     ,reset: function() {
         this.unsetInput("map");
         return this;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     // used for internal purposes
@@ -8120,6 +8567,77 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    var displaceMap = filter.input("map"), color = filter.color || 0;
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform sampler2D map;',
+'uniform vec2 mapSize;',
+'uniform vec2 start;',
+'uniform vec2 scale;',
+'uniform vec4 color;',
+'uniform ivec2 component;',
+'const int IGNORE='+MODE.IGNORE+';',
+'const int CLAMP='+MODE.CLAMP+';',
+'const int COLOR='+MODE.COLOR+';',
+'const int WRAP='+MODE.WRAP+';',
+'const int RED='+CHANNEL.R+';',
+'const int GREEN='+CHANNEL.G+';',
+'const int BLUE='+CHANNEL.B+';',
+'const int ALPHA='+CHANNEL.A+';',
+'uniform int mode;',
+'void main(void) {',
+'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {','gl_FragColor = texture2D(texture, vUv);',
+'   } else {',
+'       vec4 mc = texture2D(map, (vUv-start)*mapSize);',
+'       vec2 p = vec2(vUv.x, vUv.y);',
+'       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
+'       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',
+'       else if (GREEN == component.x) p.x += (mc.g - 0.5)*scale.x;',
+'       else p.x += (mc.r - 0.5)*scale.x;',
+'       if (ALPHA == component.y) p.y += (mc.a - 0.5)*scale.y;',
+'       else if (BLUE == component.y) p.y += (mc.b - 0.5)*scale.y;',
+'       else if (GREEN == component.y) p.y += (mc.g - 0.5)*scale.y;',
+'       else p.y += (mc.r - 0.5)*scale.y;',
+'       if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
+'           if (COLOR == mode) {gl_FragColor = color;}',
+'           else if (CLAMP == mode) {gl_FragColor = texture2D(texture, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+'           else if (WRAP == mode) {',
+'               if (0.0 > p.x) p.x += 1.0;',
+'               if (1.0 < p.x) p.x -= 1.0;',
+'               if (0.0 > p.y) p.y += 1.0;',
+'               if (1.0 < p.y) p.y -= 1.0;',
+'               gl_FragColor = texture2D(texture, p);',
+'           }',
+'           else {gl_FragColor = texture2D(texture, vUv);}',
+'       } else {',
+'           gl_FragColor = texture2D(texture, p);',
+'       }',
+'   }',
+'}'
+    ].join('\n'),
+    textures: function(gl, w, h) {
+        GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
+    },
+    vars: function(gl, w, h, program) {
+        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
+        gl.uniform2f(program.uniform.scale, filter.scaleX, filter.scaleY);
+        gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
+        gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
+        gl.uniform4f(program.uniform.color,
+            ((color >>> 16) & 255)/255,
+            ((color >>> 8) & 255)/255,
+            (color & 255)/255,
+            ((color >>> 24) & 255)/255
+        );
+    }
+    };
+}
 
 }(FILTER);/**
 *
@@ -8633,7 +9151,9 @@ var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray,
     combine = FILTER.Util.Filter.cm_combine,
     integral_convolution = FILTER.Util.Filter.integral_convolution,
     separable_convolution = FILTER.Util.Filter.separable_convolution,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    TypedArray = FILTER.Util.Array.typed,
+    notSupportClamp = FILTER._notSupportClamp,
+    GLSL = FILTER.Util.GLSL,
 
     stdMath = Math, sqrt2 = stdMath.SQRT2, toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
     Abs = stdMath.abs, Sqrt = stdMath.sqrt, Sin = stdMath.sin, Cos = stdMath.cos,
@@ -8752,7 +9272,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic functional-based kernel filter
     ,functional: function(f, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         var kernel = functional1(d, f), fact = 1.0/summa(kernel);
         // this can be separable
         this.set(kernel, d, fact, fact, d, kernel);
@@ -8761,7 +9281,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // fast gauss filter
     ,fastGauss: function(quality, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         quality = (quality||1)|0;
         if (quality < 1) quality = 1;
         else if (quality > 7) quality = 7;
@@ -8771,7 +9291,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic box low-pass filter
     ,lowPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(ones(d), d, 1/(d*d), 0.0);
         this._doIntegral = 1; return this;
     }
@@ -8779,8 +9299,8 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic box high-pass filter (I-LP)
     ,highPass: function(d, f) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
-        f = f === undef ? 1 : f;
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        f = null == f ? 1 : f;
         // HighPass Filter = I - (respective)LowPass Filter
         var fact = -f/(d*d);
         this.set(ones(d, fact, 1+fact), d, 1.0, 0.0);
@@ -8788,37 +9308,37 @@ var ConvolutionMatrixFilter = FILTER.Create({
     }
 
     ,glow: function(f, d) {
-        f = f === undef ? 0.5 : f;
+        f = null == f ? 0.5 : f;
         return this.highPass(d, -f);
     }
 
     ,sharpen: function(f, d) {
-        f = f === undef ? 0.5 : f;
+        f = null == f ? 0.5 : f;
         return this.highPass(d, f);
     }
 
     ,verticalBlur: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(average1(d), 1, 1/d, 0.0, d);
         this._doIntegral = 1; return this;
     }
 
     ,horizontalBlur: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(average1(d), d, 1/d, 0.0, 1);
         this._doIntegral = 1; return this;
     }
 
     // supports only vertical, horizontal, diagonal
     ,directionalBlur: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, 1.0, 0.0);
     }
 
     // generic binomial(quasi-gaussian) low-pass filter
     ,binomialLowPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         /*var filt=binomial(d);
         return this.set(filt.kernel, d, 1/filt.sum); */
         var kernel = binomial1(d), fact = 1/(1<<(d-1));
@@ -8829,7 +9349,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // generic binomial(quasi-gaussian) high-pass filter
     ,binomialHighPass: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
         return this.set(combine(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0);
@@ -8837,7 +9357,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // X-gradient, partial X-derivative (Prewitt)
     ,prewittX: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 0), d, 1.0, 0.0);
         this.set(average1(d), d, 1.0, 0.0, d, derivative1(d,0));
@@ -8847,7 +9367,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // Y-gradient, partial Y-derivative (Prewitt)
     ,prewittY: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 1), d, 1.0, 0.0);
         this.set(derivative1(d,1), d, 1.0, 0.0, d, average1(d));
@@ -8857,7 +9377,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // directional gradient (Prewitt)
     ,prewittDirectional: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
@@ -8865,7 +9385,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // gradient magnitude (Prewitt)
     ,prewitt: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(prewitt(d, 0), d, 1.0, 0.0, d, prewitt(d, 1));
         this._isGrad = true; return this;
     }
@@ -8873,7 +9393,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // partial X-derivative (Sobel)
     ,sobelX: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 0), d, 1.0, 0.0);
         this.set(binomial1(d), d, 1.0, 0.0, d, derivative1(d,0));
@@ -8882,7 +9402,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // partial Y-derivative (Sobel)
     ,sobelY: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 1), d, 1.0, 0.0);
         this.set(derivative1(d,1), d, 1.0, 0.0, d, binomial1(d));
@@ -8891,27 +9411,27 @@ var ConvolutionMatrixFilter = FILTER.Create({
 
     // directional gradient (Sobel)
     ,sobelDirectional: function(theta, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
         return this.set(combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
     }
 
     // gradient magnitude (Sobel)
     ,sobel: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(sobel(d, 0), d, 1.0, 0.0, d, sobel(d, 1));
         this._isGrad = true; return this;
     }
 
     ,laplace: function(d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
+        d = null == d ? 3 : (d&1 ? d : d+1);
         this.set(ones(d, -1, d*d-1), d, 1.0, 0.0);
         this._doIntegral = 1; return this;
     }
 
     ,emboss: function(angle, amount, d) {
-        d = d === undef ? 3 : (d&1 ? d : d+1);
-        angle = angle === undef ? -0.25*stdMath.PI : angle*toRad;
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        angle = null == angle ? -0.25*stdMath.PI : angle*toRad;
         amount = amount || 1;
         return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, 1.0, 0.0);
     }
@@ -8958,6 +9478,10 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         return self;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     ,combineWith: function(filt) {
@@ -9269,7 +9793,81 @@ function indices(m, d)
     }
     return [new A16I(indices), new A16I(indices2), new CM(mat)];
 }
-
+function glsl(filter)
+{
+    var matrix_code = function(m, m2, d, f, b, isGrad) {
+        var def = [], calc = [], calc2 = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = m.length, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        x=0; y=0; k=0;
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            if (m[k] || (0===i && 0===j))
+            {
+                def.push('vec4 c'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
+                if (0===i && 0===j) ca = 'c'+k+'.a';
+            }
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        if (m2)
+        {
+            x=0; y=0; k=0;
+            while (k<matArea)
+            {
+                i = x-matHalfSide;
+                j = y-matHalfSide;
+                if (m2[k] || (0===i && 0===j))
+                {
+                    def.push('vec4 cc'+k+'=texture2D(texture,  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                    calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
+                    //if (0===i && 0===j) ca = 'c'+k+'.a';
+                }
+                ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+            }
+            if (isGrad)
+            {
+                def.push('vec4 o1='+calc.join('')+';')
+                def.push('vec4 o2='+calc2.join('')+';')
+                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),1.0)', ca];
+            }
+            else
+            {
+                def.push('vec4 o1='+calc.join('')+';')
+                def.push('vec4 o2='+calc2.join('')+';')
+                return [def.join('\n'), toFloat(f)+'*o1'+toFloat(b,1)+'*o2', ca];
+            }
+        }
+        else
+        {
+            return [def.join('\n'), calc.join('')+'+vec4('+toFloat(b)+')', ca];
+        }
+    };
+    var toFloat = GLSL.formatFloat, code,
+        m = filter.matrix, m2 = filter.matrix2;
+    if (!m) return {instance: filter, shader: GLSL.DEFAULT};
+    if (filter._doIntegral) return null;
+    if (filter._doSeparable && m2)
+    {
+        m = convolve(m, m2);
+        m2 = null;
+    }
+    code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
+    return {instance: filter, shader: [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'uniform vec2 dp;',
+'void main(void) {',
+code[0],
+'gl_FragColor = '+code[1]+';',
+'gl_FragColor.a = '+code[2]+';',
+'}'
+    ].join('\n')};
+}
 function functional1(d, f)
 {
     var x, y, i, ker = new Array(d);
@@ -9419,6 +10017,7 @@ function twos2(d, c, s, cf)
 
 // used for internal purposes
 var MORPHO, MODE = FILTER.MODE, IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
+    GLSL = FILTER.Util.GLSL,
     STRUCT = FILTER.Array8U, A32I = FILTER.Array32I,
     Sqrt = Math.sqrt, TypedArray = FILTER.Util.Array.typed,
     primitive_morphology_operator = FILTER.Util.Filter.primitive_morphology_operator,
@@ -9618,6 +10217,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;
@@ -9630,6 +10233,10 @@ FILTER.Create({
 });
 
 // private methods
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
 function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, iter)
 {
     //"use asm";
@@ -9907,6 +10514,7 @@ MORPHO = {
 // used for internal purposes
 var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
     A32I = FILTER.Array32I, A32U = FILTER.Array32U,
+    GLSL = FILTER.Util.GLSL,
     TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
 
 //  Statistical Filter
@@ -10004,6 +10612,10 @@ var StatisticalFilter = FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     // used for internal purposes
     ,_apply: function(im, w, h) {
         var self = this;
@@ -10021,6 +10633,10 @@ StatisticalFilter.prototype.erode = StatisticalFilter.prototype.minimum;
 StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 
 // private methods
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
 STAT = {
      "01th": function(self, im, w, h) {
         //"use asm";
@@ -10260,7 +10876,7 @@ var HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toStrin
 
 //
 //  Inline Filter
-//  used as a placeholder for constructing filters inline with an anonymous function
+//  used as a placeholder for constructing filters inline with an anonymous function and/or webgl shader
 FILTER.Create({
     name: "InlineFilter"
 
@@ -10287,7 +10903,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this, json;
         json = {
-             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString() : null)
+             _filter: false === self._filter ? false : (self._changed && self._filter ? (self._filter.func || self._filter).toString() : null)
             ,_params: self._params
         };
         self._changed = false;
@@ -10323,7 +10939,7 @@ FILTER.Create({
         }
         else
         {
-            if ("function" === typeof filter)
+            if ("function" === typeof filter || "function" === typeof filter.func)
             {
                 self._filter = filter;
                 self._changed = true;
@@ -10333,10 +10949,19 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        var filter = this._filter;
+        return filter && filter.shader ? {
+            instance: this, shader: filter.shader,
+            textures: filter.textures, vars: filter.vars
+        } : null;
+    }
+
     ,_apply: function(im, w, h, metaData) {
-        var self = this;
-        if (!self._filter) return im;
-        return self._filter(self._params, im, w, h, metaData);
+        var self = this, filter = self._filter;
+        if (!filter) return im;
+        if ('function' === typeof filter.func) filter = filter.func;
+        return filter(self._params, im, w, h, metaData);
     }
 
     ,canRun: function() {

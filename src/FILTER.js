@@ -235,7 +235,8 @@ FILTER.Util = {
     },
     Math    : {},
     Filter  : {},
-    Image   : {}
+    Image   : {},
+    GLSL    : {}
 };
 
 // Canvas for Browser, override if needed to provide alternative for Nodejs
@@ -264,6 +265,43 @@ FILTER.Canvas.Image = function() {
 // ImageData for Browser, override if needed to provide alternative for Nodejs
 FILTER.Canvas.ImageData = function(data, width, height) {
     return 'undefined' !== typeof ImageData ? (new ImageData(data, width, height)) : {data:data, width:width, height:height};
+};
+
+var supportsGLSL = null, glctx = null;
+FILTER.supportsGLSL = function() {
+    if (null == supportsGLSL)
+    {
+        var canvas = null,
+            gl = null,
+            ctxs = ['webgl', 'experimental-webgl'],
+            ctx = null, i;
+        try {
+            canvas = FILTER.Canvas(1, 1);
+        } catch(e) {
+            canvas = null;
+        }
+        if (canvas)
+        {
+            for (i=0; i<ctxs.length; ++i)
+            {
+                ctx = ctxs[i];
+                gl = null;
+                try {
+                    gl = canvas.getContext(ctx);
+                } catch(e) {
+                    gl = null;
+                }
+                if (gl) break;
+            }
+        }
+        supportsGLSL = !!gl;
+        if (supportsGLSL) glctx = ctx;
+    }
+    return supportsGLSL;
+};
+FILTER.getGL = function(canvas) {
+    if (canvas && FILTER.supportsGLSL())
+        return canvas.getContext(glctx);
 };
 
 }(FILTER);

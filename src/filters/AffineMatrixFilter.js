@@ -11,6 +11,7 @@
 "use strict";
 
 var IMG = FILTER.ImArray, AM = FILTER.AffineMatrix, TypedArray = FILTER.Util.Array.typed,
+    GLSL = FILTER.Util.GLSL,
     MODE = FILTER.MODE, toRad = FILTER.CONST.toRad,
     stdMath = Math, Sin = stdMath.sin, Cos = stdMath.cos, Tan = stdMath.tan,
     am_multiply = FILTER.Util.Filter.am_multiply;
@@ -120,6 +121,10 @@ var AffineMatrixFilter = FILTER.Create({
         return this;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,combineWith: function(filt) {
         return this.set(filt.matrix);
     }
@@ -222,5 +227,10 @@ var AffineMatrixFilter = FILTER.Create({
 });
 // aliases
 AffineMatrixFilter.prototype.shift = AffineMatrixFilter.prototype.translate;
+
+function glsl(filter)
+{
+    return {instance: filter, shader: GLSL.DEFAULT};
+}
 
 }(FILTER);

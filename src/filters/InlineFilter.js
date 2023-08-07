@@ -15,7 +15,7 @@ var HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toStrin
 
 //
 //  Inline Filter
-//  used as a placeholder for constructing filters inline with an anonymous function
+//  used as a placeholder for constructing filters inline with an anonymous function and/or webgl shader
 FILTER.Create({
     name: "InlineFilter"
 
@@ -42,7 +42,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this, json;
         json = {
-             _filter: false === self._filter ? false : (self._changed && self._filter ? self._filter.toString() : null)
+             _filter: false === self._filter ? false : (self._changed && self._filter ? (self._filter.func || self._filter).toString() : null)
             ,_params: self._params
         };
         self._changed = false;
@@ -78,7 +78,7 @@ FILTER.Create({
         }
         else
         {
-            if ("function" === typeof filter)
+            if ("function" === typeof filter || "function" === typeof filter.func)
             {
                 self._filter = filter;
                 self._changed = true;
@@ -88,10 +88,19 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        var filter = this._filter;
+        return filter && filter.shader ? {
+            instance: this, shader: filter.shader,
+            textures: filter.textures, vars: filter.vars
+        } : null;
+    }
+
     ,_apply: function(im, w, h, metaData) {
-        var self = this;
-        if (!self._filter) return im;
-        return self._filter(self._params, im, w, h, metaData);
+        var self = this, filter = self._filter;
+        if (!filter) return im;
+        if ('function' === typeof filter.func) filter = filter.func;
+        return filter(self._params, im, w, h, metaData);
     }
 
     ,canRun: function() {

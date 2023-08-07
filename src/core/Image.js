@@ -14,7 +14,8 @@ var PROTO = 'prototype', DPR = 1,// / FILTER.devicePixelRatio,
     copy = FILTER.Util.Array.copy,
     subarray = FILTER.Util.Array.subarray,
     clamp = FILTER.Util.Math.clamp,
-    stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
+    stdMath = Math, Min = stdMath.min,
+    Floor = stdMath.floor,
 
     ID = 0,
     RED = 1 << CHANNEL.R,
@@ -41,6 +42,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
+        self.glCanvas = FILTER.supportsGLSL() ? FILTER.Canvas(w, h) : null;
+        self.glBuf = [null, null];
         self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
@@ -51,6 +54,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.selection = null;
         self._refresh = 0;
         self.nref = 0;
+        self.cache = {};
         self._refresh |= DATA | SEL;
         if (img) self.image(img);
     }
@@ -63,14 +67,19 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,selection: null
     ,iCanvas: null
     ,oCanvas: null
+    ,glCanvas: null
     ,iData: null
     ,iDataSel: null
     ,oData: null
     ,oDataSel: null
+    ,glTex: null
+    ,glVex: null
+    ,glBuf: null
     ,domElement: null
     ,_restorable: true
     ,_refresh: 0
     ,nref: 0
+    ,cache: null
 
     ,dispose: function() {
         var self = this;
@@ -78,9 +87,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = self.height = null;
         self.selection = self.gray = null;
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
-        self.domElement = self.iCanvas = self.oCanvas = null;
+        self.domElement = self.iCanvas = self.oCanvas = self.glCanvas = null;
         self._restorable = null;
         self._refresh = self.nref = null;
+        self.cache = null;
+        self.glTex = self.glVex = self.glBuf = null;
         return self;
     }
 
@@ -713,5 +724,4 @@ function refresh_selected_data(scope, what)
     }
     return scope;
 }
-
 }(FILTER);

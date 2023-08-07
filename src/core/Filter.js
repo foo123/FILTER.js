@@ -18,6 +18,7 @@ var PROTO = 'prototype'
     ,isInsideThread = Async.isThread()
     ,FILTERPath = FILTER.Path
     ,Merge = FILTER.Class.Merge
+    ,GLSL = FILTER.Util.GLSL
     ,initPlugin = function() {}
     ,constructorPlugin = function(init) {
         return function PluginFilter() {
@@ -84,7 +85,6 @@ var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {
                 .listen('apply', function(data) {
                     if (filter && data && data.im)
                     {
-                        //log(data.im[0]);
                         var im = data.im; im[0] = FILTER.Util.Array.typed(im[0], FILTER.ImArray);
                         if (data.params) filter.unserializeFilter(data.params);
                         if (data.inputs) filter.unserializeInputs(data.inputs, im);
@@ -185,6 +185,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // filters can have id's
     ,_isOn: true
+    ,_isGLSL: false
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -200,6 +201,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.name = null;
         self.id = null;
         self._isOn = null;
+        self._isGLSL = null;
         self._update = null;
         self.onComplete = null;
         self.mode = null;
@@ -376,6 +378,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return this._isOn;
     }
 
+    // whether filter is GLSL
+    ,isGLSL: function() {
+        return this._isGLSL;
+    }
+
     // whether filter updates output image or not
     ,update: function(bool) {
         if (!arguments.length) bool = true;
@@ -394,6 +401,17 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,toggle: function() {
         this._isOn = !this._isOn;
         return this;
+    }
+
+    // allow filters to be GLSL
+    ,makeGLSL: function(bool) {
+        if (!arguments.length) bool = true;
+        this._isGLSL = !!bool;
+        return this;
+    }
+
+    // get GLSL code and variables, override
+    ,getGLSL: function() {
     }
 
     // @override
@@ -421,7 +439,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2, w, h;
+        var self = this, im, im2, w, h, gl, glsl, tex, prog, flipY;
 
         if (!self.canRun()) return src;
 
@@ -474,6 +492,34 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 };
                 // process request
                 self.send('apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
+            }
+            else if (!isInsideThread && self.isGLSL())
+            {
+                if (dst.glCanvas && (glsl = self.getGLSL()))
+                {
+                    im = src.getSelectedData();
+                    im2 = im[0]; w = im[1]; h = im[2];
+                    gl = GLSL.prepareImgForGL(dst);
+                    if (!dst.glTex)
+                    {
+                        dst.glTex = tex = GLSL.uploadTexture(gl, im2, w, h, 0);
+                    }
+                    else
+                    {
+                        tex = GLSL.uploadTexture(gl, im2, w, h, 0, 1);
+                    }
+                    if (glsl.textures) glsl.textures(gl, w, h);
+                    prog = GLSL.Program.getFromFilter(gl, glsl, w, h, dst.cache);
+                    if (prog)
+                    {
+                        //dst.glBuf[0] = dst.glBuf[0] || GLSL.createFramebufferTexture(gl, w, h);
+                        var source = dst.glTex, target = /*dst.glBuf[0].fbo*/null;
+                        flipY = true;
+                        GLSL.draw(gl, source, target, flipY);
+                        dst.setSelectedData(GLSL.getPixels(gl, w, h, im2));
+                    }
+                }
+                if (cb) cb.call(self);
             }
             else
             {

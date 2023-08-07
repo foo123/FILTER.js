@@ -18,10 +18,13 @@
 var CHANNEL = FILTER.CHANNEL, CM = FILTER.ColorMatrix, A8U = FILTER.Array8U,
     stdMath = Math, Sin = stdMath.sin, Cos = stdMath.cos,
     toRad = FILTER.CONST.toRad, toDeg = FILTER.CONST.toDeg,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    TypedArray = FILTER.Util.Array.typed,
+    notSupportClamp = FILTER._notSupportClamp,
     cm_rechannel = FILTER.Util.Filter.cm_rechannel,
     cm_combine = FILTER.Util.Filter.cm_combine,
-    cm_multiply = FILTER.Util.Filter.cm_multiply;
+    cm_multiply = FILTER.Util.Filter.cm_multiply,
+    GLSL = FILTER.Util.GLSL
+    ;
 
 // ColorMatrixFilter
 var ColorMatrixFilter = FILTER.Create({
@@ -481,7 +484,7 @@ var ColorMatrixFilter = FILTER.Create({
         return self;
     }
 
-    ,set: function( matrix ) {
+    ,set: function(matrix) {
         var self = this;
         self.matrix = self.matrix ? cm_multiply(self.matrix, matrix) : new CM(matrix);
         return self;
@@ -490,6 +493,10 @@ var ColorMatrixFilter = FILTER.Create({
     ,reset: function() {
         this.matrix = null;
         return this;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     ,combineWith: function(filt) {
@@ -711,4 +718,21 @@ ColorMatrixFilter.prototype.rotateHue = ColorMatrixFilter.prototype.adjustHue;
 ColorMatrixFilter.prototype.threshold_rgb = ColorMatrixFilter.prototype.thresholdRGB;
 ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresholdAlpha;
 
+// private
+function glsl(filter)
+{
+    var m = filter.matrix, toFloat = GLSL.formatFloat;
+    return {instance: filter, shader: m ? [
+'precision highp float;',
+'varying vec2 vUv;',
+'uniform sampler2D texture;',
+'void main(void) {',
+'   vec4 c = texture2D(texture, vUv);',
+'   gl_FragColor.r = '+toFloat(m[0 ])+'*c.r'+toFloat(m[1 ],1)+'*c.g'+toFloat(m[2 ],1)+'*c.b'+toFloat(m[3 ],1)+'*c.a'+toFloat(m[4 ]/255,1)+';',
+'   gl_FragColor.g = '+toFloat(m[5 ])+'*c.r'+toFloat(m[6 ],1)+'*c.g'+toFloat(m[7 ],1)+'*c.b'+toFloat(m[8 ],1)+'*c.a'+toFloat(m[9 ]/255,1)+';',
+'   gl_FragColor.b = '+toFloat(m[10])+'*c.r'+toFloat(m[11],1)+'*c.g'+toFloat(m[12],1)+'*c.b'+toFloat(m[13],1)+'*c.a'+toFloat(m[14]/255,1)+';',
+'   gl_FragColor.a = '+toFloat(m[15])+'*c.r'+toFloat(m[16],1)+'*c.g'+toFloat(m[17],1)+'*c.b'+toFloat(m[18],1)+'*c.a'+toFloat(m[19]/255,1)+';',
+'}'
+].join('\n') : GLSL.DEFAULT};
+}
 }(FILTER);
