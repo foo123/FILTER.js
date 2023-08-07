@@ -11,7 +11,7 @@
 !function(FILTER, undef) {
 "use strict";
 
-var HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toString;
+var HAS = Object.prototype.hasOwnProperty;
 
 //
 //  Inline Filter
@@ -42,7 +42,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this, json;
         json = {
-             _filter: false === self._filter ? false : (self._changed && self._filter ? (self._filter.func || self._filter).toString() : null)
+             _filter: false === self._filter ? false : (self._changed && self._filter ? (self._filter.filter || self._filter).toString() : null)
             ,_params: self._params
         };
         self._changed = false;
@@ -78,7 +78,7 @@ FILTER.Create({
         }
         else
         {
-            if ("function" === typeof filter || "function" === typeof filter.func)
+            if (("function" === typeof filter) || ("function" === typeof filter.filter))
             {
                 self._filter = filter;
                 self._changed = true;
@@ -89,17 +89,17 @@ FILTER.Create({
     }
 
     ,getGLSL: function() {
-        var filter = this._filter;
+        var self = this, filter = self._filter;
         return filter && filter.shader ? {
-            instance: this, shader: filter.shader,
+            instance: self, shader: filter.shader,
             textures: filter.textures, vars: filter.vars
-        } : null;
+        } : {instance: self};
     }
 
     ,_apply: function(im, w, h, metaData) {
         var self = this, filter = self._filter;
         if (!filter) return im;
-        if ('function' === typeof filter.func) filter = filter.func;
+        if ('function' === typeof filter.filter) filter = filter.filter;
         return filter(self._params, im, w, h, metaData);
     }
 

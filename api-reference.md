@@ -296,6 +296,8 @@ The filter scans an image and maps each pixel position linearly according to the
 
 The optional transformMatrix parameter is an array of numbers that defines the linear geometric mapping of pixels (see examples)
 
+**NEW Affine Matrix Filter supports WebGL**
+
 The class has some pre-defined filters to use.
 
 * `flipX()`  Flip the target image wrt to `X` axis
@@ -399,7 +401,7 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 
 The filter scans an image and maps each pixel position non-linearly according to the (coloring of the) displacement map image.
 
-**NEW Displacement Map supports WebGL**
+**NEW Displacement Map Filter supports WebGL**
 
 Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
@@ -527,6 +529,8 @@ new FILTER.MorphologicalFilter();
 ````
 
 This filter implements basic morphological processing like erode and dilate filters with arbitrary structure elements (given as matrix array)
+
+**NEW Morphological Filter supports WebGL**
 
 The class has some pre-defined filters to use.
 
@@ -701,6 +705,8 @@ new FILTER.CompositeFilter([filter1:Filter, filter2:Filter, filter3:Filter /*, e
 
 This filter implements a filter stack which enables multiple filters (even other composite filters) to be applied
 more easily (and slightly faster) to an image, than to apply them one-by-one manually
+
+**NEW Composite Filter supports WebGL**
 
 The class implements these methods:
 

@@ -230,7 +230,107 @@ FILTER.Create({
 // private methods
 function glsl(filter)
 {
-    return {instance: filter, shader: GLSL.DEFAULT};
+    var matrix_code = function(m, d, op, op0, tex) {
+        var def = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = m.length, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        def.push('vec4 res=vec4('+op0+');');
+        x=0; y=0; k=0;
+        tex = tex || 'texture';
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            if (m[k] || (0===i && 0===j))
+            {
+                def.push('vec4 c'+k+'=texture2D('+tex+',  vec2(vUv.x'+toFloat(i, 1)+'*dp.x, vUv.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('res='+op+'(res, c'+k+');')
+                if (0===i && 0===j) ca = 'c'+k+'.a';
+            }
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        return [def.join('\n'), 'res', ca];
+    };
+    var morph = function(m, op, op0, tex) {
+        var code = matrix_code(m, filter._dim, op, op0, tex);
+        return {instance: filter, shader: [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D '+(tex||'texture')+';',
+        'uniform vec2 dp;',
+        'void main(void) {',
+        code[0],
+        'gl_FragColor = '+code[1]+';',
+        'gl_FragColor.a = '+code[2]+';',
+        '}'
+        ].join('\n'), iterations: filter._iter || 1};
+    };
+    var toFloat = GLSL.formatFloat, output;
+    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
+    switch (filter._filterName)
+    {
+        case 'dilate':
+        output = morph(filter._structureElement, 'max', '0.0');
+        break;
+        case 'erode':
+        output = morph(filter._structureElement, 'min', '1.0');
+        break;
+        case 'open':
+        output = [
+        morph(filter._structureElement, 'min', '1.0'),
+        morph(filter._structureElement, 'max', '0.0')
+        ];
+        break;
+        case 'close':
+        output = [
+        morph(filter._structureElement, 'max', '0.0'),
+        morph(filter._structureElement, 'min', '1.0')
+        ];
+        break;
+        case 'gradient':
+        output = [
+        morph(filter._structureElement, 'max', '0.0'),
+        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        {instance: filter, shader: [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D texture;',
+        'uniform sampler2D texturePrev1;',
+        'void main(void) {',
+        'vec4 dilate = texture2D(texturePrev1, vUv);',
+        'vec4 erode = texture2D(texture, vUv);',
+        'gl_FragColor.rgb = ((dilate-erode)*0.5).rgb;',
+        'gl_FragColor.a = erode.a;',
+        '}'
+        ].join('\n')}
+        ];
+        break;
+        case 'laplacian':
+        output = [
+        morph(filter._structureElement, 'max', '0.0'),
+        morph(filter._structureElement, 'min', '1.0', 'texturePrev1'),
+        {instance: filter, shader: [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D texture;',
+        'uniform sampler2D texturePrev1;',
+        'uniform sampler2D texturePrev2;',
+        'void main(void) {',
+        'vec4 img = texture2D(texturePrev2, vUv);',
+        'vec4 dilate = texture2D(texturePrev1, vUv);',
+        'vec4 erode = texture2D(texture, vUv);',
+        'gl_FragColor.rgb = ((dilate+erode-img)*0.5).rgb;',
+        'gl_FragColor.a = erode.a;',
+        '}'
+        ].join('\n')}
+        ];
+        break;
+        default:
+        output = {instance: filter};
+        break;
+    }
+    return output;
 }
 function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, iter)
 {

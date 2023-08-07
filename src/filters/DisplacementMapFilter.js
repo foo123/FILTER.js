@@ -275,6 +275,7 @@ FILTER.Create({
 function glsl(filter)
 {
     var displaceMap = filter.input("map"), color = filter.color || 0;
+    if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
 'precision highp float;',
 'varying vec2 vUv;',
@@ -295,7 +296,8 @@ function glsl(filter)
 'const int ALPHA='+CHANNEL.A+';',
 'uniform int mode;',
 'void main(void) {',
-'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {','gl_FragColor = texture2D(texture, vUv);',
+'   if (vUv.x < start.x || vUv.x > start.x+mapSize.x || vUv.y < start.y || vUv.y > start.y+mapSize.y) {',
+'      gl_FragColor = texture2D(texture, vUv);',
 '   } else {',
 '       vec4 mc = texture2D(map, (vUv-start)*mapSize);',
 '       vec2 p = vec2(vUv.x, vUv.y);',
@@ -330,7 +332,7 @@ function glsl(filter)
     vars: function(gl, w, h, program) {
         gl.uniform1i(program.uniform.map, 1);  // texture unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, filter.scaleX, filter.scaleY);
+        gl.uniform2f(program.uniform.scale, filter.scaleX/255, filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,

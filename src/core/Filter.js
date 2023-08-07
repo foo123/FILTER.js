@@ -412,6 +412,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // get GLSL code and variables, override
     ,getGLSL: function() {
+        return {instance: this};
     }
 
     // @override
@@ -439,7 +440,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2, w, h, gl, glsl, tex, prog, flipY;
+        var self = this, im, im2, w, h, gl, glsl, tex, ret;
 
         if (!self.canRun()) return src;
 
@@ -497,26 +498,26 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             {
                 if (dst.glCanvas && (glsl = self.getGLSL()))
                 {
-                    im = src.getSelectedData();
-                    im2 = im[0]; w = im[1]; h = im[2];
-                    gl = GLSL.prepareImgForGL(dst);
-                    if (!dst.glTex)
+                    // make array, composite filters return array anyway
+                    if (!glsl.push && !glsl.pop) glsl = [glsl];
+                    glsl = glsl.filter(function(p) {
+                        return p && p.instance && p.instance.isOn();
+                    });
+                    if (glsl.length)
                     {
-                        dst.glTex = tex = GLSL.uploadTexture(gl, im2, w, h, 0);
-                    }
-                    else
-                    {
-                        tex = GLSL.uploadTexture(gl, im2, w, h, 0, 1);
-                    }
-                    if (glsl.textures) glsl.textures(gl, w, h);
-                    prog = GLSL.Program.getFromFilter(gl, glsl, w, h, dst.cache);
-                    if (prog)
-                    {
-                        //dst.glBuf[0] = dst.glBuf[0] || GLSL.createFramebufferTexture(gl, w, h);
-                        var source = dst.glTex, target = /*dst.glBuf[0].fbo*/null;
-                        flipY = true;
-                        GLSL.draw(gl, source, target, flipY);
-                        dst.setSelectedData(GLSL.getPixels(gl, w, h, im2));
+                        im = src.getSelectedData();
+                        im2 = im[0]; w = im[1]; h = im[2];
+                        gl = GLSL.prepareImgForGL(dst);
+                        /*if (!dst.glTex)
+                        {*/
+                            /*dst.glTex =*/ tex = GLSL.uploadTexture(gl, im2, w, h, 0);
+                        /*}
+                        else
+                        {
+                            tex = GLSL.uploadTexture(gl, im2, w, h, 0, 1);
+                        }*/
+                        im2 = GLSL.run(gl, glsl, dst.cache, im2, w, h, tex, null, true, {src:src, dst:dst});
+                        if (im2) dst.setSelectedData(im2);
                     }
                 }
                 if (cb) cb.call(self);

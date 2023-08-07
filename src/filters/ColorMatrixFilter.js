@@ -721,18 +721,29 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 // private
 function glsl(filter)
 {
-    var m = filter.matrix, toFloat = GLSL.formatFloat;
+    var m = filter.matrix;
     return {instance: filter, shader: m ? [
 'precision highp float;',
 'varying vec2 vUv;',
 'uniform sampler2D texture;',
+'uniform float cm[20];',
 'void main(void) {',
 '   vec4 c = texture2D(texture, vUv);',
-'   gl_FragColor.r = '+toFloat(m[0 ])+'*c.r'+toFloat(m[1 ],1)+'*c.g'+toFloat(m[2 ],1)+'*c.b'+toFloat(m[3 ],1)+'*c.a'+toFloat(m[4 ]/255,1)+';',
-'   gl_FragColor.g = '+toFloat(m[5 ])+'*c.r'+toFloat(m[6 ],1)+'*c.g'+toFloat(m[7 ],1)+'*c.b'+toFloat(m[8 ],1)+'*c.a'+toFloat(m[9 ]/255,1)+';',
-'   gl_FragColor.b = '+toFloat(m[10])+'*c.r'+toFloat(m[11],1)+'*c.g'+toFloat(m[12],1)+'*c.b'+toFloat(m[13],1)+'*c.a'+toFloat(m[14]/255,1)+';',
-'   gl_FragColor.a = '+toFloat(m[15])+'*c.r'+toFloat(m[16],1)+'*c.g'+toFloat(m[17],1)+'*c.b'+toFloat(m[18],1)+'*c.a'+toFloat(m[19]/255,1)+';',
+'   gl_FragColor.r = cm[0 ]*c.r+cm[1 ]*c.g+cm[2 ]*c.b+cm[3 ]*c.a+cm[4 ];',
+'   gl_FragColor.g = cm[5 ]*c.r+cm[6 ]*c.g+cm[7 ]*c.b+cm[8 ]*c.a+cm[9 ];',
+'   gl_FragColor.b = cm[10]*c.r+cm[11]*c.g+cm[12]*c.b+cm[13]*c.a+cm[14];',
+'   gl_FragColor.a = cm[15]*c.r+cm[16]*c.g+cm[17]*c.b+cm[18]*c.a+cm[19];',
 '}'
-].join('\n') : GLSL.DEFAULT};
+].join('\n') : GLSL.DEFAULT,
+    vars: m ? function(gl, w, h, program) {
+        var cm = new FILTER.Array32F([
+        m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
+        m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
+        m[10], m[11], m[12], m[13], m[14]/255,
+        m[15], m[16], m[17], m[18], m[19]/255
+        ]);
+        gl.uniform1fv(program.uniform.cm, cm);
+    } : null
+    };
 }
 }(FILTER);

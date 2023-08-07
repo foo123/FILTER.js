@@ -432,7 +432,7 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 function glsl(filter)
 {
     if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
-    var T = filter.table, R = T[0], R = T[1] || R, B = T[2] || G, A = T[3];
+    var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
     return {instance: filter, shader: [
 'precision highp float;',
 'varying vec2 vUv;',
@@ -440,13 +440,13 @@ function glsl(filter)
 'uniform sampler2D map;',
 'uniform int hasAlpha;',
 'void main(void) {',
-'   c = texture2D(texture, vUv);',
-'   if (hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,texture2D(map, vec2(c.a, 0.0)).a);',
+'   vec4 c = texture2D(texture, vUv);',
+'   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,texture2D(map, vec2(c.a, 0.0)).a);',
 '   else gl_FragColor = vec4(texture2D(map, vec2(c.r, 0.0)).r,texture2D(map, vec2(c.g, 0.0)).g,texture2D(map, vec2(c.b, 0.0)).b,c.a);',
 '}'
     ].join('\n'),
     textures: function(gl, w, h) {
-        for (var n=256 << 2,t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++jj)
+        for (var n=(256 << 2),t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++j)
         {
             t[i  ] = R[j];
             t[i+1] = G[j];

@@ -190,6 +190,30 @@ var CompositeFilter = FILTER.Create({
     }
     ,empty: null
 
+    ,getGLSL: function() {
+        var filters = this.filters, filter, glsl = [], processor, i, n = filters.length;
+        for (i=0; i<n; ++i)
+        {
+            filter = filters[i];
+            if (!filter) continue;
+            processor = filter.getGLSL ? filter.getGLSL() : null;
+            if (!processor)
+            {
+                if (filter._apply)
+                    glsl.push({instance: filter});
+            }
+            else if (processor.push)
+            {
+                glsl.push.apply(glsl, processor);
+            }
+            else
+            {
+                glsl.push(processor);
+            }
+        }
+        return glsl;
+    }
+
     // used for internal purposes
     ,_apply: function(im, w, h, metaData) {
         var self = this, meta, filtermeta = null, metalen = 0, IMGW = null, IMGH = null;

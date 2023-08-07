@@ -635,31 +635,6 @@ ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.
 
 //
 //  Private methods
-function summa(kernel)
-{
-    for (var sum=0,i=0,l=kernel.length; i<l; ++i) sum += kernel[i];
-    return sum;
-}
-function indices(m, d)
-{
-    // pre-compute indices,
-    // reduce redundant computations inside the main convolution loop (faster)
-    var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = matRadius>>>1;
-    x=0; y=0; k=0;
-    while (k<matArea)
-    {
-        indices2.push(x-matHalfSide);
-        indices2.push(y-matHalfSide);
-        if (m[k])
-        {
-            indices.push(x-matHalfSide);
-            indices.push(y-matHalfSide);
-            mat.push(m[k]);
-        }
-        ++k; ++x; if (x>=matRadius) {x=0; ++y;}
-    }
-    return [new A16I(indices), new A16I(indices2), new CM(mat)];
-}
 function glsl(filter)
 {
     var matrix_code = function(m, m2, d, f, b, isGrad) {
@@ -716,7 +691,6 @@ function glsl(filter)
     var toFloat = GLSL.formatFloat, code,
         m = filter.matrix, m2 = filter.matrix2;
     if (!m) return {instance: filter, shader: GLSL.DEFAULT};
-    if (filter._doIntegral) return null;
     if (filter._doSeparable && m2)
     {
         m = convolve(m, m2);
@@ -733,7 +707,32 @@ code[0],
 'gl_FragColor = '+code[1]+';',
 'gl_FragColor.a = '+code[2]+';',
 '}'
-    ].join('\n')};
+    ].join('\n'), iterations: filter._doIntegral || 1};
+}
+function summa(kernel)
+{
+    for (var sum=0,i=0,l=kernel.length; i<l; ++i) sum += kernel[i];
+    return sum;
+}
+function indices(m, d)
+{
+    // pre-compute indices,
+    // reduce redundant computations inside the main convolution loop (faster)
+    var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = matRadius>>>1;
+    x=0; y=0; k=0;
+    while (k<matArea)
+    {
+        indices2.push(x-matHalfSide);
+        indices2.push(y-matHalfSide);
+        if (m[k])
+        {
+            indices.push(x-matHalfSide);
+            indices.push(y-matHalfSide);
+            mat.push(m[k]);
+        }
+        ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+    }
+    return [new A16I(indices), new A16I(indices2), new CM(mat)];
 }
 function functional1(d, f)
 {

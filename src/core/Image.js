@@ -43,7 +43,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
         self.glCanvas = FILTER.supportsGLSL() ? FILTER.Canvas(w, h) : null;
-        self.glBuf = [null, null];
         self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
@@ -74,7 +73,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,oDataSel: null
     ,glTex: null
     ,glVex: null
-    ,glBuf: null
     ,domElement: null
     ,_restorable: true
     ,_refresh: 0
@@ -91,7 +89,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._restorable = null;
         self._refresh = self.nref = null;
         self.cache = null;
-        self.glTex = self.glVex = self.glBuf = null;
+        self.glTex = self.glVex = null;
         return self;
     }
 
