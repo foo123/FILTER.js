@@ -300,8 +300,7 @@ function glsl(filter)
         'void main(void) {',
         'vec4 dilate = texture2D(img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor.rgb = ((dilate-erode)*0.5).rgb;',
-        'gl_FragColor.a = erode.a;',
+        'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n')}
         ];
@@ -320,8 +319,7 @@ function glsl(filter)
         'vec4 original = texture2D(img_prev_prev, pix);',
         'vec4 dilate = texture2D(img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor.rgb = ((dilate+erode-2.0*original)*0.5).rgb;',
-        'gl_FragColor.a = erode.a;',
+        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'
         ].join('\n')}
         ];

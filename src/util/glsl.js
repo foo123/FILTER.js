@@ -15,11 +15,16 @@ var proto = 'prototype',
     'precision highp float;',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
-    'varying vec2 pix;',
+    'uniform vec2 resolution;',
     'uniform float flipY;',
+    'varying vec2 pix;',
     'void main(void) {',
+        'vec2 zeroToOne = pos / resolution;',
+        'vec2 zeroToTwo = zeroToOne * 2.0;',
+        'vec2 clipSpace = zeroToTwo - 1.0;',
+        'gl_Position = vec4(clipSpace * vec2(1.0, flipY), 0.0, 1.0);',
+        '/*gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.0);*/',
         'pix = uv;',
-        'gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.);',
     '}'
 	].join('\n')),
 	FRAGMENT_DEFAULT = trim([
@@ -102,29 +107,33 @@ GLSLProgram[proto] = {
     vertexSource: null,
     fragmentSource: null
 };
-function use(gl, program, filter, w, h)
+function use(gl, program, filter, w, h, pBuf, vBuf)
 {
     if (!program.id) return;
     gl.useProgram(program.id);
-    setupVars(gl, program, filter, w, h);
+    setupVars(gl, program, filter, w, h, pBuf, vBuf);
 };
-function setupVars(gl, program, filter, w, h)
+function setupVars(gl, program, filter, w, h, pBuf, vBuf)
 {
     if (!program.id) return;
-
-    var floatSize = FILTER.Array32F.BYTES_PER_ELEMENT, vertSize = 4 * floatSize;
 
     if ('pos' in program.attribute)
     {
         gl.enableVertexAttribArray(program.attribute.pos);
-        gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, vertSize , 0 * floatSize);
+        gl.bindBuffer(gl.ARRAY_BUFFER, pBuf);
+        gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
     }
     if ('uv' in program.attribute)
     {
         gl.enableVertexAttribArray(program.attribute.uv);
-        gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, vertSize, 2 * floatSize);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
+        gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
     }
     if (filter.textures) filter.textures(gl, w, h, program);
+    if ('resolution' in program.uniform)
+    {
+        gl.uniform2f(program.uniform.resolution, w, h);
+    }
     if ('dp' in program.uniform)
     {
         gl.uniform2f(program.uniform.dp, 1/w, 1/h);
@@ -135,7 +144,7 @@ function setupVars(gl, program, filter, w, h)
     }
     if (filter.vars) filter.vars(gl, w, h, program);
 }
-function getProgram(gl, filter, w, h, programCache)
+function getProgram(gl, filter, w, h, programCache, pBuf, vBuf)
 {
     var shader = filter.shader, program;
 
@@ -148,7 +157,7 @@ function getProgram(gl, filter, w, h, programCache)
         program = programCache[shader] = new GLSLProgram(shader, gl);
     }
     // if valid, use it
-    if (program.id) use(gl, program, filter, w, h);
+    if (program.id) use(gl, program, filter, w, h, pBuf, vBuf);
     return program;
 }
 function createTexture(gl, width, height)
@@ -263,23 +272,35 @@ function prepareGL(img)
             img.glCanvas.height = hs;
 
         gl = FILTER.getGL(img.glCanvas);
+        // if set needs opposite scaleY eg. in displacemap filter
+        //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
         if (!img.glVex)
         {
-			// Create the vertex buffer for two triangles [x, y, u, v] * 6
+			img.glPos = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, img.glPos);
+            gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
+                0, 0,
+                img.glCanvas.width, 0,
+                0, img.glCanvas.height,
+                0, img.glCanvas.height,
+                img.glCanvas.width, 0,
+                img.glCanvas.width, img.glCanvas.height
+            ]), gl.STATIC_DRAW);
 			img.glVex = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
 			gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
-            -1, -1, 0, 1,
-             1, -1, 1, 1,
-            -1,  1, 0, 0,
-            -1,  1, 0, 0,
-             1, -1, 1, 1,
-             1,  1, 1, 0
+                0.0,  0.0,
+                1.0,  0.0,
+                0.0,  1.0,
+                0.0,  1.0,
+                1.0,  0.0,
+                1.0,  1.0
 			]), gl.STATIC_DRAW);
 		}
         else
         {
+			gl.bindBuffer(gl.ARRAY_BUFFER, img.glPos);
 			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
         }
         gl.viewport(0, 0, img.glCanvas.width, img.glCanvas.height);
@@ -316,7 +337,6 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
         }
         gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
         gl.viewport(0, 0, w, h);
-        gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
         if ('img_prev_prev' in program.uniform)
         {
             if (!('img' in program.uniform) && !('img_prev' in program.uniform))
@@ -353,6 +373,7 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
             gl.uniform1i(program.uniform.img, 0);
         }
+        gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         // swap buffers
         t = buf[0]; buf[0] = buf[1]; buf[1] = t;
@@ -364,7 +385,8 @@ GLSL.run = function(img, glsls, data, metaData) {
         i, n = glsls.length, glsl, prev = [null, null],
         src, dst, buf0, buf1, buf = [null, null],
         program, im, w, h, cache, im0, t, canRun,
-        fromshader = false, first = -1, last = -1;
+        first = -1, last = -1,
+        fromshader = false, flipY = false, iter = 0;
     if (!gl) return;
     im = data[0];
     w = data[1];
@@ -383,11 +405,12 @@ GLSL.run = function(img, glsls, data, metaData) {
         glsl = glsls[i];
         if (glsl.shader)
         {
-            program = getProgram(gl, glsl, w, h, cache);
+            program = getProgram(gl, glsl, w, h, cache, img.glPos, img.glVex);
             if (program) canRun = true;
         }
         if (canRun)
         {
+            //iter += (glsl.iterations || 1);
             if (i === first)
             {
                 src = {fbo: input, tex: input};
@@ -400,6 +423,7 @@ GLSL.run = function(img, glsls, data, metaData) {
             if (i === last)
             {
                 dst = output;
+                //flipY = !(iter & 1);
             }
             else
             {
@@ -407,7 +431,7 @@ GLSL.run = function(img, glsls, data, metaData) {
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, false);
+            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, flipY);
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             // store previous frames
@@ -415,6 +439,7 @@ GLSL.run = function(img, glsls, data, metaData) {
             prev[1] = prev[0];
             prev[0] = copyTexture(gl, w, h);
             fromshader = true;
+            //flipY = false;
         }
         else if (glsl.instance && glsl.instance._apply)
         {
@@ -422,21 +447,10 @@ GLSL.run = function(img, glsls, data, metaData) {
             im0 = fromshader ? getPixels(gl, w, h) : im;
             im = glsl.instance._apply(im0, w, h, metaData);
             fromshader = false;
+            //iter = 0;
         }
     }
-    if (fromshader)
-    {
-        // final output
-        program = getProgram(gl, {shader:FRAGMENT_DEFAULT}, w, h, cache);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, w, h);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, output.tex);
-        gl.uniform1i(program.uniform.img, 0);
-        gl.uniform1f(program.uniform.flipY, 1);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-        getPixels(gl, w, h, im);
-    }
+    if (fromshader) getPixels(gl, w, h, im);
     // clean up
     deleteTexture(gl, input);
     deleteFramebufferTexture(gl, output);

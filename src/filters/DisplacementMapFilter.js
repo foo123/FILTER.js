@@ -332,7 +332,7 @@ function glsl(filter)
     vars: function(gl, w, h, program) {
         gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, 1.4*filter.scaleY/255);
+        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-1.4**/filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,
