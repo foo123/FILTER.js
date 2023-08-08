@@ -501,6 +501,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];
+                    // remove disabled and invalid filters
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {

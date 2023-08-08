@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-08 11:08:09
+*   @built on 2023-08-08 17:58:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-08 11:08:09
+*   @built on 2023-08-08 17:58:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3157,7 +3157,7 @@ function setupVars(gl, program, filter, w, h)
     }
     if (filter.vars) filter.vars(gl, w, h, program);
 }
-function getFilterProgram(gl, filter, w, h, programCache)
+function getProgram(gl, filter, w, h, programCache)
 {
     var shader = filter.shader, program;
 
@@ -3173,7 +3173,7 @@ function getFilterProgram(gl, filter, w, h, programCache)
     if (program.id) use(gl, program, filter, w, h);
     return program;
 }
-function createTexture(gl, w, h)
+function createTexture(gl, width, height)
 {
     var tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -3181,7 +3181,7 @@ function createTexture(gl, w, h)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    if (w && h) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    if (width && height) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     return tex;
 }
 function deleteTexture(gl, tex)
@@ -3198,9 +3198,9 @@ function copyTexture(gl, width, height)
     gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, width, height, 0);
     return tex;
 }
-function createFramebufferTexture(gl, w, h)
+function createFramebufferTexture(gl, width, height)
 {
-    var tex = createTexture(gl, w, h);
+    var tex = createTexture(gl, width, height);
 
     var fbo = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
@@ -3311,111 +3311,104 @@ function prepareGL(img)
         return gl;
     }
 }
-function runOne(gl, glsl, cache, w, h, input, output, prev, flipY)
+function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
 {
-    var program = getFilterProgram(gl, glsl, w, h, cache);
-    if (program)
+    var i, src, dst, t, prevUnit = 1,
+        flip = false, last = iterations - 1;
+    for (i=0; i<iterations; ++i)
     {
-        var i, src, dst, buf0, buf1, t, prevUnit = 1, flip = false,
-            iterations = glsl.iterations || 1, last = iterations - 1;
-        for (i=0; i<iterations; ++i)
+        if (0 === i)
         {
-            if (0 === i)
-            {
-                src = input;
-            }
-            else
-            {
-                buf0 = buf0 || createFramebufferTexture(gl, w, h);
-                src = buf0;
-            }
-            if (i === last)
-            {
-                dst = output;
-                flip = flipY;
-            }
-            else
-            {
-                buf1 = buf1 || createFramebufferTexture(gl, w, h);
-                dst = buf1;
-            }
-            gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-            gl.viewport(0, 0, w, h);
-            gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
-            if ('img_prev_prev' in program.uniform)
-            {
-                if (!('img' in program.uniform) && !('img_prev' in program.uniform))
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 0);
-                    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                    gl.uniform1i(program.uniform.img_prev, 0);
-                }
-                else if (prev[1])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-                    gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
-                }
-            }
-            if ('img_prev' in program.uniform)
-            {
-                if (!('img' in program.uniform))
-                {
-                    gl.activeTexture(gl.TEXTURE0 + 0);
-                    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                    gl.uniform1i(program.uniform.img_prev, 0);
-                }
-                else if (prev[0])
-                {
-                    gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
-                    gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-                    gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
-                }
-            }
-            if ('img' in program.uniform)
-            {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform.img, 0);
-            }
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            // swap buffers
-            t = buf0; buf0 = buf1; buf1 = t;
+            src = input;
         }
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        return true;
+        else
+        {
+            buf[0] = buf[0] || createFramebufferTexture(gl, w, h);
+            src = buf[0];
+        }
+        if (i === last)
+        {
+            dst = output;
+            flip = flipY;
+        }
+        else
+        {
+            buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
+            dst = buf[1];
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+        gl.viewport(0, 0, w, h);
+        gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
+        if ('img_prev_prev' in program.uniform)
+        {
+            if (!('img' in program.uniform) && !('img_prev' in program.uniform))
+            {
+                gl.activeTexture(gl.TEXTURE0 + 0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(program.uniform.img_prev_prev, 0);
+            }
+            else if (prev[1])
+            {
+                gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
+                gl.bindTexture(gl.TEXTURE_2D, prev[1]);
+                gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
+            }
+        }
+        if ('img_prev' in program.uniform)
+        {
+            if (!('img' in program.uniform))
+            {
+                gl.activeTexture(gl.TEXTURE0 + 0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(program.uniform.img_prev, 0);
+            }
+            else if (prev[0])
+            {
+                gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
+                gl.bindTexture(gl.TEXTURE_2D, prev[0]);
+                gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
+            }
+        }
+        if ('img' in program.uniform)
+        {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, src.tex);
+            gl.uniform1i(program.uniform.img, 0);
+        }
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        // swap buffers
+        t = buf[0]; buf[0] = buf[1]; buf[1] = t;
+        flip = false;
     }
-    return false;
 }
 GLSL.run = function(img, glsls, data, metaData) {
     var gl = prepareGL(img), input, output,
-        i, n = glsls.length, glsl,
-        src, dst, buf0, buf1,
-        im, w, h, cache, im0, t,
-        fromshader = false, first = -1, last = -1,
-        prev = [null, null], flipY = false;
+        i, n = glsls.length, glsl, prev = [null, null],
+        src, dst, buf0, buf1, buf = [null, null],
+        program, im, w, h, cache, im0, t, canRun,
+        fromshader = false, first = -1, last = -1;
     if (!gl) return;
     im = data[0];
     w = data[1];
     h = data[2];
     cache = img.cache;
-    input = uploadTexture(gl, im, w, h, 0/*, img.glTex*/);
-    output = null;
+    input = uploadTexture(gl, im, w, h, 0);
+    output = createFramebufferTexture(gl, w, h);
     for (i=0; i<n; ++i)
     {
         if (glsls[i].shader && 0 > first) first = i;
         if (glsls[n-1-i].shader && 0 > last) last = n-1-i;
     }
-    if (0 < last)
-    {
-        glsls.splice(++last, 0, {shader:FRAGMENT_DEFAULT});
-        ++n;
-    }
     for (i=0; i<n; ++i)
     {
+        canRun = false;
         glsl = glsls[i];
         if (glsl.shader)
+        {
+            program = getProgram(gl, glsl, w, h, cache);
+            if (program) canRun = true;
+        }
+        if (canRun)
         {
             if (i === first)
             {
@@ -3426,18 +3419,17 @@ GLSL.run = function(img, glsls, data, metaData) {
                 buf0 = buf0 || createFramebufferTexture(gl, w, h);
                 src = buf0;
             }
-            if (!fromshader && 0 < i) uploadTexture(gl, im, w, h, 0, 0, src);
             if (i === last)
             {
-                dst = {fbo: output, tex: output};
-                flipY = true;
+                dst = output;
             }
             else
             {
                 buf1 = buf1 || createFramebufferTexture(gl, w, h);
                 dst = buf1;
             }
-            runOne(gl, glsl, cache, w, h, src, dst, prev, flipY);
+            if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
+            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, false);
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             // store previous frames
@@ -3448,14 +3440,32 @@ GLSL.run = function(img, glsls, data, metaData) {
         }
         else if (glsl.instance && glsl.instance._apply)
         {
+            // no glsl program, run js code instead
             im0 = fromshader ? getPixels(gl, w, h) : im;
             im = glsl.instance._apply(im0, w, h, metaData);
             fromshader = false;
-            prev = [null, null];
-            flipY = false;
         }
     }
-    if (fromshader) getPixels(gl, w, h, im)
+    if (fromshader)
+    {
+        // final output
+        program = getProgram(gl, {shader:FRAGMENT_DEFAULT}, w, h, cache);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, output.tex);
+        gl.uniform1i(program.uniform.img, 0);
+        gl.uniform1f(program.uniform.flipY, 1);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        getPixels(gl, w, h, im);
+    }
+    // clean up
+    deleteTexture(gl, input);
+    deleteFramebufferTexture(gl, output);
+    deleteTexture(gl, prev[1]);
+    deleteTexture(gl, prev[0]);
+    deleteFramebufferTexture(gl, buf[0]);
+    deleteFramebufferTexture(gl, buf[1]);
     deleteFramebufferTexture(gl, buf0);
     deleteFramebufferTexture(gl, buf1);
     return im;
@@ -3975,6 +3985,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];
+                    // remove disabled and invalid filters
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
@@ -10566,7 +10577,7 @@ function glsl(filter)
         'vec4 original = texture2D(img_prev_prev, pix);',
         'vec4 dilate = texture2D(img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor.rgb = ((dilate+erode-original)*0.5).rgb;',
+        'gl_FragColor.rgb = ((dilate+erode-2.0*original)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
         ].join('\n')}
@@ -11886,6 +11897,7 @@ perlin.seed = seed;
 "use strict";
 
 var stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
+    GLSL = FILTER.Util.GLSL,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE;
 
 // a plugin to copy a channel of an image to a channel of another image
@@ -12085,11 +12097,12 @@ function glsl(filter)
         gl.uniform1i(program.uniform.tC, filter.dstChannel);
         if (MODE.COLOR8 === filter.mode || MODE.MASK8 === filter.mode)
         {
+            color = (color & 255)/255;
             gl.uniform4f(program.uniform.color,
-                (color & 255)/255,
-                (color & 255)/255,
-                (color & 255)/255,
-                (color & 255)/255
+                color,
+                color,
+                color,
+                color
             );
         }
         else

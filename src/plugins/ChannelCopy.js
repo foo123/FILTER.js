@@ -8,6 +8,7 @@
 "use strict";
 
 var stdMath = Math, Min = stdMath.min, Floor = stdMath.floor,
+    GLSL = FILTER.Util.GLSL,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE;
 
 // a plugin to copy a channel of an image to a channel of another image
@@ -207,11 +208,12 @@ function glsl(filter)
         gl.uniform1i(program.uniform.tC, filter.dstChannel);
         if (MODE.COLOR8 === filter.mode || MODE.MASK8 === filter.mode)
         {
+            color = (color & 255)/255;
             gl.uniform4f(program.uniform.color,
-                (color & 255)/255,
-                (color & 255)/255,
-                (color & 255)/255,
-                (color & 255)/255
+                color,
+                color,
+                color,
+                color
             );
         }
         else

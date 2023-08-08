@@ -320,7 +320,7 @@ function glsl(filter)
         'vec4 original = texture2D(img_prev_prev, pix);',
         'vec4 dilate = texture2D(img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor.rgb = ((dilate+erode-original)*0.5).rgb;',
+        'gl_FragColor.rgb = ((dilate+erode-2.0*original)*0.5).rgb;',
         'gl_FragColor.a = erode.a;',
         '}'
         ].join('\n')}
