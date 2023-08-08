@@ -504,10 +504,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
-                        im = src.getSelectedData();
-                        im2 = im[0]; w = im[1]; h = im[2];
-                        gl = GLSL.prepare(dst);
-                        im2 = GLSL.run(dst, gl, glsl, im2, w, h, {src:src, dst:dst});
+                        im2 = GLSL.run(dst, glsl, src.getSelectedData(), {src:src, dst:dst});
                         if (im2) dst.setSelectedData(im2);
                     }
                 }

@@ -232,128 +232,8 @@ function getPixels(gl, width, height, pixels)
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return pixels;
 }
-function runOne(gl, glsl, cache, w, h, input, output, flipY, metaData, prev)
+function prepareGL(img)
 {
-    var program = getFilterProgram(gl, glsl, w, h, cache);
-    if (program)
-    {
-        var i, src, dst, buf0, buf1, t, prevUnit = 1, flip = flipY,
-            iterations = glsl.iterations || 1, last = iterations - 1;
-        for (i=0; i<iterations; ++i)
-        {
-            if (0 === i)
-            {
-                src = input;
-            }
-            else
-            {
-                buf0 = buf0 || createFramebufferTexture(gl, w, h);
-                src = buf0;
-            }
-            if (i === last)
-            {
-                dst = output;
-                flip = flipY;
-            }
-            else
-            {
-                buf1 = buf1 || createFramebufferTexture(gl, w, h);
-                dst = buf1;
-            }
-            gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-            gl.viewport(0, 0, w, h);
-            gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
-            if (('img_prev_prev' in program.uniform) && prev[1])
-            {
-                gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
-                gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-                gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
-            }
-            if (('img_prev' in program.uniform) && prev[0])
-            {
-                gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
-                gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-                gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
-            }
-            if ('img' in program.uniform)
-            {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform.img, 0);
-            }
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            // swap buffers
-            t = buf0; buf0 = buf1; buf1 = t;
-            flip = false;
-        }
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        return true;
-    }
-    return false;
-};
-GLSL.run = function(img, gl, glsls, im, w, h, metaData) {
-    var input = uploadTexture(gl, im, w, h, 0/*, img.glTex*/), output = null,
-        i, n = glsls.length, glsl,
-        src, dst, buf0, buf1, im0, t,
-        fromshader = false, first = -1, last = -1,
-        prev = [null, null], flipY = false,
-        cache = img.cache;
-    for (i=0; i<n; ++i)
-    {
-        if (glsls[i].shader && 0 > first) first = i;
-        if (glsls[n-1-i].shader && 0 > last) last = n-1-i;
-    }
-    for (i=0; i<n; ++i)
-    {
-        glsl = glsls[i];
-        if (glsl.shader)
-        {
-            if (i === first)
-            {
-                src = {fbo: input, tex: input};
-            }
-            else
-            {
-                buf0 = buf0 || createFramebufferTexture(gl, w, h);
-                src = buf0;
-            }
-            if (!fromshader && 0 < i) uploadTexture(gl, im, w, h, 0, 0, src);
-            if (i === last)
-            {
-                dst = {fbo: output, tex: output};
-                flipY = true;
-            }
-            else
-            {
-                buf1 = buf1 || createFramebufferTexture(gl, w, h);
-                dst = buf1;
-            }
-            runOne(gl, glsl, cache, w, h, src, dst, flipY, metaData, prev);
-            // swap buffers
-            t = buf0; buf0 = buf1; buf1 = t;
-            // store previous frames
-            deleteTexture(gl, prev[1]);
-            prev[1] = prev[0];
-            prev[0] = copyTexture(gl, w, h);
-            fromshader = true;
-        }
-        else if (glsl.instance && glsl.instance._apply)
-        {
-            im0 = fromshader ? getPixels(gl, w, h) : im;
-            im = glsl.instance._apply(im0, w, h, metaData);
-            fromshader = false;
-            flipY = false;
-        }
-    }
-    if (fromshader) getPixels(gl, w, h, im)
-    deleteFramebufferTexture(gl, buf0);
-    deleteFramebufferTexture(gl, buf1);
-    return im;
-};
-GLSL.uploadTexture = uploadTexture;
-GLSL.getPixels = getPixels;
-GLSL.prepare = function(img) {
     if (img.glCanvas)
     {
         var gl, ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
@@ -402,15 +282,164 @@ GLSL.prepare = function(img) {
         {
 			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
         }
-        // clear buffers
-        //img.cache['buf0'] = img.cache['buf1'] = img.cache['buf2'] = img.cache['buf3'] = null;
         gl.viewport(0, 0, img.glCanvas.width, img.glCanvas.height);
         // clear canvas
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         return gl;
     }
+}
+function runOne(gl, glsl, cache, w, h, input, output, prev, flipY)
+{
+    var program = getFilterProgram(gl, glsl, w, h, cache);
+    if (program)
+    {
+        var i, src, dst, buf0, buf1, t, prevUnit = 1, flip = false,
+            iterations = glsl.iterations || 1, last = iterations - 1;
+        for (i=0; i<iterations; ++i)
+        {
+            if (0 === i)
+            {
+                src = input;
+            }
+            else
+            {
+                buf0 = buf0 || createFramebufferTexture(gl, w, h);
+                src = buf0;
+            }
+            if (i === last)
+            {
+                dst = output;
+                flip = flipY;
+            }
+            else
+            {
+                buf1 = buf1 || createFramebufferTexture(gl, w, h);
+                dst = buf1;
+            }
+            gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+            gl.viewport(0, 0, w, h);
+            gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
+            if ('img_prev_prev' in program.uniform)
+            {
+                if (!('img' in program.uniform) && !('img_prev' in program.uniform))
+                {
+                    gl.activeTexture(gl.TEXTURE0 + 0);
+                    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                    gl.uniform1i(program.uniform.img_prev, 0);
+                }
+                else if (prev[1])
+                {
+                    gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
+                    gl.bindTexture(gl.TEXTURE_2D, prev[1]);
+                    gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
+                }
+            }
+            if ('img_prev' in program.uniform)
+            {
+                if (!('img' in program.uniform))
+                {
+                    gl.activeTexture(gl.TEXTURE0 + 0);
+                    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                    gl.uniform1i(program.uniform.img_prev, 0);
+                }
+                else if (prev[0])
+                {
+                    gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
+                    gl.bindTexture(gl.TEXTURE_2D, prev[0]);
+                    gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
+                }
+            }
+            if ('img' in program.uniform)
+            {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(program.uniform.img, 0);
+            }
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            // swap buffers
+            t = buf0; buf0 = buf1; buf1 = t;
+        }
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        return true;
+    }
+    return false;
+}
+GLSL.run = function(img, glsls, data, metaData) {
+    var gl = prepareGL(img), input, output,
+        i, n = glsls.length, glsl,
+        src, dst, buf0, buf1,
+        im, w, h, cache, im0, t,
+        fromshader = false, first = -1, last = -1,
+        prev = [null, null], flipY = false;
+    if (!gl) return;
+    im = data[0];
+    w = data[1];
+    h = data[2];
+    cache = img.cache;
+    input = uploadTexture(gl, im, w, h, 0/*, img.glTex*/);
+    output = null;
+    for (i=0; i<n; ++i)
+    {
+        if (glsls[i].shader && 0 > first) first = i;
+        if (glsls[n-1-i].shader && 0 > last) last = n-1-i;
+    }
+    if (0 < last)
+    {
+        glsls.splice(++last, 0, {shader:FRAGMENT_DEFAULT});
+        ++n;
+    }
+    for (i=0; i<n; ++i)
+    {
+        glsl = glsls[i];
+        if (glsl.shader)
+        {
+            if (i === first)
+            {
+                src = {fbo: input, tex: input};
+            }
+            else
+            {
+                buf0 = buf0 || createFramebufferTexture(gl, w, h);
+                src = buf0;
+            }
+            if (!fromshader && 0 < i) uploadTexture(gl, im, w, h, 0, 0, src);
+            if (i === last)
+            {
+                dst = {fbo: output, tex: output};
+                flipY = true;
+            }
+            else
+            {
+                buf1 = buf1 || createFramebufferTexture(gl, w, h);
+                dst = buf1;
+            }
+            runOne(gl, glsl, cache, w, h, src, dst, prev, flipY);
+            // swap buffers
+            t = buf0; buf0 = buf1; buf1 = t;
+            // store previous frames
+            deleteTexture(gl, prev[1]);
+            prev[1] = prev[0];
+            prev[0] = copyTexture(gl, w, h);
+            fromshader = true;
+        }
+        else if (glsl.instance && glsl.instance._apply)
+        {
+            im0 = fromshader ? getPixels(gl, w, h) : im;
+            im = glsl.instance._apply(im0, w, h, metaData);
+            fromshader = false;
+            prev = [null, null];
+            flipY = false;
+        }
+    }
+    if (fromshader) getPixels(gl, w, h, im)
+    deleteFramebufferTexture(gl, buf0);
+    deleteFramebufferTexture(gl, buf1);
+    return im;
 };
+GLSL.uploadTexture = uploadTexture;
+GLSL.getPixels = getPixels;
 GLSL.formatFloat = function(x, signed) {
     var s = x.toString();
     return (signed ? (0 > x ? '' : '+') : '') + s + (-1 === s.indexOf('.') ? '.0' : '');

@@ -649,7 +649,7 @@ function glsl(filter)
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec4 c'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
+                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+');');
                 calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
@@ -664,7 +664,7 @@ function glsl(filter)
                 j = y-matHalfSide;
                 if (m2[k] || (0===i && 0===j))
                 {
-                    def.push('vec4 cc'+k+'=texture2D(img,  vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y));');
+                    def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 cc'+k+'=vec4(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+');');
                     calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
                     //if (0===i && 0===j) ca = 'c'+k+'.a';
                 }
