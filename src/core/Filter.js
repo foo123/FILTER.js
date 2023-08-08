@@ -43,6 +43,7 @@ var PROTO = 'prototype'
     ,notSupportClamp = FILTER._notSupportClamp
     ,log = FILTER.log, Min = stdMath.min, Max = stdMath.max
     ,ID = 0
+    ,validEntry = function(entry) {return entry && entry.instance && entry.instance.isOn();}
 ;
 
 
@@ -500,23 +501,13 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];
-                    glsl = glsl.filter(function(p) {
-                        return p && p.instance && p.instance.isOn();
-                    });
+                    glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
                         im = src.getSelectedData();
                         im2 = im[0]; w = im[1]; h = im[2];
-                        gl = GLSL.prepareImgForGL(dst);
-                        /*if (!dst.glTex)
-                        {*/
-                            /*dst.glTex =*/ tex = GLSL.uploadTexture(gl, im2, w, h, 0);
-                        /*}
-                        else
-                        {
-                            tex = GLSL.uploadTexture(gl, im2, w, h, 0, 1);
-                        }*/
-                        im2 = GLSL.run(gl, glsl, dst.cache, im2, w, h, tex, null, true, {src:src, dst:dst});
+                        gl = GLSL.prepare(dst);
+                        im2 = GLSL.run(dst, gl, glsl, im2, w, h, {src:src, dst:dst});
                         if (im2) dst.setSelectedData(im2);
                     }
                 }
