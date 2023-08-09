@@ -11,7 +11,7 @@
 "use strict";
 
 var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toString;
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty;
 
 // ColorMapFilter
 var ColorMapFilter = FILTER.Create({
@@ -49,7 +49,7 @@ var ColorMapFilter = FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? (self._map.filter || self._map).toString() : null
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
@@ -161,6 +161,7 @@ var ColorMapFilter = FILTER.Create({
             self._apply = apply__(self._map, self._mapInit);
             self._mapChanged = true;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -170,6 +171,7 @@ var ColorMapFilter = FILTER.Create({
         self._map = null;
         self._mapInit = null;
         self._mapChanged = false;
+        self._glsl = null;
         return self;
     }
 
@@ -186,7 +188,7 @@ ColorMapFilter.prototype.extract = ColorMapFilter.prototype.mask;
 
 function apply__(map, preample)
 {
-    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map.filter || map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
         //"use asm";
     return (new Function("FILTER", "\"use strict\"; return function(im, w, h){\

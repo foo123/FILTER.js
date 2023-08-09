@@ -99,6 +99,7 @@ var StatisticalFilter = FILTER.Create({
             indices[i  ] = x-dHalf; indices[i+1] = y-dHalf;
         }
         self._indices = indices;
+        self._glsl = null;
         return self;
     }
 
@@ -108,10 +109,11 @@ var StatisticalFilter = FILTER.Create({
         self.k = 0;
         self._filter = null;
         self._indices = null;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 

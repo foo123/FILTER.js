@@ -326,15 +326,17 @@ var ColorTableFilter = FILTER.Create({
             T[CHANNEL.G] = T[CHANNEL.R];
             T[CHANNEL.B] = T[CHANNEL.R];
         }
+        this._glsl = null;
         return this;
     }
 
     ,reset: function() {
         this.table = [null, null, null, null];
+        this._glsl = null;
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -445,7 +447,8 @@ function glsl(filter)
 '   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
         for (var n=(256 << 2),t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++j)
         {
             t[i  ] = R[j];
@@ -456,6 +459,7 @@ function glsl(filter)
         GLSL.uploadTexture(gl, t, 256, 1, 1);
     },
     vars: function(gl, w, h, program) {
+        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
         gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
     }

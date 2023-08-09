@@ -11,7 +11,7 @@
 !function(FILTER, undef) {
 "use strict";
 
-var MAP, MODE = FILTER.MODE,
+var MAP, GLSLMAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
     stdMath = Math, floor = stdMath.floor, round = stdMath.round,
     sqrt = stdMath.sqrt, atan = stdMath.atan2,
@@ -21,7 +21,7 @@ var MAP, MODE = FILTER.MODE,
     clamp = FILTER.Util.Math.clamp,
     X = FILTER.POS.X, Y = FILTER.POS.Y,
     HAS = Object.prototype.hasOwnProperty,
-    toString = Function.prototype.toString;
+    GLSL = FILTER.Util.GLSL;
 
 // GeometricMapFilter
 FILTER.Create({
@@ -69,7 +69,7 @@ FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? (self._map.filter || self._map).toString() : null
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,color: self.color
             ,centerX: self.centerX
@@ -112,6 +112,19 @@ FILTER.Create({
         return self;
     }
 
+    ,twirl: function(angle, radius, centerX, centerY) {
+        var self = this;
+        self.angle = angle||0; self.radius = radius||0;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("twirl");
+    }
+
+    ,sphere: function(radius, centerX, centerY) {
+        var self = this;
+        self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("sphere");
+    }
+
     ,polar: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
@@ -124,19 +137,6 @@ FILTER.Create({
         self.centerX = centerX||0; self.centerY = centerY||0;
         self.posX = posX||0; self.posY = posY||0;
         return self.set("cartesian");
-    }
-
-    ,twirl: function(angle, radius, centerX, centerY) {
-        var self = this;
-        self.angle = angle||0; self.radius = radius||0;
-        self.centerX = centerX||0; self.centerY = centerY||0;
-        return self.set("twirl");
-    }
-
-    ,sphere: function(radius, centerX, centerY) {
-        var self = this;
-        self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
-        return self.set("sphere");
     }
 
     ,set: function(T, preample) {
@@ -176,6 +176,7 @@ FILTER.Create({
             self._apply = apply__(self._map, self._mapInit);
             self._mapChanged = true;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -185,7 +186,12 @@ FILTER.Create({
         self._map = null;
         self._mapInit = null;
         self._mapChanged = false;
+        self._glsl = null;
         return self;
+    }
+
+    ,_getGLSL: function() {
+        return glsl(this);
     }
 
     ,canRun: function() {
@@ -193,9 +199,115 @@ FILTER.Create({
     }
 });
 
+// private methods
+function glsl(filter)
+{
+    if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
+    if (HAS.call(GLSLMAP, filter._mapName))
+    {
+        return {instance: filter, shader: [
+            'precision highp float;',
+            'varying vec2 pix;',
+            'uniform sampler2D img;',
+            'const float TWOPI = 6.283185307179586;',
+            'const int IGNORE='+MODE.IGNORE+';',
+            'const int CLAMP='+MODE.CLAMP+';',
+            'const int COLOR='+MODE.COLOR+';',
+            'const int WRAP='+MODE.WRAP+';',
+            'uniform int mode;',
+            'uniform int swap;',
+            'uniform vec2 center;',
+            'uniform float angle;',
+            'uniform float radius;',
+            'uniform float radius2;',
+            'uniform float AMAX;',
+            'uniform float RMAX;',
+            'uniform vec4 color;',
+            'uniform int mapping;',
+            GLSLMAP['twirl'],
+            GLSLMAP['sphere'],
+            GLSLMAP['polar'],
+            GLSLMAP['cartesian'],
+            'void main(void) {',
+                'vec2 p = pix;',
+                'if (1 == mapping) p = twirl(pix, center, radius, angle);',
+                'else if (2 == mapping) p = sphere(pix, center, radius2);',
+                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, swap);',
+                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, swap);',
+                'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
+                    'if (COLOR == mode) {gl_FragColor = color;}',
+                    'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+                    'else if (WRAP == mode) {',
+                        'if (0.0 > p.x) p.x += 1.0;',
+                        'if (1.0 < p.x) p.x -= 1.0;',
+                        'if (0.0 > p.y) p.y += 1.0;',
+                        'if (1.0 < p.y) p.y -= 1.0;',
+                        'gl_FragColor = texture2D(img, p);',
+                    '}',
+                    'else {gl_FragColor = texture2D(img, pix);}',
+                '} else {',
+                    'gl_FragColor = texture2D(img, p);',
+                '}',
+            '}'
+            ].join('\n'),
+            vars: function(gl, w, h, program) {
+                var color = filter.color || 0,
+                    cx = filter.centerX,
+                    cy = filter.centerY,
+                    fx = (w-1)*(w-1), fy = (h-1)*(h-1),
+                    RMAX =  max(
+                        sqrt(fx*(cx - 0) * (cx - 0) + fy*(cy - 0) * (cy - 0)),
+                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 0) * (cy - 0)),
+                        sqrt(fy*(cx - 0) * (cx - 0) + fy*(cy - 1) * (cy - 1)),
+                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 1) * (cy - 1))
+                    );
+                gl.uniform4f(program.uniform.color,
+                    ((color >>> 16) & 255)/255,
+                    ((color >>> 8) & 255)/255,
+                    (color & 255)/255,
+                    ((color >>> 24) & 255)/255
+                );
+                gl.uniform2f(program.uniform.center,
+                    cx, cy
+                );
+                gl.uniform1f(program.uniform.angle,
+                    filter.angle
+                );
+                gl.uniform1f(program.uniform.radius,
+                    filter.radius/RMAX
+                );
+                gl.uniform1f(program.uniform.radius2,
+                    filter.radius/RMAX*filter.radius/RMAX
+                );
+                gl.uniform1f(program.uniform.AMAX,
+                    TWOPI
+                );
+                gl.uniform1f(program.uniform.RMAX,
+                    RMAX
+                );
+                gl.uniform1i(program.uniform.swap,
+                    filter.posX === Y ? 1 : 0
+                );
+                gl.uniform1i(program.uniform.mapping,
+                    'twirl' === filter._mapName ? 1 : (
+                    'sphere' === filter._mapName ? 2 : (
+                    'polar' === filter._mapName ? 3 : (
+                    'cartesian' === filter._mapName ? 4 : 0
+                    )
+                    )
+                    )
+                );
+            }
+        };
+    }
+    else
+    {
+        return {instance: filter, shader: filter._map.shader, vars: filter._map.vars, textures: filter._map.textures};
+    }
+}
 function apply__(map, preample)
 {
-    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map.filter || map);
         //"use asm";
     return new Function("FILTER", "\"use strict\"; return function(im, w, h) {\
     var self = this;\
@@ -488,6 +600,69 @@ MAP = {
             R = self.radius, R2 = R*R,\
             D, TX, TY, TX2, TY2, R2, D2, thetax, thetay;\
     }"
+};
+
+GLSLMAP = {
+     "twirl": [
+     'vec2 twirl(vec2 pix, vec2 center, float R, float angle) {',
+        'vec2 T = pix - center;',
+        'float D = sqrt(T.x*T.x + T.y*T.y);',
+        'if (D < R) {',
+            'float theta = atan(T.y, T.x) + (R-D)*angle/R;',
+            'pix = center + vec2(D*cos(theta),  D*sin(theta));',
+        '}',
+        'return pix;',
+    '}'
+    ].join('\n')
+    ,"sphere": [
+    'vec2 sphere(vec2 pix, vec2 center, float R2) {',
+        'vec2 T = pix - center;',
+        'float TX2 = T.x*T.x; float TY2 = T.y*T.y;',
+        'float D2 = TX2 + TY2;',
+        'if (D2 < R2) {',
+            'D2 = R2 - D2;',
+            'float D = sqrt(D2);',
+            'float thetax = asin(T.x / sqrt(TX2 + D2)) * (1.0-0.555556);',
+            'float thetay = asin(T.y / sqrt(TY2 + D2)) * (1.0-0.555556);',
+            'pix = pix - vec2(D * tan(thetax), D * tan(thetay));',
+        '}',
+        'return pix;',
+    '}'
+    ].join('\n')
+    ,"polar": [
+    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+        'float r = 0.0;',
+        'float a = 0.0;',
+        'if (1 == swap) {',
+            'r = rMax*pix.y;',
+            'a = aMax*pix.x;',
+            'return center + vec2(r*sin(a), r*cos(a));',
+        '} else {',
+            'r = rMax*pix.x;',
+            'a = aMax*pix.y;',
+            'return center + vec2(r*cos(a), r*sin(a));',
+        '}',
+    '}'
+    ].join('\n')
+    ,"cartesian": [
+    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+        'vec2 xy = pix - center;',
+        'float r = 0.0;',
+        'float a = 0.0;',
+        'if (1 == swap) {',
+            'xy = xy.yx;',
+            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'a = atan(xy.y, xy.x);',
+            'if (0.0 > a) a += TWOPI;',
+            'return vec2(a/aMax, r/rMax);',
+        '} else {',
+            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'a = atan(xy.y, xy.x);',
+            'if (0.0 > a) a += TWOPI;',
+            'return vec2(r/rMax, a/aMax);',
+        '}',
+    '}'
+    ].join('\n')
 };
 
 }(FILTER);

@@ -187,6 +187,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // filters can have id's
     ,_isOn: true
     ,_isGLSL: false
+    ,_glsl: null
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -211,6 +212,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.hasInputs = null;
         self.meta = null;
         self.hasMeta = null;
+        self._glsl = null;
         self.$super('dispose');
         return self;
     }
@@ -236,11 +238,16 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         key = String(key);
         if (null === inputImage)
         {
-            if (self.inputs[key]) delete self.inputs[key];
+            if (self.inputs[key])
+            {
+                delete self.inputs[key];
+                self._glsl = null;
+            }
         }
         else
         {
             self.inputs[key] = [null, inputImage, inputImage.nref];
+            self._glsl = null;
         }
         return self;
     }
@@ -248,7 +255,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,unsetInput: function(key) {
         var self = this;
         key = String(key);
-        if (self.inputs[key]) delete self.inputs[key];
+        if (self.inputs[key])
+        {
+            delete self.inputs[key];
+            self._glsl = null;
+        }
         return self;
     }
     ,delInput: null
@@ -413,6 +424,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // get GLSL code and variables, override
     ,getGLSL: function() {
+        var self = this;
+        if (null == self._glsl) self._glsl = self._getGLSL();
+        return self._glsl;
+    }
+    ,_getGLSL: function() {
         return {instance: this};
     }
 
@@ -505,8 +521,16 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
-                        im2 = GLSL.run(dst, glsl, src.getSelectedData(), {src:src, dst:dst});
-                        if (im2) dst.setSelectedData(im2);
+                        im2 = GLSL.run(dst, glsl, im, w, h, {src:src, dst:dst});
+                        if (self._update)
+                        {
+                            if (self.hasMeta && (
+                                (null != self.meta._IMG_WIDTH && w !== self.meta._IMG_WIDTH)
+                             || (null != self.meta._IMG_HEIGHT && h !== self.meta._IMG_HEIGHT)
+                            ))
+                                dst.dimensions(self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT);
+                            if (im2) dst.setSelectedData(im2);
+                        }
                     }
                 }
                 if (cb) cb.call(self);

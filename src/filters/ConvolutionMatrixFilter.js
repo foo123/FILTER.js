@@ -334,6 +334,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             self.dim2 = d2;
         }
 
+        self._glsl = null;
         return self;
     }
 
@@ -344,10 +345,11 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._mat = self._mat2 = null;
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 

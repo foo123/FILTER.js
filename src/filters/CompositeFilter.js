@@ -124,6 +124,7 @@ var CompositeFilter = FILTER.Create({
     // manipulate the filter chain, methods
     ,set: function(filters) {
         if (filters && filters.length) this.filters = filters;
+        this._glsl = null;
         return this;
     }
 
@@ -132,6 +133,7 @@ var CompositeFilter = FILTER.Create({
         {
             if (this.filters.length > i) this.filters[i] = filter;
             else this.filters.push(filter);
+            this._glsl = null;
             return this;
         }
         else
@@ -143,20 +145,24 @@ var CompositeFilter = FILTER.Create({
 
     ,push: function(/* variable args here.. */) {
         if (arguments.length) concat.apply(this.filters, arguments);
+        this._glsl = null;
         return this;
     }
     ,concat: null
 
     ,pop: function() {
+        this._glsl = null;
         return this.filters.pop();
     }
 
     ,shift: function() {
+        this._glsl = null;
         return this.filters.shift();
     }
 
     ,unshift: function(/* variable args here.. */) {
         if (arguments.length) splice.apply(this.filters, concat.apply([0, 0], arguments));
+        this._glsl = null;
         return this;
     }
 
@@ -166,11 +172,13 @@ var CompositeFilter = FILTER.Create({
         {
             args.shift();
             splice.apply(this.filters, [i, 0].concat(args));
+            this._glsl = null;
         }
         return this;
     }
 
     ,removeAt: function(i) {
+        this._glsl = null;
         return this.filters.splice(i, 1);
     }
 
@@ -181,11 +189,13 @@ var CompositeFilter = FILTER.Create({
             if (filter === this.filters[i])
                 this.filters.splice(i, 1);
         }
+        this._glsl = null;
         return this;
     }
 
     ,reset: function() {
         this.filters.length = 0;
+        this._glsl = null;
         return this;
     }
     ,empty: null

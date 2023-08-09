@@ -52,6 +52,7 @@ FILTER.Create({
             //self.resetInputs();
             self.matrix = matrix;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -61,7 +62,7 @@ FILTER.Create({
         {
             if (!matrix) matrix = self.matrix = ["normal", 0, 0, 1];
             index = (inputIndex-1)*4;
-            if (undef !== values.mode)    matrix[index  ] =  values.mode||"normal";
+            if (null != values.mode)      matrix[index  ] =  values.mode||"normal";
             if (null != values.startX)    matrix[index+1] = +values.startX;
             if (null != values.startY)    matrix[index+2] = +values.startY;
             if (null != values.enabled)   matrix[index+3] = !!values.enabled;
@@ -73,6 +74,7 @@ FILTER.Create({
         var self = this;
         self.matrix = null;
         self.resetInputs();
+        self._glsl = null;
         return self;
     }
 

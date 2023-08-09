@@ -113,15 +113,17 @@ var AffineMatrixFilter = FILTER.Create({
     ,set: function(matrix) {
         var self = this;
         self.matrix = self.matrix ? am_multiply(self.matrix, matrix) : new AM(matrix);
+        self._glsl = null;
         return self;
     }
 
     ,reset: function() {
         this.matrix = null;
+        this._glsl = null;
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -261,6 +263,7 @@ function glsl(filter)
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {
+        var m = filter.matrix, color = filter.color || 0;
         var am = [
         m[0], m[1], m[2]/w+m[3],
         m[4], m[5], m[6]/h+m[7]

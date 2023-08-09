@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-08 21:21:02
+*   @built on 2023-08-09 12:44:44
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-08 21:21:02
+*   @built on 2023-08-09 12:44:44
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3129,57 +3129,11 @@ GLSLProgram[proto] = {
     vertexSource: null,
     fragmentSource: null
 };
-function use(gl, program, filter, w, h, pBuf, vBuf)
+function getProgram(gl, filter, programCache)
 {
-    if (!program.id) return;
-    gl.useProgram(program.id);
-    setupVars(gl, program, filter, w, h, pBuf, vBuf);
-};
-function setupVars(gl, program, filter, w, h, pBuf, vBuf)
-{
-    if (!program.id) return;
-
-    if ('pos' in program.attribute)
-    {
-        gl.enableVertexAttribArray(program.attribute.pos);
-        gl.bindBuffer(gl.ARRAY_BUFFER, pBuf);
-        gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
-    }
-    if ('uv' in program.attribute)
-    {
-        gl.enableVertexAttribArray(program.attribute.uv);
-        gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
-        gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
-    }
-    if (filter.textures) filter.textures(gl, w, h, program);
-    if ('resolution' in program.uniform)
-    {
-        gl.uniform2f(program.uniform.resolution, w, h);
-    }
-    if ('dp' in program.uniform)
-    {
-        gl.uniform2f(program.uniform.dp, 1/w, 1/h);
-    }
-    if (filter.instance && ('mode' in program.uniform))
-    {
-        gl.uniform1i(program.uniform.mode, filter.instance.mode);
-    }
-    if (filter.vars) filter.vars(gl, w, h, program);
-}
-function getProgram(gl, filter, w, h, programCache, pBuf, vBuf)
-{
-    var shader = filter.shader, program;
-
-    if (!shader) return null;
-    shader = trim(shader);
-    program = programCache[shader];
-    if (!program)
-    {
-        // new program
-        program = programCache[shader] = new GLSLProgram(shader, gl);
-    }
-    // if valid, use it
-    if (program.id) use(gl, program, filter, w, h, pBuf, vBuf);
+    var shader = trim(filter.shader), program = programCache[shader];
+    // new program
+    if (!program) program = programCache[shader] = new GLSLProgram(shader, gl);
     return program;
 }
 function createTexture(gl, width, height)
@@ -3233,6 +3187,21 @@ function deleteFramebufferTexture(gl, buf)
     {
         deleteFramebuffer(gl, buf.fbo)
         deleteTexture(gl, buf.tex);
+        buf = null;
+    }
+}
+function createBuffer(gl, data)
+{
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data || null, gl.STATIC_DRAW);
+    return buf;
+}
+function deleteBuffer(gl, buf)
+{
+    if (buf)
+    {
+        gl.deleteBuffer(buf);
         buf = null;
     }
 }
@@ -3297,7 +3266,7 @@ function prepareGL(img)
         // if set needs opposite scaleY eg. in displacemap filter
         //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
-        if (!img.glVex)
+        /*if (!img.glVex)
         {
 			img.glPos = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, img.glPos);
@@ -3327,8 +3296,9 @@ function prepareGL(img)
         }
         gl.viewport(0, 0, img.glCanvas.width, img.glCanvas.height);
         // clear canvas
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        //gl.clearColor(0, 0, 0, 0);
+        //gl.clear(gl.COLOR_BUFFER_BIT);
+        */
         return gl;
     }
 }
@@ -3402,24 +3372,44 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
         flip = false;
     }
 }
-GLSL.run = function(img, glsls, data, metaData) {
+GLSL.run = function(img, glsls, im, w, h, metaData) {
     var gl = prepareGL(img), input, output,
-        i, n = glsls.length, glsl, prev = [null, null],
-        src, dst, buf0, buf1, buf = [null, null],
-        program, im, w, h, cache, im0, t, canRun,
-        first = -1, last = -1,
-        fromshader = false, flipY = false, iter = 0;
+        i, n = glsls.length, glsl,
+        pos, uv, src, dst, prev = [null, null],
+        buf0, buf1, buf = [null, null],
+        program, cache, im0, t, canRun,
+        first = -1, last = -1, fromshader = false, flipY = false;
     if (!gl) return;
-    im = data[0];
-    w = data[1];
-    h = data[2];
-    cache = img.cache;
-    input = uploadTexture(gl, im, w, h, 0);
-    output = createFramebufferTexture(gl, w, h);
     for (i=0; i<n; ++i)
     {
         if (glsls[i].shader && 0 > first) first = i;
         if (glsls[n-1-i].shader && 0 > last) last = n-1-i;
+        if (0 <= first && 0 <= last) break;
+    }
+    cache = img.cache;
+    pos = createBuffer(gl, new FILTER.Array32F([
+        0, 0,
+        w, 0,
+        0, h,
+        0, h,
+        w, 0,
+        w, h
+    ]));
+    uv = createBuffer(gl, new FILTER.Array32F([
+        0, 0,
+        1, 0,
+        0, 1,
+        0, 1,
+        1, 0,
+        1, 1
+    ]));
+    gl.viewport(0, 0, w, h);
+    input = uploadTexture(gl, im, w, h, 0);
+    output = createFramebufferTexture(gl, w, h);
+    if (last > first)
+    {
+        buf0 = createFramebufferTexture(gl, w, h);
+        buf1 = createFramebufferTexture(gl, w, h);
     }
     for (i=0; i<n; ++i)
     {
@@ -3427,33 +3417,56 @@ GLSL.run = function(img, glsls, data, metaData) {
         glsl = glsls[i];
         if (glsl.shader)
         {
-            program = getProgram(gl, glsl, w, h, cache, img.glPos, img.glVex);
-            if (program) canRun = true;
+            program = getProgram(gl, glsl, cache);
+            if (program && program.id) canRun = true;
         }
         if (canRun)
         {
-            //iter += (glsl.iterations || 1);
+            gl.useProgram(program.id);
+            if ('pos' in program.attribute)
+            {
+                gl.enableVertexAttribArray(program.attribute.pos);
+                gl.bindBuffer(gl.ARRAY_BUFFER, pos);
+                gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
+            }
+            if ('uv' in program.attribute)
+            {
+                gl.enableVertexAttribArray(program.attribute.uv);
+                gl.bindBuffer(gl.ARRAY_BUFFER, uv);
+                gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
+            }
+            if ('resolution' in program.uniform)
+            {
+                gl.uniform2f(program.uniform.resolution, w, h);
+            }
+            if ('dp' in program.uniform)
+            {
+                gl.uniform2f(program.uniform.dp, 1/w, 1/h);
+            }
+            if (glsl.instance && ('mode' in program.uniform))
+            {
+                gl.uniform1i(program.uniform.mode, glsl.instance.mode);
+            }
+            if (glsl.vars) glsl.vars(gl, w, h, program);
+            if (glsl.textures) glsl.textures(gl, w, h, program);
             if (i === first)
             {
                 src = {fbo: input, tex: input};
             }
             else
             {
-                buf0 = buf0 || createFramebufferTexture(gl, w, h);
                 src = buf0;
             }
             if (i === last)
             {
                 dst = output;
-                //flipY = !(iter & 1);
             }
             else
             {
-                buf1 = buf1 || createFramebufferTexture(gl, w, h);
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, flipY);
+            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, false);
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             // store previous frames
@@ -3461,19 +3474,20 @@ GLSL.run = function(img, glsls, data, metaData) {
             prev[1] = prev[0];
             prev[0] = copyTexture(gl, w, h);
             fromshader = true;
-            //flipY = false;
         }
-        else if (glsl.instance && glsl.instance._apply)
+        else if (glsl.instance && (glsl._apply || glsl.instance._apply))
         {
             // no glsl program, run js code instead
             im0 = fromshader ? getPixels(gl, w, h) : im;
-            im = glsl.instance._apply(im0, w, h, metaData);
+            if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
+            else im = glsl.instance._apply(im0, w, h, metaData);
             fromshader = false;
-            //iter = 0;
         }
     }
     if (fromshader) getPixels(gl, w, h, im);
     // clean up
+    deleteBuffer(gl, pos);
+    deleteBuffer(gl, uv);
     deleteTexture(gl, input);
     deleteFramebufferTexture(gl, output);
     deleteTexture(gl, prev[1]);
@@ -3482,6 +3496,14 @@ GLSL.run = function(img, glsls, data, metaData) {
     deleteFramebufferTexture(gl, buf[1]);
     deleteFramebufferTexture(gl, buf0);
     deleteFramebufferTexture(gl, buf1);
+    pos = null;
+    uv = null;
+    input = null;
+    output = null;
+    prev = null;
+    buf = null;
+    buf0 = null;
+    buf1 = null;
     return im;
 };
 GLSL.uploadTexture = uploadTexture;
@@ -3685,6 +3707,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // filters can have id's
     ,_isOn: true
     ,_isGLSL: false
+    ,_glsl: null
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -3709,6 +3732,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.hasInputs = null;
         self.meta = null;
         self.hasMeta = null;
+        self._glsl = null;
         self.$super('dispose');
         return self;
     }
@@ -3734,11 +3758,16 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         key = String(key);
         if (null === inputImage)
         {
-            if (self.inputs[key]) delete self.inputs[key];
+            if (self.inputs[key])
+            {
+                delete self.inputs[key];
+                self._glsl = null;
+            }
         }
         else
         {
             self.inputs[key] = [null, inputImage, inputImage.nref];
+            self._glsl = null;
         }
         return self;
     }
@@ -3746,7 +3775,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,unsetInput: function(key) {
         var self = this;
         key = String(key);
-        if (self.inputs[key]) delete self.inputs[key];
+        if (self.inputs[key])
+        {
+            delete self.inputs[key];
+            self._glsl = null;
+        }
         return self;
     }
     ,delInput: null
@@ -3911,6 +3944,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
 
     // get GLSL code and variables, override
     ,getGLSL: function() {
+        var self = this;
+        if (null == self._glsl) self._glsl = self._getGLSL();
+        return self._glsl;
+    }
+    ,_getGLSL: function() {
         return {instance: this};
     }
 
@@ -4003,8 +4041,16 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
-                        im2 = GLSL.run(dst, glsl, src.getSelectedData(), {src:src, dst:dst});
-                        if (im2) dst.setSelectedData(im2);
+                        im2 = GLSL.run(dst, glsl, im, w, h, {src:src, dst:dst});
+                        if (self._update)
+                        {
+                            if (self.hasMeta && (
+                                (null != self.meta._IMG_WIDTH && w !== self.meta._IMG_WIDTH)
+                             || (null != self.meta._IMG_HEIGHT && h !== self.meta._IMG_HEIGHT)
+                            ))
+                                dst.dimensions(self.meta._IMG_WIDTH, self.meta._IMG_HEIGHT);
+                            if (im2) dst.setSelectedData(im2);
+                        }
                     }
                 }
                 if (cb) cb.call(self);
@@ -5342,8 +5388,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,iDataSel: null
     ,oData: null
     ,oDataSel: null
-    ,glPos: null
-    ,glVex: null
     ,domElement: null
     ,_restorable: true
     ,_refresh: 0
@@ -5360,7 +5404,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._restorable = null;
         self._refresh = self.nref = null;
         self.cache = null;
-        self.glPos = self.glVex = null;
         return self;
     }
 
@@ -6119,6 +6162,7 @@ var CompositeFilter = FILTER.Create({
     // manipulate the filter chain, methods
     ,set: function(filters) {
         if (filters && filters.length) this.filters = filters;
+        this._glsl = null;
         return this;
     }
 
@@ -6127,6 +6171,7 @@ var CompositeFilter = FILTER.Create({
         {
             if (this.filters.length > i) this.filters[i] = filter;
             else this.filters.push(filter);
+            this._glsl = null;
             return this;
         }
         else
@@ -6138,20 +6183,24 @@ var CompositeFilter = FILTER.Create({
 
     ,push: function(/* variable args here.. */) {
         if (arguments.length) concat.apply(this.filters, arguments);
+        this._glsl = null;
         return this;
     }
     ,concat: null
 
     ,pop: function() {
+        this._glsl = null;
         return this.filters.pop();
     }
 
     ,shift: function() {
+        this._glsl = null;
         return this.filters.shift();
     }
 
     ,unshift: function(/* variable args here.. */) {
         if (arguments.length) splice.apply(this.filters, concat.apply([0, 0], arguments));
+        this._glsl = null;
         return this;
     }
 
@@ -6161,11 +6210,13 @@ var CompositeFilter = FILTER.Create({
         {
             args.shift();
             splice.apply(this.filters, [i, 0].concat(args));
+            this._glsl = null;
         }
         return this;
     }
 
     ,removeAt: function(i) {
+        this._glsl = null;
         return this.filters.splice(i, 1);
     }
 
@@ -6176,11 +6227,13 @@ var CompositeFilter = FILTER.Create({
             if (filter === this.filters[i])
                 this.filters.splice(i, 1);
         }
+        this._glsl = null;
         return this;
     }
 
     ,reset: function() {
         this.filters.length = 0;
+        this._glsl = null;
         return this;
     }
     ,empty: null
@@ -6325,6 +6378,7 @@ FILTER.Create({
             //self.resetInputs();
             self.matrix = matrix;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -6334,7 +6388,7 @@ FILTER.Create({
         {
             if (!matrix) matrix = self.matrix = ["normal", 0, 0, 1];
             index = (inputIndex-1)*4;
-            if (undef !== values.mode)    matrix[index  ] =  values.mode||"normal";
+            if (null != values.mode)      matrix[index  ] =  values.mode||"normal";
             if (null != values.startX)    matrix[index+1] = +values.startX;
             if (null != values.startY)    matrix[index+2] = +values.startY;
             if (null != values.enabled)   matrix[index+3] = !!values.enabled;
@@ -6346,6 +6400,7 @@ FILTER.Create({
         var self = this;
         self.matrix = null;
         self.resetInputs();
+        self._glsl = null;
         return self;
     }
 
@@ -6976,15 +7031,17 @@ var ColorTableFilter = FILTER.Create({
             T[CHANNEL.G] = T[CHANNEL.R];
             T[CHANNEL.B] = T[CHANNEL.R];
         }
+        this._glsl = null;
         return this;
     }
 
     ,reset: function() {
         this.table = [null, null, null, null];
+        this._glsl = null;
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -7095,7 +7152,8 @@ function glsl(filter)
 '   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
         for (var n=(256 << 2),t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++j)
         {
             t[i  ] = R[j];
@@ -7106,6 +7164,7 @@ function glsl(filter)
         GLSL.uploadTexture(gl, t, 256, 1, 1);
     },
     vars: function(gl, w, h, program) {
+        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
         gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
     }
@@ -7601,15 +7660,17 @@ var ColorMatrixFilter = FILTER.Create({
     ,set: function(matrix) {
         var self = this;
         self.matrix = self.matrix ? cm_multiply(self.matrix, matrix) : new CM(matrix);
+        self._glsl = null;
         return self;
     }
 
     ,reset: function() {
         this.matrix = null;
+        this._glsl = null;
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -7835,22 +7896,21 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 // private
 function glsl(filter)
 {
-    var m = filter.matrix;
-    return {instance: filter, shader: m ? [
+    return {instance: filter, shader: filter.matrix ? [
 'precision highp float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform float cm[20];',
 'void main(void) {',
 '   vec4 col = texture2D(img, pix);',
-'   gl_FragColor.r = cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ];',
-'   gl_FragColor.g = cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ];',
-'   gl_FragColor.b = cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14];',
-'   gl_FragColor.a = cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19];',
+'   gl_FragColor.r = clamp(cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ],0.0,1.0);',
+'   gl_FragColor.g = clamp(cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ],0.0,1.0);',
+'   gl_FragColor.b = clamp(cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14],0.0,1.0);',
+'   gl_FragColor.a = clamp(cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19],0.0,1.0);',
 '}'
 ].join('\n') : GLSL.DEFAULT,
-    vars: m ? function(gl, w, h, program) {
-        var cm = new FILTER.Array32F([
+    vars: filter.matrix ? function(gl, w, h, program) {
+        var m = filter.matrix, cm = new FILTER.Array32F([
         m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
         m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
         m[10], m[11], m[12], m[13], m[14]/255,
@@ -7873,7 +7933,7 @@ function glsl(filter)
 "use strict";
 
 var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty, toString = Function.prototype.toString;
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty;
 
 // ColorMapFilter
 var ColorMapFilter = FILTER.Create({
@@ -7911,7 +7971,7 @@ var ColorMapFilter = FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? (self._map.filter || self._map).toString() : null
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,thresholds: self.thresholds
             ,quantizedColors: self.quantizedColors
@@ -8023,6 +8083,7 @@ var ColorMapFilter = FILTER.Create({
             self._apply = apply__(self._map, self._mapInit);
             self._mapChanged = true;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -8032,6 +8093,7 @@ var ColorMapFilter = FILTER.Create({
         self._map = null;
         self._mapInit = null;
         self._mapChanged = false;
+        self._glsl = null;
         return self;
     }
 
@@ -8048,7 +8110,7 @@ ColorMapFilter.prototype.extract = ColorMapFilter.prototype.mask;
 
 function apply__(map, preample)
 {
-    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map),
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map.filter || map),
         __CLAMP__ = notSupportClamp ? "c[0] = 0>c[0] ? 0 : (255<c[0] ? 255: c[0]); c[1] = 0>c[1] ? 0 : (255<c[1] ? 255: c[1]); c[2] = 0>c[2] ? 0 : (255<c[2] ? 255: c[2]); c[3] = 0>c[3] ? 0 : (255<c[3] ? 255: c[3]);" : '';
         //"use asm";
     return (new Function("FILTER", "\"use strict\"; return function(im, w, h){\
@@ -8396,15 +8458,17 @@ var AffineMatrixFilter = FILTER.Create({
     ,set: function(matrix) {
         var self = this;
         self.matrix = self.matrix ? am_multiply(self.matrix, matrix) : new AM(matrix);
+        self._glsl = null;
         return self;
     }
 
     ,reset: function() {
         this.matrix = null;
+        this._glsl = null;
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -8544,6 +8608,7 @@ function glsl(filter)
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {
+        var m = filter.matrix, color = filter.color || 0;
         var am = [
         m[0], m[1], m[2]/w+m[3],
         m[4], m[5], m[6]/h+m[7]
@@ -8640,7 +8705,7 @@ FILTER.Create({
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -8887,13 +8952,15 @@ function glsl(filter)
 '   }',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var displaceMap = filter.input("map");
         GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
     },
     vars: function(gl, w, h, program) {
+        var displaceMap = filter.input("map");
         gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-1.4**/filter.scaleY/255);
+        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.4*filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,
@@ -8919,7 +8986,7 @@ function glsl(filter)
 !function(FILTER, undef) {
 "use strict";
 
-var MAP, MODE = FILTER.MODE,
+var MAP, GLSLMAP, MODE = FILTER.MODE,
     function_body = FILTER.Util.String.function_body,
     stdMath = Math, floor = stdMath.floor, round = stdMath.round,
     sqrt = stdMath.sqrt, atan = stdMath.atan2,
@@ -8929,7 +8996,7 @@ var MAP, MODE = FILTER.MODE,
     clamp = FILTER.Util.Math.clamp,
     X = FILTER.POS.X, Y = FILTER.POS.Y,
     HAS = Object.prototype.hasOwnProperty,
-    toString = Function.prototype.toString;
+    GLSL = FILTER.Util.GLSL;
 
 // GeometricMapFilter
 FILTER.Create({
@@ -8977,7 +9044,7 @@ FILTER.Create({
         var self = this, json;
         json = {
             _mapName: self._mapName || null
-            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? self._map.toString() : null
+            ,_map: ("generic" === self._mapName) && self._map && self._mapChanged ? (self._map.filter || self._map).toString() : null
             ,_mapInit: ("generic" === self._mapName) && self._mapInit && self._mapChanged ? self._mapInit.toString() : null
             ,color: self.color
             ,centerX: self.centerX
@@ -9020,6 +9087,19 @@ FILTER.Create({
         return self;
     }
 
+    ,twirl: function(angle, radius, centerX, centerY) {
+        var self = this;
+        self.angle = angle||0; self.radius = radius||0;
+        self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("twirl");
+    }
+
+    ,sphere: function(radius, centerX, centerY) {
+        var self = this;
+        self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
+        return self.set("sphere");
+    }
+
     ,polar: function(centerX, centerY, posX, posY) {
         var self = this;
         self.centerX = centerX||0; self.centerY = centerY||0;
@@ -9032,19 +9112,6 @@ FILTER.Create({
         self.centerX = centerX||0; self.centerY = centerY||0;
         self.posX = posX||0; self.posY = posY||0;
         return self.set("cartesian");
-    }
-
-    ,twirl: function(angle, radius, centerX, centerY) {
-        var self = this;
-        self.angle = angle||0; self.radius = radius||0;
-        self.centerX = centerX||0; self.centerY = centerY||0;
-        return self.set("twirl");
-    }
-
-    ,sphere: function(radius, centerX, centerY) {
-        var self = this;
-        self.radius = radius||0; self.centerX = centerX||0; self.centerY = centerY||0;
-        return self.set("sphere");
     }
 
     ,set: function(T, preample) {
@@ -9084,6 +9151,7 @@ FILTER.Create({
             self._apply = apply__(self._map, self._mapInit);
             self._mapChanged = true;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -9093,7 +9161,12 @@ FILTER.Create({
         self._map = null;
         self._mapInit = null;
         self._mapChanged = false;
+        self._glsl = null;
         return self;
+    }
+
+    ,_getGLSL: function() {
+        return glsl(this);
     }
 
     ,canRun: function() {
@@ -9101,9 +9174,115 @@ FILTER.Create({
     }
 });
 
+// private methods
+function glsl(filter)
+{
+    if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
+    if (HAS.call(GLSLMAP, filter._mapName))
+    {
+        return {instance: filter, shader: [
+            'precision highp float;',
+            'varying vec2 pix;',
+            'uniform sampler2D img;',
+            'const float TWOPI = 6.283185307179586;',
+            'const int IGNORE='+MODE.IGNORE+';',
+            'const int CLAMP='+MODE.CLAMP+';',
+            'const int COLOR='+MODE.COLOR+';',
+            'const int WRAP='+MODE.WRAP+';',
+            'uniform int mode;',
+            'uniform int swap;',
+            'uniform vec2 center;',
+            'uniform float angle;',
+            'uniform float radius;',
+            'uniform float radius2;',
+            'uniform float AMAX;',
+            'uniform float RMAX;',
+            'uniform vec4 color;',
+            'uniform int mapping;',
+            GLSLMAP['twirl'],
+            GLSLMAP['sphere'],
+            GLSLMAP['polar'],
+            GLSLMAP['cartesian'],
+            'void main(void) {',
+                'vec2 p = pix;',
+                'if (1 == mapping) p = twirl(pix, center, radius, angle);',
+                'else if (2 == mapping) p = sphere(pix, center, radius2);',
+                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, swap);',
+                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, swap);',
+                'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
+                    'if (COLOR == mode) {gl_FragColor = color;}',
+                    'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+                    'else if (WRAP == mode) {',
+                        'if (0.0 > p.x) p.x += 1.0;',
+                        'if (1.0 < p.x) p.x -= 1.0;',
+                        'if (0.0 > p.y) p.y += 1.0;',
+                        'if (1.0 < p.y) p.y -= 1.0;',
+                        'gl_FragColor = texture2D(img, p);',
+                    '}',
+                    'else {gl_FragColor = texture2D(img, pix);}',
+                '} else {',
+                    'gl_FragColor = texture2D(img, p);',
+                '}',
+            '}'
+            ].join('\n'),
+            vars: function(gl, w, h, program) {
+                var color = filter.color || 0,
+                    cx = filter.centerX,
+                    cy = filter.centerY,
+                    fx = (w-1)*(w-1), fy = (h-1)*(h-1),
+                    RMAX =  max(
+                        sqrt(fx*(cx - 0) * (cx - 0) + fy*(cy - 0) * (cy - 0)),
+                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 0) * (cy - 0)),
+                        sqrt(fy*(cx - 0) * (cx - 0) + fy*(cy - 1) * (cy - 1)),
+                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 1) * (cy - 1))
+                    );
+                gl.uniform4f(program.uniform.color,
+                    ((color >>> 16) & 255)/255,
+                    ((color >>> 8) & 255)/255,
+                    (color & 255)/255,
+                    ((color >>> 24) & 255)/255
+                );
+                gl.uniform2f(program.uniform.center,
+                    cx, cy
+                );
+                gl.uniform1f(program.uniform.angle,
+                    filter.angle
+                );
+                gl.uniform1f(program.uniform.radius,
+                    filter.radius/RMAX
+                );
+                gl.uniform1f(program.uniform.radius2,
+                    filter.radius/RMAX*filter.radius/RMAX
+                );
+                gl.uniform1f(program.uniform.AMAX,
+                    TWOPI
+                );
+                gl.uniform1f(program.uniform.RMAX,
+                    RMAX
+                );
+                gl.uniform1i(program.uniform.swap,
+                    filter.posX === Y ? 1 : 0
+                );
+                gl.uniform1i(program.uniform.mapping,
+                    'twirl' === filter._mapName ? 1 : (
+                    'sphere' === filter._mapName ? 2 : (
+                    'polar' === filter._mapName ? 3 : (
+                    'cartesian' === filter._mapName ? 4 : 0
+                    )
+                    )
+                    )
+                );
+            }
+        };
+    }
+    else
+    {
+        return {instance: filter, shader: filter._map.shader, vars: filter._map.vars, textures: filter._map.textures};
+    }
+}
 function apply__(map, preample)
 {
-    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map);
+    var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map.filter || map);
         //"use asm";
     return new Function("FILTER", "\"use strict\"; return function(im, w, h) {\
     var self = this;\
@@ -9396,6 +9575,69 @@ MAP = {
             R = self.radius, R2 = R*R,\
             D, TX, TY, TX2, TY2, R2, D2, thetax, thetay;\
     }"
+};
+
+GLSLMAP = {
+     "twirl": [
+     'vec2 twirl(vec2 pix, vec2 center, float R, float angle) {',
+        'vec2 T = pix - center;',
+        'float D = sqrt(T.x*T.x + T.y*T.y);',
+        'if (D < R) {',
+            'float theta = atan(T.y, T.x) + (R-D)*angle/R;',
+            'pix = center + vec2(D*cos(theta),  D*sin(theta));',
+        '}',
+        'return pix;',
+    '}'
+    ].join('\n')
+    ,"sphere": [
+    'vec2 sphere(vec2 pix, vec2 center, float R2) {',
+        'vec2 T = pix - center;',
+        'float TX2 = T.x*T.x; float TY2 = T.y*T.y;',
+        'float D2 = TX2 + TY2;',
+        'if (D2 < R2) {',
+            'D2 = R2 - D2;',
+            'float D = sqrt(D2);',
+            'float thetax = asin(T.x / sqrt(TX2 + D2)) * (1.0-0.555556);',
+            'float thetay = asin(T.y / sqrt(TY2 + D2)) * (1.0-0.555556);',
+            'pix = pix - vec2(D * tan(thetax), D * tan(thetay));',
+        '}',
+        'return pix;',
+    '}'
+    ].join('\n')
+    ,"polar": [
+    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+        'float r = 0.0;',
+        'float a = 0.0;',
+        'if (1 == swap) {',
+            'r = rMax*pix.y;',
+            'a = aMax*pix.x;',
+            'return center + vec2(r*sin(a), r*cos(a));',
+        '} else {',
+            'r = rMax*pix.x;',
+            'a = aMax*pix.y;',
+            'return center + vec2(r*cos(a), r*sin(a));',
+        '}',
+    '}'
+    ].join('\n')
+    ,"cartesian": [
+    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+        'vec2 xy = pix - center;',
+        'float r = 0.0;',
+        'float a = 0.0;',
+        'if (1 == swap) {',
+            'xy = xy.yx;',
+            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'a = atan(xy.y, xy.x);',
+            'if (0.0 > a) a += TWOPI;',
+            'return vec2(a/aMax, r/rMax);',
+        '} else {',
+            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'a = atan(xy.y, xy.x);',
+            'if (0.0 > a) a += TWOPI;',
+            'return vec2(r/rMax, a/aMax);',
+        '}',
+    '}'
+    ].join('\n')
 };
 
 }(FILTER);/**
@@ -9734,6 +9976,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             self.dim2 = d2;
         }
 
+        self._glsl = null;
         return self;
     }
 
@@ -9744,10 +9987,11 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._mat = self._mat2 = null;
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -10466,6 +10710,7 @@ FILTER.Create({
             }
             self._indices2 = new A32I(indices);
         }
+        self._glsl = null;
         return self;
     }
 
@@ -10480,10 +10725,11 @@ FILTER.Create({
         self._indices = null;
         self._structureElement2 = null;
         self._indices2 = null;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -10964,6 +11210,7 @@ var StatisticalFilter = FILTER.Create({
             indices[i  ] = x-dHalf; indices[i+1] = y-dHalf;
         }
         self._indices = indices;
+        self._glsl = null;
         return self;
     }
 
@@ -10973,10 +11220,11 @@ var StatisticalFilter = FILTER.Create({
         self.k = 0;
         self._filter = null;
         self._indices = null;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -11236,7 +11484,7 @@ function _siftup(heap, pos, numitems)
 !function(FILTER, undef) {
 "use strict";
 
-var HAS = Object.prototype.hasOwnProperty;
+var GLSL = FILTER.Util.GLSL, HAS = Object.prototype.hasOwnProperty;
 
 //
 //  Inline Filter
@@ -11300,6 +11548,7 @@ FILTER.Create({
         {
             self._filter = false;
             self._changed = true;
+            self._glsl = null;
         }
         else
         {
@@ -11307,18 +11556,19 @@ FILTER.Create({
             {
                 self._filter = filter;
                 self._changed = true;
+                self._glsl = null;
             }
             if (params) self.params(params);
         }
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         var self = this, filter = self._filter;
         return filter && filter.shader ? {
             instance: self, shader: filter.shader,
             textures: filter.textures, vars: filter.vars
-        } : {instance: self};
+        } : {instance: self, shader: filter ? null : GLSL.DEFAULT};
     }
 
     ,_apply: function(im, w, h, metaData) {
@@ -11969,7 +12219,7 @@ FILTER.Create({
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -12098,10 +12348,12 @@ function glsl(filter)
 '   gl_FragColor = tCol;',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var src = filter.input("source");
         GLSL.uploadTexture(gl, src[0], src[1], src[2], 1);
     },
     vars: function(gl, w, h, program) {
+        var src = filter.input("source"), color = filter.color||0;
         gl.uniform1i(program.uniform.src, 1);  // img unit 1
         gl.uniform2f(program.uniform.srcSize, src[1]/w, src[2]/h);
         gl.uniform2f(program.uniform.center, filter.centerX, filter.centerY);

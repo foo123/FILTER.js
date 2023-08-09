@@ -68,7 +68,7 @@ FILTER.Create({
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -197,10 +197,12 @@ function glsl(filter)
 '   gl_FragColor = tCol;',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var src = filter.input("source");
         GLSL.uploadTexture(gl, src[0], src[1], src[2], 1);
     },
     vars: function(gl, w, h, program) {
+        var src = filter.input("source"), color = filter.color||0;
         gl.uniform1i(program.uniform.src, 1);  // img unit 1
         gl.uniform2f(program.uniform.srcSize, src[1]/w, src[2]/h);
         gl.uniform2f(program.uniform.center, filter.centerX, filter.centerY);

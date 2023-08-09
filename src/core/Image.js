@@ -71,8 +71,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,iDataSel: null
     ,oData: null
     ,oDataSel: null
-    ,glPos: null
-    ,glVex: null
     ,domElement: null
     ,_restorable: true
     ,_refresh: 0
@@ -89,7 +87,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._restorable = null;
         self._refresh = self.nref = null;
         self.cache = null;
-        self.glPos = self.glVex = null;
         return self;
     }
 

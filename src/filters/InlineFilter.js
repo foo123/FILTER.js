@@ -11,7 +11,7 @@
 !function(FILTER, undef) {
 "use strict";
 
-var HAS = Object.prototype.hasOwnProperty;
+var GLSL = FILTER.Util.GLSL, HAS = Object.prototype.hasOwnProperty;
 
 //
 //  Inline Filter
@@ -75,6 +75,7 @@ FILTER.Create({
         {
             self._filter = false;
             self._changed = true;
+            self._glsl = null;
         }
         else
         {
@@ -82,18 +83,19 @@ FILTER.Create({
             {
                 self._filter = filter;
                 self._changed = true;
+                self._glsl = null;
             }
             if (params) self.params(params);
         }
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         var self = this, filter = self._filter;
         return filter && filter.shader ? {
             instance: self, shader: filter.shader,
             textures: filter.textures, vars: filter.vars
-        } : {instance: self};
+        } : {instance: self, shader: filter ? null : GLSL.DEFAULT};
     }
 
     ,_apply: function(im, w, h, metaData) {

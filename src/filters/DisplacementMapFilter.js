@@ -79,7 +79,7 @@ FILTER.Create({
         return this;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 
@@ -326,13 +326,15 @@ function glsl(filter)
 '   }',
 '}'
     ].join('\n'),
-    textures: function(gl, w, h) {
+    textures: function(gl, w, h, program) {
+        var displaceMap = filter.input("map");
         GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
     },
     vars: function(gl, w, h, program) {
+        var displaceMap = filter.input("map");
         gl.uniform1i(program.uniform.map, 1);  // img unit 1
         gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-1.4**/filter.scaleY/255);
+        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.4*filter.scaleY/255);
         gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
         gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
         gl.uniform4f(program.uniform.color,

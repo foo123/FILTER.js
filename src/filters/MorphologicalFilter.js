@@ -195,6 +195,7 @@ FILTER.Create({
             }
             self._indices2 = new A32I(indices);
         }
+        self._glsl = null;
         return self;
     }
 
@@ -209,10 +210,11 @@ FILTER.Create({
         self._indices = null;
         self._structureElement2 = null;
         self._indices2 = null;
+        self._glsl = null;
         return self;
     }
 
-    ,getGLSL: function() {
+    ,_getGLSL: function() {
         return glsl(this);
     }
 

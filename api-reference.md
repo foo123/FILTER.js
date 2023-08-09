@@ -358,6 +358,8 @@ The filter scans an image and maps each pixel position non-linearly according to
 
 The optional geometricMap parameter is a function that implements a geometric mapping of pixels (see examples)
 
+**NEW Geometric Map Filter supports WebGL**
+
 The class has some pre-defined filters to use.
 
 * `generic()` Apply a a user-defined generic geometric mapping to the image
@@ -382,6 +384,8 @@ twirl.worker();
 // if you want to stop and dispose the worker for this filter, do:
 twirl.worker(false);
 
+// if you want to make this filter work in webgl do:
+twirl.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
@@ -858,11 +862,11 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
-<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode)</td></tr>
+<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode) <b>supports WebGL</b></td></tr>
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
-<tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with `HAAR` cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
+<tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>
