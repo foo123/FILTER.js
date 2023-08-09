@@ -233,11 +233,13 @@ FILTER.Create({
 function glsl(filter)
 {
     var matrix_code = function(m, d, op, op0, img) {
-        var def = [], ca = 'c0',
+        var code = [], ca = 'c0',
             x, y, k, i, j,
             matArea = m.length, matRadius = d,
             matHalfSide = matRadius>>>1;
-        def.push('vec4 res=vec4('+op0+');');
+        code.push('int apply=1;');
+        code.push('vec4 res=vec4('+op0+');');
+        code.push('float alpha=1.0;');
         x=0; y=0; k=0;
         img = img || 'img';
         while (k<matArea)
@@ -246,25 +248,21 @@ function glsl(filter)
             j = y-matHalfSide;
             if (m[k] || (0===i && 0===j))
             {
-                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D('+img+',  p'+k+');');
-                def.push('res='+op+'(res, c'+k+');')
-                if (0===i && 0===j) ca = 'c'+k+'.a';
+                code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
             }
             ++k; ++x; if (x>=matRadius) {x=0; ++y;}
         }
-        return [def.join('\n'), 'res', ca];
+        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
+        return code.join('\n');
     };
     var morph = function(m, op, img) {
-        var code = 'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img);
         return {instance: filter, shader: [
         'precision highp float;',
         'varying vec2 pix;',
         'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
         'void main(void) {',
-        code[0],
-        'gl_FragColor = '+code[1]+';',
-        'gl_FragColor.a = '+code[2]+';',
+        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
         '}'
         ].join('\n'), iterations: filter._iter || 1};
     };
@@ -291,7 +289,7 @@ function glsl(filter)
         ];
         break;
         case 'gradient':
-        output = [
+        output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', 'img_prev'),
         {instance: filter, shader: [
@@ -305,10 +303,10 @@ function glsl(filter)
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n')}
-        ];
+        ]*/;
         break;
         case 'laplacian':
-        output = [
+        output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', 'img_prev'),
         {instance: filter, shader: [
@@ -324,7 +322,7 @@ function glsl(filter)
         'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'
         ].join('\n')}
-        ];
+        ]*/;
         break;
         default:
         output = {instance: filter};

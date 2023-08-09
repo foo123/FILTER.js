@@ -151,6 +151,15 @@ function createFramebufferTexture(gl, width, height)
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return {fbo: fbo, tex: tex};
 }
+function unbindFramebufferTexture(gl, buf)
+{
+    gl.bindFramebuffer(gl.FRAMEBUFFER, buf.fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return buf;
+}
 function deleteFramebuffer(gl, fbo)
 {
     if (fbo)
@@ -407,19 +416,13 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
             runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
-
-            // store previous frames
-            // 1. render to new texture
-            //program = getProgram(gl, glsl0, cache);
-            //output0 = createFramebufferTexture(gl, w, h);
-            //runOne(gl, program, glsl0, w, h, pos, uv, dst, output0, prev, buf, false);
-            // 2. store new texture
-            deleteTexture(gl, prev[1]);
-            prev[1] = prev[0];
-            //gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-            prev[0] = copyTexture(gl, w, h);//output0.tex;
-            //deleteFramebuffer(output0.fbo);
-            //output0 = null;
+            /*if (i < last)
+            {
+                // store previous frames
+                deleteTexture(gl, prev[1]);
+                prev[1] = prev[0];
+                prev[0] = copyTexture(gl, w, h);
+            }*/
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
@@ -464,6 +467,33 @@ GLSL.formatFloat = function(x, signed) {
 GLSL.formatInt = function(x, signed) {
     x = stdMath.floor(x);
     return (signed ? (0 > x ? '' : '+') : '') + x.toString();
+};
+function staticSwap(a, b, temp, output)
+{
+    return 'if ('+a+'>'+b+') {'+temp+'='+a+';'+a+'='+b+';'+b+'='+temp+';}';
+}
+GLSL.staticSort = function(items, temp) {
+    temp = temp || 'temp';
+    var n = items.length, p, p2, k, k2, j, i, l, code = [];
+    for (p=1; p<n; p=(p<<1))
+    {
+        p2 = (p << 1);
+        for (k=p; k>=1; k=(k>>>1))
+        {
+            k2 = (k<<1);
+            for (j=k%p; j<=(n-1-k); j+=k2)
+            {
+                for (i=0,l=stdMath.min(k-1, n-j-k-1); i<=l; ++i)
+                {
+                    if (stdMath.floor((i+j) / p2) === stdMath.floor((i+j+k) / p2))
+                    {
+                        code.push(staticSwap(items[i+j], items[i+j+k], temp));
+                    }
+                }
+            }
+        }
+    }
+    return code;
 };
 FILTER.Util.GLSL = GLSL;
 

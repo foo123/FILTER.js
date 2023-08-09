@@ -112,9 +112,9 @@ var ColorMapFilter = FILTER.Create({
         return this.set("rgb2cmyk");
     }
 
-    ,RGB2ILL: function() {
+    /*,RGB2ILL: function() {
         return this.set("rgb2ill");
-    }
+    }*/
 
     ,hue: function() {
         return this.set("hue");
@@ -175,6 +175,10 @@ var ColorMapFilter = FILTER.Create({
         return self;
     }
 
+    ,_getGLSL: function() {
+        return glsl(this);
+    }
+
     // used for internal purposes
     /*,_apply: apply*/
 
@@ -186,6 +190,97 @@ var ColorMapFilter = FILTER.Create({
 ColorMapFilter.prototype.threshold = ColorMapFilter.prototype.quantize;
 ColorMapFilter.prototype.extract = ColorMapFilter.prototype.mask;
 
+// private methods
+function glsl(filter)
+{
+    if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
+    if (HAS.call(MAP, filter._mapName))
+    {
+        return {instance: filter, shader: [
+            'precision highp float;',
+            'varying vec2 pix;',
+            'uniform sampler2D img;',
+            'const int HUE = '+MODE.HUE+';',
+            'const int SATURATION = '+MODE.SATURATION+';',
+            'const int INTENSITY = '+MODE.INTENSITY+';',
+            'uniform vec4 color;',
+            'uniform float minval;',
+            'uniform float maxval;',
+            'uniform int mapping;',
+            Color.getGLSL(),
+            'vec4 mask(vec4 i) {',
+            '    if (0.0 != i.a) {',
+            '        float v = 0.0;',
+            '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
+            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b);',
+            '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
+            '        else return i;',
+            '        if (v < minval || v > maxval) return color;',
+            '        else return i;',
+            '    } else {',
+            '        return i;',
+            '    }',
+            '}',
+            'void main(void) {',
+                'vec4 input = texture2D(img, pix);',
+                'vec4 output = vec4(input.r, input.g, inout.b, input.a);',
+                'if (1 == mapping) {output.rgb = rgb2hsv(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
+                'else if (2 == mapping) output.rgb = hsv2rgb(input.r, input.g, input.b).rgb;',
+                'else if (3 == mapping) {output.rgb = rgb2hsl(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
+                'else if (4 == mapping) output.rgb = hsl2rgb(input.r, input.g, input.b).rgb;',
+                'else if (5 == mapping) {output.rgb = rgb2hwb(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
+                'else if (6 == mapping) output.rgb = hwb2rgb(input.r, input.g, input.b).rgb;',
+                'else if (7 == mapping) output.rgb = rgb2cmyk(input.r, input.g, input.b).rgb;',
+                'else if (8 == mapping) {float h=rgb2hue(input.r, input.g, input.b)/360.0; output=vec4(h,h,h,input.a);}',
+                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, HSV); output=vec4(s,s,s,input.a);}',
+                'else if (10 == mapping) output = mask(input);',
+                'gl_FragColor = output;',
+            '}'
+            ].join('\n'),
+            vars: function(gl, w, h, program) {
+                var thres = filter.thresholds || [0, 0],
+                    color = (filter.quantizedColors || [0])[0] || 0;
+                gl.uniform4f(program.uniform.color,
+                    ((color >>> 16) & 255)/255,
+                    ((color >>> 8) & 255)/255,
+                    (color & 255)/255,
+                    ((color >>> 24) & 255)/255
+                );
+                gl.uniform1f(program.uniform.minval,
+                    thresh[0]
+                );
+                gl.uniform1f(program.uniform.minval,
+                    thresh[1]
+                );
+                gl.uniform1i(program.uniform.mapping,
+                    "rgb2hsv" === filter._mapName ? 1 : (
+                    "hsv2rgb" === filter._mapName ? 2 : (
+                    "rgb2hsl" === filter._mapName ? 3 : (
+                    "hsl2rgb" === filter._mapName ? 4 : (
+                    "rgb2hwb" === filter._mapName ? 5 : (
+                    "hwb2rgb" === filter._mapName ? 6 : (
+                    "rgb2cmyk" === filter._mapName ? 7 : (
+                    "hue" === filter._mapName ? 8 : (
+                    "saturation" === filter._mapName ? 9 : (
+                    "mask" === filter._mapName ? 10 : 0
+                    )
+                    )
+                    )
+                    )
+                    )
+                    )
+                    )
+                    )
+                    )
+                );
+            }
+        };
+    }
+    else
+    {
+        return {instance: filter, shader: filter._map.shader, vars: filter._map.vars, textures: filter._map.textures};
+    }
+}
 function apply__(map, preample)
 {
     var __INIT__ = preample ? function_body(preample) : '', __APPLY__ = function_body(map.filter || map),

@@ -611,6 +611,8 @@ new FILTER.StatisticalFilter();
 
 This filter implements some statistical processing like median filters and erode/dilate (maximum/minimum) filters which use statistics and `kth`-order statistics concepts.
 
+**NEW Statistical Filter supports WebGL**
+
 The class has some pre-defined filters to use.
 
 * `median(dimension:Integer=3)`  Apply median (ie. lowpass/remove noise) filter, same as `kth(0.5)`

@@ -136,7 +136,90 @@ StatisticalFilter.prototype.dilate = StatisticalFilter.prototype.maximum;
 // private methods
 function glsl(filter)
 {
-    return {instance: filter, shader: GLSL.DEFAULT};
+    var minmax_code = function(d, op, op0) {
+        var code = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = d*d, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        code.push('int apply=1;');
+        code.push('vec4 res=vec4('+op0+');');
+        code.push('float alpha=1.0;');
+        x=0; y=0; k=0;
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D(img,p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D(img,pix);');
+        return code.join('\n');
+    };
+    var kth_code = function(d) {
+        var code = [], r = [], g = [], b = [], ca = 'c0',
+            x, y, k, i, j, kthr, kthg, kthb,
+            matArea = d*d, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        x=0; y=0; k=0;
+        code.push('float totr=0.0;');
+        code.push('float totg=0.0;');
+        code.push('float totb=0.0;');
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            code.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+'); float c'+k+'r=c'+k+'.r; float c'+k+'g=c'+k+'.g; float c'+k+'b=c'+k+'.b; totr += c'+k+'r; totg += c'+k+'g; totb += c'+k+'b;');
+            r.push('c'+k+'r');
+            g.push('c'+k+'g');
+            b.push('c'+k+'b');
+            if (0===i && 0===j) ca = 'c'+k+'.a';
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        code.push('float t=0.0;');
+        code.push(staticSort(r, 't').join('\n'));
+        code.push(staticSort(g, 't').join('\n'));
+        code.push(staticSort(b, 't').join('\n'));
+        code.push('totr *= kth;');
+        code.push('totg *= kth;');
+        code.push('totb *= kth;');
+        code.push('float rkth=c0r;');
+        code.push('float gkth=c0g;');
+        code.push('float bkth=c0g;');
+        code.push('float sr=rkth;');
+        code.push('float sg=gkth;');
+        code.push('float sb=bkth;');
+        kthr = ''; kthg = ''; kthb = '';
+        for (k=1,i=0; k<matArea; ++k)
+        {
+            kthr += 'if (sr < totr){rkth=c'+k+'r;sr+=rkth;';
+            kthg += 'if (sg < totg){gkth=c'+k+'g;sg+=gkth;';
+            kthb += 'if (sb < totb){bkth=c'+k+'b;sb+=bkth;';
+            ++i;
+        }
+        while (0 < i) {--i; kthr += '}'; kthg += '}'; kthb += '}';}
+        code.push(kthr);
+        code.push(kthg);
+        code.push(kthb);
+        code.push('gl_FragColor = vec4(rkth,gkth,bkth,'+ca+');');
+        return code.join('\n');
+    };
+    var stat = function(type) {
+        return {instance: filter, shader: [
+        'precision highp float;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform vec2 dp;',
+        'uniform float kth;',
+        'void main(void) {',
+        '1th' === type ? minmax_code(filter.d, 'max', '0.0') : ('0th' === type ? minmax_code(filter.d, 'min', '1.0') : kth_code(filter.d, filter.k)),
+        '}'
+        ].join('\n'), vars: function(gl, w, h, program) {
+            gl.uniform1f(program.uniform.kth, filter.k);
+        }};
+    };
+    var toFloat = GLSL.formatFloat, staticSort = GLSL.staticSort, output;
+    if (!filter.d) return {instance: filter, shader: GLSL.DEFAULT};
+    return stat(filter._filter);
 }
 STAT = {
      "01th": function(self, im, w, h) {
