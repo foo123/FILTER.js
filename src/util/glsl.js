@@ -23,7 +23,6 @@ var proto = 'prototype',
         'vec2 zeroToTwo = zeroToOne * 2.0;',
         'vec2 clipSpace = zeroToTwo - 1.0;',
         'gl_Position = vec4(clipSpace * vec2(1.0, flipY), 0.0, 1.0);',
-        '/*gl_Position = vec4(pos.x, pos.y*flipY, 0.0, 1.0);*/',
         'pix = uv;',
     '}'
 	].join('\n')),
@@ -34,7 +33,8 @@ var proto = 'prototype',
     'void main(void) {',
         'gl_FragColor = texture2D(img, pix);',
     '}',
-	].join('\n'))
+	].join('\n')),
+    COMMENTS = /\/\*.*?\*\//gmi
 ;
 
 GLSL.DEFAULT = FRAGMENT_DEFAULT;
@@ -42,7 +42,7 @@ GLSL.DEFAULT = FRAGMENT_DEFAULT;
 function extract(source, type, store)
 {
     var r = new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig');
-    source.replace(r, function(match, varName) {
+    source.replace(COMMENTS, '').replace(r, function(match, varName) {
         store[varName] = 0;
         return match;
     });
@@ -241,49 +241,43 @@ function prepareGL(img)
             img.glCanvas.height = hs;
 
         gl = FILTER.getGL(img.glCanvas);
-        // if set needs opposite scaleY eg. in displacemap filter
-        //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
-        /*if (!img.glVex)
-        {
-			img.glPos = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, img.glPos);
-            gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
-                0, 0,
-                img.glCanvas.width, 0,
-                0, img.glCanvas.height,
-                0, img.glCanvas.height,
-                img.glCanvas.width, 0,
-                img.glCanvas.width, img.glCanvas.height
-            ]), gl.STATIC_DRAW);
-			img.glVex = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
-			gl.bufferData(gl.ARRAY_BUFFER, new FILTER.Array32F([
-                0.0,  0.0,
-                1.0,  0.0,
-                0.0,  1.0,
-                0.0,  1.0,
-                1.0,  0.0,
-                1.0,  1.0
-			]), gl.STATIC_DRAW);
-		}
-        else
-        {
-			gl.bindBuffer(gl.ARRAY_BUFFER, img.glPos);
-			gl.bindBuffer(gl.ARRAY_BUFFER, img.glVex);
-        }
-        gl.viewport(0, 0, img.glCanvas.width, img.glCanvas.height);
-        // clear canvas
-        //gl.clearColor(0, 0, 0, 0);
-        //gl.clear(gl.COLOR_BUFFER_BIT);
-        */
         return gl;
     }
 }
-function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
+function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
 {
-    var i, src, dst, t, prevUnit = 1,
+    gl.useProgram(program.id);
+    if ('pos' in program.attribute)
+    {
+        gl.enableVertexAttribArray(program.attribute.pos);
+        gl.bindBuffer(gl.ARRAY_BUFFER, pos);
+        gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
+    }
+    if ('uv' in program.attribute)
+    {
+        gl.enableVertexAttribArray(program.attribute.uv);
+        gl.bindBuffer(gl.ARRAY_BUFFER, uv);
+        gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
+    }
+    if ('resolution' in program.uniform)
+    {
+        gl.uniform2f(program.uniform.resolution, w, h);
+    }
+    if ('dp' in program.uniform)
+    {
+        gl.uniform2f(program.uniform.dp, 1/w, 1/h);
+    }
+    if (glsl.instance && ('mode' in program.uniform))
+    {
+        gl.uniform1i(program.uniform.mode, glsl.instance.mode);
+    }
+    if (glsl.vars) glsl.vars(gl, w, h, program);
+    if (glsl.textures) glsl.textures(gl, w, h, program);
+
+    var iterations = glsl.iterations || 1,
+        i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
+
     for (i=0; i<iterations; ++i)
     {
         if (0 === i)
@@ -305,17 +299,9 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
             buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-        gl.viewport(0, 0, w, h);
         if ('img_prev_prev' in program.uniform)
         {
-            if (!('img' in program.uniform) && !('img_prev' in program.uniform))
-            {
-                gl.activeTexture(gl.TEXTURE0 + 0);
-                gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform.img_prev_prev, 0);
-            }
-            else if (prev[1])
+            if (prev[1])
             {
                 gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
                 gl.bindTexture(gl.TEXTURE_2D, prev[1]);
@@ -344,6 +330,8 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
             gl.uniform1i(program.uniform.img, 0);
         }
         gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+        gl.viewport(0, 0, w, h);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         // swap buffers
         t = buf[0]; buf[0] = buf[1]; buf[1] = t;
@@ -352,7 +340,7 @@ function runOne(gl, program, iterations, w, h, input, output, prev, buf, flipY)
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
     var gl = prepareGL(img), input, output,
-        i, n = glsls.length, glsl,
+        i, n = glsls.length, glsl, glsl0, output0,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t, canRun,
@@ -365,6 +353,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         if (0 <= first && 0 <= last) break;
     }
     cache = img.cache;
+    glsl0 = {shader: FRAGMENT_DEFAULT};
     pos = createBuffer(gl, new FILTER.Array32F([
         0, 0,
         w, 0,
@@ -400,33 +389,6 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         }
         if (canRun)
         {
-            gl.useProgram(program.id);
-            if ('pos' in program.attribute)
-            {
-                gl.enableVertexAttribArray(program.attribute.pos);
-                gl.bindBuffer(gl.ARRAY_BUFFER, pos);
-                gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
-            }
-            if ('uv' in program.attribute)
-            {
-                gl.enableVertexAttribArray(program.attribute.uv);
-                gl.bindBuffer(gl.ARRAY_BUFFER, uv);
-                gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
-            }
-            if ('resolution' in program.uniform)
-            {
-                gl.uniform2f(program.uniform.resolution, w, h);
-            }
-            if ('dp' in program.uniform)
-            {
-                gl.uniform2f(program.uniform.dp, 1/w, 1/h);
-            }
-            if (glsl.instance && ('mode' in program.uniform))
-            {
-                gl.uniform1i(program.uniform.mode, glsl.instance.mode);
-            }
-            if (glsl.vars) glsl.vars(gl, w, h, program);
-            if (glsl.textures) glsl.textures(gl, w, h, program);
             if (i === first)
             {
                 src = {fbo: input, tex: input};
@@ -444,13 +406,22 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            runOne(gl, program, glsl.iterations || 1, w, h, src, dst, prev, buf, false);
-            // swap buffers
-            t = buf0; buf0 = buf1; buf1 = t;
+            runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+
             // store previous frames
+            // 1. render to new texture
+            //program = getProgram(gl, glsl0, cache);
+            //output0 = createFramebufferTexture(gl, w, h);
+            //runOne(gl, program, glsl0, w, h, pos, uv, dst, output0, prev, buf, false);
+            // 2. store new texture
             deleteTexture(gl, prev[1]);
             prev[1] = prev[0];
-            prev[0] = copyTexture(gl, w, h);
+            //gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+            prev[0] = copyTexture(gl, w, h);//output0.tex;
+            //deleteFramebuffer(output0.fbo);
+            //output0 = null;
+            // swap buffers
+            t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
         }
         else if (glsl.instance && (glsl._apply || glsl.instance._apply))

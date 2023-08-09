@@ -254,8 +254,8 @@ function glsl(filter)
         }
         return [def.join('\n'), 'res', ca];
     };
-    var morph = function(m, op, op0, img) {
-        var code = matrix_code(m, filter._dim, op, op0, img);
+    var morph = function(m, op, img) {
+        var code = 'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img);
         return {instance: filter, shader: [
         'precision highp float;',
         'varying vec2 pix;',
@@ -273,27 +273,27 @@ function glsl(filter)
     switch (filter._filterName)
     {
         case 'dilate':
-        output = morph(filter._structureElement, 'max', '0.0');
+        output = morph(filter._structureElement, 'dilate');
         break;
         case 'erode':
-        output = morph(filter._structureElement, 'min', '1.0');
+        output = morph(filter._structureElement, 'erode');
         break;
         case 'open':
         output = [
-        morph(filter._structureElement, 'min', '1.0'),
-        morph(filter._structureElement, 'max', '0.0')
+        morph(filter._structureElement, 'erode'),
+        morph(filter._structureElement, 'dilate')
         ];
         break;
         case 'close':
         output = [
-        morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0')
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode')
         ];
         break;
         case 'gradient':
         output = [
-        morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
         'varying vec2 pix;',
@@ -309,8 +309,8 @@ function glsl(filter)
         break;
         case 'laplacian':
         output = [
-        morph(filter._structureElement, 'max', '0.0'),
-        morph(filter._structureElement, 'min', '1.0', 'img_prev'),
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', 'img_prev'),
         {instance: filter, shader: [
         'precision highp float;',
         'varying vec2 pix;',

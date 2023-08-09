@@ -521,7 +521,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
-                        im2 = GLSL.run(dst, glsl, im, w, h, {src:src, dst:dst});
+                        im2 = GLSL.run(dst, glsl, im[0], w, h, {src:src, dst:dst});
                         if (self._update)
                         {
                             if (self.hasMeta && (
