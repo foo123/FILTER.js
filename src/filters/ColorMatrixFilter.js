@@ -497,7 +497,7 @@ var ColorMatrixFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -724,7 +724,7 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 function glsl(filter)
 {
     return {instance: filter, shader: filter.matrix ? [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform float cm[20];',
@@ -737,13 +737,13 @@ function glsl(filter)
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: filter.matrix ? function(gl, w, h, program) {
-        var m = filter.matrix, cm = new FILTER.Array32F([
-        m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
-        m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
-        m[10], m[11], m[12], m[13], m[14]/255,
-        m[15], m[16], m[17], m[18], m[19]/255
-        ]);
-        gl.uniform1fv(program.uniform.cm, cm);
+        var m = filter.matrix;
+        gl.uniform1fv(program.uniform.cm, new FILTER.Array32F([
+            m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
+            m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
+            m[10], m[11], m[12], m[13], m[14]/255,
+            m[15], m[16], m[17], m[18], m[19]/255
+        ]));
     } : null
     };
 }

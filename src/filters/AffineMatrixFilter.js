@@ -123,7 +123,7 @@ var AffineMatrixFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -234,18 +234,18 @@ function glsl(filter)
 {
     var m = filter.matrix, color = filter.color || 0;
     return {instance: filter, shader: m ? [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform float am[6];',
 'uniform vec4 color;',
-'const int IGNORE='+MODE.IGNORE+';',
-'const int CLAMP='+MODE.CLAMP+';',
-'const int COLOR='+MODE.COLOR+';',
-'const int WRAP='+MODE.WRAP+';',
+'#define IGNORE '+MODE.IGNORE+'',
+'#define CLAMP '+MODE.CLAMP+'',
+'#define COLOR '+MODE.COLOR+'',
+'#define WRAP '+MODE.WRAP+'',
 'uniform int mode;',
 'void main(void) {',
-'   vec2 p = vec2(am[0]*pix.x+am[1]*pix.x+am[2], am[3]*pix.x+am[4]*pix.x+am[5]);',
+'   vec2 p = vec2(am[0]*pix.x+am[1]*pix.y+am[2], am[3]*pix.x+am[4]*pix.y+am[5]);',
 '   if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '       if (COLOR == mode) {gl_FragColor = color;}',
 '       else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
@@ -264,11 +264,10 @@ function glsl(filter)
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {
         var m = filter.matrix, color = filter.color || 0;
-        var am = [
-        m[0], m[1], m[2]/w+m[3],
-        m[4], m[5], m[6]/h+m[7]
-        ];
-        gl.uniform1fv(program.uniform.am, am);
+        gl.uniform1fv(program.uniform.am, new FILTER.Array32F([
+            m[0], m[1], m[2]/w+m[3],
+            m[4], m[5], m[6]/h+m[7]
+        ]));
         gl.uniform4f(program.uniform.color,
             ((color >>> 16) & 255)/255,
             ((color >>> 8) & 255)/255,

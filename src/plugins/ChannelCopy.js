@@ -68,7 +68,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -133,7 +133,7 @@ function glsl(filter)
     var color = filter.color||0, src = filter.input("source");
     if (!src) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D src;',
@@ -142,19 +142,19 @@ function glsl(filter)
 'uniform vec4 color;',
 'uniform int sC;',
 'uniform int tC;',
-'const int COLOR32='+MODE.COLOR32+';',
-'const int COLOR8='+MODE.COLOR8+';',
-'const int MASK32='+MODE.COLORMASK32+';',
-'const int MASK8='+MODE.COLORMASK8+';',
-'const int RED='+CHANNEL.R+';',
-'const int GREEN='+CHANNEL.G+';',
-'const int BLUE='+CHANNEL.B+';',
-'const int ALPHA='+CHANNEL.A+';',
+'#define COLOR32 '+MODE.COLOR32+'',
+'#define COLOR8 '+MODE.COLOR8+'',
+'#define MASK32 '+MODE.COLORMASK32+'',
+'#define MASK8 '+MODE.COLORMASK8+'',
+'#define RED '+CHANNEL.R+'',
+'#define GREEN '+CHANNEL.G+'',
+'#define BLUE '+CHANNEL.B+'',
+'#define ALPHA '+CHANNEL.A+'',
 'uniform int mode;',
 'void main(void) {',
 '   vec4 tCol = texture2D(img, pix);',
-'   vec2 p = pix - center + 0.5*srcSize;',
-'   if (srcSize.x < abs(p.x) || srcSize.y < abs(p.y)) {',
+'   vec2 p = (pix - (center - 0.5*srcSize))/srcSize;',
+'   if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '       if (MASK32 == mode) {tCol *= color;}',
 '       else if (COLOR32 == mode) {tCol = color;}',
 '       else if (MASK8 == mode) {',

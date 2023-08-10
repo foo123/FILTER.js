@@ -12,7 +12,7 @@ var proto = 'prototype',
     trim = FILTER.Util.String.trim,
     GLSL = FILTER.Util.GLSL || {},
 	VERTEX_DEAULT = trim([
-    'precision highp float;',
+    'precision mediump float;',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
     'uniform vec2 resolution;',
@@ -27,7 +27,7 @@ var proto = 'prototype',
     '}'
 	].join('\n')),
 	FRAGMENT_DEFAULT = trim([
-    'precision highp float;',
+    'precision mediump float;',
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'void main(void) {',
@@ -308,28 +308,28 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        if ('img_prev_prev' in program.uniform)
+        if ('_img_prev_prev' in program.uniform)
         {
             if (prev[1])
             {
                 gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
                 gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-                gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
+                gl.uniform1i(program.uniform._img_prev_prev, prevUnit + 1);
             }
         }
-        if ('img_prev' in program.uniform)
+        if ('_img_prev' in program.uniform)
         {
             if (!('img' in program.uniform))
             {
                 gl.activeTexture(gl.TEXTURE0 + 0);
                 gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform.img_prev, 0);
+                gl.uniform1i(program.uniform._img_prev, 0);
             }
             else if (prev[0])
             {
                 gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
                 gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-                gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
+                gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
             }
         }
         if ('img' in program.uniform)
@@ -380,7 +380,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         1, 1
     ]));
     gl.viewport(0, 0, w, h);
-    input = uploadTexture(gl, im, w, h, 0);
+    input = null;
     output = createFramebufferTexture(gl, w, h);
     if (last > first)
     {
@@ -400,6 +400,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         {
             if (i === first)
             {
+                if (!input) input = uploadTexture(gl, im, w, h, 0);
                 src = {fbo: input, tex: input};
             }
             else
@@ -472,8 +473,9 @@ function staticSwap(a, b, temp, output)
 {
     return 'if ('+a+'>'+b+') {'+temp+'='+a+';'+a+'='+b+';'+b+'='+temp+';}';
 }
-GLSL.staticSort = function(items, temp) {
+GLSL.staticSort = function(items, temp, swap) {
     temp = temp || 'temp';
+    swap = swap || staticSwap;
     var n = items.length, p, p2, k, k2, j, i, l, code = [];
     for (p=1; p<n; p=(p<<1))
     {
@@ -487,7 +489,7 @@ GLSL.staticSort = function(items, temp) {
                 {
                     if (stdMath.floor((i+j) / p2) === stdMath.floor((i+j+k) / p2))
                     {
-                        code.push(staticSwap(items[i+j], items[i+j+k], temp));
+                        code.push(swap(items[i+j], items[i+j+k], temp));
                     }
                 }
             }

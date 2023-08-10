@@ -200,13 +200,13 @@ var CompositeFilter = FILTER.Create({
     }
     ,empty: null
 
-    ,getGLSL: function() {
+    ,GLSLCode: function() {
         var filters = this.filters, filter, glsl = [], processor, i, n = filters.length;
         for (i=0; i<n; ++i)
         {
             filter = filters[i];
             if (!filter) continue;
-            processor = filter.getGLSL ? filter.getGLSL() : null;
+            processor = filter.GLSLCode();
             if (!processor)
             {
                 if (filter._apply)

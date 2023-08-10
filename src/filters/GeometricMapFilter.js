@@ -190,7 +190,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -206,14 +206,14 @@ function glsl(filter)
     if (HAS.call(GLSLMAP, filter._mapName))
     {
         return {instance: filter, shader: [
-            'precision highp float;',
+            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
-            'const float TWOPI = 6.283185307179586;',
-            'const int IGNORE='+MODE.IGNORE+';',
-            'const int CLAMP='+MODE.CLAMP+';',
-            'const int COLOR='+MODE.COLOR+';',
-            'const int WRAP='+MODE.WRAP+';',
+            '#define TWOPI  6.283185307179586',
+            '#define IGNORE '+MODE.IGNORE+'',
+            '#define CLAMP '+MODE.CLAMP+'',
+            '#define COLOR '+MODE.COLOR+'',
+            '#define WRAP '+MODE.WRAP+'',
             'uniform int mode;',
             'uniform int swap;',
             'uniform vec2 center;',
@@ -256,10 +256,10 @@ function glsl(filter)
                     cy = filter.centerY,
                     fx = (w-1)*(w-1), fy = (h-1)*(h-1),
                     RMAX =  max(
-                        sqrt(fx*(cx - 0) * (cx - 0) + fy*(cy - 0) * (cy - 0)),
-                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 0) * (cy - 0)),
-                        sqrt(fy*(cx - 0) * (cx - 0) + fy*(cy - 1) * (cy - 1)),
-                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 1) * (cy - 1))
+                        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 0) * (cy - 0)),
+                        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 0) * (cy - 0)),
+                        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 1) * (cy - 1)),
+                        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 1) * (cy - 1))
                     );
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,

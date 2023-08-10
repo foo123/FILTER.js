@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-09 20:58:56
+*   @built on 2023-08-10 11:19:16
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-09 20:58:56
+*   @built on 2023-08-10 11:19:16
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1481,6 +1481,21 @@ function function_body(func)
 function clamp(x, m, M)
 {
     return x > M ? M : (x < m ? m : x);
+}
+function hypot(a, b, c)
+{
+    c = c || 0;
+    b = b || 0;
+    var m = Max(a, b, c);
+    if (m)
+    {
+        m = Abs(m);
+        a /= m;
+        b /= m;
+        c /= m;
+        return m*Sqrt(a*a + b*b + c*c);
+    }
+    return 0;
 }
 
 function arrayset_shim(a, b, offset, b0, b1)
@@ -2994,6 +3009,7 @@ ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subar
 
 
 MathUtil.clamp = clamp;
+MathUtil.hypot = hypot;
 
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim
@@ -3034,7 +3050,7 @@ var proto = 'prototype',
     trim = FILTER.Util.String.trim,
     GLSL = FILTER.Util.GLSL || {},
 	VERTEX_DEAULT = trim([
-    'precision highp float;',
+    'precision mediump float;',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
     'uniform vec2 resolution;',
@@ -3049,7 +3065,7 @@ var proto = 'prototype',
     '}'
 	].join('\n')),
 	FRAGMENT_DEFAULT = trim([
-    'precision highp float;',
+    'precision mediump float;',
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'void main(void) {',
@@ -3330,28 +3346,28 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        if ('img_prev_prev' in program.uniform)
+        if ('_img_prev_prev' in program.uniform)
         {
             if (prev[1])
             {
                 gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
                 gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-                gl.uniform1i(program.uniform.img_prev_prev, prevUnit + 1);
+                gl.uniform1i(program.uniform._img_prev_prev, prevUnit + 1);
             }
         }
-        if ('img_prev' in program.uniform)
+        if ('_img_prev' in program.uniform)
         {
             if (!('img' in program.uniform))
             {
                 gl.activeTexture(gl.TEXTURE0 + 0);
                 gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform.img_prev, 0);
+                gl.uniform1i(program.uniform._img_prev, 0);
             }
             else if (prev[0])
             {
                 gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
                 gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-                gl.uniform1i(program.uniform.img_prev, prevUnit + 0);
+                gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
             }
         }
         if ('img' in program.uniform)
@@ -3402,7 +3418,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         1, 1
     ]));
     gl.viewport(0, 0, w, h);
-    input = uploadTexture(gl, im, w, h, 0);
+    input = null;
     output = createFramebufferTexture(gl, w, h);
     if (last > first)
     {
@@ -3422,6 +3438,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         {
             if (i === first)
             {
+                if (!input) input = uploadTexture(gl, im, w, h, 0);
                 src = {fbo: input, tex: input};
             }
             else
@@ -3494,8 +3511,9 @@ function staticSwap(a, b, temp, output)
 {
     return 'if ('+a+'>'+b+') {'+temp+'='+a+';'+a+'='+b+';'+b+'='+temp+';}';
 }
-GLSL.staticSort = function(items, temp) {
+GLSL.staticSort = function(items, temp, swap) {
     temp = temp || 'temp';
+    swap = swap || staticSwap;
     var n = items.length, p, p2, k, k2, j, i, l, code = [];
     for (p=1; p<n; p=(p<<1))
     {
@@ -3509,7 +3527,7 @@ GLSL.staticSort = function(items, temp) {
                 {
                     if (stdMath.floor((i+j) / p2) === stdMath.floor((i+j+k) / p2))
                     {
-                        code.push(staticSwap(items[i+j], items[i+j+k], temp));
+                        code.push(swap(items[i+j], items[i+j+k], temp));
                     }
                 }
             }
@@ -3944,12 +3962,12 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
 
     // get GLSL code and variables, override
-    ,getGLSL: function() {
+    ,GLSLCode: function() {
         var self = this;
-        if (null == self._glsl) self._glsl = self._getGLSL();
+        if (null == self._glsl) self._glsl = self.getGLSL();
         return self._glsl;
     }
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return {instance: this};
     }
 
@@ -4034,7 +4052,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             }
             else if (!isInsideThread && self.isGLSL())
             {
-                if (dst.glCanvas && (glsl = self.getGLSL()))
+                if (dst.glCanvas && (glsl = self.GLSLCode()))
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];
@@ -4573,9 +4591,9 @@ function cmyk2rgb(c, m, y, k)
     ];
 }
 var GLSL = [
-'const int HWB = 3;',
-'const int HSV = 2;',
-'const int HSL = 1;',
+'#define FORMAT_HWB 3',
+'#define FORMAT_HSV 2',
+'#define FORMAT_HSL 1',
 'vec4 hsl2rgb(float h, float s, float l) {',
 '   float c = (1.0 - abs(2.0*l - 1.0))*s;',
 '   float hp = h/60.0;',
@@ -4650,21 +4668,21 @@ var GLSL = [
 '        sv = clamp(c/v, 0.0, 1.0);',
 '    }',
 '    v = clamp(v, 0.0, 1.0);',
-'    if (HWB == type) return vec4(h, wh, bl, 1.0);',
-'    else if (HSV == type) return vec4(h, sv, v, 1.0);',
+'    if (FORMAT_HWB == type) return vec4(h, wh, bl, 1.0);',
+'    else if (FORMAT_HSV == type) return vec4(h, sv, v, 1.0);',
 '    return vec4(h, sl, l, 1.0);',
 '}',
 'vec4 rgb2hsl(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSL);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSL);',
 '}',
 'vec4 rgb2hsv(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSV);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSV);',
 '}',
 'vec4 rgb2hwb(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HWB);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HWB);',
 '}',
 'vec4 rgb2hue(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSL).r;',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSL).r;',
 '}',
 'vec4 rgb2sat(float r, float g, float b, int type) {',
 '    return rgb2hslvwb(r, g, b, type).g;',
@@ -4729,7 +4747,7 @@ var Color = FILTER.Color = FILTER.Class({
     // static
     __static__: {
 
-        getGLSL: function() {
+        GLSLCode: function() {
             return GLSL;
         },
         clamp: clamp,
@@ -6390,13 +6408,13 @@ var CompositeFilter = FILTER.Create({
     }
     ,empty: null
 
-    ,getGLSL: function() {
+    ,GLSLCode: function() {
         var filters = this.filters, filter, glsl = [], processor, i, n = filters.length;
         for (i=0; i<n; ++i)
         {
             filter = filters[i];
             if (!filter) continue;
-            processor = filter.getGLSL ? filter.getGLSL() : null;
+            processor = filter.GLSLCode();
             if (!processor)
             {
                 if (filter._apply)
@@ -7193,7 +7211,7 @@ var ColorTableFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -7293,7 +7311,7 @@ function glsl(filter)
     if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
     var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D map;',
@@ -7822,7 +7840,7 @@ var ColorMatrixFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -8049,7 +8067,7 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 function glsl(filter)
 {
     return {instance: filter, shader: filter.matrix ? [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform float cm[20];',
@@ -8062,13 +8080,13 @@ function glsl(filter)
 '}'
 ].join('\n') : GLSL.DEFAULT,
     vars: filter.matrix ? function(gl, w, h, program) {
-        var m = filter.matrix, cm = new FILTER.Array32F([
-        m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
-        m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
-        m[10], m[11], m[12], m[13], m[14]/255,
-        m[15], m[16], m[17], m[18], m[19]/255
-        ]);
-        gl.uniform1fv(program.uniform.cm, cm);
+        var m = filter.matrix;
+        gl.uniform1fv(program.uniform.cm, new FILTER.Array32F([
+            m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
+            m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
+            m[10], m[11], m[12], m[13], m[14]/255,
+            m[15], m[16], m[17], m[18], m[19]/255
+        ]));
     } : null
     };
 }
@@ -8249,7 +8267,7 @@ var ColorMapFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -8271,22 +8289,22 @@ function glsl(filter)
     if (HAS.call(MAP, filter._mapName))
     {
         return {instance: filter, shader: [
-            'precision highp float;',
+            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
-            'const int HUE = '+MODE.HUE+';',
-            'const int SATURATION = '+MODE.SATURATION+';',
-            'const int INTENSITY = '+MODE.INTENSITY+';',
+            '#define HUE '+MODE.HUE+'',
+            '#define SATURATION '+MODE.SATURATION+'',
+            '#define INTENSITY '+MODE.INTENSITY+'',
             'uniform vec4 color;',
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
-            Color.getGLSL(),
-            'vec4 mask(vec4 i) {',
+            Color.GLSLCode(),
+            'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
             '    if (0.0 != i.a) {',
             '        float v = 0.0;',
             '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
-            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b);',
+            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
             '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
             '        else return i;',
             '        if (v < minval || v > maxval) return color;',
@@ -8306,8 +8324,8 @@ function glsl(filter)
                 'else if (6 == mapping) output.rgb = hwb2rgb(input.r, input.g, input.b).rgb;',
                 'else if (7 == mapping) output.rgb = rgb2cmyk(input.r, input.g, input.b).rgb;',
                 'else if (8 == mapping) {float h=rgb2hue(input.r, input.g, input.b)/360.0; output=vec4(h,h,h,input.a);}',
-                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, HSV); output=vec4(s,s,s,input.a);}',
-                'else if (10 == mapping) output = mask(input);',
+                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, FORMAT_HSV); output=vec4(s,s,s,input.a);}',
+                'else if (10 == mapping) output = mask(input, minval, maxval, color);',
                 'gl_FragColor = output;',
             '}'
             ].join('\n'),
@@ -8715,7 +8733,7 @@ var AffineMatrixFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -8826,18 +8844,18 @@ function glsl(filter)
 {
     var m = filter.matrix, color = filter.color || 0;
     return {instance: filter, shader: m ? [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform float am[6];',
 'uniform vec4 color;',
-'const int IGNORE='+MODE.IGNORE+';',
-'const int CLAMP='+MODE.CLAMP+';',
-'const int COLOR='+MODE.COLOR+';',
-'const int WRAP='+MODE.WRAP+';',
+'#define IGNORE '+MODE.IGNORE+'',
+'#define CLAMP '+MODE.CLAMP+'',
+'#define COLOR '+MODE.COLOR+'',
+'#define WRAP '+MODE.WRAP+'',
 'uniform int mode;',
 'void main(void) {',
-'   vec2 p = vec2(am[0]*pix.x+am[1]*pix.x+am[2], am[3]*pix.x+am[4]*pix.x+am[5]);',
+'   vec2 p = vec2(am[0]*pix.x+am[1]*pix.y+am[2], am[3]*pix.x+am[4]*pix.y+am[5]);',
 '   if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '       if (COLOR == mode) {gl_FragColor = color;}',
 '       else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
@@ -8856,11 +8874,10 @@ function glsl(filter)
 ].join('\n') : GLSL.DEFAULT,
     vars: m ? function(gl, w, h, program) {
         var m = filter.matrix, color = filter.color || 0;
-        var am = [
-        m[0], m[1], m[2]/w+m[3],
-        m[4], m[5], m[6]/h+m[7]
-        ];
-        gl.uniform1fv(program.uniform.am, am);
+        gl.uniform1fv(program.uniform.am, new FILTER.Array32F([
+            m[0], m[1], m[2]/w+m[3],
+            m[4], m[5], m[6]/h+m[7]
+        ]));
         gl.uniform4f(program.uniform.color,
             ((color >>> 16) & 255)/255,
             ((color >>> 8) & 255)/255,
@@ -8952,7 +8969,7 @@ FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -9150,7 +9167,7 @@ function glsl(filter)
     var displaceMap = filter.input("map"), color = filter.color || 0;
     if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D map;',
@@ -9159,14 +9176,14 @@ function glsl(filter)
 'uniform vec2 scale;',
 'uniform vec4 color;',
 'uniform ivec2 component;',
-'const int IGNORE='+MODE.IGNORE+';',
-'const int CLAMP='+MODE.CLAMP+';',
-'const int COLOR='+MODE.COLOR+';',
-'const int WRAP='+MODE.WRAP+';',
-'const int RED='+CHANNEL.R+';',
-'const int GREEN='+CHANNEL.G+';',
-'const int BLUE='+CHANNEL.B+';',
-'const int ALPHA='+CHANNEL.A+';',
+'#define IGNORE '+MODE.IGNORE+'',
+'#define CLAMP '+MODE.CLAMP+'',
+'#define COLOR '+MODE.COLOR+'',
+'#define WRAP '+MODE.WRAP+'',
+'#define RED '+CHANNEL.R+'',
+'#define GREEN '+CHANNEL.G+'',
+'#define BLUE '+CHANNEL.B+'',
+'#define ALPHA '+CHANNEL.A+'',
 'uniform int mode;',
 'void main(void) {',
 '   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',
@@ -9412,7 +9429,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -9428,14 +9445,14 @@ function glsl(filter)
     if (HAS.call(GLSLMAP, filter._mapName))
     {
         return {instance: filter, shader: [
-            'precision highp float;',
+            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
-            'const float TWOPI = 6.283185307179586;',
-            'const int IGNORE='+MODE.IGNORE+';',
-            'const int CLAMP='+MODE.CLAMP+';',
-            'const int COLOR='+MODE.COLOR+';',
-            'const int WRAP='+MODE.WRAP+';',
+            '#define TWOPI  6.283185307179586',
+            '#define IGNORE '+MODE.IGNORE+'',
+            '#define CLAMP '+MODE.CLAMP+'',
+            '#define COLOR '+MODE.COLOR+'',
+            '#define WRAP '+MODE.WRAP+'',
             'uniform int mode;',
             'uniform int swap;',
             'uniform vec2 center;',
@@ -9478,10 +9495,10 @@ function glsl(filter)
                     cy = filter.centerY,
                     fx = (w-1)*(w-1), fy = (h-1)*(h-1),
                     RMAX =  max(
-                        sqrt(fx*(cx - 0) * (cx - 0) + fy*(cy - 0) * (cy - 0)),
-                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 0) * (cy - 0)),
-                        sqrt(fy*(cx - 0) * (cx - 0) + fy*(cy - 1) * (cy - 1)),
-                        sqrt(fy*(cx - 1) * (cx - 1) + fy*(cy - 1) * (cy - 1))
+                        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 0) * (cy - 0)),
+                        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 0) * (cy - 0)),
+                        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 1) * (cy - 1)),
+                        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 1) * (cy - 1))
                     );
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,
@@ -10238,7 +10255,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -10565,18 +10582,18 @@ function glsl(filter)
             {
                 def.push('vec4 o1='+calc.join('')+';')
                 def.push('vec4 o2='+calc2.join('')+';')
-                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),1.0)', ca];
+                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),'+ca+')'];
             }
             else
             {
                 def.push('vec4 o1='+calc.join('')+';')
                 def.push('vec4 o2='+calc2.join('')+';')
-                return [def.join('\n'), toFloat(f)+'*o1'+toFloat(b,1)+'*o2', ca];
+                return [def.join('\n'), 'vec4(('+toFloat(f)+'*o1'+toFloat(b,1)+'*o2).rgb,'+ca+')'];
             }
         }
         else
         {
-            return [def.join('\n'), calc.join('')+'+vec4('+toFloat(b)+')', ca];
+            return [def.join('\n'), 'vec4(('+calc.join('')+'+vec4('+toFloat(b)+')).rgb,'+ca+')'];
         }
     };
     var toFloat = GLSL.formatFloat, code,
@@ -10589,14 +10606,13 @@ function glsl(filter)
     }
     code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform vec2 dp;',
 'void main(void) {',
 code[0],
 'gl_FragColor = '+code[1]+';',
-'gl_FragColor.a = '+code[2]+';',
 '}'
     ].join('\n'), iterations: filter._doIntegral || 1};
 }
@@ -10976,7 +10992,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -11019,7 +11035,7 @@ function glsl(filter)
     };
     var morph = function(m, op, img) {
         return {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
@@ -11053,14 +11069,14 @@ function glsl(filter)
         case 'gradient':
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', 'img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev'),
         {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
-        'uniform sampler2D img_prev;',
+        'uniform sampler2D _img_prev;',
         'void main(void) {',
-        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
@@ -11070,16 +11086,16 @@ function glsl(filter)
         case 'laplacian':
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', 'img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev'),
         {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
-        'uniform sampler2D img_prev;',
-        'uniform sampler2D img_prev_prev;',
+        'uniform sampler2D _img_prev;',
+        'uniform sampler2D _img_prev_prev;',
         'void main(void) {',
-        'vec4 original = texture2D(img_prev_prev, pix);',
-        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 original = texture2D(_img_prev_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'
@@ -11369,8 +11385,8 @@ MORPHO = {
 // used for internal purposes
 var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
     A32I = FILTER.Array32I, A32U = FILTER.Array32U,
-    GLSL = FILTER.Util.GLSL,
-    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
+    GLSL = FILTER.Util.GLSL, TypedArray = FILTER.Util.Array.typed,
+    stdMath = Math, Min = stdMath.min, Max = stdMath.max;
 
 //  Statistical Filter
 var StatisticalFilter = FILTER.Create({
@@ -11469,7 +11485,7 @@ var StatisticalFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -11511,20 +11527,20 @@ function glsl(filter)
         code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D(img,pix);');
         return code.join('\n');
     };
-    var kth_code = function(d) {
+    var kth_code = function(d, kth) {
         var code = [], r = [], g = [], b = [], ca = 'c0',
             x, y, k, i, j, kthr, kthg, kthb,
             matArea = d*d, matRadius = d,
             matHalfSide = matRadius>>>1;
         x=0; y=0; k=0;
-        code.push('float totr=0.0;');
+        /*code.push('float totr=0.0;');
         code.push('float totg=0.0;');
-        code.push('float totb=0.0;');
+        code.push('float totb=0.0;');*/
         while (k<matArea)
         {
             i = x-matHalfSide;
             j = y-matHalfSide;
-            code.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+'); float c'+k+'r=c'+k+'.r; float c'+k+'g=c'+k+'.g; float c'+k+'b=c'+k+'.b; totr += c'+k+'r; totg += c'+k+'g; totb += c'+k+'b;');
+            code.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+'); float c'+k+'r=c'+k+'.r; float c'+k+'g=c'+k+'.g; float c'+k+'b=c'+k+'.b;'/*+' totr += c'+k+'r; totg += c'+k+'g; totb += c'+k+'b;'*/);
             r.push('c'+k+'r');
             g.push('c'+k+'g');
             b.push('c'+k+'b');
@@ -11533,9 +11549,11 @@ function glsl(filter)
         }
         code.push('float t=0.0;');
         code.push(staticSort(r, 't').join('\n'));
+        code.push('if (1==isColored) {');
         code.push(staticSort(g, 't').join('\n'));
         code.push(staticSort(b, 't').join('\n'));
-        code.push('totr *= kth;');
+        code.push('}');
+        /*code.push('totr *= kth;');
         code.push('totg *= kth;');
         code.push('totb *= kth;');
         code.push('float rkth=c0r;');
@@ -11555,22 +11573,31 @@ function glsl(filter)
         while (0 < i) {--i; kthr += '}'; kthg += '}'; kthb += '}';}
         code.push(kthr);
         code.push(kthg);
-        code.push(kthb);
+        code.push(kthb);*/
+        code.push('float rkth=c'+stdMath.round(kth*(matArea-1))+'r;');
+        code.push('float gkth=rkth;');
+        code.push('float bkth=rkth;');
+        code.push('if (1==isColored) {');
+        code.push('gkth=c'+stdMath.round(kth*(matArea-1))+'g;');
+        code.push('bkth=c'+stdMath.round(kth*(matArea-1))+'b;');
+        code.push('}');
         code.push('gl_FragColor = vec4(rkth,gkth,bkth,'+ca+');');
         return code.join('\n');
     };
     var stat = function(type) {
         return {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
-        'uniform float kth;',
+        'uniform int isColored;',
+        //'uniform float kth;',
         'void main(void) {',
         '1th' === type ? minmax_code(filter.d, 'max', '0.0') : ('0th' === type ? minmax_code(filter.d, 'min', '1.0') : kth_code(filter.d, filter.k)),
         '}'
         ].join('\n'), vars: function(gl, w, h, program) {
-            gl.uniform1f(program.uniform.kth, filter.k);
+            gl.uniform1i(program.uniform.isColored, MODE.GRAY !== filter.mode ? 1 : 0);
+            //gl.uniform1f(program.uniform.kth, filter.k);
         }};
     };
     var toFloat = GLSL.formatFloat, staticSort = GLSL.staticSort, output;
@@ -11891,7 +11918,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         var self = this, filter = self._filter;
         return filter && filter.shader ? {
             instance: self, shader: filter.shader,
@@ -12547,7 +12574,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -12612,7 +12639,7 @@ function glsl(filter)
     var color = filter.color||0, src = filter.input("source");
     if (!src) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D src;',
@@ -12621,19 +12648,19 @@ function glsl(filter)
 'uniform vec4 color;',
 'uniform int sC;',
 'uniform int tC;',
-'const int COLOR32='+MODE.COLOR32+';',
-'const int COLOR8='+MODE.COLOR8+';',
-'const int MASK32='+MODE.COLORMASK32+';',
-'const int MASK8='+MODE.COLORMASK8+';',
-'const int RED='+CHANNEL.R+';',
-'const int GREEN='+CHANNEL.G+';',
-'const int BLUE='+CHANNEL.B+';',
-'const int ALPHA='+CHANNEL.A+';',
+'#define COLOR32 '+MODE.COLOR32+'',
+'#define COLOR8 '+MODE.COLOR8+'',
+'#define MASK32 '+MODE.COLORMASK32+'',
+'#define MASK8 '+MODE.COLORMASK8+'',
+'#define RED '+CHANNEL.R+'',
+'#define GREEN '+CHANNEL.G+'',
+'#define BLUE '+CHANNEL.B+'',
+'#define ALPHA '+CHANNEL.A+'',
 'uniform int mode;',
 'void main(void) {',
 '   vec4 tCol = texture2D(img, pix);',
-'   vec2 p = pix - center + 0.5*srcSize;',
-'   if (srcSize.x < abs(p.x) || srcSize.y < abs(p.y)) {',
+'   vec2 p = (pix - (center - 0.5*srcSize))/srcSize;',
+'   if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
 '       if (MASK32 == mode) {tCol *= color;}',
 '       else if (COLOR32 == mode) {tCol = color;}',
 '       else if (MASK8 == mode) {',
@@ -13036,7 +13063,10 @@ FILTER.Create({
 !function(FILTER, undef) {
 "use strict";
 
-var stdMath = Math, sqrt = stdMath.sqrt, min = stdMath.min, max = stdMath.max, SQRT_3 = sqrt(3);
+var stdMath = Math, hypot = FILTER.Util.Math.hypot,
+    sqrt = stdMath.sqrt, abs = stdMath.abs,
+    min = stdMath.min, max = stdMath.max,
+    floor = stdMath.floor, ceil = stdMath.ceil;
 
 // a simple and fast Pixelate filter for various patterns
 // TODO: add some smoothing/dithering in patterns which have diagonal lines separating cells, e.g triangular,..
@@ -13071,6 +13101,10 @@ var PixelateFilter = FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,apply: function(im, w, h) {
         var self = this, pattern = self.pattern, output;
         if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
@@ -13082,37 +13116,30 @@ var PixelateFilter = FILTER.Create({
     }
 });
 
+// private methods
 var PIXELATION = PixelateFilter.PATTERN = {
     "rectangular": function rectangular(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step, step_2, stepw, stepw_2,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*1e-2)|0;
         step_2 = (0.5*step)|0; stepw = step*w; stepw_2 = step_2*w;
 
-        // do pixelation via interpolation on 5 points of a certain rectangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
-            pxc = min(bx, pxa+step_2); pyc = min(by, pya+stepw_2);
+            pxc = max(0, min(bx, pxa+step_2));
+            pyc = max(0, min(by, pya+stepw_2));
 
-            // these edge conditions create the rectangular pattern
             p0 = (pxc + pyc) << 2;
-            p1 = (pxa + pya) << 2;
-            p2 = (pxa + pyb) << 2;
-            p3 = (pxb + pya) << 2;
-            p4 = (pxb + pyb) << 2;
 
-            // compute rectangular interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -13127,45 +13154,38 @@ var PIXELATION = PixelateFilter.PATTERN = {
     "triangular": function triangular(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step_2, step1_3, step2_3, stepw, stepw_2,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*1.25e-2)|0;
         step_2 = (0.5*step)|0; step1_3 = (0.333*step)|0; step2_3 = (0.666*step)|0;
         stepw = step*w; stepw_2 = step_2*w;
 
-        // do pixelation via interpolation on 4 points of a certain triangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
 
             // these edge conditions create the various triangular patterns
             if (sx+sy > step)
             {
                 // second (right) triangle
-                pxc = min(bx, pxa+step2_3); pyc = min(by, pya+stepw_2);
+                pxc = max(0, min(bx, pxa+step2_3));
+                pyc = max(0, min(by, pya+stepw_2));
                 p0 = (pxc + pyc) << 2;
-                p1 = (pxb + pyb) << 2;
             }
             else
             {
                 // first (left) triangle
-                pxc = min(bx, pxa+step1_3); pyc = min(by, pya+stepw_2);
+                pxc = max(0, min(bx, pxa+step1_3));
+                pyc = max(0, min(by, pya+stepw_2));
                 p0 = (pxc + pyc) << 2;
-                p1 = (pxa + pyb) << 2;
             }
 
-            p2 = (pxa + pya) << 2;
-            p3 = (pxb + pya) << 2;
-
-            // compute triangular interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.2*(input[p1  ]+input[p2  ]+input[p3  ]+2*input[p0  ]);
-            g = 0.2*(input[p1+1]+input[p2+1]+input[p3+1]+2*input[p0+1]);
-            b = 0.2*(input[p1+2]+input[p2+2]+input[p3+2]+2*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -13180,8 +13200,8 @@ var PIXELATION = PixelateFilter.PATTERN = {
     "rhomboidal": function rhomboidal(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step2, stepw, stepw2, odd,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*7e-3)|0;
         step2 = 2*step; stepw = step*w; stepw2 = step2*w;
@@ -13229,21 +13249,15 @@ var PIXELATION = PixelateFilter.PATTERN = {
                     pxa = max(0, x-sx-step); pya = max(0, yw-syw-stepw);
                 }
             }
-            pxb = min(bx, pxa+step2); pyb = min(by, pya+stepw2);
-            pxc = min(bx, pxa+step); pyc = min(by, pya+stepw);
+            pxc = max(0, min(bx, pxa+step));
+            pyc = max(0, min(by, pya+stepw));
 
             p0 = (pxc + pyc) << 2;
-            p1 = (pxc + pya) << 2;
-            p2 = (pxa + pyc) << 2;
-            p3 = (pxb + pyc) << 2;
-            p4 = (pxc + pyb) << 2;
 
-            // compute rhomboidal interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -13257,120 +13271,169 @@ var PIXELATION = PixelateFilter.PATTERN = {
     },
     "hexagonal": function hexagonal(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
-            xstep, xstep2, xstep_2, xstep3_2, ystep, ystepw,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, p5, p6, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc, pxd, pyd, pxe,
-            xparity, yparity;
+            bx = w-1, by = imArea-w, p0, i, x, y, xn, yn,
+            t_x, t_y, it_x, it_y, ct_x, ct_y,
+            a_x, a_y, b_x, b_y, c_x, c_y,
+            A_x, A_y, A_z, B_x, B_y, B_z, C_x, C_y, C_z,
+            T_x, T_y, T_z, alen, blen, clen, ch_x, ch_y;
 
-        xstep2 = (SQRT_3*scale*sqrt(imArea)*1.2e-2)|0;
-        xstep = (0.5*xstep2)|0; xstep_2 = (0.25*xstep2)|0; xstep3_2 = xstep2-xstep_2;
-        ystep = (0.25*xstep2)|0; ystepw = ystep*w;
-
-        // do pixelation via interpolation on 7 points of a certain hexagon
-        x=yw=sx=sy=syw=0; xparity=yparity=1;
+        scale = sqrt(imArea)*scale*1e-2;
+        x=y=0;
         for (i=0; i<imLen; i+=4)
         {
-            // these edge conditions create the various hexagonal patterns
-            if (yparity)
+            //xn = x/w;
+            //yn = y/h;
+            t_x = x / scale;
+            t_y = y / scale;
+            t_y /= 0.866025404;
+            t_x -= t_y * 0.5;
+            it_x = floor(t_x);
+            it_y = floor(t_y);
+            ct_x = ceil(t_x);
+            ct_y = ceil(t_y);
+            if (t_x + t_y - it_x - it_y < 1.0)
             {
-                if (2===xparity)
-                {
-                    // center hexagon bottom
-                    pxa = max(0, x-sx-xstep_2); pya = yw-syw;
-                }
-                else if (1===xparity)
-                {
-                    if (SQRT_3*sx+ystep-sy > xstep)
-                    {
-                        // top right hexagon
-                        pxa = min(bx, x-sx+xstep_2); pya = yw-syw;
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = max(0, x-sx-xstep); pya = min(by, yw-syw+ystepw);
-                    }
-                }
-                else
-                {
-                    if (SQRT_3*sx+sy < xstep)
-                    {
-                        // top left hexagon
-                        pxa = max(0, x-sx-xstep3_2); pya = yw-syw;
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = x-sx; pya = min(by, yw-syw+ystepw);
-                    }
-                }
+                a_x = it_x;
+                a_y = it_y;
             }
             else
             {
-                if (2===xparity)
-                {
-                    // center hexagon top
-                    pxa = max(0, x-sx-xstep_2); pya = min(by, yw-syw+ystepw);
-                }
-                else if (1===xparity)
-                {
-                    if ( SQRT_3*sx+sy > xstep )
-                    {
-                        // bottom right hexagon
-                        pxa = min(bx, x-sx+xstep_2); pya = min(by, yw-syw+ystepw);
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = max(0, x-sx-xstep); pya = yw-syw;
-                    }
-                }
-                else
-                {
-                    if (SQRT_3*sx+ystep-sy < xstep)
-                    {
-                        // bottom left hexagon
-                        pxa = max(0, x-sx-xstep3_2); pya = min(by, yw-syw+ystepw);
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = x-sx; pya = yw-syw;
-                    }
-                }
+                a_x = ct_x;
+                a_y = ct_y;
             }
-            pxb = min(bx, pxa+xstep_2); pyb = max(0, pya-ystepw);
-            pxc = min(bx, pxa+xstep); pyc = pya;
-            pxd = min(bx, pxa+xstep2); pyd = min(by, pya+ystepw);
-            pxe = min(bx, pxa+xstep3_2);
+            b_x = ct_x;
+            b_y = it_y;
+            c_x = it_x;
+            c_y = ct_y;
 
-            p0 = (pxc + pyc) << 2;
-            p1 = (pxa + pya) << 2;
-            p2 = (pxb + pyb) << 2;
-            p3 = (pxe + pyb) << 2;
-            p4 = (pxd + pya) << 2;
-            p5 = (pxe + pyd) << 2;
-            p6 = (pxb + pyd) << 2;
+            T_x = t_x;
+            T_y = t_y;
+            T_z = 1.0 - t_x - t_y;
+            A_x = a_x;
+            A_y = a_y;
+            A_z = 1.0 - a_x - a_y;
+            B_x = b_x;
+            B_y = b_y;
+            B_z = 1.0 - b_x - b_y;
+            C_x = c_x;
+            C_y = c_y;
+            C_z = 1.0 - c_x - c_y;
 
-            // compute hexagonal interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+input[p5  ]+input[p6  ]+2*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+input[p5+1]+input[p6+1]+2*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+input[p5+2]+input[p6+2]+2*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            alen = hypot(T_x - A_x, T_y - A_y, T_z - A_z);
+            blen = hypot(T_x - B_x, T_y - B_y, T_z - B_z);
+            clen = hypot(T_x - C_x, T_y - C_y, T_z - C_z);
+            if (alen < blen)
+            {
+                if (alen < clen) {ch_x = a_x; ch_y = a_y;}
+                else {ch_x = c_x; ch_y = c_y;}
+            }
+            else
+            {
+                if (blen < clen) {ch_x = b_x; ch_y = b_y;}
+                else {ch_x = c_x; ch_y = c_y;}
+            }
+
+            ch_x += ch_y * 0.5;
+            ch_y *= 0.866025404;
+            ch_x *= scale;
+            ch_y *= scale;
+            p0 = (max(0, min(bx, ch_x|0)) + max(0, min(by, (ch_y|0)*w))) << 2;
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
-            ++x; ++sx;
-            if (x >= w)
-            {
-                sx=0; x=0; ++sy; syw+=w; yw+=w; xparity=0;
-                if (sy >= ystep) {sy=0; syw=0; yparity=1-yparity;}
-            }
-            if (sx >= xstep) {sx=0; xparity=(xparity+1)%3;}
+            ++x;
+            if (x >= w) {x=0; ++y;}
         }
-    }
+    },
+    "rectangular_glsl": [
+    'vec2 rectangular(vec2 p, vec2 imgsize, float tilesize) {',
+    '    return clamp((tilesize*floor(imgsize * p / tilesize) + 0.5*tilesize)/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
+    "triangular_glsl": [
+    'vec2 triangular(vec2 p, vec2 imgsize, float tilesize) {',
+    '   tilesize *= 1.25;',
+    '   vec2 tile = tilesize*floor(imgsize * p / tilesize);',
+    '   vec2 t = mod(imgsize * p, tilesize);',
+    '   if (t.x+t.y > tilesize) return clamp((tile + vec2(0.66*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
+    '   else return clamp((tile + vec2(0.33*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
+    "hexagonal_glsl": [
+    'vec2 hexagonal(vec2 p, vec2 imgsize, float tilesize) {',
+    '    vec2 t = imgsize * p / tilesize;',
+    '    t.y /= 0.866025404;',
+    '    t.x -= t.y * 0.5;',
+    '    vec2 it = vec2(floor(t.x), floor(t.y));',
+    '    vec2 ct = vec2(ceil(t.x), ceil(t.y));',
+    '    vec2 a;',
+    '    if (t.x + t.y - it.x - it.y < 1.0) a = it;',
+    '    else a = ct;',
+    '    vec2 b = vec2(ct.x, it.y);',
+    '    vec2 c = vec2(it.x, ct.y);',
+    '    vec3 T = vec3(t.x, t.y, 1.0 - t.x - t.y);',
+    '    vec3 A = vec3(a.x, a.y, 1.0 - a.x - a.y);',
+    '    vec3 B = vec3(b.x, b.y, 1.0 - b.x - b.y);',
+    '    vec3 C = vec3(c.x, c.y, 1.0 - c.x - c.y);',
+    '    float alen = length(T - A);',
+    '    float blen = length(T - B);',
+    '    float clen = length(T - C);',
+    '    vec2 ch;',
+    '    if (alen < blen) {',
+    '        if (alen < clen) ch = a;',
+    '        else ch = c;',
+    '    } else {',
+    '        if (blen < clen) ch = b;',
+    '        else ch = c;',
+    '    }',
+    '    ch.x += ch.y * 0.5;',
+    '    ch.y *= 0.866025404;',
+    '    ch *= tilesize / imgsize;',
+    '    return clamp(ch, 0.0, 1.0);',
+    '}'
+    ].join('\n')
 };
-
+function glsl(filter)
+{
+    if (filter.scale <= 1 || !filter.pattern || !PIXELATION[filter.pattern]) return {instance: filter, shader: FILTER.Util.GLSL.DEFAULT};
+    return {instance: filter, shader: [
+    'precision mediump float;',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 imgSize;',
+    'uniform float tileSize;',
+    'uniform int pixelate;',
+    PIXELATION['rectangular_glsl'],
+    PIXELATION['triangular_glsl'],
+    PIXELATION['hexagonal_glsl'],
+    'void main(void) {',
+        'vec2 p = pix;',
+        'if (1 == pixelate) p = triangular(p, imgSize, tileSize);',
+        'else if (3 == pixelate) p = hexagonal(p, imgSize, tileSize);',
+        'else p = rectangular(p, imgSize, tileSize);',
+        'gl_FragColor = texture2D(img, p);',
+    '}'
+    ].join('\n'),
+    vars: function(gl, w, h, program) {
+        gl.uniform2f(program.uniform.imgSize,
+            w, h
+        );
+        gl.uniform1f(program.uniform.tileSize,
+            sqrt(w*h)*(filter.scale||1)*1e-2
+        );
+        gl.uniform1i(program.uniform.pixelate,
+            'triangular' === filter.pattern ? 1 : (
+            'hexagonal' === filter.pattern ? 3 : (
+            0
+            )
+            )
+        );
+    }
+    };
+}
 }(FILTER);/**
 *
 * Halftone

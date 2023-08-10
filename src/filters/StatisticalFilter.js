@@ -13,8 +13,8 @@
 // used for internal purposes
 var STAT, MODE = FILTER.MODE,IMG = FILTER.ImArray,
     A32I = FILTER.Array32I, A32U = FILTER.Array32U,
-    GLSL = FILTER.Util.GLSL,
-    TypedArray = FILTER.Util.Array.typed, Min = Math.min, Max = Math.max;
+    GLSL = FILTER.Util.GLSL, TypedArray = FILTER.Util.Array.typed,
+    stdMath = Math, Min = stdMath.min, Max = stdMath.max;
 
 //  Statistical Filter
 var StatisticalFilter = FILTER.Create({
@@ -113,7 +113,7 @@ var StatisticalFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -155,20 +155,20 @@ function glsl(filter)
         code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D(img,pix);');
         return code.join('\n');
     };
-    var kth_code = function(d) {
+    var kth_code = function(d, kth) {
         var code = [], r = [], g = [], b = [], ca = 'c0',
             x, y, k, i, j, kthr, kthg, kthb,
             matArea = d*d, matRadius = d,
             matHalfSide = matRadius>>>1;
         x=0; y=0; k=0;
-        code.push('float totr=0.0;');
+        /*code.push('float totr=0.0;');
         code.push('float totg=0.0;');
-        code.push('float totb=0.0;');
+        code.push('float totb=0.0;');*/
         while (k<matArea)
         {
             i = x-matHalfSide;
             j = y-matHalfSide;
-            code.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+'); float c'+k+'r=c'+k+'.r; float c'+k+'g=c'+k+'.g; float c'+k+'b=c'+k+'.b; totr += c'+k+'r; totg += c'+k+'g; totb += c'+k+'b;');
+            code.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+'); float c'+k+'r=c'+k+'.r; float c'+k+'g=c'+k+'.g; float c'+k+'b=c'+k+'.b;'/*+' totr += c'+k+'r; totg += c'+k+'g; totb += c'+k+'b;'*/);
             r.push('c'+k+'r');
             g.push('c'+k+'g');
             b.push('c'+k+'b');
@@ -177,9 +177,11 @@ function glsl(filter)
         }
         code.push('float t=0.0;');
         code.push(staticSort(r, 't').join('\n'));
+        code.push('if (1==isColored) {');
         code.push(staticSort(g, 't').join('\n'));
         code.push(staticSort(b, 't').join('\n'));
-        code.push('totr *= kth;');
+        code.push('}');
+        /*code.push('totr *= kth;');
         code.push('totg *= kth;');
         code.push('totb *= kth;');
         code.push('float rkth=c0r;');
@@ -199,22 +201,31 @@ function glsl(filter)
         while (0 < i) {--i; kthr += '}'; kthg += '}'; kthb += '}';}
         code.push(kthr);
         code.push(kthg);
-        code.push(kthb);
+        code.push(kthb);*/
+        code.push('float rkth=c'+stdMath.round(kth*(matArea-1))+'r;');
+        code.push('float gkth=rkth;');
+        code.push('float bkth=rkth;');
+        code.push('if (1==isColored) {');
+        code.push('gkth=c'+stdMath.round(kth*(matArea-1))+'g;');
+        code.push('bkth=c'+stdMath.round(kth*(matArea-1))+'b;');
+        code.push('}');
         code.push('gl_FragColor = vec4(rkth,gkth,bkth,'+ca+');');
         return code.join('\n');
     };
     var stat = function(type) {
         return {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
-        'uniform float kth;',
+        'uniform int isColored;',
+        //'uniform float kth;',
         'void main(void) {',
         '1th' === type ? minmax_code(filter.d, 'max', '0.0') : ('0th' === type ? minmax_code(filter.d, 'min', '1.0') : kth_code(filter.d, filter.k)),
         '}'
         ].join('\n'), vars: function(gl, w, h, program) {
-            gl.uniform1f(program.uniform.kth, filter.k);
+            gl.uniform1i(program.uniform.isColored, MODE.GRAY !== filter.mode ? 1 : 0);
+            //gl.uniform1f(program.uniform.kth, filter.k);
         }};
     };
     var toFloat = GLSL.formatFloat, staticSort = GLSL.staticSort, output;

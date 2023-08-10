@@ -450,9 +450,9 @@ function cmyk2rgb(c, m, y, k)
     ];
 }
 var GLSL = [
-'const int HWB = 3;',
-'const int HSV = 2;',
-'const int HSL = 1;',
+'#define FORMAT_HWB 3',
+'#define FORMAT_HSV 2',
+'#define FORMAT_HSL 1',
 'vec4 hsl2rgb(float h, float s, float l) {',
 '   float c = (1.0 - abs(2.0*l - 1.0))*s;',
 '   float hp = h/60.0;',
@@ -527,21 +527,21 @@ var GLSL = [
 '        sv = clamp(c/v, 0.0, 1.0);',
 '    }',
 '    v = clamp(v, 0.0, 1.0);',
-'    if (HWB == type) return vec4(h, wh, bl, 1.0);',
-'    else if (HSV == type) return vec4(h, sv, v, 1.0);',
+'    if (FORMAT_HWB == type) return vec4(h, wh, bl, 1.0);',
+'    else if (FORMAT_HSV == type) return vec4(h, sv, v, 1.0);',
 '    return vec4(h, sl, l, 1.0);',
 '}',
 'vec4 rgb2hsl(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSL);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSL);',
 '}',
 'vec4 rgb2hsv(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSV);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSV);',
 '}',
 'vec4 rgb2hwb(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HWB);',
+'    return rgb2hslvwb(r, g, b, FORMAT_HWB);',
 '}',
 'vec4 rgb2hue(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, HSL).r;',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSL).r;',
 '}',
 'vec4 rgb2sat(float r, float g, float b, int type) {',
 '    return rgb2hslvwb(r, g, b, type).g;',
@@ -606,7 +606,7 @@ var Color = FILTER.Color = FILTER.Class({
     // static
     __static__: {
 
-        getGLSL: function() {
+        GLSLCode: function() {
             return GLSL;
         },
         clamp: clamp,

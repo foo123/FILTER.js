@@ -79,7 +79,7 @@ FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -277,7 +277,7 @@ function glsl(filter)
     var displaceMap = filter.input("map"), color = filter.color || 0;
     if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D map;',
@@ -286,14 +286,14 @@ function glsl(filter)
 'uniform vec2 scale;',
 'uniform vec4 color;',
 'uniform ivec2 component;',
-'const int IGNORE='+MODE.IGNORE+';',
-'const int CLAMP='+MODE.CLAMP+';',
-'const int COLOR='+MODE.COLOR+';',
-'const int WRAP='+MODE.WRAP+';',
-'const int RED='+CHANNEL.R+';',
-'const int GREEN='+CHANNEL.G+';',
-'const int BLUE='+CHANNEL.B+';',
-'const int ALPHA='+CHANNEL.A+';',
+'#define IGNORE '+MODE.IGNORE+'',
+'#define CLAMP '+MODE.CLAMP+'',
+'#define COLOR '+MODE.COLOR+'',
+'#define WRAP '+MODE.WRAP+'',
+'#define RED '+CHANNEL.R+'',
+'#define GREEN '+CHANNEL.G+'',
+'#define BLUE '+CHANNEL.B+'',
+'#define ALPHA '+CHANNEL.A+'',
 'uniform int mode;',
 'void main(void) {',
 '   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',

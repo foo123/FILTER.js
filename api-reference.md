@@ -250,6 +250,8 @@ new FILTER.ColorMapFilter(colorMap:Function);
 
 The filter scans an image and maps each pixel colors non-linearly according to the color mapping function.
 
+**NEW Color Map Filter supports WebGL**
+
 The class has various pre-defined filters.
 
 * `threshold/quantize(thresholds:Array, quantizedcolors:Array)`  applies a full 32-bit threshods to the image with quantized colors
@@ -860,7 +862,7 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
-<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"</td></tr>
+<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal" <b>supports WebGL</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>

@@ -214,7 +214,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -257,7 +257,7 @@ function glsl(filter)
     };
     var morph = function(m, op, img) {
         return {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
@@ -291,14 +291,14 @@ function glsl(filter)
         case 'gradient':
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', 'img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev'),
         {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
-        'uniform sampler2D img_prev;',
+        'uniform sampler2D _img_prev;',
         'void main(void) {',
-        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
@@ -308,16 +308,16 @@ function glsl(filter)
         case 'laplacian':
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', 'img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev'),
         {instance: filter, shader: [
-        'precision highp float;',
+        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
-        'uniform sampler2D img_prev;',
-        'uniform sampler2D img_prev_prev;',
+        'uniform sampler2D _img_prev;',
+        'uniform sampler2D _img_prev_prev;',
         'void main(void) {',
-        'vec4 original = texture2D(img_prev_prev, pix);',
-        'vec4 dilate = texture2D(img_prev, pix);',
+        'vec4 original = texture2D(_img_prev_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'

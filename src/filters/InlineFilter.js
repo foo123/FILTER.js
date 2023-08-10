@@ -90,7 +90,7 @@ FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         var self = this, filter = self._filter;
         return filter && filter.shader ? {
             instance: self, shader: filter.shader,

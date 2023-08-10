@@ -349,7 +349,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -676,18 +676,18 @@ function glsl(filter)
             {
                 def.push('vec4 o1='+calc.join('')+';')
                 def.push('vec4 o2='+calc2.join('')+';')
-                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),1.0)', ca];
+                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),'+ca+')'];
             }
             else
             {
                 def.push('vec4 o1='+calc.join('')+';')
                 def.push('vec4 o2='+calc2.join('')+';')
-                return [def.join('\n'), toFloat(f)+'*o1'+toFloat(b,1)+'*o2', ca];
+                return [def.join('\n'), 'vec4(('+toFloat(f)+'*o1'+toFloat(b,1)+'*o2).rgb,'+ca+')'];
             }
         }
         else
         {
-            return [def.join('\n'), calc.join('')+'+vec4('+toFloat(b)+')', ca];
+            return [def.join('\n'), 'vec4(('+calc.join('')+'+vec4('+toFloat(b)+')).rgb,'+ca+')'];
         }
     };
     var toFloat = GLSL.formatFloat, code,
@@ -700,14 +700,13 @@ function glsl(filter)
     }
     code = matrix_code(m, m2, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform vec2 dp;',
 'void main(void) {',
 code[0],
 'gl_FragColor = '+code[1]+';',
-'gl_FragColor.a = '+code[2]+';',
 '}'
     ].join('\n'), iterations: filter._doIntegral || 1};
 }

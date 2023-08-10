@@ -1,5 +1,11 @@
 ## ChangeLog
 
+__1.5.0 in progress__
+
+* GLSL versions of most filters so that they can run in gl/webgl transparently
+* fix `Pixelate` filter
+* update examples and tests
+
 __1.0.0__
 
 * remove `classy` dependency

@@ -336,7 +336,7 @@ var ColorTableFilter = FILTER.Create({
         return this;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -436,7 +436,7 @@ function glsl(filter)
     if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
     var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
     return {instance: filter, shader: [
-'precision highp float;',
+'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D map;',

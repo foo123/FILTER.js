@@ -41,6 +41,21 @@ function clamp(x, m, M)
 {
     return x > M ? M : (x < m ? m : x);
 }
+function hypot(a, b, c)
+{
+    c = c || 0;
+    b = b || 0;
+    var m = Max(a, b, c);
+    if (m)
+    {
+        m = Abs(m);
+        a /= m;
+        b /= m;
+        c /= m;
+        return m*Sqrt(a*a + b*b + c*c);
+    }
+    return 0;
+}
 
 function arrayset_shim(a, b, offset, b0, b1)
 {
@@ -1553,6 +1568,7 @@ ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subar
 
 
 MathUtil.clamp = clamp;
+MathUtil.hypot = hypot;
 
 StringUtil.esc = esc;
 StringUtil.trim = String.prototype.trim

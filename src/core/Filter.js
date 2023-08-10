@@ -423,12 +423,12 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
 
     // get GLSL code and variables, override
-    ,getGLSL: function() {
+    ,GLSLCode: function() {
         var self = this;
-        if (null == self._glsl) self._glsl = self._getGLSL();
+        if (null == self._glsl) self._glsl = self.getGLSL();
         return self._glsl;
     }
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return {instance: this};
     }
 
@@ -513,7 +513,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             }
             else if (!isInsideThread && self.isGLSL())
             {
-                if (dst.glCanvas && (glsl = self.getGLSL()))
+                if (dst.glCanvas && (glsl = self.GLSLCode()))
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];

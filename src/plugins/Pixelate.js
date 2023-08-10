@@ -7,7 +7,10 @@
 !function(FILTER, undef) {
 "use strict";
 
-var stdMath = Math, sqrt = stdMath.sqrt, min = stdMath.min, max = stdMath.max, SQRT_3 = sqrt(3);
+var stdMath = Math, hypot = FILTER.Util.Math.hypot,
+    sqrt = stdMath.sqrt, abs = stdMath.abs,
+    min = stdMath.min, max = stdMath.max,
+    floor = stdMath.floor, ceil = stdMath.ceil;
 
 // a simple and fast Pixelate filter for various patterns
 // TODO: add some smoothing/dithering in patterns which have diagonal lines separating cells, e.g triangular,..
@@ -42,6 +45,10 @@ var PixelateFilter = FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,apply: function(im, w, h) {
         var self = this, pattern = self.pattern, output;
         if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
@@ -53,37 +60,30 @@ var PixelateFilter = FILTER.Create({
     }
 });
 
+// private methods
 var PIXELATION = PixelateFilter.PATTERN = {
     "rectangular": function rectangular(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step, step_2, stepw, stepw_2,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*1e-2)|0;
         step_2 = (0.5*step)|0; stepw = step*w; stepw_2 = step_2*w;
 
-        // do pixelation via interpolation on 5 points of a certain rectangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
-            pxc = min(bx, pxa+step_2); pyc = min(by, pya+stepw_2);
+            pxc = max(0, min(bx, pxa+step_2));
+            pyc = max(0, min(by, pya+stepw_2));
 
-            // these edge conditions create the rectangular pattern
             p0 = (pxc + pyc) << 2;
-            p1 = (pxa + pya) << 2;
-            p2 = (pxa + pyb) << 2;
-            p3 = (pxb + pya) << 2;
-            p4 = (pxb + pyb) << 2;
 
-            // compute rectangular interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -98,45 +98,38 @@ var PIXELATION = PixelateFilter.PATTERN = {
     "triangular": function triangular(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step_2, step1_3, step2_3, stepw, stepw_2,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*1.25e-2)|0;
         step_2 = (0.5*step)|0; step1_3 = (0.333*step)|0; step2_3 = (0.666*step)|0;
         stepw = step*w; stepw_2 = step_2*w;
 
-        // do pixelation via interpolation on 4 points of a certain triangle
         x=yw=sx=sy=syw=0;
         for (i=0; i<imLen; i+=4)
         {
             pxa = x-sx; pya = yw-syw;
-            pxb = min(bx, pxa+step); pyb = min(by, pya+stepw);
 
             // these edge conditions create the various triangular patterns
             if (sx+sy > step)
             {
                 // second (right) triangle
-                pxc = min(bx, pxa+step2_3); pyc = min(by, pya+stepw_2);
+                pxc = max(0, min(bx, pxa+step2_3));
+                pyc = max(0, min(by, pya+stepw_2));
                 p0 = (pxc + pyc) << 2;
-                p1 = (pxb + pyb) << 2;
             }
             else
             {
                 // first (left) triangle
-                pxc = min(bx, pxa+step1_3); pyc = min(by, pya+stepw_2);
+                pxc = max(0, min(bx, pxa+step1_3));
+                pyc = max(0, min(by, pya+stepw_2));
                 p0 = (pxc + pyc) << 2;
-                p1 = (pxa + pyb) << 2;
             }
 
-            p2 = (pxa + pya) << 2;
-            p3 = (pxb + pya) << 2;
-
-            // compute triangular interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.2*(input[p1  ]+input[p2  ]+input[p3  ]+2*input[p0  ]);
-            g = 0.2*(input[p1+1]+input[p2+1]+input[p3+1]+2*input[p0+1]);
-            b = 0.2*(input[p1+2]+input[p2+2]+input[p3+2]+2*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -151,8 +144,8 @@ var PIXELATION = PixelateFilter.PATTERN = {
     "rhomboidal": function rhomboidal(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
             step, step2, stepw, stepw2, odd,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc;
+            bx = w-1, by = imArea-w, p0,
+            i, x, yw, sx, sy, syw, pxa, pya, pxc, pyc;
 
         step = (sqrt(imArea)*scale*7e-3)|0;
         step2 = 2*step; stepw = step*w; stepw2 = step2*w;
@@ -200,21 +193,15 @@ var PIXELATION = PixelateFilter.PATTERN = {
                     pxa = max(0, x-sx-step); pya = max(0, yw-syw-stepw);
                 }
             }
-            pxb = min(bx, pxa+step2); pyb = min(by, pya+stepw2);
-            pxc = min(bx, pxa+step); pyc = min(by, pya+stepw);
+            pxc = max(0, min(bx, pxa+step));
+            pyc = max(0, min(by, pya+stepw));
 
             p0 = (pxc + pyc) << 2;
-            p1 = (pxc + pya) << 2;
-            p2 = (pxa + pyc) << 2;
-            p3 = (pxb + pyc) << 2;
-            p4 = (pxc + pyb) << 2;
 
-            // compute rhomboidal interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+4*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+4*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+4*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
             ++x; ++sx;
@@ -228,118 +215,167 @@ var PIXELATION = PixelateFilter.PATTERN = {
     },
     "hexagonal": function hexagonal(scale, output, input, w, h) {
         var imLen = input.length, imArea = imLen>>>2,
-            xstep, xstep2, xstep_2, xstep3_2, ystep, ystepw,
-            bx = w-1, by = imArea-w, p0, p1, p2, p3, p4, p5, p6, r, g, b,
-            i, x, yw, sx, sy, syw, pxa, pya, pxb, pyb, pxc, pyc, pxd, pyd, pxe,
-            xparity, yparity;
+            bx = w-1, by = imArea-w, p0, i, x, y, xn, yn,
+            t_x, t_y, it_x, it_y, ct_x, ct_y,
+            a_x, a_y, b_x, b_y, c_x, c_y,
+            A_x, A_y, A_z, B_x, B_y, B_z, C_x, C_y, C_z,
+            T_x, T_y, T_z, alen, blen, clen, ch_x, ch_y;
 
-        xstep2 = (SQRT_3*scale*sqrt(imArea)*1.2e-2)|0;
-        xstep = (0.5*xstep2)|0; xstep_2 = (0.25*xstep2)|0; xstep3_2 = xstep2-xstep_2;
-        ystep = (0.25*xstep2)|0; ystepw = ystep*w;
-
-        // do pixelation via interpolation on 7 points of a certain hexagon
-        x=yw=sx=sy=syw=0; xparity=yparity=1;
+        scale = sqrt(imArea)*scale*1e-2;
+        x=y=0;
         for (i=0; i<imLen; i+=4)
         {
-            // these edge conditions create the various hexagonal patterns
-            if (yparity)
+            //xn = x/w;
+            //yn = y/h;
+            t_x = x / scale;
+            t_y = y / scale;
+            t_y /= 0.866025404;
+            t_x -= t_y * 0.5;
+            it_x = floor(t_x);
+            it_y = floor(t_y);
+            ct_x = ceil(t_x);
+            ct_y = ceil(t_y);
+            if (t_x + t_y - it_x - it_y < 1.0)
             {
-                if (2===xparity)
-                {
-                    // center hexagon bottom
-                    pxa = max(0, x-sx-xstep_2); pya = yw-syw;
-                }
-                else if (1===xparity)
-                {
-                    if (SQRT_3*sx+ystep-sy > xstep)
-                    {
-                        // top right hexagon
-                        pxa = min(bx, x-sx+xstep_2); pya = yw-syw;
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = max(0, x-sx-xstep); pya = min(by, yw-syw+ystepw);
-                    }
-                }
-                else
-                {
-                    if (SQRT_3*sx+sy < xstep)
-                    {
-                        // top left hexagon
-                        pxa = max(0, x-sx-xstep3_2); pya = yw-syw;
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = x-sx; pya = min(by, yw-syw+ystepw);
-                    }
-                }
+                a_x = it_x;
+                a_y = it_y;
             }
             else
             {
-                if (2===xparity)
-                {
-                    // center hexagon top
-                    pxa = max(0, x-sx-xstep_2); pya = min(by, yw-syw+ystepw);
-                }
-                else if (1===xparity)
-                {
-                    if ( SQRT_3*sx+sy > xstep )
-                    {
-                        // bottom right hexagon
-                        pxa = min(bx, x-sx+xstep_2); pya = min(by, yw-syw+ystepw);
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = max(0, x-sx-xstep); pya = yw-syw;
-                    }
-                }
-                else
-                {
-                    if (SQRT_3*sx+ystep-sy < xstep)
-                    {
-                        // bottom left hexagon
-                        pxa = max(0, x-sx-xstep3_2); pya = min(by, yw-syw+ystepw);
-                    }
-                    else
-                    {
-                        // center hexagon
-                        pxa = x-sx; pya = yw-syw;
-                    }
-                }
+                a_x = ct_x;
+                a_y = ct_y;
             }
-            pxb = min(bx, pxa+xstep_2); pyb = max(0, pya-ystepw);
-            pxc = min(bx, pxa+xstep); pyc = pya;
-            pxd = min(bx, pxa+xstep2); pyd = min(by, pya+ystepw);
-            pxe = min(bx, pxa+xstep3_2);
+            b_x = ct_x;
+            b_y = it_y;
+            c_x = it_x;
+            c_y = ct_y;
 
-            p0 = (pxc + pyc) << 2;
-            p1 = (pxa + pya) << 2;
-            p2 = (pxb + pyb) << 2;
-            p3 = (pxe + pyb) << 2;
-            p4 = (pxd + pya) << 2;
-            p5 = (pxe + pyd) << 2;
-            p6 = (pxb + pyd) << 2;
+            T_x = t_x;
+            T_y = t_y;
+            T_z = 1.0 - t_x - t_y;
+            A_x = a_x;
+            A_y = a_y;
+            A_z = 1.0 - a_x - a_y;
+            B_x = b_x;
+            B_y = b_y;
+            B_z = 1.0 - b_x - b_y;
+            C_x = c_x;
+            C_y = c_y;
+            C_z = 1.0 - c_x - c_y;
 
-            // compute hexagonal interpolation
-            // base interpolated color on center pixel plus corner pixels
-            r = 0.125*(input[p1  ]+input[p2  ]+input[p3  ]+input[p4  ]+input[p5  ]+input[p6  ]+2*input[p0  ]);
-            g = 0.125*(input[p1+1]+input[p2+1]+input[p3+1]+input[p4+1]+input[p5+1]+input[p6+1]+2*input[p0+1]);
-            b = 0.125*(input[p1+2]+input[p2+2]+input[p3+2]+input[p4+2]+input[p5+2]+input[p6+2]+2*input[p0+2]);
-            output[i] = r|0; output[i+1] = g|0; output[i+2] = b|0; output[i+3] = input[i+3];
+            alen = hypot(T_x - A_x, T_y - A_y, T_z - A_z);
+            blen = hypot(T_x - B_x, T_y - B_y, T_z - B_z);
+            clen = hypot(T_x - C_x, T_y - C_y, T_z - C_z);
+            if (alen < blen)
+            {
+                if (alen < clen) {ch_x = a_x; ch_y = a_y;}
+                else {ch_x = c_x; ch_y = c_y;}
+            }
+            else
+            {
+                if (blen < clen) {ch_x = b_x; ch_y = b_y;}
+                else {ch_x = c_x; ch_y = c_y;}
+            }
+
+            ch_x += ch_y * 0.5;
+            ch_y *= 0.866025404;
+            ch_x *= scale;
+            ch_y *= scale;
+            p0 = (max(0, min(bx, ch_x|0)) + max(0, min(by, (ch_y|0)*w))) << 2;
+            output[i  ] = input[p0  ];
+            output[i+1] = input[p0+1];
+            output[i+2] = input[p0+2];
+            output[i+3] = input[p0+3];
 
             // next pixel
-            ++x; ++sx;
-            if (x >= w)
-            {
-                sx=0; x=0; ++sy; syw+=w; yw+=w; xparity=0;
-                if (sy >= ystep) {sy=0; syw=0; yparity=1-yparity;}
-            }
-            if (sx >= xstep) {sx=0; xparity=(xparity+1)%3;}
+            ++x;
+            if (x >= w) {x=0; ++y;}
         }
-    }
+    },
+    "rectangular_glsl": [
+    'vec2 rectangular(vec2 p, vec2 imgsize, float tilesize) {',
+    '    return clamp((tilesize*floor(imgsize * p / tilesize) + 0.5*tilesize)/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
+    "triangular_glsl": [
+    'vec2 triangular(vec2 p, vec2 imgsize, float tilesize) {',
+    '   tilesize *= 1.25;',
+    '   vec2 tile = tilesize*floor(imgsize * p / tilesize);',
+    '   vec2 t = mod(imgsize * p, tilesize);',
+    '   if (t.x+t.y > tilesize) return clamp((tile + vec2(0.66*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
+    '   else return clamp((tile + vec2(0.33*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
+    "hexagonal_glsl": [
+    'vec2 hexagonal(vec2 p, vec2 imgsize, float tilesize) {',
+    '    vec2 t = imgsize * p / tilesize;',
+    '    t.y /= 0.866025404;',
+    '    t.x -= t.y * 0.5;',
+    '    vec2 it = vec2(floor(t.x), floor(t.y));',
+    '    vec2 ct = vec2(ceil(t.x), ceil(t.y));',
+    '    vec2 a;',
+    '    if (t.x + t.y - it.x - it.y < 1.0) a = it;',
+    '    else a = ct;',
+    '    vec2 b = vec2(ct.x, it.y);',
+    '    vec2 c = vec2(it.x, ct.y);',
+    '    vec3 T = vec3(t.x, t.y, 1.0 - t.x - t.y);',
+    '    vec3 A = vec3(a.x, a.y, 1.0 - a.x - a.y);',
+    '    vec3 B = vec3(b.x, b.y, 1.0 - b.x - b.y);',
+    '    vec3 C = vec3(c.x, c.y, 1.0 - c.x - c.y);',
+    '    float alen = length(T - A);',
+    '    float blen = length(T - B);',
+    '    float clen = length(T - C);',
+    '    vec2 ch;',
+    '    if (alen < blen) {',
+    '        if (alen < clen) ch = a;',
+    '        else ch = c;',
+    '    } else {',
+    '        if (blen < clen) ch = b;',
+    '        else ch = c;',
+    '    }',
+    '    ch.x += ch.y * 0.5;',
+    '    ch.y *= 0.866025404;',
+    '    ch *= tilesize / imgsize;',
+    '    return clamp(ch, 0.0, 1.0);',
+    '}'
+    ].join('\n')
 };
-
+function glsl(filter)
+{
+    if (filter.scale <= 1 || !filter.pattern || !PIXELATION[filter.pattern]) return {instance: filter, shader: FILTER.Util.GLSL.DEFAULT};
+    return {instance: filter, shader: [
+    'precision mediump float;',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 imgSize;',
+    'uniform float tileSize;',
+    'uniform int pixelate;',
+    PIXELATION['rectangular_glsl'],
+    PIXELATION['triangular_glsl'],
+    PIXELATION['hexagonal_glsl'],
+    'void main(void) {',
+        'vec2 p = pix;',
+        'if (1 == pixelate) p = triangular(p, imgSize, tileSize);',
+        'else if (3 == pixelate) p = hexagonal(p, imgSize, tileSize);',
+        'else p = rectangular(p, imgSize, tileSize);',
+        'gl_FragColor = texture2D(img, p);',
+    '}'
+    ].join('\n'),
+    vars: function(gl, w, h, program) {
+        gl.uniform2f(program.uniform.imgSize,
+            w, h
+        );
+        gl.uniform1f(program.uniform.tileSize,
+            sqrt(w*h)*(filter.scale||1)*1e-2
+        );
+        gl.uniform1i(program.uniform.pixelate,
+            'triangular' === filter.pattern ? 1 : (
+            'hexagonal' === filter.pattern ? 3 : (
+            0
+            )
+            )
+        );
+    }
+    };
+}
 }(FILTER);

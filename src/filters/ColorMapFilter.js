@@ -175,7 +175,7 @@ var ColorMapFilter = FILTER.Create({
         return self;
     }
 
-    ,_getGLSL: function() {
+    ,getGLSL: function() {
         return glsl(this);
     }
 
@@ -197,22 +197,22 @@ function glsl(filter)
     if (HAS.call(MAP, filter._mapName))
     {
         return {instance: filter, shader: [
-            'precision highp float;',
+            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
-            'const int HUE = '+MODE.HUE+';',
-            'const int SATURATION = '+MODE.SATURATION+';',
-            'const int INTENSITY = '+MODE.INTENSITY+';',
+            '#define HUE '+MODE.HUE+'',
+            '#define SATURATION '+MODE.SATURATION+'',
+            '#define INTENSITY '+MODE.INTENSITY+'',
             'uniform vec4 color;',
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
-            Color.getGLSL(),
-            'vec4 mask(vec4 i) {',
+            Color.GLSLCode(),
+            'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
             '    if (0.0 != i.a) {',
             '        float v = 0.0;',
             '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
-            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b);',
+            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
             '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
             '        else return i;',
             '        if (v < minval || v > maxval) return color;',
@@ -232,8 +232,8 @@ function glsl(filter)
                 'else if (6 == mapping) output.rgb = hwb2rgb(input.r, input.g, input.b).rgb;',
                 'else if (7 == mapping) output.rgb = rgb2cmyk(input.r, input.g, input.b).rgb;',
                 'else if (8 == mapping) {float h=rgb2hue(input.r, input.g, input.b)/360.0; output=vec4(h,h,h,input.a);}',
-                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, HSV); output=vec4(s,s,s,input.a);}',
-                'else if (10 == mapping) output = mask(input);',
+                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, FORMAT_HSV); output=vec4(s,s,s,input.a);}',
+                'else if (10 == mapping) output = mask(input, minval, maxval, color);',
                 'gl_FragColor = output;',
             '}'
             ].join('\n'),
