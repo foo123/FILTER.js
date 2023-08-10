@@ -1,9 +1,9 @@
 ## ChangeLog
 
-__1.5.0 in progress__
+__1.5.0r1 (almost complete)__
 
 * GLSL versions of most filters so that they can run in gl/webgl transparently
-* fix `Pixelate` filter
+* fix `Pixelate`/Convolution filter
 * update examples and tests
 
 __1.0.0__

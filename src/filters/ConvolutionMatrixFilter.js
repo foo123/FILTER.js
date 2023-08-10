@@ -819,7 +819,7 @@ function ones(d, f, c)
 {
     f = f||1; c = c||f;
     var l = d*d, i, o = new CM(l);
-    for (i=0; i<d; ++i) o[i] = f;
+    for (i=0; i<l; ++i) o[i] = f;
     o[l>>>1] = c;
     return o;
 }

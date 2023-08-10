@@ -79,7 +79,7 @@ FILTER.Create({
         }
         else
         {
-            if (("function" === typeof filter) || ("function" === typeof filter.filter))
+            if (filter && (("function" === typeof filter) || ("function" === typeof filter.filter)))
             {
                 self._filter = filter;
                 self._changed = true;

@@ -289,6 +289,7 @@ function glsl(filter)
         ];
         break;
         case 'gradient':
+        // handle in js
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev'),
@@ -306,6 +307,7 @@ function glsl(filter)
         ]*/;
         break;
         case 'laplacian':
+        // handle in js
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev'),

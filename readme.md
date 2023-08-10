@@ -4,10 +4,10 @@
 __A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
 
 
-This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers and WebGL or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, node processes).
+This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers and WebGL or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node processes).
 
 
-**version 1.5.0 in progress**
+**version 1.5.0r1 almost complete** (220 kB minified)
 
 
 ### Contents
@@ -29,8 +29,8 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 
 ### Live Examples
-* [Image Processing with `Filter.js`](https://foo123.github.io/examples/filter/)
-* [Video Processing with `Filter.js`](https://foo123.github.io/examples/filter-video/)
+* [Image Processing with `Filter.js` (synchronous/parallel/webgl)](https://foo123.github.io/examples/filter/)
+* [Video Processing with `Filter.js` (synchronous/webgl)](https://foo123.github.io/examples/filter-video/)
 * [Sound Visualization with `Filter.js` (Trioptic)](https://foo123.github.io/examples/filter-sound/)
 * [`Filter.js` with `Three.js`](https://foo123.github.io/examples/filter-three/)
 * [`Filter.js` in `Node.js`](/examples/node)
@@ -77,7 +77,7 @@ The framework defines an [`Image`](/api-reference.md#image-class) class, which r
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
 
 
-__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
+__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way and also webgl transparently, see examples)
 
 __Image Blending Modes__ (analogous to SVG blend modes)
 

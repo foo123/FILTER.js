@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.5.0
-*   @built on 2023-08-10 15:58:34
+*   @version: 1.5.0r1
+*   @built on 2023-08-10 17:16:50
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.5.0
-*   @built on 2023-08-10 15:58:34
+*   @version: 1.5.0r1
+*   @built on 2023-08-10 17:16:50
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.5.0"};
+var FILTER = {VERSION: "1.5.0r1"};
 /**
 *
 *   Asynchronous.js
@@ -4162,165 +4162,10 @@ var // utils
 
     LUMA = FILTER.LUMA, CHANNEL = FILTER.CHANNEL,
     //RED = CHANNEL.RED, GREEN = CHANNEL.GREEN, BLUE = CHANNEL.BLUE, ALPHA = CHANNEL.ALPHA,
-    C2F = 1/255, C2P = 100/255, P2C = 2.55,
-
-    Keywords = {
-        // http://www.w3.org/wiki/CSS/Properties/color/keywords
-        // https://developer.mozilla.org/en-US/docs/Web/CSS/color_value
-        /* extended */
-         'transparent'         : [  0,0,0        ,0]
-        ,'aliceblue'           : [  240,248,255  ,1]
-        ,'antiquewhite'        : [  250,235,215  ,1]
-        ,'aqua'                : [  0,255,255    ,1]
-        ,'aquamarine'          : [  127,255,212  ,1]
-        ,'azure'               : [  240,255,255  ,1]
-        ,'beige'               : [  245,245,220  ,1]
-        ,'bisque'              : [  255,228,196  ,1]
-        ,'black'               : [  0,0,0    ,    1]
-        ,'blanchedalmond'      : [  255,235,205  ,1]
-        ,'blue'                : [  0,0,255  ,    1]
-        ,'blueviolet'          : [  138,43,226   ,1]
-        ,'brown'               : [  165,42,42    ,1]
-        ,'burlywood'           : [  222,184,135  ,1]
-        ,'cadetblue'           : [  95,158,160   ,1]
-        ,'chartreuse'          : [  127,255,0    ,1]
-        ,'chocolate'           : [  210,105,30   ,1]
-        ,'coral'               : [  255,127,80   ,1]
-        ,'cornflowerblue'      : [  100,149,237  ,1]
-        ,'cornsilk'            : [  255,248,220  ,1]
-        ,'crimson'             : [  220,20,60    ,1]
-        ,'cyan'                : [  0,255,255    ,1]
-        ,'darkblue'            : [  0,0,139  ,    1]
-        ,'darkcyan'            : [  0,139,139    ,1]
-        ,'darkgoldenrod'       : [  184,134,11   ,1]
-        ,'darkgray'            : [  169,169,169  ,1]
-        ,'darkgreen'           : [  0,100,0  ,    1]
-        ,'darkgrey'            : [  169,169,169  ,1]
-        ,'darkkhaki'           : [  189,183,107  ,1]
-        ,'darkmagenta'         : [  139,0,139    ,1]
-        ,'darkolivegreen'      : [  85,107,47    ,1]
-        ,'darkorange'          : [  255,140,0    ,1]
-        ,'darkorchid'          : [  153,50,204   ,1]
-        ,'darkred'             : [  139,0,0  ,    1]
-        ,'darksalmon'          : [  233,150,122  ,1]
-        ,'darkseagreen'        : [  143,188,143  ,1]
-        ,'darkslateblue'       : [  72,61,139    ,1]
-        ,'darkslategray'       : [  47,79,79 ,    1]
-        ,'darkslategrey'       : [  47,79,79 ,    1]
-        ,'darkturquoise'       : [  0,206,209    ,1]
-        ,'darkviolet'          : [  148,0,211    ,1]
-        ,'deeppink'            : [  255,20,147   ,1]
-        ,'deepskyblue'         : [  0,191,255    ,1]
-        ,'dimgray'             : [  105,105,105  ,1]
-        ,'dimgrey'             : [  105,105,105  ,1]
-        ,'dodgerblue'          : [  30,144,255   ,1]
-        ,'firebrick'           : [  178,34,34    ,1]
-        ,'floralwhite'         : [  255,250,240  ,1]
-        ,'forestgreen'         : [  34,139,34    ,1]
-        ,'fuchsia'             : [  255,0,255    ,1]
-        ,'gainsboro'           : [  220,220,220  ,1]
-        ,'ghostwhite'          : [  248,248,255  ,1]
-        ,'gold'                : [  255,215,0    ,1]
-        ,'goldenrod'           : [  218,165,32   ,1]
-        ,'gray'                : [  128,128,128  ,1]
-        ,'green'               : [  0,128,0  ,    1]
-        ,'greenyellow'         : [  173,255,47   ,1]
-        ,'grey'                : [  128,128,128  ,1]
-        ,'honeydew'            : [  240,255,240  ,1]
-        ,'hotpink'             : [  255,105,180  ,1]
-        ,'indianred'           : [  205,92,92    ,1]
-        ,'indigo'              : [  75,0,130 ,    1]
-        ,'ivory'               : [  255,255,240  ,1]
-        ,'khaki'               : [  240,230,140  ,1]
-        ,'lavender'            : [  230,230,250  ,1]
-        ,'lavenderblush'       : [  255,240,245  ,1]
-        ,'lawngreen'           : [  124,252,0    ,1]
-        ,'lemonchiffon'        : [  255,250,205  ,1]
-        ,'lightblue'           : [  173,216,230  ,1]
-        ,'lightcoral'          : [  240,128,128  ,1]
-        ,'lightcyan'           : [  224,255,255  ,1]
-        ,'lightgoldenrodyellow': [  250,250,210  ,1]
-        ,'lightgray'           : [  211,211,211  ,1]
-        ,'lightgreen'          : [  144,238,144  ,1]
-        ,'lightgrey'           : [  211,211,211  ,1]
-        ,'lightpink'           : [  255,182,193  ,1]
-        ,'lightsalmon'         : [  255,160,122  ,1]
-        ,'lightseagreen'       : [  32,178,170   ,1]
-        ,'lightskyblue'        : [  135,206,250  ,1]
-        ,'lightslategray'      : [  119,136,153  ,1]
-        ,'lightslategrey'      : [  119,136,153  ,1]
-        ,'lightsteelblue'      : [  176,196,222  ,1]
-        ,'lightyellow'         : [  255,255,224  ,1]
-        ,'lime'                : [  0,255,0  ,    1]
-        ,'limegreen'           : [  50,205,50    ,1]
-        ,'linen'               : [  250,240,230  ,1]
-        ,'magenta'             : [  255,0,255    ,1]
-        ,'maroon'              : [  128,0,0  ,    1]
-        ,'mediumaquamarine'    : [  102,205,170  ,1]
-        ,'mediumblue'          : [  0,0,205  ,    1]
-        ,'mediumorchid'        : [  186,85,211   ,1]
-        ,'mediumpurple'        : [  147,112,219  ,1]
-        ,'mediumseagreen'      : [  60,179,113   ,1]
-        ,'mediumslateblue'     : [  123,104,238  ,1]
-        ,'mediumspringgreen'   : [  0,250,154    ,1]
-        ,'mediumturquoise'     : [  72,209,204   ,1]
-        ,'mediumvioletred'     : [  199,21,133   ,1]
-        ,'midnightblue'        : [  25,25,112    ,1]
-        ,'mintcream'           : [  245,255,250  ,1]
-        ,'mistyrose'           : [  255,228,225  ,1]
-        ,'moccasin'            : [  255,228,181  ,1]
-        ,'navajowhite'         : [  255,222,173  ,1]
-        ,'navy'                : [  0,0,128  ,    1]
-        ,'oldlace'             : [  253,245,230  ,1]
-        ,'olive'               : [  128,128,0    ,1]
-        ,'olivedrab'           : [  107,142,35   ,1]
-        ,'orange'              : [  255,165,0    ,1]
-        ,'orangered'           : [  255,69,0 ,    1]
-        ,'orchid'              : [  218,112,214  ,1]
-        ,'palegoldenrod'       : [  238,232,170  ,1]
-        ,'palegreen'           : [  152,251,152  ,1]
-        ,'paleturquoise'       : [  175,238,238  ,1]
-        ,'palevioletred'       : [  219,112,147  ,1]
-        ,'papayawhip'          : [  255,239,213  ,1]
-        ,'peachpuff'           : [  255,218,185  ,1]
-        ,'peru'                : [  205,133,63   ,1]
-        ,'pink'                : [  255,192,203  ,1]
-        ,'plum'                : [  221,160,221  ,1]
-        ,'powderblue'          : [  176,224,230  ,1]
-        ,'purple'              : [  128,0,128    ,1]
-        ,'red'                 : [  255,0,0  ,    1]
-        ,'rosybrown'           : [  188,143,143  ,1]
-        ,'royalblue'           : [  65,105,225   ,1]
-        ,'saddlebrown'         : [  139,69,19    ,1]
-        ,'salmon'              : [  250,128,114  ,1]
-        ,'sandybrown'          : [  244,164,96   ,1]
-        ,'seagreen'            : [  46,139,87    ,1]
-        ,'seashell'            : [  255,245,238  ,1]
-        ,'sienna'              : [  160,82,45    ,1]
-        ,'silver'              : [  192,192,192  ,1]
-        ,'skyblue'             : [  135,206,235  ,1]
-        ,'slateblue'           : [  106,90,205   ,1]
-        ,'slategray'           : [  112,128,144  ,1]
-        ,'slategrey'           : [  112,128,144  ,1]
-        ,'snow'                : [  255,250,250  ,1]
-        ,'springgreen'         : [  0,255,127    ,1]
-        ,'steelblue'           : [  70,130,180   ,1]
-        ,'tan'                 : [  210,180,140  ,1]
-        ,'teal'                : [  0,128,128    ,1]
-        ,'thistle'             : [  216,191,216  ,1]
-        ,'tomato'              : [  255,99,71    ,1]
-        ,'turquoise'           : [  64,224,208   ,1]
-        ,'violet'              : [  238,130,238  ,1]
-        ,'wheat'               : [  245,222,179  ,1]
-        ,'white'               : [  255,255,255  ,1]
-        ,'whitesmoke'          : [  245,245,245  ,1]
-        ,'yellow'              : [  255,255,0    ,1]
-        ,'yellowgreen'         : [  154,205,50   ,1]
-    }
+    C2F = 1/255, C2P = 100/255, P2C = 2.55
 ;
 
 // adapted from https://github.com/foo123/css-color
-
 function hsl2rgb(h, s, l)
 {
     var c, hp, d, x, m, r, g, b;
@@ -4984,14 +4829,11 @@ var Color = FILTER.Color = FILTER.Class({
         C2P: C2P,
         P2C: P2C,
 
-        Keywords: Keywords,
-
         // color format regexes
         hexieRE: /^#([0-9a-fA-F]{8})\b/,
         hexRE: /^#([0-9a-fA-F]{3,6})\b/,
         rgbRE: /^(rgba?)\b\s*\(([^\)]*)\)/i,
         hslRE: /^(hsla?)\b\s*\(([^\)]*)\)/i,
-        keywordRE: new RegExp('^(' + Object.keys(Keywords).map(esc).join('|') + ')\\b', 'i'),
         colorstopRE: /^\s+(\d+(\.\d+)?%?)/,
 
         // color format conversions
@@ -5179,26 +5021,6 @@ var Color = FILTER.Color = FILTER.Class({
 
                 return onlyColor ? c : [c, 0, end+end2];
             }
-            if ('keyword' === parsed ||
-                (!parsed && (m = s.match(Color.keywordRE)))
-            )
-            {
-                // keyword
-                if ('keyword' === parsed)
-                {
-                    var col = s[0];
-                }
-                else
-                {
-                    end = m[0].length;
-                    end2 = 0;
-                    var col = m[1];
-                }
-
-                c = new Color().fromKeyword(col);
-
-                return onlyColor ? c : [c, 0, end+end2];
-            }
             return null;
         },
         fromString: function(s, parsed) {
@@ -5221,9 +5043,6 @@ var Color = FILTER.Color = FILTER.Class({
         },
         fromHEX: function(hex) {
             return new Color().fromHEX(hex);
-        },
-        fromKeyword: function(keyword) {
-            return new Color().fromKeyword(keyword);
         },
         fromPixel: function(pixCol) {
             return new Color().fromPixel(pixCol);
@@ -5283,10 +5102,6 @@ var Color = FILTER.Color = FILTER.Class({
         return 1 > this.col[3];
     },
 
-    isKeyword: function() {
-        return this.kword ? true : false;
-    },
-
     fromPixel: function(color) {
         color = color || 0;
         this.col = [
@@ -5297,17 +5112,6 @@ var Color = FILTER.Color = FILTER.Class({
         ];
         this.kword = null;
 
-        return this;
-    },
-
-    fromKeyword: function(kword) {
-
-        kword = kword.toLowerCase();
-        if (Color.Keywords[kword])
-        {
-            this.col = Color.Keywords[kword].slice();
-            this.kword = kword;
-        }
         return this;
     },
 
@@ -5402,13 +5206,6 @@ var Color = FILTER.Color = FILTER.Class({
             return cmyk.concat(this.col[3]);
     },
 
-    toKeyword: function(asString, condenced, withTransparency) {
-        if (this.kword)
-            return this.kword;
-        else
-            return this.toHEX(1, condenced, withTransparency);
-    },
-
     toHEX: function(asString, condenced, withTransparency) {
         if (withTransparency)
             return Color.rgb2hexIE(this.col[0], this.col[1], this.col[2], clamp(round(255*this.col[3]), 0, 255));
@@ -5475,10 +5272,6 @@ var Color = FILTER.Color = FILTER.Class({
         else if ('hsl' == format || 'hsla' == format)
         {
             return this.toHSL(1, false!==condenced, 'hsl' == format);
-        }
-        else if ('keyword' == format)
-        {
-            return this.toKeyword(1);
         }
         return this.toHEX(1, false!==condenced, 'hexie' == format);
     }
@@ -8289,6 +8082,11 @@ function glsl(filter)
     if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
     if (HAS.call(MAP, filter._mapName))
     {
+        if ('quantize' === filter._mapName)
+        {
+            // handle in js
+            return {instance: filter};
+        }
         return {instance: filter, shader: [
             'precision mediump float;',
             'varying vec2 pix;',
@@ -8296,19 +8094,23 @@ function glsl(filter)
             '#define HUE '+MODE.HUE+'',
             '#define SATURATION '+MODE.SATURATION+'',
             '#define INTENSITY '+MODE.INTENSITY+'',
+            '#define COLOR '+MODE.COLOR+'',
             'uniform vec4 color;',
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
             'uniform int mode;',
             Color.GLSLCode(),
+            'float col32(float r, float g, float b) {',
+            '   return 100.0*r + 10.0*g + 1.0*b;',
+            '}',
             'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
+            '    float v = 0.0;',
             '    if (0.0 != i.a) {',
-            '        float v = 0.0;',
             '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
             '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
             '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
-            '        else return i;',
+            '        else v = col32(i.r, i.g, i.b);',
             '        if (v < minval || v > maxval) return color;',
             '        else return i;',
             '    } else {',
@@ -8334,7 +8136,10 @@ function glsl(filter)
             ].join('\n'),
             vars: function(gl, w, h, program) {
                 var thresh = filter.thresholds || [0, 0],
-                    color = (filter.quantizedColors || [0])[0] || 0;
+                    cols = filter.quantizedColors || [0],
+                    color = cols[0] || 0,
+                    t0 = thresh[0] || 0,
+                    t1 = thresh[1] || 0;
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,
                     ((color >>> 8) & 255)/255,
@@ -8342,10 +8147,16 @@ function glsl(filter)
                     ((color >>> 24) & 255)/255
                 );
                 gl.uniform1f(program.uniform.minval,
-                    thresh[0] || 0
+                    MODE.COLOR === filter.mode ? (
+                    100*((t0 >> 16)&255)/255+10*((t0 >> 8)&255)/255+((t0)&255)/255
+                    ) :
+                    (t0)
                 );
                 gl.uniform1f(program.uniform.maxval,
-                    thresh[1] || 0
+                    MODE.COLOR === filter.mode ? (
+                    100*((t1 >> 16)&255)/255+10*((t1 >> 8)&255)/255+((t1)&255)/255
+                    ) :
+                    (t1)
                 );
                 gl.uniform1i(program.uniform.mapping,
                     "rgb2hsv" === filter._mapName ? 1 : (
@@ -10733,7 +10544,7 @@ function ones(d, f, c)
 {
     f = f||1; c = c||f;
     var l = d*d, i, o = new CM(l);
-    for (i=0; i<d; ++i) o[i] = f;
+    for (i=0; i<l; ++i) o[i] = f;
     o[l>>>1] = c;
     return o;
 }
@@ -11075,6 +10886,7 @@ function glsl(filter)
         ];
         break;
         case 'gradient':
+        // handle in js
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev'),
@@ -11092,6 +10904,7 @@ function glsl(filter)
         ]*/;
         break;
         case 'laplacian':
+        // handle in js
         output = {instance: filter}/*[
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev'),
@@ -11915,7 +11728,7 @@ FILTER.Create({
         }
         else
         {
-            if (("function" === typeof filter) || ("function" === typeof filter.filter))
+            if (filter && (("function" === typeof filter) || ("function" === typeof filter.filter)))
             {
                 self._filter = filter;
                 self._changed = true;

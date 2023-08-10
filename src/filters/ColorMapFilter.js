@@ -196,6 +196,11 @@ function glsl(filter)
     if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
     if (HAS.call(MAP, filter._mapName))
     {
+        if ('quantize' === filter._mapName)
+        {
+            // handle in js
+            return {instance: filter};
+        }
         return {instance: filter, shader: [
             'precision mediump float;',
             'varying vec2 pix;',
@@ -203,19 +208,23 @@ function glsl(filter)
             '#define HUE '+MODE.HUE+'',
             '#define SATURATION '+MODE.SATURATION+'',
             '#define INTENSITY '+MODE.INTENSITY+'',
+            '#define COLOR '+MODE.COLOR+'',
             'uniform vec4 color;',
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
             'uniform int mode;',
             Color.GLSLCode(),
+            'float col32(float r, float g, float b) {',
+            '   return 100.0*r + 10.0*g + 1.0*b;',
+            '}',
             'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
+            '    float v = 0.0;',
             '    if (0.0 != i.a) {',
-            '        float v = 0.0;',
             '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
             '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
             '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
-            '        else return i;',
+            '        else v = col32(i.r, i.g, i.b);',
             '        if (v < minval || v > maxval) return color;',
             '        else return i;',
             '    } else {',
@@ -241,7 +250,10 @@ function glsl(filter)
             ].join('\n'),
             vars: function(gl, w, h, program) {
                 var thresh = filter.thresholds || [0, 0],
-                    color = (filter.quantizedColors || [0])[0] || 0;
+                    cols = filter.quantizedColors || [0],
+                    color = cols[0] || 0,
+                    t0 = thresh[0] || 0,
+                    t1 = thresh[1] || 0;
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,
                     ((color >>> 8) & 255)/255,
@@ -249,10 +261,16 @@ function glsl(filter)
                     ((color >>> 24) & 255)/255
                 );
                 gl.uniform1f(program.uniform.minval,
-                    thresh[0] || 0
+                    MODE.COLOR === filter.mode ? (
+                    100*((t0 >> 16)&255)/255+10*((t0 >> 8)&255)/255+((t0)&255)/255
+                    ) :
+                    (t0)
                 );
                 gl.uniform1f(program.uniform.maxval,
-                    thresh[1] || 0
+                    MODE.COLOR === filter.mode ? (
+                    100*((t1 >> 16)&255)/255+10*((t1 >> 8)&255)/255+((t1)&255)/255
+                    ) :
+                    (t1)
                 );
                 gl.uniform1i(program.uniform.mapping,
                     "rgb2hsv" === filter._mapName ? 1 : (
