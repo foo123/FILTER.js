@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-10 14:42:40
+*   @built on 2023-08-10 15:58:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-10 14:42:40
+*   @built on 2023-08-10 15:58:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -10566,7 +10566,7 @@ function glsl(filter)
             if (m[k] || (0===i && 0===j))
             {
                 def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+');');
-                calc.push(toFloat(m[k]*f, calc.length)+'*c'+k);
+                calc.push(toFloat(m[k], calc.length)+'*c'+k);
                 if (0===i && 0===j) ca = 'c'+k+'.a';
             }
             ++k; ++x; if (x>=matRadius) {x=0; ++y;}
@@ -10581,15 +10581,15 @@ function glsl(filter)
                 if (m2[k] || (0===i && 0===j))
                 {
                     def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 cc'+k+'=vec4(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+');');
-                    calc2.push(toFloat(m2[k]*f, calc2.length)+'*cc'+k);
+                    calc2.push(toFloat(m2[k], calc2.length)+'*cc'+k);
                     //if (0===i && 0===j) ca = 'c'+k+'.a';
                 }
                 ++k; ++x; if (x>=matRadius) {x=0; ++y;}
             }
             if (isGrad)
             {
-                def.push('vec4 o1='+calc.join('')+';')
-                def.push('vec4 o2='+calc2.join('')+';')
+                def.push('vec4 o1='+toFloat(f)+'*('+calc.join('')+');')
+                def.push('vec4 o2='+toFloat(f)+'*('+calc2.join('')+');')
                 return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),'+ca+')'];
             }
             else
@@ -10601,7 +10601,7 @@ function glsl(filter)
         }
         else
         {
-            return [def.join('\n'), 'vec4(('+calc.join('')+'+vec4('+toFloat(b)+')).rgb,'+ca+')'];
+            return [def.join('\n'), 'vec4(('+toFloat(f)+'*('+calc.join('')+')+vec4('+toFloat(b)+')).rgb,'+ca+')'];
         }
     };
     var toFloat = GLSL.formatFloat, code,
@@ -13375,7 +13375,7 @@ var PIXELATION = PixelateFilter.PATTERN = {
     '   vec2 xy = imgsize * p;',
     '   vec2 xyi = floor(xy / tilesize);',
     '   vec2 tile = tilesize*xyi;',
-    '   vec2 s = mod(xy, tilesize);',
+    '   vec2 s = vec2(mod(xy.x, 2.0*tilesize), mod(xy.y, tilesize));',
     '   vec2 a;',
     '   if (0.0 < mod(xyi.y, 2.0)) {',
     '       if (s.x+s.y > 2.0*tilesize) {',

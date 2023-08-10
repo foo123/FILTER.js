@@ -311,7 +311,7 @@ var PIXELATION = PixelateFilter.PATTERN = {
     '   vec2 xy = imgsize * p;',
     '   vec2 xyi = floor(xy / tilesize);',
     '   vec2 tile = tilesize*xyi;',
-    '   vec2 s = mod(xy, tilesize);',
+    '   vec2 s = vec2(mod(xy.x, 2.0*tilesize), mod(xy.y, tilesize));',
     '   vec2 a;',
     '   if (0.0 < mod(xyi.y, 2.0)) {',
     '       if (s.x+s.y > 2.0*tilesize) {',
