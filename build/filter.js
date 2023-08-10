@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-10 11:19:16
+*   @built on 2023-08-10 14:42:40
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.5.0
-*   @built on 2023-08-10 11:19:16
+*   @built on 2023-08-10 14:42:40
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -4631,7 +4631,7 @@ var GLSL = [
 'vec4 hsv2rgb(float h, float s, float v) {',
 '    float l = v*(1.0 - s/2.0);',
 '    float lm = min(l, 1.0-l);',
-'    if (0.0 == lm) return hsl2rgb(h, 0, l);',
+'    if (0.0 == lm) return hsl2rgb(h, 0.0, l);',
 '    else return hsl2rgb(h, (v-l)/lm, l);',
 '}',
 'vec4 hwb2rgb(float h, float w, float b) {',
@@ -4639,8 +4639,8 @@ var GLSL = [
 '    return hsv2rgb(h, 1.0 - w/b1, b1);',
 '}',
 'vec4 rgb2hslvwb(float r, float g, float b, int type) {',
-'    float xmax = max(r, g, b);',
-'    float xmin = min(r, g, b);',
+'    float xmax = max(r, max(g, b));',
+'    float xmin = min(r, min(g, b));',
 '    float v = xmax;',
 '    float c = xmax - xmin;',
 '    float l = clamp((xmax + xmin)/2.0, 0.0, 1.0);',
@@ -4657,6 +4657,7 @@ var GLSL = [
 '        h = 60.0*(4.0 + (r - g)/c);',
 '    }',
 '    h = clamp(h, 0.0, 360.0);',
+'   float sl; float sv;',
 '    if (0.0 == l || 1.0 == l) {',
 '        sl = 0.0;',
 '    } else {',
@@ -4681,12 +4682,6 @@ var GLSL = [
 'vec4 rgb2hwb(float r, float g, float b) {',
 '    return rgb2hslvwb(r, g, b, FORMAT_HWB);',
 '}',
-'vec4 rgb2hue(float r, float g, float b) {',
-'    return rgb2hslvwb(r, g, b, FORMAT_HSL).r;',
-'}',
-'vec4 rgb2sat(float r, float g, float b, int type) {',
-'    return rgb2hslvwb(r, g, b, type).g;',
-'}',
 'vec4 rgb2cmyk(float r, float g, float b) {',
 '    if (0.0 == r && 0.0 == g && 0.0 == b) {',
 '       return vec4(0.0, 0.0, 0.0, 1.0);',
@@ -4694,7 +4689,7 @@ var GLSL = [
 '    float c = 1.0 - r;',
 '    float m = 1.0 - g;',
 '    float y = 1.0 - b;',
-'    float minCMY = min(c, m, y);',
+'    float minCMY = min(c, min(m, y));',
 '    float invCMY = 1.0 / (1.0 - minCMY);',
 '    return vec4(',
 '        (c - minCMY) * invCMY,',
@@ -4708,7 +4703,7 @@ var GLSL = [
 '        return vec4(0.0, 0.0, 0.0, 1.0);',
 '    }',
 '    float minCMY = k;',
-'    float invCMY = 1 - minCMY;',
+'    float invCMY = 1.0 - minCMY;',
 '    c = c*invCMY + minCMY;',
 '    m = m*invCMY + minCMY;',
 '    y = y*invCMY + minCMY;',
@@ -4734,6 +4729,12 @@ var GLSL = [
 '    y + 1.772   * (cb-0.5),',
 '    1.0',
 '    ), 0.0, 1.0);',
+'}',
+'float rgb2hue(float r, float g, float b) {',
+'    return rgb2hslvwb(r, g, b, FORMAT_HSL).x;',
+'}',
+'float rgb2sat(float r, float g, float b, int type) {',
+'    return rgb2hslvwb(r, g, b, type).y;',
 '}',
 'float intensity(float r, float g, float b) {',
 '    return clamp('+LUMA[0]+'*r + '+LUMA[1]+'*g + '+LUMA[2]+'*b, 0.0, 1.0);',
@@ -8299,6 +8300,7 @@ function glsl(filter)
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
+            'uniform int mode;',
             Color.GLSLCode(),
             'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
             '    if (0.0 != i.a) {',
@@ -8314,23 +8316,24 @@ function glsl(filter)
             '    }',
             '}',
             'void main(void) {',
-                'vec4 input = texture2D(img, pix);',
-                'vec4 output = vec4(input.r, input.g, inout.b, input.a);',
-                'if (1 == mapping) {output.rgb = rgb2hsv(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (2 == mapping) output.rgb = hsv2rgb(input.r, input.g, input.b).rgb;',
-                'else if (3 == mapping) {output.rgb = rgb2hsl(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (4 == mapping) output.rgb = hsl2rgb(input.r, input.g, input.b).rgb;',
-                'else if (5 == mapping) {output.rgb = rgb2hwb(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (6 == mapping) output.rgb = hwb2rgb(input.r, input.g, input.b).rgb;',
-                'else if (7 == mapping) output.rgb = rgb2cmyk(input.r, input.g, input.b).rgb;',
-                'else if (8 == mapping) {float h=rgb2hue(input.r, input.g, input.b)/360.0; output=vec4(h,h,h,input.a);}',
-                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, FORMAT_HSV); output=vec4(s,s,s,input.a);}',
-                'else if (10 == mapping) output = mask(input, minval, maxval, color);',
-                'gl_FragColor = output;',
+                'vec4 c = texture2D(img, pix);',
+                'vec4 o = vec4(c.r, c.g, c.b, c.a);',
+                'float v;',
+                'if (1 == mapping) {o.xyz = rgb2hsv(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (2 == mapping) {o.rgb = hsv2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (3 == mapping) {o.xyz = rgb2hsl(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (4 == mapping) {o.rgb = hsl2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (5 == mapping) {o.xyz = rgb2hwb(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (6 == mapping) {o.rgb = hwb2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (7 == mapping) {o.xyz = rgb2cmyk(c.r, c.g, c.b).xyz;}',
+                'else if (8 == mapping) {v=rgb2hue(c.r, c.g, c.b)/360.0; o=vec4(v,v,v,c.a);}',
+                'else if (9 == mapping) {v=rgb2sat(c.r, c.g, c.b, FORMAT_HSV); o=vec4(v,v,v,c.a);}',
+                'else if (10 == mapping) {o = mask(c, minval, maxval, color);}',
+                'gl_FragColor = o;',
             '}'
             ].join('\n'),
             vars: function(gl, w, h, program) {
-                var thres = filter.thresholds || [0, 0],
+                var thresh = filter.thresholds || [0, 0],
                     color = (filter.quantizedColors || [0])[0] || 0;
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,
@@ -8339,10 +8342,10 @@ function glsl(filter)
                     ((color >>> 24) & 255)/255
                 );
                 gl.uniform1f(program.uniform.minval,
-                    thresh[0]
+                    thresh[0] || 0
                 );
-                gl.uniform1f(program.uniform.minval,
-                    thresh[1]
+                gl.uniform1f(program.uniform.maxval,
+                    thresh[1] || 0
                 );
                 gl.uniform1i(program.uniform.mapping,
                     "rgb2hsv" === filter._mapName ? 1 : (
@@ -9455,6 +9458,7 @@ function glsl(filter)
             '#define WRAP '+MODE.WRAP+'',
             'uniform int mode;',
             'uniform int swap;',
+            'uniform vec2 size;',
             'uniform vec2 center;',
             'uniform float angle;',
             'uniform float radius;',
@@ -9469,10 +9473,10 @@ function glsl(filter)
             GLSLMAP['cartesian'],
             'void main(void) {',
                 'vec2 p = pix;',
-                'if (1 == mapping) p = twirl(pix, center, radius, angle);',
-                'else if (2 == mapping) p = sphere(pix, center, radius2);',
-                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, swap);',
-                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, swap);',
+                'if (1 == mapping) p = twirl(pix, center, radius, angle, size);',
+                'else if (2 == mapping) p = sphere(pix, center, radius2, size);',
+                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, size, swap);',
+                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, size, swap);',
                 'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
                     'if (COLOR == mode) {gl_FragColor = color;}',
                     'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
@@ -9506,6 +9510,9 @@ function glsl(filter)
                     (color & 255)/255,
                     ((color >>> 24) & 255)/255
                 );
+                gl.uniform2f(program.uniform.size,
+                    w, h
+                );
                 gl.uniform2f(program.uniform.center,
                     cx, cy
                 );
@@ -9513,10 +9520,10 @@ function glsl(filter)
                     filter.angle
                 );
                 gl.uniform1f(program.uniform.radius,
-                    filter.radius/RMAX
+                    filter.radius
                 );
                 gl.uniform1f(program.uniform.radius2,
-                    filter.radius/RMAX*filter.radius/RMAX
+                    filter.radius*filter.radius
                 );
                 gl.uniform1f(program.uniform.AMAX,
                     TWOPI
@@ -9843,19 +9850,19 @@ MAP = {
 
 GLSLMAP = {
      "twirl": [
-     'vec2 twirl(vec2 pix, vec2 center, float R, float angle) {',
-        'vec2 T = pix - center;',
-        'float D = sqrt(T.x*T.x + T.y*T.y);',
+     'vec2 twirl(vec2 pix, vec2 center, float R, float angle, vec2 size) {',
+        'vec2 T = size*(pix - center);',
+        'float D = length(T);',
         'if (D < R) {',
             'float theta = atan(T.y, T.x) + (R-D)*angle/R;',
-            'pix = center + vec2(D*cos(theta),  D*sin(theta));',
+            'pix = (size*center + vec2(D*cos(theta),  D*sin(theta)))/size;',
         '}',
         'return pix;',
     '}'
     ].join('\n')
     ,"sphere": [
-    'vec2 sphere(vec2 pix, vec2 center, float R2) {',
-        'vec2 T = pix - center;',
+    'vec2 sphere(vec2 pix, vec2 center, float R2, vec2 size) {',
+        'vec2 T = size*(pix - center);',
         'float TX2 = T.x*T.x; float TY2 = T.y*T.y;',
         'float D2 = TX2 + TY2;',
         'if (D2 < R2) {',
@@ -9863,39 +9870,40 @@ GLSLMAP = {
             'float D = sqrt(D2);',
             'float thetax = asin(T.x / sqrt(TX2 + D2)) * (1.0-0.555556);',
             'float thetay = asin(T.y / sqrt(TY2 + D2)) * (1.0-0.555556);',
-            'pix = pix - vec2(D * tan(thetax), D * tan(thetay));',
+            'pix = pix - vec2(D * tan(thetax), D * tan(thetay))/size;',
         '}',
         'return pix;',
     '}'
     ].join('\n')
     ,"polar": [
-    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, vec2 size, int swap) {',
         'float r = 0.0;',
         'float a = 0.0;',
+        '/*pix *= size;*/',
         'if (1 == swap) {',
-            'r = rMax*pix.y;',
-            'a = aMax*pix.x;',
-            'return center + vec2(r*sin(a), r*cos(a));',
+            'r = pix.y*rMax;',
+            'a = pix.x*aMax;',
+            'return (size*center + vec2(r*sin(a), r*cos(a)))/size;',
         '} else {',
-            'r = rMax*pix.x;',
-            'a = aMax*pix.y;',
-            'return center + vec2(r*cos(a), r*sin(a));',
+            'r = pix.x*rMax;',
+            'a = pix.y*aMax;',
+            'return (size*center + vec2(r*cos(a), r*sin(a)))/size;',
         '}',
     '}'
     ].join('\n')
     ,"cartesian": [
-    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
-        'vec2 xy = pix - center;',
+    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, vec2 size, int swap) {',
+        'vec2 xy = size* (pix - center);',
         'float r = 0.0;',
         'float a = 0.0;',
         'if (1 == swap) {',
             'xy = xy.yx;',
-            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'r = length(xy);',
             'a = atan(xy.y, xy.x);',
             'if (0.0 > a) a += TWOPI;',
             'return vec2(a/aMax, r/rMax);',
         '} else {',
-            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'r = length(xy);',
             'a = atan(xy.y, xy.x);',
             'if (0.0 > a) a += TWOPI;',
             'return vec2(r/rMax, a/aMax);',
@@ -13206,7 +13214,6 @@ var PIXELATION = PixelateFilter.PATTERN = {
         step = (sqrt(imArea)*scale*7e-3)|0;
         step2 = 2*step; stepw = step*w; stepw2 = step2*w;
 
-        // do pixelation via interpolation on 5 points of a certain rhomboid
         x=yw=sx=sy=syw=0; odd = 0;
         for (i=0; i<imLen; i+=4)
         {
@@ -13362,6 +13369,35 @@ var PIXELATION = PixelateFilter.PATTERN = {
     '   else return clamp((tile + vec2(0.33*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
     '}'
     ].join('\n'),
+    'rhomboidal_glsl': [
+    'vec2 rhomboidal(vec2 p, vec2 imgsize, float tilesize) {',
+    '   tilesize *= 0.7;',
+    '   vec2 xy = imgsize * p;',
+    '   vec2 xyi = floor(xy / tilesize);',
+    '   vec2 tile = tilesize*xyi;',
+    '   vec2 s = mod(xy, tilesize);',
+    '   vec2 a;',
+    '   if (0.0 < mod(xyi.y, 2.0)) {',
+    '       if (s.x+s.y > 2.0*tilesize) {',
+    '           a = vec2(xy.x-s.x+tilesize, xy.y-s.y);',
+    '       } else if (s.x+tilesize-s.y > tilesize) {',
+    '           a = vec2(xy.x-s.x, xy.y-s.y-tilesize);',
+    '       } else {',
+    '           a = vec2(xy.x-s.x-tilesize, xy.y-s.y);',
+    '       }',
+    '   } else {',
+    '       if (s.x+tilesize-s.y > 2.0*tilesize) {',
+    '           a = vec2(xy.x-s.x+tilesize, xy.y-s.y-tilesize);',
+    '       } else if (s.x+s.y > tilesize) {',
+    '           a = vec2(xy.x-s.x, xy.y-s.y);',
+    '       } else {',
+    '           a = vec2(xy.x-s.x-tilesize, xy.y-s.y-tilesize);',
+    '       }',
+    '   }',
+    '   a = vec2(clamp(a.x, 0.0, imgsize.x), clamp(a.y, 0.0, imgsize.y));',
+    '   return clamp((a + vec2(tilesize))/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
     "hexagonal_glsl": [
     'vec2 hexagonal(vec2 p, vec2 imgsize, float tilesize) {',
     '    vec2 t = imgsize * p / tilesize;',
@@ -13408,10 +13444,12 @@ function glsl(filter)
     'uniform int pixelate;',
     PIXELATION['rectangular_glsl'],
     PIXELATION['triangular_glsl'],
+    PIXELATION['rhomboidal_glsl'],
     PIXELATION['hexagonal_glsl'],
     'void main(void) {',
         'vec2 p = pix;',
         'if (1 == pixelate) p = triangular(p, imgSize, tileSize);',
+        'else if (2 == pixelate) p = rhomboidal(p, imgSize, tileSize);',
         'else if (3 == pixelate) p = hexagonal(p, imgSize, tileSize);',
         'else p = rectangular(p, imgSize, tileSize);',
         'gl_FragColor = texture2D(img, p);',
@@ -13426,8 +13464,8 @@ function glsl(filter)
         );
         gl.uniform1i(program.uniform.pixelate,
             'triangular' === filter.pattern ? 1 : (
-            'hexagonal' === filter.pattern ? 3 : (
-            0
+            'rhomboidal' === filter.pattern ? 2 : (
+            'hexagonal' === filter.pattern ? 3 : 0
             )
             )
         );

@@ -150,7 +150,6 @@ var PIXELATION = PixelateFilter.PATTERN = {
         step = (sqrt(imArea)*scale*7e-3)|0;
         step2 = 2*step; stepw = step*w; stepw2 = step2*w;
 
-        // do pixelation via interpolation on 5 points of a certain rhomboid
         x=yw=sx=sy=syw=0; odd = 0;
         for (i=0; i<imLen; i+=4)
         {
@@ -306,6 +305,35 @@ var PIXELATION = PixelateFilter.PATTERN = {
     '   else return clamp((tile + vec2(0.33*tilesize, 0.5*tilesize))/imgsize, 0.0, 1.0);',
     '}'
     ].join('\n'),
+    'rhomboidal_glsl': [
+    'vec2 rhomboidal(vec2 p, vec2 imgsize, float tilesize) {',
+    '   tilesize *= 0.7;',
+    '   vec2 xy = imgsize * p;',
+    '   vec2 xyi = floor(xy / tilesize);',
+    '   vec2 tile = tilesize*xyi;',
+    '   vec2 s = mod(xy, tilesize);',
+    '   vec2 a;',
+    '   if (0.0 < mod(xyi.y, 2.0)) {',
+    '       if (s.x+s.y > 2.0*tilesize) {',
+    '           a = vec2(xy.x-s.x+tilesize, xy.y-s.y);',
+    '       } else if (s.x+tilesize-s.y > tilesize) {',
+    '           a = vec2(xy.x-s.x, xy.y-s.y-tilesize);',
+    '       } else {',
+    '           a = vec2(xy.x-s.x-tilesize, xy.y-s.y);',
+    '       }',
+    '   } else {',
+    '       if (s.x+tilesize-s.y > 2.0*tilesize) {',
+    '           a = vec2(xy.x-s.x+tilesize, xy.y-s.y-tilesize);',
+    '       } else if (s.x+s.y > tilesize) {',
+    '           a = vec2(xy.x-s.x, xy.y-s.y);',
+    '       } else {',
+    '           a = vec2(xy.x-s.x-tilesize, xy.y-s.y-tilesize);',
+    '       }',
+    '   }',
+    '   a = vec2(clamp(a.x, 0.0, imgsize.x), clamp(a.y, 0.0, imgsize.y));',
+    '   return clamp((a + vec2(tilesize))/imgsize, 0.0, 1.0);',
+    '}'
+    ].join('\n'),
     "hexagonal_glsl": [
     'vec2 hexagonal(vec2 p, vec2 imgsize, float tilesize) {',
     '    vec2 t = imgsize * p / tilesize;',
@@ -352,10 +380,12 @@ function glsl(filter)
     'uniform int pixelate;',
     PIXELATION['rectangular_glsl'],
     PIXELATION['triangular_glsl'],
+    PIXELATION['rhomboidal_glsl'],
     PIXELATION['hexagonal_glsl'],
     'void main(void) {',
         'vec2 p = pix;',
         'if (1 == pixelate) p = triangular(p, imgSize, tileSize);',
+        'else if (2 == pixelate) p = rhomboidal(p, imgSize, tileSize);',
         'else if (3 == pixelate) p = hexagonal(p, imgSize, tileSize);',
         'else p = rectangular(p, imgSize, tileSize);',
         'gl_FragColor = texture2D(img, p);',
@@ -370,8 +400,8 @@ function glsl(filter)
         );
         gl.uniform1i(program.uniform.pixelate,
             'triangular' === filter.pattern ? 1 : (
-            'hexagonal' === filter.pattern ? 3 : (
-            0
+            'rhomboidal' === filter.pattern ? 2 : (
+            'hexagonal' === filter.pattern ? 3 : 0
             )
             )
         );

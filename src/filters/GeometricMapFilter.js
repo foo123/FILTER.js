@@ -216,6 +216,7 @@ function glsl(filter)
             '#define WRAP '+MODE.WRAP+'',
             'uniform int mode;',
             'uniform int swap;',
+            'uniform vec2 size;',
             'uniform vec2 center;',
             'uniform float angle;',
             'uniform float radius;',
@@ -230,10 +231,10 @@ function glsl(filter)
             GLSLMAP['cartesian'],
             'void main(void) {',
                 'vec2 p = pix;',
-                'if (1 == mapping) p = twirl(pix, center, radius, angle);',
-                'else if (2 == mapping) p = sphere(pix, center, radius2);',
-                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, swap);',
-                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, swap);',
+                'if (1 == mapping) p = twirl(pix, center, radius, angle, size);',
+                'else if (2 == mapping) p = sphere(pix, center, radius2, size);',
+                'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, size, swap);',
+                'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, size, swap);',
                 'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
                     'if (COLOR == mode) {gl_FragColor = color;}',
                     'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
@@ -267,6 +268,9 @@ function glsl(filter)
                     (color & 255)/255,
                     ((color >>> 24) & 255)/255
                 );
+                gl.uniform2f(program.uniform.size,
+                    w, h
+                );
                 gl.uniform2f(program.uniform.center,
                     cx, cy
                 );
@@ -274,10 +278,10 @@ function glsl(filter)
                     filter.angle
                 );
                 gl.uniform1f(program.uniform.radius,
-                    filter.radius/RMAX
+                    filter.radius
                 );
                 gl.uniform1f(program.uniform.radius2,
-                    filter.radius/RMAX*filter.radius/RMAX
+                    filter.radius*filter.radius
                 );
                 gl.uniform1f(program.uniform.AMAX,
                     TWOPI
@@ -604,19 +608,19 @@ MAP = {
 
 GLSLMAP = {
      "twirl": [
-     'vec2 twirl(vec2 pix, vec2 center, float R, float angle) {',
-        'vec2 T = pix - center;',
-        'float D = sqrt(T.x*T.x + T.y*T.y);',
+     'vec2 twirl(vec2 pix, vec2 center, float R, float angle, vec2 size) {',
+        'vec2 T = size*(pix - center);',
+        'float D = length(T);',
         'if (D < R) {',
             'float theta = atan(T.y, T.x) + (R-D)*angle/R;',
-            'pix = center + vec2(D*cos(theta),  D*sin(theta));',
+            'pix = (size*center + vec2(D*cos(theta),  D*sin(theta)))/size;',
         '}',
         'return pix;',
     '}'
     ].join('\n')
     ,"sphere": [
-    'vec2 sphere(vec2 pix, vec2 center, float R2) {',
-        'vec2 T = pix - center;',
+    'vec2 sphere(vec2 pix, vec2 center, float R2, vec2 size) {',
+        'vec2 T = size*(pix - center);',
         'float TX2 = T.x*T.x; float TY2 = T.y*T.y;',
         'float D2 = TX2 + TY2;',
         'if (D2 < R2) {',
@@ -624,39 +628,40 @@ GLSLMAP = {
             'float D = sqrt(D2);',
             'float thetax = asin(T.x / sqrt(TX2 + D2)) * (1.0-0.555556);',
             'float thetay = asin(T.y / sqrt(TY2 + D2)) * (1.0-0.555556);',
-            'pix = pix - vec2(D * tan(thetax), D * tan(thetay));',
+            'pix = pix - vec2(D * tan(thetax), D * tan(thetay))/size;',
         '}',
         'return pix;',
     '}'
     ].join('\n')
     ,"polar": [
-    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
+    'vec2 polar(vec2 pix, vec2 center, float rMax, float aMax, vec2 size, int swap) {',
         'float r = 0.0;',
         'float a = 0.0;',
+        '/*pix *= size;*/',
         'if (1 == swap) {',
-            'r = rMax*pix.y;',
-            'a = aMax*pix.x;',
-            'return center + vec2(r*sin(a), r*cos(a));',
+            'r = pix.y*rMax;',
+            'a = pix.x*aMax;',
+            'return (size*center + vec2(r*sin(a), r*cos(a)))/size;',
         '} else {',
-            'r = rMax*pix.x;',
-            'a = aMax*pix.y;',
-            'return center + vec2(r*cos(a), r*sin(a));',
+            'r = pix.x*rMax;',
+            'a = pix.y*aMax;',
+            'return (size*center + vec2(r*cos(a), r*sin(a)))/size;',
         '}',
     '}'
     ].join('\n')
     ,"cartesian": [
-    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, int swap) {',
-        'vec2 xy = pix - center;',
+    'vec2 cartesian(vec2 pix, vec2 center, float rMax, float aMax, vec2 size, int swap) {',
+        'vec2 xy = size* (pix - center);',
         'float r = 0.0;',
         'float a = 0.0;',
         'if (1 == swap) {',
             'xy = xy.yx;',
-            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'r = length(xy);',
             'a = atan(xy.y, xy.x);',
             'if (0.0 > a) a += TWOPI;',
             'return vec2(a/aMax, r/rMax);',
         '} else {',
-            'r = sqrt(xy.x*xy.x + xy.y*xy.y);',
+            'r = length(xy);',
             'a = atan(xy.y, xy.x);',
             'if (0.0 > a) a += TWOPI;',
             'return vec2(r/rMax, a/aMax);',

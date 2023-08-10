@@ -207,6 +207,7 @@ function glsl(filter)
             'uniform float minval;',
             'uniform float maxval;',
             'uniform int mapping;',
+            'uniform int mode;',
             Color.GLSLCode(),
             'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
             '    if (0.0 != i.a) {',
@@ -222,23 +223,24 @@ function glsl(filter)
             '    }',
             '}',
             'void main(void) {',
-                'vec4 input = texture2D(img, pix);',
-                'vec4 output = vec4(input.r, input.g, inout.b, input.a);',
-                'if (1 == mapping) {output.rgb = rgb2hsv(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (2 == mapping) output.rgb = hsv2rgb(input.r, input.g, input.b).rgb;',
-                'else if (3 == mapping) {output.rgb = rgb2hsl(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (4 == mapping) output.rgb = hsl2rgb(input.r, input.g, input.b).rgb;',
-                'else if (5 == mapping) {output.rgb = rgb2hwb(input.r, input.g, input.b).rgb; output.r /= 360.0;}',
-                'else if (6 == mapping) output.rgb = hwb2rgb(input.r, input.g, input.b).rgb;',
-                'else if (7 == mapping) output.rgb = rgb2cmyk(input.r, input.g, input.b).rgb;',
-                'else if (8 == mapping) {float h=rgb2hue(input.r, input.g, input.b)/360.0; output=vec4(h,h,h,input.a);}',
-                'else if (9 == mapping) {float s=rgb2sat(input.r, input.g, input.b, FORMAT_HSV); output=vec4(s,s,s,input.a);}',
-                'else if (10 == mapping) output = mask(input, minval, maxval, color);',
-                'gl_FragColor = output;',
+                'vec4 c = texture2D(img, pix);',
+                'vec4 o = vec4(c.r, c.g, c.b, c.a);',
+                'float v;',
+                'if (1 == mapping) {o.xyz = rgb2hsv(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (2 == mapping) {o.rgb = hsv2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (3 == mapping) {o.xyz = rgb2hsl(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (4 == mapping) {o.rgb = hsl2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (5 == mapping) {o.xyz = rgb2hwb(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+                'else if (6 == mapping) {o.rgb = hwb2rgb(c.r, c.g, c.b).rgb;}',
+                'else if (7 == mapping) {o.xyz = rgb2cmyk(c.r, c.g, c.b).xyz;}',
+                'else if (8 == mapping) {v=rgb2hue(c.r, c.g, c.b)/360.0; o=vec4(v,v,v,c.a);}',
+                'else if (9 == mapping) {v=rgb2sat(c.r, c.g, c.b, FORMAT_HSV); o=vec4(v,v,v,c.a);}',
+                'else if (10 == mapping) {o = mask(c, minval, maxval, color);}',
+                'gl_FragColor = o;',
             '}'
             ].join('\n'),
             vars: function(gl, w, h, program) {
-                var thres = filter.thresholds || [0, 0],
+                var thresh = filter.thresholds || [0, 0],
                     color = (filter.quantizedColors || [0])[0] || 0;
                 gl.uniform4f(program.uniform.color,
                     ((color >>> 16) & 255)/255,
@@ -247,10 +249,10 @@ function glsl(filter)
                     ((color >>> 24) & 255)/255
                 );
                 gl.uniform1f(program.uniform.minval,
-                    thresh[0]
+                    thresh[0] || 0
                 );
-                gl.uniform1f(program.uniform.minval,
-                    thresh[1]
+                gl.uniform1f(program.uniform.maxval,
+                    thresh[1] || 0
                 );
                 gl.uniform1i(program.uniform.mapping,
                     "rgb2hsv" === filter._mapName ? 1 : (
