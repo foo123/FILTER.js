@@ -283,11 +283,9 @@ hsv.worker();
 
 // if you want to stop and dispose the worker for this filter, do:
 hsv.worker(false);
-// this is same even if filter uses a parallel worker filter
-hsv.apply(image);   // image is a FILTER.Image instance, see examples
-// this will also work:
-image.apply(hsv);   // image is a FILTER.Image instance, see examples
 
+// if you want to make this filter work in webgl do:
+hsv.makeGLSL(true);
 ````
 
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
@@ -639,6 +637,8 @@ median.worker();
 // if you want to stop and dispose the worker for this filter, do:
 median.worker(false);
 
+// if you want to make this filter work in webgl do:
+median.makeGLSL(true);
 ````
 
 To apply the filter to an image do:
