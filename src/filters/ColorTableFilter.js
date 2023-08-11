@@ -39,10 +39,12 @@ var ColorTableFilter = FILTER.Create({
     ,path: FILTER.Path
     // parameters
     ,table: null
+    ,img: null
 
     ,dispose: function() {
         var self = this;
         self.table = null;
+        self.img = null;
         self.$super('dispose');
         return self;
     }
@@ -308,9 +310,10 @@ var ColorTableFilter = FILTER.Create({
     }
 
     ,set: function(tR, tG, tB, tA) {
-        if (!tR) return this;
+        var self = this;
+        if (!tR) return self;
 
-        var i, T = this.table, R = T[CHANNEL.R] || eye(), G, B, A;
+        var i, T = self.table, R = T[CHANNEL.R] || eye(), G, B, A;
 
         if (tG || tB)
         {
@@ -326,14 +329,17 @@ var ColorTableFilter = FILTER.Create({
             T[CHANNEL.G] = T[CHANNEL.R];
             T[CHANNEL.B] = T[CHANNEL.R];
         }
-        this._glsl = null;
-        return this;
+        self.img = null;
+        self._glsl = null;
+        return self;
     }
 
     ,reset: function() {
-        this.table = [null, null, null, null];
-        this._glsl = null;
-        return this;
+        var self = this;
+        self.table = [null, null, null, null];
+        self.img = null;
+        self._glsl = null;
+        return self;
     }
 
     ,getGLSL: function() {
@@ -350,7 +356,27 @@ var ColorTableFilter = FILTER.Create({
 
     ,setTable: function(table, channel) {
         this.table[channel || CHANNEL.R] = table || null;
+        this.img = null;
         return this;
+    }
+
+    ,getImage: function() {
+        var self = this, table = self.table;
+        if (table && table[CHANNEL.R] && !self.img)
+        {
+            var R = table[CHANNEL.R], G = table[CHANNEL.G] || R,
+                B = table[CHANNEL.B] || G, A = table[CHANNEL.A],
+                n = (256 << 2), t = new FILTER.Array8U(n), i, j;
+            for (i=0,j=0; i<n; i+=4,++j)
+            {
+                t[i  ] = R[j];
+                t[i+1] = G[j];
+                t[i+2] = B[j];
+                t[i+3] = A ? A[j] : 255;
+            }
+            self.img = t;
+        }
+        return self.img;
     }
 
     // used for internal purposes
@@ -433,8 +459,7 @@ FILTER.TableLookupFilter = FILTER.ColorTableFilter;
 
 function glsl(filter)
 {
-    if (!filter.table || !filter.table[0]) return {instance: filter, shader: GLSL.DEFAULT};
-    var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
+    if (!filter.table || !filter.table[CHANNEL.R]) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
 'precision mediump float;',
 'varying vec2 pix;',
@@ -448,20 +473,11 @@ function glsl(filter)
 '}'
     ].join('\n'),
     textures: function(gl, w, h, program) {
-        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
-        for (var n=(256 << 2),t=new FILTER.Array8U(n),i=0,j=0; i<n; i+=4,++j)
-        {
-            t[i  ] = R[j];
-            t[i+1] = G[j];
-            t[i+2] = B[j];
-            t[i+3] = A ? A[j] : 255;
-        }
-        GLSL.uploadTexture(gl, t, 256, 1, 1);
+        GLSL.uploadTexture(gl, filter.getImage(), 256, 1, 1);
     },
     vars: function(gl, w, h, program) {
-        var T = filter.table, R = T[0], G = T[1] || R, B = T[2] || G, A = T[3];
-        gl.uniform1i(program.uniform.map, 1);  // img unit 1
-        gl.uniform1i(program.uniform.hasAlpha, A ? 1 : 0);
+        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
+        gl.uniform1i(program.uniform.hasAlpha, filter.table[CHANNEL.A] ? 1 : 0);
     }
     };
 }
