@@ -255,7 +255,7 @@ function glsl(filter)
         code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
         return code.join('\n');
     };
-    var morph = function(m, op, img) {
+    var morph = function(m, op, img, usesPrev) {
         return {instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -264,7 +264,7 @@ function glsl(filter)
         'void main(void) {',
         'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
         '}'
-        ].join('\n'), iterations: filter._iter || 1};
+        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
     };
     var toFloat = GLSL.formatFloat, output;
     if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
@@ -289,10 +289,9 @@ function glsl(filter)
         ];
         break;
         case 'gradient':
-        // handle in js
-        output = {instance: filter}/*[
+        output = [
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
         {instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -303,14 +302,13 @@ function glsl(filter)
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
-        ].join('\n')}
-        ]*/;
+        ].join('\n'), _usesPrev:true}
+        ];
         break;
         case 'laplacian':
-        // handle in js
-        output = {instance: filter}/*[
+        output = [
         morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
         {instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -323,8 +321,8 @@ function glsl(filter)
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'
-        ].join('\n')}
-        ]*/;
+        ].join('\n'), _usesPrev:true}
+        ];
         break;
         default:
         output = {instance: filter};

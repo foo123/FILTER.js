@@ -287,6 +287,16 @@ hsv.worker(false);
 // if you want to make this filter work in webgl do:
 hsv.makeGLSL(true);
 ````
+To apply the filter to an image do:
+
+````javascript
+
+// this is same even if filter uses a parallel worker filter
+hsv.apply(image);   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply(hsv);   // image is a FILTER.Image instance, see examples
+
+````
 
 NOTE: The (filter) apply method will actually change the image output to which it is applied, the filters can be removed if image is restorable
 
@@ -663,6 +673,8 @@ new FILTER.BlendFilter(blendMatrix:Array);
 
 The filter blends multiple images together with svg-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `enabled` flag for each of the blend images to be blended with the main image (see below).
 
+**Blend Filter is not implemented in GLSL**
+
 **Supported Blend Modes:**
 
 * normal
@@ -719,6 +731,8 @@ if `mode` is `"crop"`, `a` is left offset, `b` is top offset, `c` is width and `
 if `mode` is `"scale"`, `a` is new width or zero, `b` is new height or zero, `c` is horizontal scaling or zero (given new width) and `d` is vertical scaling or zero (given new height).
 
 If complicated cropping, padding and scaling is needed use multiple Dimension Filters.
+
+**Dimension Filter is not implemented in GLSL**
 
 
 ### Composite Filter

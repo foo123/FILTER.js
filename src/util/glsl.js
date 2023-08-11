@@ -352,7 +352,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         i, n = glsls.length, glsl, glsl0, output0,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
-        program, cache, im0, t, canRun,
+        program, cache, im0, t, canRun, p,
         first = -1, last = -1, fromshader = false, flipY = false;
     if (!gl) return;
     for (i=0; i<n; ++i)
@@ -398,6 +398,14 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         }
         if (canRun)
         {
+            if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
+            {
+                // store previous frames
+                deleteTexture(gl, prev[1]);
+                prev[1] = prev[0];
+                if (fromshader) prev[0] = uploadTexture(gl, getPixels(gl, w, h), w, h);
+                else prev[0] = uploadTexture(gl, im, w, h);
+            }
             if (i === first)
             {
                 if (!input) input = uploadTexture(gl, im, w, h, 0);
@@ -417,13 +425,6 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
             runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
-            /*if (i < last)
-            {
-                // store previous frames
-                deleteTexture(gl, prev[1]);
-                prev[1] = prev[0];
-                prev[0] = copyTexture(gl, w, h);
-            }*/
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;

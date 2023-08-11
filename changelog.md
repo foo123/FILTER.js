@@ -1,9 +1,9 @@
 ## ChangeLog
 
-__1.5.0r1 (almost complete)__
+__1.5.0__
 
 * GLSL versions of most filters so that they can run in gl/webgl transparently
-* fix `Pixelate`/Convolution filter
+* fix/update `HaarDetector`,`Pixelate`,`Convolution`,`Statistic` filters
 * update examples and tests
 
 __1.0.0__

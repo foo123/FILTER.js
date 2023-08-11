@@ -33,6 +33,7 @@
 * [The effect of culture on perception and cognition: a conceptual framework, Kastanakis, Voyer 2013](http://eprints.lse.ac.uk/50048/1/__lse.ac.uk_storage_LIBRARY_Secondary_libfile_shared_repository_Content_Voyer,%20B_Effect%20culture%20perception_Voyer_Effect%20culture%20perception_2014.pdf)
 * [Colour Space Conversions, Ford, Roberts 1998](http://www.poynton.com/PDFs/coloureq.pdf)
 * [New simple and efficient color space transformations for lossless image compression, Starosolski 2014](http://sun.aei.polsl.pl/~rstaros/papers/s2014-jvcir-AAM.pdf)
+* [A Survey of Gaussian Convolution Algorithms, Pascal Getreuer 2013](https://www.ipol.im/pub/art/2013/87/?utm_source=doi)
 * [Color Image Segmentation: Advances &amp; Prospects, Chend, Jiang, Sun, Wang 2001](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.118.2751&rep=rep1&type=pdf)
 * [A Class of Photometric Invariants: Separating Material from Shape and Illumination, Narasimhan, Ramesh, Nayar 2003](https://www.cs.cmu.edu/~ILIM/publications/PDFs/NRN-ICCV03.pdf)
 * [Color Subspaces as Photometric Invariants, Zickler, Mallick, Kriegman, Belhumeu 2006](http://vision.ucsd.edu/sites/default/files/ColorSubspaces_IJCV_0.pdf)

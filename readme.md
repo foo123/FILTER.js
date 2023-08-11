@@ -4,10 +4,10 @@
 __A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
 
 
-This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, Web Workers and WebGL or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node processes).
+This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node processes).
 
 
-**version 1.5.0r1 almost complete** (220 kB minified)
+**version 1.5.0** (223 kB minified)
 
 
 ### Contents
@@ -77,7 +77,9 @@ The framework defines an [`Image`](/api-reference.md#image-class) class, which r
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
 
 
-__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way and also webgl transparently, see examples)
+__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
+
+__GPU Processing Support (browser and node)__ (support GPU/WebGL parallel procesing/filtering in an intuitive and transparent way, see examples)
 
 __Image Blending Modes__ (analogous to SVG blend modes)
 

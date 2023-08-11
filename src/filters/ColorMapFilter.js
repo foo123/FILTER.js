@@ -10,8 +10,10 @@
 !function(FILTER, undef) {
 "use strict";
 
-var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE, Color = FILTER.Color, CM = FILTER.ColorMatrix,
-    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp, function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty;
+var MAP, CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
+    GLSL = FILTER.Util.GLSL, Color = FILTER.Color, CM = FILTER.ColorMatrix,
+    TypedArray = FILTER.Util.Array.typed, notSupportClamp = FILTER._notSupportClamp,
+    function_body = FILTER.Util.String.function_body, HAS = Object.prototype.hasOwnProperty;
 
 // ColorMapFilter
 var ColorMapFilter = FILTER.Create({
@@ -198,8 +200,49 @@ function glsl(filter)
     {
         if ('quantize' === filter._mapName)
         {
-            // handle in js
-            return {instance: filter};
+            var toFloat = GLSL.formatFloat,
+                thresholds = filter.thresholds || [],
+                colors = filter.quantizedColors || [],
+                formatThresh = function(t) {
+                    t = t || 0;
+                    if (MODE.COLOR === filter.mode)
+                        return toFloat(100*((t >> 16)&255)/255+10*((t >> 8)&255)/255+((t)&255)/255);
+                    else
+                        return toFloat(t/255);
+                };
+            return {instance: filter, shader: [
+                'precision mediump float;',
+                'varying vec2 pix;',
+                'uniform sampler2D img;',
+                '#define HUE '+MODE.HUE+'',
+                '#define SATURATION '+MODE.SATURATION+'',
+                '#define INTENSITY '+MODE.INTENSITY+'',
+                '#define COLOR '+MODE.COLOR+'',
+                'uniform int mode;',
+                Color.GLSLCode(),
+                'float col24(float r, float g, float b) {',
+                '   return 100.0*r + 10.0*g + 1.0*b;',
+                '}',
+                'void main(void) {',
+                    'vec4 i = texture2D(img, pix);',
+                    'vec4 o = vec4(i.r, i.g, i.b, i.a);',
+                    'float v;',
+                    'int found = 0;',
+                    'if (0.0 != i.a) {',
+                        'if (mode == HUE) v = rgb2hue(i.r, i.g, i.b)/360.0;',
+                        'else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
+                        'else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
+                        'else v = col24(i.r, i.g, i.b);',
+                        thresholds.map(function(t, i) {
+                            return 'if (0 == found && v <= '+formatThresh(t)+') {found = 1; o.rgb = '+(i<colors.length ? Color.rgb24GL(colors[i]) : 'vec3(1.0,1.0,1.0)')+';}';
+                        }).join('\n'),
+                        'gl_FragColor = o;',
+                    '} else {',
+                        'gl_FragColor = i;',
+                    '}',
+                '}'
+                ].join('\n')
+            };
         }
         return {instance: filter, shader: [
             'precision mediump float;',
@@ -215,7 +258,7 @@ function glsl(filter)
             'uniform int mapping;',
             'uniform int mode;',
             Color.GLSLCode(),
-            'float col32(float r, float g, float b) {',
+            'float col24(float r, float g, float b) {',
             '   return 100.0*r + 10.0*g + 1.0*b;',
             '}',
             'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
@@ -224,7 +267,7 @@ function glsl(filter)
             '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
             '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
             '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
-            '        else v = col32(i.r, i.g, i.b);',
+            '        else v = col24(i.r, i.g, i.b);',
             '        if (v < minval || v > maxval) return color;',
             '        else return i;',
             '    } else {',

@@ -477,6 +477,16 @@ var Color = FILTER.Color = FILTER.Class({
             return [(color >>> 16)&255, (color >>> 8)&255, color&255, (color >>> 24)&255];
         },
 
+        rgb24GL: function(color) {
+            var toFloat = FILTER.Util.GLSL.formatFloat;
+            return 'vec3('+[toFloat(((color >>> 16)&255)/255), toFloat(((color >>> 8)&255)/255), toFloat((color&255)/255)].join(',')+');';
+        },
+
+        rgba32GL: function(color) {
+            var toFloat = FILTER.Util.GLSL.formatFloat;
+            return 'vec4('+[toFloat(((color >>> 16)&255)/255), toFloat(((color >>> 8)&255)/255), toFloat((color&255)/255), toFloat(((color >>> 24)&255)/255)].join(',')+');';
+        },
+
         intensity: function(r, g, b) {
             return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
         },
