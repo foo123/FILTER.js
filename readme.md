@@ -1,13 +1,13 @@
 # FILTER.js
 
 
-__A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision__
+**A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision**
 
 
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node processes).
 
 
-**version 1.5.0** (223 kB minified)
+**version 1.5.5** (225 kB minified)
 
 
 ### Contents
@@ -55,33 +55,37 @@ Some filters code has been adapted from open source libraries, see the comments 
 
 ### Features
 
-The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for webgl, and parallel processing transparently both for `browser` and `nodejs`)
+The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for **CPU and GPU parallel processing** transparently both for `browser` and `nodejs`)
 
-0. [__AbstractFilter__](/api-reference.md#generic-abstract-filter)
-1. [__ColorTableFilter__](/api-reference.md#color-table-filter)
-2. [__ColorMatrixFilter__](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
-3. [__ColorMapFilter__](/api-reference.md#color-map-filter)
-4. [__AffineMatrixFilter__](/api-reference.md#affine-matrix-filter)
-5. [__GeometricMapFilter__](/api-reference.md#geometric-map-filter)
-6. [__DisplacementMapFilter__](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
-7. [__ConvolutionMatrixFilter__](/api-reference.md#convolution-matrix-filter) (analogous to the ActionScript filter)
-8. [__MorphologicalFilter__](/api-reference.md#morphological-filter)
-9. [__StatisticalFilter__](/api-reference.md#statistical-filter)
-10. [__BlendFilter__](/api-reference.md#blend-filter)
-11. [__DimensionFilter__](/api-reference.md#dimension-filter)
-12. [__CompositeFilter__](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
-13. [__InlineFilter__](/api-reference.md#inline-filter) (create inline filters dynamicaly at run-time using your custom functions)
-14. [__Plugins__](/api-reference.md#plugins-and-extra-filters) (plugin filters which cover a wider range of functionality and use cases)
+0. [**AbstractFilter**](/api-reference.md#generic-abstract-filter)
+1. [**ColorTableFilter**](/api-reference.md#color-table-filter)
+2. [**ColorMatrixFilter**](/api-reference.md#color-matrix-filter) (analogous to the ActionScript filter)
+3. [**ColorMapFilter**](/api-reference.md#color-map-filter)
+4. [**AffineMatrixFilter**](/api-reference.md#affine-matrix-filter)
+5. [**GeometricMapFilter**](/api-reference.md#geometric-map-filter)
+6. [**DisplacementMapFilter**](/api-reference.md#displacement-map-filter) (analogous to ActionScript filter)
+7. [**ConvolutionMatrixFilter**](/api-reference.md#convolution-matrix-filter) (analogous to the ActionScript filter)
+8. [**MorphologicalFilter**](/api-reference.md#morphological-filter)
+9. [**StatisticalFilter**](/api-reference.md#statistical-filter)
+10. [**BlendFilter**](/api-reference.md#blend-filter)
+11. [**DimensionFilter**](/api-reference.md#dimension-filter)
+12. [**CompositeFilter**](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
+13. [**InlineFilter**](/api-reference.md#inline-filter) (create inline filters dynamically at run-time using your custom functions)
+14. [**Plugins**](/api-reference.md#plugins-and-extra-filters) (plugin filters which cover a wider range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)
 
 
-__Parallel Processing Support (browser and node)__ (support parallel procesing/filtering with filter workers in an intuitive and transparent way, see examples)
+**CPU Parallel Processing for browser and nodejs**: support CPU parallel procesing with filter Workers in an intuitive and transparent way, see examples.
 
-__GPU Processing Support (browser and node)__ (support GPU/WebGL parallel procesing/filtering in an intuitive and transparent way, see examples)
+**GPU Parallel Processing for browser and nodejs**: support GPU/WebGL parallel procesing with GLSL filters in an intuitive and transparent way, see examples.
 
-__Image Blending Modes__ (analogous to SVG blend modes)
+**Mix CPU/GPU filters transparently**
+
+**Map/Reduce functionality**
+
+**Image Blending Modes** (analogous to SVG blend modes)
 
 
 **TIP:**  You can create your custom build of the library with the filters/plugins you choose.
@@ -89,7 +93,7 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
-* make GLSL versions of filters where possible [DONE partially]
+* make GLSL versions of filters where possible [DONE]
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]
 * add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE]

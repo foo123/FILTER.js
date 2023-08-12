@@ -1,5 +1,12 @@
 ## ChangeLog
 
+__1.5.5__
+
+* `Image.mapReduce` to split image in parts and process each part in parallel
+* ConnectedComponents COLORIZE mode
+* Equalize `factor` option
+* simplify GL overriding
+
 __1.5.0__
 
 * GLSL versions of most filters so that they can run in gl/webgl transparently

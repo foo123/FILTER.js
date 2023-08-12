@@ -7,7 +7,7 @@
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, A32F = FILTER.Array32F,
+var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
@@ -60,15 +60,15 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            D = new A32F(imSize);
+            D = new A32F(imSize), cc, i, c, CC, CR, CG, CB;
 
         if (null != color)
         {
-            if (MODE.HUE === mode)
+            if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
             {
                 color = cos(toRad*color);
             }
-            else if (MODE.COLOR === mode)
+            else if (MODE.COLOR === mode || MODE.COLORIZE === mode)
             {
                 var r = ((color >>> 16)&255)/255, g = ((color >>> 8)&255)/255, b = ((color)&255)/255;
                 color = 10000*(r+g+b)/3 + 1000*(r+g)/2 + 100*(g+b)/2 + 10*(r+b)/2 + r;
@@ -76,8 +76,43 @@ FILTER.Create({
         }
         // compute an appropriate (relational) dissimilarity matrix, based on filter operation mode
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode);
-        // return the connected image data
-        return connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
+        if (MODE.COLORIZE === mode || MODE.COLORIZEHUE === mode)
+        {
+            cc = connected_components(new IMG(imLen), w, h, 2, D, self.connectivity, delta, color, self.invert);
+            // colorize each component with average color of region
+            CR = new A32F(256);
+            CG = new A32F(256);
+            CB = new A32F(256);
+            CC = new A32F(256);
+            for (i=0; i<imLen; i+=4)
+            {
+                c = cc[i];
+                ++CC[c];
+                CR[c] += im[i  ];
+                CG[c] += im[i+1];
+                CB[c] += im[i+2];
+            }
+            for (i=0; i<256; ++i)
+            {
+                if (!CC[i]) continue;
+                c = CC[i];
+                CR[i] /= c;
+                CG[i] /= c;
+                CB[i] /= c;
+            }
+            for (i=0; i<imLen; i+=4)
+            {
+                c = cc[i];
+                im[i  ] = CR[c]|0;
+                im[i+1] = CG[c]|0;
+                im[i+2] = CB[c]|0;
+            }
+            return im;
+        }
+        else
+        {
+            return connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
+        }
     }
 });
 
@@ -89,7 +124,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
 
     if (0 < stride)
     {
-        if (MODE.HUE === mode)
+        if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
             for (i=0,j=0; j<dLen; i+=4,++j)
                 D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
@@ -106,7 +141,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
             for (i=0,j=0; j<dLen; i+=4,++j)
                 D[j] = 0 === im[i+3] ? 10000 : im[i];
         }
-        else //if (MODE.COLOR === mode)
+        else //if (MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta = 10000*delta + 1000*delta + 100*delta + 10*delta + delta;
             for (i=0,j=0; j<dLen; i+=4,++j)
@@ -115,12 +150,12 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
     }
     else
     {
-        if (MODE.HUE === mode)
+        if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
             for (i=0,j=0; j<dLen; ++i,++j)
                 D[j] = cos(toRad*im[i]);
         }
-        else //if ((MODE.INTENSITY === mode) || (MODE.GRAY === mode) || (MODE.COLOR === mode))
+        else //if (MODE.INTENSITY === mode || MODE.GRAY === mode || MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta *= 255;
             for (i=0,j=0; j<dLen; ++i,++j)

@@ -285,7 +285,9 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                 total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
 
                 vnorm = total_x2 - total_x * total_x;
-                vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;
+                //vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;
+                if (0 >= vnorm) continue;
+                vnorm = Sqrt(vnorm);
 
                 pass = false;
                 for (s=0; s<sl; ++s)

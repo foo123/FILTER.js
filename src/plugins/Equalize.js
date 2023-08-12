@@ -19,17 +19,19 @@ FILTER.Create({
     ,path: FILTER.Path
 
     ,mode: MODE.INTENSITY
+    ,factor: 1.0
 
-    ,init: function(mode) {
+    ,init: function(mode, factor) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
+        if (null != factor) self.factor = +factor;
     }
 
     ,_apply_rgb: function(im, w, h) {
         var self = this,
             r,g,b, rangeR, rangeG, rangeB,
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-            cdfR, cdfG, cdfB,
+            cdfR, cdfG, cdfB, f = self.factor,
             accumR, accumG, accumB, t0, t1, t2,
             i, l=im.length, l2=l>>>2;
 
@@ -39,7 +41,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
+            ++cdfR[r]; ++cdfG[g]; ++cdfB[b];
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -153,7 +155,7 @@ FILTER.Create({
         }
 
         // equalize each channel separately
-        rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
+        rangeR=f*(maxR-minR)/l2; rangeG=f*(maxG-minG)/l2; rangeB=f*(maxB-minB)/l2;
         if (notSupportClamp)
         {
             for (i=0; i<l; i+=4)
@@ -187,6 +189,7 @@ FILTER.Create({
 
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
             cdf, accum, i, l = im.length, l2 = l>>>2,
+            f = self.factor,
             is_grayscale = MODE.GRAY === self.mode;
 
         // initialize the arrays
@@ -197,7 +200,7 @@ FILTER.Create({
             for (i=0; i<l; i+=4)
             {
                 r = im[i];
-                cdf[r]++;
+                ++cdf[r];
                 max = Max(r, max);
                 min = Min(r, min);
             }
@@ -215,7 +218,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                cdf[y]++;
+                ++cdf[y];
                 max = Max(y, max);
                 min = Min(y, min);
             }
@@ -260,7 +263,7 @@ FILTER.Create({
         }
 
         // equalize only the intesity channel
-        range = (max-min)/l2;
+        range = f*(max-min)/l2;
         if (notSupportClamp)
         {
             if (is_grayscale)

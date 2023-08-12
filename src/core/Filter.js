@@ -455,9 +455,47 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return im;
     }
 
+    ,apply_: function(img, im, w, h, cb) {
+        var self = this, im2, glsl;
+
+        if (!self.canRun())
+        {
+            cb(im, self);
+        }
+        else if (self.$thread)
+        {
+            self._listener.cb = function(data) {
+                self._listener.cb = null;
+                if (data && data.im) im = FILTER.Util.Array.typed(data.im, FILTER.ImArray);
+                cb(im, self);
+            };
+            self.send('apply', {im: [im, w, h, 2], params: self.serializeFilter(), inputs: self.serializeInputs(img)});
+        }
+        else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
+        {
+            if (glsl = self.GLSLCode())
+            {
+                if (!glsl.push && !glsl.pop) glsl = [glsl];
+                glsl = glsl.filter(validEntry);
+                if (glsl.length)
+                {
+                    im2 = GLSL.run(img, glsl, im, w, h, {src:img, dst:img});
+                    if (im2) im = im2;
+                }
+            }
+            cb(im, self);
+        }
+        else
+        {
+            im = self._apply(im, w, h, {src:img, dst:img});
+            cb(im, self);
+        }
+        return self;
+    }
+
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2, w, h, gl, glsl, tex, ret;
+        var self = this, im, im2, w, h, glsl;
 
         if (!self.canRun()) return src;
 
@@ -511,9 +549,9 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 // process request
                 self.send('apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
             }
-            else if (!isInsideThread && self.isGLSL())
+            else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
             {
-                if (dst.glCanvas && (glsl = self.GLSLCode()))
+                if (glsl = self.GLSLCode())
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];

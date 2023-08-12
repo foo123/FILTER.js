@@ -141,8 +141,3 @@
 * [Intrinsic Scene Properties from a Single RGB-D Image, Barron, Malik 2013](https://people.eecs.berkeley.edu/~barron/BarronMalikCVPR2013.pdf)
 * [Learning Ordinal Relationships for Mid-Level Vision, Zoran, Isola, Krishnan, Freeman 2015](http://persci.mit.edu/pub_pdfs/learning-ordinal-relationships.pdf)
 * [Geometric Methods in Perceptual Image Processing, Hamilton Yu-Ik Chong PhD Thesis 2008](http://www.cs.harvard.edu/~sjg/papers/hamthesis.pdf)
-* [Grammar-based Image Processing (draft)](https://github.com/foo123/grammar-based-image-processing)
-
-<!-- http://www.csse.uwa.edu.au/~pk/research/pkpapers/FastGaussianSmoothing.pdf -->
-<!--* [The Social Psychology of Visual Perception, Balcetis, Lassiter 2010](http://www.gbv.de/dms/ilmenau/toc/614625408.PDF)-->
-<!-- https://www.researchgate.net/publication/264423504_The_Social_Psychology_of_Visual_Perception -->

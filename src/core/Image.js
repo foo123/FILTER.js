@@ -42,7 +42,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
-        self.glCanvas = FILTER.supportsGLSL() ? FILTER.Canvas(w, h) : null;
         self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
@@ -66,7 +65,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,selection: null
     ,iCanvas: null
     ,oCanvas: null
-    ,glCanvas: null
+    ,gl: null
     ,iData: null
     ,iDataSel: null
     ,oData: null
@@ -83,7 +82,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = self.height = null;
         self.selection = self.gray = null;
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
-        self.domElement = self.iCanvas = self.oCanvas = self.glCanvas = null;
+        self.domElement = self.iCanvas = self.oCanvas = self.gl = null;
         self._restorable = null;
         self._refresh = self.nref = null;
         self.cache = null;
@@ -545,6 +544,53 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         self.nref = (self.nref+1) % 1000;
+        return self;
+    }
+    ,getDataFromSelection: function(x1, y1, x2, y2, absolute) {
+        var self = this,
+            ow = self.width-1,
+            oh = self.height-1,
+            fx = !absolute ? ow : 1,
+            fy = !absolute ? oh : 1,
+            ws, hs, data;
+        x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
+        x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
+        ws = x2-x1+DPR; hs = y2-y1+DPR;
+        data = self.oCanvas.getContext('2d').getImageData(x1, y1, ws, hs);
+        if (!data) data = self.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
+        return [copy(data.data), data.width, data.height, 2];
+    }
+    ,setDataToSelection: function(data, x1, y1, x2, y2, absolute) {
+        var self = this,
+            ow = self.width-1,
+            oh = self.height-1,
+            fx = !absolute ? ow : 1,
+            fy = !absolute ? oh : 1,
+            ws, hs, data;
+        x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
+        x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
+        ws = x2-x1+DPR; hs = y2-y1+DPR;
+        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(data, ws, hs), x1, y1);
+        self._refresh |= ODATA;
+        if (self.selection) self._refresh |= OSEL;
+        self.nref = (self.nref+1) % 1000;
+        return self;
+    }
+    ,mapReduce: function(mappings, reduce, done) {
+        var self = this, completed = 0, missing = 0;
+        mappings.forEach(function(mapping, index) {
+            if (!mapping || !mapping.filter) {++missing; return;}
+            var from = mapping.from || {x:0, y:0},
+                to = mapping.to || {x:self.width-1, y:self.height-1},
+                absolute = mapping.absolute,
+                data = self.getDataFromSelection(from.x, from.y, to.x, to.y, absolute);
+            mapping.filter.apply_(self, data[0], data[1], data[2], function(resultData, processorFilter) {
+                ++completed;
+                reduce(self, resultData, from, to, absolute, processorFilter, index);
+                if ((completed+missing === mappings.length) && done) done(self);
+            });
+        });
+        if ((missing === mappings.length) && done) done(self);
         return self;
     }
 

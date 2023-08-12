@@ -35,11 +35,11 @@ new FILTER.Image(image:Image|Video|Canvas|FILTER.Image|ImageData = null);
 This is a placeholder for an image, along with basic methods to access the image data
 and alter them.
 
-__Static Methods:__
+**Static Methods:**
 
 * `load(src [, done:Function]):FILTER.Image`  load image uri to FILTER.Image and call `done` callback when loaded
 
-__Methods:__
+**Methods:**
 
 * `image(image:Image|Video|Canvas|FILTER.Image|ImageData)`  Sets/Alters the underlying image
 * `select(x1:Number, y1:Number, x2:Number, y2:Number, absolute:Boolean=false)`  set a (relative or absolute) rectangle as selected part of image (any filters will be applied only to that part)
@@ -49,6 +49,7 @@ __Methods:__
 * `restorable(bool:Boolean)` whether the image is restorable (it can be faster if not)
 * `apply(filter:Filter [, callback:Function])` shorthand to apply method of a FILTER.Filter instance, image will change after application
 * `apply2(filter:Filter, destImage:Image [, callback:Function])` shorthand to apply2 method of a FILTER.Filter instance, to a destination image destImage will change after application
+* `mapReduce(mappings:Array, reduce:Function, done:Function)` split image and process each part with `map/reduce` (see below)
 * `clone(original:Boolean)` gets a clone of the image as a new FILTER.Image instance (if true=original clones the un-processed image)
 * `clear()`  clear the image data
 * `fill(color:Color, x:Integer, y:Integer, w:Integer, h:Integer)`  fill the image area with a specific color
@@ -63,6 +64,41 @@ __Methods:__
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
 * `toImage(callback:Function, type:String="image")` call callback with an Image object or a data uri of the current image according to type ("uri" or "image")
 
+** Map/Reduce**
+
+Image allows to be split in parts and each part be processed by a filter in parallel (`map`) and then combined as they complete (`reduce`). For example split an image in 4 parts and apply grayscaling to each part in parallel:
+
+```js
+const img = FILTER.Image.load('somelargeimage.jpg', () => {
+    // break img in parts and process each part in parallel with mapReduce
+    img.mapReduce([
+    // map
+    {
+        from: {x:0, y:0}, to: {x:0.5, y:0.5}, // 1st quadrant, relative coords
+        filter: FILTER.ColorMatrixFilter().grayscale().worker(true)
+    },{
+        from: {x:0.5, y:0}, to: {x:1, y:0.5}, // 2nd quadrant, relative coords
+        filter: FILTER.ColorMatrixFilter().grayscale().worker(true)
+    },{
+        from: {x:0.5, y:0.5}, to: {x:1, y:1}, // 3rd quadrant, relative coords
+        filter: FILTER.ColorMatrixFilter().grayscale().worker(true)
+    },{
+        from: {x:0, y:0.5}, to: {x:0.5, y:1}, // 4th quadrant, relative coords
+        filter: FILTER.ColorMatrixFilter().grayscale().worker(true)
+    }
+    ],
+    // reduce
+    (img, result, from, to, absolute, filter, index) => {
+        filter.worker(false); // dispose parallel worker
+        // update this part that is completed
+        img.setDataToSelection(result, from.x, from.y, to.x, to.y, absolute /*whether selection uses absolute or relative coords*/);
+    },
+    // finalize, if needed
+    () => {}
+    );
+});
+```
+
 
 ### Generic Abstract Filter
 
@@ -71,7 +107,7 @@ Each filter (and plugin) is an extension of the generic abstract filter, which p
 **Note:** Built-in and plugin filters implement the `constructor-factory` pattern meaning one can instantiate them without the explicit `new Filter()` operator.
 
 
-__Properties:__
+**Properties:**
 
 * `name`   the (class) name of the filter (should be the exact class name, since this is also used by worker filters to instantiate the appropriate filter)
 * `hasMeta`  whether the filter has meta data passed between processes (except the current image data), for example bounding boxes or other data (for example the `HaarDetectorFilter` returns the detected regions as metaData, while the passed image data are left unchanged)
@@ -79,7 +115,7 @@ __Properties:__
 * `hasInputs`  whether the filter has multiple extra inputs (except the current image data input), for example blend filters or displacement map filters or alpha mask filters have an extra image input (the blending image or displacement image or mask image respectively)
 * `inputs` the extra filter's inputs object (by key)
 
-__Methods:__
+**Methods:**
 
 * `reset()`   reset the filter to identity (trivial)
 * `dispose()`   dispose the filter (disposes associated filter thread also if needed)
@@ -812,7 +848,7 @@ NOTE: The (filter) apply method will actually change the image output to which i
 new FILTER.InlineFilter(filterFunc:Function);
 ````
 
-This filter creates inline filters dynamicaly at run-time using your custom functions with the full power of `Filter` (including parallel processing transparently).
+This filter creates inline filters dynamically at run-time using your custom functions with the full power of `Filter` (including CPU/GPU parallel processing transparently).
 
 Inline Filters support parallel filter threads/workers (make sure the custom function does not reference other external data, except the `FILTER` namespace which will be available literaly at instantiation, so it can be serialized correctly)
 
@@ -866,7 +902,7 @@ A comprehensive framework is provided for creating plugins that function the sam
 Included Plugins support parallel thread/worker filters (see code and examples)
 
 
-__Included Plugins__ (see examples for how to use)
+**Included Plugins** (see examples for how to use)
 
 <table>
 <thead>
@@ -876,15 +912,15 @@ __Included Plugins__ (see examples for how to use)
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
-<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal" <b>supports WebGL</b></td></tr>
+<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
-<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as `AlphaMask` depending on operation mode) <b>supports WebGL</b></td></tr>
+<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as <code>AlphaMask</code> depending on operation mode)<br><b>supports WebGL</b></td></tr>
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
-<tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart openCV algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
+<tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>

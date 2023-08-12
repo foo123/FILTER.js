@@ -221,37 +221,28 @@ function getPixels(gl, width, height, pixels)
 }
 function prepareGL(img)
 {
-    if (img.glCanvas)
+    var ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
+    if (img.selection)
     {
-        var gl, ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
-        if (img.selection)
-        {
-            var sel = img.selection,
-                ow = img.width-1,
-                oh = img.height-1,
-                xs = sel[0],
-                ys = sel[1],
-                xf = sel[2],
-                yf = sel[3],
-                fx = sel[4] ? ow : 1,
-                fy = sel[4] ? oh : 1;
-            xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
-            xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
-            ws = xf-xs+DPR; hs = yf-ys+DPR;
-        }
-        else
-        {
-            ws = img.oCanvas.width;
-            hs = img.oCanvas.height;
-        }
-        if (img.glCanvas.width !== ws)
-            img.glCanvas.width = ws;
-        if (img.glCanvas.height !== hs)
-            img.glCanvas.height = hs;
-
-        gl = FILTER.getGL(img.glCanvas);
-        return gl;
+        var sel = img.selection,
+            ow = img.width-1,
+            oh = img.height-1,
+            xs = sel[0],
+            ys = sel[1],
+            xf = sel[2],
+            yf = sel[3],
+            fx = sel[4] ? ow : 1,
+            fy = sel[4] ? oh : 1;
+        xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
+        xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
+        ws = xf-xs+DPR; hs = yf-ys+DPR;
     }
+    else
+    {
+        ws = img.oCanvas.width;
+        hs = img.oCanvas.height;
+    }
+    return FILTER.getGL(img, ws, hs);
 }
 function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
 {

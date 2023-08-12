@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.5.0
-*   @built on 2023-08-11 12:39:09
+*   @version: 1.5.5
+*   @built on 2023-08-12 12:41:19
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.5.0
-*   @built on 2023-08-11 12:39:09
+*   @version: 1.5.5
+*   @built on 2023-08-12 12:41:19
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.5.0"};
+var FILTER = {VERSION: "1.5.5"};
 /**
 *
 *   Asynchronous.js
@@ -1261,7 +1261,7 @@ isSafari                : isBrowser && /Apple Computer/.test(vendor),
 isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
 // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
 isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
-
+isEdge                  : isBrowser && (userAgent.indexOf('Edg') > -1),
 // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
 isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
 isWebkit                : isBrowser && /WebKit\//.test(userAgent),
@@ -1316,7 +1316,8 @@ FILTER.MODE = {
     XYZ: 28, ILL: 29, PATTERN: 14,
     COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
     MATRIX: 18, NONLINEAR: 20, STATISTICAL: 21, ADAPTIVE: 22,
-    THRESHOLD: 23, HISTOGRAM: 24, MONO: 25, MASK: 26
+    THRESHOLD: 23, HISTOGRAM: 24, MONO: 25, MASK: 26,
+    COLORIZE: 30, COLORIZEHUE: 31
 };
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
@@ -1433,9 +1434,14 @@ FILTER.supportsGLSL = function() {
     }
     return supportsGLSL;
 };
-FILTER.getGL = function(canvas) {
-    if (canvas && FILTER.supportsGLSL())
-        return canvas.getContext(glctx);
+FILTER.getGL = function(img, w, h) {
+    if (img && FILTER.supportsGLSL())
+    {
+        if (!img.gl) img.gl = FILTER.Canvas(w, h);
+        if (img.gl.width !== w) img.gl.width = w;
+        if (img.gl.height !== h) img.gl.height = h;
+        return img.gl.getContext(glctx);
+    }
 };
 
 }(FILTER);
@@ -3259,37 +3265,28 @@ function getPixels(gl, width, height, pixels)
 }
 function prepareGL(img)
 {
-    if (img.glCanvas)
+    var ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
+    if (img.selection)
     {
-        var gl, ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
-        if (img.selection)
-        {
-            var sel = img.selection,
-                ow = img.width-1,
-                oh = img.height-1,
-                xs = sel[0],
-                ys = sel[1],
-                xf = sel[2],
-                yf = sel[3],
-                fx = sel[4] ? ow : 1,
-                fy = sel[4] ? oh : 1;
-            xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
-            xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
-            ws = xf-xs+DPR; hs = yf-ys+DPR;
-        }
-        else
-        {
-            ws = img.oCanvas.width;
-            hs = img.oCanvas.height;
-        }
-        if (img.glCanvas.width !== ws)
-            img.glCanvas.width = ws;
-        if (img.glCanvas.height !== hs)
-            img.glCanvas.height = hs;
-
-        gl = FILTER.getGL(img.glCanvas);
-        return gl;
+        var sel = img.selection,
+            ow = img.width-1,
+            oh = img.height-1,
+            xs = sel[0],
+            ys = sel[1],
+            xf = sel[2],
+            yf = sel[3],
+            fx = sel[4] ? ow : 1,
+            fy = sel[4] ? oh : 1;
+        xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
+        xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
+        ws = xf-xs+DPR; hs = yf-ys+DPR;
     }
+    else
+    {
+        ws = img.oCanvas.width;
+        hs = img.oCanvas.height;
+    }
+    return FILTER.getGL(img, ws, hs);
 }
 function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
 {
@@ -3995,9 +3992,47 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return im;
     }
 
+    ,apply_: function(img, im, w, h, cb) {
+        var self = this, im2, glsl;
+
+        if (!self.canRun())
+        {
+            cb(im, self);
+        }
+        else if (self.$thread)
+        {
+            self._listener.cb = function(data) {
+                self._listener.cb = null;
+                if (data && data.im) im = FILTER.Util.Array.typed(data.im, FILTER.ImArray);
+                cb(im, self);
+            };
+            self.send('apply', {im: [im, w, h, 2], params: self.serializeFilter(), inputs: self.serializeInputs(img)});
+        }
+        else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
+        {
+            if (glsl = self.GLSLCode())
+            {
+                if (!glsl.push && !glsl.pop) glsl = [glsl];
+                glsl = glsl.filter(validEntry);
+                if (glsl.length)
+                {
+                    im2 = GLSL.run(img, glsl, im, w, h, {src:img, dst:img});
+                    if (im2) im = im2;
+                }
+            }
+            cb(im, self);
+        }
+        else
+        {
+            im = self._apply(im, w, h, {src:img, dst:img});
+            cb(im, self);
+        }
+        return self;
+    }
+
     // generic apply a filter from an image (src) to another image (dst) with optional callback (cb)
     ,apply: function(src, dst, cb) {
-        var self = this, im, im2, w, h, gl, glsl, tex, ret;
+        var self = this, im, im2, w, h, glsl;
 
         if (!self.canRun()) return src;
 
@@ -4051,9 +4086,9 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 // process request
                 self.send('apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
             }
-            else if (!isInsideThread && self.isGLSL())
+            else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
             {
-                if (dst.glCanvas && (glsl = self.GLSLCode()))
+                if (glsl = self.GLSLCode())
                 {
                     // make array, composite filters return array anyway
                     if (!glsl.push && !glsl.pop) glsl = [glsl];
@@ -5334,7 +5369,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.height = h;
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
-        self.glCanvas = FILTER.supportsGLSL() ? FILTER.Canvas(w, h) : null;
         self.domElement = self.oCanvas;
         self.iData = null;
         self.iDataSel = null;
@@ -5358,7 +5392,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,selection: null
     ,iCanvas: null
     ,oCanvas: null
-    ,glCanvas: null
+    ,gl: null
     ,iData: null
     ,iDataSel: null
     ,oData: null
@@ -5375,7 +5409,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.width = self.height = null;
         self.selection = self.gray = null;
         self.iData = self.iDataSel = self.oData = self.oDataSel = null;
-        self.domElement = self.iCanvas = self.oCanvas = self.glCanvas = null;
+        self.domElement = self.iCanvas = self.oCanvas = self.gl = null;
         self._restorable = null;
         self._refresh = self.nref = null;
         self.cache = null;
@@ -5837,6 +5871,53 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         self.nref = (self.nref+1) % 1000;
+        return self;
+    }
+    ,getDataFromSelection: function(x1, y1, x2, y2, absolute) {
+        var self = this,
+            ow = self.width-1,
+            oh = self.height-1,
+            fx = !absolute ? ow : 1,
+            fy = !absolute ? oh : 1,
+            ws, hs, data;
+        x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
+        x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
+        ws = x2-x1+DPR; hs = y2-y1+DPR;
+        data = self.oCanvas.getContext('2d').getImageData(x1, y1, ws, hs);
+        if (!data) data = self.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
+        return [copy(data.data), data.width, data.height, 2];
+    }
+    ,setDataToSelection: function(data, x1, y1, x2, y2, absolute) {
+        var self = this,
+            ow = self.width-1,
+            oh = self.height-1,
+            fx = !absolute ? ow : 1,
+            fy = !absolute ? oh : 1,
+            ws, hs, data;
+        x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
+        x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
+        ws = x2-x1+DPR; hs = y2-y1+DPR;
+        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(data, ws, hs), x1, y1);
+        self._refresh |= ODATA;
+        if (self.selection) self._refresh |= OSEL;
+        self.nref = (self.nref+1) % 1000;
+        return self;
+    }
+    ,mapReduce: function(mappings, reduce, done) {
+        var self = this, completed = 0, missing = 0;
+        mappings.forEach(function(mapping, index) {
+            if (!mapping || !mapping.filter) {++missing; return;}
+            var from = mapping.from || {x:0, y:0},
+                to = mapping.to || {x:self.width-1, y:self.height-1},
+                absolute = mapping.absolute,
+                data = self.getDataFromSelection(from.x, from.y, to.x, to.y, absolute);
+            mapping.filter.apply_(self, data[0], data[1], data[2], function(resultData, processorFilter) {
+                ++completed;
+                reduce(self, resultData, from, to, absolute, processorFilter, index);
+                if ((completed+missing === mappings.length) && done) done(self);
+            });
+        });
+        if ((missing === mappings.length) && done) done(self);
         return self;
     }
 
@@ -12694,17 +12775,19 @@ FILTER.Create({
     ,path: FILTER.Path
 
     ,mode: MODE.INTENSITY
+    ,factor: 1.0
 
-    ,init: function(mode) {
+    ,init: function(mode, factor) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
+        if (null != factor) self.factor = +factor;
     }
 
     ,_apply_rgb: function(im, w, h) {
         var self = this,
             r,g,b, rangeR, rangeG, rangeB,
             maxR=0, maxG=0, maxB=0, minR=255, minG=255, minB=255,
-            cdfR, cdfG, cdfB,
+            cdfR, cdfG, cdfB, f = self.factor,
             accumR, accumG, accumB, t0, t1, t2,
             i, l=im.length, l2=l>>>2;
 
@@ -12714,7 +12797,7 @@ FILTER.Create({
         for (i=0; i<l; i+=4)
         {
             r = im[i]; g = im[i+1]; b = im[i+2];
-            cdfR[r]++; cdfG[g]++; cdfB[b]++;
+            ++cdfR[r]; ++cdfG[g]; ++cdfB[b];
             maxR = Max(r, maxR);
             maxG = Max(g, maxG);
             maxB = Max(b, maxB);
@@ -12828,7 +12911,7 @@ FILTER.Create({
         }
 
         // equalize each channel separately
-        rangeR=(maxR-minR)/l2; rangeG=(maxG-minG)/l2; rangeB=(maxB-minB)/l2;
+        rangeR=f*(maxR-minR)/l2; rangeG=f*(maxG-minG)/l2; rangeB=f*(maxB-minB)/l2;
         if (notSupportClamp)
         {
             for (i=0; i<l; i+=4)
@@ -12862,6 +12945,7 @@ FILTER.Create({
 
         var r, g, b, y, cb, cr, range, max = 0, min = 255,
             cdf, accum, i, l = im.length, l2 = l>>>2,
+            f = self.factor,
             is_grayscale = MODE.GRAY === self.mode;
 
         // initialize the arrays
@@ -12872,7 +12956,7 @@ FILTER.Create({
             for (i=0; i<l; i+=4)
             {
                 r = im[i];
-                cdf[r]++;
+                ++cdf[r];
                 max = Max(r, max);
                 min = Min(r, min);
             }
@@ -12890,7 +12974,7 @@ FILTER.Create({
                 y = y<0 ? 0 : (y>255 ? 255 : y);
                 cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                cdf[y]++;
+                ++cdf[y];
                 max = Max(y, max);
                 min = Min(y, min);
             }
@@ -12935,7 +13019,7 @@ FILTER.Create({
         }
 
         // equalize only the intesity channel
-        range = (max-min)/l2;
+        range = f*(max-min)/l2;
         if (notSupportClamp)
         {
             if (is_grayscale)
@@ -14911,7 +14995,7 @@ function flood_region(im, w, h, stride, D, K, x0, y0)
 !function(FILTER, undef) {
 "use strict";
 
-var MODE = FILTER.MODE, A32F = FILTER.Array32F,
+var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
@@ -14964,15 +15048,15 @@ FILTER.Create({
         var self = this, imLen = im.length, imSize = imLen>>>2,
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
-            D = new A32F(imSize);
+            D = new A32F(imSize), cc, i, c, CC, CR, CG, CB;
 
         if (null != color)
         {
-            if (MODE.HUE === mode)
+            if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
             {
                 color = cos(toRad*color);
             }
-            else if (MODE.COLOR === mode)
+            else if (MODE.COLOR === mode || MODE.COLORIZE === mode)
             {
                 var r = ((color >>> 16)&255)/255, g = ((color >>> 8)&255)/255, b = ((color)&255)/255;
                 color = 10000*(r+g+b)/3 + 1000*(r+g)/2 + 100*(g+b)/2 + 10*(r+b)/2 + r;
@@ -14980,8 +15064,43 @@ FILTER.Create({
         }
         // compute an appropriate (relational) dissimilarity matrix, based on filter operation mode
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode);
-        // return the connected image data
-        return connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
+        if (MODE.COLORIZE === mode || MODE.COLORIZEHUE === mode)
+        {
+            cc = connected_components(new IMG(imLen), w, h, 2, D, self.connectivity, delta, color, self.invert);
+            // colorize each component with average color of region
+            CR = new A32F(256);
+            CG = new A32F(256);
+            CB = new A32F(256);
+            CC = new A32F(256);
+            for (i=0; i<imLen; i+=4)
+            {
+                c = cc[i];
+                ++CC[c];
+                CR[c] += im[i  ];
+                CG[c] += im[i+1];
+                CB[c] += im[i+2];
+            }
+            for (i=0; i<256; ++i)
+            {
+                if (!CC[i]) continue;
+                c = CC[i];
+                CR[i] /= c;
+                CG[i] /= c;
+                CB[i] /= c;
+            }
+            for (i=0; i<imLen; i+=4)
+            {
+                c = cc[i];
+                im[i  ] = CR[c]|0;
+                im[i+1] = CG[c]|0;
+                im[i+2] = CB[c]|0;
+            }
+            return im;
+        }
+        else
+        {
+            return connected_components(im, w, h, 2, D, self.connectivity, delta, color, self.invert);
+        }
     }
 });
 
@@ -14993,7 +15112,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
 
     if (0 < stride)
     {
-        if (MODE.HUE === mode)
+        if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
             for (i=0,j=0; j<dLen; i+=4,++j)
                 D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
@@ -15010,7 +15129,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
             for (i=0,j=0; j<dLen; i+=4,++j)
                 D[j] = 0 === im[i+3] ? 10000 : im[i];
         }
-        else //if (MODE.COLOR === mode)
+        else //if (MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta = 10000*delta + 1000*delta + 100*delta + 10*delta + delta;
             for (i=0,j=0; j<dLen; i+=4,++j)
@@ -15019,12 +15138,12 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
     }
     else
     {
-        if (MODE.HUE === mode)
+        if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
             for (i=0,j=0; j<dLen; ++i,++j)
                 D[j] = cos(toRad*im[i]);
         }
-        else //if ((MODE.INTENSITY === mode) || (MODE.GRAY === mode) || (MODE.COLOR === mode))
+        else //if (MODE.INTENSITY === mode || MODE.GRAY === mode || MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta *= 255;
             for (i=0,j=0; j<dLen; ++i,++j)
@@ -15512,7 +15631,9 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                 total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
 
                 vnorm = total_x2 - total_x * total_x;
-                vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;
+                //vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;
+                if (0 >= vnorm) continue;
+                vnorm = Sqrt(vnorm);
 
                 pass = false;
                 for (s=0; s<sl; ++s)
