@@ -64,7 +64,7 @@ and alter them.
 * `getSelectedData(processed:Boolean=false)` gets a copy of the (original or processed/filtered) pixel data of current image selection region
 * `toImage(callback:Function, type:String="image")` call callback with an Image object or a data uri of the current image according to type ("uri" or "image")
 
-** Map/Reduce**
+**Map/Reduce**
 
 Image allows to be split in parts and each part be processed by a filter in parallel (`map`) and then combined as they complete (`reduce`). For example split an image in 4 parts and apply grayscaling to each part in parallel:
 
