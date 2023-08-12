@@ -911,6 +911,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tbody>
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
+<tr><td>Threshold</td>    <td>Automatic Threshold (Otsu method)</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>

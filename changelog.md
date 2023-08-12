@@ -1,5 +1,9 @@
 ## ChangeLog
 
+__1.5.6__
+
+* Automatic Threshold Plugin (Otsu method)
+
 __1.5.5__
 
 * `Image.mapReduce` to split image in parts and process each part in parallel
