@@ -1435,6 +1435,31 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
+function histogram(im, channel, cdf)
+{
+    channel = channel || 0;
+    var h = new A32F(256), v, i, l = im.length,
+        accum = 0, min = 255, max = 0;
+    for (i=0; i<l; i+=4)
+    {
+        v = im[i+channel];
+        ++h[v];
+        min = Min(v, min);
+        max = Max(v, max);
+    }
+    if (cdf)
+    {
+        for (i=0; i<256; )
+        {
+            // partial loop unrolling
+            accum += h[i]; h[i++] = accum;
+            accum += h[i]; h[i++] = accum;
+            accum += h[i]; h[i++] = accum;
+            accum += h[i]; h[i++] = accum;
+        }
+    }
+    return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
+}
 
 function ct_eye(c1, c0)
 {
@@ -1594,5 +1619,6 @@ FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.sat = integral2;
+FilterUtil.histogram = histogram;
 
 }(FILTER);

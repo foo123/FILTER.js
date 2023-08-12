@@ -8,9 +8,9 @@
 "use strict";
 
 var notSupportClamp = FILTER._notSupportClamp,
+    CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
     FilterUtil = FILTER.Util.Filter,
-    A32F = FILTER.Array32F,
-    MODE = FILTER.MODE, stdMath = Math,
+    A32F = FILTER.Array32F, stdMath = Math,
     Pow = stdMath.pow, Min = stdMath.min, Max = stdMath.max;
 
 // https://en.wikipedia.org/wiki/Thresholding_(image_processing)
@@ -31,13 +31,26 @@ FILTER.Create({
         if (null != color1) self.color1 = color1;
     }
 
+    ,serialize: function() {
+        var self = this;
+        return {
+             color0: self.color0
+            ,color1: self.color1
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.color0 = params.color0;
+        self.color1 = params.color1;
+        return self;
+    }
+
     ,_apply_rgb: function(im, w, h) {
         var self = this,
-            r,g,b,
+            r, g, b,
             binR, binG, binB,
             tR, tG, tB,
-            maxR = 0, maxG = 0, maxB = 0,
-            minR = 255, minG = 255, minB = 255,
             color0 = self.color0 || 0,
             r0 = (color0 >>> 16)&255,
             g0 = (color0 >>> 8)&255,
@@ -45,7 +58,7 @@ FILTER.Create({
             //a0 = (color0 >>> 24)&255,
             color1 = self.color1,
             r1, g1, b1, //a1,
-            i, l=im.length, tot=l>>>2;
+            i, l=im.length;
 
         if (null != color1)
         {
@@ -53,23 +66,12 @@ FILTER.Create({
             g1 = (color1 >>> 8)&255;
             b1 = (color1)&255;
         }
-        binR = new A32F(256);
-        binG = new A32F(256);
-        binB = new A32F(256);
-        for (i=0; i<l; i+=4)
-        {
-            r = im[i]; g = im[i+1]; b = im[i+2];
-            ++binR[r]; ++binG[g]; ++binB[b];
-            maxR = Max(r, maxR);
-            maxG = Max(g, maxG);
-            maxB = Max(b, maxB);
-            minR = Min(r, minR);
-            minG = Min(g, minG);
-            minB = Min(b, minB);
-        }
-        tR = FilterUtil.otsu(binR, tot, minR, maxR);
-        tG = FilterUtil.otsu(binG, tot, minG, maxG);
-        tB = FilterUtil.otsu(binB, tot, minB, maxB);
+        binR = FilterUtil.histogram(im, CHANNEL.R);
+        binG = FilterUtil.histogram(im, CHANNEL.G);
+        binB = FilterUtil.histogram(im, CHANNEL.B);
+        tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
+        tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
+        tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
         for (i=0; i<l; i+=4)
         {
             if (im[i  ] < tR) im[i  ] = r0;
@@ -88,7 +90,6 @@ FILTER.Create({
         if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
 
         var r, g, b, t, y, cb, cr,
-            max = 0, min = 255,
             color0 = self.color0 || 0,
             r0 = (color0 >>> 16)&255,
             g0 = (color0 >>> 8)&255,
@@ -105,36 +106,34 @@ FILTER.Create({
             g1 = (color1 >>> 8)&255;
             b1 = (color1)&255;
         }
-        bin = new A32F(256);
         if (is_grayscale)
         {
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i];
-                ++bin[r];
-                max = Max(r, max);
-                min = Min(r, min);
-            }
+            bin = FilterUtil.histogram(im, CHANNEL.R);
         }
         else
         {
             for (i=0; i<l; i+=4)
             {
-                r = im[i]; g = im[i+1]; b = im[i+2];
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
                 y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
                 cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
                 cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i] = cr; im[i+1] = y; im[i+2] = cb;
-                ++bin[y];
-                max = Max(y, max);
-                min = Min(y, min);
+                if (notSupportClamp)
+                {
+                    // clamp them manually
+                    cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                    y = y<0 ? 0 : (y>255 ? 255 : y);
+                    cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                }
+                im[i  ] = cr;
+                im[i+1] = y;
+                im[i+2] = cb;
             }
+            bin = FilterUtil.histogram(im, CHANNEL.G);
         }
-        t = FilterUtil.otsu(bin, l>>>2, min, max);
+        t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
         if (is_grayscale)
         {
             for (i=0; i<l; i+=4)
@@ -157,7 +156,9 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                cr = im[i]; y = im[i+1]; cb = im[i+2];
+                cr = im[i  ];
+                y  = im[i+1];
+                cb = im[i+2];
                 if (y < t)
                 {
                     im[i  ] = r0;
