@@ -127,7 +127,7 @@ isSafari                : isBrowser && /Apple Computer/.test(vendor),
 isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
 // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
 isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
-isEdge                  : isBrowser && (userAgent.indexOf('Edg') > -1),
+isEdge                  : isBrowser && /Edg/.test(userAgent),
 // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
 isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
 isWebkit                : isBrowser && /WebKit\//.test(userAgent),
@@ -183,7 +183,7 @@ FILTER.MODE = {
     COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
     MATRIX: 18, NONLINEAR: 20, STATISTICAL: 21, ADAPTIVE: 22,
     THRESHOLD: 23, HISTOGRAM: 24, MONO: 25, MASK: 26,
-    COLORIZE: 30, COLORIZEHUE: 31
+    COLORIZE: 30, COLORIZEHUE: 31, CHANNEL: 32
 };
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
@@ -300,12 +300,19 @@ FILTER.supportsGLSL = function() {
     }
     return supportsGLSL;
 };
+FILTER.setGLDimensions = function(img, w, h) {
+    if (img && img.gl)
+    {
+        if (img.gl.width !== w) img.gl.width = w;
+        if (img.gl.height !== h) img.gl.height = h;
+    }
+    return img;
+};
 FILTER.getGL = function(img, w, h) {
     if (img && FILTER.supportsGLSL())
     {
         if (!img.gl) img.gl = FILTER.Canvas(w, h);
-        if (img.gl.width !== w) img.gl.width = w;
-        if (img.gl.height !== h) img.gl.height = h;
+        FILTER.setGLDimensions(img, w, h);
         return img.gl.getContext(glctx);
     }
 };

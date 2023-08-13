@@ -22,23 +22,27 @@ FILTER.Create({
     ,path: FILTER.Path
 
     ,mode: MODE.INTENSITY
+    ,channel: 0
     ,factor: 1.0
 
-    ,init: function(mode, factor) {
+    ,init: function(mode, channel, factor) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
+        self.channel = channel || 0;
         if (null != factor) self.factor = +factor;
     }
 
     ,serialize: function() {
         var self = this;
         return {
+             channel: self.channel,
              factor: self.factor
         };
     }
 
     ,unserialize: function(params) {
         var self = this;
+        self.channel = params.channel;
         self.factor = params.factor;
         return self;
     }
@@ -105,11 +109,12 @@ FILTER.Create({
         var r, g, b, y, cb, cr,
             range, cdf, i,
             l = im.length, f = self.factor,
-            is_grayscale = MODE.GRAY === self.mode;
+            channel = self.channel || 0,
+            mode = self.mode;
 
-        if (is_grayscale)
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            cdf = FilterUtil.histogram(im, CHANNEL.R, true);
+            cdf = FilterUtil.histogram(im, channel, true);
         }
         else
         {
@@ -135,14 +140,24 @@ FILTER.Create({
         range = f*(cdf.max - cdf.min)/cdf.total;
         if (notSupportClamp)
         {
-            if (is_grayscale)
+            if (MODE.GRAY === mode)
             {
                 for (i=0; i<l; i+=4)
                 {
-                    r = (cdf.bin[im[i]]*range + cdf.min)|0;
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+channel] = r;
                 }
             }
             else
@@ -167,12 +182,20 @@ FILTER.Create({
         }
         else
         {
-            if (is_grayscale)
+            if (MODE.GRAY === mode)
             {
                 for (i=0; i<l; i+=4)
                 {
-                    r = (cdf.bin[im[i]]*range + cdf.min)|0;
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
                     im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
+                    im[i+channel] = r;
                 }
             }
             else

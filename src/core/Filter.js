@@ -221,12 +221,29 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,worker: FilterThread[PROTO].thread
 
 
+    ,getParam: function(param) {
+        var self = this;
+        if (param && ('_' !== param.charAt(0)) && HAS.call(self.constructor[PROTO], param))
+        {
+            return self[param];
+        }
+    }
+    ,setParam: function(param, value) {
+        var self = this;
+        if (param && ('_' !== param.charAt(0)) && HAS.call(self.constructor[PROTO], param))
+        {
+            self[param] = value;
+        }
+        return self;
+    }
+
     // @override
     ,metaData: function(meta, serialisation) {
         return this.meta;
     }
-    ,getMetaData: null
-
+    ,getMetaData: function(meta, serialisation) {
+        return this.metaData(meta, serialisation);
+    }
     // @override
     ,setMetaData: function(meta, serialisation) {
         this.meta = meta;
@@ -599,7 +616,6 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return "[FILTER: " + this.name + "(" + this.id + ")]";
     }
 });
-FILTER.Filter[PROTO].getMetaData = FILTER.Filter[PROTO].metaData;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 FILTER.Filter.get = function(filterClass) {

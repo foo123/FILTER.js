@@ -219,28 +219,31 @@ function getPixels(gl, width, height, pixels)
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return pixels;
 }
-function prepareGL(img)
+function prepareGL(img, ws, hs)
 {
-    var ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
-    if (img.selection)
+    var DPR = 1/*FILTER.devicePixelRatio*/;
+    if (null == ws && null == hs)
     {
-        var sel = img.selection,
-            ow = img.width-1,
-            oh = img.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1;
-        xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
-        xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
-        ws = xf-xs+DPR; hs = yf-ys+DPR;
-    }
-    else
-    {
-        ws = img.oCanvas.width;
-        hs = img.oCanvas.height;
+        if (img.selection)
+        {
+            var sel = img.selection,
+                ow = img.width-1,
+                oh = img.height-1,
+                xs = sel[0],
+                ys = sel[1],
+                xf = sel[2],
+                yf = sel[3],
+                fx = sel[4] ? ow : 1,
+                fy = sel[4] ? oh : 1;
+            xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
+            xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
+            ws = xf-xs+DPR; hs = yf-ys+DPR;
+        }
+        else
+        {
+            ws = img.oCanvas.width;
+            hs = img.oCanvas.height;
+        }
     }
     return FILTER.getGL(img, ws, hs);
 }
@@ -339,11 +342,11 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     }
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
-    var gl = prepareGL(img), input, output,
+    var gl = prepareGL(img, w, h), input, output,
         i, n = glsls.length, glsl, glsl0, output0,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
-        program, cache, im0, t, canRun, p,
+        program, cache, im0, t, canRun,
         first = -1, last = -1, fromshader = false, flipY = false;
     if (!gl) return;
     for (i=0; i<n; ++i)
@@ -372,7 +375,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
     ]));
     gl.viewport(0, 0, w, h);
     input = null;
-    output = createFramebufferTexture(gl, w, h);
+    output = null;
     if (last > first)
     {
         buf0 = createFramebufferTexture(gl, w, h);
@@ -408,6 +411,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             }
             if (i === last)
             {
+                if (!output) output = createFramebufferTexture(gl, w, h);
                 dst = output;
             }
             else
@@ -426,6 +430,35 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             im0 = fromshader ? getPixels(gl, w, h) : im;
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else im = glsl.instance._apply(im0, w, h, metaData);
+            if (glsl.instance.hasMeta && (
+                (null != glsl.instance.meta._IMG_WIDTH && w !== glsl.instance.meta._IMG_WIDTH)
+             || (null != glsl.instance.meta._IMG_HEIGHT && h !== glsl.instance.meta._IMG_HEIGHT)
+            ))
+            {
+                w = glsl.instance.meta._IMG_WIDTH;
+                h = glsl.instance.meta._IMG_HEIGHT;
+                FILTER.setGLDimensions(img, w, h);
+                deleteBuffer(gl, pos);
+                pos = createBuffer(gl, new FILTER.Array32F([
+                    0, 0,
+                    w, 0,
+                    0, h,
+                    0, h,
+                    w, 0,
+                    w, h
+                ]));
+                gl.viewport(0, 0, w, h);
+                deleteFramebufferTexture(gl, buf0);
+                deleteFramebufferTexture(gl, buf1);
+                deleteFramebufferTexture(gl, buf[0]);
+                deleteFramebufferTexture(gl, buf[1]);
+                buf = [null, null];
+                if (last > first)
+                {
+                    buf0 = createFramebufferTexture(gl, w, h);
+                    buf1 = createFramebufferTexture(gl, w, h);
+                }
+            }
             fromshader = false;
         }
     }

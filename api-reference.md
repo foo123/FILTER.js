@@ -709,7 +709,7 @@ new FILTER.BlendFilter(blendMatrix:Array);
 
 The filter blends multiple images together with svg-like blending modes using a `blendMatrix` that is a (flat) array of rows (each row having `4` items, total = `4N` for `N` images) describing the `blendMode`, start `x,y` positions and `enabled` flag for each of the blend images to be blended with the main image (see below).
 
-**Blend Filter is not implemented in GLSL**
+**NEW Blend Filter supports WebGL**
 
 **Supported Blend Modes:**
 
@@ -734,18 +734,23 @@ The filter blends multiple images together with svg-like blending modes using a 
 In order to use a blend filter do the following:
 
 ````javascript
-                                          /* blendMode, startX, startY, enabled, .. */
-var blend3Images = new FILTER.BlendFilter(["screen",    0,      0,      1,/*input1*/
-                                            "overlay",   10,    10,      1 /*input2*/]).setInput(1, blendImg).setInput(2, anotherBlendImg);
-// this also works
-var blend3Images = FILTER.BlendFilter.setInput(1, blendImg).setInput(2, anotherBlendImg).set(["screen", 0, 0, 1,
-                                                                     "overlay", 10, 10, 1]);
+var blend3Images = FILTER.BlendFilter([
+  /* blendMode, startX, startY, enabled */
+    "screen",    0,      0,      1,     /*input1*/
+    "overlay",   10,    10,      1      /*input2*/
+])
+.setInput(1, blendImg)                  /*input1*/
+.setInput(2, anotherBlendImg)           /*input2*/
+;
 
 // if you want to make this filter work in another thread in parallel through a worker, do:
 blend3Images.worker();
 
 // if you want to stop and dispose the worker for this filter, do:
 blend3Images.worker(false);
+
+// if you want to make this filter work in webgl do:
+blend3Images.makeGLSL(true);
 
 // this is same even if filter uses a parallel worker filter
 blend3Images.apply(image);   // image is a FILTER.Image instance, see examples
@@ -767,8 +772,6 @@ if `mode` is `"crop"`, `a` is left offset, `b` is top offset, `c` is width and `
 if `mode` is `"scale"`, `a` is new width or zero, `b` is new height or zero, `c` is horizontal scaling or zero (given new width) and `d` is vertical scaling or zero (given new height).
 
 If complicated cropping, padding and scaling is needed use multiple Dimension Filters.
-
-**Dimension Filter is not implemented in GLSL**
 
 
 ### Composite Filter
@@ -911,7 +914,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tbody>
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
-<tr><td>Threshold</td>    <td>Automatic Threshold (Otsu method)</td></tr>
+<tr><td>Threshold</td>    <td>automatic threshold (Otsu method)</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>

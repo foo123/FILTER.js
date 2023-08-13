@@ -8,8 +8,10 @@
 "use strict";
 
 var IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
+    GLSL = FILTER.Util.GLSL,
     stdMath = Math, Min = stdMath.min, Round = stdMath.round,
-    notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel;
+    notSupportClamp = FILTER._notSupportClamp,
+    clamp = FILTER.Color.clampPixel;
 
 // Blend Filter, svg-like image blending
 FILTER.Create({
@@ -78,6 +80,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, matrix = self.matrix;
@@ -130,7 +136,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
+                    a = 'normal' !== mode ? (aa + ab - aa*ab) : (aa + ab * (1 - aa));
                     if (0 < a)
                     {
                         B[j  ] = clamp(Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a));
@@ -164,7 +170,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
+                    a = 'normal' !== mode ? (aa + ab - aa*ab) : (aa + ab * (1 - aa));
                     if (0 < a)
                     {
                         B[j  ] = Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a);
@@ -191,6 +197,120 @@ FILTER.Create({
 // aliases
 FILTER.CombineFilter = FILTER.BlendFilter;
 
+function glsl(filter)
+{
+    if (!filter.matrix || !filter.matrix.length) return {instance: filter, shader: GLSL.DEFAULT};
+    var modes = [
+        'NORMAL',
+        'MULTIPLY',
+        'SCREEN',
+        'OVERLAY',
+        'DARKEN',
+        'LIGHTEN',
+        'COLORDODGE',
+        'COLORBURN',
+        'HARDLIGHT',
+        'SOFTLIGHT',
+        'DIFFERENCE',
+        'EXCLUSION',
+        'AVERAGE',
+        'LINEARDODGE',
+        'LINEARBURN',
+        'NEGATION',
+        'LINEARLIGHT'
+    ], matrix = filter.matrix, inputs = '', code = '', i, j, glslcode;
+    for (j=1,i=0; i<matrix.length; i+=4,++j)
+    {
+        inputs += (inputs.length ? '\n' : '')+'uniform sampler2D input'+j+';\n'+'uniform vec2 inputSize'+j+';\n'+'uniform int inputMode'+j+';\n'+'uniform vec2 inputStart'+j+';\n'+'uniform int inputEnabled'+j+';';
+        code += (code.length ? '\n' : '')+'col = doblend(col, pix, input'+j+', inputSize'+j+', inputStart'+j+', inputMode'+j+', inputEnabled'+j+');';
+    }
+    glslcode = [
+'precision mediump float;',
+modes.map(function(m, i) {
+    if ('LINEARDODGE' === m)
+    {
+        return '#define LINEARDODGE '+i+'\n'+'#define ADD '+i;
+    }
+    else if ('LINEARBURN' === m)
+    {
+        return '#define LINEARBURN '+i+'\n'+'#define SUBTRACT '+i;
+    }
+    return '#define '+m+' '+i;
+}).join('\n'),
+Object.keys(BLEND_GLSL).map(function(m) {
+    return BLEND_GLSL[m];
+}).join('\n'),
+'float blend(int mode, float Dca, float Da, float Sca, float Sa) {',
+'    if (MULTIPLY == mode) return multiply(Dca, Da, Sca, Sa);',
+'    else if (SCREEN == mode) return screen(Dca, Da, Sca, Sa);',
+'    else if (OVERLAY == mode) return overlay(Dca, Da, Sca, Sa);',
+'    else if (DARKEN == mode) return darken(Dca, Da, Sca, Sa);',
+'    else if (LIGHTEN == mode) return lighten(Dca, Da, Sca, Sa);',
+'    else if (COLORDODGE == mode) return colordodge(Dca, Da, Sca, Sa);',
+'    else if (COLORBURN == mode) return colorburn(Dca, Da, Sca, Sa);',
+'    else if (HARDLIGHT == mode) return hardlight(Dca, Da, Sca, Sa);',
+'    else if (SOFTLIGHT == mode) return softlight(Dca, Da, Sca, Sa);',
+'    else if (DIFFERENCE == mode) return difference(Dca, Da, Sca, Sa);',
+'    else if (EXCLUSION == mode) return exclusion(Dca, Da, Sca, Sa);',
+'    else if (AVERAGE == mode) return average(Dca, Da, Sca, Sa);',
+'    else if (LINEARDODGE == mode) return lineardodge(Dca, Da, Sca, Sa);',
+'    else if (LINEARBURN == mode) return linearburn(Dca, Da, Sca, Sa);',
+'    else if (NEGATION == mode) return negation(Dca, Da, Sca, Sa);',
+'    else if (LINEARLIGHT == mode) return linearlight(Dca, Da, Sca, Sa);',
+'    return normal(Dca, Da, Sca, Sa);',
+'}',
+'vec4 doblend(vec4 B, vec2 pix, sampler2D Atex, vec2 size, vec2 start, int mode, int enabled) {',
+'    if (0 == enabled || pix.x < start.x || pix.y < start.y || pix.x > start.x+size.x || pix.y > start.y+size.y) return B;',
+'    vec4 A = texture2D(Atex, (pix-start)/size);',
+'    float a = 1.0;',
+'    if (NORMAL != mode) a = clamp(A.a + B.a - A.a*B.a, 0.0, 1.0);',
+'    else a = clamp(A.a + B.a*(1.0 - A.a), 0.0, 1.0);',
+'    if (0.0 < a) return vec4(',
+'        clamp(blend(mode, B.r*B.a, B.a, A.r*A.a, A.a)/a, 0.0, 1.0),',
+'        clamp(blend(mode, B.g*B.a, B.a, A.g*A.a, A.a)/a, 0.0, 1.0),',
+'        clamp(blend(mode, B.b*B.a, B.a, A.b*A.a, A.a)/a, 0.0, 1.0),',
+'        a',
+'    );',
+'    return vec4(0.0);',
+'}',
+'varying vec2 pix;',
+'uniform sampler2D img;',
+inputs,
+'void main(void) {',
+'vec4 col = texture2D(img, pix);',
+code,
+'gl_FragColor = col;',
+'}'
+    ].join('\n');
+    return {instance: filter, shader: glslcode,
+    textures: function(gl, w, h, program) {
+        var matrix = filter.matrix, i, j, input;
+        for (j=1,i=0; i<matrix.length; i+=4,++j)
+        {
+            input = filter.input(j);
+            GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
+        }
+    },
+    vars: function(gl, w, h, program) {
+        var matrix = filter.matrix, i, j, input,
+            mode, same = {
+                'ADD' : 'LINEARDODGE',
+                'SUBTRACT': 'LINEARBURN'
+            };
+        for (j=1,i=0; i<matrix.length; i+=4,++j)
+        {
+            input = filter.input(j);
+            gl.uniform1i(program.uniform['input'+j], j);
+            gl.uniform2f(program.uniform['inputSize'+j], input[1]/w, input[2]/h);
+            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
+            if (same[mode]) mode = same[mode];
+            gl.uniform1i(program.uniform['inputMode'+j], modes.indexOf(mode));
+            gl.uniform2f(program.uniform['inputStart'+j], matrix[i+1]/w, matrix[i+2]/h);
+            gl.uniform1i(program.uniform['inputEnabled'+j], matrix[i+3] ? 1 : 0);
+        }
+    }
+    };
+}
 var BLEND = FILTER.Color.Blend = {
 //https://dev.w3.org/SVG/modules/compositing/master/
 'normal': function(Dca, Da, Sca, Sa){return Sca + Dca * (1 - Sa);},
@@ -217,4 +337,25 @@ var BLEND = FILTER.Color.Blend = {
 BLEND['linear-dodge'] = BLEND['add'];
 BLEND['linear-burn'] = BLEND['subtract'];
 
+var BLEND_GLSL = {
+'normal': 'float normal(float Dca, float Da, float Sca, float Sa){return Sca + Dca * (1.0 - Sa);}',
+'multiply': 'float multiply(float Dca, float Da, float Sca, float Sa){return Sca*Dca + Sca*(1.0 - Da) + Dca*(1.0 - Sa);}',
+'screen': 'float screen(float Dca, float Da, float Sca, float Sa){return Sca + Dca - Sca * Dca;}',
+'overlay': 'float overlay(float Dca, float Da, float Sca, float Sa){if (2.0*Dca <= Da) return (2.0*Sca * Dca + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sca * (1.0 + Da) + Dca * (1.0 + Sa) - 2.0 * Dca * Sca - Da * Sa);}',
+'darken': 'float darken(float Dca, float Da, float Sca, float Sa){return min(Sca * Da, Dca * Sa) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'lighten': 'float lighten(float Dca, float Da, float Sca, float Sa){return max(Sca * Da, Dca * Sa) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'color-dodge': 'float colordodge(float Dca, float Da, float Sca, float Sa){if (Sca == Sa && 0.0 == Dca) return (Sca * (1.0 - Da)); else if (Sca == Sa) return (Sa * Da + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sa * Da * min(1.0, Dca/Da * Sa/(Sa - Sca)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa));}',
+'color-burn': 'float colorburn(float Dca, float Da, float Sca, float Sa){float m = 0.0; if (0.0 != Da) m = Dca/Da; if (0.0 == Sca && Dca == Da) return (Sa * Da + Dca * (1.0 - Sa)); else if (0.0 == Sca) return (Dca * (1.0 - Sa)); else return (Sa * Da * (1.0 - min(1.0, (1.0 - m) * Sa/Sca)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa));}',
+'hard-light': 'float hardlight(float Dca, float Da, float Sca, float Sa){if (2.0 * Sca <= Sa) return (2.0 * Sca * Dca + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sca * (1.0 + Da) + Dca * (1.0 + Sa) - Sa * Da - 2.0 * Sca * Dca);}',
+'soft-light': 'float softlight(float Dca, float Da, float Sca, float Sa){float m = 0.0; if (0.0 != Da) m = Dca/Da; if (2.0 * Sca <= Sa) return (Dca * (Sa + (2.0 * Sca - Sa) * (1.0 - m)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else if (2.0 * Sca > Sa && 4.0 * Dca <= Da) return (Da * (2.0 * Sca - Sa) * (16.0 * pow(m, 3.0) - 12.0 * pow(m, 2.0) - 3.0 * m) + Sca - Sca * Da + Dca); else return (Da * (2.0 * Sca - Sa) * (pow(m, 0.5) - m) + Sca - Sca * Da + Dca);}',
+'difference': 'float difference(float Dca, float Da, float Sca, float Sa){return Sca + Dca - 2.0 * min(Sca * Da, Dca * Sa);}',
+'exclusion': 'float exclusion(float Dca, float Da, float Sca, float Sa){return (Sca * Da + Dca * Sa - 2.0 * Sca * Dca) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'average': 'float average(float Dca, float Da, float Sca, float Sa){return (Sca + Dca) / 2.0;}',
+// linear-dodge
+'add': 'float lineardodge(float Dca, float Da, float Sca, float Sa){return min(1.0, Sca + Dca);}',
+// linear-burn
+'subtract': 'float linearburn(float Dca, float Da, float Sca, float Sa){return max(0.0, Dca + Sca - 1.0);}',
+'negation': 'float negation(float Dca, float Da, float Sca, float Sa){return 1.0 - abs(1.0 - Sca - Dca);}',
+'linear-light': 'float linearlight(float Dca, float Da, float Sca, float Sa){if (Sca < 0.5) return linearburn(Dca, Da, 2.0*Sca, Sa); else return lineardodge(Dca, Da, 2.0*(1.0 - Sca), Sa);}'
+};
 }(FILTER);

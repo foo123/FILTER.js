@@ -1,5 +1,11 @@
 ## ChangeLog
 
+__1.5.7__
+
+* Blend GLSL filter
+* Automatic Threshold Plugin return threshold as meta
+* GLSL support dimension changing during the run
+
 __1.5.6__
 
 * Automatic Threshold Plugin (Otsu method)

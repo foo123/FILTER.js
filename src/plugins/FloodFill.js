@@ -7,7 +7,7 @@
 !function(FILTER) {
 "use strict";
 
-var MODE = FILTER.MODE, stdMath = Math;
+var MODE = FILTER.MODE, stdMath = Math, FilterUtil = FILTER.Util.Filter;
 
 // an extended and fast flood fill and flood pattern fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
@@ -804,5 +804,6 @@ function flood_region(im, w, h, stride, D, K, x0, y0)
     }
     return {mask:labeled, box:[xm, ym, xM, yM]};
 }
-
+FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
+FilterUtil.floodRegion = flood_region;
 }(FILTER);

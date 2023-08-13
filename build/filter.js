@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.5.6
-*   @built on 2023-08-12 20:01:44
+*   @version: 1.5.7
+*   @built on 2023-08-13 11:30:22
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.5.6
-*   @built on 2023-08-12 20:01:44
+*   @version: 1.5.7
+*   @built on 2023-08-13 11:30:22
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.5.6"};
+var FILTER = {VERSION: "1.5.7"};
 /**
 *
 *   Asynchronous.js
@@ -1261,7 +1261,7 @@ isSafari                : isBrowser && /Apple Computer/.test(vendor),
 isKhtml                 : isBrowser && /KHTML\//.test(userAgent),
 // IE 11 replaced the MSIE with Mozilla like gecko string, check for Trident engine also
 isIE                    : isBrowser && (/MSIE \d/.test(userAgent) || /Trident\/\d/.test(userAgent)),
-isEdge                  : isBrowser && (userAgent.indexOf('Edg') > -1),
+isEdge                  : isBrowser && /Edg/.test(userAgent),
 // adapted from Codemirror (https://github.com/marijnh/CodeMirror) browser sniffing
 isGecko                 : isBrowser && /gecko\/\d/i.test(userAgent),
 isWebkit                : isBrowser && /WebKit\//.test(userAgent),
@@ -1317,7 +1317,7 @@ FILTER.MODE = {
     COLOR8: 15, COLORMASK: 16, COLORMASK32: 16, COLORMASK8: 17,
     MATRIX: 18, NONLINEAR: 20, STATISTICAL: 21, ADAPTIVE: 22,
     THRESHOLD: 23, HISTOGRAM: 24, MONO: 25, MASK: 26,
-    COLORIZE: 30, COLORIZEHUE: 31
+    COLORIZE: 30, COLORIZEHUE: 31, CHANNEL: 32
 };
 FILTER.CHANNEL = {
     R: 0, G: 1, B: 2, A: 3,
@@ -1434,12 +1434,19 @@ FILTER.supportsGLSL = function() {
     }
     return supportsGLSL;
 };
+FILTER.setGLDimensions = function(img, w, h) {
+    if (img && img.gl)
+    {
+        if (img.gl.width !== w) img.gl.width = w;
+        if (img.gl.height !== h) img.gl.height = h;
+    }
+    return img;
+};
 FILTER.getGL = function(img, w, h) {
     if (img && FILTER.supportsGLSL())
     {
         if (!img.gl) img.gl = FILTER.Canvas(w, h);
-        if (img.gl.width !== w) img.gl.width = w;
-        if (img.gl.height !== h) img.gl.height = h;
+        FILTER.setGLDimensions(img, w, h);
         return img.gl.getContext(glctx);
     }
 };
@@ -3289,28 +3296,31 @@ function getPixels(gl, width, height, pixels)
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return pixels;
 }
-function prepareGL(img)
+function prepareGL(img, ws, hs)
 {
-    var ws, hs, DPR = 1/*FILTER.devicePixelRatio*/;
-    if (img.selection)
+    var DPR = 1/*FILTER.devicePixelRatio*/;
+    if (null == ws && null == hs)
     {
-        var sel = img.selection,
-            ow = img.width-1,
-            oh = img.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1;
-        xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
-        xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
-        ws = xf-xs+DPR; hs = yf-ys+DPR;
-    }
-    else
-    {
-        ws = img.oCanvas.width;
-        hs = img.oCanvas.height;
+        if (img.selection)
+        {
+            var sel = img.selection,
+                ow = img.width-1,
+                oh = img.height-1,
+                xs = sel[0],
+                ys = sel[1],
+                xf = sel[2],
+                yf = sel[3],
+                fx = sel[4] ? ow : 1,
+                fy = sel[4] ? oh : 1;
+            xs = DPR*stdMath.floor(xs*fx); ys = DPR*stdMath.floor(ys*fy);
+            xf = DPR*stdMath.floor(xf*fx); yf = DPR*stdMath.floor(yf*fy);
+            ws = xf-xs+DPR; hs = yf-ys+DPR;
+        }
+        else
+        {
+            ws = img.oCanvas.width;
+            hs = img.oCanvas.height;
+        }
     }
     return FILTER.getGL(img, ws, hs);
 }
@@ -3409,11 +3419,11 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     }
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
-    var gl = prepareGL(img), input, output,
+    var gl = prepareGL(img, w, h), input, output,
         i, n = glsls.length, glsl, glsl0, output0,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
-        program, cache, im0, t, canRun, p,
+        program, cache, im0, t, canRun,
         first = -1, last = -1, fromshader = false, flipY = false;
     if (!gl) return;
     for (i=0; i<n; ++i)
@@ -3442,7 +3452,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
     ]));
     gl.viewport(0, 0, w, h);
     input = null;
-    output = createFramebufferTexture(gl, w, h);
+    output = null;
     if (last > first)
     {
         buf0 = createFramebufferTexture(gl, w, h);
@@ -3478,6 +3488,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             }
             if (i === last)
             {
+                if (!output) output = createFramebufferTexture(gl, w, h);
                 dst = output;
             }
             else
@@ -3496,6 +3507,35 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             im0 = fromshader ? getPixels(gl, w, h) : im;
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else im = glsl.instance._apply(im0, w, h, metaData);
+            if (glsl.instance.hasMeta && (
+                (null != glsl.instance.meta._IMG_WIDTH && w !== glsl.instance.meta._IMG_WIDTH)
+             || (null != glsl.instance.meta._IMG_HEIGHT && h !== glsl.instance.meta._IMG_HEIGHT)
+            ))
+            {
+                w = glsl.instance.meta._IMG_WIDTH;
+                h = glsl.instance.meta._IMG_HEIGHT;
+                FILTER.setGLDimensions(img, w, h);
+                deleteBuffer(gl, pos);
+                pos = createBuffer(gl, new FILTER.Array32F([
+                    0, 0,
+                    w, 0,
+                    0, h,
+                    0, h,
+                    w, 0,
+                    w, h
+                ]));
+                gl.viewport(0, 0, w, h);
+                deleteFramebufferTexture(gl, buf0);
+                deleteFramebufferTexture(gl, buf1);
+                deleteFramebufferTexture(gl, buf[0]);
+                deleteFramebufferTexture(gl, buf[1]);
+                buf = [null, null];
+                if (last > first)
+                {
+                    buf0 = createFramebufferTexture(gl, w, h);
+                    buf1 = createFramebufferTexture(gl, w, h);
+                }
+            }
             fromshader = false;
         }
     }
@@ -3784,12 +3824,29 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,worker: FilterThread[PROTO].thread
 
 
+    ,getParam: function(param) {
+        var self = this;
+        if (param && ('_' !== param.charAt(0)) && HAS.call(self.constructor[PROTO], param))
+        {
+            return self[param];
+        }
+    }
+    ,setParam: function(param, value) {
+        var self = this;
+        if (param && ('_' !== param.charAt(0)) && HAS.call(self.constructor[PROTO], param))
+        {
+            self[param] = value;
+        }
+        return self;
+    }
+
     // @override
     ,metaData: function(meta, serialisation) {
         return this.meta;
     }
-    ,getMetaData: null
-
+    ,getMetaData: function(meta, serialisation) {
+        return this.metaData(meta, serialisation);
+    }
     // @override
     ,setMetaData: function(meta, serialisation) {
         this.meta = meta;
@@ -4162,7 +4219,6 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return "[FILTER: " + this.name + "(" + this.id + ")]";
     }
 });
-FILTER.Filter[PROTO].getMetaData = FILTER.Filter[PROTO].metaData;
 FILTER.Filter[PROTO].getInput = FILTER.Filter[PROTO].input;
 FILTER.Filter[PROTO].delInput = FILTER.Filter[PROTO].unsetInput;
 FILTER.Filter.get = function(filterClass) {
@@ -6416,8 +6472,10 @@ FILTER.CompositionFilter = FILTER.CompositeFilter;
 "use strict";
 
 var IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
+    GLSL = FILTER.Util.GLSL,
     stdMath = Math, Min = stdMath.min, Round = stdMath.round,
-    notSupportClamp = FILTER._notSupportClamp, clamp = FILTER.Color.clampPixel;
+    notSupportClamp = FILTER._notSupportClamp,
+    clamp = FILTER.Color.clampPixel;
 
 // Blend Filter, svg-like image blending
 FILTER.Create({
@@ -6486,6 +6544,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, matrix = self.matrix;
@@ -6538,7 +6600,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
+                    a = 'normal' !== mode ? (aa + ab - aa*ab) : (aa + ab * (1 - aa));
                     if (0 < a)
                     {
                         B[j  ] = clamp(Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a));
@@ -6572,7 +6634,7 @@ FILTER.Create({
                     ga = A[j2+1];
                     ba = A[j2+2];
                     aa = A[j2+3]/255;
-                    a = 'normal' === mode ? (aa + ab * (1 - aa)) : (aa + ab - aa*ab);
+                    a = 'normal' !== mode ? (aa + ab - aa*ab) : (aa + ab * (1 - aa));
                     if (0 < a)
                     {
                         B[j  ] = Round(255*f(ab*rb/255, ab, aa*ra/255, aa)/a);
@@ -6599,6 +6661,120 @@ FILTER.Create({
 // aliases
 FILTER.CombineFilter = FILTER.BlendFilter;
 
+function glsl(filter)
+{
+    if (!filter.matrix || !filter.matrix.length) return {instance: filter, shader: GLSL.DEFAULT};
+    var modes = [
+        'NORMAL',
+        'MULTIPLY',
+        'SCREEN',
+        'OVERLAY',
+        'DARKEN',
+        'LIGHTEN',
+        'COLORDODGE',
+        'COLORBURN',
+        'HARDLIGHT',
+        'SOFTLIGHT',
+        'DIFFERENCE',
+        'EXCLUSION',
+        'AVERAGE',
+        'LINEARDODGE',
+        'LINEARBURN',
+        'NEGATION',
+        'LINEARLIGHT'
+    ], matrix = filter.matrix, inputs = '', code = '', i, j, glslcode;
+    for (j=1,i=0; i<matrix.length; i+=4,++j)
+    {
+        inputs += (inputs.length ? '\n' : '')+'uniform sampler2D input'+j+';\n'+'uniform vec2 inputSize'+j+';\n'+'uniform int inputMode'+j+';\n'+'uniform vec2 inputStart'+j+';\n'+'uniform int inputEnabled'+j+';';
+        code += (code.length ? '\n' : '')+'col = doblend(col, pix, input'+j+', inputSize'+j+', inputStart'+j+', inputMode'+j+', inputEnabled'+j+');';
+    }
+    glslcode = [
+'precision mediump float;',
+modes.map(function(m, i) {
+    if ('LINEARDODGE' === m)
+    {
+        return '#define LINEARDODGE '+i+'\n'+'#define ADD '+i;
+    }
+    else if ('LINEARBURN' === m)
+    {
+        return '#define LINEARBURN '+i+'\n'+'#define SUBTRACT '+i;
+    }
+    return '#define '+m+' '+i;
+}).join('\n'),
+Object.keys(BLEND_GLSL).map(function(m) {
+    return BLEND_GLSL[m];
+}).join('\n'),
+'float blend(int mode, float Dca, float Da, float Sca, float Sa) {',
+'    if (MULTIPLY == mode) return multiply(Dca, Da, Sca, Sa);',
+'    else if (SCREEN == mode) return screen(Dca, Da, Sca, Sa);',
+'    else if (OVERLAY == mode) return overlay(Dca, Da, Sca, Sa);',
+'    else if (DARKEN == mode) return darken(Dca, Da, Sca, Sa);',
+'    else if (LIGHTEN == mode) return lighten(Dca, Da, Sca, Sa);',
+'    else if (COLORDODGE == mode) return colordodge(Dca, Da, Sca, Sa);',
+'    else if (COLORBURN == mode) return colorburn(Dca, Da, Sca, Sa);',
+'    else if (HARDLIGHT == mode) return hardlight(Dca, Da, Sca, Sa);',
+'    else if (SOFTLIGHT == mode) return softlight(Dca, Da, Sca, Sa);',
+'    else if (DIFFERENCE == mode) return difference(Dca, Da, Sca, Sa);',
+'    else if (EXCLUSION == mode) return exclusion(Dca, Da, Sca, Sa);',
+'    else if (AVERAGE == mode) return average(Dca, Da, Sca, Sa);',
+'    else if (LINEARDODGE == mode) return lineardodge(Dca, Da, Sca, Sa);',
+'    else if (LINEARBURN == mode) return linearburn(Dca, Da, Sca, Sa);',
+'    else if (NEGATION == mode) return negation(Dca, Da, Sca, Sa);',
+'    else if (LINEARLIGHT == mode) return linearlight(Dca, Da, Sca, Sa);',
+'    return normal(Dca, Da, Sca, Sa);',
+'}',
+'vec4 doblend(vec4 B, vec2 pix, sampler2D Atex, vec2 size, vec2 start, int mode, int enabled) {',
+'    if (0 == enabled || pix.x < start.x || pix.y < start.y || pix.x > start.x+size.x || pix.y > start.y+size.y) return B;',
+'    vec4 A = texture2D(Atex, (pix-start)/size);',
+'    float a = 1.0;',
+'    if (NORMAL != mode) a = clamp(A.a + B.a - A.a*B.a, 0.0, 1.0);',
+'    else a = clamp(A.a + B.a*(1.0 - A.a), 0.0, 1.0);',
+'    if (0.0 < a) return vec4(',
+'        clamp(blend(mode, B.r*B.a, B.a, A.r*A.a, A.a)/a, 0.0, 1.0),',
+'        clamp(blend(mode, B.g*B.a, B.a, A.g*A.a, A.a)/a, 0.0, 1.0),',
+'        clamp(blend(mode, B.b*B.a, B.a, A.b*A.a, A.a)/a, 0.0, 1.0),',
+'        a',
+'    );',
+'    return vec4(0.0);',
+'}',
+'varying vec2 pix;',
+'uniform sampler2D img;',
+inputs,
+'void main(void) {',
+'vec4 col = texture2D(img, pix);',
+code,
+'gl_FragColor = col;',
+'}'
+    ].join('\n');
+    return {instance: filter, shader: glslcode,
+    textures: function(gl, w, h, program) {
+        var matrix = filter.matrix, i, j, input;
+        for (j=1,i=0; i<matrix.length; i+=4,++j)
+        {
+            input = filter.input(j);
+            GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
+        }
+    },
+    vars: function(gl, w, h, program) {
+        var matrix = filter.matrix, i, j, input,
+            mode, same = {
+                'ADD' : 'LINEARDODGE',
+                'SUBTRACT': 'LINEARBURN'
+            };
+        for (j=1,i=0; i<matrix.length; i+=4,++j)
+        {
+            input = filter.input(j);
+            gl.uniform1i(program.uniform['input'+j], j);
+            gl.uniform2f(program.uniform['inputSize'+j], input[1]/w, input[2]/h);
+            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
+            if (same[mode]) mode = same[mode];
+            gl.uniform1i(program.uniform['inputMode'+j], modes.indexOf(mode));
+            gl.uniform2f(program.uniform['inputStart'+j], matrix[i+1]/w, matrix[i+2]/h);
+            gl.uniform1i(program.uniform['inputEnabled'+j], matrix[i+3] ? 1 : 0);
+        }
+    }
+    };
+}
 var BLEND = FILTER.Color.Blend = {
 //https://dev.w3.org/SVG/modules/compositing/master/
 'normal': function(Dca, Da, Sca, Sa){return Sca + Dca * (1 - Sa);},
@@ -6625,6 +6801,27 @@ var BLEND = FILTER.Color.Blend = {
 BLEND['linear-dodge'] = BLEND['add'];
 BLEND['linear-burn'] = BLEND['subtract'];
 
+var BLEND_GLSL = {
+'normal': 'float normal(float Dca, float Da, float Sca, float Sa){return Sca + Dca * (1.0 - Sa);}',
+'multiply': 'float multiply(float Dca, float Da, float Sca, float Sa){return Sca*Dca + Sca*(1.0 - Da) + Dca*(1.0 - Sa);}',
+'screen': 'float screen(float Dca, float Da, float Sca, float Sa){return Sca + Dca - Sca * Dca;}',
+'overlay': 'float overlay(float Dca, float Da, float Sca, float Sa){if (2.0*Dca <= Da) return (2.0*Sca * Dca + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sca * (1.0 + Da) + Dca * (1.0 + Sa) - 2.0 * Dca * Sca - Da * Sa);}',
+'darken': 'float darken(float Dca, float Da, float Sca, float Sa){return min(Sca * Da, Dca * Sa) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'lighten': 'float lighten(float Dca, float Da, float Sca, float Sa){return max(Sca * Da, Dca * Sa) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'color-dodge': 'float colordodge(float Dca, float Da, float Sca, float Sa){if (Sca == Sa && 0.0 == Dca) return (Sca * (1.0 - Da)); else if (Sca == Sa) return (Sa * Da + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sa * Da * min(1.0, Dca/Da * Sa/(Sa - Sca)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa));}',
+'color-burn': 'float colorburn(float Dca, float Da, float Sca, float Sa){float m = 0.0; if (0.0 != Da) m = Dca/Da; if (0.0 == Sca && Dca == Da) return (Sa * Da + Dca * (1.0 - Sa)); else if (0.0 == Sca) return (Dca * (1.0 - Sa)); else return (Sa * Da * (1.0 - min(1.0, (1.0 - m) * Sa/Sca)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa));}',
+'hard-light': 'float hardlight(float Dca, float Da, float Sca, float Sa){if (2.0 * Sca <= Sa) return (2.0 * Sca * Dca + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else return (Sca * (1.0 + Da) + Dca * (1.0 + Sa) - Sa * Da - 2.0 * Sca * Dca);}',
+'soft-light': 'float softlight(float Dca, float Da, float Sca, float Sa){float m = 0.0; if (0.0 != Da) m = Dca/Da; if (2.0 * Sca <= Sa) return (Dca * (Sa + (2.0 * Sca - Sa) * (1.0 - m)) + Sca * (1.0 - Da) + Dca * (1.0 - Sa)); else if (2.0 * Sca > Sa && 4.0 * Dca <= Da) return (Da * (2.0 * Sca - Sa) * (16.0 * pow(m, 3.0) - 12.0 * pow(m, 2.0) - 3.0 * m) + Sca - Sca * Da + Dca); else return (Da * (2.0 * Sca - Sa) * (pow(m, 0.5) - m) + Sca - Sca * Da + Dca);}',
+'difference': 'float difference(float Dca, float Da, float Sca, float Sa){return Sca + Dca - 2.0 * min(Sca * Da, Dca * Sa);}',
+'exclusion': 'float exclusion(float Dca, float Da, float Sca, float Sa){return (Sca * Da + Dca * Sa - 2.0 * Sca * Dca) + Sca * (1.0 - Da) + Dca * (1.0 - Sa);}',
+'average': 'float average(float Dca, float Da, float Sca, float Sa){return (Sca + Dca) / 2.0;}',
+// linear-dodge
+'add': 'float lineardodge(float Dca, float Da, float Sca, float Sa){return min(1.0, Sca + Dca);}',
+// linear-burn
+'subtract': 'float linearburn(float Dca, float Da, float Sca, float Sa){return max(0.0, Dca + Sca - 1.0);}',
+'negation': 'float negation(float Dca, float Da, float Sca, float Sa){return 1.0 - abs(1.0 - Sca - Dca);}',
+'linear-light': 'float linearlight(float Dca, float Da, float Sca, float Sa){if (Sca < 0.5) return linearburn(Dca, Da, 2.0*Sca, Sa); else return lineardodge(Dca, Da, 2.0*(1.0 - Sca), Sa);}'
+};
 }(FILTER);/**
 *
 * Dimension Filter
@@ -12802,15 +12999,18 @@ FILTER.Create({
 
     ,path: FILTER.Path
 
+    ,hasMeta: true
     ,mode: MODE.INTENSITY
     ,color0: 0
     ,color1: null
+    ,channel: 0
 
-    ,init: function(mode, color0, color1) {
+    ,init: function(mode, color0, color1, channel) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.color0 = color0 || 0;
         if (null != color1) self.color1 = color1;
+        self.channel = channel || 0;
     }
 
     ,serialize: function() {
@@ -12818,6 +13018,7 @@ FILTER.Create({
         return {
              color0: self.color0
             ,color1: self.color1
+            ,channel: self.channel
         };
     }
 
@@ -12825,7 +13026,17 @@ FILTER.Create({
         var self = this;
         self.color0 = params.color0;
         self.color1 = params.color1;
+        self.channel = params.channel;
         return self;
+    }
+
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
     }
 
     ,_apply_rgb: function(im, w, h) {
@@ -12863,6 +13074,8 @@ FILTER.Create({
             if (im[i+2] < tB) im[i+2] = b0;
             else if (null != color1) im[i+2] = b1;
         }
+        // return thresholds as meta
+        self.meta = [tR, tG, tB];
         return im;
     }
 
@@ -12880,7 +13093,8 @@ FILTER.Create({
             color1 = self.color1,
             r1, g1, b1, //a1,
             bin, i, t, l = im.length,
-            is_grayscale = MODE.GRAY === self.mode;
+            channel = self.channel || 0,
+            mode = self.mode;
 
         if (null != color1)
         {
@@ -12888,9 +13102,9 @@ FILTER.Create({
             g1 = (color1 >>> 8)&255;
             b1 = (color1)&255;
         }
-        if (is_grayscale)
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            bin = FilterUtil.histogram(im, CHANNEL.R);
+            bin = FilterUtil.histogram(im, channel);
         }
         else
         {
@@ -12916,11 +13130,11 @@ FILTER.Create({
             bin = FilterUtil.histogram(im, CHANNEL.G);
         }
         t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
-        if (is_grayscale)
+        if (MODE.GRAY === mode)
         {
             for (i=0; i<l; i+=4)
             {
-                if (im[i] < t)
+                if (im[i+channel] < t)
                 {
                     im[i  ] = r0;
                     im[i+1] = g0;
@@ -12931,6 +13145,20 @@ FILTER.Create({
                     im[i  ] = r1;
                     im[i+1] = g1;
                     im[i+2] = b1;
+                }
+            }
+        }
+        else if (MODE.CHANNEL === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i+channel] < t)
+                {
+                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                }
+                else if (null != color1)
+                {
+                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
                 }
             }
         }
@@ -12971,6 +13199,8 @@ FILTER.Create({
                 }
             }
         }
+        // return thresholds as meta
+        self.meta = [t];
         return im;
     }
 });
@@ -13035,23 +13265,27 @@ FILTER.Create({
     ,path: FILTER.Path
 
     ,mode: MODE.INTENSITY
+    ,channel: 0
     ,factor: 1.0
 
-    ,init: function(mode, factor) {
+    ,init: function(mode, channel, factor) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
+        self.channel = channel || 0;
         if (null != factor) self.factor = +factor;
     }
 
     ,serialize: function() {
         var self = this;
         return {
+             channel: self.channel,
              factor: self.factor
         };
     }
 
     ,unserialize: function(params) {
         var self = this;
+        self.channel = params.channel;
         self.factor = params.factor;
         return self;
     }
@@ -13118,11 +13352,12 @@ FILTER.Create({
         var r, g, b, y, cb, cr,
             range, cdf, i,
             l = im.length, f = self.factor,
-            is_grayscale = MODE.GRAY === self.mode;
+            channel = self.channel || 0,
+            mode = self.mode;
 
-        if (is_grayscale)
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            cdf = FilterUtil.histogram(im, CHANNEL.R, true);
+            cdf = FilterUtil.histogram(im, channel, true);
         }
         else
         {
@@ -13148,14 +13383,24 @@ FILTER.Create({
         range = f*(cdf.max - cdf.min)/cdf.total;
         if (notSupportClamp)
         {
-            if (is_grayscale)
+            if (MODE.GRAY === mode)
             {
                 for (i=0; i<l; i+=4)
                 {
-                    r = (cdf.bin[im[i]]*range + cdf.min)|0;
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+channel] = r;
                 }
             }
             else
@@ -13180,12 +13425,20 @@ FILTER.Create({
         }
         else
         {
-            if (is_grayscale)
+            if (MODE.GRAY === mode)
             {
                 for (i=0; i<l; i+=4)
                 {
-                    r = (cdf.bin[im[i]]*range + cdf.min)|0;
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
                     im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
+                    im[i+channel] = r;
                 }
             }
             else
@@ -14321,7 +14574,7 @@ FILTER.Create({
 !function(FILTER) {
 "use strict";
 
-var MODE = FILTER.MODE, stdMath = Math;
+var MODE = FILTER.MODE, stdMath = Math, FilterUtil = FILTER.Util.Filter;
 
 // an extended and fast flood fill and flood pattern fill filter using scanline algorithm
 // adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
@@ -15118,7 +15371,8 @@ function flood_region(im, w, h, stride, D, K, x0, y0)
     }
     return {mask:labeled, box:[xm, ym, xM, yM]};
 }
-
+FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
+FilterUtil.floodRegion = flood_region;
 }(FILTER);/**
 *
 * Connected Components Extractor
@@ -15129,6 +15383,7 @@ function flood_region(im, w, h, stride, D, K, x0, y0)
 "use strict";
 
 var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
+    FilterUtil = FILTER.Util.Filter,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
@@ -15412,7 +15667,8 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert)
     }
     return output;
 }
-
+FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
+FilterUtil.connectedComponents = connected_components;
 }(FILTER);/**
 *
 * Canny Edges Detector

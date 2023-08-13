@@ -8,6 +8,7 @@
 "use strict";
 
 var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
+    FilterUtil = FILTER.Util.Filter,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
@@ -291,5 +292,6 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert)
     }
     return output;
 }
-
+FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
+FilterUtil.connectedComponents = connected_components;
 }(FILTER);

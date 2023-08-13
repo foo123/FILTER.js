@@ -20,15 +20,18 @@ FILTER.Create({
 
     ,path: FILTER.Path
 
+    ,hasMeta: true
     ,mode: MODE.INTENSITY
     ,color0: 0
     ,color1: null
+    ,channel: 0
 
-    ,init: function(mode, color0, color1) {
+    ,init: function(mode, color0, color1, channel) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.color0 = color0 || 0;
         if (null != color1) self.color1 = color1;
+        self.channel = channel || 0;
     }
 
     ,serialize: function() {
@@ -36,6 +39,7 @@ FILTER.Create({
         return {
              color0: self.color0
             ,color1: self.color1
+            ,channel: self.channel
         };
     }
 
@@ -43,7 +47,17 @@ FILTER.Create({
         var self = this;
         self.color0 = params.color0;
         self.color1 = params.color1;
+        self.channel = params.channel;
         return self;
+    }
+
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
     }
 
     ,_apply_rgb: function(im, w, h) {
@@ -81,6 +95,8 @@ FILTER.Create({
             if (im[i+2] < tB) im[i+2] = b0;
             else if (null != color1) im[i+2] = b1;
         }
+        // return thresholds as meta
+        self.meta = [tR, tG, tB];
         return im;
     }
 
@@ -98,7 +114,8 @@ FILTER.Create({
             color1 = self.color1,
             r1, g1, b1, //a1,
             bin, i, t, l = im.length,
-            is_grayscale = MODE.GRAY === self.mode;
+            channel = self.channel || 0,
+            mode = self.mode;
 
         if (null != color1)
         {
@@ -106,9 +123,9 @@ FILTER.Create({
             g1 = (color1 >>> 8)&255;
             b1 = (color1)&255;
         }
-        if (is_grayscale)
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            bin = FilterUtil.histogram(im, CHANNEL.R);
+            bin = FilterUtil.histogram(im, channel);
         }
         else
         {
@@ -134,11 +151,11 @@ FILTER.Create({
             bin = FilterUtil.histogram(im, CHANNEL.G);
         }
         t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
-        if (is_grayscale)
+        if (MODE.GRAY === mode)
         {
             for (i=0; i<l; i+=4)
             {
-                if (im[i] < t)
+                if (im[i+channel] < t)
                 {
                     im[i  ] = r0;
                     im[i+1] = g0;
@@ -149,6 +166,20 @@ FILTER.Create({
                     im[i  ] = r1;
                     im[i+1] = g1;
                     im[i+2] = b1;
+                }
+            }
+        }
+        else if (MODE.CHANNEL === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i+channel] < t)
+                {
+                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                }
+                else if (null != color1)
+                {
+                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
                 }
             }
         }
@@ -189,6 +220,8 @@ FILTER.Create({
                 }
             }
         }
+        // return thresholds as meta
+        self.meta = [t];
         return im;
     }
 });
