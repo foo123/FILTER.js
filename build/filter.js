@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-15 22:04:23
+*   @built on 2023-08-15 23:46:12
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-15 22:04:23
+*   @built on 2023-08-15 23:46:12
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -2200,7 +2200,7 @@ return {
 '    else if (gradient_suppressed(img, pix+vec2(1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
 '        return vec4(vec3(1.0), a);',
 '    else',
-'        return vec4(vec3(0.0), a);',
+'        return vec4(vec3((g-low)/(high-low)), a);',
 '}'
 ].join('\n')
 };
