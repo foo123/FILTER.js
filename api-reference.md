@@ -525,8 +525,9 @@ Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) Thi
 
 The class has various pre-defined filters to use.
 
-* `fastGauss()`  A fast implementation of an arbitrary gaussian low pass filter approximation
-* `functional(kernelFunc:Function)`  generic functional-based convolution kernel, e.g use a real gaussian kernel function etc..
+* `fastGauss()`  A fast approximation of gaussian filter of arbitrary dimension
+* `gauss(sigma)`  An actual gaussian filter with given `sigma`
+* `functional(kernelFunc:Function, dimension:Number, isSeparable:Boolean)`  generic functional-based convolution kernel, e.g use a real gaussian kernel function etc..
 * `lowPass() / boxBlur()`  Generic (box) fast lowpass filter (ie. box blur)
 * `highPass()` Generic fast high pass filter (derived from the associated low pass filter)
 * `binomialLowPass() / gaussBlur()` Generic (pseudo-gaussian) lowpass filter (ie. gauss blur)
@@ -545,6 +546,7 @@ The class has various pre-defined filters to use.
 * `sobelDirectional()`  Directional-gradient using Sobel operator (similar to edges along a direction)
 * `sobel()`  Total gradient of the image using Sobel operator
 * `laplace()`  Total second gradient of the image (fast Laplacian)
+* `bilateral(d, sigmaSpatial, sigmaColor)` Apply bilateral filter with dimension `d` with given `sigmaSpatial` and `sigmaColor`
 * `emboss() / bump()`   Apply emboss effect to the image
 * `edges()`  Apply an edge filter to the image
 * `setMode(FILTER.MODE.GRAY)` Use faster convolution filters for grayscale images
@@ -924,7 +926,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
-<tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor</td></tr>
+<tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b></td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>

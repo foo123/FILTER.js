@@ -343,7 +343,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
     var gl = prepareGL(img, w, h), input, output,
-        i, n = glsls.length, glsl, glsl0, output0,
+        i, n = glsls.length, glsl,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t, canRun,
@@ -356,7 +356,6 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         if (0 <= first && 0 <= last) break;
     }
     cache = img.cache;
-    glsl0 = {shader: FRAGMENT_DEFAULT};
     pos = createBuffer(gl, new FILTER.Array32F([
         0, 0,
         w, 0,

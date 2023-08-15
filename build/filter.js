@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.5.7
-*   @built on 2023-08-13 11:30:22
+*   @version: 1.6.0
+*   @built on 2023-08-15 19:35:07
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.5.7
-*   @built on 2023-08-13 11:30:22
+*   @version: 1.6.0
+*   @built on 2023-08-15 19:35:07
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.5.7"};
+var FILTER = {VERSION: "1.6.0"};
 /**
 *
 *   Asynchronous.js
@@ -1805,20 +1805,45 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat)
         if (++x >=w) {x=0; ++y; sum=sum2=0;}
     }
 }
+function gaussian(dx, dy, sigma)
+{
+    var rx = dx >>> 1,
+        ry = dy >>> 1,
+        l = dx*dy,
+        f = -1/(2*sigma*sigma),
+        m = new A32F(l),
+        x, y, i, s, exp = stdMath.exp;
+    for (s=0,x=-rx,y=-ry,i=0; i<l; ++i,++x)
+    {
+        if (x > rx) {x=-rx; ++y;}
+        m[i] = exp(f*(x*x+y*y));
+        s += m[i];
+    }
+    for (i=0; i<l; ++i) m[i] /= s;
+    return m;
+}
+var gauss_5_14 = gaussian(5, 5, 1.4);
 function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
                     low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX)
 {
     //"use asm";
-    var stride0 = stride, imSize = im.length, count = imSize>>>stride,
-        index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
-        dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
-        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw, //f,
-        sobelX, sobelY, gX = new A32F(count), gY = new A32F(count), lowpassed;
+    var stride0 = stride,
+        imSize = im.length, count = imSize>>>stride,
+        index, i, j, k, sum, w_1 = w-1, h_1 = h-1,
+        w_2, h_2, w2, w4 = w<<stride,
+        dx = 1<<stride, dx2 = dx<<1, dy = w4,
+        i0, i1s, i2s, i1n, i2n,
+        i1w, i1e, ine, inw, ise, isw,
+        sobelX, sobelY,
+        gX = new A32F(count),
+        gY = new A32F(count),
+        g, lowpassed;
 
     if (do_lowpass)
     {
         w_2 = w-2; h_2 = h-2; w2 = w<<1;
-        lowpassed = new A8U(count); //f = 1.0/159.0;
+        lowpassed = new A32F(count);
+        //f = 1.0/159.0;
         // pre-bluring is optional, e.g a deriche pre-blur filtering can be used
         /*
         gauss lowpass 5x5 with sigma = 1.4
@@ -1842,19 +1867,27 @@ function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
             lowpassed[w_1+k] = 0; lowpassed[w_2+k] = 0;
         }
         */
+        g = gauss_5_14;
         for (i=2,j=2,k=w2; j<h_2; ++i)
         {
             if (i >= w_2) {i=2; k+=w; ++j; if (j>=h_2) break;}
-            index = i+k; i0 = (index<<stride)+channel;
-            i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
-            // use fixed-point arithmetic here
-            lowpassed[index] = (((103*(
-                        2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
-                       +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
-                       +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
-                       +4*im[i1s-dx2] +  9*im[i1s-dx] + 12*im[i1s] +  9*im[i1s+dx] + 4*im[i1s+dx2]
-                       +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
-                      )+8192)&0xFFFFFFFF)>>>14)&255;
+            index = i+k; i0 = (index<<stride);
+            if (0 < stride && 0 === im[i0+3])
+            {
+                lowpassed[index] = 0;
+            }
+            else
+            {
+                i0 += channel;
+                i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
+                lowpassed[index] = (
+                g[0]*im[i2n-dx2] + g[1]*im[i2n-dx] + g[2]*im[i2n] + g[3]*im[i2n+dx] + g[4]*im[i2n+dx2]
+               +g[5]*im[i1n-dx2] + g[6]*im[i1n-dx] + g[7]*im[i1n] + g[8]*im[i1n+dx] + g[9]*im[i1n+dx2]
+               +g[10]*im[i0 -dx2] + g[11]*im[i0 -dx] + g[12]*im[i0 ] + g[13]*im[i0 +dx] + g[14]*im[i0 +dx2]
+               +g[15]*im[i1s-dx2] +  g[16]*im[i1s-dx] + g[17]*im[i1s] + g[18]*im[i1s+dx] + g[19]*im[i1s+dx2]
+               +g[20]*im[i2s-dx2] + g[21]*im[i2s-dx] + g[22]*im[i2s] + g[23]*im[i2s+dx] + g[24]*im[i2s+dx2]
+                );
+            }
         }
         dx = 1; dx2 = 2; dy = w; stride = 0; channel = 0;
     }
@@ -1878,8 +1911,8 @@ function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
         if (i >= w_1) {i=1; k+=w; ++j; if (j>=h_1) break;}
         index = k+i; i0 = (index<<stride)+channel;
         i1s = i0+dy; i1n = i0-dy;
-        gX[index] = lowpassed[i1n+dx]-lowpassed[i1n-dx]+(lowpassed[i0+dx]<<1)-(lowpassed[i0-dx]<<1)+lowpassed[i1s+dx]-lowpassed[i1s-dx];
-        gY[index] = lowpassed[i1n-dx]-lowpassed[i1s-dx]+(lowpassed[i1n]<<1)-(lowpassed[i1s]<<1)+lowpassed[i1n+dx]-lowpassed[i1s+dx];
+        gX[index] = (lowpassed[i1n+dx]-lowpassed[i1n-dx])+2*(lowpassed[i0+dx]-lowpassed[i0-dx])+(lowpassed[i1s+dx]-lowpassed[i1s-dx]);
+        gY[index] = (lowpassed[i1n-dx]-lowpassed[i1s-dx])+2*(lowpassed[i1n]-lowpassed[i1s])+(lowpassed[i1n+dx]-lowpassed[i1s+dx]);
     }
     // do the next stages of canny edge processing
     return optimum_gradient(gX, gY, im, w, h, stride0, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
@@ -1892,11 +1925,19 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
         MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
     }
-    var imSize = im.length, count = imSize>>>stride, index, i, j, k, sum,
-        w_1 = w-1, h_1 = h-1, i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
-        g = new A32F(count), xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
-        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag, gg,
-        x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge, tm, tM;
+    var imSize = im.length,
+        count = imSize>>>stride,
+        index, i, j, k, sum,
+        w_1 = w-1, h_1 = h-1,
+        i0, i1s, i2s, i1n, i2n,
+        i1w, i1e, ine, inw, ise, isw,
+        g = new A32F(count), xGrad, yGrad,
+        absxGrad, absyGrad, gradMag, tmp,
+        nMag, sMag, wMag, eMag,
+        neMag, seMag, swMag, nwMag, gg,
+        x0, x1, x2, y0, y1, y2,
+        x, y, y0w, yw, jj, ii,
+        followedge, tm, tM;
 
     // non-maximal supression
     for (i=1,j=1,k=w; j<h_1; ++i)
@@ -1954,7 +1995,7 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
                     && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag))
                 : ((tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
                     && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)));
-        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag)) : 0;
+        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : MAGNITUDE_SCALE * gradMag) : 0;
     }
     if (sat)
     {
@@ -1980,26 +2021,29 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         for (i=0,j=0,index=0,k=0; index<count; ++index,k=index<<stride,++i)
         {
             if (i >= w) {i=0; ++j;}
-            if ((0 !== im[k]) || (g[index] < high)) continue;
-
-            x0 = i; y0 = j; ii = k;
+            /*if ((0 === im[k]) && (g[index] >= high))
+            {
+                follow(im, w, h, g, i, j, index, stride, low);
+            }*/
+            if ((0 < im[k]) || (g[index] < high)) continue;
+            x1 = i; y1 = j; ii = k; jj = index;
             do {
                 // threshold here
-                if (stride) {im[ii] = im[ii+1] = im[ii+2] = 255;}
-                else {im[ii] = 255;}
+                if (stride) {im[ii] = im[ii+1] = im[ii+2] = /*g[jj]*/255;}
+                else {im[ii] = /*g[jj]*/255;}
 
-                x1 = x0 === 0 ? x0 : x0-1;
-                x2 = x0 === w_1 ? x0 : x0+1;
-                y1 = y0 === 0 ? y0 : y0-1;
-                y2 = y0 === h_1 ? y0 : y0+1;
-                y0w = y1*w;
-                x = x1; y = y1; yw = y0w; followedge = 0;
+                x0 = x1 === 0 ? x1 : x1-1;
+                x2 = x1 === w_1 ? x1 : x1+1;
+                y0 = y1 === 0 ? y1 : y1-1;
+                y2 = y1 === h_1 ? y1 : y1+1;
+                y0w = y0*w;
+                x = x0; y = y0; yw = y0w = y0*w; followedge = 0;
                 while (x <= x2 && y <= y2)
                 {
                     jj = x + yw; ii = jj << stride;
                     if ((y !== y1 || x !== x1) && (0 === im[ii]) && (g[jj] >= low))
                     {
-                        x0 = x; y0 = y;
+                        x1 = x; y1 = y;
                         followedge = 1; break;
                     }
                     ++y; yw+=w; if (y>y2) {y=y0; yw=y0w; ++x;}
@@ -2009,14 +2053,169 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         return im;
     }
 }
+/*function follow(im, w, h, g, x1, y1, i1, stride, low)
+{
+    var
+        x0 = x1 === 0 ? x1 : x1 - 1,
+        x2 = x1 === w - 1 ? x1 : x1 + 1,
+        y0 = y1 === 0 ? y1 : y1 - 1,
+        y2 = y1 === h -1 ? y1 : y1 + 1,
+        x, y, yw, y0w, i2, j2
+    ;
+
+    j2 = i1 << stride;
+    im[j2] = g[i1];
+    if (0 < stride) im[j2+1] = im[j2+2] = im[j2];
+    x = x0, y = y0; y0w = yw = y0*w;
+    while (x <= x2 && y <= y2)
+    {
+        i2 = x + yw; j2 = i2 << stride;
+        if ((y !== y1 || x !== x1) && 0 === im[j2] && g[i2] >= low)
+        {
+            follow(im, w, h, g, x, y, i2, stride, low);
+            return;
+        }
+        ++y; if (y>y2) {y=y0; yw=y0w; ++x;}
+    }
+}*/
+function gradient_glsl()
+{
+var toFloat = FILTER.Util.GLSL.formatFloat,
+g = function(i, notsigned) {return toFloat(gauss_5_14[i], !notsigned);};
+return {
+'lowpass': [
+'vec4 lowpass(sampler2D img, vec2 pix, vec2 dp) {',
+'   float a = texture2D(img, pix).a;',
+'   if (0.0 == a || 0.0 > pix.x-2.0*dp.x || 0.0 > pix.y-2.0*dp.y || 1.0 < pix.x+2.0*dp.x || 1.0 < pix.y+2.0*dp.y) return vec4(0.0, 0.0, 0.0, a);',
+'   return vec4('+g(0,1)+'*texture2D(img, pix+vec2(-2.0,-2.0)*dp).rgb'+g(1)+'*texture2D(img, pix+vec2(-1.0,-2.0)*dp).rgb'+g(2)+'*texture2D(img, pix+vec2(0.0,-2.0)*dp).rgb'+g(3)+'*texture2D(img, pix+vec2(1.0,-2.0)*dp).rgb'+g(4)+'*texture2D(img, pix+vec2(2.0,-2.0)*dp).rgb'+g(5)+'*texture2D(img, pix+vec2(-2.0,-1.0)*dp).rgb'+g(6)+'*texture2D(img, pix+vec2(-1.0,-1.0)*dp).rgb'+g(7)+'*texture2D(img, pix+vec2(0.0,-1.0)*dp).rgb'+g(8)+'*texture2D(img, pix+vec2(1.0,-1.0)*dp).rgb'+g(9)+'*texture2D(img, pix+vec2(2.0,-1.0)*dp).rgb'+g(10)+'*texture2D(img, pix+vec2(-2.0,0.0)*dp).rgb'+g(11)+'*texture2D(img, pix+vec2(-1.0,0.0)*dp).rgb'+g(12)+'*texture2D(img, pix+vec2(0.0,0.0)*dp).rgb'+g(13)+'*texture2D(img, pix+vec2(1.0,0.0)*dp).rgb'+g(14)+'*texture2D(img, pix+vec2(2.0,0.0)*dp).rgb'+g(15)+'*texture2D(img, pix+vec2(-2.0,1.0)*dp).rgb'+g(16)+'*texture2D(img, pix+vec2(-1.0,1.0)*dp).rgb'+g(17)+'*texture2D(img, pix+vec2(0.0,1.0)*dp).rgb'+g(18)+'*texture2D(img, pix+vec2(1.0,1.0)*dp).rgb'+g(19)+'*texture2D(img, pix+vec2(2.0,1.0)*dp).rgb'+g(20)+'*texture2D(img, pix+vec2(-2.0,2.0)*dp).rgb'+g(21)+'*texture2D(img, pix+vec2(-1.0,2.0)*dp).rgb'+g(22)+'*texture2D(img, pix+vec2(0.0,2.0)*dp).rgb'+g(23)+'*texture2D(img, pix+vec2(1.0,2.0)*dp).rgb'+g(24)+'*texture2D(img, pix+vec2(2.0,2.0)*dp).rgb, a);',
+'}'
+].join('\n'),
+'gradient': [
+'vec2 sobel_gradient(sampler2D i, vec2 p, vec2 d) {',
+'   if (0.0 > pix.x-d.x || 0.0 > pix.y-d.y || 1.0 < pix.x+d.x || 1.0 < pix.y+d.y) return vec2(0.0);',
+'    return vec2(',
+'    (texture2D(i, p+vec2(1.0,-1.0)*d).r-texture2D(i, p+vec2(-1.0,-1.0)*d).r)',
+'    +2.0*(texture2D(i, p+vec2(1.0,0.0)*d).r-texture2D(i, p+vec2(-1.0,0.0)*d).r)',
+'    +(texture2D(i, p+vec2(1.0,1.0)*d).r-texture2D(i, p+vec2(-1.0,1.0)*d).r)',
+'    ,',
+'    (texture2D(i, p+vec2(-1.0,-1.0)*d).r-texture2D(i, p+vec2(-1.0,1.0)*d).r)',
+'    +2.0*(texture2D(i, p+vec2(0.0,-1.0)*d).r-texture2D(i, p+vec2(0.0,1.0)*d).r)',
+'    +(texture2D(i, p+vec2(1.0,-1.0)*d).r-texture2D(i, p+vec2(1.0,1.0)*d).r)',
+'    );',
+'}',
+'float gradient_suppressed(sampler2D img, vec2 pix, vec2 dp, float magnitude_scale, float magnitude_limit, float magnitude_max) {',
+'    vec2 g = sobel_gradient(img, pix, dp);',
+'    vec2 gn = sobel_gradient(img, pix+vec2(0.0,-1.0)*dp, dp);',
+'    vec2 gs = sobel_gradient(img, pix+vec2(0.0,1.0)*dp, dp);',
+'    vec2 gw = sobel_gradient(img, pix+vec2(-1.0,0.0)*dp, dp);',
+'    vec2 ge = sobel_gradient(img, pix+vec2(1.0,0.0)*dp, dp);',
+'    vec2 gnw = sobel_gradient(img, pix+vec2(-1.0,-1.0)*dp, dp);',
+'    vec2 gne = sobel_gradient(img, pix+vec2(1.0,-1.0)*dp, dp);',
+'    vec2 gsw = sobel_gradient(img, pix+vec2(-1.0,1.0)*dp, dp);',
+'    vec2 gse = sobel_gradient(img, pix+vec2(1.0,1.0)*dp, dp);',
+'    float gM = length(g);',
+'    float gnM = length(gn);',
+'    float gsM = length(gs);',
+'    float gwM = length(gw);',
+'    float geM = length(ge);',
+'    float gnwM = length(gnw);',
+'    float gneM = length(gne);',
+'    float gswM = length(gsw);',
+'    float gseM = length(gse);',
+'    float gg = 0.0; float tmp;',
+'    if (g.x*g.y <= 0.0)',
+'    {',
+'        if (abs(g.x) >= abs(g.y))',
+'        {',
+'            tmp = abs(g.x)*gM;',
+'            if (tmp >= abs(g.y * gneM - (g.x + g.y) * geM) && tmp > abs(g.y * gswM - (g.x + g.y) * gwM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'        else',
+'        {',
+'            tmp = abs(g.y)*gM;',
+'            if (tmp >= abs(g.x * gneM - (g.y + g.x) * gnM) && tmp > abs(g.x * gswM - (g.y + g.x) * gsM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'    }',
+'    else',
+'    {',
+'        if (abs(g.x) >= abs(g.y))',
+'        {',
+'            tmp = abs(g.x)*gM;',
+'            if (tmp >= abs(g.y * gseM + (g.x - g.y) * geM) && tmp > abs(g.y * gnwM + (g.x - g.y) * gwM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'        else',
+'        {',
+'            tmp = abs(g.y)*gM;',
+'            if (tmp >= abs(g.x * gseM + (g.y - g.x) * gsM)',
+'                && tmp > abs(g.x * gnwM + (g.y - g.x) * gnM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'    }',
+'    if (0.0 < gg)',
+'    {',
+'        if (gM >= magnitude_limit)',
+'        {',
+'            gg = magnitude_max;',
+'        }',
+'        else',
+'        {',
+'            gg = magnitude_scale * gM;',
+'        }',
+'    }',
+'    return gg;',
+'}',
+'vec4 gradient(sampler2D img, vec2 pix, vec2 dp, float low, float high, float magnitude_scale, float magnitude_limit, float magnitude_max) {',
+'    float a = texture2D(img, pix).a;',
+'    if (0.0 == a) return vec4(0.0);',
+'    float g = gradient_suppressed(img, pix, dp, magnitude_scale, magnitude_limit, magnitude_max);',
+'    if (g >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (g < low)',
+'        return vec4(vec3(0.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,0.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        gl_FragColor = vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        gl_FragColor = vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(0.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(0.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,0.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else',
+'        return vec4(vec3(0.0), a);',
+'}'
+].join('\n')
+};
+}
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
     //"use asm";
-    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
-        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen,
+        colR, colG, colB,
+        matRadiusX=dimX, matRadiusY=dimY, matArea, matArea2,
+        matHalfSideX, matHalfSideY, matHalfSideX2, matHalfSideY2,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        matOffsetLeft2, matOffsetRight2, matOffsetTop2, matOffsetBottom2,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
         r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
@@ -2030,6 +2229,10 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    matArea2 = dimX2*dimY2;
+    matHalfSideX2 = dimX2>>>1;  matHalfSideY2 = w*(dimY2>>>1);
+    matOffsetLeft2 = -matHalfSideX2-1; matOffsetTop2 = -matHalfSideY2-w;
+    matOffsetRight2 = matHalfSideX2; matOffsetBottom2 = matHalfSideY2;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
 
     dst = im; im = new IMG(imLen);
@@ -2043,7 +2246,7 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -2084,10 +2287,10 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
 
                     // fix borders
-                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                    yOff1 = yOff1<by1 ? by1 : yOff1;
-                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
 
                     // compute integral positions
                     p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
@@ -2095,6 +2298,22 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
                     r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
 
                     // output
@@ -2178,7 +2397,7 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -2239,6 +2458,24 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                     b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
 
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                     g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                     b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
@@ -2327,12 +2564,15 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
     }
     return dst;
 }
-function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
     //"use asm";
-    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
-        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen,
+        colR, colG, colB,
+        matRadiusX=dimX, matRadiusY=dimY, matArea, matArea2,
+        matHalfSideX, matHalfSideY, matHalfSideX2, matHalfSideY2,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        matOffsetLeft2, matOffsetRight2, matOffsetTop2, matOffsetBottom2,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
         r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
@@ -2346,6 +2586,10 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    matArea2 = dimX2*dimY2;
+    matHalfSideX2 = dimX2>>>1;  matHalfSideY2 = w*(dimY2>>>1);
+    matOffsetLeft2 = -matHalfSideX2-1; matOffsetTop2 = -matHalfSideY2-w;
+    matOffsetRight2 = matHalfSideX2; matOffsetBottom2 = matHalfSideY2;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
 
     dst = im; im = new IMG(imLen);
@@ -2359,7 +2603,7 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -2411,6 +2655,22 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
                     r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
 
                     // output
@@ -2498,7 +2758,7 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -2559,6 +2819,24 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
                     g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                     b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
 
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                     g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                     b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
@@ -2664,7 +2942,7 @@ function separable_convolution(mode, im, w, h, stride, matrix, matrix2, ind1, in
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2, ii = 1<<stride,
-        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        xOff, yOff, srcOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
 
     // pre-compute indices,
@@ -2777,7 +3055,7 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2, ii = 1<<stride,
-        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        xOff, yOff, srcOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
 
     // pre-compute indices,
@@ -3068,10 +3346,12 @@ FilterUtil.am_eye = am_eye;
 FilterUtil.am_multiply = am_multiply;
 FilterUtil.cm_combine = cm_combine;
 FilterUtil.cm_convolve = cm_convolve;
+FilterUtil.gaussian = gaussian;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
+FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
 
@@ -3420,7 +3700,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
     var gl = prepareGL(img, w, h), input, output,
-        i, n = glsls.length, glsl, glsl0, output0,
+        i, n = glsls.length, glsl,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t, canRun,
@@ -3433,7 +3713,6 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         if (0 <= first && 0 <= last) break;
     }
     cache = img.cache;
-    glsl0 = {shader: FRAGMENT_DEFAULT};
     pos = createBuffer(gl, new FILTER.Array32F([
         0, 0,
         w, 0,
@@ -10115,6 +10394,7 @@ var MODE = FILTER.MODE, CM = FILTER.ConvolutionMatrix, IMG = FILTER.ImArray,
     A32F = FILTER.Array32F, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     convolve = FILTER.Util.Filter.cm_convolve,
     combine = FILTER.Util.Filter.cm_combine,
+    gaussian = FILTER.Util.Filter.gaussian,
     integral_convolution = FILTER.Util.Filter.integral_convolution,
     separable_convolution = FILTER.Util.Filter.separable_convolution,
     TypedArray = FILTER.Util.Array.typed,
@@ -10147,22 +10427,18 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,init: function ConvolutionMatrixFilter(weights, factor, bias, mode) {
         var self = this;
         self._coeff = new CM([1.0, 0.0]);
-        self.matrix2 = null;  self.dim2 = 0;
-        self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         if (weights && weights.length)
         {
             self.set(weights, (Sqrt(weights.length)+0.5)|0, factor||1.0, bias||0.0);
-        }
-        else
-        {
-            self.matrix = null; self.dim = 0;
         }
         self.mode = mode || MODE.RGB;
     }
 
     ,path: FILTER.Path
-    ,dim: 0
-    ,dim2: 0
+    ,dimx: 0
+    ,dimy: 0
+    ,dimx2: 0
+    ,dimy2: 0
     ,matrix: null
     ,matrix2: null
     ,_mat: null
@@ -10176,12 +10452,13 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,_indices2: null
     ,_indicesf: null
     ,_indicesf2: null
+    ,_w: null
     ,mode: MODE.RGB
 
     ,dispose: function() {
         var self = this;
-        self.dim = null;
-        self.dim2 = null;
+        self.dimx = self.dimy = null;
+        self.dimx2 = self.dimy2 = null;
         self.matrix = null;
         self.matrix2 = null;
         self._mat = null;
@@ -10195,6 +10472,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices2 = null;
         self._indicesf = null;
         self._indicesf2 = null;
+        self._w = null;
         self.$super('dispose');
         return self;
     }
@@ -10202,8 +10480,10 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-             dim: self.dim
-            ,dim2: self.dim2
+             dimx: self.dimx
+            ,dimy: self.dimy
+            ,dimx2: self.dimx2
+            ,dimy2: self.dimy2
             ,matrix: self.matrix
             ,matrix2: self.matrix2
             ,_mat: self._mat
@@ -10216,13 +10496,16 @@ var ConvolutionMatrixFilter = FILTER.Create({
             ,_indices2: self._indices2
             ,_indicesf: self._indicesf
             ,_indicesf2: self._indicesf2
+            ,_w: self._w
         };
     }
 
     ,unserialize: function(params) {
         var self = this;
-        self.dim = params.dim;
-        self.dim2 = params.dim2;
+        self.dimx = params.dimx;
+        self.dimy = params.dimy;
+        self.dimx2 = params.dimx2;
+        self.dimy2 = params.dimy2;
         self.matrix = TypedArray(params.matrix, CM);
         self.matrix2 = TypedArray(params.matrix2, CM);
         self._mat = TypedArray(params._mat, CM);
@@ -10235,17 +10518,25 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._indices2 = TypedArray(params._indices2, A16I);
         self._indicesf = TypedArray(params._indicesf, A16I);
         self._indicesf2 = TypedArray(params._indicesf2, A16I);
+        self._w = params._w ? [TypedArray(params._w[0], CM), +params._w[1], +params._w[2], +params._w[3]] : null;
         return self;
     }
 
     // generic functional-based kernel filter
-    ,functional: function(f, d) {
+    ,functional: function(f, d, separable) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        var kernel = functional1(d, f), fact = 1.0/summa(kernel);
-        // this can be separable
-        self.set(kernel, d, fact, fact, d, kernel);
-        self._doSeparable = true; return self;
+        if (separable)
+        {
+            // separable
+            self.set(functional(d, 1, f), d, 1, 1, 1, 1, d, functional(1, d, f));
+            self._doSeparable = true;
+        }
+        else
+        {
+            self.set(functional(d, d, f), d, d, 1, 0);
+        }
+        return self;
     }
 
     // fast gauss filter
@@ -10255,16 +10546,24 @@ var ConvolutionMatrixFilter = FILTER.Create({
         quality = (quality||1)|0;
         if (quality < 1) quality = 1;
         else if (quality > 7) quality = 7;
-        self.set(ones(d), d, 1/(d*d), 0.0);
+        self.set(ones(d), d, d, 1/(d*d), 0.0);
         self._doIntegralSeparable = [average1(d), d, 1, 1/d, 0, average1(d), 1, d, 1/d, 0];
         self._doIntegral = quality; return self;
+    }
+
+    // gauss filter
+    ,gauss: function(sigma, d) {
+        var self = this;
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        self.set(gaussian(d, 1, sigma), d, 1, 1, 1, 1, d, gaussian(1, d, sigma));
+        self._doSeparable = true; return self;
     }
 
     // generic box low-pass filter
     ,lowPass: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(ones(d), d, 1/(d*d), 0.0);
+        self.set(ones(d), d, d, 1/(d*d), 0.0);
         self._doIntegral = 1; return self;
     }
     ,boxBlur: null
@@ -10276,7 +10575,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         f = null == f ? 1 : f;
         // HighPass Filter = I - (respective)LowPass Filter
         var fact = -f/(d*d);
-        self.set(ones(d, fact, 1+fact), d, 1.0, 0.0);
+        self.set(ones(d, fact, 1+fact), d, d, 1.0, 0.0);
         self._doIntegral = 1; return self;
     }
 
@@ -10293,14 +10592,14 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,verticalBlur: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(average1(d), 1, 1/d, 0.0, d);
+        self.set(average1(d), 1, d, 1/d, 0.0);
         self._doIntegral = 1; return self;
     }
 
     ,horizontalBlur: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(average1(d), d, 1/d, 0.0, 1);
+        self.set(average1(d), d, 1, 1/d, 0.0);
         self._doIntegral = 1; return self;
     }
 
@@ -10308,7 +10607,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,directionalBlur: function(theta, d) {
         d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, 1.0, 0.0);
+        return this.set(twos2(d, Cos(theta), -Sin(theta), 1/d), d, d, 1.0, 0.0);
     }
 
     // generic binomial(quasi-gaussian) low-pass filter
@@ -10318,7 +10617,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         /*var filt=binomial(d);
         return this.set(filt.kernel, d, 1/filt.sum); */
         var kernel = binomial1(d), fact = 1/(1<<(d-1));
-        self.set(kernel, d, fact, fact, d, kernel);
+        self.set(kernel, d, 1, fact, fact, 1, d, kernel);
         self._doSeparable = true; return self;
     }
     ,gaussBlur: null
@@ -10328,7 +10627,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         var kernel = binomial2(d);
         // HighPass Filter = I - (respective)LowPass Filter
-        return this.set(combine(ones(d), kernel, 1, -1/summa(kernel)), d, 1.0, 0.0);
+        return this.set(combine(ones(d), kernel, 1, -1/summa(kernel)), d, d, 1.0, 0.0);
     }
 
     // X-gradient, partial X-derivative (Prewitt)
@@ -10337,7 +10636,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 0), d, 1.0, 0.0);
-        self.set(average1(d), d, 1.0, 0.0, d, derivative1(d,0));
+        self.set(derivative1(d,1), d, 1, 1, 1, 1, d, average1(d));
         self._doSeparable = true; return self;
     }
     ,gradX: null
@@ -10348,7 +10647,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(prewitt(d, 1), d, 1.0, 0.0);
-        self.set(derivative1(d,1), d, 1.0, 0.0, d, average1(d));
+        self.set(average1(d), d, 1, 1, 1, 1, d, derivative1(d,1));
         self._doSeparable = true; return self;
     }
     ,gradY: null
@@ -10357,7 +10656,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,prewittDirectional: function(theta, d) {
         d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(combine(prewitt(d, 0), prewitt(d, 1), Cos(theta), Sin(theta)), d, d, 1.0, 0.0);
     }
     ,gradDirectional: null
 
@@ -10365,7 +10664,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,prewitt: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(prewitt(d, 0), d, 1.0, 0.0, d, prewitt(d, 1));
+        self.set(prewitt(d, 0), d, d, 1.0, 0.0, d, d, prewitt(d, 1));
         self._isGrad = true; return self;
     }
     ,grad: null
@@ -10376,7 +10675,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 0), d, 1.0, 0.0);
-        self.set(binomial1(d), d, 1.0, 0.0, d, derivative1(d,0));
+        self.set(derivative1(d,1), d, 1, 1, 1, 1, d, binomial1(d));
         self._doSeparable = true; return self;
     }
 
@@ -10386,7 +10685,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         // this can be separable
         //return this.set(sobel(d, 1), d, 1.0, 0.0);
-        self.set(derivative1(d,1), d, 1.0, 0.0, d, binomial1(d));
+        self.set(binomial1(d), d, 1, 1, 1, 1, d, derivative1(d,1));
         self._doSeparable = true; return self;
     }
 
@@ -10394,21 +10693,21 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,sobelDirectional: function(theta, d) {
         d = null == d ? 3 : (d&1 ? d : d+1);
         theta *= toRad;
-        return this.set(combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, 1.0, 0.0);
+        return this.set(combine(sobel(d, 0), sobel(d, 1), Cos(theta), Sin(theta)), d, d, 1.0, 0.0);
     }
 
     // gradient magnitude (Sobel)
     ,sobel: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(sobel(d, 0), d, 1.0, 0.0, d, sobel(d, 1));
+        self.set(sobel(d, 0), d, d, 1.0, 0.0, d, d, sobel(d, 1));
         self._isGrad = true; return self;
     }
 
     ,laplace: function(d) {
         var self = this;
         d = null == d ? 3 : (d&1 ? d : d+1);
-        self.set(ones(d, -1, d*d-1), d, 1.0, 0.0);
+        self.set(ones(d, -1, d*d-1), d, d, 1.0, 0.0);
         self._doIntegral = 1; return self;
     }
 
@@ -10416,7 +10715,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
         d = null == d ? 3 : (d&1 ? d : d+1);
         angle = null == angle ? -0.25*stdMath.PI : angle*toRad;
         amount = amount || 1;
-        return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, 1.0, 0.0);
+        return this.set(twos(d, amount*Cos(angle), -amount*Sin(angle), 1), d, d, 1.0, 0.0);
     }
     ,bump: null
 
@@ -10426,29 +10725,43 @@ var ConvolutionMatrixFilter = FILTER.Create({
             0,   m,   0,
             m,  -4*m, m,
             0,   m,   0
-         ], 3, 1.0, 0.0);
+         ], 3, 3, 1.0, 0.0);
+    }
+    ,bilateral: function(d, sigmaSpatial, sigmaColor) {
+        d = null == d ? 3 : (d&1 ? d : d+1);
+        var self = this;
+        self.set(ones(d), d, d, 1, 0);
+        self._w = bilateral(d, sigmaSpatial||1, sigmaColor||1);
+        return self;
     }
 
-    ,set: function(m, d, f, b, d2, m2) {
+    ,set: function(m, dx, dy, f, b, dx2, dy2, m2) {
         var self = this, tmp;
 
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
         self._doIntegralSeparable = null;
-        self.matrix2 = null; self.dim2 = 0; self._indices2 = self._indicesf2 = null; self._mat2 = null;
+        self.matrix2 = null;
+        self.dimx2 = self.dimy2 = 0;
+        self._indices2 = self._indicesf2 = null;
+        self._mat2 = self._w = null;
 
-        self.matrix = new CM(m); self.dim = d; self._coeff[0] = f||1; self._coeff[1] = b||0;
-        tmp  = indices(self.matrix, self.dim);
+        self.matrix = new CM(m);
+        self.dimx = dx; self.dimy = dy;
+        self._coeff[0] = f||1; self._coeff[1] = b||0;
+        tmp = indices(self.matrix, self.dimx, self.dimy);
         self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
 
         if (m2)
         {
-            self.matrix2 = new CM(m2); self.dim2 = d2;
-            tmp  = indices(self.matrix2, self.dim2);
+            self.matrix2 = new CM(m2);
+            self.dimx2 = dx2; self.dimy2 = dy2;
+            tmp = indices(self.matrix2, self.dimx2, self.dimy2);
             self._indices2 = tmp[0]; self._indicesf2 = tmp[1]; self._mat2 = tmp[2];
         }
-        else if (d2)
+        else if (null != dx2)
         {
-            self.dim2 = d2;
+            self.dimx2 = dx2;
+            self.dimy2 = dy2;
         }
 
         self._glsl = null;
@@ -10458,10 +10771,11 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,reset: function() {
         var self = this;
         self.matrix = self.matrix2 = null;
-        self.dim = self.dim2 = 0;
-        self._mat = self._mat2 = null;
+        self.dimx = self.dimy = self.dimx2 = self.dimy2 = 0;
+        self._mat = self._mat2 = self._w = null;
         self._indices = self._indices2 = self._indicesf = self._indicesf2 = null;
         self._isGrad = false; self._doIntegral = 0; self._doSeparable = false;
+        self._doIntegralSeparable = null;
         self._glsl = null;
         return self;
     }
@@ -10473,19 +10787,70 @@ var ConvolutionMatrixFilter = FILTER.Create({
     ,combineWith: function(filt) {
         var self = this;
         if (!filt.matrix) return self;
-        return self.matrix ? self.set(convolve(self.matrix, filt.matrix), self.dim*filt.dim, self._coeff[0]*filt._coeff[0]) : self.set(filt.matrix, filt.dim, filt._coeff[0], filt._coeff[1]);
+        return self.matrix ? self.set(convolve(self.matrix, filt.matrix), self.dimx*filt.dimx, self.dimy*filt.dimy, self._coeff[0]*filt._coeff[0]) : self.set(filt.matrix, filt.dimx, filt.dimy, filt._coeff[0], filt._coeff[1]);
     }
 
     // used for internal purposes
+    ,_apply_weighted: function(im, w, h, d, wS, fC) {
+        var self = this,
+            imLen = im.length,
+            dst = new IMG(imLen),
+            x, y, yw, xx, yy, yyw,
+            r, g, b, r2, g2, b2,
+            sr, sg, sb, dr, dg, db,
+            bx = w-1, by = h-1, i, j, k,
+            radius = d >>>1, l = d*d, f, s,
+            exp = stdMath.exp, is_gray = MODE.GRAY === self.mode;
+        for (x=0,y=0,yw=0,i=0; i<imLen; i+=4,++x)
+        {
+            if (x >= w) {x=0; ++y; yw+=w;}
+            r = im[i]; g = im[i+1]; b = im[i+2];
+            for (s=0,sr=0,sg=0,sb=0,xx=-radius,yy=-radius,yyw=yy*w,k=0; k<l; ++k,++xx)
+            {
+                if (xx > radius) {xx=-radius; ++yy; yyw+=w;}
+                if (0 > x+xx || x+xx > bx || 0 > y+yy || y+yy > by)
+                {
+                    r2 = r; g2 = g; b2 = b;
+                }
+                else
+                {
+                    j = (x+xx + yw+yyw) << 2;
+                    r2 = im[j]; g2 = im[j+1]; b2 = im[j+2];
+                }
+                dr = (r2-r); dg = (g2-g); db = (b2-b);
+                f = wS[k]*exp(fC*(dr*dr+dg*dg+db*db));
+                s += f;
+                sr += f*r2;
+                sg += f*g2;
+                sb += f*b2;
+            }
+            sr /= s; sg /= s; sb /= s;
+            if (notSupportClamp)
+            {
+                // clamp them manually
+                sr = sr<0 ? 0 : (sr>255 ? 255 : sr);
+                sg = sg<0 ? 0 : (sg>255 ? 255 : sg);
+                sb = sb<0 ? 0 : (sb>255 ? 255 : sb);
+            }
+            dst[i  ] = sr|0;
+            dst[i+1] = sg|0;
+            dst[i+2] = sb|0;
+            dst[i+3] = im[i+3];
+        }
+        return dst;
+    }
     ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, mode = self.mode;
         if (!self.matrix) return im;
-
-        // do a faster convolution routine if possible
-        if (self._doIntegral)
+        if (self._w)
         {
-            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dim, self.dim2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dim, self.dim, self._coeff[0], self._coeff[1], self._doIntegral);
+            return self._apply_weighted(im, w, h, self.dimx, self._w[0], self._w[1]);
+        }
+        // do a faster convolution routine if possible
+        else if (self._doIntegral)
+        {
+            return self.matrix2 ? integral_convolution(mode, im, w, h, 2, self.matrix, self.matrix2, self.dimx, self.dimy, self.dimx2, self.dimy2, self._coeff[0], self._coeff[1], self._doIntegral) : integral_convolution(mode, im, w, h, 2, self.matrix, null, self.dimx, self.dimy, self.dimx, self.dimy, self._coeff[0], self._coeff[1], self._doIntegral);
         }
         else if (self._doSeparable)
         {
@@ -10493,11 +10858,12 @@ var ConvolutionMatrixFilter = FILTER.Create({
         }
 
         var imLen = im.length, imArea = imLen>>>2, dst = new IMG(imLen),
-            t0, t1, t2, t3, i, j, k, x, ty, ty2,
+            t0, t1, t2, t3, i, j, k, x, ty, ty2, tm, tM,
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
             mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
-            mArea, matArea, imageIndices, tm, tM;
+            mArea, matArea, imageIndices,
+            mArea2, matArea2, imageIndices2, ma;
 
         // apply filter (algorithm direct implementation based on filter definition with some optimizations)
         if (MODE.GRAY === mode)
@@ -10510,9 +10876,13 @@ var ConvolutionMatrixFilter = FILTER.Create({
                 imageIndices = new A16I(self._indicesf);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
                 matArea = mat.length;
+                mArea2 = self._indicesf2.length;
+                imageIndices2 = new A16I(self._indicesf2);
+                for (k=0; k<mArea2; k+=2) imageIndices2[k+1] *= w;
+                matArea2 = mat2.length;
 
                 // do direct convolution
-                x=0; ty=0;
+                x=0; ty=0; ma = Max(matArea,matArea2);
                 for (i=0; i<imLen; i+=4, ++x)
                 {
                     // update image coordinates
@@ -10521,14 +10891,26 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // calculate the weighed sum of the source image pixels that
                     // fall under the convolution matrix
                     r=g=b=a=r2=g2=b2=a2=0;
-                    for (k=0, j=0; k<matArea; ++k, j+=2)
+                    for (k=0, j=0; k<ma; ++k, j+=2)
                     {
-                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                        srcOff = (xOff + yOff)<<2;
-                        wt = mat[k]; r += im[srcOff] * wt;
-                        // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2;
+                        if (k<matArea)
+                        {
+                            xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                            if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                            {
+                                srcOff = (xOff + yOff)<<2;
+                                wt = mat[k]; r += im[srcOff] * wt;
+                            }
+                        }
+                        if (k<matArea2)
+                        {
+                            xOff = x + imageIndices2[j]; yOff = ty + imageIndices2[j+1];
+                            if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                            {
+                                srcOff = (xOff + yOff)<<2;
+                                wt = mat2[k]; r2 += im[srcOff] * wt;
+                            }
+                        }
                     }
 
                     // output
@@ -10613,9 +10995,13 @@ var ConvolutionMatrixFilter = FILTER.Create({
                 imageIndices = new A16I(self._indicesf);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
                 matArea = mat.length;
+                mArea2 = self._indicesf2.length;
+                imageIndices2 = new A16I(self._indicesf2);
+                for (k=0; k<mArea2; k+=2) imageIndices2[k+1] *= w;
+                matArea2 = mat2.length;
 
                 // do direct convolution
-                x=0; ty=0;
+                x=0; ty=0; ma = Max(matArea,matArea2);
                 for (i=0; i<imLen; i+=4, ++x)
                 {
                     // update image coordinates
@@ -10624,16 +11010,27 @@ var ConvolutionMatrixFilter = FILTER.Create({
                     // calculate the weighed sum of the source image pixels that
                     // fall under the convolution matrix
                     r=g=b=a=r2=g2=b2=a2=0;
-                    for (k=0, j=0; k<matArea; ++k, j+=2)
+                    for (k=0, j=0; k<ma; ++k, j+=2)
                     {
-                        xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
-                        if (xOff<0 || xOff>bx || yOff<0 || yOff>by) continue;
-                        srcOff = (xOff + yOff)<<2;
-                        wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
-                        //a += im[srcOff+3] * wt;
+                        if (k<matArea)
+                        {
+                            xOff = x + imageIndices[j]; yOff = ty + imageIndices[j+1];
+                            if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                            {
+                                srcOff = (xOff + yOff)<<2;
+                                wt = mat[k]; r += im[srcOff] * wt; g += im[srcOff+1] * wt;  b += im[srcOff+2] * wt;
+                            }
+                        }
                         // allow to apply a second similar matrix in-parallel (eg for total gradients)
-                        wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
-                        //a2 += im[srcOff+3] * wt2;
+                        if (k<matArea2)
+                        {
+                            xOff = x + imageIndices2[j]; yOff = ty + imageIndices2[j+1];
+                            if (xOff>=0 && xOff<=bx && yOff>=0 && yOff<=by)
+                            {
+                                srcOff = (xOff + yOff)<<2;
+                                wt2 = mat2[k]; r2 += im[srcOff] * wt2; g2 += im[srcOff+1] * wt2;  b2 += im[srcOff+2] * wt2;
+                            }
+                        }
                     }
 
                     // output
@@ -10749,71 +11146,107 @@ ConvolutionMatrixFilter.prototype.gradDirectional = ConvolutionMatrixFilter.prot
 ConvolutionMatrixFilter.prototype.grad = ConvolutionMatrixFilter.prototype.prewitt;
 ConvolutionMatrixFilter.prototype.bump = ConvolutionMatrixFilter.prototype.emboss;
 ConvolutionMatrixFilter.prototype.boxBlur = ConvolutionMatrixFilter.prototype.lowPass;
-ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.binomialLowPass;
+ConvolutionMatrixFilter.prototype.gaussBlur = ConvolutionMatrixFilter.prototype.gauss/*binomialLowPass*/;
 
 
-//
 //  Private methods
 function glsl(filter)
 {
-    var matrix_code = function(m, m2, d, d2, f, b, isGrad) {
-        var def = [], calc = [], calc2 = [], ca = 'c0',
-            x, y, k, i, j,
-            matArea = m.length, sideX = d, sideY = d2,
-            halfSideX = sideX>>>1, halfSideY = sideY>>>1;
-        x=0; y=0; k=0;
+    var matrix_code = function(m, m2, dx, dy, dx2, dy2, f, b, isGrad) {
+        var def = [], calc = [], calc2 = [],
+            k, i, j, matArea = m.length,
+            rx = dx>>>1, ry = dy>>>1;
+        def.push('vec4 col=texture2D(img,  pix);');
+        i=-rx; j=-ry; k=0;
         while (k<matArea)
         {
-            i = x-halfSideX;
-            j = y-halfSideY;
-            if (m[k] || (0===i && 0===j))
+            if (m[k])
             {
-                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+');');
+                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
                 calc.push(toFloat(m[k], calc.length)+'*c'+k);
-                if (0===i && 0===j) ca = 'c'+k+'.a';
             }
-            ++k; ++x; if (x>=sideX) {x=0; ++y;}
+            ++k; ++i; if (i>rx) {i=-rx; ++j;}
         }
         if (m2)
         {
-            x=0; y=0; k=0;
+            matArea = m2.length;
+            rx = dx2>>>1; ry = dy2>>>1;
+            i=-rx; j=-ry; k=0;
             while (k<matArea)
             {
-                i = x-halfSideX;
-                j = y-halfSideY;
-                if (m2[k] || (0===i && 0===j))
+                if (m2[k])
                 {
-                    def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 cc'+k+'=vec4(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+');');
+                    def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 cc'+k+'=vec3(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+').rgb;');
                     calc2.push(toFloat(m2[k], calc2.length)+'*cc'+k);
-                    //if (0===i && 0===j) ca = 'c'+k+'.a';
                 }
-                ++k; ++x; if (x>=sideX) {x=0; ++y;}
+                ++k; ++i; if (i>rx) {i=-rx; ++j;}
             }
             if (isGrad)
             {
-                def.push('vec4 o1='+toFloat(f)+'*('+calc.join('')+');')
-                def.push('vec4 o2='+toFloat(f)+'*('+calc2.join('')+');')
-                return [def.join('\n'), 'vec4(sqrt(o1.r*o1.r+o2.r*o2.r),sqrt(o1.g*o1.g+o2.g*o2.g),sqrt(o1.b*o1.b+o2.b*o2.b),'+ca+')'];
+                def.push('vec3 o1='+toFloat(f)+'*('+calc.join('')+');')
+                def.push('vec3 o2='+toFloat(f)+'*('+calc2.join('')+');')
+                return [def.join('\n'), 'vec4(sqrt(o1.x*o1.x+o2.x*o2.x),sqrt(o1.y*o1.y+o2.y*o2.y),sqrt(o1.z*o1.z+o2.z*o2.z),col.a)'];
             }
             else
             {
-                def.push('vec4 o1='+calc.join('')+';')
-                def.push('vec4 o2='+calc2.join('')+';')
-                return [def.join('\n'), 'vec4(('+toFloat(f)+'*o1'+toFloat(b,1)+'*o2).rgb,'+ca+')'];
+                def.push('vec3 o1='+calc.join('')+';')
+                def.push('vec3 o2='+calc2.join('')+';')
+                return [def.join('\n'), 'vec4(('+toFloat(f)+'*o1'+toFloat(b,1)+'*o2),col.a)'];
             }
         }
         else
         {
-            return [def.join('\n'), 'vec4(('+toFloat(f)+'*('+calc.join('')+')+vec4('+toFloat(b)+')).rgb,'+ca+')'];
+            return [def.join('\n'), 'vec4(('+toFloat(f)+'*('+calc.join('')+')+vec3('+toFloat(b)+')),col.a)'];
         }
     };
+    var bilateral_code = function(d) {
+        var def = [], calc = [],
+            k, i, j, matArea = d*d, r = d>>>1;
+        def.push('vec4 col=texture2D(img,  pix);');
+        def.push('float f=0.0; float w; vec3 o=vec3(0.0);');
+        i=-r; j=-r; k=0;
+        while (k<matArea)
+        {
+            if (0===i && 0===j)
+            {
+                def.push('vec3 c'+k+'=col.rgb;');
+            }
+            else
+            {
+                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=col.rgb; if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+            }
+            calc.push('float wS'+k+'=wS['+k+']; float wC'+k+'=wC(c'+k+'.x-c0.x,c'+k+'.y-c0.y,c'+k+'.z-c0.z); w = wS'+k+'*wC'+k+'; f += w; o += w*c'+k+';');
+            ++k; ++i; if (i>r) {i=-r; ++j;}
+        }
+        return [def.join('\n')+'\n'+calc.join('\n'), 'vec4(o/f,col.a)'];
+    };
     var toFloat = GLSL.formatFloat, code, output,
-        m = filter.matrix, m2 = filter.matrix2, t;
+        m = filter.matrix, m2 = filter.matrix2, dx, dy, f, t;
     if (!m) return {instance: filter, shader: GLSL.DEFAULT};
-    if (t = filter._doIntegralSeparable)
+    if (filter._w)
+    {
+        code = bilateral_code(filter.dimx);
+        return {instance: filter, shader: [
+        'precision mediump float;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform vec2 dp;',
+        'uniform float wS['+filter.matrix.length+'];',
+        'uniform float fC;',
+        'float wC(float r, float g, float b) {return exp(fC*(r*r+g*g+b*b));}',
+        'void main(void) {',
+        code[0],
+        'gl_FragColor = '+code[1]+';',
+        '}'
+        ].join('\n'), vars: function(gl, w, h, program) {
+            gl.uniform1fv(program.uniform.wS, filter._w[0]);
+            gl.uniform1f(program.uniform.fC, filter._w[1]*255*255);
+        }};
+    }
+    else if (t = filter._doIntegralSeparable)
     {
         output = [];
-        code = matrix_code(t[0], null, t[1], t[2], t[3], t[4], false);
+        code = matrix_code(t[0], null, t[1], t[2], t[1], t[2], t[3], t[4], false);
         output.push({instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -10824,7 +11257,7 @@ function glsl(filter)
         'gl_FragColor = '+code[1]+';',
         '}'
         ].join('\n'), iterations: filter._doIntegral || 1});
-        code = matrix_code(t[5], null, t[6], t[7], t[8], t[9], false);
+        code = matrix_code(t[5], null, t[6], t[7], t[6], t[7], t[8], t[9], false);
         output.push({instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -10839,12 +11272,17 @@ function glsl(filter)
     }
     else
     {
+        dx = filter.dimx; dy = filter.dimy;
+        f = filter._coeff;
         if (filter._doSeparable && m2)
         {
             m = convolve(m, m2);
+            dx = filter.dimx*filter.dimx2;
+            dy = filter.dimy*filter.dimy2;
+            f = [1, 0]
             m2 = null;
         }
-        code = matrix_code(m, m2, filter.dim, filter.dim, filter._coeff[0], filter._coeff[1], filter._isGrad);
+        code = matrix_code(m, m2, dx, dy, filter.dimx2, filter.dimy2, f[0], f[1], filter._isGrad);
         return {instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',
@@ -10857,36 +11295,36 @@ function glsl(filter)
         ].join('\n'), iterations: filter._doIntegral || 1};
     }
 }
+function indices(m, dx, dy)
+{
+    if (null == dy) dy = dx;
+    // pre-compute indices,
+    // reduce redundant computations inside the main convolution loop (faster)
+    var indices = [], indices2 = [], mat = [], k, x, y,
+        matArea = m.length, rx = dx >>> 1, ry = dy >>> 1;
+    x=-rx; y=-ry; k=0;
+    while (k<matArea)
+    {
+        indices2.push(x);
+        indices2.push(y);
+        if (m[k])
+        {
+            indices.push(x);
+            indices.push(y);
+            mat.push(m[k]);
+        }
+        ++k; ++x; if (x>rx) {x=-rx; ++y;}
+    }
+    return [new A16I(indices), new A16I(indices2), new CM(mat)];
+}
 function summa(kernel)
 {
     for (var sum=0,i=0,l=kernel.length; i<l; ++i) sum += kernel[i];
     return sum;
 }
-function indices(m, d)
+function bilateral(d, sigmaSpatial, sigmaColor)
 {
-    // pre-compute indices,
-    // reduce redundant computations inside the main convolution loop (faster)
-    var indices = [], indices2 = [], mat = [], k, x, y,  matArea = m.length, matRadius = d, matHalfSide = matRadius>>>1;
-    x=0; y=0; k=0;
-    while (k<matArea)
-    {
-        indices2.push(x-matHalfSide);
-        indices2.push(y-matHalfSide);
-        if (m[k])
-        {
-            indices.push(x-matHalfSide);
-            indices.push(y-matHalfSide);
-            mat.push(m[k]);
-        }
-        ++k; ++x; if (x>=matRadius) {x=0; ++y;}
-    }
-    return [new A16I(indices), new A16I(indices2), new CM(mat)];
-}
-function functional1(d, f)
-{
-    var x, y, i, ker = new Array(d);
-    for (x=0,y=0,i=0; i<d; ++i,++x) ker[i] = f(x, y, d);
-    return ker;
+    return [gaussian(d, d, sigmaSpatial), -1/(2*sigmaColor*sigmaColor), sigmaSpatial, sigmaColor];
 }
 function identity1(d)
 {
@@ -10933,12 +11371,18 @@ function binomial1(d)
     }
     return row.slice();
 }
-
-function functional2(d, f)
+function functional(dx, dy, f)
 {
-    var functional = functional1(d, f);
-    // convolve with itself
-    return convolve(functional, functional);
+    var x, y, rx = dx>>>1, ry=dy>>>1, l=dx*dy, i,
+        kernel = new Array(l), sum;
+    for (sum=0,x=-rx,y=-ry,i=0; i<d; ++i,++x)
+    {
+        if (x > rx) {x=-rx; ++y;}
+        kernel[i] = f(x, y, dx, dy);
+        //sum += kernel[i];
+    }
+    //if (sum) for (i=0; i<l; ++i) kernel[i] /= sum;
+    return kernel;
 }
 function binomial2(d)
 {
@@ -12855,7 +13299,7 @@ FILTER.Create({
             if (x>=w) {x=0; ++y;}
 
             xc = x - cX; yc = y - cY;
-            if (xc<0 || xc>=wm || yc<0 || yc>=hm)
+            if (xc<0 || xc>=w2 || yc<0 || yc>=h2)
             {
                 if (COLOR32 === mode) {im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a;}
                 else if (MASK32 === mode) { im[i  ] = r & im[i  ]; im[i+1] = g & im[i+1]; im[i+2] = b & im[i+2]; im[i+3] = a & im[i+3];}
@@ -14601,9 +15045,10 @@ FILTER.Create({
     }
 
     ,serialize: function() {
-        var self = this;
+        var self = this, isfunc = 'function' === typeof self.color;
         return {
-             color: self.color
+             isfunc: isfunc
+            ,color: isfunc ? self.color.toString() : self.color
             ,border: self.border
             ,x: self.x
             ,y: self.y
@@ -14613,7 +15058,8 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.color = params.color;
+        if (params.isfunc) self.color = (new Function('FILTER', 'return '+params.color+';'))(FILTER);
+        else self.color = params.color;
         self.border = params.border;
         self.x = params.x;
         self.y = params.y;
@@ -14624,22 +15070,26 @@ FILTER.Create({
     ,apply: function(im, w, h) {
         var self = this, mode = self.mode || MODE.COLOR,
             color = self.color||0, border = self.border, exterior = null != border,
-            x0 = self.x||0, y0 = self.y||0, x, y, x1, y1, x2, y2, k, i, l,
-            r, g, b, r0, g0, b0, rb, gb, bb, col, dist, D0, D1, region, box, mask, block_mask,
-            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB;
+            x0 = self.x||0, y0 = self.y||0, x, y, yy, x1, y1, x2, y2, k, i, l,
+            r, g, b, a, r0, g0, b0, rb, gb, bb, col, dist, D0, D1, region, box, mask, block_mask,
+            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB,
+            c, isfunc = 'function' === typeof color;
 
         if (x0 < 0 || x0 >= w || y0 < 0 || y0 >= h) return im;
 
+        if (!isfunc)
+        {
+            r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
+        }
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
         r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
-        r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
         if (exterior)
         {
            rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
            if (r0 === rb && g0 === gb && b0 === bb) return im;
            r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        else if (MODE.COLOR === mode && r0 === r && g0 === g && b0 === b)
+        else if (MODE.COLOR === mode && !isfunc && r0 === r && g0 === g && b0 === b)
         {
             return im;
         }
@@ -14654,15 +15104,31 @@ FILTER.Create({
         {
             // MODE.MASK returns the region mask, rest image is put blank
             block_mask = MODE.MASK === mode;
-            x=0; y=0;
+            x=0; y=yy=0;
             for (i=0,l=im.length; i<l; i+=4,++x)
             {
-                if (x>=w) {x=0; y+=w;}
+                if (x>=w) {x=0; ++yy; y+=w;}
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
                 {
                     // use mask color
-                    if (block_mask) {im[i  ] = r; im[i+1] = g; im[i+2] = b;}
+                    if (block_mask)
+                    {
+                        if (isfunc)
+                        {
+                            c = color(x, yy);
+                            r = c[0]; g = c[1]; b = c[2];
+                            a = 3 < c.length ? c[3] : im[i+3]
+                        }
+                        else
+                        {
+                            a = im[i+3];
+                        }
+                        im[i  ] = r;
+                        im[i+1] = g;
+                        im[i+2] = b;
+                        im[i+3] = a;
+                    }
                     // else leave original color
                 }
                 else
@@ -14678,7 +15144,7 @@ FILTER.Create({
             x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
             col = new A32F(3);
 
-            for (x=x1,y=y1; y<=y2;)
+            for (x=x1,y=y1,yy=y/w; y<=y2;)
             {
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
@@ -14688,11 +15154,21 @@ FILTER.Create({
                     col[1] = im[i+1];
                     col[2] = im[i+2];
                     RGB2HSV(col, 0, 1);
-                    col[0] = color;
+                    if (isfunc)
+                    {
+                        c = color(x, yy);
+                    }
+                    else
+                    {
+                        c = color;
+                    }
+                    col[0] = c;
                     HSV2RGB(col, 0, 1);
-                    im[i  ] = col[0]|0; im[i+1] = col[1]|0; im[i+2] = col[2]|0;
+                    im[i  ] = col[0]|0;
+                    im[i+1] = col[1]|0;
+                    im[i+2] = col[2]|0;
                 }
-                if (++x > x2) {x=x1; y+=w;}
+                if (++x > x2) {x=x1; ++yy; y+=w;}
             }
         }
         else //if (MODE.COLOR === mode)
@@ -14700,17 +15176,28 @@ FILTER.Create({
             // fill/replace color in region
             box = region.box;
             x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
-            for (x=x1,y=y1; y<=y2;)
+            for (x=x1,y=y1,yy=y/w; y<=y2;)
             {
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
                 {
                     i = k << 2;
+                    if (isfunc)
+                    {
+                        c = color(x, yy);
+                        r = c[0]; g = c[1]; b = c[2];
+                        a = 3 < c.length ? c[3] : im[i+3]
+                    }
+                    else
+                    {
+                        a = im[i+3];
+                    }
                     im[i  ] = r;
                     im[i+1] = g;
                     im[i+2] = b;
+                    im[i+3] = a;
                 }
-                if (++x > x2) {x=x1; y+=w;}
+                if (++x > x2) {x=x1; ++yy; y+=w;}
             }
         }
         // return the new image data
@@ -15678,25 +16165,24 @@ FilterUtil.connectedComponents = connected_components;
 !function(FILTER) {
 "use strict";
 
-var MAGNITUDE_SCALE = 100, MAGNITUDE_LIMIT = 1000,
-    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT,
-    stdMath = Math, round = stdMath.round;
+var MAGNITUDE_SCALE = 1, MAGNITUDE_LIMIT = 510,
+    MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
 
 // an efficient Canny Edges Detector
 // http://en.wikipedia.org/wiki/Canny_edge_detector
 FILTER.Create({
     name : "CannyEdgesFilter"
 
-    ,low: 2.5
-    ,high: 7.5
+    ,low: 25
+    ,high: 75
     ,lowpass: true
 
     ,path: FILTER.Path
 
     ,init: function(lowThreshold, highThreshold, lowpass) {
         var self = this;
-		self.low = arguments.length < 1 ? 2.5 : +lowThreshold;
-		self.high = arguments.length < 2 ? 7.5 : +highThreshold;
+		self.low = arguments.length < 1 ? 25 : +lowThreshold;
+		self.high = arguments.length < 2 ? 75 : +highThreshold;
 		self.lowpass = arguments.length < 3 ? true : !!lowpass;
     }
 
@@ -15725,14 +16211,61 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this)
+    }
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return FILTER.Util.Filter.gradient(im, w, h, 2, 0, self.lowpass, 0, round(self.low*MAGNITUDE_SCALE), round(self.high*MAGNITUDE_SCALE), MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+        return FILTER.Util.Filter.gradient(im, w, h, 2, 0, self.lowpass, 0, self.low*MAGNITUDE_SCALE, self.high*MAGNITUDE_SCALE, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 
+function glsl(filter)
+{
+    var glslcode = FILTER.Util.Filter.gradient_glsl(), output = [];
+    if (filter.lowpass)
+    {
+        output.push({
+        instance: filter,
+        shader: [
+        'precision mediump float;',
+        'varying vec2 pix;',
+        'uniform vec2 dp;',
+        'uniform sampler2D img;',
+        glslcode.lowpass,
+        'void main(void) {',
+        '    gl_FragColor = lowpass(img, pix, dp);',
+        '}'
+        ].join('\n')
+        });
+    }
+    output.push({
+    instance: filter,
+    shader: [
+    '#define MAGNITUDE_SCALE 1.0',
+    '#define MAGNITUDE_LIMIT 510.0',
+    '#define MAGNITUDE_MAX 510.0',
+    'precision mediump float;',
+    'varying vec2 pix;',
+    'uniform vec2 dp;',
+    'uniform sampler2D img;',
+    'uniform float low;',
+    'uniform float high;',
+    glslcode.gradient,
+    'void main(void) {',
+    '    gl_FragColor = gradient(img, pix, dp, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);',
+    '}'
+    ].join('\n'),
+    vars: function(gl, w, h, program) {
+        gl.uniform1f(program.uniform.low, filter.low*MAGNITUDE_SCALE/255);
+        gl.uniform1f(program.uniform.high, filter.high*MAGNITUDE_SCALE/255);
+    }
+    });
+    return output;
+}
 }(FILTER);/**
 *
 * HAAR Feature Detector

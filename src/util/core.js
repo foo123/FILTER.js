@@ -351,20 +351,45 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat)
         if (++x >=w) {x=0; ++y; sum=sum2=0;}
     }
 }
+function gaussian(dx, dy, sigma)
+{
+    var rx = dx >>> 1,
+        ry = dy >>> 1,
+        l = dx*dy,
+        f = -1/(2*sigma*sigma),
+        m = new A32F(l),
+        x, y, i, s, exp = stdMath.exp;
+    for (s=0,x=-rx,y=-ry,i=0; i<l; ++i,++x)
+    {
+        if (x > rx) {x=-rx; ++y;}
+        m[i] = exp(f*(x*x+y*y));
+        s += m[i];
+    }
+    for (i=0; i<l; ++i) m[i] /= s;
+    return m;
+}
+var gauss_5_14 = gaussian(5, 5, 1.4);
 function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
                     low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX)
 {
     //"use asm";
-    var stride0 = stride, imSize = im.length, count = imSize>>>stride,
-        index, i, j, k, sum, w_1 = w-1, h_1 = h-1, w_2, h_2, w2, w4 = w<<stride,
-        dx = 1<<stride, dx2 = dx<<1, dy = w4, count = imSize>>>stride,
-        i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw, //f,
-        sobelX, sobelY, gX = new A32F(count), gY = new A32F(count), lowpassed;
+    var stride0 = stride,
+        imSize = im.length, count = imSize>>>stride,
+        index, i, j, k, sum, w_1 = w-1, h_1 = h-1,
+        w_2, h_2, w2, w4 = w<<stride,
+        dx = 1<<stride, dx2 = dx<<1, dy = w4,
+        i0, i1s, i2s, i1n, i2n,
+        i1w, i1e, ine, inw, ise, isw,
+        sobelX, sobelY,
+        gX = new A32F(count),
+        gY = new A32F(count),
+        g, lowpassed;
 
     if (do_lowpass)
     {
         w_2 = w-2; h_2 = h-2; w2 = w<<1;
-        lowpassed = new A8U(count); //f = 1.0/159.0;
+        lowpassed = new A32F(count);
+        //f = 1.0/159.0;
         // pre-bluring is optional, e.g a deriche pre-blur filtering can be used
         /*
         gauss lowpass 5x5 with sigma = 1.4
@@ -388,19 +413,27 @@ function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
             lowpassed[w_1+k] = 0; lowpassed[w_2+k] = 0;
         }
         */
+        g = gauss_5_14;
         for (i=2,j=2,k=w2; j<h_2; ++i)
         {
             if (i >= w_2) {i=2; k+=w; ++j; if (j>=h_2) break;}
-            index = i+k; i0 = (index<<stride)+channel;
-            i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
-            // use fixed-point arithmetic here
-            lowpassed[index] = (((103*(
-                        2*im[i2n-dx2] +  4*im[i2n-dx] +  5*im[i2n] +  4*im[i2n+dx] + 2*im[i2n+dx2]
-                       +4*im[i1n-dx2] +  9*im[i1n-dx] + 12*im[i1n] +  9*im[i1n+dx] + 4*im[i1n+dx2]
-                       +5*im[i0 -dx2] + 12*im[i0 -dx] + 15*im[i0 ] + 12*im[i0 +dx] + 5*im[i0 +dx2]
-                       +4*im[i1s-dx2] +  9*im[i1s-dx] + 12*im[i1s] +  9*im[i1s+dx] + 4*im[i1s+dx2]
-                       +2*im[i2s-dx2] +  4*im[i2s-dx] +  5*im[i2s] +  4*im[i2s+dx] + 2*im[i2s+dx2]
-                      )+8192)&0xFFFFFFFF)>>>14)&255;
+            index = i+k; i0 = (index<<stride);
+            if (0 < stride && 0 === im[i0+3])
+            {
+                lowpassed[index] = 0;
+            }
+            else
+            {
+                i0 += channel;
+                i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
+                lowpassed[index] = (
+                g[0]*im[i2n-dx2] + g[1]*im[i2n-dx] + g[2]*im[i2n] + g[3]*im[i2n+dx] + g[4]*im[i2n+dx2]
+               +g[5]*im[i1n-dx2] + g[6]*im[i1n-dx] + g[7]*im[i1n] + g[8]*im[i1n+dx] + g[9]*im[i1n+dx2]
+               +g[10]*im[i0 -dx2] + g[11]*im[i0 -dx] + g[12]*im[i0 ] + g[13]*im[i0 +dx] + g[14]*im[i0 +dx2]
+               +g[15]*im[i1s-dx2] +  g[16]*im[i1s-dx] + g[17]*im[i1s] + g[18]*im[i1s+dx] + g[19]*im[i1s+dx2]
+               +g[20]*im[i2s-dx2] + g[21]*im[i2s-dx] + g[22]*im[i2s] + g[23]*im[i2s+dx] + g[24]*im[i2s+dx2]
+                );
+            }
         }
         dx = 1; dx2 = 2; dy = w; stride = 0; channel = 0;
     }
@@ -424,8 +457,8 @@ function gradient(im, w, h, stride, channel, do_lowpass, do_sat,
         if (i >= w_1) {i=1; k+=w; ++j; if (j>=h_1) break;}
         index = k+i; i0 = (index<<stride)+channel;
         i1s = i0+dy; i1n = i0-dy;
-        gX[index] = lowpassed[i1n+dx]-lowpassed[i1n-dx]+(lowpassed[i0+dx]<<1)-(lowpassed[i0-dx]<<1)+lowpassed[i1s+dx]-lowpassed[i1s-dx];
-        gY[index] = lowpassed[i1n-dx]-lowpassed[i1s-dx]+(lowpassed[i1n]<<1)-(lowpassed[i1s]<<1)+lowpassed[i1n+dx]-lowpassed[i1s+dx];
+        gX[index] = (lowpassed[i1n+dx]-lowpassed[i1n-dx])+2*(lowpassed[i0+dx]-lowpassed[i0-dx])+(lowpassed[i1s+dx]-lowpassed[i1s-dx]);
+        gY[index] = (lowpassed[i1n-dx]-lowpassed[i1s-dx])+2*(lowpassed[i1n]-lowpassed[i1s])+(lowpassed[i1n+dx]-lowpassed[i1s+dx]);
     }
     // do the next stages of canny edge processing
     return optimum_gradient(gX, gY, im, w, h, stride0, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
@@ -438,11 +471,19 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         MAGNITUDE_SCALE = 1; MAGNITUDE_LIMIT = 510; // 2*255
         MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
     }
-    var imSize = im.length, count = imSize>>>stride, index, i, j, k, sum,
-        w_1 = w-1, h_1 = h-1, i0, i1s, i2s, i1n, i2n, i1w, i1e, ine, inw, ise, isw,
-        g = new A32F(count), xGrad, yGrad, absxGrad, absyGrad, gradMag, tmp,
-        nMag, sMag, wMag, eMag, neMag, seMag, swMag, nwMag, gg,
-        x0, x1, x2, y0, y1, y2, x, y, y0w, yw, jj, ii, followedge, tm, tM;
+    var imSize = im.length,
+        count = imSize>>>stride,
+        index, i, j, k, sum,
+        w_1 = w-1, h_1 = h-1,
+        i0, i1s, i2s, i1n, i2n,
+        i1w, i1e, ine, inw, ise, isw,
+        g = new A32F(count), xGrad, yGrad,
+        absxGrad, absyGrad, gradMag, tmp,
+        nMag, sMag, wMag, eMag,
+        neMag, seMag, swMag, nwMag, gg,
+        x0, x1, x2, y0, y1, y2,
+        x, y, y0w, yw, jj, ii,
+        followedge, tm, tM;
 
     // non-maximal supression
     for (i=1,j=1,k=w; j<h_1; ++i)
@@ -500,7 +541,7 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
                     && tmp > Abs(yGrad * nwMag + (xGrad - yGrad) * wMag))
                 : ((tmp = absyGrad * gradMag) >= Abs(xGrad * seMag + (yGrad - xGrad) * sMag)
                     && tmp > Abs(xGrad * nwMag + (yGrad - xGrad) * nMag)));
-        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : Floor(MAGNITUDE_SCALE * gradMag)) : 0;
+        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : MAGNITUDE_SCALE * gradMag) : 0;
     }
     if (sat)
     {
@@ -526,26 +567,29 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         for (i=0,j=0,index=0,k=0; index<count; ++index,k=index<<stride,++i)
         {
             if (i >= w) {i=0; ++j;}
-            if ((0 !== im[k]) || (g[index] < high)) continue;
-
-            x0 = i; y0 = j; ii = k;
+            /*if ((0 === im[k]) && (g[index] >= high))
+            {
+                follow(im, w, h, g, i, j, index, stride, low);
+            }*/
+            if ((0 < im[k]) || (g[index] < high)) continue;
+            x1 = i; y1 = j; ii = k; jj = index;
             do {
                 // threshold here
-                if (stride) {im[ii] = im[ii+1] = im[ii+2] = 255;}
-                else {im[ii] = 255;}
+                if (stride) {im[ii] = im[ii+1] = im[ii+2] = /*g[jj]*/255;}
+                else {im[ii] = /*g[jj]*/255;}
 
-                x1 = x0 === 0 ? x0 : x0-1;
-                x2 = x0 === w_1 ? x0 : x0+1;
-                y1 = y0 === 0 ? y0 : y0-1;
-                y2 = y0 === h_1 ? y0 : y0+1;
-                y0w = y1*w;
-                x = x1; y = y1; yw = y0w; followedge = 0;
+                x0 = x1 === 0 ? x1 : x1-1;
+                x2 = x1 === w_1 ? x1 : x1+1;
+                y0 = y1 === 0 ? y1 : y1-1;
+                y2 = y1 === h_1 ? y1 : y1+1;
+                y0w = y0*w;
+                x = x0; y = y0; yw = y0w = y0*w; followedge = 0;
                 while (x <= x2 && y <= y2)
                 {
                     jj = x + yw; ii = jj << stride;
                     if ((y !== y1 || x !== x1) && (0 === im[ii]) && (g[jj] >= low))
                     {
-                        x0 = x; y0 = y;
+                        x1 = x; y1 = y;
                         followedge = 1; break;
                     }
                     ++y; yw+=w; if (y>y2) {y=y0; yw=y0w; ++x;}
@@ -555,14 +599,169 @@ function optimum_gradient(gX, gY, im, w, h, stride, sat, low, high, MAGNITUDE_SC
         return im;
     }
 }
+/*function follow(im, w, h, g, x1, y1, i1, stride, low)
+{
+    var
+        x0 = x1 === 0 ? x1 : x1 - 1,
+        x2 = x1 === w - 1 ? x1 : x1 + 1,
+        y0 = y1 === 0 ? y1 : y1 - 1,
+        y2 = y1 === h -1 ? y1 : y1 + 1,
+        x, y, yw, y0w, i2, j2
+    ;
+
+    j2 = i1 << stride;
+    im[j2] = g[i1];
+    if (0 < stride) im[j2+1] = im[j2+2] = im[j2];
+    x = x0, y = y0; y0w = yw = y0*w;
+    while (x <= x2 && y <= y2)
+    {
+        i2 = x + yw; j2 = i2 << stride;
+        if ((y !== y1 || x !== x1) && 0 === im[j2] && g[i2] >= low)
+        {
+            follow(im, w, h, g, x, y, i2, stride, low);
+            return;
+        }
+        ++y; if (y>y2) {y=y0; yw=y0w; ++x;}
+    }
+}*/
+function gradient_glsl()
+{
+var toFloat = FILTER.Util.GLSL.formatFloat,
+g = function(i, notsigned) {return toFloat(gauss_5_14[i], !notsigned);};
+return {
+'lowpass': [
+'vec4 lowpass(sampler2D img, vec2 pix, vec2 dp) {',
+'   float a = texture2D(img, pix).a;',
+'   if (0.0 == a || 0.0 > pix.x-2.0*dp.x || 0.0 > pix.y-2.0*dp.y || 1.0 < pix.x+2.0*dp.x || 1.0 < pix.y+2.0*dp.y) return vec4(0.0, 0.0, 0.0, a);',
+'   return vec4('+g(0,1)+'*texture2D(img, pix+vec2(-2.0,-2.0)*dp).rgb'+g(1)+'*texture2D(img, pix+vec2(-1.0,-2.0)*dp).rgb'+g(2)+'*texture2D(img, pix+vec2(0.0,-2.0)*dp).rgb'+g(3)+'*texture2D(img, pix+vec2(1.0,-2.0)*dp).rgb'+g(4)+'*texture2D(img, pix+vec2(2.0,-2.0)*dp).rgb'+g(5)+'*texture2D(img, pix+vec2(-2.0,-1.0)*dp).rgb'+g(6)+'*texture2D(img, pix+vec2(-1.0,-1.0)*dp).rgb'+g(7)+'*texture2D(img, pix+vec2(0.0,-1.0)*dp).rgb'+g(8)+'*texture2D(img, pix+vec2(1.0,-1.0)*dp).rgb'+g(9)+'*texture2D(img, pix+vec2(2.0,-1.0)*dp).rgb'+g(10)+'*texture2D(img, pix+vec2(-2.0,0.0)*dp).rgb'+g(11)+'*texture2D(img, pix+vec2(-1.0,0.0)*dp).rgb'+g(12)+'*texture2D(img, pix+vec2(0.0,0.0)*dp).rgb'+g(13)+'*texture2D(img, pix+vec2(1.0,0.0)*dp).rgb'+g(14)+'*texture2D(img, pix+vec2(2.0,0.0)*dp).rgb'+g(15)+'*texture2D(img, pix+vec2(-2.0,1.0)*dp).rgb'+g(16)+'*texture2D(img, pix+vec2(-1.0,1.0)*dp).rgb'+g(17)+'*texture2D(img, pix+vec2(0.0,1.0)*dp).rgb'+g(18)+'*texture2D(img, pix+vec2(1.0,1.0)*dp).rgb'+g(19)+'*texture2D(img, pix+vec2(2.0,1.0)*dp).rgb'+g(20)+'*texture2D(img, pix+vec2(-2.0,2.0)*dp).rgb'+g(21)+'*texture2D(img, pix+vec2(-1.0,2.0)*dp).rgb'+g(22)+'*texture2D(img, pix+vec2(0.0,2.0)*dp).rgb'+g(23)+'*texture2D(img, pix+vec2(1.0,2.0)*dp).rgb'+g(24)+'*texture2D(img, pix+vec2(2.0,2.0)*dp).rgb, a);',
+'}'
+].join('\n'),
+'gradient': [
+'vec2 sobel_gradient(sampler2D i, vec2 p, vec2 d) {',
+'   if (0.0 > pix.x-d.x || 0.0 > pix.y-d.y || 1.0 < pix.x+d.x || 1.0 < pix.y+d.y) return vec2(0.0);',
+'    return vec2(',
+'    (texture2D(i, p+vec2(1.0,-1.0)*d).r-texture2D(i, p+vec2(-1.0,-1.0)*d).r)',
+'    +2.0*(texture2D(i, p+vec2(1.0,0.0)*d).r-texture2D(i, p+vec2(-1.0,0.0)*d).r)',
+'    +(texture2D(i, p+vec2(1.0,1.0)*d).r-texture2D(i, p+vec2(-1.0,1.0)*d).r)',
+'    ,',
+'    (texture2D(i, p+vec2(-1.0,-1.0)*d).r-texture2D(i, p+vec2(-1.0,1.0)*d).r)',
+'    +2.0*(texture2D(i, p+vec2(0.0,-1.0)*d).r-texture2D(i, p+vec2(0.0,1.0)*d).r)',
+'    +(texture2D(i, p+vec2(1.0,-1.0)*d).r-texture2D(i, p+vec2(1.0,1.0)*d).r)',
+'    );',
+'}',
+'float gradient_suppressed(sampler2D img, vec2 pix, vec2 dp, float magnitude_scale, float magnitude_limit, float magnitude_max) {',
+'    vec2 g = sobel_gradient(img, pix, dp);',
+'    vec2 gn = sobel_gradient(img, pix+vec2(0.0,-1.0)*dp, dp);',
+'    vec2 gs = sobel_gradient(img, pix+vec2(0.0,1.0)*dp, dp);',
+'    vec2 gw = sobel_gradient(img, pix+vec2(-1.0,0.0)*dp, dp);',
+'    vec2 ge = sobel_gradient(img, pix+vec2(1.0,0.0)*dp, dp);',
+'    vec2 gnw = sobel_gradient(img, pix+vec2(-1.0,-1.0)*dp, dp);',
+'    vec2 gne = sobel_gradient(img, pix+vec2(1.0,-1.0)*dp, dp);',
+'    vec2 gsw = sobel_gradient(img, pix+vec2(-1.0,1.0)*dp, dp);',
+'    vec2 gse = sobel_gradient(img, pix+vec2(1.0,1.0)*dp, dp);',
+'    float gM = length(g);',
+'    float gnM = length(gn);',
+'    float gsM = length(gs);',
+'    float gwM = length(gw);',
+'    float geM = length(ge);',
+'    float gnwM = length(gnw);',
+'    float gneM = length(gne);',
+'    float gswM = length(gsw);',
+'    float gseM = length(gse);',
+'    float gg = 0.0; float tmp;',
+'    if (g.x*g.y <= 0.0)',
+'    {',
+'        if (abs(g.x) >= abs(g.y))',
+'        {',
+'            tmp = abs(g.x)*gM;',
+'            if (tmp >= abs(g.y * gneM - (g.x + g.y) * geM) && tmp > abs(g.y * gswM - (g.x + g.y) * gwM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'        else',
+'        {',
+'            tmp = abs(g.y)*gM;',
+'            if (tmp >= abs(g.x * gneM - (g.y + g.x) * gnM) && tmp > abs(g.x * gswM - (g.y + g.x) * gsM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'    }',
+'    else',
+'    {',
+'        if (abs(g.x) >= abs(g.y))',
+'        {',
+'            tmp = abs(g.x)*gM;',
+'            if (tmp >= abs(g.y * gseM + (g.x - g.y) * geM) && tmp > abs(g.y * gnwM + (g.x - g.y) * gwM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'        else',
+'        {',
+'            tmp = abs(g.y)*gM;',
+'            if (tmp >= abs(g.x * gseM + (g.y - g.x) * gsM)',
+'                && tmp > abs(g.x * gnwM + (g.y - g.x) * gnM))',
+'            {',
+'                gg = 1.0;',
+'            }',
+'        }',
+'    }',
+'    if (0.0 < gg)',
+'    {',
+'        if (gM >= magnitude_limit)',
+'        {',
+'            gg = magnitude_max;',
+'        }',
+'        else',
+'        {',
+'            gg = magnitude_scale * gM;',
+'        }',
+'    }',
+'    return gg;',
+'}',
+'vec4 gradient(sampler2D img, vec2 pix, vec2 dp, float low, float high, float magnitude_scale, float magnitude_limit, float magnitude_max) {',
+'    float a = texture2D(img, pix).a;',
+'    if (0.0 == a) return vec4(0.0);',
+'    float g = gradient_suppressed(img, pix, dp, magnitude_scale, magnitude_limit, magnitude_max);',
+'    if (g >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (g < low)',
+'        return vec4(vec3(0.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,0.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        gl_FragColor = vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(-1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        gl_FragColor = vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(0.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(0.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,-1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,0.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else if (gradient_suppressed(img, pix+vec2(1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
+'        return vec4(vec3(1.0), a);',
+'    else',
+'        return vec4(vec3(0.0), a);',
+'}'
+].join('\n')
+};
+}
 
 // speed-up convolution for special kernels like moving-average
-function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
     //"use asm";
-    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
-        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen,
+        colR, colG, colB,
+        matRadiusX=dimX, matRadiusY=dimY, matArea, matArea2,
+        matHalfSideX, matHalfSideY, matHalfSideX2, matHalfSideY2,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        matOffsetLeft2, matOffsetRight2, matOffsetTop2, matOffsetBottom2,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
         r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
@@ -576,6 +775,10 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    matArea2 = dimX2*dimY2;
+    matHalfSideX2 = dimX2>>>1;  matHalfSideY2 = w*(dimY2>>>1);
+    matOffsetLeft2 = -matHalfSideX2-1; matOffsetTop2 = -matHalfSideY2-w;
+    matOffsetRight2 = matHalfSideX2; matOffsetBottom2 = matHalfSideY2;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
 
     dst = im; im = new IMG(imLen);
@@ -589,7 +792,7 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -630,10 +833,10 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     xOff2=x + matOffsetRight; yOff2=ty + matOffsetBottom;
 
                     // fix borders
-                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
-                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
-                    yOff1 = yOff1<by1 ? by1 : yOff1;
-                    yOff2 = yOff2>by2 ? by2 : yOff2;
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
 
                     // compute integral positions
                     p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
@@ -641,6 +844,22 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
                     r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
 
                     // output
@@ -724,7 +943,7 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -785,6 +1004,24 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
                     g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                     b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
 
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                     g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                     b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
@@ -873,12 +1110,15 @@ function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dim
     }
     return dst;
 }
-function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, coeff1, coeff2, numRepeats)
+function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
     //"use asm";
-    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen, colR, colG, colB,
-        matRadiusX=dimX, matRadiusY=dimY, matHalfSideX, matHalfSideY, matArea,
+    var imLen=im.length, imArea=imLen>>>stride, integral, integralLen,
+        colR, colG, colB,
+        matRadiusX=dimX, matRadiusY=dimY, matArea, matArea2,
+        matHalfSideX, matHalfSideY, matHalfSideX2, matHalfSideY2,
         dst, rowLen, matOffsetLeft, matOffsetRight, matOffsetTop, matOffsetBottom,
+        matOffsetLeft2, matOffsetRight2, matOffsetTop2, matOffsetBottom2,
         i, j, x, y, ty, wt, wtCenter, centerOffset, wt2, wtCenter2, centerOffset2,
         xOff1, yOff1, xOff2, yOff2, bx1, by1, bx2, by2, p1, p2, p3, p4, t0, t1, t2,
         r, g, b, r2, g2, b2, repeat, tmp, w4 = w<<stride, ii = 1<<stride;
@@ -892,6 +1132,10 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
     // one additional offest needed due to integral computation
     matOffsetLeft = -matHalfSideX-1; matOffsetTop = -matHalfSideY-w;
     matOffsetRight = matHalfSideX; matOffsetBottom = matHalfSideY;
+    matArea2 = dimX2*dimY2;
+    matHalfSideX2 = dimX2>>>1;  matHalfSideY2 = w*(dimY2>>>1);
+    matOffsetLeft2 = -matHalfSideX2-1; matOffsetTop2 = -matHalfSideY2-w;
+    matOffsetRight2 = matHalfSideX2; matOffsetBottom2 = matHalfSideY2;
     bx1 = 0; bx2 = w-1; by1 = 0; by2 = imArea-w;
 
     dst = im; im = new IMG(imLen);
@@ -905,7 +1149,7 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -957,6 +1201,22 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
                     // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     // also fix the center element (in case it is different)
                     r = wt * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset * im[i  ]);
+
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                     xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                     xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                     yOff1 = yOff1<by1 ? by1 : yOff1;
+                     yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
 
                     // output
@@ -1044,7 +1304,7 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
         if (matrix2) // allow to compute a second matrix in-parallel
         {
             wt = matrix[0]; wtCenter = matrix[matArea>>>1]; centerOffset = wtCenter-wt;
-            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea>>>1]; centerOffset2 = wtCenter2-wt2;
+            wt2 = matrix2[0]; wtCenter2 = matrix2[matArea2>>>1]; centerOffset2 = wtCenter2-wt2;
 
             // do this multiple times??
             for (repeat=0; repeat<numRepeats; ++repeat)
@@ -1105,6 +1365,24 @@ function integral_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, dim
                     g = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset * im[i+1]);
                     b = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset * im[i+2]);
 
+                    // calculate the weighed sum of the source image pixels that
+                    // fall under the convolution matrix
+                    xOff1=x + matOffsetLeft2; yOff1=ty + matOffsetTop2;
+                    xOff2=x + matOffsetRight2; yOff2=ty + matOffsetBottom2;
+
+                    // fix borders
+                    xOff1 = xOff1<bx1 ? bx1 : xOff1;
+                    xOff2 = xOff2>bx2 ? bx2 : xOff2;
+                    yOff1 = yOff1<by1 ? by1 : yOff1;
+                    yOff2 = yOff2>by2 ? by2 : yOff2;
+
+                    // compute integral positions
+                    p1=xOff1 + yOff1; p4=xOff2 + yOff2; p2=xOff2 + yOff1; p3=xOff1 + yOff2;
+                    // arguably faster way to write p1*=3; etc..
+                    p1=(p1<<1) + p1; p2=(p2<<1) + p2; p3=(p3<<1) + p3; p4=(p4<<1) + p4;
+
+                    // compute matrix sum of these elements (trying to avoid possible overflow in the process, order of summation can matter)
+                    // also fix the center element (in case it is different)
                     r2 = wt2 * (integral[p4  ] - integral[p2  ] - integral[p3  ] + integral[p1  ])  +  (centerOffset2 * im[i  ]);
                     g2 = wt2 * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1])  +  (centerOffset2 * im[i+1]);
                     b2 = wt2 * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2])  +  (centerOffset2 * im[i+2]);
@@ -1210,7 +1488,7 @@ function separable_convolution(mode, im, w, h, stride, matrix, matrix2, ind1, in
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2, ii = 1<<stride,
-        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        xOff, yOff, srcOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
 
     // pre-compute indices,
@@ -1323,7 +1601,7 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
         matArea, mat, indices, matArea2,
         dst, imageIndices, imageIndices1, imageIndices2,
         i, j, k, x, ty, ty2, ii = 1<<stride,
-        xOff, yOff, bx, by, t0, t1, t2, t3, wt,
+        xOff, yOff, srcOff, bx, by, t0, t1, t2, t3, wt,
         r, g, b, a, coeff, numPasses, tmp;
 
     // pre-compute indices,
@@ -1614,10 +1892,12 @@ FilterUtil.am_eye = am_eye;
 FilterUtil.am_multiply = am_multiply;
 FilterUtil.cm_combine = cm_combine;
 FilterUtil.cm_convolve = cm_convolve;
+FilterUtil.gaussian = gaussian;
 FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
 FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
+FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
 

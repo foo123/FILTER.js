@@ -34,9 +34,10 @@ FILTER.Create({
     }
 
     ,serialize: function() {
-        var self = this;
+        var self = this, isfunc = 'function' === typeof self.color;
         return {
-             color: self.color
+             isfunc: isfunc
+            ,color: isfunc ? self.color.toString() : self.color
             ,border: self.border
             ,x: self.x
             ,y: self.y
@@ -46,7 +47,8 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.color = params.color;
+        if (params.isfunc) self.color = (new Function('FILTER', 'return '+params.color+';'))(FILTER);
+        else self.color = params.color;
         self.border = params.border;
         self.x = params.x;
         self.y = params.y;
@@ -57,22 +59,26 @@ FILTER.Create({
     ,apply: function(im, w, h) {
         var self = this, mode = self.mode || MODE.COLOR,
             color = self.color||0, border = self.border, exterior = null != border,
-            x0 = self.x||0, y0 = self.y||0, x, y, x1, y1, x2, y2, k, i, l,
-            r, g, b, r0, g0, b0, rb, gb, bb, col, dist, D0, D1, region, box, mask, block_mask,
-            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB;
+            x0 = self.x||0, y0 = self.y||0, x, y, yy, x1, y1, x2, y2, k, i, l,
+            r, g, b, a, r0, g0, b0, rb, gb, bb, col, dist, D0, D1, region, box, mask, block_mask,
+            RGB2HSV = FILTER.Color.RGB2HSV, HSV2RGB = FILTER.Color.HSV2RGB,
+            c, isfunc = 'function' === typeof color;
 
         if (x0 < 0 || x0 >= w || y0 < 0 || y0 >= h) return im;
 
+        if (!isfunc)
+        {
+            r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
+        }
         x0 = x0<<2; y0 = (y0*w)<<2; i = x0+y0;
         r0 = im[i]; g0 = im[i+1]; b0 = im[i+2]; D0 = 0; D1 = 1;
-        r = (color>>>16)&255; g = (color>>>8)&255; b = color&255;
         if (exterior)
         {
            rb = (border>>>16)&255; gb = (border>>>8)&255; bb = (border)&255;
            if (r0 === rb && g0 === gb && b0 === bb) return im;
            r0 = rb; g0 = gb; b0 = bb; D0 = 1; D1 = 0;
         }
-        else if (MODE.COLOR === mode && r0 === r && g0 === g && b0 === b)
+        else if (MODE.COLOR === mode && !isfunc && r0 === r && g0 === g && b0 === b)
         {
             return im;
         }
@@ -87,15 +93,31 @@ FILTER.Create({
         {
             // MODE.MASK returns the region mask, rest image is put blank
             block_mask = MODE.MASK === mode;
-            x=0; y=0;
+            x=0; y=yy=0;
             for (i=0,l=im.length; i<l; i+=4,++x)
             {
-                if (x>=w) {x=0; y+=w;}
+                if (x>=w) {x=0; ++yy; y+=w;}
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
                 {
                     // use mask color
-                    if (block_mask) {im[i  ] = r; im[i+1] = g; im[i+2] = b;}
+                    if (block_mask)
+                    {
+                        if (isfunc)
+                        {
+                            c = color(x, yy);
+                            r = c[0]; g = c[1]; b = c[2];
+                            a = 3 < c.length ? c[3] : im[i+3]
+                        }
+                        else
+                        {
+                            a = im[i+3];
+                        }
+                        im[i  ] = r;
+                        im[i+1] = g;
+                        im[i+2] = b;
+                        im[i+3] = a;
+                    }
                     // else leave original color
                 }
                 else
@@ -111,7 +133,7 @@ FILTER.Create({
             x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
             col = new A32F(3);
 
-            for (x=x1,y=y1; y<=y2;)
+            for (x=x1,y=y1,yy=y/w; y<=y2;)
             {
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
@@ -121,11 +143,21 @@ FILTER.Create({
                     col[1] = im[i+1];
                     col[2] = im[i+2];
                     RGB2HSV(col, 0, 1);
-                    col[0] = color;
+                    if (isfunc)
+                    {
+                        c = color(x, yy);
+                    }
+                    else
+                    {
+                        c = color;
+                    }
+                    col[0] = c;
                     HSV2RGB(col, 0, 1);
-                    im[i  ] = col[0]|0; im[i+1] = col[1]|0; im[i+2] = col[2]|0;
+                    im[i  ] = col[0]|0;
+                    im[i+1] = col[1]|0;
+                    im[i+2] = col[2]|0;
                 }
-                if (++x > x2) {x=x1; y+=w;}
+                if (++x > x2) {x=x1; ++yy; y+=w;}
             }
         }
         else //if (MODE.COLOR === mode)
@@ -133,17 +165,28 @@ FILTER.Create({
             // fill/replace color in region
             box = region.box;
             x1 = box[0]>>>2; y1 = box[1]>>>2; x2 = box[2]>>2; y2 = box[3]>>>2;
-            for (x=x1,y=y1; y<=y2;)
+            for (x=x1,y=y1,yy=y/w; y<=y2;)
             {
                 k = x+y;
                 if (mask[k>>>5]&(1<<(k&31)))
                 {
                     i = k << 2;
+                    if (isfunc)
+                    {
+                        c = color(x, yy);
+                        r = c[0]; g = c[1]; b = c[2];
+                        a = 3 < c.length ? c[3] : im[i+3]
+                    }
+                    else
+                    {
+                        a = im[i+3];
+                    }
                     im[i  ] = r;
                     im[i+1] = g;
                     im[i+2] = b;
+                    im[i+3] = a;
                 }
-                if (++x > x2) {x=x1; y+=w;}
+                if (++x > x2) {x=x1; ++yy; y+=w;}
             }
         }
         // return the new image data

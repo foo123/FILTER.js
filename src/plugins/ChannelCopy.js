@@ -108,7 +108,7 @@ FILTER.Create({
             if (x>=w) {x=0; ++y;}
 
             xc = x - cX; yc = y - cY;
-            if (xc<0 || xc>=wm || yc<0 || yc>=hm)
+            if (xc<0 || xc>=w2 || yc<0 || yc>=h2)
             {
                 if (COLOR32 === mode) {im[i  ] = r; im[i+1] = g; im[i+2] = b; im[i+3] = a;}
                 else if (MASK32 === mode) { im[i  ] = r & im[i  ]; im[i+1] = g & im[i+1]; im[i+2] = b & im[i+2]; im[i+3] = a & im[i+3];}

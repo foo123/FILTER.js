@@ -1,5 +1,14 @@
 ## ChangeLog
 
+__1.6.0__
+
+* ConvolutionMatrixFilter.bilateral filter, true ConvolutionMatrixFilter.gauss filter
+* ConvolutionMatrixFilter correct separable convolutions and custom functional kernels
+* ColorFillFilter.color can be custom function returning color for specific x,y coordinates (eg a gradient)
+* ChannelCopyFilter size correction
+* CannyEdges review, update and make GLSL version
+* fix some typos and omissions
+
 __1.5.7__
 
 * Blend GLSL filter
