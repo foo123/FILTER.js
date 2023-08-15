@@ -47,11 +47,12 @@ var ConvolutionMatrixFilter = FILTER.Create({
     name: "ConvolutionMatrixFilter"
 
     ,init: function ConvolutionMatrixFilter(weights, factor, bias, mode) {
-        var self = this;
+        var self = this, d;
         self._coeff = new CM([1.0, 0.0]);
         if (weights && weights.length)
         {
-            self.set(weights, (Sqrt(weights.length)+0.5)|0, factor||1.0, bias||0.0);
+            d = (Sqrt(weights.length)+0.5)|0;
+            self.set(weights, d, d, factor||1.0, bias||0.0);
         }
         self.mode = mode || MODE.RGB;
     }
@@ -368,8 +369,10 @@ var ConvolutionMatrixFilter = FILTER.Create({
         self._mat2 = self._w = null;
 
         self.matrix = new CM(m);
+        if (null == dy) dy = dx;
         self.dimx = dx; self.dimy = dy;
-        self._coeff[0] = f||1; self._coeff[1] = b||0;
+        if (null == f) {f = 1; b = 0;}
+        self._coeff[0] = f; self._coeff[1] = b||0;
         tmp = indices(self.matrix, self.dimx, self.dimy);
         self._indices = tmp[0]; self._indicesf = tmp[1]; self._mat = tmp[2];
 
