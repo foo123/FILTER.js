@@ -746,7 +746,7 @@ return {
 '    else if (gradient_suppressed(img, pix+vec2(1.0,1.0), dp, magnitude_scale, magnitude_limit, magnitude_max) >= high)',
 '        return vec4(vec3(1.0), a);',
 '    else',
-'        return vec4(vec3((g-low)/(high-low)), a);',
+'        return vec4(vec3(clamp((g-low)/(high-low)-0.1, 0.0, 0.9)/0.9), a);',
 '}'
 ].join('\n')
 };

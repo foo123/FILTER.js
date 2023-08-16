@@ -486,7 +486,7 @@ var ConvolutionMatrixFilter = FILTER.Create({
             t0, t1, t2, t3, i, j, k, x, ty, ty2, tm, tM,
             xOff, yOff, srcOff, r, g, b, a, r2, g2, b2, a2,
             bx = w-1, by = imArea-w, coeff1 = self._coeff[0], coeff2 = self._coeff[1],
-            mat = self.matrix, mat2 = self.matrix2, wt, wt2, _isGrad = self._isGrad,
+            mat = self._mat, mat2 = self._mat2, wt, wt2, _isGrad = self._isGrad,
             mArea, matArea, imageIndices,
             mArea2, matArea2, imageIndices2, ma;
 
@@ -497,12 +497,12 @@ var ConvolutionMatrixFilter = FILTER.Create({
             {
                 // pre-compute indices,
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = self._indicesf.length;
-                imageIndices = new A16I(self._indicesf);
+                mArea = self._indices.length;
+                imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
                 matArea = mat.length;
-                mArea2 = self._indicesf2.length;
-                imageIndices2 = new A16I(self._indicesf2);
+                mArea2 = self._indices2.length;
+                imageIndices2 = new A16I(self._indices2);
                 for (k=0; k<mArea2; k+=2) imageIndices2[k+1] *= w;
                 matArea2 = mat2.length;
 
@@ -576,7 +576,6 @@ var ConvolutionMatrixFilter = FILTER.Create({
                 mArea = self._indices.length;
                 imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
-                mat = self._mat;
                 matArea = mat.length;
 
                 // do direct convolution
@@ -616,12 +615,12 @@ var ConvolutionMatrixFilter = FILTER.Create({
             {
                 // pre-compute indices,
                 // reduce redundant computations inside the main convolution loop (faster)
-                mArea = self._indicesf.length;
-                imageIndices = new A16I(self._indicesf);
+                mArea = self._indices.length;
+                imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
                 matArea = mat.length;
-                mArea2 = self._indicesf2.length;
-                imageIndices2 = new A16I(self._indicesf2);
+                mArea2 = self._indices2.length;
+                imageIndices2 = new A16I(self._indices2);
                 for (k=0; k<mArea2; k+=2) imageIndices2[k+1] *= w;
                 matArea2 = mat2.length;
 
@@ -724,7 +723,6 @@ var ConvolutionMatrixFilter = FILTER.Create({
                 mArea = self._indices.length;
                 imageIndices = new A16I(self._indices);
                 for (k=0; k<mArea; k+=2) imageIndices[k+1] *= w;
-                mat = self._mat;
                 matArea = mat.length;
 
                 // do direct convolution
@@ -846,7 +844,7 @@ function glsl(filter)
         return [def.join('\n')+'\n'+calc.join('\n'), 'vec4(o/f,col.a)'];
     };
     var toFloat = GLSL.formatFloat, code, output,
-        m = filter.matrix, m2 = filter.matrix2, dx, dy, f, t;
+        m = filter.matrix, m2 = filter.matrix2, t;
     if (!m) return {instance: filter, shader: GLSL.DEFAULT};
     if (filter._w)
     {
@@ -895,9 +893,36 @@ function glsl(filter)
         ].join('\n'), iterations: filter._doIntegral || 1});
         return output;
     }
+    else if (filter._doSeparable && m2)
+    {
+        output = [];
+        code = matrix_code(m, null, filter.dimx, filter.dimy, filter.dimx, filter.dimy, filter._coeff[0], 0, false);
+        output.push({instance: filter, shader: [
+        'precision mediump float;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform vec2 dp;',
+        'void main(void) {',
+        code[0],
+        'gl_FragColor = '+code[1]+';',
+        '}'
+        ].join('\n'), iterations: 1});
+        code = matrix_code(m2, null, filter.dimx2, filter.dimy2, filter.dimx2, filter.dimy2, filter._coeff[1], 0, false);
+        output.push({instance: filter, shader: [
+        'precision mediump float;',
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform vec2 dp;',
+        'void main(void) {',
+        code[0],
+        'gl_FragColor = '+code[1]+';',
+        '}'
+        ].join('\n'), iterations: 1});
+        return output;
+    }
     else
     {
-        dx = filter.dimx; dy = filter.dimy;
+        /*dx = filter.dimx; dy = filter.dimy;
         f = filter._coeff;
         if (filter._doSeparable && m2)
         {
@@ -906,8 +931,8 @@ function glsl(filter)
             dy = filter.dimy*filter.dimy2;
             f = [1, 0]
             m2 = null;
-        }
-        code = matrix_code(m, m2, dx, dy, filter.dimx2, filter.dimy2, f[0], f[1], filter._isGrad);
+        }*/
+        code = matrix_code(m, m2, filter.dimx, filter.dimy, filter.dimx2, filter.dimy2, filter._coeff[0], filter._coeff[1], filter._isGrad);
         return {instance: filter, shader: [
         'precision mediump float;',
         'varying vec2 pix;',

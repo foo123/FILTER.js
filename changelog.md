@@ -3,7 +3,7 @@
 __1.6.0__
 
 * ConvolutionMatrixFilter.bilateral filter, true ConvolutionMatrixFilter.gauss filter
-* ConvolutionMatrixFilter correct separable convolutions and custom functional kernels
+* ConvolutionMatrixFilter correct and optimize separable convolutions and custom functional kernels
 * ColorFillFilter.color can be custom function returning color for specific x,y coordinates (eg a gradient)
 * ChannelCopyFilter size correction
 * CannyEdges review, update and make GLSL version
