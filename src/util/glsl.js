@@ -249,6 +249,10 @@ function prepareGL(img, ws, hs)
 }
 function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
 {
+    var iterations = glsl.iterations || 1,
+        i, src, dst, t, prevUnit = 1,
+        flip = false, last = iterations - 1;
+
     gl.useProgram(program.id);
     if ('pos' in program.attribute)
     {
@@ -274,12 +278,30 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     {
         gl.uniform1i(program.uniform.mode, glsl.instance.mode);
     }
+    if (('_img_prev_prev' in program.uniform) && prev[1])
+    {
+        gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
+        gl.bindTexture(gl.TEXTURE_2D, prev[1]);
+        gl.uniform1i(program.uniform._img_prev_prev, prevUnit + 1);
+    }
+    if (('_img_prev' in program.uniform) && prev[0])
+    {
+        if (!('img' in program.uniform))
+        {
+            input = {fbo:null, tex:prev[0]};
+            /*gl.activeTexture(gl.TEXTURE0 + 0);
+            gl.bindTexture(gl.TEXTURE_2D, prev[0]);
+            gl.uniform1i(program.uniform._img_prev, 0);*/
+        }
+        else
+        {
+            gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
+            gl.bindTexture(gl.TEXTURE_2D, prev[0]);
+            gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
+        }
+    }
     if (glsl.vars) glsl.vars(gl, w, h, program);
     if (glsl.textures) glsl.textures(gl, w, h, program);
-
-    var iterations = glsl.iterations || 1,
-        i, src, dst, t, prevUnit = 1,
-        flip = false, last = iterations - 1;
 
     for (i=0; i<iterations; ++i)
     {
@@ -302,31 +324,13 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        if ('_img_prev_prev' in program.uniform)
+        if (('_img_prev' in program.uniform) && !('img' in program.uniform))
         {
-            if (prev[1])
-            {
-                gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
-                gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-                gl.uniform1i(program.uniform._img_prev_prev, prevUnit + 1);
-            }
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, src.tex);
+            gl.uniform1i(program.uniform._img_prev, 0);
         }
-        if ('_img_prev' in program.uniform)
-        {
-            if (!('img' in program.uniform))
-            {
-                gl.activeTexture(gl.TEXTURE0 + 0);
-                gl.bindTexture(gl.TEXTURE_2D, src.tex);
-                gl.uniform1i(program.uniform._img_prev, 0);
-            }
-            else if (prev[0])
-            {
-                gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
-                gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-                gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
-            }
-        }
-        if ('img' in program.uniform)
+        else if ('img' in program.uniform)
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
@@ -402,7 +406,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             if (i === first)
             {
                 if (!input) input = uploadTexture(gl, im, w, h, 0);
-                src = {fbo: input, tex: input};
+                src = {fbo: null, tex: input};
             }
             else
             {
