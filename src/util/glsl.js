@@ -271,6 +271,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
 
+    if (gl.isContextLost && gl.isContextLost()) return true;
     gl.useProgram(program.id);
     if ('pos' in program.attribute)
     {
@@ -370,14 +371,43 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     }
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
-    var gl = prepareGL(img, w, h), input, output,
+    var gl = prepareGL(img, w, h),
+        input = null, output = null,
         i, n = glsls.length, glsl,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, ctxLost, cleanUp,
-        first = -1, last = -1, fromshader = false, flipY = false;
+        canRun, isContextLost, cleanUp, lost
+        first = -1, last = -1,
+        fromshader = false, flipY = false;
     if (!gl) return;
+    cleanUp = function() {
+        // clean up
+        deleteBuffer(gl, pos);
+        deleteBuffer(gl, uv);
+        deleteTexture(gl, input);
+        deleteFramebufferTexture(gl, output);
+        deleteTexture(gl, prev[1]);
+        deleteTexture(gl, prev[0]);
+        deleteFramebufferTexture(gl, buf[0]);
+        deleteFramebufferTexture(gl, buf[1]);
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        pos = null;
+        uv = null;
+        input = null;
+        output = null;
+        prev = null;
+        buf = null;
+        buf0 = null;
+        buf1 = null;
+    };
+    lost = function() {
+        cleanUp();
+        img.cache = {}; // need to recompile programs?
+        FILTER.log('GL context lost on #'+img.id);
+    };
+    if (gl.isContextLost && gl.isContextLost()) return lost();
     for (i=0; i<n; ++i)
     {
         if (glsls[i].shader && 0 > first) first = i;
@@ -402,34 +432,11 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         1, 1
     ]));
     gl.viewport(0, 0, w, h);
-    input = null;
-    output = null;
     if (last > first)
     {
         buf0 = createFramebufferTexture(gl, w, h);
         buf1 = createFramebufferTexture(gl, w, h);
     }
-    cleanUp = function() {
-        // clean up
-        deleteBuffer(gl, pos);
-        deleteBuffer(gl, uv);
-        deleteTexture(gl, input);
-        deleteFramebufferTexture(gl, output);
-        deleteTexture(gl, prev[1]);
-        deleteTexture(gl, prev[0]);
-        deleteFramebufferTexture(gl, buf[0]);
-        deleteFramebufferTexture(gl, buf[1]);
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        pos = null;
-        uv = null;
-        input = null;
-        output = null;
-        prev = null;
-        buf = null;
-        buf0 = null;
-        buf1 = null;
-    };
     for (i=0; i<n; ++i)
     {
         canRun = false;
@@ -468,14 +475,8 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            ctxLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
-            if (ctxLost || (gl.isContextLost && gl.isContextLost()))
-            {
-                cleanUp();
-                img.cache = {}; // need to recompile programs?
-                FILTER.log('GL context lost on #'+img.id);
-                return;
-            }
+            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;

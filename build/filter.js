@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-17 09:28:26
+*   @built on 2023-08-17 10:55:43
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-17 09:28:26
+*   @built on 2023-08-17 10:55:43
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1444,21 +1444,34 @@ FILTER.setGLDimensions = function(img, w, h) {
     }
     return img;
 };
+function contextLostHandler(evt)
+{
+    evt.preventDefault && evt.preventDefault();
+}
 FILTER.getGL = function(img, w, h) {
     if (img && FILTER.supportsGLSL())
     {
-        if (!img.gl) img.gl = FILTER.Canvas(w, h);
-        if (isBrowser && img.gl && img.gl.addEventListener)
+        if (!img.gl)
         {
-            img.gl.addEventListener('webglcontextlost', function(evt) {
-                evt.preventDefault && evt.preventDefault();
-            }, false);
+            img.gl = FILTER.Canvas(w, h);
+            if (isBrowser && img.gl && img.gl.addEventListener)
+            {
+                img.gl.addEventListener('webglcontextlost', contextLostHandler, false);
+            }
         }
         FILTER.setGLDimensions(img, w, h);
         return img.gl.getContext(glctx);
     }
 };
-
+FILTER.disposeGL = function(img) {
+    if (img && img.gl)
+    {
+        if (isBrowser && img.gl.removeEventListener)
+        {
+            img.gl.removeEventListener('webglcontextlost', contextLostHandler, false);
+        }
+    }
+};
 }(FILTER);
 /**
 *
@@ -3636,6 +3649,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
 
+    if (gl.isContextLost && gl.isContextLost()) return true;
     gl.useProgram(program.id);
     if ('pos' in program.attribute)
     {
@@ -3735,14 +3749,43 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     }
 }
 GLSL.run = function(img, glsls, im, w, h, metaData) {
-    var gl = prepareGL(img, w, h), input, output,
+    var gl = prepareGL(img, w, h),
+        input = null, output = null,
         i, n = glsls.length, glsl,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, ctxLost, cleanUp,
-        first = -1, last = -1, fromshader = false, flipY = false;
+        canRun, isContextLost, cleanUp, lost
+        first = -1, last = -1,
+        fromshader = false, flipY = false;
     if (!gl) return;
+    cleanUp = function() {
+        // clean up
+        deleteBuffer(gl, pos);
+        deleteBuffer(gl, uv);
+        deleteTexture(gl, input);
+        deleteFramebufferTexture(gl, output);
+        deleteTexture(gl, prev[1]);
+        deleteTexture(gl, prev[0]);
+        deleteFramebufferTexture(gl, buf[0]);
+        deleteFramebufferTexture(gl, buf[1]);
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        pos = null;
+        uv = null;
+        input = null;
+        output = null;
+        prev = null;
+        buf = null;
+        buf0 = null;
+        buf1 = null;
+    };
+    lost = function() {
+        cleanUp();
+        img.cache = {}; // need to recompile programs?
+        FILTER.log('GL context lost on #'+img.id);
+    };
+    if (gl.isContextLost && gl.isContextLost()) return lost();
     for (i=0; i<n; ++i)
     {
         if (glsls[i].shader && 0 > first) first = i;
@@ -3767,34 +3810,11 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         1, 1
     ]));
     gl.viewport(0, 0, w, h);
-    input = null;
-    output = null;
     if (last > first)
     {
         buf0 = createFramebufferTexture(gl, w, h);
         buf1 = createFramebufferTexture(gl, w, h);
     }
-    cleanUp = function() {
-        // clean up
-        deleteBuffer(gl, pos);
-        deleteBuffer(gl, uv);
-        deleteTexture(gl, input);
-        deleteFramebufferTexture(gl, output);
-        deleteTexture(gl, prev[1]);
-        deleteTexture(gl, prev[0]);
-        deleteFramebufferTexture(gl, buf[0]);
-        deleteFramebufferTexture(gl, buf[1]);
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        pos = null;
-        uv = null;
-        input = null;
-        output = null;
-        prev = null;
-        buf = null;
-        buf0 = null;
-        buf1 = null;
-    };
     for (i=0; i<n; ++i)
     {
         canRun = false;
@@ -3833,14 +3853,8 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            ctxLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
-            if (ctxLost || (gl.isContextLost && gl.isContextLost()))
-            {
-                cleanUp();
-                img.cache = {}; // need to recompile programs?
-                FILTER.log('GL context lost on #'+img.id);
-                return;
-            }
+            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
@@ -5813,6 +5827,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,dispose: function() {
         var self = this;
+        FILTER.disposeGL(self);
         self.id = null;
         self.width = self.height = null;
         self.selection = self.gray = null;
@@ -7770,15 +7785,15 @@ function glsl(filter)
 {
     if (!filter.table || !filter.table[CHANNEL.R]) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'varying vec2 pix;',
-'uniform sampler2D img;',
-'uniform sampler2D map;',
-'uniform int hasAlpha;',
-'void main(void) {',
-'   vec4 col = texture2D(img, pix);',
-'   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
-'   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
-'}'
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform sampler2D map;',
+    'uniform int hasAlpha;',
+    'void main(void) {',
+    '   vec4 col = texture2D(img, pix);',
+    '   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
+    '   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
+    '}'
     ].join('\n'),
     textures: function(gl, w, h, program) {
         GLSL.uploadTexture(gl, filter.getImage(), 256, 1, 1);

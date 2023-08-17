@@ -310,19 +310,32 @@ FILTER.setGLDimensions = function(img, w, h) {
     }
     return img;
 };
+function contextLostHandler(evt)
+{
+    evt.preventDefault && evt.preventDefault();
+}
 FILTER.getGL = function(img, w, h) {
     if (img && FILTER.supportsGLSL())
     {
-        if (!img.gl) img.gl = FILTER.Canvas(w, h);
-        if (isBrowser && img.gl && img.gl.addEventListener)
+        if (!img.gl)
         {
-            img.gl.addEventListener('webglcontextlost', function(evt) {
-                evt.preventDefault && evt.preventDefault();
-            }, false);
+            img.gl = FILTER.Canvas(w, h);
+            if (isBrowser && img.gl && img.gl.addEventListener)
+            {
+                img.gl.addEventListener('webglcontextlost', contextLostHandler, false);
+            }
         }
         FILTER.setGLDimensions(img, w, h);
         return img.gl.getContext(glctx);
     }
 };
-
+FILTER.disposeGL = function(img) {
+    if (img && img.gl)
+    {
+        if (isBrowser && img.gl.removeEventListener)
+        {
+            img.gl.removeEventListener('webglcontextlost', contextLostHandler, false);
+        }
+    }
+};
 }(FILTER);

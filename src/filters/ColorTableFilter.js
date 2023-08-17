@@ -461,15 +461,15 @@ function glsl(filter)
 {
     if (!filter.table || !filter.table[CHANNEL.R]) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'varying vec2 pix;',
-'uniform sampler2D img;',
-'uniform sampler2D map;',
-'uniform int hasAlpha;',
-'void main(void) {',
-'   vec4 col = texture2D(img, pix);',
-'   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
-'   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
-'}'
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform sampler2D map;',
+    'uniform int hasAlpha;',
+    'void main(void) {',
+    '   vec4 col = texture2D(img, pix);',
+    '   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
+    '   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
+    '}'
     ].join('\n'),
     textures: function(gl, w, h, program) {
         GLSL.uploadTexture(gl, filter.getImage(), 256, 1, 1);

@@ -78,6 +78,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,dispose: function() {
         var self = this;
+        FILTER.disposeGL(self);
         self.id = null;
         self.width = self.height = null;
         self.selection = self.gray = null;
