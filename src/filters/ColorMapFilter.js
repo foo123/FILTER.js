@@ -211,7 +211,6 @@ function glsl(filter)
                         return toFloat(t/255);
                 };
             return {instance: filter, shader: [
-                'precision mediump float;',
                 'varying vec2 pix;',
                 'uniform sampler2D img;',
                 '#define HUE '+MODE.HUE+'',
@@ -245,7 +244,6 @@ function glsl(filter)
             };
         }
         return {instance: filter, shader: [
-            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
             '#define HUE '+MODE.HUE+'',

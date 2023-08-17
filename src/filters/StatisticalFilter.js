@@ -214,7 +214,6 @@ function glsl(filter)
     };
     var stat = function(type) {
         return {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',

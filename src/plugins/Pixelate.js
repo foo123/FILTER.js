@@ -372,7 +372,6 @@ function glsl(filter)
 {
     if (filter.scale <= 1 || !filter.pattern || !PIXELATION[filter.pattern]) return {instance: filter, shader: FILTER.Util.GLSL.DEFAULT};
     return {instance: filter, shader: [
-    'precision mediump float;',
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform vec2 imgSize;',

@@ -73,7 +73,6 @@ function glsl(filter)
         output.push({
         instance: filter,
         shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform vec2 dp;',
         'uniform sampler2D img;',
@@ -90,7 +89,6 @@ function glsl(filter)
     '#define MAGNITUDE_SCALE 1.0',
     '#define MAGNITUDE_LIMIT 510.0',
     '#define MAGNITUDE_MAX 510.0',
-    'precision mediump float;',
     'varying vec2 pix;',
     'uniform vec2 dp;',
     'uniform sampler2D img;',

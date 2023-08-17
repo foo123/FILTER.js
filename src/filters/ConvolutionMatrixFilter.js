@@ -850,7 +850,6 @@ function glsl(filter)
     {
         code = bilateral_code(filter.dimx);
         return {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -871,7 +870,6 @@ function glsl(filter)
         output = [];
         code = matrix_code(t[0], null, t[1], t[2], t[1], t[2], t[3], t[4], false);
         output.push({instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -882,7 +880,6 @@ function glsl(filter)
         ].join('\n'), iterations: filter._doIntegral || 1});
         code = matrix_code(t[5], null, t[6], t[7], t[6], t[7], t[8], t[9], false);
         output.push({instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -898,7 +895,6 @@ function glsl(filter)
         output = [];
         code = matrix_code(m, null, filter.dimx, filter.dimy, filter.dimx, filter.dimy, filter._coeff[0], 0, false);
         output.push({instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -909,7 +905,6 @@ function glsl(filter)
         ].join('\n'), iterations: 1});
         code = matrix_code(m2, null, filter.dimx2, filter.dimy2, filter.dimx2, filter.dimy2, filter._coeff[1], 0, false);
         output.push({instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -934,7 +929,6 @@ function glsl(filter)
         }*/
         code = matrix_code(m, m2, filter.dimx, filter.dimy, filter.dimx2, filter.dimy2, filter._coeff[0], filter._coeff[1], filter._isGrad);
         return {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',

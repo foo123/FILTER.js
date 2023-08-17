@@ -297,6 +297,8 @@ FILTER.supportsGLSL = function() {
         }
         supportsGLSL = !!gl;
         if (supportsGLSL) glctx = ctx;
+        gl = null;
+        canvas = null;
     }
     return supportsGLSL;
 };
@@ -312,6 +314,12 @@ FILTER.getGL = function(img, w, h) {
     if (img && FILTER.supportsGLSL())
     {
         if (!img.gl) img.gl = FILTER.Canvas(w, h);
+        if (isBrowser && img.gl && img.gl.addEventListener)
+        {
+            img.gl.addEventListener('webglcontextlost', function(evt) {
+                evt.preventDefault && evt.preventDefault();
+            }, false);
+        }
         FILTER.setGLDimensions(img, w, h);
         return img.gl.getContext(glctx);
     }

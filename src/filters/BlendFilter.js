@@ -225,62 +225,61 @@ function glsl(filter)
         code += (code.length ? '\n' : '')+'col = doblend(col, pix, input'+j+', inputSize'+j+', inputStart'+j+', inputMode'+j+', inputEnabled'+j+');';
     }
     glslcode = [
-'precision mediump float;',
-modes.map(function(m, i) {
-    if ('LINEARDODGE' === m)
-    {
-        return '#define LINEARDODGE '+i+'\n'+'#define ADD '+i;
-    }
-    else if ('LINEARBURN' === m)
-    {
-        return '#define LINEARBURN '+i+'\n'+'#define SUBTRACT '+i;
-    }
-    return '#define '+m+' '+i;
-}).join('\n'),
-Object.keys(BLEND_GLSL).map(function(m) {
-    return BLEND_GLSL[m];
-}).join('\n'),
-'float blend(int mode, float Dca, float Da, float Sca, float Sa) {',
-'    if (MULTIPLY == mode) return multiply(Dca, Da, Sca, Sa);',
-'    else if (SCREEN == mode) return screen(Dca, Da, Sca, Sa);',
-'    else if (OVERLAY == mode) return overlay(Dca, Da, Sca, Sa);',
-'    else if (DARKEN == mode) return darken(Dca, Da, Sca, Sa);',
-'    else if (LIGHTEN == mode) return lighten(Dca, Da, Sca, Sa);',
-'    else if (COLORDODGE == mode) return colordodge(Dca, Da, Sca, Sa);',
-'    else if (COLORBURN == mode) return colorburn(Dca, Da, Sca, Sa);',
-'    else if (HARDLIGHT == mode) return hardlight(Dca, Da, Sca, Sa);',
-'    else if (SOFTLIGHT == mode) return softlight(Dca, Da, Sca, Sa);',
-'    else if (DIFFERENCE == mode) return difference(Dca, Da, Sca, Sa);',
-'    else if (EXCLUSION == mode) return exclusion(Dca, Da, Sca, Sa);',
-'    else if (AVERAGE == mode) return average(Dca, Da, Sca, Sa);',
-'    else if (LINEARDODGE == mode) return lineardodge(Dca, Da, Sca, Sa);',
-'    else if (LINEARBURN == mode) return linearburn(Dca, Da, Sca, Sa);',
-'    else if (NEGATION == mode) return negation(Dca, Da, Sca, Sa);',
-'    else if (LINEARLIGHT == mode) return linearlight(Dca, Da, Sca, Sa);',
-'    return normal(Dca, Da, Sca, Sa);',
-'}',
-'vec4 doblend(vec4 B, vec2 pix, sampler2D Atex, vec2 size, vec2 start, int mode, int enabled) {',
-'    if (0 == enabled || pix.x < start.x || pix.y < start.y || pix.x > start.x+size.x || pix.y > start.y+size.y) return B;',
-'    vec4 A = texture2D(Atex, (pix-start)/size);',
-'    float a = 1.0;',
-'    if (NORMAL != mode) a = clamp(A.a + B.a - A.a*B.a, 0.0, 1.0);',
-'    else a = clamp(A.a + B.a*(1.0 - A.a), 0.0, 1.0);',
-'    if (0.0 < a) return vec4(',
-'        clamp(blend(mode, B.r*B.a, B.a, A.r*A.a, A.a)/a, 0.0, 1.0),',
-'        clamp(blend(mode, B.g*B.a, B.a, A.g*A.a, A.a)/a, 0.0, 1.0),',
-'        clamp(blend(mode, B.b*B.a, B.a, A.b*A.a, A.a)/a, 0.0, 1.0),',
-'        a',
-'    );',
-'    return vec4(0.0);',
-'}',
-'varying vec2 pix;',
-'uniform sampler2D img;',
-inputs,
-'void main(void) {',
-'vec4 col = texture2D(img, pix);',
-code,
-'gl_FragColor = col;',
-'}'
+    modes.map(function(m, i) {
+        if ('LINEARDODGE' === m)
+        {
+            return '#define LINEARDODGE '+i+'\n'+'#define ADD '+i;
+        }
+        else if ('LINEARBURN' === m)
+        {
+            return '#define LINEARBURN '+i+'\n'+'#define SUBTRACT '+i;
+        }
+        return '#define '+m+' '+i;
+    }).join('\n'),
+    Object.keys(BLEND_GLSL).map(function(m) {
+        return BLEND_GLSL[m];
+    }).join('\n'),
+    'float blend(int mode, float Dca, float Da, float Sca, float Sa) {',
+    '    if (MULTIPLY == mode) return multiply(Dca, Da, Sca, Sa);',
+    '    else if (SCREEN == mode) return screen(Dca, Da, Sca, Sa);',
+    '    else if (OVERLAY == mode) return overlay(Dca, Da, Sca, Sa);',
+    '    else if (DARKEN == mode) return darken(Dca, Da, Sca, Sa);',
+    '    else if (LIGHTEN == mode) return lighten(Dca, Da, Sca, Sa);',
+    '    else if (COLORDODGE == mode) return colordodge(Dca, Da, Sca, Sa);',
+    '    else if (COLORBURN == mode) return colorburn(Dca, Da, Sca, Sa);',
+    '    else if (HARDLIGHT == mode) return hardlight(Dca, Da, Sca, Sa);',
+    '    else if (SOFTLIGHT == mode) return softlight(Dca, Da, Sca, Sa);',
+    '    else if (DIFFERENCE == mode) return difference(Dca, Da, Sca, Sa);',
+    '    else if (EXCLUSION == mode) return exclusion(Dca, Da, Sca, Sa);',
+    '    else if (AVERAGE == mode) return average(Dca, Da, Sca, Sa);',
+    '    else if (LINEARDODGE == mode) return lineardodge(Dca, Da, Sca, Sa);',
+    '    else if (LINEARBURN == mode) return linearburn(Dca, Da, Sca, Sa);',
+    '    else if (NEGATION == mode) return negation(Dca, Da, Sca, Sa);',
+    '    else if (LINEARLIGHT == mode) return linearlight(Dca, Da, Sca, Sa);',
+    '    return normal(Dca, Da, Sca, Sa);',
+    '}',
+    'vec4 doblend(vec4 B, vec2 pix, sampler2D Atex, vec2 size, vec2 start, int mode, int enabled) {',
+    '    if (0 == enabled || pix.x < start.x || pix.y < start.y || pix.x > start.x+size.x || pix.y > start.y+size.y) return B;',
+    '    vec4 A = texture2D(Atex, (pix-start)/size);',
+    '    float a = 1.0;',
+    '    if (NORMAL != mode) a = clamp(A.a + B.a - A.a*B.a, 0.0, 1.0);',
+    '    else a = clamp(A.a + B.a*(1.0 - A.a), 0.0, 1.0);',
+    '    if (0.0 < a) return vec4(',
+    '        clamp(blend(mode, B.r*B.a, B.a, A.r*A.a, A.a)/a, 0.0, 1.0),',
+    '        clamp(blend(mode, B.g*B.a, B.a, A.g*A.a, A.a)/a, 0.0, 1.0),',
+    '        clamp(blend(mode, B.b*B.a, B.a, A.b*A.a, A.a)/a, 0.0, 1.0),',
+    '        a',
+    '    );',
+    '    return vec4(0.0);',
+    '}',
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    inputs,
+    'void main(void) {',
+    'vec4 col = texture2D(img, pix);',
+    code,
+    'gl_FragColor = col;',
+    '}'
     ].join('\n');
     return {instance: filter, shader: glslcode,
     textures: function(gl, w, h, program) {

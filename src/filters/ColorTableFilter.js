@@ -461,7 +461,6 @@ function glsl(filter)
 {
     if (!filter.table || !filter.table[CHANNEL.R]) return {instance: filter, shader: GLSL.DEFAULT};
     return {instance: filter, shader: [
-'precision mediump float;',
 'varying vec2 pix;',
 'uniform sampler2D img;',
 'uniform sampler2D map;',

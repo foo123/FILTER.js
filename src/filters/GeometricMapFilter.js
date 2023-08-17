@@ -206,7 +206,6 @@ function glsl(filter)
     if (HAS.call(GLSLMAP, filter._mapName))
     {
         return {instance: filter, shader: [
-            'precision mediump float;',
             'varying vec2 pix;',
             'uniform sampler2D img;',
             '#define TWOPI  6.283185307179586',

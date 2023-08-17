@@ -8,6 +8,8 @@ __1.6.0__
 * ChannelCopyFilter size correction
 * CannyEdges review, update and make GLSL version
 * fix some typos and omissions
+* some GL optimizations
+* handle GL context lost
 
 __1.5.7__
 

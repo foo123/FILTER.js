@@ -11,8 +11,12 @@ var proto = 'prototype',
     stdMath = Math,
     trim = FILTER.Util.String.trim,
     GLSL = FILTER.Util.GLSL || {},
-	VERTEX_DEAULT = trim([
+    VERTEX_DEAULT = trim([
+    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+    'precision highp float;',
+    '#else',
     'precision mediump float;',
+    '#endif',
     'attribute vec2 pos;',
     'attribute vec2 uv;',
     'uniform vec2 resolution;',
@@ -25,15 +29,26 @@ var proto = 'prototype',
         'gl_Position = vec4(clipSpace * vec2(1.0, flipY), 0.0, 1.0);',
         'pix = uv;',
     '}'
-	].join('\n')),
-	FRAGMENT_DEFAULT = trim([
+    ].join('\n')),
+    FRAGMENT_DEFAULT = trim([
+    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+    'precision highp float;',
+    '#else',
     'precision mediump float;',
+    '#endif',
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'void main(void) {',
         'gl_FragColor = texture2D(img, pix);',
     '}',
-	].join('\n')),
+    ].join('\n')),
+    PRECISION = [
+    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+    'precision highp float;',
+    '#else',
+    'precision mediump float;',
+    '#endif'
+    ].join('\n'),
     COMMENTS = /\/\*.*?\*\//gmi
 ;
 
@@ -53,48 +68,51 @@ function compile(gl, source, type)
     var shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+    /*if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
     {
         FILTER.error(gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
-    }
+    }*/
     return shader;
 }
 function GLSLProgram(fragmentSource, gl)
 {
-	var self = this, vsh, fsh, a, u;
+    var self = this, vsh, fsh, a, u;
 
+    if (-1 === fragmentSource.indexOf('precision '))
+        fragmentSource = PRECISION + '\n' + fragmentSource;
     self.vertexSource = VERTEX_DEAULT;
     self.fragmentSource = fragmentSource;
 
     self.uniform = {};
     self.attribute = {};
-    // extract attributes
-    extract(self.vertexSource, 'attribute', self.attribute);
-    // extract uniforms
-    extract(self.vertexSource, 'uniform', self.uniform);
-    extract(self.fragmentSource, 'uniform', self.uniform);
 
     vsh = compile(gl, self.vertexSource, gl.VERTEX_SHADER);
-    fsh = vsh ? compile(gl, self.fragmentSource, gl.FRAGMENT_SHADER) : null;
-    if (vsh && fsh)
+    fsh = compile(gl, self.fragmentSource, gl.FRAGMENT_SHADER);
+    self.id = gl.createProgram();
+    gl.attachShader(self.id, vsh);
+    gl.attachShader(self.id, fsh);
+    gl.linkProgram(self.id);
+    if (!gl.getProgramParameter(self.id, gl.LINK_STATUS) && !gl.isContextLost())
     {
-        self.id = gl.createProgram();
-        gl.attachShader(self.id, vsh);
-        gl.attachShader(self.id, fsh);
-        gl.linkProgram(self.id);
-        if (!gl.getProgramParameter(self.id, gl.LINK_STATUS))
-        {
-            FILTER.error(gl.getProgramInfoLog(self.id));
-            gl.deleteProgram(self.id);
-            self.id = null;
-        }
-        else
-        {
-            for (a in self.attribute) self.attribute[a] = gl.getAttribLocation(self.id, a);
-            for (u in self.uniform) self.uniform[u] = gl.getUniformLocation(self.id, u);
-        }
+        FILTER.error(gl.getProgramInfoLog(self.id));
+        FILTER.error(gl.getShaderInfoLog(vsh));
+        FILTER.error(gl.getShaderInfoLog(fsh));
+        gl.deleteShader(vsh);
+        gl.deleteShader(fsh);
+        gl.deleteProgram(self.id);
+        self.id = null;
+    }
+    else
+    {
+        // extract attributes
+        extract(self.vertexSource, 'attribute', self.attribute);
+        // extract uniforms
+        extract(self.vertexSource, 'uniform', self.uniform);
+        extract(self.fragmentSource, 'uniform', self.uniform);
+        for (a in self.attribute) self.attribute[a] = gl.getAttribLocation(self.id, a);
+        for (u in self.uniform) self.uniform[u] = gl.getUniformLocation(self.id, u);
     }
     // release references
     vsh = fsh = gl = null;
@@ -103,7 +121,7 @@ GLSLProgram[proto] = {
     constructor: GLSLProgram,
     id: null,
     uniform: null,
-	attribute: null,
+    attribute: null,
     vertexSource: null,
     fragmentSource: null
 };
@@ -303,15 +321,21 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     if (glsl.vars) glsl.vars(gl, w, h, program);
     if (glsl.textures) glsl.textures(gl, w, h, program);
 
+    if (last > 0)
+    {
+        buf[0] = buf[0] || createFramebufferTexture(gl, w, h);
+        buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
+    }
     for (i=0; i<iterations; ++i)
     {
+        if (gl.isContextLost && gl.isContextLost()) return true;
         if (0 === i)
         {
             src = input;
         }
         else
         {
-            buf[0] = buf[0] || createFramebufferTexture(gl, w, h);
+            //buf[0] = buf[0] || createFramebufferTexture(gl, w, h);
             src = buf[0];
         }
         if (i === last)
@@ -321,7 +345,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         }
         else
         {
-            buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
+            //buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
         if (('_img_prev' in program.uniform) && !('img' in program.uniform))
@@ -350,7 +374,8 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         i, n = glsls.length, glsl,
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
-        program, cache, im0, t, canRun,
+        program, cache, im0, t,
+        canRun, ctxLost, cleanUp,
         first = -1, last = -1, fromshader = false, flipY = false;
     if (!gl) return;
     for (i=0; i<n; ++i)
@@ -384,6 +409,27 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         buf0 = createFramebufferTexture(gl, w, h);
         buf1 = createFramebufferTexture(gl, w, h);
     }
+    cleanUp = function() {
+        // clean up
+        deleteBuffer(gl, pos);
+        deleteBuffer(gl, uv);
+        deleteTexture(gl, input);
+        deleteFramebufferTexture(gl, output);
+        deleteTexture(gl, prev[1]);
+        deleteTexture(gl, prev[0]);
+        deleteFramebufferTexture(gl, buf[0]);
+        deleteFramebufferTexture(gl, buf[1]);
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        pos = null;
+        uv = null;
+        input = null;
+        output = null;
+        prev = null;
+        buf = null;
+        buf0 = null;
+        buf1 = null;
+    };
     for (i=0; i<n; ++i)
     {
         canRun = false;
@@ -422,7 +468,14 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            ctxLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            if (ctxLost || (gl.isContextLost && gl.isContextLost()))
+            {
+                cleanUp();
+                img.cache = {}; // need to recompile programs?
+                FILTER.log('GL context lost on #'+img.id);
+                return;
+            }
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
@@ -466,25 +519,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         }
     }
     if (fromshader) getPixels(gl, w, h, im);
-    // clean up
-    deleteBuffer(gl, pos);
-    deleteBuffer(gl, uv);
-    deleteTexture(gl, input);
-    deleteFramebufferTexture(gl, output);
-    deleteTexture(gl, prev[1]);
-    deleteTexture(gl, prev[0]);
-    deleteFramebufferTexture(gl, buf[0]);
-    deleteFramebufferTexture(gl, buf[1]);
-    deleteFramebufferTexture(gl, buf0);
-    deleteFramebufferTexture(gl, buf1);
-    pos = null;
-    uv = null;
-    input = null;
-    output = null;
-    prev = null;
-    buf = null;
-    buf0 = null;
-    buf1 = null;
+    cleanUp();
     return im;
 };
 GLSL.uploadTexture = uploadTexture;

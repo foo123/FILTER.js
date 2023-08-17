@@ -257,7 +257,6 @@ function glsl(filter)
     };
     var morph = function(m, op, img, usesPrev) {
         return {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
@@ -293,7 +292,6 @@ function glsl(filter)
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev', true),
         {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform sampler2D _img_prev;',
@@ -310,7 +308,6 @@ function glsl(filter)
         morph(filter._structureElement, 'dilate'),
         morph(filter._structureElement, 'erode', '_img_prev', true),
         {instance: filter, shader: [
-        'precision mediump float;',
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform sampler2D _img_prev;',

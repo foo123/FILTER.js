@@ -875,7 +875,6 @@ var extractRedChannel = FILTER.InlineFilter({
     },
     // provide webgl shader as well
     shader: [
-    'precision mediump float;',
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'void main(void) {',

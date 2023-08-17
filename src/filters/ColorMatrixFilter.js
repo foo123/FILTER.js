@@ -724,18 +724,17 @@ ColorMatrixFilter.prototype.threshold_alpha = ColorMatrixFilter.prototype.thresh
 function glsl(filter)
 {
     return {instance: filter, shader: filter.matrix ? [
-'precision mediump float;',
-'varying vec2 pix;',
-'uniform sampler2D img;',
-'uniform float cm[20];',
-'void main(void) {',
-'   vec4 col = texture2D(img, pix);',
-'   gl_FragColor.r = clamp(cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ],0.0,1.0);',
-'   gl_FragColor.g = clamp(cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ],0.0,1.0);',
-'   gl_FragColor.b = clamp(cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14],0.0,1.0);',
-'   gl_FragColor.a = clamp(cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19],0.0,1.0);',
-'}'
-].join('\n') : GLSL.DEFAULT,
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform float cm[20];',
+    'void main(void) {',
+    '   vec4 col = texture2D(img, pix);',
+    '   gl_FragColor.r = clamp(cm[0 ]*col.r+cm[1 ]*col.g+cm[2 ]*col.b+cm[3 ]*col.a+cm[4 ],0.0,1.0);',
+    '   gl_FragColor.g = clamp(cm[5 ]*col.r+cm[6 ]*col.g+cm[7 ]*col.b+cm[8 ]*col.a+cm[9 ],0.0,1.0);',
+    '   gl_FragColor.b = clamp(cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14],0.0,1.0);',
+    '   gl_FragColor.a = clamp(cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19],0.0,1.0);',
+    '}'
+    ].join('\n') : GLSL.DEFAULT,
     vars: filter.matrix ? function(gl, w, h, program) {
         var m = filter.matrix;
         gl.uniform1fv(program.uniform.cm, new FILTER.Array32F([
