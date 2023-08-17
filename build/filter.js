@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-17 10:55:43
+*   @built on 2023-08-17 11:00:16
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.6.0
-*   @built on 2023-08-17 10:55:43
+*   @built on 2023-08-17 11:00:16
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3755,7 +3755,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, isContextLost, cleanUp, lost
+        canRun, isContextLost, cleanUp, lost,
         first = -1, last = -1,
         fromshader = false, flipY = false;
     if (!gl) return;

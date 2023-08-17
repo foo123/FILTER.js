@@ -377,7 +377,7 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, isContextLost, cleanUp, lost
+        canRun, isContextLost, cleanUp, lost,
         first = -1, last = -1,
         fromshader = false, flipY = false;
     if (!gl) return;
