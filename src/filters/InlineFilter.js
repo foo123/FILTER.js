@@ -69,6 +69,22 @@ FILTER.Create({
         return self._params;
     }
 
+    ,getParam: function(param) {
+        var self = this;
+        if (param && HAS.call(self._params, param))
+        {
+            return self._params[param];
+        }
+    }
+    ,setParam: function(param, value) {
+        var self = this;
+        if (param && HAS.call(self._params, param))
+        {
+            self._params[param] = value;
+        }
+        return self;
+    }
+
     ,set: function(filter, params) {
         var self = this;
         if (false === filter)

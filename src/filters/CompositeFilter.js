@@ -23,6 +23,7 @@ var CompositeFilter = FILTER.Create({
     ,filters: null
     ,hasInputs: true
     ,_stable: true
+    ,_runWASM: false
 
     ,dispose: function(withFilters) {
         var self = this, i, stack = self.filters;
@@ -225,8 +226,17 @@ var CompositeFilter = FILTER.Create({
     }
 
     // used for internal purposes
+    ,_apply_wasm: function(im, w, h, metaData) {
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h, metaData);
+        self._runWASM = false;
+        return ret;
+    }
     ,_apply: function(im, w, h, metaData) {
-        var self = this, meta, filtermeta = null, metalen = 0, IMGW = null, IMGH = null;
+        var self = this, runWASM = self._runWASM /*|| self.isWASM()*/,
+            meta, filtermeta = null, metalen = 0,
+            IMGW = null, IMGH = null;
         if (self.filters.length)
         {
             metaData = metaData || {};
@@ -235,10 +245,10 @@ var CompositeFilter = FILTER.Create({
             for (fi=0; fi<stacklength; ++fi)
             {
                 filter = filterstack[fi];
-                if (filter && filter._isOn)
+                if (filter && filter.canRun())
                 {
                     metaData.container = self;  metaData.index = fi;
-                    im = filter._apply(im, w, h, metaData);
+                    im = runWASM ? filter._apply_wasm(im, w, h, metaData) : filter._apply(im, w, h, metaData);
                     if (filter.hasMeta)
                     {
                         filtermeta[metalen++] = [fi, meta=filter.metaData()];
@@ -276,7 +286,7 @@ var CompositeFilter = FILTER.Create({
         for (i=0; i<l; ++i) out.push(tab + s[i].toString().split("\n").join("\n"+tab));
         return [
              "[FILTER: " + this.name + "]"
-             ,"[",out.join( "\n" ),"]",""
+             ,"[",out.join("\n"),"]",""
          ].join("\n");
     }
 });

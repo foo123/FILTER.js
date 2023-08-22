@@ -134,6 +134,8 @@ Each filter (and plugin) is an extension of the generic abstract filter, which p
 * `select(false)/deselect()` deselect any selection made previously
 * `makeGLSL([bool:Boolean=true])`  make the filter run in webgl (if filter supports it)
 * `isGLSL()`   check if filter is set to run in webgl
+* `makeWASM([bool:Boolean=true])`  make the filter run in web assembly (if filter supports it)
+* `isWASM()`   check if filter is set to run in assembly
 * `worker/thread([enabled:Boolean=true [, import_extra_scripts:Array]])`  enable/disable parallel filter thread/worker for this filter (each filter can have its own worker filter in another thread transparently)
 * `apply(srcImg:Image [, destImg:Image=srcImg] [, callback:Function])`   apply the filter to a dest `Image` instance using imageData from `srcImage` (the `destImage` output will be changed after the filter application, the filters can be removed if image is restorable)
 
@@ -149,6 +151,8 @@ The (optional) colorTable(s) parameter(s) are array(s) of 256 numbers which defi
 The filter scans an image and maps each pixel color according to the color table map per color
 
 **NEW Color Table Filter supports WebGL**
+
+**NEW Color Table Filter supports Web Assembly**
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -218,6 +222,8 @@ for the RGBA components of each pixel in an image.
 The filter scans an image and maps each pixel colors linearly according to the color matrix.
 
 **NEW Color Matrix Filter supports WebGL**
+
+**NEW Color Matrix Filter supports Web Assembly**
 
 The class has various pre-defined filters which can be combined in any order.
 
@@ -349,6 +355,8 @@ The optional transformMatrix parameter is an array of numbers that defines the l
 
 **NEW Affine Matrix Filter supports WebGL**
 
+**NEW Affine Matrix Filter supports Web Assembly**
+
 The class has some pre-defined filters to use.
 
 * `flipX()`  Flip the target image wrt to `X` axis
@@ -406,6 +414,8 @@ The optional geometricMap parameter is a function that implements a geometric ma
 
 **NEW Geometric Map Filter supports WebGL**
 
+**NEW Geometric Map Filter supports Web Assembly**
+
 The class has some pre-defined filters to use.
 
 * `generic()` Apply a a user-defined generic geometric mapping to the image
@@ -460,6 +470,8 @@ The displaceMap parameter is a (FILTER.Image instance) image that acts as the di
 The filter scans an image and maps each pixel position non-linearly according to the (coloring of the) displacement map image.
 
 **NEW Displacement Map Filter supports WebGL**
+
+**NEW Displacement Map Filter supports Web Assembly**
 
 Displacement Map  Filters cannot be combined very easily since they operate **on mapping single pixels positions non-linearly**. Use a composite filter (see below)
 
@@ -522,6 +534,8 @@ A convolution matrix with large dimesions (NxN) will use pixels from a larger ne
 Convolution matrices usually have odd dimensions (3x3, 5x5, 7x7, 9x9, etc..) This is related to the fact that the matrix must define a unique center element (ie. current pixel)  which only odd dimensions allow.
 
 **NEW Convolution Matrix Filter supports WebGL**
+
+**NEW Convolution Matrix Filter supports Web Assembly**
 
 The class has various pre-defined filters to use.
 
@@ -713,6 +727,8 @@ The filter blends multiple images together with svg-like blending modes using a 
 
 **NEW Blend Filter supports WebGL**
 
+**NEW Blend Filter supports Web Assembly**
+
 **Supported Blend Modes:**
 
 * normal
@@ -767,6 +783,8 @@ image.apply(blend3Images);   // image is a FILTER.Image instance, see examples
 new FILTER.DimensionFilter(mode:String, a:Number, b:Number, c:Number, d:Number);
 ````
 
+**NEW Dimension Filter supports Web Assembly**
+
 The filter changes the dimensions of the image either by simply setting the new dimensions or (re-)scaling or cropping or padding the image.
 if `mode` is `"set"`, `a` is new width or zero, `b` is new height or zero, `c` is horizontal scaling or zero (given new width) and `d` is vertical scaling or zero (given new height).
 if `mode` is `"pad"`, `a` is left padding, `b` is top padding, `c` is right padding and `d` is bottom padding.
@@ -787,6 +805,8 @@ This filter implements a filter stack which enables multiple filters (even other
 more easily (and slightly faster) to an image, than to apply them one-by-one manually
 
 **NEW Composite Filter supports WebGL**
+
+**NEW Composite Filter supports Web Assembly**
 
 The class implements these methods:
 
@@ -917,11 +937,11 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
 <tr><td>Threshold</td>    <td>automatic threshold (Otsu method)</td></tr>
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
-<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b></td></tr>
+<tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
-<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as <code>AlphaMask</code> depending on operation mode)<br><b>supports WebGL</b></td></tr>
+<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as <code>AlphaMask</code> depending on operation mode)<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>

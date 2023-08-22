@@ -14,7 +14,7 @@ var IMG = FILTER.ImArray, copy = FILTER.Util.Array.copy,
     clamp = FILTER.Color.clampPixel;
 
 // Blend Filter, svg-like image blending
-FILTER.Create({
+var BlendFilter = FILTER.Create({
     name: "BlendFilter"
 
     ,init: function BlendFilter(matrix) {
@@ -84,13 +84,17 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,getWASM: function() {
+        return wasm(this);
+    }
+
     ,_apply: function(im, w, h) {
         //"use asm";
         var self = this, matrix = self.matrix;
         if (!matrix || !matrix.length) return im;
 
         var i, j, j2, k, l = matrix.length, imLen = im.length, input,
-            alpha, startX, startY, startX2, startY2, W, H, A, w2, h2,
+            startX, startY, startX2, startY2, W, H, A, w2, h2,
             W1, W2, start, end, x, y, x2, y2, f, B, mode,
             rb, gb, bb, ab, ra, ga, ba, aa, a;
 
@@ -196,29 +200,118 @@ FILTER.Create({
 });
 // aliases
 FILTER.CombineFilter = FILTER.BlendFilter;
+var BLEND = FILTER.Color.Blend = {
+//https://dev.w3.org/SVG/modules/compositing/master/
+'normal': function(Dca, Da, Sca, Sa){return Sca + Dca * (1 - Sa);},
+'multiply': function(Dca, Da, Sca, Sa){return Sca*Dca + Sca*(1 - Da) + Dca*(1 - Sa);},
+'screen': function(Dca, Da, Sca, Sa){return Sca + Dca - Sca * Dca;},
+'overlay': function(Dca, Da, Sca, Sa){return 2*Dca <= Da ? (2*Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - 2 * Dca * Sca - Da * Sa);},
+'darken': function(Dca, Da, Sca, Sa){return stdMath.min(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'lighten': function(Dca, Da, Sca, Sa){return stdMath.max(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'color-dodge': function(Dca, Da, Sca, Sa){return Sca === Sa && 0 === Dca ? (Sca * (1 - Da)) : (Sca === Sa ? (Sa * Da + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sa * Da * stdMath.min(1, Dca/Da * Sa/(Sa - Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
+'color-burn': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 0 === Sca && Dca === Da ? (Sa * Da + Dca * (1 - Sa)) : (0 === Sca ? (Dca * (1 - Sa)) : (Sa * Da * (1 - stdMath.min(1, (1 - m) * Sa/Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
+'hard-light': function(Dca, Da, Sca, Sa){return 2 * Sca <= Sa ? (2 * Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - Sa * Da - 2 * Sca * Dca);},
+'soft-light': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 2 * Sca <= Sa ? (Dca * (Sa + (2 * Sca - Sa) * (1 - m)) + Sca * (1 - Da) + Dca * (1 - Sa)) : (2 * Sca > Sa && 4 * Dca <= Da ? (Da * (2 * Sca - Sa) * (16 * stdMath.pow(m, 3) - 12 * stdMath.pow(m, 2) - 3 * m) + Sca - Sca * Da + Dca) : (Da * (2 * Sca - Sa) * (stdMath.pow(m, 0.5) - m) + Sca - Sca * Da + Dca));},
+'difference': function(Dca, Da, Sca, Sa){return Sca + Dca - 2 * stdMath.min(Sca * Da, Dca * Sa);},
+'exclusion': function(Dca, Da, Sca, Sa){return (Sca * Da + Dca * Sa - 2 * Sca * Dca) + Sca * (1 - Da) + Dca * (1 - Sa);},
+'average': function(Dca, Da, Sca, Sa){return (Sca + Dca) / 2;},
+// linear-dodge
+'add': function(Dca, Da, Sca, Sa){return stdMath.min(1, Sca + Dca);},
+// linear-burn
+'subtract': function(Dca, Da, Sca, Sa){return stdMath.max(0, Dca + Sca - 1);},
+'negation': function(Dca, Da, Sca, Sa){return 1 - stdMath.abs(1 - Sca - Dca);},
+'linear-light': function(Dca, Da, Sca, Sa){return Sca < 0.5 ? BLEND.subtract(Dca, Da, 2*Sca, Sa) : BLEND.add(Dca, Da, 2*(1 - Sca), Sa);}
+};
+// aliases
+BLEND['lineardodge'] = BLEND['linear-dodge'] = BLEND['add'];
+BLEND['linearburn'] = BLEND['linear-burn'] = BLEND['subtract'];
+BLEND['linearlight'] = BLEND['linear-light'];
+BLEND['hardlight'] = BLEND['hard-light'];
+BLEND['softlight'] = BLEND['soft-light'];
+BLEND['colordodge'] = BLEND['color-dodge'];
+BLEND['colorburn'] = BLEND['color-burn'];
+var modes = [
+    'NORMAL',
+    'MULTIPLY',
+    'SCREEN',
+    'OVERLAY',
+    'DARKEN',
+    'LIGHTEN',
+    'COLORDODGE',
+    'COLORBURN',
+    'HARDLIGHT',
+    'SOFTLIGHT',
+    'DIFFERENCE',
+    'EXCLUSION',
+    'AVERAGE',
+    'LINEARDODGE',
+    'LINEARBURN',
+    'NEGATION',
+    'LINEARLIGHT'
+], same = {
+    'ADD' : 'LINEARDODGE',
+    'SUBTRACT': 'LINEARBURN'
+};
+if (FILTER.Util.WASM.isSupported)
+{
+FILTER.waitFor(1);
+FILTER.Util.WASM.instantiate(wasm(), {env:{
+      "BLEND.multiply": BLEND.multiply,
+      "BLEND.screen": BLEND.screen,
+      "BLEND.overlay": BLEND.overlay,
+      "BLEND.darken": BLEND.darken,
+      "BLEND.lighten": BLEND.lighten,
+      "BLEND.colordodge": BLEND.colordodge,
+      "BLEND.colorburn": BLEND.colorburn,
+      "BLEND.hardlight": BLEND.hardlight,
+      "BLEND.softlight": BLEND.softlight,
+      "BLEND.difference": BLEND.difference,
+      "BLEND.exclusion": BLEND.exclusion,
+      "BLEND.average": BLEND.average,
+      "BLEND.lineardodge": BLEND.lineardodge,
+      "BLEND.linearburn": BLEND.linearburn,
+      "BLEND.negation": BLEND.negation,
+      "BLEND.linearlight": BLEND.linearlight,
+      "BLEND.normal": BLEND.normal
+}}, {
+    blendfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:'f32',array:1},{arg:4,type:FILTER.ImArray,array:1},{arg:5,type:'i32',array:1}], output: {type:FILTER.ImArray}}
+}).then(function(wasm) {
+    BlendFilter.prototype._apply_wasm = function(im, w, h) {
+        var self = this, matrix = self.matrix, inputs, inputSizes, input, m, i, j, l, mode;
+        if (!matrix || !matrix.length) return im;
+        m = matrix.slice();
+        inputs = new Array(matrix.length >>> 2);
+        inputSizes = new Array(matrix.length >>> 1);
+        for (i=0,j=0,l=matrix.length; i<l; i+=4,++j)
+        {
+            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
+            if (same[mode]) mode = same[mode];
+            m[i] = modes.indexOf(mode);
+            input = self.input(j+1);
+            if (!input)
+            {
+                m[i+3] = 0;
+                inputs[j] = [];
+                inputSizes[2*j] = 0;
+                inputSizes[2*j+1] = 0;
+            }
+            else
+            {
+                inputs[j] = input[0] || [];
+                inputSizes[2*j] = input[1] || 0;
+                inputSizes[2*j+1] = input[2] || 0;
+            }
+        }
+        return wasm.blendfilter(im, w, h, m, inputs, inputSizes);
+    };
+    FILTER.unwaitFor(1);
+});
+}
 
 function glsl(filter)
 {
     if (!filter.matrix || !filter.matrix.length) return {instance: filter, shader: GLSL.DEFAULT};
-    var modes = [
-        'NORMAL',
-        'MULTIPLY',
-        'SCREEN',
-        'OVERLAY',
-        'DARKEN',
-        'LIGHTEN',
-        'COLORDODGE',
-        'COLORBURN',
-        'HARDLIGHT',
-        'SOFTLIGHT',
-        'DIFFERENCE',
-        'EXCLUSION',
-        'AVERAGE',
-        'LINEARDODGE',
-        'LINEARBURN',
-        'NEGATION',
-        'LINEARLIGHT'
-    ], matrix = filter.matrix, inputs = '', code = '', i, j, glslcode;
+    var matrix = filter.matrix, inputs = '', code = '', i, j, glslcode;
     for (j=1,i=0; i<matrix.length; i+=4,++j)
     {
         inputs += (inputs.length ? '\n' : '')+'uniform sampler2D input'+j+';\n'+'uniform vec2 inputSize'+j+';\n'+'uniform int inputMode'+j+';\n'+'uniform vec2 inputStart'+j+';\n'+'uniform int inputEnabled'+j+';';
@@ -291,11 +384,7 @@ function glsl(filter)
         }
     },
     vars: function(gl, w, h, program) {
-        var matrix = filter.matrix, i, j, input,
-            mode, same = {
-                'ADD' : 'LINEARDODGE',
-                'SUBTRACT': 'LINEARBURN'
-            };
+        var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {
             input = filter.input(j);
@@ -310,32 +399,6 @@ function glsl(filter)
     }
     };
 }
-var BLEND = FILTER.Color.Blend = {
-//https://dev.w3.org/SVG/modules/compositing/master/
-'normal': function(Dca, Da, Sca, Sa){return Sca + Dca * (1 - Sa);},
-'multiply': function(Dca, Da, Sca, Sa){return Sca*Dca + Sca*(1 - Da) + Dca*(1 - Sa);},
-'screen': function(Dca, Da, Sca, Sa){return Sca + Dca - Sca * Dca;},
-'overlay': function(Dca, Da, Sca, Sa){return 2*Dca <= Da ? (2*Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - 2 * Dca * Sca - Da * Sa);},
-'darken': function(Dca, Da, Sca, Sa){return stdMath.min(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
-'lighten': function(Dca, Da, Sca, Sa){return stdMath.max(Sca * Da, Dca * Sa) + Sca * (1 - Da) + Dca * (1 - Sa);},
-'color-dodge': function(Dca, Da, Sca, Sa){return Sca === Sa && 0 === Dca ? (Sca * (1 - Da)) : (Sca === Sa ? (Sa * Da + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sa * Da * stdMath.min(1, Dca/Da * Sa/(Sa - Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
-'color-burn': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 0 === Sca && Dca === Da ? (Sa * Da + Dca * (1 - Sa)) : (0 === Sca ? (Dca * (1 - Sa)) : (Sa * Da * (1 - stdMath.min(1, (1 - m) * Sa/Sca)) + Sca * (1 - Da) + Dca * (1 - Sa)));},
-'hard-light': function(Dca, Da, Sca, Sa){return 2 * Sca <= Sa ? (2 * Sca * Dca + Sca * (1 - Da) + Dca * (1 - Sa)) : (Sca * (1 + Da) + Dca * (1 + Sa) - Sa * Da - 2 * Sca * Dca);},
-'soft-light': function(Dca, Da, Sca, Sa){var m = Da ? Dca/Da : 0; return 2 * Sca <= Sa ? (Dca * (Sa + (2 * Sca - Sa) * (1 - m)) + Sca * (1 - Da) + Dca * (1 - Sa)) : (2 * Sca > Sa && 4 * Dca <= Da ? (Da * (2 * Sca - Sa) * (16 * stdMath.pow(m, 3) - 12 * stdMath.pow(m, 2) - 3 * m) + Sca - Sca * Da + Dca) : (Da * (2 * Sca - Sa) * (stdMath.pow(m, 0.5) - m) + Sca - Sca * Da + Dca));},
-'difference': function(Dca, Da, Sca, Sa){return Sca + Dca - 2 * stdMath.min(Sca * Da, Dca * Sa);},
-'exclusion': function(Dca, Da, Sca, Sa){return (Sca * Da + Dca * Sa - 2 * Sca * Dca) + Sca * (1 - Da) + Dca * (1 - Sa);},
-'average': function(Dca, Da, Sca, Sa){return (Sca + Dca) / 2;},
-// linear-dodge
-'add': function(Dca, Da, Sca, Sa){return stdMath.min(1, Sca + Dca);},
-// linear-burn
-'subtract': function(Dca, Da, Sca, Sa){return stdMath.max(0, Dca + Sca - 1);},
-'negation': function(Dca, Da, Sca, Sa){return 1 - stdMath.abs(1 - Sca - Dca);},
-'linear-light': function(Dca, Da, Sca, Sa){return Sca < 0.5 ? BLEND.subtract(Dca, Da, 2*Sca, Sa) : BLEND.add(Dca, Da, 2*(1 - Sca), Sa);}
-};
-// aliases
-BLEND['linear-dodge'] = BLEND['add'];
-BLEND['linear-burn'] = BLEND['subtract'];
-
 var BLEND_GLSL = {
 'normal': 'float normal(float Dca, float Da, float Sca, float Sa){return Sca + Dca * (1.0 - Sa);}',
 'multiply': 'float multiply(float Dca, float Da, float Sca, float Sa){return Sca*Dca + Sca*(1.0 - Da) + Dca*(1.0 - Sa);}',
@@ -357,4 +420,8 @@ var BLEND_GLSL = {
 'negation': 'float negation(float Dca, float Da, float Sca, float Sa){return 1.0 - abs(1.0 - Sca - Dca);}',
 'linear-light': 'float linearlight(float Dca, float Da, float Sca, float Sa){if (Sca < 0.5) return linearburn(Dca, Da, 2.0*Sca, Sa); else return lineardodge(Dca, Da, 2.0*(1.0 - Sca), Sa);}'
 };
+function wasm()
+{
+    return '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';
+}
 }(FILTER);

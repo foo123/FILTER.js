@@ -104,6 +104,18 @@ function glsl(filter)
         gl.uniform1f(program.uniform.high, filter.high*MAGNITUDE_SCALE/255);
     }
     });
+    output.push({
+    instance: filter,
+    shader: [
+    'varying vec2 pix;',
+    'uniform vec2 dp;',
+    'uniform sampler2D img;',
+    glslcode.hysteresis,
+    'void main(void) {',
+    '    gl_FragColor = hysteresis(img, pix, dp);',
+    '}'
+    ].join('\n'), iterations: 50
+    });
     return output;
 }
 }(FILTER);

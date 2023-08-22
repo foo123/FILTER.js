@@ -4,10 +4,10 @@
 **A pure JavaScript Library for Image/Video Processing, Filtering and Computer Vision**
 
 
-This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
+This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers, WebAssembly and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
 
 
-**version 1.6.0** (245 kB minified)
+**version 1.7.0** (362 kB minified)
 
 
 ### Contents
@@ -56,7 +56,7 @@ Some filters code has been adapted from open source libraries, see the comments 
 
 ### Features
 
-The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for **CPU and GPU parallel processing** transparently both for `browser` and `nodejs`)
+The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for **(low-level) CPU and GPU parallel processing** transparently both for `browser` and `nodejs`)
 
 0. [**AbstractFilter**](/api-reference.md#generic-abstract-filter)
 1. [**ColorTableFilter**](/api-reference.md#color-table-filter)
@@ -84,6 +84,8 @@ Each of the generic filters is prototype but it also includes a number of implem
 
 **Mix CPU/GPU filters transparently**
 
+**Fast CPU Assembly Code for browser and nodejs**: support assembly coded filters, see examples.
+
 **Map/Reduce functionality**
 
 **Image Blending Modes** (analogous to SVG blend modes)
@@ -94,6 +96,7 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
+* make WASM versions of filters where possible [DONE]
 * make GLSL versions of filters where possible [DONE]
 * make convolutions/statistics faster [DONE partially]
 * add full support for `Node.js` [DONE]

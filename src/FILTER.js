@@ -95,7 +95,6 @@ FILTER.NotImplemented = function(method) {
         throw new Error('Method not Implemented!');
     };
 };
-
 var Async = FILTER.Asynchronous
     ,isNode = Async.isPlatform(Async.Platform.NODE)
     ,isBrowser = Async.isPlatform(Async.Platform.BROWSER)
@@ -106,6 +105,8 @@ var Async = FILTER.Asynchronous
     ,platform = "undefined" !== typeof navigator && navigator.platform ? navigator.platform : ""
     ,vendor = "undefined" !== typeof navigator && navigator.vendor ? navigator.vendor : ""
 ;
+
+FILTER.global = isNode ? global : (isInsideThread ? self : window);
 
 // Browser Sniffing support
 var Browser = FILTER.Browser = {
@@ -169,6 +170,7 @@ FILTER.Array32I = typeof Int32Array !== "undefined" ? Int32Array : Array;
 FILTER.Array8U = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
 FILTER.Array16U = typeof Uint16Array !== "undefined" ? Uint16Array : Array;
 FILTER.Array32U = typeof Uint32Array !== "undefined" ? Uint32Array : Array;
+FILTER.ArrayBuffer = typeof ArrayBuffer !== "undefined" ? ArrayBuffer : (typeof Buffer !== "undefined" ? Buffer : Array);
 FILTER.ColorTable = FILTER.ImArray = FILTER._notSupportClamp ? FILTER.Array8U : Uint8ClampedArray;
 FILTER.AffineMatrix = FILTER.ColorMatrix = FILTER.ConvolutionMatrix = FILTER.Array32F;
 
@@ -237,7 +239,8 @@ FILTER.Util = {
     Math    : {},
     Filter  : {},
     Image   : {},
-    GLSL    : {}
+    GLSL    : {isSupported:false,isLoaded:false},
+    WASM    : {isSupported:false,isLoaded:false}
 };
 
 // Canvas for Browser, override if needed to provide alternative for Nodejs
@@ -337,5 +340,37 @@ FILTER.disposeGL = function(img) {
             img.gl.removeEventListener('webglcontextlost', contextLostHandler, false);
         }
     }
+};
+var supportsWASM = null;
+FILTER.supportsWASM = function() {
+    if (null == supportsWASM)
+    {
+        supportsWASM = false;
+        var module = null;
+        try {
+            if ("object" === typeof WebAssembly && "function" === typeof WebAssembly.instantiate && "undefined" !== typeof Uint8Array)
+            {
+                module = new WebAssembly.Module(Uint8Array.of(0x0,0x61,0x73,0x6d,0x01,0x00,0x00,0x00));
+                supportsWASM = (module instanceof WebAssembly.Module) && ((new WebAssembly.Instance(module)) instanceof WebAssembly.Instance);
+            }
+        } catch (e) {
+            supportsWASM = false;
+        }
+    }
+    return supportsWASM;
+};
+var waitList = 0;
+FILTER.waitFor = function(ntasks) {
+    waitList += (ntasks||0);
+};
+FILTER.unwaitFor = function(ntasks) {
+    waitList -= (ntasks||0);
+};
+FILTER.onReady = function(cb) {
+    var checkDone = function() {
+        if (0 < waitList) setTimeout(checkDone, 100);
+        else cb();
+    };
+    checkDone();
 };
 }(FILTER);

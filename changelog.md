@@ -1,5 +1,12 @@
 ## ChangeLog
 
+__1.7.0__
+
+* most filters coded in web assembly (more to be added)
+* CannyEdges better GLSL version
+* some optimizations
+* update examples and tests
+
 __1.6.0__
 
 * ConvolutionMatrixFilter.bilateral filter, true ConvolutionMatrixFilter.gauss filter

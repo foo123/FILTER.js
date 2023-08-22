@@ -19,6 +19,7 @@ var PROTO = 'prototype'
     ,FILTERPath = FILTER.Path
     ,Merge = FILTER.Class.Merge
     ,GLSL = FILTER.Util.GLSL
+    ,WASM = FILTER.Util.WASM
     ,initPlugin = function() {}
     ,constructorPlugin = function(init) {
         return function PluginFilter() {
@@ -91,6 +92,21 @@ var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {
                         if (data.inputs) filter.unserializeInputs(data.inputs, im);
                         // pass any filter metadata if needed
                         im = filter._apply(im[0], im[1], im[2]);
+                        self.send('apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData(true) : null});
+                    }
+                    else
+                    {
+                        self.send('apply', {im: null});
+                    }
+                })
+                .listen('apply_wasm', function(data) {
+                    if (filter && data && data.im)
+                    {
+                        var im = data.im; im[0] = FILTER.Util.Array.typed(im[0], FILTER.ImArray);
+                        if (data.params) filter.unserializeFilter(data.params);
+                        if (data.inputs) filter.unserializeInputs(data.inputs, im);
+                        // pass any filter metadata if needed
+                        im = filter._apply_wasm(im[0], im[1], im[2]);
                         self.send('apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData(true) : null});
                     }
                     else
@@ -187,7 +203,9 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // filters can have id's
     ,_isOn: true
     ,_isGLSL: false
+    ,_isWASM: false
     ,_glsl: null
+    ,_wasm: null
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -203,7 +221,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.name = null;
         self.id = null;
         self._isOn = null;
-        self._isGLSL = null;
+        self._isGLSL = self._isWASM = null;
         self._update = null;
         self.onComplete = null;
         self.mode = null;
@@ -212,7 +230,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         self.hasInputs = null;
         self.meta = null;
         self.hasMeta = null;
-        self._glsl = null;
+        self._glsl = self._wasm = null;
         self.$super('dispose');
         return self;
     }
@@ -412,6 +430,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return this._isGLSL;
     }
 
+    // whether filter is WASM
+    ,isWASM: function() {
+        return this._isWASM;
+    }
+
     // whether filter updates output image or not
     ,update: function(bool) {
         if (!arguments.length) bool = true;
@@ -435,7 +458,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // allow filters to be GLSL
     ,makeGLSL: function(bool) {
         if (!arguments.length) bool = true;
-        this._isGLSL = !!bool;
+        this._isGLSL = (!!bool) && GLSL.isLoaded && FILTER.supportsGLSL();
         return this;
     }
 
@@ -447,6 +470,23 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
     ,getGLSL: function() {
         return {instance: this};
+    }
+
+    // allow filters to be WASM
+    ,makeWASM: function(bool) {
+        if (!arguments.length) bool = true;
+        this._isWASM = (!!bool) && WASM.isLoaded && FILTER.supportsWASM();
+        return this;
+    }
+
+    // get WASM code and variables, override
+    ,WASMCode: function() {
+        var self = this;
+        if (null == self._wasm) self._wasm = self.getWASM();
+        return self._wasm;
+    }
+    ,getWASM: function() {
+        return new FILTER.ArrayBuffer();
     }
 
     // @override
@@ -463,6 +503,13 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // @override
     ,combineWith: function(filter) {
         return this;
+    }
+
+    // @override if using wasm
+    // for internal use, each filter overrides this
+    ,_apply_wasm: function(im, w, h, metaData) {
+        /* by default use js _apply, override */
+        return this._apply(im, w, h, metaData);
     }
 
     // @override
@@ -486,9 +533,9 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 if (data && data.im) im = FILTER.Util.Array.typed(data.im, FILTER.ImArray);
                 cb(im, self);
             };
-            self.send('apply', {im: [im, w, h, 2], params: self.serializeFilter(), inputs: self.serializeInputs(img)});
+            self.send(self.isWASM() ? 'apply_wasm' : 'apply', {im: [im, w, h, 2], params: self.serializeFilter(), inputs: self.serializeInputs(img)});
         }
-        else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
+        else if (!isInsideThread && self.isGLSL())
         {
             if (glsl = self.GLSLCode())
             {
@@ -504,7 +551,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         }
         else
         {
-            im = self._apply(im, w, h, {src:img, dst:img});
+            im = self.isWASM() ? self._apply_wasm(im, w, h, {src:img, dst:img}) : self._apply(im, w, h, {src:img, dst:img});
             cb(im, self);
         }
         return self;
@@ -564,9 +611,9 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     if (cb) cb.call(self);
                 };
                 // process request
-                self.send('apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
+                self.send(self.isWASM() ? 'apply_wasm' : 'apply', {im: im, /*id: src.id,*/ params: self.serializeFilter(), inputs: self.serializeInputs(src)});
             }
-            else if (!isInsideThread && self.isGLSL() && FILTER.supportsGLSL())
+            else if (!isInsideThread && self.isGLSL())
             {
                 if (glsl = self.GLSLCode())
                 {
@@ -592,7 +639,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             }
             else
             {
-                im2 = self._apply(im[0], w, h, {src:src, dst:dst});
+                im2 = self.isWASM() ? self._apply_wasm(im[0], w, h, {src:src, dst:dst}) : self._apply(im[0], w, h, {src:src, dst:dst});
                 // update image only if needed
                 // some filters do not actually change the image data
                 // but instead process information from the data,

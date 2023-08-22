@@ -13,7 +13,7 @@
 var stdMath = Math,
     crop = FILTER.Util.Image.crop,
     pad = FILTER.Util.Image.pad,
-    resize = FILTER.Util.Image.interpolate
+    interpolate = FILTER.Util.Image.interpolate
 ;
 
 // Dimension Filter, change image dimension
@@ -34,6 +34,7 @@ FILTER.Create({
     ,d: 0
     ,meta: null
     ,hasMeta: false
+    ,_runWASM: false
 
     ,dispose: function() {
         var self = this;
@@ -92,8 +93,15 @@ FILTER.Create({
         return this.set(null);
     }
 
+    ,_apply_wasm: function(im, w, h, metaData) {
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h, metaData);
+        self._runWASM = false;
+        return ret;
+    }
     ,_apply: function(im, w, h, metaData) {
-        var self = this, mode = self.mode,
+        var self = this, isWASM = self._runWASM, mode = self.mode,
             a = self.a, b = self.b, c = self.c, d = self.d;
         self.meta = null;
         self.hasMeta = false;
@@ -149,7 +157,7 @@ FILTER.Create({
                     a = stdMath.round(a);
                     b = stdMath.round(b);
                 }
-                im = resize(im, w, h, a, b);
+                im = isWASM ? FILTER.Util.Image.wasm.interpolate(im, w, h, a, b) : interpolate(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
                 self.hasMeta = true;
             break;

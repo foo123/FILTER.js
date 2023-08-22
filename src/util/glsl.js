@@ -49,15 +49,18 @@ var proto = 'prototype',
     'precision mediump float;',
     '#endif'
     ].join('\n'),
-    COMMENTS = /\/\*.*?\*\//gmi
+    COMMENTS = /\/\*.*?\*\//gmi,
+    LINE_COMMENTS = /\/\/.*?$/gmi,
+    ATTRIBUTE = /\battribute\s+\w+\s+(\w+)/gi,
+    UNIFORM = /\buniform\s+\w+\s+(\w+)/gi
 ;
 
 GLSL.DEFAULT = FRAGMENT_DEFAULT;
 
-function extract(source, type, store)
+function extract(source, /*type*/r, store)
 {
-    var r = new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig');
-    source.replace(COMMENTS, '').replace(r, function(match, varName) {
+    //var r = new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig');
+    source.replace(COMMENTS, '').replace(LINE_COMMENTS, '').replace(r, function(match, varName) {
         store[varName] = 0;
         return match;
     });
@@ -85,9 +88,6 @@ function GLSLProgram(fragmentSource, gl)
     self.vertexSource = VERTEX_DEAULT;
     self.fragmentSource = fragmentSource;
 
-    self.uniform = {};
-    self.attribute = {};
-
     vsh = compile(gl, self.vertexSource, gl.VERTEX_SHADER);
     fsh = compile(gl, self.fragmentSource, gl.FRAGMENT_SHADER);
     self.id = gl.createProgram();
@@ -106,11 +106,13 @@ function GLSLProgram(fragmentSource, gl)
     }
     else
     {
+        self.uniform = {};
+        self.attribute = {};
         // extract attributes
-        extract(self.vertexSource, 'attribute', self.attribute);
+        extract(self.vertexSource, ATTRIBUTE, self.attribute);
         // extract uniforms
-        extract(self.vertexSource, 'uniform', self.uniform);
-        extract(self.fragmentSource, 'uniform', self.uniform);
+        extract(self.vertexSource, UNIFORM, self.uniform);
+        extract(self.fragmentSource, UNIFORM, self.uniform);
         for (a in self.attribute) self.attribute[a] = gl.getAttribLocation(self.id, a);
         for (u in self.uniform) self.uniform[u] = gl.getUniformLocation(self.id, u);
     }
@@ -171,11 +173,14 @@ function createFramebufferTexture(gl, width, height)
 }
 function unbindFramebufferTexture(gl, buf)
 {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, buf.fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+    if (buf.fbo)
+    {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, buf.fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
 
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
     return buf;
 }
 function deleteFramebuffer(gl, fbo)
@@ -190,6 +195,7 @@ function deleteFramebufferTexture(gl, buf)
 {
     if (buf)
     {
+        unbindFramebufferTexture(gl, buf);
         deleteFramebuffer(gl, buf.fbo)
         deleteTexture(gl, buf.tex);
         buf = null;
@@ -481,11 +487,12 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
         }
-        else if (glsl.instance && (glsl._apply || glsl.instance._apply))
+        else if (glsl.instance && (glsl._apply || glsl.instance._apply_wasm || glsl.instance._apply))
         {
             // no glsl program, run js code instead
             im0 = fromshader ? getPixels(gl, w, h) : im;
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
+            else if (glsl.instance._apply_wasm) im = glsl.instance._apply_wasm(im0, w, h, metaData);
             else im = glsl.instance._apply(im0, w, h, metaData);
             if (glsl.instance.hasMeta && (
                 (null != glsl.instance.meta._IMG_WIDTH && w !== glsl.instance.meta._IMG_WIDTH)
@@ -561,6 +568,7 @@ GLSL.staticSort = function(items, temp, swap) {
     }
     return code;
 };
+GLSL.isSupported = FILTER.supportsGLSL();
+GLSL.isLoaded = true;
 FILTER.Util.GLSL = GLSL;
-
 }(FILTER);
