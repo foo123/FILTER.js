@@ -945,7 +945,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
-<tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b></td></tr>
+<tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>

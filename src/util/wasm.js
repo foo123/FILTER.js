@@ -266,7 +266,10 @@ if (WASM.isSupported && FILTER.Util.Filter._wasm)
         FILTER.Util.Filter.wasm = {
             integral_convolution: wasm.integral_convolution,
             separable_convolution: wasm.separable_convolution,
-            histogram: wasm.histogram
+            histogram: wasm.histogram,
+            gaussian: wasm.gaussian,
+            gradient: wasm.gradient,
+            optimum_gradient: wasm.optimum_gradient
         };
         FILTER.unwaitFor(1);
     });

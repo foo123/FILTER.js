@@ -4074,14 +4074,14 @@
     call $~lib/typedarray/Float32Array#__get
     f32.sub
    end
-   local.tee $7
+   local.tee $4
    f32.abs
-   local.set $4
+   local.set $5
    global.get $~lib/memory/__stack_pointer
    local.get $1
    i32.store $0
    f32.const 0
-   local.get $4
+   local.get $5
    local.get $1
    i32.const 4
    call $~lib/typedarray/Float32Array#__get
@@ -4094,11 +4094,11 @@
     local.get $0
     i32.const 0
     call $~lib/typedarray/Float32Array#__get
-    local.set $4
+    local.set $5
     global.get $~lib/memory/__stack_pointer
     local.get $1
     i32.store $0
-    local.get $4
+    local.get $5
     local.get $1
     i32.const 0
     call $~lib/typedarray/Float32Array#__get
@@ -4110,46 +4110,54 @@
     local.get $0
     i32.const 1
     call $~lib/typedarray/Float32Array#__get
-    local.set $4
+    local.set $5
     global.get $~lib/memory/__stack_pointer
     local.get $1
     i32.store $0
-    local.get $4
+    local.get $5
     local.get $1
     i32.const 1
     call $~lib/typedarray/Float32Array#__get
     f32.sub
    end
-   local.tee $4
+   local.tee $5
    f32.abs
    f32.max
-   local.tee $8
+   local.tee $7
    f32.const 0
    f32.eq
    br_if $__inlined_func$src/asm/geometricmapfilter/hypot
    drop
-   local.get $8
    local.get $7
-   local.get $8
-   f32.div
-   local.tee $5
-   local.get $5
-   f32.mul
    local.get $4
-   local.get $8
+   local.get $7
    f32.div
-   local.tee $5
+   local.tee $8
+   local.get $8
+   f32.mul
    local.get $5
+   local.get $7
+   f32.div
+   local.tee $7
+   local.get $7
    f32.mul
    f32.add
    f32.sqrt
    f32.mul
   end
-  local.set $5
+  local.set $7
+  local.get $5
   local.get $4
-  local.get $7
   call $~lib/math/NativeMathf.atan2
-  local.set $4
+  local.tee $4
+  f32.const 0
+  f32.lt
+  if
+   local.get $4
+   f32.const 6.2831854820251465
+   f32.add
+   local.set $4
+  end
   global.get $~lib/memory/__stack_pointer
   local.get $1
   i32.store $0
@@ -4171,7 +4179,7 @@
    local.get $3
    f32.const -1
    f32.add
-   local.get $5
+   local.get $7
    f32.mul
    local.get $1
    i32.const 2
@@ -4209,7 +4217,7 @@
    local.get $2
    f32.const -1
    f32.add
-   local.get $5
+   local.get $7
    f32.mul
    local.get $1
    i32.const 2

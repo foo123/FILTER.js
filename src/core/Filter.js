@@ -87,12 +87,14 @@ var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {
                 .listen('apply', function(data) {
                     if (filter && data && data.im)
                     {
+                        FILTER.onReady(function() {
                         var im = data.im; im[0] = FILTER.Util.Array.typed(im[0], FILTER.ImArray);
                         if (data.params) filter.unserializeFilter(data.params);
                         if (data.inputs) filter.unserializeInputs(data.inputs, im);
                         // pass any filter metadata if needed
                         im = filter._apply(im[0], im[1], im[2]);
                         self.send('apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData(true) : null});
+                        });
                     }
                     else
                     {
@@ -102,12 +104,14 @@ var FilterThread = FILTER.FilterThread = FILTER.Class(Async, {
                 .listen('apply_wasm', function(data) {
                     if (filter && data && data.im)
                     {
+                        FILTER.onReady(function() {
                         var im = data.im; im[0] = FILTER.Util.Array.typed(im[0], FILTER.ImArray);
                         if (data.params) filter.unserializeFilter(data.params);
                         if (data.inputs) filter.unserializeInputs(data.inputs, im);
                         // pass any filter metadata if needed
                         im = filter._apply_wasm(im[0], im[1], im[2]);
                         self.send('apply', {im: filter._update ? im : false, meta: filter.hasMeta ? filter.metaData(true) : null});
+                        });
                     }
                     else
                     {

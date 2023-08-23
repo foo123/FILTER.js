@@ -4,13 +4,16 @@ var parse_args = require('./commargs.js'),
     fs = require('fs'),
     F = require('./filterwithcanvas.js'),
     filter, input, output,
-    parallel = !!parse_args().options['parallel'];
+    args = parse_args(),
+    parallel = !!args.options['parallel'],
+    wasm = !!args.options['wasm'];
 
-console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
+console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + (wasm ? ' in assembly' : ' in javascript') + '"');
 
 filter = new F.ColorMatrixFilter().grayscale().contrast(1);
 input = __dirname+'/che.jpg';
 output = __dirname+'/che_grayscale.png';
+if (wasm) filter.makeWASM(true);
 if (parallel) filter.worker(true);
 
 console.log('Loading image..');

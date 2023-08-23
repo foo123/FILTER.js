@@ -18,14 +18,15 @@ FILTER.Create({
     ,low: 25
     ,high: 75
     ,lowpass: true
+    ,_runWASM: false
 
     ,path: FILTER.Path
 
     ,init: function(lowThreshold, highThreshold, lowpass) {
         var self = this;
-		self.low = arguments.length < 1 ? 25 : +lowThreshold;
-		self.high = arguments.length < 2 ? 75 : +highThreshold;
-		self.lowpass = arguments.length < 3 ? true : !!lowpass;
+        self.low = arguments.length < 1 ? 25 : +lowThreshold;
+        self.high = arguments.length < 2 ? 75 : +highThreshold;
+        self.lowpass = arguments.length < 3 ? true : !!lowpass;
     }
 
     ,thresholds: function(low, high, lowpass) {
@@ -57,11 +58,19 @@ FILTER.Create({
         return glsl(this)
     }
 
+
     // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
+    ,_apply_wasm: function(im, w, h) {
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h);
+        self._runWASM = false;
+        return ret;
+    }
+    ,_apply: function(im, w, h) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
-        return FILTER.Util.Filter.gradient(im, w, h, 2, 0, self.lowpass, 0, self.low*MAGNITUDE_SCALE, self.high*MAGNITUDE_SCALE, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+        return (self._runWASM ? (FILTER.Util.Filter.wasm||FILTER.Util.Filter) : FILTER.Util.Filter)['gradient'](im, w, h, 2, 0, self.lowpass ? 1 : 0, 0, self.low*MAGNITUDE_SCALE, self.high*MAGNITUDE_SCALE, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
     }
 });
 

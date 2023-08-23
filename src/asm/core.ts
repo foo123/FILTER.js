@@ -575,3 +575,234 @@ export function histogram(im:Uint8ClampedArray, channel:i32=0, cdf:i32=0):HIST
     }
     return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
 }
+export function gaussian(dx:i32, dy:i32, sigma:f32):Float32Array
+{
+    var rx:i32 = dx >>> 1,
+        ry:i32 = dy >>> 1,
+        l:i32 = dx*dy,
+        f:f32 = -1/(2*sigma*sigma),
+        m:Float32Array = new Float32Array(l),
+        x:i32, y:i32, i:i32, s:f32;
+    for (s=0,x=-rx,y=-ry,i=0; i<l; ++i,++x)
+    {
+        if (x > rx) {x=-rx; ++y;}
+        m[i] = Mathf.exp(f*f32(x*x + y*y));
+        s += m[i];
+    }
+    for (i=0; i<l; ++i) m[i] /= s;
+    return m;
+}
+const gauss_5_14:Array<f32> = [
+ f32(0.012146124616265297)
+​,f32(0.02610994502902031 )
+​,f32(0.03369731828570366 )
+​,f32(0.02610994502902031 )
+​,f32(0.012146124616265297)
+​,f32(0.02610994502902031 )
+​,f32(0.05612730234861374 )
+​,f32(0.07243751734495163 )
+​,f32(0.05612730234861374 )
+​,f32(0.02610994502902031 )
+​,f32(0.03369731828570366 )
+​,f32(0.07243751734495163 )
+​,f32(0.09348738193511963 )
+​,f32(0.07243751734495163 )
+​,f32(0.03369731828570366 )
+​,f32(0.02610994502902031 )
+​,f32(0.05612730234861374 )
+​,f32(0.07243751734495163 )
+​,f32(0.05612730234861374 )
+​,f32(0.02610994502902031 )
+​,f32(0.012146124616265297)
+​,f32(0.02610994502902031 )
+​,f32(0.03369731828570366 )
+​,f32(0.02610994502902031 )
+​,f32(0.012146124616265297)
+];//gaussian(5, 5, 1.4);
+export function gradient(im:Uint8ClampedArray, w:i32, h:i32, stride:i32, channel:i32, do_lowpass:i32, do_sat:i32, low:f32, high:f32, MAGNITUDE_SCALE:f32, MAGNITUDE_LIMIT:f32, MAGNITUDE_MAX:f32):Uint8ClampedArray
+{
+    let stride0:i32 = stride,
+        imSize:i32 = im.length, count:i32 = imSize>>>stride,
+        index:i32, i:i32, j:i32, k:i32, w_1:i32 = w-1, h_1:i32 = h-1,
+        w_2:i32, h_2:i32, w2:i32, w4:i32 = w<<stride,
+        dx:i32 = 1<<stride, dx2:i32 = dx<<1, dy:i32 = w4,
+        i0:i32, i1s:i32, i2s:i32, i1n:i32, i2n:i32,
+        i1w:i32, i1e:i32, ine:i32, inw:i32, ise:i32, isw:i32,
+        gX:Float32Array = new Float32Array(count),
+        gY:Float32Array = new Float32Array(count),
+        g:Array<f32>, lowpassed:Float32Array;
+
+    lowpassed = new Float32Array(count);
+    if (do_lowpass)
+    {
+        w_2 = w-2; h_2 = h-2; w2 = w<<1;
+        g = gauss_5_14;
+        for (i=2,j=2,k=w2; j<h_2; ++i)
+        {
+            if (i >= w_2) {i=2; k+=w; ++j; if (j>=h_2) break;}
+            index = i+k; i0 = (index<<stride);
+            if (0 < stride && 0 == im[i0+3])
+            {
+                lowpassed[index] = 0;
+            }
+            else
+            {
+                i0 += channel;
+                i1s = i0+dy; i2s = i1s+dy; i1n = i0-dy; i2n = i1n-dy;
+                lowpassed[index] = (
+                g[0]*f32(im[i2n-dx2]) + g[1]*f32(im[i2n-dx]) + g[2]*f32(im[i2n]) + g[3]*f32(im[i2n+dx]) + g[4]*f32(im[i2n+dx2])
+               +g[5]*f32(im[i1n-dx2]) + g[6]*f32(im[i1n-dx]) + g[7]*f32(im[i1n]) + g[8]*f32(im[i1n+dx]) + g[9]*f32(im[i1n+dx2])
+               +g[10]*f32(im[i0 -dx2]) + g[11]*f32(im[i0 -dx]) + g[12]*f32(im[i0 ]) + g[13]*f32(im[i0 +dx]) + g[14]*f32(im[i0 +dx2])
+               +g[15]*f32(im[i1s-dx2]) +  g[16]*f32(im[i1s-dx]) + g[17]*f32(im[i1s]) + g[18]*f32(im[i1s+dx]) + g[19]*f32(im[i1s+dx2])
+               +g[20]*f32(im[i2s-dx2]) + g[21]*f32(im[i2s-dx]) + g[22]*f32(im[i2s]) + g[23]*f32(im[i2s+dx]) + g[24]*f32(im[i2s+dx2])
+                );
+            }
+        }
+    }
+    else
+    {
+        for (i=0; i<count; ++i)
+        {
+            lowpassed[i] = f32(im[(i<<stride)+channel]);
+        }
+    }
+    dx = 1; dx2 = 2; dy = w; stride = 0; channel = 0;
+
+    /*
+    separable sobel gradient 3x3 in X,Y directions
+             | −1  0  1 |
+    sobelX = | −2  0  2 |
+             | −1  0  1 |
+
+             |  1  2  1 |
+    sobelY = |  0  0  0 |
+             | −1 -2 -1 |
+    */
+    for (i=1,j=1,k=w; j<h_1; ++i)
+    {
+        if (i >= w_1) {i=1; k+=w; ++j; if (j>=h_1) break;}
+        index = k+i; i0 = (index<<stride)+channel;
+        i1s = i0+dy; i1n = i0-dy;
+        gX[index] = (lowpassed[i1n+dx]-lowpassed[i1n-dx])+2*(lowpassed[i0+dx]-lowpassed[i0-dx])+(lowpassed[i1s+dx]-lowpassed[i1s-dx]);
+        gY[index] = (lowpassed[i1n-dx]-lowpassed[i1s-dx])+2*(lowpassed[i1n]-lowpassed[i1s])+(lowpassed[i1n+dx]-lowpassed[i1s+dx]);
+    }
+    // do the next stages of canny edge processing
+    return optimum_gradient(gX, gY, im, w, h, stride0, do_sat, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);
+}
+function ahypot(x:f32, y:f32):f32
+{
+    x = Mathf.abs(x); y = Mathf.abs(y);
+    let tM = Mathf.max(x, y);
+    if (0==tM) return 0;
+    let tm = Mathf.min(x, y)/tM;
+    return tM*(1+0.43*tm*tm); // approximation
+}
+export function optimum_gradient(gX:Float32Array, gY:Float32Array, im:Uint8ClampedArray, w:i32, h:i32, stride:i32, sat:i32, low:f32, high:f32, MAGNITUDE_SCALE:f32, MAGNITUDE_LIMIT:f32, MAGNITUDE_MAX:f32):Uint8ClampedArray
+{
+    let imSize:i32 = im.length,
+        count:i32 = imSize>>>stride,
+        index:i32, i:i32, j:i32, k:i32, sum:f32,
+        w_1:i32 = w-1, h_1:i32 = h-1,
+        i0:i32, i1s:i32, i2s:i32, i1n:i32, i2n:i32,
+        i1w:i32, i1e:i32, ine:i32, inw:i32, ise:i32, isw:i32,
+        g:Float32Array = new Float32Array(count), xGrad:f32, yGrad:f32,
+        absxGrad:f32, absyGrad:f32, gradMag:f32, tmp:f32,
+        nMag:f32, sMag:f32, wMag:f32, eMag:f32,
+        neMag:f32, seMag:f32, swMag:f32, nwMag:f32, gg:f32,
+        x0:i32, x1:i32, x2:i32, y0:i32, y1:i32, y2:i32,
+        x:i32, y:i32, y0w:i32, yw:i32, jj:i32, ii:i32,
+        followedge:i32, tm:f32, tM:f32;
+
+    // non-maximal supression
+    for (i=1,j=1,k=w; j<h_1; ++i)
+    {
+        if (i >= w_1) {i=1; k+=w; ++j; if (j>=h_1) break;}
+
+        i0 = i + k;
+        i1n = i0 - w;
+        i1s = i0 + w;
+        i1w = i0 - 1;
+        i1e = i0 + 1;
+        inw = i1n - 1;
+        ine = i1n + 1;
+        isw = i1s - 1;
+        ise = i1s + 1;
+
+        xGrad = gX[i0]; yGrad = gY[i0];
+        absxGrad = Mathf.abs(xGrad);
+        absyGrad = Mathf.abs(yGrad);
+        gradMag = ahypot(xGrad, yGrad);
+        nMag = ahypot(gX[i1n],gY[i1n]);
+        sMag = ahypot(gX[i1s],gY[i1s]);
+        wMag = ahypot(gX[i1w],gY[i1w]);
+        eMag = ahypot(gX[i1e],gY[i1e]);
+        neMag = ahypot(gX[ine],gY[ine]);
+        seMag = ahypot(gX[ise],gY[ise]);
+        swMag = ahypot(gX[isw],gY[isw]);
+        nwMag = ahypot(gX[inw],gY[inw]);
+
+        gg = xGrad * yGrad <= 0
+            ? (absxGrad >= absyGrad
+                ? ((tmp = absxGrad * gradMag) >= Mathf.abs(yGrad * neMag - (xGrad + yGrad) * eMag)
+                    && tmp > Mathf.abs(yGrad * swMag - (xGrad + yGrad) * wMag))
+                : ((tmp = absyGrad * gradMag) >= Mathf.abs(xGrad * neMag - (yGrad + xGrad) * nMag)
+                    && tmp > Mathf.abs(xGrad * swMag - (yGrad + xGrad) * sMag)))
+            : (absxGrad >= absyGrad
+                ? ((tmp = absxGrad * gradMag) >= Mathf.abs(yGrad * seMag + (xGrad - yGrad) * eMag)
+                    && tmp > Mathf.abs(yGrad * nwMag + (xGrad - yGrad) * wMag))
+                : ((tmp = absyGrad * gradMag) >= Mathf.abs(xGrad * seMag + (yGrad - xGrad) * sMag)
+                    && tmp > Mathf.abs(xGrad * nwMag + (yGrad - xGrad) * nMag)));
+        g[i0] = gg ? (gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : MAGNITUDE_SCALE * gradMag) : 0;
+    }
+    /*if (sat)
+    {
+        // integral (canny) gradient
+        // first row
+        for (i=0,sum=0; i<w; ++i) {sum += g[i]; g[i] = sum;}
+        // other rows
+        for (i=w,k=0,sum=0; i<count; ++i,++k)
+        {
+            if (k>=w) {k=0; sum=0;}
+            sum += g[i]; g[i] = g[i-w] + sum;
+        }
+        return g;
+    }
+    else
+    {*/
+        // full (canny) gradient
+        // reset image
+        if (stride) for (i=0; i<imSize; i+=4) {im[i] = im[i+1] = im[i+2] = 0;}
+        else for (i=0; i<imSize; ++i) {im[i] = 0;}
+
+        //hysteresis and double-threshold, inlined
+        for (i=0,j=0,index=0,k=0; index<count; ++index,k=index<<stride,++i)
+        {
+            if (i >= w) {i=0; ++j;}
+            if ((0 < im[k]) || (g[index] < high)) continue;
+            x1 = i; y1 = j; ii = k; jj = index;
+            do {
+                // threshold here
+                if (stride) {im[ii] = im[ii+1] = im[ii+2] = 255;}
+                else {im[ii] = 255;}
+
+                x0 = x1 === 0 ? x1 : x1-1;
+                x2 = x1 === w_1 ? x1 : x1+1;
+                y0 = y1 === 0 ? y1 : y1-1;
+                y2 = y1 === h_1 ? y1 : y1+1;
+                y0w = y0*w;
+                x = x0; y = y0; yw = y0w = y0*w; followedge = 0;
+                while (x <= x2 && y <= y2)
+                {
+                    jj = x + yw; ii = jj << stride;
+                    if ((y !== y1 || x !== x1) && (0 == im[ii]) && (g[jj] >= low))
+                    {
+                        x1 = x; y1 = y;
+                        followedge = 1; break;
+                    }
+                    ++y; yw+=w; if (y>y2) {y=y0; yw=y0w; ++x;}
+                }
+            } while (followedge);
+        }
+        return im;
+    /*}*/
+}

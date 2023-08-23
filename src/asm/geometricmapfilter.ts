@@ -7,6 +7,7 @@ function hypot(x:f32, y:f32):f32
     return m*Mathf.sqrt(x*x + y*y);
 }
 const Y:f32 = 1;
+const TWOPI:f32 = 6.283185307179586;
 function init_twirl(p:Float32Array, w:f32, h:f32):Float32Array
 {
     p[0] *= (w-1);
@@ -41,7 +42,7 @@ function init_polar(p:Float32Array, w:f32, h:f32):Float32Array
             hypot((cx - W), (cy - H))
         )
     );
-    p[3] = 6.283185307179586;
+    p[3] = TWOPI;
     return p;
 }
 function init_cartesian(p:Float32Array, w:f32, h:f32):Float32Array
@@ -60,7 +61,7 @@ function init_cartesian(p:Float32Array, w:f32, h:f32):Float32Array
             hypot((cx - W), (cy - H))
         )
     );
-    p[3] = 6.283185307179586;
+    p[3] = TWOPI;
     return p;
 }
 function twirl(t:Float32Array, p:Float32Array, w:f32, h:f32):Float32Array
@@ -117,6 +118,7 @@ function cartesian(t:Float32Array, p:Float32Array, w:f32, h:f32):Float32Array
         y:f32 = p[4] == Y ? (t[0] - p[0]) : (t[1] - p[1]),
         r:f32 = hypot(x, y),
         a:f32 = Mathf.atan2(y, x);
+    if (0 > a) a += TWOPI;
     if (p[4] == Y)
     {
         t[1] = (h-1)*r/p[2];
