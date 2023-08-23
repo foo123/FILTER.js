@@ -239,8 +239,8 @@ FILTER.Util = {
     Math    : {},
     Filter  : {},
     Image   : {},
-    GLSL    : {isSupported:false,isLoaded:false},
-    WASM    : {isSupported:false,isLoaded:false}
+    GLSL    : {isSupported:false, isLoaded:false},
+    WASM    : {isSupported:false, isLoaded:false}
 };
 
 // Canvas for Browser, override if needed to provide alternative for Nodejs
@@ -356,6 +356,7 @@ FILTER.supportsWASM = function() {
         } catch (e) {
             supportsWASM = false;
         }
+        module = null;
     }
     return supportsWASM;
 };
@@ -367,7 +368,7 @@ FILTER.unwaitFor = function(ntasks) {
     waitList -= (ntasks||0);
 };
 FILTER.onReady = function(cb) {
-    var checkDone = function() {
+    var checkDone = function checkDone() {
         if (0 < waitList) setTimeout(checkDone, 100);
         else cb();
     };

@@ -57,9 +57,9 @@ var proto = 'prototype',
 
 GLSL.DEFAULT = FRAGMENT_DEFAULT;
 
-function extract(source, /*type*/r, store)
+function extract(source, type, store)
 {
-    //var r = new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig');
+    var r = type/*new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig')*/;
     source.replace(COMMENTS, '').replace(LINE_COMMENTS, '').replace(r, function(match, varName) {
         store[varName] = 0;
         return match;
@@ -96,9 +96,9 @@ function GLSLProgram(fragmentSource, gl)
     gl.linkProgram(self.id);
     if (!gl.getProgramParameter(self.id, gl.LINK_STATUS) && !gl.isContextLost())
     {
-        FILTER.error(gl.getProgramInfoLog(self.id));
         FILTER.error(gl.getShaderInfoLog(vsh));
         FILTER.error(gl.getShaderInfoLog(fsh));
+        FILTER.error(gl.getProgramInfoLog(self.id));
         gl.deleteShader(vsh);
         gl.deleteShader(fsh);
         gl.deleteProgram(self.id);
@@ -273,8 +273,9 @@ function prepareGL(img, ws, hs)
 }
 function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
 {
-    var iterations = glsl.iterations || 1,
-        i, src, dst, t, prevUnit = 1,
+    var iterations = glsl.iterations || 1;
+    if ('function' === typeof iterations) iterations = iterations(w, h) || 1;
+    var i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
 
     if (gl.isContextLost && gl.isContextLost()) return true;
@@ -376,7 +377,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         flip = false;
     }
 }
-GLSL.run = function(img, glsls, im, w, h, metaData) {
+GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
     var gl = prepareGL(img, w, h),
         input = null, output = null,
         i, n = glsls.length, glsl,
@@ -521,6 +522,12 @@ GLSL.run = function(img, glsls, im, w, h, metaData) {
                 {
                     buf0 = createFramebufferTexture(gl, w, h);
                     buf1 = createFramebufferTexture(gl, w, h);
+                }
+                if (filter.hasMeta)
+                {
+                    filter.meta = filter.meta || {};
+                    filter.meta._IMG_WIDTH = w;
+                    filter.meta._IMG_HEIGHT = h;
                 }
             }
             fromshader = false;

@@ -193,9 +193,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
 
     ,dimensions: function(w, h) {
         var self = this;
-        if (w !== self.width || h !== self.height)
+        if (set_dimensions(self, w, h, WIDTH_AND_HEIGHT))
         {
-            set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
             self._refresh |= DATA;
             if (self.selection) self._refresh |= SEL;
             self.nref = (self.nref+1) % 1000;
@@ -691,29 +690,51 @@ FilterImage[PROTO].setDimensions = FilterImage[PROTO].dimensions;
 function set_dimensions(scope, w, h, what)
 {
     what = what || WIDTH_AND_HEIGHT;
-    if ((what & WIDTH) && (scope.width !== w))
+    var ws, hs, ret = false, is_selection = !!scope.selection;
+    if (is_selection)
     {
-        scope.width = w;
-        scope.oCanvas.width = DPR*w;
-        //if (scope.oCanvas.style) scope.oCanvas.style.width = String(w) + 'px';
+        var sel = scope.selection,
+            ow = scope.width-1,
+            oh = scope.height-1,
+            xs = sel[0],
+            ys = sel[1],
+            xf = sel[2],
+            yf = sel[3],
+            fx = sel[4] ? ow : 1,
+            fy = sel[4] ? oh : 1;
+        xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
+        xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
+        ws = xf-xs+DPR; hs = yf-ys+DPR;
+    }
+    else
+    {
+        ws = scope.width; hs = scope.height;
+    }
+    if ((what & WIDTH) && (ws !== w))
+    {
+        scope.width = stdMath.round(is_selection ? (scope.width/ws*w) : w);
+        scope.oCanvas.width = DPR*scope.width;
+        //if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.width) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.width = scope.oCanvas.width;
             //if (scope.iCanvas.style) scope.iCanvas.style.width = scope.oCanvas.style.width;
         }
+        ret = true;
     }
-    if ((what & HEIGHT) && (scope.height !== h))
+    if ((what & HEIGHT) && (hs !== h))
     {
-        scope.height = h;
-        scope.oCanvas.height = DPR*h;
-        //if (scope.oCanvas.style) scope.oCanvas.style.height = String(h) + 'px';
+        scope.height = stdMath.round(is_selection ? (scope.height/hs*h) : h);
+        scope.oCanvas.height = DPR*scope.height;
+        //if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.height) + 'px';
         if (scope._restorable)
         {
             scope.iCanvas.height = scope.oCanvas.height;
             //if (scope.iCanvas.style) scope.iCanvas.style.height = scope.oCanvas.style.height;
         }
+        ret = true;
     }
-    return scope;
+    return ret;
 }
 function refresh_data(scope, what)
 {

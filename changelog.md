@@ -4,6 +4,8 @@ __1.7.0__
 
 * most filters coded in web assembly (more to be added)
 * CannyEdges better GLSL version
+* Image.setDimensions scales appropriately with selection if active, else resizes whole image as before
+* dimensions changing during GLSL correctly set filter meta
 * some optimizations
 * update examples and tests
 

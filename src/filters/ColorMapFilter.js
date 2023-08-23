@@ -196,53 +196,18 @@ ColorMapFilter.prototype.extract = ColorMapFilter.prototype.mask;
 function glsl(filter)
 {
     if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
-    if (HAS.call(MAP, filter._mapName))
+    if ('quantize' === filter._mapName)
     {
-        if ('quantize' === filter._mapName)
-        {
-            var toFloat = GLSL.formatFloat,
-                thresholds = filter.thresholds || [],
-                colors = filter.quantizedColors || [],
-                formatThresh = function(t) {
-                    t = t || 0;
-                    if (MODE.COLOR === filter.mode)
-                        return toFloat(100*((t >> 16)&255)/255+10*((t >> 8)&255)/255+((t)&255)/255);
-                    else
-                        return toFloat(t/255);
-                };
-            return {instance: filter, shader: [
-                'varying vec2 pix;',
-                'uniform sampler2D img;',
-                '#define HUE '+MODE.HUE+'',
-                '#define SATURATION '+MODE.SATURATION+'',
-                '#define INTENSITY '+MODE.INTENSITY+'',
-                '#define COLOR '+MODE.COLOR+'',
-                'uniform int mode;',
-                Color.GLSLCode(),
-                'float col24(float r, float g, float b) {',
-                '   return 100.0*r + 10.0*g + 1.0*b;',
-                '}',
-                'void main(void) {',
-                    'vec4 i = texture2D(img, pix);',
-                    'vec4 o = vec4(i.r, i.g, i.b, i.a);',
-                    'float v;',
-                    'int found = 0;',
-                    'if (0.0 != i.a) {',
-                        'if (mode == HUE) v = rgb2hue(i.r, i.g, i.b)/360.0;',
-                        'else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
-                        'else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
-                        'else v = col24(i.r, i.g, i.b);',
-                        thresholds.map(function(t, i) {
-                            return 'if (0 == found && v <= '+formatThresh(t)+') {found = 1; o.rgb = '+(i<colors.length ? Color.rgb24GL(colors[i]) : 'vec3(1.0,1.0,1.0)')+';}';
-                        }).join('\n'),
-                        'gl_FragColor = o;',
-                    '} else {',
-                        'gl_FragColor = i;',
-                    '}',
-                '}'
-                ].join('\n')
+        var toFloat = GLSL.formatFloat,
+            thresholds = filter.thresholds || [],
+            colors = filter.quantizedColors || [],
+            formatThresh = function(t) {
+                t = t || 0;
+                if (MODE.COLOR === filter.mode)
+                    return toFloat(100*((t >> 16)&255)/255+10*((t >> 8)&255)/255+((t)&255)/255);
+                else
+                    return toFloat(t/255);
             };
-        }
         return {instance: filter, shader: [
             'varying vec2 pix;',
             'uniform sampler2D img;',
@@ -250,97 +215,131 @@ function glsl(filter)
             '#define SATURATION '+MODE.SATURATION+'',
             '#define INTENSITY '+MODE.INTENSITY+'',
             '#define COLOR '+MODE.COLOR+'',
-            'uniform vec4 color;',
-            'uniform float minval;',
-            'uniform float maxval;',
-            'uniform int mapping;',
             'uniform int mode;',
             Color.GLSLCode(),
             'float col24(float r, float g, float b) {',
             '   return 100.0*r + 10.0*g + 1.0*b;',
             '}',
-            'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
-            '    float v = 0.0;',
-            '    if (0.0 != i.a) {',
-            '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
-            '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
-            '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
-            '        else v = col24(i.r, i.g, i.b);',
-            '        if (v < minval || v > maxval) return color;',
-            '        else return i;',
-            '    } else {',
-            '        return i;',
-            '    }',
-            '}',
             'void main(void) {',
-                'vec4 c = texture2D(img, pix);',
-                'vec4 o = vec4(c.r, c.g, c.b, c.a);',
+                'vec4 i = texture2D(img, pix);',
+                'vec4 o = vec4(i.r, i.g, i.b, i.a);',
                 'float v;',
-                'if (1 == mapping) {o.xyz = rgb2hsv(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
-                'else if (2 == mapping) {o.rgb = hsv2rgb(c.r, c.g, c.b).rgb;}',
-                'else if (3 == mapping) {o.xyz = rgb2hsl(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
-                'else if (4 == mapping) {o.rgb = hsl2rgb(c.r, c.g, c.b).rgb;}',
-                'else if (5 == mapping) {o.xyz = rgb2hwb(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
-                'else if (6 == mapping) {o.rgb = hwb2rgb(c.r, c.g, c.b).rgb;}',
-                'else if (7 == mapping) {o.xyz = rgb2cmyk(c.r, c.g, c.b).xyz;}',
-                'else if (8 == mapping) {v=rgb2hue(c.r, c.g, c.b)/360.0; o=vec4(v,v,v,c.a);}',
-                'else if (9 == mapping) {v=rgb2sat(c.r, c.g, c.b, FORMAT_HSV); o=vec4(v,v,v,c.a);}',
-                'else if (10 == mapping) {o = mask(c, minval, maxval, color);}',
-                'gl_FragColor = o;',
+                'int found = 0;',
+                'if (0.0 != i.a) {',
+                    'if (mode == HUE) v = rgb2hue(i.r, i.g, i.b)/360.0;',
+                    'else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
+                    'else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
+                    'else v = col24(i.r, i.g, i.b);',
+                    thresholds.map(function(t, i) {
+                        return 'if (0 == found && v <= '+formatThresh(t)+') {found = 1; o.rgb = '+(i<colors.length ? Color.rgb24GL(colors[i]) : 'vec3(1.0,1.0,1.0)')+';}';
+                    }).join('\n'),
+                    'gl_FragColor = o;',
+                '} else {',
+                    'gl_FragColor = i;',
+                '}',
             '}'
-            ].join('\n'),
-            vars: function(gl, w, h, program) {
-                var thresh = filter.thresholds || [0, 0],
-                    cols = filter.quantizedColors || [0],
-                    color = cols[0] || 0,
-                    t0 = thresh[0] || 0,
-                    t1 = thresh[1] || 0;
-                gl.uniform4f(program.uniform.color,
-                    ((color >>> 16) & 255)/255,
-                    ((color >>> 8) & 255)/255,
-                    (color & 255)/255,
-                    ((color >>> 24) & 255)/255
-                );
-                gl.uniform1f(program.uniform.minval,
-                    MODE.COLOR === filter.mode ? (
-                    100*((t0 >> 16)&255)/255+10*((t0 >> 8)&255)/255+((t0)&255)/255
-                    ) :
-                    (t0)
-                );
-                gl.uniform1f(program.uniform.maxval,
-                    MODE.COLOR === filter.mode ? (
-                    100*((t1 >> 16)&255)/255+10*((t1 >> 8)&255)/255+((t1)&255)/255
-                    ) :
-                    (t1)
-                );
-                gl.uniform1i(program.uniform.mapping,
-                    "rgb2hsv" === filter._mapName ? 1 : (
-                    "hsv2rgb" === filter._mapName ? 2 : (
-                    "rgb2hsl" === filter._mapName ? 3 : (
-                    "hsl2rgb" === filter._mapName ? 4 : (
-                    "rgb2hwb" === filter._mapName ? 5 : (
-                    "hwb2rgb" === filter._mapName ? 6 : (
-                    "rgb2cmyk" === filter._mapName ? 7 : (
-                    "hue" === filter._mapName ? 8 : (
-                    "saturation" === filter._mapName ? 9 : (
-                    "mask" === filter._mapName ? 10 : 0
-                    )
-                    )
-                    )
-                    )
-                    )
-                    )
-                    )
-                    )
-                    )
-                );
-            }
+            ].join('\n')
         };
     }
-    else
-    {
-        return {instance: filter, shader: filter._map.shader, vars: filter._map.vars, textures: filter._map.textures};
-    }
+    return {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        '#define HUE '+MODE.HUE+'',
+        '#define SATURATION '+MODE.SATURATION+'',
+        '#define INTENSITY '+MODE.INTENSITY+'',
+        '#define COLOR '+MODE.COLOR+'',
+        'uniform vec4 color;',
+        'uniform float minval;',
+        'uniform float maxval;',
+        'uniform int mapping;',
+        'uniform int mode;',
+        Color.GLSLCode(),
+        'float col24(float r, float g, float b) {',
+        '   return 100.0*r + 10.0*g + 1.0*b;',
+        '}',
+        'vec4 mask(vec4 i, float minval, float maxval, vec4 color) {',
+        '    float v = 0.0;',
+        '    if (0.0 != i.a) {',
+        '        if (mode == HUE) v = rgb2hue(i.r, i.g, i.b);',
+        '        else if (mode == SATURATION) v = rgb2sat(i.r, i.g, i.b, FORMAT_HSV);',
+        '        else if (mode == INTENSITY) v = intensity(i.r, i.g, i.b);',
+        '        else v = col24(i.r, i.g, i.b);',
+        '        if (v < minval || v > maxval) return color;',
+        '        else return i;',
+        '    } else {',
+        '        return i;',
+        '    }',
+        '}',
+        (HAS.call(MAP, filter._mapName) || !filter._map.shader
+        ? 'vec3 map(vec3 rgb) {return rgb;}'
+        : filter._map.shader.toString()),
+        'void main(void) {',
+            'vec4 c = texture2D(img, pix);',
+            'vec4 o = vec4(c.r, c.g, c.b, c.a);',
+            'float v;',
+            'if (1 == mapping)      {o.xyz = rgb2hsv(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+            'else if (2 == mapping) {o.rgb = hsv2rgb(c.r, c.g, c.b).rgb;}',
+            'else if (3 == mapping) {o.xyz = rgb2hsl(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+            'else if (4 == mapping) {o.rgb = hsl2rgb(c.r, c.g, c.b).rgb;}',
+            'else if (5 == mapping) {o.xyz = rgb2hwb(c.r, c.g, c.b).xyz; o.x /= 360.0;}',
+            'else if (6 == mapping) {o.rgb = hwb2rgb(c.r, c.g, c.b).rgb;}',
+            'else if (7 == mapping) {o.xyz = rgb2cmyk(c.r, c.g, c.b).xyz;}',
+            'else if (8 == mapping) {v=rgb2hue(c.r, c.g, c.b)/360.0; o=vec4(v,v,v,c.a);}',
+            'else if (9 == mapping) {v=rgb2sat(c.r, c.g, c.b, FORMAT_HSV); o=vec4(v,v,v,c.a);}',
+            'else if (10 == mapping){o = mask(c, minval, maxval, color);}',
+            'else                   {o.rgb = map(c.rgb);}',
+            'gl_FragColor = o;',
+        '}'
+        ].join('\n'),
+        vars: function(gl, w, h, program) {
+            var thresh = filter.thresholds || [0, 0],
+                cols = filter.quantizedColors || [0],
+                color = cols[0] || 0,
+                t0 = thresh[0] || 0,
+                t1 = thresh[1] || 0;
+            gl.uniform4f(program.uniform.color,
+                ((color >>> 16) & 255)/255,
+                ((color >>> 8) & 255)/255,
+                (color & 255)/255,
+                ((color >>> 24) & 255)/255
+            );
+            gl.uniform1f(program.uniform.minval,
+                MODE.COLOR === filter.mode ? (
+                100*((t0 >> 16)&255)/255+10*((t0 >> 8)&255)/255+((t0)&255)/255
+                ) :
+                (t0)
+            );
+            gl.uniform1f(program.uniform.maxval,
+                MODE.COLOR === filter.mode ? (
+                100*((t1 >> 16)&255)/255+10*((t1 >> 8)&255)/255+((t1)&255)/255
+                ) :
+                (t1)
+            );
+            gl.uniform1i(program.uniform.mapping,
+                "rgb2hsv" === filter._mapName ? 1 : (
+                "hsv2rgb" === filter._mapName ? 2 : (
+                "rgb2hsl" === filter._mapName ? 3 : (
+                "hsl2rgb" === filter._mapName ? 4 : (
+                "rgb2hwb" === filter._mapName ? 5 : (
+                "hwb2rgb" === filter._mapName ? 6 : (
+                "rgb2cmyk" === filter._mapName ? 7 : (
+                "hue" === filter._mapName ? 8 : (
+                "saturation" === filter._mapName ? 9 : (
+                "mask" === filter._mapName ? 10 : 0
+                )
+                )
+                )
+                )
+                )
+                )
+                )
+                )
+                )
+            );
+            if (filter._map.shader && filter._map.vars)
+                filter._map.vars(gl, w, h, program);
+        }
+    };
 }
 function apply__(map, preample)
 {

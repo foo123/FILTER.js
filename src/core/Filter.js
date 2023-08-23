@@ -490,7 +490,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         return self._wasm;
     }
     ,getWASM: function() {
-        return new FILTER.ArrayBuffer();
+        return '';
     }
 
     // @override
@@ -512,7 +512,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // @override if using wasm
     // for internal use, each filter overrides this
     ,_apply_wasm: function(im, w, h, metaData) {
-        /* by default use js _apply, override */
+        /* by default use javascript _apply, override */
         return this._apply(im, w, h, metaData);
     }
 
@@ -547,7 +547,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                 glsl = glsl.filter(validEntry);
                 if (glsl.length)
                 {
-                    im2 = GLSL.run(img, glsl, im, w, h, {src:img, dst:img});
+                    im2 = GLSL.run(img, self, glsl, im, w, h, {src:img, dst:img});
                     if (im2) im = im2;
                 }
             }
@@ -627,7 +627,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
                     glsl = glsl.filter(validEntry);
                     if (glsl.length)
                     {
-                        im2 = GLSL.run(dst, glsl, im[0], w, h, {src:src, dst:dst});
+                        im2 = GLSL.run(dst, self, glsl, im[0], w, h, {src:src, dst:dst});
                         if (self._update)
                         {
                             if (self.hasMeta && (
