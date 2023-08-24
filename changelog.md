@@ -6,6 +6,7 @@ __1.7.0__
 * CannyEdges better GLSL version
 * Image.setDimensions scales appropriately with selection if active, else resizes whole image as before
 * dimensions changing during GLSL correctly set filter meta
+* fix HaarDetector selection again
 * some optimizations
 * update examples and tests
 

@@ -384,8 +384,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, isContextLost, cleanUp, lost,
-        first = -1, last = -1,
+        canRun, isContextLost,
+        cleanUp, lost, resize,
+        first = -1, last = -1, nw, nh,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -413,6 +414,38 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         cleanUp();
         img.cache = {}; // need to recompile programs?
         FILTER.log('GL context lost on #'+img.id);
+    };
+    resize = function(nw, nh) {
+        if (w === nw && h === nh)  return;
+        w = nw;
+        h = nh;
+        FILTER.setGLDimensions(img, w, h);
+        deleteBuffer(gl, pos);
+        pos = createBuffer(gl, new FILTER.Array32F([
+            0, 0,
+            w, 0,
+            0, h,
+            0, h,
+            w, 0,
+            w, h
+        ]));
+        gl.viewport(0, 0, w, h);
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        deleteFramebufferTexture(gl, buf[0]);
+        deleteFramebufferTexture(gl, buf[1]);
+        buf = [null, null];
+        if (last > first)
+        {
+            buf0 = createFramebufferTexture(gl, w, h);
+            buf1 = createFramebufferTexture(gl, w, h);
+        }
+        if (filter.hasMeta)
+        {
+            filter.meta = filter.meta || {};
+            filter.meta._IMG_WIDTH = w;
+            filter.meta._IMG_HEIGHT = h;
+        }
     };
     if (gl.isContextLost && gl.isContextLost()) return lost();
     for (i=0; i<n; ++i)
@@ -463,6 +496,12 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 if (fromshader) prev[0] = uploadTexture(gl, getPixels(gl, w, h), w, h);
                 else prev[0] = uploadTexture(gl, im, w, h);
             }
+            if (null != glsl.width && null != glsl.height)
+            {
+                nw = 'function' === typeof glsl.width ? glsl.width(w, h) : glsl.width;
+                nh = 'function' === typeof glsl.height ? glsl.height(w, h) : glsl.height;
+                resize(nw, nh);
+            }
             if (i === first)
             {
                 if (!input) input = uploadTexture(gl, im, w, h, 0);
@@ -495,40 +534,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else if (glsl.instance._apply_wasm) im = glsl.instance._apply_wasm(im0, w, h, metaData);
             else im = glsl.instance._apply(im0, w, h, metaData);
-            if (glsl.instance.hasMeta && (
-                (null != glsl.instance.meta._IMG_WIDTH && w !== glsl.instance.meta._IMG_WIDTH)
-             || (null != glsl.instance.meta._IMG_HEIGHT && h !== glsl.instance.meta._IMG_HEIGHT)
-            ))
+            if (glsl.instance.hasMeta && null != glsl.instance.meta._IMG_WIDTH && null != glsl.instance.meta._IMG_HEIGHT)
             {
-                w = glsl.instance.meta._IMG_WIDTH;
-                h = glsl.instance.meta._IMG_HEIGHT;
-                FILTER.setGLDimensions(img, w, h);
-                deleteBuffer(gl, pos);
-                pos = createBuffer(gl, new FILTER.Array32F([
-                    0, 0,
-                    w, 0,
-                    0, h,
-                    0, h,
-                    w, 0,
-                    w, h
-                ]));
-                gl.viewport(0, 0, w, h);
-                deleteFramebufferTexture(gl, buf0);
-                deleteFramebufferTexture(gl, buf1);
-                deleteFramebufferTexture(gl, buf[0]);
-                deleteFramebufferTexture(gl, buf[1]);
-                buf = [null, null];
-                if (last > first)
-                {
-                    buf0 = createFramebufferTexture(gl, w, h);
-                    buf1 = createFramebufferTexture(gl, w, h);
-                }
-                if (filter.hasMeta)
-                {
-                    filter.meta = filter.meta || {};
-                    filter.meta._IMG_WIDTH = w;
-                    filter.meta._IMG_HEIGHT = h;
-                }
+                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT);
             }
             fromshader = false;
         }

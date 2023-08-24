@@ -46,14 +46,11 @@ function hypot(a, b, c)
     c = c || 0;
     b = b || 0;
     var m = Max(Abs(a), Abs(b), Abs(c));
-    if (m)
-    {
-        a /= m;
-        b /= m;
-        c /= m;
-        return m*Sqrt(a*a + b*b + c*c);
-    }
-    return 0;
+    if (0 === m) return 0;
+    a /= m;
+    b /= m;
+    c /= m;
+    return m*Sqrt(a*a + b*b + c*c);
 }
 
 function arrayset_shim(a, b, offset, b0, b1)
@@ -749,7 +746,28 @@ return {
 ].join('\n')
 };
 }
-
+function image_glsl()
+{
+return {
+'crop': [
+'vec4 crop(vec2 pix, sampler2D img, vec2 wh, float x1, float y1, float x2, float y2) {',
+'   vec2 start = vec2(x1, y1); vec2 end = vec2(x2, y2);',
+'   return texture2D(img, start + pix*(end-start));',
+'}'
+].join('\n'),
+'pad': [
+'vec4 pad(vec2 pix, sampler2D img, vec2 wh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
+'   if (pix.x < pad_left || pix.x > pad_left+wh.x || pix.y < pad_top || pix.y > pad_top+wh.y) return vec4(0.0);',
+'   return texture2D(img, (pix-vec2(pad_left,pad_top))/(wh+vec2(pad_right,pad_bot)));',
+'}'
+].join('\n'),
+'interpolate': [
+'vec4 interpolate(vec2 pix, sampler2D img, vec2 wh, vec2 nwh) {',
+'   return texture2D(img, wh*pix/nwh);',
+'}'
+].join('\n')
+};
+}
 // speed-up convolution for special kernels like moving-average
 function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
@@ -1880,6 +1898,7 @@ StringUtil.function_body = function_body;
 ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
 ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.interpolate = interpolate_bilinear;
+ImageUtil.glsl = image_glsl;
 
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;

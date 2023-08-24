@@ -240,7 +240,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
     bx=w-1; by=imSize-w;
     startx = sel_x1|0; starty = sel_y1|0;
-    maxScale = Min(/*selw*/w/sizex, /*selh*/h/sizey);
+    maxScale = Min(selw/*w*//sizex, selh/*h*//sizey);
     //minScale = Max(selw/w, selh/h);
     for (scale=baseScale/* *minScale*/; scale<=maxScale; scale*=scaleIncrement)
     {

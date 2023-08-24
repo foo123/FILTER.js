@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.7.0
-*   @built on 2023-08-23 15:46:47
+*   @built on 2023-08-24 10:01:13
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.7.0
-*   @built on 2023-08-23 15:46:47
+*   @built on 2023-08-24 10:01:13
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1557,14 +1557,11 @@ function hypot(a, b, c)
     c = c || 0;
     b = b || 0;
     var m = Max(Abs(a), Abs(b), Abs(c));
-    if (m)
-    {
-        a /= m;
-        b /= m;
-        c /= m;
-        return m*Sqrt(a*a + b*b + c*c);
-    }
-    return 0;
+    if (0 === m) return 0;
+    a /= m;
+    b /= m;
+    c /= m;
+    return m*Sqrt(a*a + b*b + c*c);
 }
 
 function arrayset_shim(a, b, offset, b0, b1)
@@ -2260,7 +2257,28 @@ return {
 ].join('\n')
 };
 }
-
+function image_glsl()
+{
+return {
+'crop': [
+'vec4 crop(vec2 pix, sampler2D img, vec2 wh, float x1, float y1, float x2, float y2) {',
+'   vec2 start = vec2(x1, y1); vec2 end = vec2(x2, y2);',
+'   return texture2D(img, start + pix*(end-start));',
+'}'
+].join('\n'),
+'pad': [
+'vec4 pad(vec2 pix, sampler2D img, vec2 wh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
+'   if (pix.x < pad_left || pix.x > pad_left+wh.x || pix.y < pad_top || pix.y > pad_top+wh.y) return vec4(0.0);',
+'   return texture2D(img, (pix-vec2(pad_left,pad_top))/(wh+vec2(pad_right,pad_bot)));',
+'}'
+].join('\n'),
+'interpolate': [
+'vec4 interpolate(vec2 pix, sampler2D img, vec2 wh, vec2 nwh) {',
+'   return texture2D(img, wh*pix/nwh);',
+'}'
+].join('\n')
+};
+}
 // speed-up convolution for special kernels like moving-average
 function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
@@ -3391,6 +3409,7 @@ StringUtil.function_body = function_body;
 ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
 ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
 ImageUtil.interpolate = interpolate_bilinear;
+ImageUtil.glsl = image_glsl;
 
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
@@ -3812,8 +3831,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         pos, uv, src, dst, prev = [null, null],
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
-        canRun, isContextLost, cleanUp, lost,
-        first = -1, last = -1,
+        canRun, isContextLost,
+        cleanUp, lost, resize,
+        first = -1, last = -1, nw, nh,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -3841,6 +3861,38 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         cleanUp();
         img.cache = {}; // need to recompile programs?
         FILTER.log('GL context lost on #'+img.id);
+    };
+    resize = function(nw, nh) {
+        if (w === nw && h === nh)  return;
+        w = nw;
+        h = nh;
+        FILTER.setGLDimensions(img, w, h);
+        deleteBuffer(gl, pos);
+        pos = createBuffer(gl, new FILTER.Array32F([
+            0, 0,
+            w, 0,
+            0, h,
+            0, h,
+            w, 0,
+            w, h
+        ]));
+        gl.viewport(0, 0, w, h);
+        deleteFramebufferTexture(gl, buf0);
+        deleteFramebufferTexture(gl, buf1);
+        deleteFramebufferTexture(gl, buf[0]);
+        deleteFramebufferTexture(gl, buf[1]);
+        buf = [null, null];
+        if (last > first)
+        {
+            buf0 = createFramebufferTexture(gl, w, h);
+            buf1 = createFramebufferTexture(gl, w, h);
+        }
+        if (filter.hasMeta)
+        {
+            filter.meta = filter.meta || {};
+            filter.meta._IMG_WIDTH = w;
+            filter.meta._IMG_HEIGHT = h;
+        }
     };
     if (gl.isContextLost && gl.isContextLost()) return lost();
     for (i=0; i<n; ++i)
@@ -3891,6 +3943,12 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 if (fromshader) prev[0] = uploadTexture(gl, getPixels(gl, w, h), w, h);
                 else prev[0] = uploadTexture(gl, im, w, h);
             }
+            if (null != glsl.width && null != glsl.height)
+            {
+                nw = 'function' === typeof glsl.width ? glsl.width(w, h) : glsl.width;
+                nh = 'function' === typeof glsl.height ? glsl.height(w, h) : glsl.height;
+                resize(nw, nh);
+            }
             if (i === first)
             {
                 if (!input) input = uploadTexture(gl, im, w, h, 0);
@@ -3923,40 +3981,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else if (glsl.instance._apply_wasm) im = glsl.instance._apply_wasm(im0, w, h, metaData);
             else im = glsl.instance._apply(im0, w, h, metaData);
-            if (glsl.instance.hasMeta && (
-                (null != glsl.instance.meta._IMG_WIDTH && w !== glsl.instance.meta._IMG_WIDTH)
-             || (null != glsl.instance.meta._IMG_HEIGHT && h !== glsl.instance.meta._IMG_HEIGHT)
-            ))
+            if (glsl.instance.hasMeta && null != glsl.instance.meta._IMG_WIDTH && null != glsl.instance.meta._IMG_HEIGHT)
             {
-                w = glsl.instance.meta._IMG_WIDTH;
-                h = glsl.instance.meta._IMG_HEIGHT;
-                FILTER.setGLDimensions(img, w, h);
-                deleteBuffer(gl, pos);
-                pos = createBuffer(gl, new FILTER.Array32F([
-                    0, 0,
-                    w, 0,
-                    0, h,
-                    0, h,
-                    w, 0,
-                    w, h
-                ]));
-                gl.viewport(0, 0, w, h);
-                deleteFramebufferTexture(gl, buf0);
-                deleteFramebufferTexture(gl, buf1);
-                deleteFramebufferTexture(gl, buf[0]);
-                deleteFramebufferTexture(gl, buf[1]);
-                buf = [null, null];
-                if (last > first)
-                {
-                    buf0 = createFramebufferTexture(gl, w, h);
-                    buf1 = createFramebufferTexture(gl, w, h);
-                }
-                if (filter.hasMeta)
-                {
-                    filter.meta = filter.meta || {};
-                    filter.meta._IMG_WIDTH = w;
-                    filter.meta._IMG_HEIGHT = h;
-                }
+                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT);
             }
             fromshader = false;
         }
@@ -7664,11 +7691,7 @@ function wasm()
 !function(FILTER, undef) {
 "use strict";
 
-var stdMath = Math,
-    crop = FILTER.Util.Image.crop,
-    pad = FILTER.Util.Image.pad,
-    interpolate = FILTER.Util.Image.interpolate
-;
+var stdMath = Math, ImageUtil = FILTER.Util.Image, GLSL = FILTER.Util.GLSL;
 
 // Dimension Filter, change image dimension
 FILTER.Create({
@@ -7747,6 +7770,10 @@ FILTER.Create({
         return this.set(null);
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     ,_apply_wasm: function(im, w, h, metaData) {
         var self = this, ret;
         self._runWASM = true;
@@ -7784,7 +7811,7 @@ FILTER.Create({
                 b = stdMath.round(b);
                 c = stdMath.round(c);
                 d = stdMath.round(d);
-                im = pad(im, w, h, c, d, a, b);
+                im = ImageUtil.pad(im, w, h, c, d, a, b);
                 self.meta = {_IMG_WIDTH:b + d + h, _IMG_HEIGHT:a + c + w};
                 self.hasMeta = true;
             break;
@@ -7793,7 +7820,7 @@ FILTER.Create({
                 b = stdMath.round(b);
                 c = stdMath.round(c);
                 d = stdMath.round(d);
-                im = crop(im, w, h, a, b, a+c-1, b+d-1);
+                im = ImageUtil.crop(im, w, h, a, b, a+c-1, b+d-1);
                 self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
                 self.hasMeta = true;
             break;
@@ -7811,7 +7838,7 @@ FILTER.Create({
                     a = stdMath.round(a);
                     b = stdMath.round(b);
                 }
-                im = isWASM ? FILTER.Util.Image.wasm.interpolate(im, w, h, a, b) : interpolate(im, w, h, a, b);
+                im = isWASM ? (ImageUtil.wasm||ImageUtil)['interpolate'](im, w, h, a, b) : ImageUtil.interpolate(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
                 self.hasMeta = true;
             break;
@@ -7819,6 +7846,85 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    /*if (!filter.mode)*/ return {instance: filter/*, shader: GLSL.DEFAULT*/};
+    /*
+    // in progress
+    var img_util = ImageUtil.glsl(), w, h;
+    return {instance: filter, shader: [
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 wh;',
+    'uniform int mode;',
+    'uniform float a;',
+    'uniform float b;',
+    'uniform float c;',
+    'uniform float d;',
+    'vec4 set(vec2 pix, sampler2D img) {',
+    '   return vec4(0.0);',
+    '}',
+    img_util['crop'],
+    img_util['pad'],
+    img_util['interpolate'],
+    'void main(void) {',
+    '    if (1 == mode) gl_FragColor = set(pix, img);',
+    '    else if (2 == mode) gl_FragColor = pad(pix, img, wh, c, d, a, b);',
+    '    else if (3 == mode) gl_FragColor = crop(pix, img, wh, a, b, a+c-1, b+d-1);',
+    '    else gl_FragColor = interpolate(pix, img, wh, vec2(a, b));',
+    '}'
+    ].join('\n'),
+    vars: function(gl, w, h, program) {
+        var modeCode,
+            a = filter.a,
+            b = filter.b,
+            c = filter.c,
+            d = filter.d;
+        switch (filter.mode)
+        {
+            case 'set':
+            modeCode = 1;
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            break;
+            case 'pad':
+            modeCode = 2;
+            break;
+            case 'crop':
+            modeCode = 3;
+            break;
+            case 'scale':
+            default:
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            modeCode = 4;
+            break;
+        }
+        gl.uniform2fv(program.uniform.wh, new FILTER.Array32F([
+            w, h
+        ]));
+        gl.uniform1i(program.uniform.mode, modeCode);
+        gl.uniform1f(program.uniform.a, a);
+        gl.uniform1f(program.uniform.b, b);
+        gl.uniform1f(program.uniform.c, c);
+        gl.uniform1f(program.uniform.d, d);
+    }, width: function(ww, hh) {
+        w = ww; h = hh;
+        return w;
+    }, height: function(ww, hh) {
+        return h;
+    }
+    };*/
+}
 
 }(FILTER);/**
 *
@@ -17213,7 +17319,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
     bx=w-1; by=imSize-w;
     startx = sel_x1|0; starty = sel_y1|0;
-    maxScale = Min(/*selw*/w/sizex, /*selh*/h/sizey);
+    maxScale = Min(selw/*w*//sizex, selh/*h*//sizey);
     //minScale = Max(selw/w, selh/h);
     for (scale=baseScale/* *minScale*/; scale<=maxScale; scale*=scaleIncrement)
     {
