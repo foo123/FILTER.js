@@ -23,18 +23,18 @@ FILTER.Create({
 
     ,path: FILTER.Path
     // parameters
-    ,mode: null
+    ,m: null
     ,a: 0
     ,b: 0
     ,c: 0
     ,d: 0
     ,meta: null
-    ,hasMeta: false
+    ,hasMeta: true
     ,_runWASM: false
 
     ,dispose: function() {
         var self = this;
-        self.mode = null;
+        self.m = null;
         self.$super('dispose');
         return self;
     }
@@ -42,7 +42,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-            mode: self.mode,
+            m: self.m,
             a: self.a,
             b: self.b,
             c: self.c,
@@ -52,23 +52,24 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.set(params.mode, params.a, params.b, params.c, params.d);
+        self.set(params.m, params.a, params.b, params.c, params.d);
         return self;
     }
 
     ,metaData: function(serialisation) {
-        return this.meta;
+        return serialisation ? JSON.stringify(this.meta) : this.meta;
     }
 
     ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation ? JSON.parse(meta) : meta;
         return this;
     }
 
-    ,set: function(mode, a, b, c, d) {
+    ,set: function(m, a, b, c, d) {
         var self = this;
-        if (mode)
+        if (m)
         {
-            self.mode = String(mode || 'scale').toLowerCase();
+            self.m = String(m || 'scale').toLowerCase();
             self.a = a || 0;
             self.b = b || 0;
             self.c = c || 0;
@@ -76,12 +77,13 @@ FILTER.Create({
         }
         else
         {
-            self.mode = null;
+            self.m = null;
             self.a = 0;
             self.b = 0;
             self.c = 0;
             self.d = 0;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -101,11 +103,15 @@ FILTER.Create({
         return ret;
     }
     ,_apply: function(im, w, h, metaData) {
-        var self = this, isWASM = self._runWASM, mode = self.mode,
+        var self = this, isWASM = self._runWASM, mode = self.m,
             a = self.a, b = self.b, c = self.c, d = self.d;
-        self.meta = null;
-        self.hasMeta = false;
-        if (!mode) return im;
+        if (!mode)
+        {
+            self.meta = null;
+            self.hasMeta = false;
+            return im;
+        }
+        self.hasMeta = true;
         switch (mode)
         {
             case 'set':
@@ -123,7 +129,6 @@ FILTER.Create({
                 }
                 im = new FILTER.ImArray((a*b) << 2);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
-                self.hasMeta = true;
             break;
             case 'pad':
                 a = stdMath.round(a);
@@ -131,8 +136,7 @@ FILTER.Create({
                 c = stdMath.round(c);
                 d = stdMath.round(d);
                 im = ImageUtil.pad(im, w, h, c, d, a, b);
-                self.meta = {_IMG_WIDTH:b + d + h, _IMG_HEIGHT:a + c + w};
-                self.hasMeta = true;
+                self.meta = {_IMG_WIDTH:a + c + w, _IMG_HEIGHT:b + d + h};
             break;
             case 'crop':
                 a = stdMath.round(a);
@@ -141,7 +145,6 @@ FILTER.Create({
                 d = stdMath.round(d);
                 im = ImageUtil.crop(im, w, h, a, b, a+c-1, b+d-1);
                 self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
-                self.hasMeta = true;
             break;
             case 'scale':
             default:
@@ -159,7 +162,6 @@ FILTER.Create({
                 }
                 im = isWASM ? (ImageUtil.wasm||ImageUtil)['interpolate'](im, w, h, a, b) : ImageUtil.interpolate(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
-                self.hasMeta = true;
             break;
         }
         return im;
@@ -168,15 +170,65 @@ FILTER.Create({
 
 function glsl(filter)
 {
-    /*if (!filter.mode)*/ return {instance: filter/*, shader: GLSL.DEFAULT*/};
-    /*
-    // in progress
-    var img_util = ImageUtil.glsl(), w, h;
+    if (!filter.m) return {instance: filter, shader: GLSL.DEFAULT};
+    var img_util = ImageUtil.glsl();
+    var get = function(filter, w, h) {
+        var modeCode,
+            a = filter.a,
+            b = filter.b,
+            c = filter.c,
+            d = filter.d,
+            nw, nh;
+        switch (filter.m)
+        {
+            case 'set':
+            modeCode = 1;
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            nw = a;
+            nh = b;
+            break;
+            case 'pad':
+            modeCode = 2;
+            nw = w+a+c;
+            nh = h+b+d;
+            break;
+            case 'crop':
+            modeCode = 3;
+            nw = c;
+            nh = d;
+            break;
+            case 'scale':
+            default:
+            modeCode = 4;
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            nw = a;
+            nh = b;
+            break;
+        }
+        return {
+        m: modeCode,
+        a: filter.a, b: filter.b,
+        c: filter.c, d: filter.d,
+        w: w, h: h,
+        nw: stdMath.round(nw), nh: stdMath.round(nh)
+        };
+    };
     return {instance: filter, shader: [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform vec2 wh;',
-    'uniform int mode;',
+    'uniform vec2 nwh;',
+    'uniform int m;',
     'uniform float a;',
     'uniform float b;',
     'uniform float c;',
@@ -188,61 +240,31 @@ function glsl(filter)
     img_util['pad'],
     img_util['interpolate'],
     'void main(void) {',
-    '    if (1 == mode) gl_FragColor = set(pix, img);',
-    '    else if (2 == mode) gl_FragColor = pad(pix, img, wh, c, d, a, b);',
-    '    else if (3 == mode) gl_FragColor = crop(pix, img, wh, a, b, a+c-1, b+d-1);',
-    '    else gl_FragColor = interpolate(pix, img, wh, vec2(a, b));',
+    '    if (1 == m) gl_FragColor = set(pix, img);',
+    '    else if (2 == m) gl_FragColor = pad(pix, img, wh, nwh, c, d, a, b);',
+    '    else if (3 == m) gl_FragColor = crop(pix, img, wh, nwh, a, b, a+c-1.0, b+d-1.0);',
+    '    else gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'),
-    vars: function(gl, w, h, program) {
-        var modeCode,
-            a = filter.a,
-            b = filter.b,
-            c = filter.c,
-            d = filter.d;
-        switch (filter.mode)
-        {
-            case 'set':
-            modeCode = 1;
-            if (c && d)
-            {
-                // scale given
-                a = c*w;
-                b = d*h;
-            }
-            break;
-            case 'pad':
-            modeCode = 2;
-            break;
-            case 'crop':
-            modeCode = 3;
-            break;
-            case 'scale':
-            default:
-            if (c && d)
-            {
-                // scale given
-                a = c*w;
-                b = d*h;
-            }
-            modeCode = 4;
-            break;
-        }
+    vars: function(gl, nw, nh, program, w, h) {
+        var params = get(filter, w, h);
         gl.uniform2fv(program.uniform.wh, new FILTER.Array32F([
             w, h
         ]));
-        gl.uniform1i(program.uniform.mode, modeCode);
-        gl.uniform1f(program.uniform.a, a);
-        gl.uniform1f(program.uniform.b, b);
-        gl.uniform1f(program.uniform.c, c);
-        gl.uniform1f(program.uniform.d, d);
-    }, width: function(ww, hh) {
-        w = ww; h = hh;
-        return w;
-    }, height: function(ww, hh) {
-        return h;
+        gl.uniform2fv(program.uniform.nwh, new FILTER.Array32F([
+            nw, nh
+        ]));
+        gl.uniform1i(program.uniform.m, params.m);
+        gl.uniform1f(program.uniform.a, params.a);
+        gl.uniform1f(program.uniform.b, params.b);
+        gl.uniform1f(program.uniform.c, params.c);
+        gl.uniform1f(program.uniform.d, params.d);
+    }, width: function(w, h) {
+        return get(filter, w, h).nw;
+    }, height: function(w, h) {
+        return get(filter, w, h).nh;
     }
-    };*/
+    };
 }
 
 }(FILTER);

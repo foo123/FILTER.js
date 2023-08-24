@@ -9,14 +9,12 @@
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    FilterUtil = FILTER.Util.Filter,
-    A32F = FILTER.Array32F, stdMath = Math,
-    Pow = stdMath.pow, Min = stdMath.min, Max = stdMath.max;
+    FilterUtil = FILTER.Util.Filter;
 
 // https://en.wikipedia.org/wiki/Thresholding_(image_processing)
 // https://en.wikipedia.org/wiki/Otsu%27s_method
 FILTER.Create({
-    name : "ThresholdFilter"
+    name : "OtsuThresholdFilter"
 
     ,path: FILTER.Path
 
@@ -134,9 +132,9 @@ FILTER.Create({
                 r = im[i  ];
                 g = im[i+1];
                 b = im[i+2];
-                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
-                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
-                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
+                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b);
                 if (notSupportClamp)
                 {
                     // clamp them manually
@@ -144,9 +142,9 @@ FILTER.Create({
                     y = y<0 ? 0 : (y>255 ? 255 : y);
                     cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
                 }
-                im[i  ] = cr;
-                im[i+1] = y;
-                im[i+2] = cb;
+                im[i  ] = cr|0;
+                im[i+1] = y|0;
+                im[i+2] = cb|0;
             }
             bin = FilterUtil.histogram(im, CHANNEL.G);
         }
@@ -204,9 +202,9 @@ FILTER.Create({
                 }
                 else
                 {
-                    r = ( y                      + 1.402   * (cr-128) )|0;
-                    g = ( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) )|0;
-                    b = ( y + 1.772   * (cb-128) )|0;
+                    r = (y                      + 1.402   * (cr-128));
+                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                    b = (y + 1.772   * (cb-128));
                     if (notSupportClamp)
                     {
                         // clamp them manually
@@ -214,9 +212,9 @@ FILTER.Create({
                         g = g<0 ? 0 : (g>255 ? 255 : g);
                         b = b<0 ? 0 : (b>255 ? 255 : b);
                     }
-                    im[i  ] = r;
-                    im[i+1] = g;
-                    im[i+2] = b;
+                    im[i  ] = r|0;
+                    im[i+1] = g|0;
+                    im[i+2] = b|0;
                 }
             }
         }
@@ -225,41 +223,4 @@ FILTER.Create({
         return im;
     }
 });
-
-function otsu(bin, tot, min, max)
-{
-    var omega0, omega1,
-        mu0, mu1, mu,
-        sigmat, sigma,
-        sum0, isum0, i, t;
-
-    if (null == min) min = 0;
-    if (null == max) max = 255;
-    for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
-    t = min;
-    sum0 = bin[min];
-    isum0 = min*bin[min]/tot;
-    omega0 = sum0/tot;
-    omega1 = 1-omega0;
-    mu0 = isum0/omega0;
-    mu1 = (mu - isum0)/omega1;
-    sigmat = omega0*omega1*Pow(mu1 - mu0, 2);
-    for (i=min+1; i<=max; ++i)
-    {
-        sum0 += bin[i];
-        isum0 += i*bin[i]/tot;
-        omega0 = sum0/tot;
-        omega1 = 1-omega0;
-        mu0 = isum0/omega0;
-        mu1 = (mu - isum0)/omega1;
-        sigma = omega0*omega1*Pow(mu1 - mu0, 2);
-        if (sigma > sigmat)
-        {
-            sigmat = sigma;
-            t = i;
-        }
-    }
-    return t;
-}
-FilterUtil.otsu = otsu;
 }(FILTER);

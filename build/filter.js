@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.7.0
-*   @built on 2023-08-24 10:01:13
+*   @version: 1.8.0
+*   @built on 2023-08-24 20:21:30
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.7.0
-*   @built on 2023-08-24 10:01:13
+*   @version: 1.8.0
+*   @built on 2023-08-24 20:21:30
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.7.0"};
+var FILTER = {VERSION: "1.8.0"};
 /**
 *
 *   Asynchronous.js
@@ -1613,7 +1613,6 @@ function arrayset_shim(a, b, offset, b0, b1)
 
 function crop(im, w, h, x1, y1, x2, y2)
 {
-    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1,
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize),
@@ -1628,7 +1627,6 @@ function crop(im, w, h, x1, y1, x2, y2)
 }
 function crop_shim(im, w, h, x1, y1, x2, y2)
 {
-    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1,
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize),
@@ -1643,35 +1641,31 @@ function crop_shim(im, w, h, x1, y1, x2, y2)
 }
 function pad(im, w, h, pad_right, pad_bot, pad_left, pad_top)
 {
-    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot,
-        paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize),
-        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
-        offtop = pad_top*nw4, offleft = pad_left<<2;
+        paddedSize = ((nw*nh)<<2), padded = new IMG(paddedSize),
+        y, w4 = (w<<2), nw4 = (nw<<2), pixel, pixel2,
+        offtop = pad_top*nw4, offleft = (pad_left<<2);
 
-    for (y=0,yw=0,pixel=offtop; y<h; ++y,yw+=w,pixel+=nw4)
+    for (y=0,pixel2=0,pixel=offtop; y<h; ++y,pixel2+=w4,pixel+=nw4)
     {
-        pixel2 = yw<<2;
-        padded.set(im.subarray(pixel2, pixel2+w4), offleft+pixel);
+        padded.set(im.subarray(pixel2, pixel2+w4), pixel+offleft);
     }
     return padded;
 }
 function pad_shim(im, w, h, pad_right, pad_bot, pad_left, pad_top)
 {
-    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot,
         paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize),
-        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+        y, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
         offtop = pad_top*nw4, offleft = pad_left<<2;
 
-    for (y=0,yw=0,pixel=offtop; y<h; ++y,yw+=w,pixel+=nw4)
+    for (y=0,pixel2=0,pixel=offtop; y<h; ++y,pixel2+=w4,pixel+=nw4)
     {
-        pixel2 = yw<<2;
-        arrayset_shim(padded, im, offleft+pixel, pixel2, pixel2+w4);
+        arrayset_shim(padded, im, pixel+offleft, pixel2, pixel2+w4);
     }
     return padded;
 }
@@ -2261,20 +2255,21 @@ function image_glsl()
 {
 return {
 'crop': [
-'vec4 crop(vec2 pix, sampler2D img, vec2 wh, float x1, float y1, float x2, float y2) {',
-'   vec2 start = vec2(x1, y1); vec2 end = vec2(x2, y2);',
+'vec4 crop(vec2 pix, sampler2D img, vec2 wh, vec2 nwh, float x1, float y1, float x2, float y2) {',
+'   vec2 start = vec2(x1, y1)/wh; vec2 end = vec2(x2, y2)/wh;',
 '   return texture2D(img, start + pix*(end-start));',
 '}'
 ].join('\n'),
 'pad': [
-'vec4 pad(vec2 pix, sampler2D img, vec2 wh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
-'   if (pix.x < pad_left || pix.x > pad_left+wh.x || pix.y < pad_top || pix.y > pad_top+wh.y) return vec4(0.0);',
-'   return texture2D(img, (pix-vec2(pad_left,pad_top))/(wh+vec2(pad_right,pad_bot)));',
+'vec4 pad(vec2 pix, sampler2D img, vec2 wh, vec2 nwh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
+'   vec2 p = pix*nwh - vec2(pad_left, pad_top);',
+'   if (p.x < 0.0 || p.x > wh.x || p.y < 0.0 || p.y > wh.y) return vec4(0.0);',
+'   return texture2D(img, p/wh);',
 '}'
 ].join('\n'),
 'interpolate': [
 'vec4 interpolate(vec2 pix, sampler2D img, vec2 wh, vec2 nwh) {',
-'   return texture2D(img, wh*pix/nwh);',
+'   return texture2D(img, pix);',
 '}'
 ].join('\n')
 };
@@ -3265,6 +3260,41 @@ function histogram(im, channel, cdf)
     }
     return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
 }
+function otsu(bin, tot, min, max)
+{
+    var omega0, omega1,
+        mu0, mu1, mu,
+        sigmat, sigma,
+        sum0, isum0, i, t;
+
+    if (null == min) min = 0;
+    if (null == max) max = 255;
+    for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
+    t = min;
+    sum0 = bin[min];
+    isum0 = min*bin[min]/tot;
+    omega0 = sum0/tot;
+    omega1 = 1-omega0;
+    mu0 = isum0/omega0;
+    mu1 = (mu - isum0)/omega1;
+    sigmat = omega0*omega1*Pow(mu1 - mu0, 2);
+    for (i=min+1; i<=max; ++i)
+    {
+        sum0 += bin[i];
+        isum0 += i*bin[i]/tot;
+        omega0 = sum0/tot;
+        omega1 = 1-omega0;
+        mu0 = isum0/omega0;
+        mu1 = (mu - isum0)/omega1;
+        sigma = omega0*omega1*Pow(mu1 - mu0, 2);
+        if (sigma > sigmat)
+        {
+            sigmat = sigma;
+            t = i;
+        }
+    }
+    return t;
+}
 
 function ct_eye(c1, c0)
 {
@@ -3428,6 +3458,7 @@ FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
+FilterUtil.otsu = otsu;
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_bilinear:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
@@ -3718,7 +3749,7 @@ function prepareGL(img, ws, hs)
     }
     return FILTER.getGL(img, ws, hs);
 }
-function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
+function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY, wi, hi)
 {
     var iterations = glsl.iterations || 1;
     if ('function' === typeof iterations) iterations = iterations(w, h) || 1;
@@ -3773,8 +3804,8 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
         }
     }
-    if (glsl.vars) glsl.vars(gl, w, h, program);
-    if (glsl.textures) glsl.textures(gl, w, h, program);
+    if (glsl.vars) glsl.vars(gl, w, h, program, wi, hi);
+    if (glsl.textures) glsl.textures(gl, w, h, program, wi, hi);
 
     if (last > 0)
     {
@@ -3832,8 +3863,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
         canRun, isContextLost,
-        cleanUp, lost, resize,
-        first = -1, last = -1, nw, nh,
+        cleanUp, lost, resize, refreshBuffers,
+        first = -1, last = -1,
+        nw, nh, wi, hi,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -3862,8 +3894,25 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         img.cache = {}; // need to recompile programs?
         FILTER.log('GL context lost on #'+img.id);
     };
-    resize = function(nw, nh) {
+    refreshBuffers = function(w, h, keepbuf, keepothers) {
+        if (buf0 !== keepbuf) deleteFramebufferTexture(gl, buf0);
+        if (buf1 !== keepbuf) deleteFramebufferTexture(gl, buf1);
+        if (!keepothers)
+        {
+            deleteFramebufferTexture(gl, buf[0]);
+            deleteFramebufferTexture(gl, buf[1]);
+            buf = [null, null];
+        }
+        if (last > first && last > i)
+        {
+            if (buf0 !== keepbuf) buf0 = createFramebufferTexture(gl, w, h);
+            if (buf1 !== keepbuf) buf1 = createFramebufferTexture(gl, w, h);
+        }
+    };
+    resize = function(nw, nh, withBuffers) {
         if (w === nw && h === nh)  return;
+        wi = w;
+        hi = h;
         w = nw;
         h = nh;
         FILTER.setGLDimensions(img, w, h);
@@ -3877,16 +3926,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             w, h
         ]));
         gl.viewport(0, 0, w, h);
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        deleteFramebufferTexture(gl, buf[0]);
-        deleteFramebufferTexture(gl, buf[1]);
-        buf = [null, null];
-        if (last > first)
-        {
-            buf0 = createFramebufferTexture(gl, w, h);
-            buf1 = createFramebufferTexture(gl, w, h);
-        }
+        if (withBuffers) refreshBuffers(w, h, null, false);
         if (filter.hasMeta)
         {
             filter.meta = filter.meta || {};
@@ -3924,6 +3964,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         buf0 = createFramebufferTexture(gl, w, h);
         buf1 = createFramebufferTexture(gl, w, h);
     }
+    wi = w; hi = h;
     for (i=0; i<n; ++i)
     {
         canRun = false;
@@ -3935,6 +3976,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         }
         if (canRun)
         {
+            if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
             if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
             {
                 // store previous frames
@@ -3947,11 +3989,17 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             {
                 nw = 'function' === typeof glsl.width ? glsl.width(w, h) : glsl.width;
                 nh = 'function' === typeof glsl.height ? glsl.height(w, h) : glsl.height;
-                resize(nw, nh);
+                resize(nw, nh, false);
+                if (wi !== w || hi !== h) refreshBuffers(w, h, buf0, false);
+            }
+            else
+            {
+                wi = w;
+                hi = h;
             }
             if (i === first)
             {
-                if (!input) input = uploadTexture(gl, im, w, h, 0);
+                if (!input) input = uploadTexture(gl, im, wi, hi, 0);
                 src = {fbo: null, tex: input};
             }
             else
@@ -3967,8 +4015,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             {
                 dst = buf1;
             }
-            if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            if (!fromshader && i > first) uploadTexture(gl, im, wi, hi, 0, 0, src.tex);
+            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false, wi, hi);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
@@ -3983,12 +4031,17 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             else im = glsl.instance._apply(im0, w, h, metaData);
             if (glsl.instance.hasMeta && null != glsl.instance.meta._IMG_WIDTH && null != glsl.instance.meta._IMG_HEIGHT)
             {
-                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT);
+                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT, true);
             }
             fromshader = false;
         }
     }
-    if (fromshader) getPixels(gl, w, h, im);
+    if (fromshader)
+    {
+        n = (w*h) << 2;
+        if (im.length !== n) im = new FILTER.ImArray(n);
+        getPixels(gl, w, h, im);
+    }
     cleanUp();
     return im;
 };
@@ -7704,18 +7757,18 @@ FILTER.Create({
 
     ,path: FILTER.Path
     // parameters
-    ,mode: null
+    ,m: null
     ,a: 0
     ,b: 0
     ,c: 0
     ,d: 0
     ,meta: null
-    ,hasMeta: false
+    ,hasMeta: true
     ,_runWASM: false
 
     ,dispose: function() {
         var self = this;
-        self.mode = null;
+        self.m = null;
         self.$super('dispose');
         return self;
     }
@@ -7723,7 +7776,7 @@ FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-            mode: self.mode,
+            m: self.m,
             a: self.a,
             b: self.b,
             c: self.c,
@@ -7733,23 +7786,24 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.set(params.mode, params.a, params.b, params.c, params.d);
+        self.set(params.m, params.a, params.b, params.c, params.d);
         return self;
     }
 
     ,metaData: function(serialisation) {
-        return this.meta;
+        return serialisation ? JSON.stringify(this.meta) : this.meta;
     }
 
     ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation ? JSON.parse(meta) : meta;
         return this;
     }
 
-    ,set: function(mode, a, b, c, d) {
+    ,set: function(m, a, b, c, d) {
         var self = this;
-        if (mode)
+        if (m)
         {
-            self.mode = String(mode || 'scale').toLowerCase();
+            self.m = String(m || 'scale').toLowerCase();
             self.a = a || 0;
             self.b = b || 0;
             self.c = c || 0;
@@ -7757,12 +7811,13 @@ FILTER.Create({
         }
         else
         {
-            self.mode = null;
+            self.m = null;
             self.a = 0;
             self.b = 0;
             self.c = 0;
             self.d = 0;
         }
+        self._glsl = null;
         return self;
     }
 
@@ -7782,11 +7837,15 @@ FILTER.Create({
         return ret;
     }
     ,_apply: function(im, w, h, metaData) {
-        var self = this, isWASM = self._runWASM, mode = self.mode,
+        var self = this, isWASM = self._runWASM, mode = self.m,
             a = self.a, b = self.b, c = self.c, d = self.d;
-        self.meta = null;
-        self.hasMeta = false;
-        if (!mode) return im;
+        if (!mode)
+        {
+            self.meta = null;
+            self.hasMeta = false;
+            return im;
+        }
+        self.hasMeta = true;
         switch (mode)
         {
             case 'set':
@@ -7804,7 +7863,6 @@ FILTER.Create({
                 }
                 im = new FILTER.ImArray((a*b) << 2);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
-                self.hasMeta = true;
             break;
             case 'pad':
                 a = stdMath.round(a);
@@ -7812,8 +7870,7 @@ FILTER.Create({
                 c = stdMath.round(c);
                 d = stdMath.round(d);
                 im = ImageUtil.pad(im, w, h, c, d, a, b);
-                self.meta = {_IMG_WIDTH:b + d + h, _IMG_HEIGHT:a + c + w};
-                self.hasMeta = true;
+                self.meta = {_IMG_WIDTH:a + c + w, _IMG_HEIGHT:b + d + h};
             break;
             case 'crop':
                 a = stdMath.round(a);
@@ -7822,7 +7879,6 @@ FILTER.Create({
                 d = stdMath.round(d);
                 im = ImageUtil.crop(im, w, h, a, b, a+c-1, b+d-1);
                 self.meta = {_IMG_WIDTH:c, _IMG_HEIGHT:d};
-                self.hasMeta = true;
             break;
             case 'scale':
             default:
@@ -7840,7 +7896,6 @@ FILTER.Create({
                 }
                 im = isWASM ? (ImageUtil.wasm||ImageUtil)['interpolate'](im, w, h, a, b) : ImageUtil.interpolate(im, w, h, a, b);
                 self.meta = {_IMG_WIDTH:a, _IMG_HEIGHT:b};
-                self.hasMeta = true;
             break;
         }
         return im;
@@ -7849,15 +7904,65 @@ FILTER.Create({
 
 function glsl(filter)
 {
-    /*if (!filter.mode)*/ return {instance: filter/*, shader: GLSL.DEFAULT*/};
-    /*
-    // in progress
-    var img_util = ImageUtil.glsl(), w, h;
+    if (!filter.m) return {instance: filter, shader: GLSL.DEFAULT};
+    var img_util = ImageUtil.glsl();
+    var get = function(filter, w, h) {
+        var modeCode,
+            a = filter.a,
+            b = filter.b,
+            c = filter.c,
+            d = filter.d,
+            nw, nh;
+        switch (filter.m)
+        {
+            case 'set':
+            modeCode = 1;
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            nw = a;
+            nh = b;
+            break;
+            case 'pad':
+            modeCode = 2;
+            nw = w+a+c;
+            nh = h+b+d;
+            break;
+            case 'crop':
+            modeCode = 3;
+            nw = c;
+            nh = d;
+            break;
+            case 'scale':
+            default:
+            modeCode = 4;
+            if (c && d)
+            {
+                // scale given
+                a = c*w;
+                b = d*h;
+            }
+            nw = a;
+            nh = b;
+            break;
+        }
+        return {
+        m: modeCode,
+        a: filter.a, b: filter.b,
+        c: filter.c, d: filter.d,
+        w: w, h: h,
+        nw: stdMath.round(nw), nh: stdMath.round(nh)
+        };
+    };
     return {instance: filter, shader: [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform vec2 wh;',
-    'uniform int mode;',
+    'uniform vec2 nwh;',
+    'uniform int m;',
     'uniform float a;',
     'uniform float b;',
     'uniform float c;',
@@ -7869,61 +7974,31 @@ function glsl(filter)
     img_util['pad'],
     img_util['interpolate'],
     'void main(void) {',
-    '    if (1 == mode) gl_FragColor = set(pix, img);',
-    '    else if (2 == mode) gl_FragColor = pad(pix, img, wh, c, d, a, b);',
-    '    else if (3 == mode) gl_FragColor = crop(pix, img, wh, a, b, a+c-1, b+d-1);',
-    '    else gl_FragColor = interpolate(pix, img, wh, vec2(a, b));',
+    '    if (1 == m) gl_FragColor = set(pix, img);',
+    '    else if (2 == m) gl_FragColor = pad(pix, img, wh, nwh, c, d, a, b);',
+    '    else if (3 == m) gl_FragColor = crop(pix, img, wh, nwh, a, b, a+c-1.0, b+d-1.0);',
+    '    else gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'),
-    vars: function(gl, w, h, program) {
-        var modeCode,
-            a = filter.a,
-            b = filter.b,
-            c = filter.c,
-            d = filter.d;
-        switch (filter.mode)
-        {
-            case 'set':
-            modeCode = 1;
-            if (c && d)
-            {
-                // scale given
-                a = c*w;
-                b = d*h;
-            }
-            break;
-            case 'pad':
-            modeCode = 2;
-            break;
-            case 'crop':
-            modeCode = 3;
-            break;
-            case 'scale':
-            default:
-            if (c && d)
-            {
-                // scale given
-                a = c*w;
-                b = d*h;
-            }
-            modeCode = 4;
-            break;
-        }
+    vars: function(gl, nw, nh, program, w, h) {
+        var params = get(filter, w, h);
         gl.uniform2fv(program.uniform.wh, new FILTER.Array32F([
             w, h
         ]));
-        gl.uniform1i(program.uniform.mode, modeCode);
-        gl.uniform1f(program.uniform.a, a);
-        gl.uniform1f(program.uniform.b, b);
-        gl.uniform1f(program.uniform.c, c);
-        gl.uniform1f(program.uniform.d, d);
-    }, width: function(ww, hh) {
-        w = ww; h = hh;
-        return w;
-    }, height: function(ww, hh) {
-        return h;
+        gl.uniform2fv(program.uniform.nwh, new FILTER.Array32F([
+            nw, nh
+        ]));
+        gl.uniform1i(program.uniform.m, params.m);
+        gl.uniform1f(program.uniform.a, params.a);
+        gl.uniform1f(program.uniform.b, params.b);
+        gl.uniform1f(program.uniform.c, params.c);
+        gl.uniform1f(program.uniform.d, params.d);
+    }, width: function(w, h) {
+        return get(filter, w, h).nw;
+    }, height: function(w, h) {
+        return get(filter, w, h).nh;
     }
-    };*/
+    };
 }
 
 }(FILTER);/**
@@ -12250,6 +12325,7 @@ FILTER.Create({
     ,_indices: null
     ,_structureElement2: null
     ,_indices2: null
+    ,_runWASM: false
     ,mode: MODE.RGB
 
     ,dispose: function() {
@@ -12416,6 +12492,14 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,_apply_wasm: function(im, w, h) {
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h);
+        self._runWASM = false;
+        return ret;
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;
@@ -12428,103 +12512,6 @@ FILTER.Create({
 });
 
 // private methods
-function glsl(filter)
-{
-    var matrix_code = function(m, d, op, op0, img) {
-        var code = [], ca = 'c0',
-            x, y, k, i, j,
-            matArea = m.length, matRadius = d,
-            matHalfSide = matRadius>>>1;
-        code.push('int apply=1;');
-        code.push('vec4 res=vec4('+op0+');');
-        code.push('float alpha=1.0;');
-        x=0; y=0; k=0;
-        img = img || 'img';
-        while (k<matArea)
-        {
-            i = x-matHalfSide;
-            j = y-matHalfSide;
-            if (m[k] || (0===i && 0===j))
-            {
-                code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
-            }
-            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
-        }
-        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
-        return code.join('\n');
-    };
-    var morph = function(m, op, img, usesPrev) {
-        return {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D '+(img||'img')+';',
-        'uniform vec2 dp;',
-        'void main(void) {',
-        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
-        '}'
-        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
-    };
-    var toFloat = GLSL.formatFloat, output;
-    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
-    switch (filter._filterName)
-    {
-        case 'dilate':
-        output = morph(filter._structureElement, 'dilate');
-        break;
-        case 'erode':
-        output = morph(filter._structureElement, 'erode');
-        break;
-        case 'open':
-        output = [
-        morph(filter._structureElement, 'erode'),
-        morph(filter._structureElement, 'dilate')
-        ];
-        break;
-        case 'close':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode')
-        ];
-        break;
-        case 'gradient':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
-        'void main(void) {',
-        'vec4 dilate = texture2D(_img_prev, pix);',
-        'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
-        '}'
-        ].join('\n'), _usesPrev:true}
-        ];
-        break;
-        case 'laplacian':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
-        'uniform sampler2D _img_prev_prev;',
-        'void main(void) {',
-        'vec4 original = texture2D(_img_prev_prev, pix);',
-        'vec4 dilate = texture2D(_img_prev, pix);',
-        'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
-        '}'
-        ].join('\n'), _usesPrev:true}
-        ];
-        break;
-        default:
-        output = {instance: filter};
-        break;
-    }
-    return output;
-}
 function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, iter)
 {
     //"use asm";
@@ -12641,11 +12628,13 @@ function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, ite
             }
         }
     }
+    return out;
 }
 FILTER.Util.Filter.primitive_morphology_operator = morph_prim_op;
 MORPHO = {
     "dilate": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12658,12 +12647,13 @@ MORPHO = {
             for (j=0; j<coverArea; j+=2) {index2[j]=indices[j]; index2[j+1]=indices[j+1]*w;}
         }
 
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
 
         return dst;
     }
     ,"erode": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12676,13 +12666,14 @@ MORPHO = {
             for (j=0; j<coverArea; j+=2) {index2[j]=indices[j]; index2[j+1]=indices[j+1]*w;}
         }
 
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
 
         return dst;
     }
     // dilation of erotion
     ,"open": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12696,16 +12687,17 @@ MORPHO = {
         }
 
         // erode
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         // dilate
         var tmp = im; im = dst; dst = tmp;
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
 
         return dst;
     }
     // erotion of dilation
     ,"close": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12719,17 +12711,18 @@ MORPHO = {
         }
 
         // dilate
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         var tmp = im; im = dst; dst = tmp;
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
 
         return dst;
     }
     // 1/2 (dilation - erosion)
     ,"gradient": function(self, im, w, h) {
         var j, indices, coverArea, index, index2 = null,
-            imLen = im.length, imcpy, dst = new IMG(imLen);
+            imLen = im.length, imcpy, dst = new IMG(imLen),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12744,9 +12737,9 @@ MORPHO = {
 
         // dilate
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
-        morph_prim_op(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
+        imcpy = morph(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {
             dst[j  ] = ((dst[j  ]-imcpy[j  ])/2)|0;
@@ -12758,7 +12751,8 @@ MORPHO = {
     // 1/2 (dilation + erosion -2IM)
     ,"laplacian": function(self, im, w, h) {
         var j, indices, coverArea, index, index2 = null,
-            imLen = im.length, imcpy, dst = new IMG(imLen), dst2 = new IMG(imLen);
+            imLen = im.length, imcpy, dst = new IMG(imLen), dst2 = new IMG(imLen),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -12773,10 +12767,10 @@ MORPHO = {
 
         // dilate
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst2 = morph(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {
             dst[j  ] = ((dst[j  ]+dst2[j  ]-2*im[j  ])/2)|0;
@@ -12786,6 +12780,119 @@ MORPHO = {
         return dst;
     }
 };
+if (FILTER.Util.WASM.isSupported)
+{
+FILTER.waitFor(1);
+FILTER.Util.WASM.instantiate(wasm(), {}, {
+    morphologicalfilter: {inputs: [{arg:1,type:FILTER.ImArray},{arg:2,type:FILTER.ImArray},{arg:6,type:FILTER.Array16I},{arg:7,type:FILTER.Array16I}], output: {type:FILTER.ImArray}}
+}).then(function(wasm) {
+    morph_prim_op.wasm = function(mode, inp, out, w, h, stride, index, index2, op, op0, iter) {
+        return wasm.morphologicalfilter(mode, inp, out, w, h, stride, index, index2 || [], Math.min === op ? -1 : 1, op0, iter||1);
+    };
+    FILTER.unwaitFor(1);
+});
+}
+function glsl(filter)
+{
+    var matrix_code = function(m, d, op, op0, img) {
+        var code = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = m.length, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        code.push('int apply=1;');
+        code.push('vec4 res=vec4('+op0+');');
+        code.push('float alpha=1.0;');
+        x=0; y=0; k=0;
+        img = img || 'img';
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            if (m[k] || (0===i && 0===j))
+            {
+                code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
+            }
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
+        return code.join('\n');
+    };
+    var morph = function(m, op, img, usesPrev) {
+        return {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D '+(img||'img')+';',
+        'uniform vec2 dp;',
+        'void main(void) {',
+        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
+        '}'
+        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
+    };
+    var toFloat = GLSL.formatFloat, output;
+    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
+    switch (filter._filterName)
+    {
+        case 'dilate':
+        output = morph(filter._structureElement, 'dilate');
+        break;
+        case 'erode':
+        output = morph(filter._structureElement, 'erode');
+        break;
+        case 'open':
+        output = [
+        morph(filter._structureElement, 'erode'),
+        morph(filter._structureElement, 'dilate')
+        ];
+        break;
+        case 'close':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode')
+        ];
+        break;
+        case 'gradient':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
+        {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D _img_prev;',
+        'void main(void) {',
+        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
+        '}'
+        ].join('\n'), _usesPrev:true}
+        ];
+        break;
+        case 'laplacian':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
+        {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D _img_prev;',
+        'uniform sampler2D _img_prev_prev;',
+        'void main(void) {',
+        'vec4 original = texture2D(_img_prev_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
+        '}'
+        ].join('\n'), _usesPrev:true}
+        ];
+        break;
+        default:
+        output = {instance: filter};
+        break;
+    }
+    return output;
+}
+function wasm()
+{
+    return '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';
+}
 
 }(FILTER);/**
 *
@@ -14185,490 +14292,6 @@ function wasm()
 }
 }(FILTER);/**
 *
-* Automatic Threshold (Otsu)
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var notSupportClamp = FILTER._notSupportClamp,
-    CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    FilterUtil = FILTER.Util.Filter,
-    A32F = FILTER.Array32F, stdMath = Math,
-    Pow = stdMath.pow, Min = stdMath.min, Max = stdMath.max;
-
-// https://en.wikipedia.org/wiki/Thresholding_(image_processing)
-// https://en.wikipedia.org/wiki/Otsu%27s_method
-FILTER.Create({
-    name : "ThresholdFilter"
-
-    ,path: FILTER.Path
-
-    ,hasMeta: true
-    ,mode: MODE.INTENSITY
-    ,color0: 0
-    ,color1: null
-    ,channel: 0
-
-    ,init: function(mode, color0, color1, channel) {
-        var self = this;
-        self.mode = mode || MODE.INTENSITY;
-        self.color0 = color0 || 0;
-        if (null != color1) self.color1 = color1;
-        self.channel = channel || 0;
-    }
-
-    ,serialize: function() {
-        var self = this;
-        return {
-             color0: self.color0
-            ,color1: self.color1
-            ,channel: self.channel
-        };
-    }
-
-    ,unserialize: function(params) {
-        var self = this;
-        self.color0 = params.color0;
-        self.color1 = params.color1;
-        self.channel = params.channel;
-        return self;
-    }
-
-    ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
-    }
-
-    ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
-        return this;
-    }
-
-    ,_apply_rgb: function(im, w, h) {
-        var self = this,
-            r, g, b,
-            binR, binG, binB,
-            tR, tG, tB,
-            color0 = self.color0 || 0,
-            r0 = (color0 >>> 16)&255,
-            g0 = (color0 >>> 8)&255,
-            b0 = (color0)&255,
-            //a0 = (color0 >>> 24)&255,
-            color1 = self.color1,
-            r1, g1, b1, //a1,
-            i, l=im.length;
-
-        if (null != color1)
-        {
-            r1 = (color1 >>> 16)&255;
-            g1 = (color1 >>> 8)&255;
-            b1 = (color1)&255;
-        }
-        binR = FilterUtil.histogram(im, CHANNEL.R);
-        binG = FilterUtil.histogram(im, CHANNEL.G);
-        binB = FilterUtil.histogram(im, CHANNEL.B);
-        tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
-        tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
-        tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
-        for (i=0; i<l; i+=4)
-        {
-            if (im[i  ] < tR) im[i  ] = r0;
-            else if (null != color1) im[i  ] = r1;
-            if (im[i+1] < tG) im[i+1] = g0;
-            else if (null != color1) im[i+1] = g1;
-            if (im[i+2] < tB) im[i+2] = b0;
-            else if (null != color1) im[i+2] = b1;
-        }
-        // return thresholds as meta
-        self.meta = [tR, tG, tB];
-        return im;
-    }
-
-    ,apply: function(im, w, h) {
-        var self = this;
-
-        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
-
-        var r, g, b, t, y, cb, cr,
-            color0 = self.color0 || 0,
-            r0 = (color0 >>> 16)&255,
-            g0 = (color0 >>> 8)&255,
-            b0 = (color0)&255,
-            //a0 = (color0 >>> 24)&255,
-            color1 = self.color1,
-            r1, g1, b1, //a1,
-            bin, i, t, l = im.length,
-            channel = self.channel || 0,
-            mode = self.mode;
-
-        if (null != color1)
-        {
-            r1 = (color1 >>> 16)&255;
-            g1 = (color1 >>> 8)&255;
-            b1 = (color1)&255;
-        }
-        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
-        {
-            bin = FilterUtil.histogram(im, channel);
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
-                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
-                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
-                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
-                if (notSupportClamp)
-                {
-                    // clamp them manually
-                    cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                    y = y<0 ? 0 : (y>255 ? 255 : y);
-                    cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                }
-                im[i  ] = cr;
-                im[i+1] = y;
-                im[i+2] = cb;
-            }
-            bin = FilterUtil.histogram(im, CHANNEL.G);
-        }
-        t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
-        if (MODE.GRAY === mode)
-        {
-            for (i=0; i<l; i+=4)
-            {
-                if (im[i+channel] < t)
-                {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
-                }
-            }
-        }
-        else if (MODE.CHANNEL === mode)
-        {
-            for (i=0; i<l; i+=4)
-            {
-                if (im[i+channel] < t)
-                {
-                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
-                }
-                else if (null != color1)
-                {
-                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
-                }
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            {
-                cr = im[i  ];
-                y  = im[i+1];
-                cb = im[i+2];
-                if (y < t)
-                {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
-                }
-                else
-                {
-                    r = ( y                      + 1.402   * (cr-128) )|0;
-                    g = ( y - 0.34414 * (cb-128) - 0.71414 * (cr-128) )|0;
-                    b = ( y + 1.772   * (cb-128) )|0;
-                    if (notSupportClamp)
-                    {
-                        // clamp them manually
-                        r = r<0 ? 0 : (r>255 ? 255 : r);
-                        g = g<0 ? 0 : (g>255 ? 255 : g);
-                        b = b<0 ? 0 : (b>255 ? 255 : b);
-                    }
-                    im[i  ] = r;
-                    im[i+1] = g;
-                    im[i+2] = b;
-                }
-            }
-        }
-        // return thresholds as meta
-        self.meta = [t];
-        return im;
-    }
-});
-
-function otsu(bin, tot, min, max)
-{
-    var omega0, omega1,
-        mu0, mu1, mu,
-        sigmat, sigma,
-        sum0, isum0, i, t;
-
-    if (null == min) min = 0;
-    if (null == max) max = 255;
-    for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
-    t = min;
-    sum0 = bin[min];
-    isum0 = min*bin[min]/tot;
-    omega0 = sum0/tot;
-    omega1 = 1-omega0;
-    mu0 = isum0/omega0;
-    mu1 = (mu - isum0)/omega1;
-    sigmat = omega0*omega1*Pow(mu1 - mu0, 2);
-    for (i=min+1; i<=max; ++i)
-    {
-        sum0 += bin[i];
-        isum0 += i*bin[i]/tot;
-        omega0 = sum0/tot;
-        omega1 = 1-omega0;
-        mu0 = isum0/omega0;
-        mu1 = (mu - isum0)/omega1;
-        sigma = omega0*omega1*Pow(mu1 - mu0, 2);
-        if (sigma > sigmat)
-        {
-            sigmat = sigma;
-            t = i;
-        }
-    }
-    return t;
-}
-FilterUtil.otsu = otsu;
-}(FILTER);/**
-*
-* Histogram Equalize,
-* Histogram Equalize for grayscale images,
-* RGB Histogram Equalize
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var notSupportClamp = FILTER._notSupportClamp,
-    CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    FilterUtil = FILTER.Util.Filter,
-    A32F = FILTER.Array32F, stdMath = Math,
-    Min = stdMath.min, Max = stdMath.max;
-
-// a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
-FILTER.Create({
-    name : "HistogramEqualizeFilter"
-
-    ,path: FILTER.Path
-
-    ,mode: MODE.INTENSITY
-    ,channel: 0
-    ,factor: 1.0
-
-    ,init: function(mode, channel, factor) {
-        var self = this;
-        self.mode = mode || MODE.INTENSITY;
-        self.channel = channel || 0;
-        if (null != factor) self.factor = +factor;
-    }
-
-    ,serialize: function() {
-        var self = this;
-        return {
-             channel: self.channel,
-             factor: self.factor
-        };
-    }
-
-    ,unserialize: function(params) {
-        var self = this;
-        self.channel = params.channel;
-        self.factor = params.factor;
-        return self;
-    }
-
-    ,_apply_rgb: function(im, w, h) {
-        var self = this,
-            r ,g, b,
-            rangeR, rangeG, rangeB,
-            cdfR, cdfG, cdfB,
-            f = self.factor,
-            t0, t1, t2,
-            i, l=im.length;
-
-        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
-        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
-        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
-        // equalize each channel separately
-        rangeR = f*(cdfR.max - cdfR.min)/cdfR.total;
-        rangeG = f*(cdfG.max - cdfG.min)/cdfG.total;
-        rangeB = f*(cdfB.max - cdfB.min)/cdfB.total;
-        if (notSupportClamp)
-        {
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
-                t0 = cdfR.bin[r]*rangeR + cdfR.min;
-                t1 = cdfG.bin[g]*rangeG + cdfG.min;
-                t2 = cdfB.bin[b]*rangeB + cdfB.min;
-                // clamp them manually
-                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
-                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
-                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
-                im[i  ] = t0|0;
-                im[i+1] = t1|0;
-                im[i+2] = t2|0;
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
-                t0 = cdfR.bin[r]*rangeR + cdfR.min;
-                t1 = cdfG.bin[g]*rangeG + cdfG.min;
-                t2 = cdfB.bin[b]*rangeB + cdfB.min;
-                im[i  ] = t0|0;
-                im[i+1] = t1|0;
-                im[i+2] = t2|0;
-            }
-        }
-        // return the new image data
-        return im;
-    }
-
-    ,apply: function(im, w, h) {
-        var self = this;
-
-        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
-
-        var r, g, b, y, cb, cr,
-            range, cdf, i,
-            l = im.length, f = self.factor,
-            channel = self.channel || 0,
-            mode = self.mode;
-
-        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
-        {
-            cdf = FilterUtil.histogram(im, channel, true);
-        }
-        else
-        {
-            for (i=0; i<l; i+=4)
-            {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
-                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
-                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
-                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
-                // clamp them manually
-                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
-                y = y<0 ? 0 : (y>255 ? 255 : y);
-                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
-                im[i  ] = cr;
-                im[i+1] = y;
-                im[i+2] = cb;
-            }
-            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
-        }
-        // equalize only the intesity channel
-        range = f*(cdf.max - cdf.min)/cdf.total;
-        if (notSupportClamp)
-        {
-            if (MODE.GRAY === mode)
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i] = r; im[i+1] = r; im[i+2] = r;
-                }
-            }
-            else if (MODE.CHANNEL === mode)
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    im[i+channel] = r;
-                }
-            }
-            else
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    y = cdf.bin[im[i+1]]*range + cdf.min;
-                    cb = im[i+2];
-                    cr = im[i  ];
-                    r = (y                      + 1.402   * (cr-128));
-                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
-                    b = (y + 1.772   * (cb-128));
-                    // clamp them manually
-                    r = r<0 ? 0 : (r>255 ? 255 : r);
-                    g = g<0 ? 0 : (g>255 ? 255 : g);
-                    b = b<0 ? 0 : (b>255 ? 255 : b);
-                    im[i  ] = r|0;
-                    im[i+1] = g|0;
-                    im[i+2] = b|0;
-                }
-            }
-        }
-        else
-        {
-            if (MODE.GRAY === mode)
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
-                    im[i] = r; im[i+1] = r; im[i+2] = r;
-                }
-            }
-            else if (MODE.CHANNEL === mode)
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    r = (cdf.bin[im[i+channel]]*range + cdf.min)|0;
-                    im[i+channel] = r;
-                }
-            }
-            else
-            {
-                for (i=0; i<l; i+=4)
-                {
-                    y = cdf.bin[im[i+1]]*range + cdf.min;
-                    cb = im[i+2];
-                    cr = im[i  ];
-                    r = (y                      + 1.402   * (cr-128));
-                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
-                    b = (y + 1.772   * (cb-128));
-                    im[i  ] = r|0;
-                    im[i+1] = g|0;
-                    im[i+2] = b|0;
-                }
-            }
-        }
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
 * Pixelate: Rectangular, Triangular, Rhomboid, Hexagonal
 * @package FILTER.js
 *
@@ -15300,6 +14923,174 @@ FILTER.Create({
 
 }(FILTER);/**
 *
+* Bokeh (Depth-of-Field)
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef) {
+"use strict";
+
+var stdMath = Math, Sqrt = stdMath.sqrt,
+    Exp = stdMath.exp, Log = stdMath.log,
+    Abs = stdMath.abs, Floor = stdMath.floor,
+    notSupportClamp = FILTER._notSupportClamp,
+    A32F = FILTER.Array32F;
+
+// a simple bokeh (depth-of-field) filter
+FILTER.Create({
+    name: "BokehFilter"
+
+    // parameters
+    ,centerX: 0.0
+    ,centerY: 0.0
+    ,radius: 10
+    ,amount: 10
+
+    // this is the filter constructor
+    ,init: function(centerX, centerY, radius, amount) {
+        var self = this;
+        self.centerX = centerX || 0.0;
+        self.centerY = centerY || 0.0;
+        self.radius = null == radius ? 10 : radius;
+        self.amount = null == amount ? 10 : amount;
+    }
+
+    // support worker serialize/unserialize interface
+    ,path: FILTER.Path
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             centerX: self.centerX
+            ,centerY: self.centerY
+            ,radius: self.radius
+            ,amount: self.amount
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.centerX = params.centerX;
+        self.centerY = params.centerY;
+        self.radius = params.radius;
+        self.amount = params.amount;
+        return self;
+    }
+
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h) {
+        var self = this;
+        if (!self._isOn) return im;
+        var imLen = im.length, imArea,
+            integral, integralLen, colR, colG, colB,
+            rowLen, i, j, x , y, ty,
+            cX = self.centerX||0, cY = self.centerY||0,
+            r = self.radius, m = self.amount,
+            d, dx, dy, dm, dM, blur, blurw, wt,
+            xOff1, yOff1, xOff2, yOff2,
+            p1, p2, p3, p4, t0, t1, t2,
+            bx1, bx2, by1, by2;
+
+        if (m <= 0) return im;
+
+        imArea = (imLen>>>2);
+        bx1=0; bx2=w-1; by1=0; by2=imArea-w;
+
+        // make center relative
+        cX = Floor(cX*(w-1));
+        cY = Floor(cY*(h-1));
+
+        integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
+        integral = new A32F(integralLen);
+
+        // compute integral of image in one pass
+        // first row
+        i=0; j=0; x=0; colR=colG=colB=0;
+        for (x=0; x<w; ++x, i+=4, j+=3)
+        {
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
+        }
+        // other rows
+        i=rowLen+w; j=0; x=0; colR=colG=colB=0;
+        for (i=rowLen+w; i<imLen; i+=4, j+=3, ++x)
+        {
+            if (x>=w) {x=0; colR=colG=colB=0;}
+            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
+            integral[j+rowLen]=integral[j]+colR;
+            integral[j+rowLen+1]=integral[j+1]+colG;
+            integral[j+rowLen+2]=integral[j+2]+colB;
+        }
+
+
+        // bokeh (depth-of-field) effect
+        // is a kind of adaptive blurring depending on distance from a center
+        // like the camera/eye is focused on a specific area and everything else appears increasingly blurred
+
+        x=0; y=0; ty=0;
+        for (i=0; i<imLen; i+=4, ++x)
+        {
+            // update image coordinates
+            if (x>=w) {x=0; ++y; ty+=w;}
+
+            // compute distance
+            dx = Abs(x-cX); dy = Abs(y-cY);
+            //d = Sqrt(dx*dx + dy*dy);
+            dM = stdMath.max(dx, dy);
+            dm = stdMath.min(dx, dy);
+            d = dM ? dM*(1 + 0.43*dm/dM*dm/dM) : 0;  // approximation
+
+            // calculate amount(radius) of blurring
+            // depending on distance from focus center
+            blur = d>r ? Log((d-r)*m)|0 : (d/r+0.5)|0; // smooth it a bit, around the radius edge condition
+
+            if (blur > 0)
+            {
+                 blurw = blur*w; wt = 0.25/(blur*blur);
+
+                // calculate the weighed sum of the source image pixels that
+                // fall under the convolution matrix
+                xOff1 = x - blur; yOff1 = ty - blurw;
+                xOff2 = x + blur; yOff2 = ty + blurw;
+
+                // fix borders
+                if (xOff1<bx1) xOff1=bx1;
+                else if (xOff2>bx2) xOff2=bx2;
+                if (yOff1<by1) yOff1=by1;
+                else if (yOff2>by2) yOff2=by2;
+
+                // compute integral positions
+                p1 = xOff1 + yOff1; p4 = xOff2 + yOff2; p2 = xOff2 + yOff1; p3 = xOff1 + yOff2;
+                // arguably faster way to write p1*=3; etc..
+                p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
+
+                // apply a fast box-blur to these pixels
+                // compute matrix sum of these elements
+                // (trying to avoid possible overflow in the process, order of summation can matter)
+                t0 = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
+                t1 = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
+                t2 = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
+
+                // output
+                if (notSupportClamp)
+                {
+                    // clamp them manually
+                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
+                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
+                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
+                }
+                im[i] = t0|0;  im[i+1] = t1|0;  im[i+2] = t2|0;
+                // alpha channel is not transformed
+                //im[i+3] = im[i+3];
+            }
+        }
+        // return the new image data
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
 * Drop Shadow Filter
 * @package FILTER.js
 *
@@ -15481,174 +15272,6 @@ FILTER.Create({
                 im[i  ] = r|0; im[i+1] = g|0; im[i+2] = b|0;
             }
         }
-        return im;
-    }
-});
-
-}(FILTER);/**
-*
-* Bokeh (Depth-of-Field)
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef) {
-"use strict";
-
-var stdMath = Math, Sqrt = stdMath.sqrt,
-    Exp = stdMath.exp, Log = stdMath.log,
-    Abs = stdMath.abs, Floor = stdMath.floor,
-    notSupportClamp = FILTER._notSupportClamp,
-    A32F = FILTER.Array32F;
-
-// a simple bokeh (depth-of-field) filter
-FILTER.Create({
-    name: "BokehFilter"
-
-    // parameters
-    ,centerX: 0.0
-    ,centerY: 0.0
-    ,radius: 10
-    ,amount: 10
-
-    // this is the filter constructor
-    ,init: function(centerX, centerY, radius, amount) {
-        var self = this;
-        self.centerX = centerX || 0.0;
-        self.centerY = centerY || 0.0;
-        self.radius = null == radius ? 10 : radius;
-        self.amount = null == amount ? 10 : amount;
-    }
-
-    // support worker serialize/unserialize interface
-    ,path: FILTER.Path
-
-    ,serialize: function() {
-        var self = this;
-        return {
-             centerX: self.centerX
-            ,centerY: self.centerY
-            ,radius: self.radius
-            ,amount: self.amount
-        };
-    }
-
-    ,unserialize: function(params) {
-        var self = this;
-        self.centerX = params.centerX;
-        self.centerY = params.centerY;
-        self.radius = params.radius;
-        self.amount = params.amount;
-        return self;
-    }
-
-    // this is the filter actual apply method routine
-    ,apply: function(im, w, h) {
-        var self = this;
-        if (!self._isOn) return im;
-        var imLen = im.length, imArea,
-            integral, integralLen, colR, colG, colB,
-            rowLen, i, j, x , y, ty,
-            cX = self.centerX||0, cY = self.centerY||0,
-            r = self.radius, m = self.amount,
-            d, dx, dy, dm, dM, blur, blurw, wt,
-            xOff1, yOff1, xOff2, yOff2,
-            p1, p2, p3, p4, t0, t1, t2,
-            bx1, bx2, by1, by2;
-
-        if (m <= 0) return im;
-
-        imArea = (imLen>>>2);
-        bx1=0; bx2=w-1; by1=0; by2=imArea-w;
-
-        // make center relative
-        cX = Floor(cX*(w-1));
-        cY = Floor(cY*(h-1));
-
-        integralLen = (imArea<<1)+imArea;  rowLen = (w<<1)+w;
-        integral = new A32F(integralLen);
-
-        // compute integral of image in one pass
-        // first row
-        i=0; j=0; x=0; colR=colG=colB=0;
-        for (x=0; x<w; ++x, i+=4, j+=3)
-        {
-            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-            integral[j]=colR; integral[j+1]=colG; integral[j+2]=colB;
-        }
-        // other rows
-        i=rowLen+w; j=0; x=0; colR=colG=colB=0;
-        for (i=rowLen+w; i<imLen; i+=4, j+=3, ++x)
-        {
-            if (x>=w) {x=0; colR=colG=colB=0;}
-            colR+=im[i]; colG+=im[i+1]; colB+=im[i+2];
-            integral[j+rowLen]=integral[j]+colR;
-            integral[j+rowLen+1]=integral[j+1]+colG;
-            integral[j+rowLen+2]=integral[j+2]+colB;
-        }
-
-
-        // bokeh (depth-of-field) effect
-        // is a kind of adaptive blurring depending on distance from a center
-        // like the camera/eye is focused on a specific area and everything else appears increasingly blurred
-
-        x=0; y=0; ty=0;
-        for (i=0; i<imLen; i+=4, ++x)
-        {
-            // update image coordinates
-            if (x>=w) {x=0; ++y; ty+=w;}
-
-            // compute distance
-            dx = Abs(x-cX); dy = Abs(y-cY);
-            //d = Sqrt(dx*dx + dy*dy);
-            dM = stdMath.max(dx, dy);
-            dm = stdMath.min(dx, dy);
-            d = dM ? dM*(1 + 0.43*dm/dM*dm/dM) : 0;  // approximation
-
-            // calculate amount(radius) of blurring
-            // depending on distance from focus center
-            blur = d>r ? Log((d-r)*m)|0 : (d/r+0.5)|0; // smooth it a bit, around the radius edge condition
-
-            if (blur > 0)
-            {
-                 blurw = blur*w; wt = 0.25/(blur*blur);
-
-                // calculate the weighed sum of the source image pixels that
-                // fall under the convolution matrix
-                xOff1 = x - blur; yOff1 = ty - blurw;
-                xOff2 = x + blur; yOff2 = ty + blurw;
-
-                // fix borders
-                if (xOff1<bx1) xOff1=bx1;
-                else if (xOff2>bx2) xOff2=bx2;
-                if (yOff1<by1) yOff1=by1;
-                else if (yOff2>by2) yOff2=by2;
-
-                // compute integral positions
-                p1 = xOff1 + yOff1; p4 = xOff2 + yOff2; p2 = xOff2 + yOff1; p3 = xOff1 + yOff2;
-                // arguably faster way to write p1*=3; etc..
-                p1 = (p1<<1) + p1; p2 = (p2<<1) + p2; p3 = (p3<<1) + p3; p4 = (p4<<1) + p4;
-
-                // apply a fast box-blur to these pixels
-                // compute matrix sum of these elements
-                // (trying to avoid possible overflow in the process, order of summation can matter)
-                t0 = wt * (integral[p4] - integral[p2] - integral[p3] + integral[p1]);
-                t1 = wt * (integral[p4+1] - integral[p2+1] - integral[p3+1] + integral[p1+1]);
-                t2 = wt * (integral[p4+2] - integral[p2+2] - integral[p3+2] + integral[p1+2]);
-
-                // output
-                if (notSupportClamp)
-                {
-                    // clamp them manually
-                    t0 = (t0<0) ? 0 : ((t0>255) ? 255 : t0);
-                    t1 = (t1<0) ? 0 : ((t1>255) ? 255 : t1);
-                    t2 = (t2<0) ? 0 : ((t2>255) ? 255 : t2);
-                }
-                im[i] = t0|0;  im[i+1] = t1|0;  im[i+2] = t2|0;
-                // alpha channel is not transformed
-                //im[i+3] = im[i+3];
-            }
-        }
-        // return the new image data
         return im;
     }
 });
@@ -16948,6 +16571,465 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert)
 }
 FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
 FilterUtil.connectedComponents = connected_components;
+}(FILTER);/**
+*
+* Histogram Equalize,
+* Histogram Equalize for grayscale images,
+* RGB Histogram Equalize
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var notSupportClamp = FILTER._notSupportClamp,
+    CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
+    FilterUtil = FILTER.Util.Filter,
+    stdMath = Math, Min = stdMath.min, Max = stdMath.max;
+
+// a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
+FILTER.Create({
+    name : "HistogramEqualizeFilter"
+
+    ,path: FILTER.Path
+
+    ,mode: MODE.INTENSITY
+    ,channel: 0
+    ,factor: 0.0
+
+    ,init: function(mode, channel, factor) {
+        var self = this;
+        self.mode = mode || MODE.INTENSITY;
+        self.channel = channel || 0;
+        if (null != factor) self.factor = (+factor) || 0;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             channel: self.channel,
+             factor: self.factor
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.channel = params.channel;
+        self.factor = params.factor;
+        return self;
+    }
+
+    ,_apply_rgb: function(im, w, h) {
+        var self = this,
+            r ,g, b,
+            rangeR, rangeG, rangeB,
+            cdfR, cdfG, cdfB,
+            f = self.factor || 0,
+            t0, t1, t2, v,
+            i, l=im.length;
+
+        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
+        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
+        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
+        // equalize each channel separately
+        f = 1 - Min(Max(f, 0), 1);
+        rangeR = (cdfR.max - cdfR.min)/cdfR.total;
+        rangeG = (cdfG.max - cdfG.min)/cdfG.total;
+        rangeB = (cdfB.max - cdfB.min)/cdfB.total;
+        if (notSupportClamp)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                v = cdf.binR[r]*rangeR;
+                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                v = cdf.binG[g]*rangeG;
+                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                v = cdf.binB[b]*rangeB;
+                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                // clamp them manually
+                t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
+                t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
+                t2 = t2<0 ? 0 : (t2>255 ? 255 : t2);
+                im[i  ] = t0|0;
+                im[i+1] = t1|0;
+                im[i+2] = t2|0;
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                v = cdf.binR[r]*rangeR;
+                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                v = cdf.binG[g]*rangeG;
+                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                v = cdf.binB[b]*rangeB;
+                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                im[i  ] = t0|0;
+                im[i+1] = t1|0;
+                im[i+2] = t2|0;
+            }
+        }
+        // return the new image data
+        return im;
+    }
+
+    ,apply: function(im, w, h) {
+        var self = this;
+
+        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
+
+        var r, g, b, y, cb, cr,
+            range, cdf, i, v,
+            l = im.length, f = self.factor || 0,
+            channel = self.channel || 0,
+            mode = self.mode;
+
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
+        {
+            cdf = FilterUtil.histogram(im, channel, true);
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
+                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
+                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i  ] = cr;
+                im[i+1] = y;
+                im[i+2] = cb;
+            }
+            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
+        }
+        // equalize only the intesity channel
+        f = 1 - Min(Max(f, 0), 1);
+        range = (cdf.max - cdf.min)/cdf.total;
+        if (notSupportClamp)
+        {
+            if (MODE.GRAY === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+channel]]*range;
+                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    r = r|0;
+                    im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+channel]]*range;
+                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    im[i+channel] = r|0;
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+1]]*range;
+                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    cb = im[i+2];
+                    cr = im[i  ];
+                    r = (y                      + 1.402   * (cr-128));
+                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                    b = (y + 1.772   * (cb-128));
+                    // clamp them manually
+                    r = r<0 ? 0 : (r>255 ? 255 : r);
+                    g = g<0 ? 0 : (g>255 ? 255 : g);
+                    b = b<0 ? 0 : (b>255 ? 255 : b);
+                    im[i  ] = r|0;
+                    im[i+1] = g|0;
+                    im[i+2] = b|0;
+                }
+            }
+        }
+        else
+        {
+            if (MODE.GRAY === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+channel]]*range;
+                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    im[i] = r; im[i+1] = r; im[i+2] = r;
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+channel]]*range;
+                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    im[i+channel] = r;
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    v = cdf.bin[im[i+1]]*range;
+                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    cb = im[i+2];
+                    cr = im[i  ];
+                    r = (y                      + 1.402   * (cr-128));
+                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                    b = (y + 1.772   * (cb-128));
+                    im[i  ] = r|0;
+                    im[i+1] = g|0;
+                    im[i+2] = b|0;
+                }
+            }
+        }
+        return im;
+    }
+});
+
+}(FILTER);/**
+*
+* Automatic Threshold (Otsu)
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var notSupportClamp = FILTER._notSupportClamp,
+    CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
+    FilterUtil = FILTER.Util.Filter;
+
+// https://en.wikipedia.org/wiki/Thresholding_(image_processing)
+// https://en.wikipedia.org/wiki/Otsu%27s_method
+FILTER.Create({
+    name : "OtsuThresholdFilter"
+
+    ,path: FILTER.Path
+
+    ,hasMeta: true
+    ,mode: MODE.INTENSITY
+    ,color0: 0
+    ,color1: null
+    ,channel: 0
+
+    ,init: function(mode, color0, color1, channel) {
+        var self = this;
+        self.mode = mode || MODE.INTENSITY;
+        self.color0 = color0 || 0;
+        if (null != color1) self.color1 = color1;
+        self.channel = channel || 0;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             color0: self.color0
+            ,color1: self.color1
+            ,channel: self.channel
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.color0 = params.color0;
+        self.color1 = params.color1;
+        self.channel = params.channel;
+        return self;
+    }
+
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
+    }
+
+    ,_apply_rgb: function(im, w, h) {
+        var self = this,
+            r, g, b,
+            binR, binG, binB,
+            tR, tG, tB,
+            color0 = self.color0 || 0,
+            r0 = (color0 >>> 16)&255,
+            g0 = (color0 >>> 8)&255,
+            b0 = (color0)&255,
+            //a0 = (color0 >>> 24)&255,
+            color1 = self.color1,
+            r1, g1, b1, //a1,
+            i, l=im.length;
+
+        if (null != color1)
+        {
+            r1 = (color1 >>> 16)&255;
+            g1 = (color1 >>> 8)&255;
+            b1 = (color1)&255;
+        }
+        binR = FilterUtil.histogram(im, CHANNEL.R);
+        binG = FilterUtil.histogram(im, CHANNEL.G);
+        binB = FilterUtil.histogram(im, CHANNEL.B);
+        tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
+        tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
+        tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
+        for (i=0; i<l; i+=4)
+        {
+            if (im[i  ] < tR) im[i  ] = r0;
+            else if (null != color1) im[i  ] = r1;
+            if (im[i+1] < tG) im[i+1] = g0;
+            else if (null != color1) im[i+1] = g1;
+            if (im[i+2] < tB) im[i+2] = b0;
+            else if (null != color1) im[i+2] = b1;
+        }
+        // return thresholds as meta
+        self.meta = [tR, tG, tB];
+        return im;
+    }
+
+    ,apply: function(im, w, h) {
+        var self = this;
+
+        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
+
+        var r, g, b, t, y, cb, cr,
+            color0 = self.color0 || 0,
+            r0 = (color0 >>> 16)&255,
+            g0 = (color0 >>> 8)&255,
+            b0 = (color0)&255,
+            //a0 = (color0 >>> 24)&255,
+            color1 = self.color1,
+            r1, g1, b1, //a1,
+            bin, i, t, l = im.length,
+            channel = self.channel || 0,
+            mode = self.mode;
+
+        if (null != color1)
+        {
+            r1 = (color1 >>> 16)&255;
+            g1 = (color1 >>> 8)&255;
+            b1 = (color1)&255;
+        }
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
+        {
+            bin = FilterUtil.histogram(im, channel);
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b);
+                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b);
+                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b);
+                if (notSupportClamp)
+                {
+                    // clamp them manually
+                    cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                    y = y<0 ? 0 : (y>255 ? 255 : y);
+                    cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                }
+                im[i  ] = cr|0;
+                im[i+1] = y|0;
+                im[i+2] = cb|0;
+            }
+            bin = FilterUtil.histogram(im, CHANNEL.G);
+        }
+        t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
+        if (MODE.GRAY === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i+channel] < t)
+                {
+                    im[i  ] = r0;
+                    im[i+1] = g0;
+                    im[i+2] = b0;
+                }
+                else if (null != color1)
+                {
+                    im[i  ] = r1;
+                    im[i+1] = g1;
+                    im[i+2] = b1;
+                }
+            }
+        }
+        else if (MODE.CHANNEL === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i+channel] < t)
+                {
+                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                }
+                else if (null != color1)
+                {
+                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                cr = im[i  ];
+                y  = im[i+1];
+                cb = im[i+2];
+                if (y < t)
+                {
+                    im[i  ] = r0;
+                    im[i+1] = g0;
+                    im[i+2] = b0;
+                }
+                else if (null != color1)
+                {
+                    im[i  ] = r1;
+                    im[i+1] = g1;
+                    im[i+2] = b1;
+                }
+                else
+                {
+                    r = (y                      + 1.402   * (cr-128));
+                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                    b = (y + 1.772   * (cb-128));
+                    if (notSupportClamp)
+                    {
+                        // clamp them manually
+                        r = r<0 ? 0 : (r>255 ? 255 : r);
+                        g = g<0 ? 0 : (g>255 ? 255 : g);
+                        b = b<0 ? 0 : (b>255 ? 255 : b);
+                    }
+                    im[i  ] = r|0;
+                    im[i+1] = g|0;
+                    im[i+2] = b|0;
+                }
+            }
+        }
+        // return thresholds as meta
+        self.meta = [t];
+        return im;
+    }
+});
 }(FILTER);/**
 *
 * Canny Edges Detector

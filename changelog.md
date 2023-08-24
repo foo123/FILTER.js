@@ -1,5 +1,12 @@
 ## ChangeLog
 
+__1.8.0__
+
+* MorphologicalFilter web assembly version
+* DimensionFilter glsl version, fix pad mode, fix parallel operation
+* HistogramEqualizeFilter have balance factor in [0,1] (default operation is 0)
+* rename ThresholdFilter to OtsuThresholdFilter
+
 __1.7.0__
 
 * most filters coded in web assembly (more to be added)

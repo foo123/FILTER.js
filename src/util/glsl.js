@@ -271,7 +271,7 @@ function prepareGL(img, ws, hs)
     }
     return FILTER.getGL(img, ws, hs);
 }
-function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY)
+function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY, wi, hi)
 {
     var iterations = glsl.iterations || 1;
     if ('function' === typeof iterations) iterations = iterations(w, h) || 1;
@@ -326,8 +326,8 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
         }
     }
-    if (glsl.vars) glsl.vars(gl, w, h, program);
-    if (glsl.textures) glsl.textures(gl, w, h, program);
+    if (glsl.vars) glsl.vars(gl, w, h, program, wi, hi);
+    if (glsl.textures) glsl.textures(gl, w, h, program, wi, hi);
 
     if (last > 0)
     {
@@ -385,8 +385,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
         canRun, isContextLost,
-        cleanUp, lost, resize,
-        first = -1, last = -1, nw, nh,
+        cleanUp, lost, resize, refreshBuffers,
+        first = -1, last = -1,
+        nw, nh, wi, hi,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -415,8 +416,25 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         img.cache = {}; // need to recompile programs?
         FILTER.log('GL context lost on #'+img.id);
     };
-    resize = function(nw, nh) {
+    refreshBuffers = function(w, h, keepbuf, keepothers) {
+        if (buf0 !== keepbuf) deleteFramebufferTexture(gl, buf0);
+        if (buf1 !== keepbuf) deleteFramebufferTexture(gl, buf1);
+        if (!keepothers)
+        {
+            deleteFramebufferTexture(gl, buf[0]);
+            deleteFramebufferTexture(gl, buf[1]);
+            buf = [null, null];
+        }
+        if (last > first && last > i)
+        {
+            if (buf0 !== keepbuf) buf0 = createFramebufferTexture(gl, w, h);
+            if (buf1 !== keepbuf) buf1 = createFramebufferTexture(gl, w, h);
+        }
+    };
+    resize = function(nw, nh, withBuffers) {
         if (w === nw && h === nh)  return;
+        wi = w;
+        hi = h;
         w = nw;
         h = nh;
         FILTER.setGLDimensions(img, w, h);
@@ -430,16 +448,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             w, h
         ]));
         gl.viewport(0, 0, w, h);
-        deleteFramebufferTexture(gl, buf0);
-        deleteFramebufferTexture(gl, buf1);
-        deleteFramebufferTexture(gl, buf[0]);
-        deleteFramebufferTexture(gl, buf[1]);
-        buf = [null, null];
-        if (last > first)
-        {
-            buf0 = createFramebufferTexture(gl, w, h);
-            buf1 = createFramebufferTexture(gl, w, h);
-        }
+        if (withBuffers) refreshBuffers(w, h, null, false);
         if (filter.hasMeta)
         {
             filter.meta = filter.meta || {};
@@ -477,6 +486,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         buf0 = createFramebufferTexture(gl, w, h);
         buf1 = createFramebufferTexture(gl, w, h);
     }
+    wi = w; hi = h;
     for (i=0; i<n; ++i)
     {
         canRun = false;
@@ -488,6 +498,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         }
         if (canRun)
         {
+            if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
             if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
             {
                 // store previous frames
@@ -500,11 +511,17 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             {
                 nw = 'function' === typeof glsl.width ? glsl.width(w, h) : glsl.width;
                 nh = 'function' === typeof glsl.height ? glsl.height(w, h) : glsl.height;
-                resize(nw, nh);
+                resize(nw, nh, false);
+                if (wi !== w || hi !== h) refreshBuffers(w, h, buf0, false);
+            }
+            else
+            {
+                wi = w;
+                hi = h;
             }
             if (i === first)
             {
-                if (!input) input = uploadTexture(gl, im, w, h, 0);
+                if (!input) input = uploadTexture(gl, im, wi, hi, 0);
                 src = {fbo: null, tex: input};
             }
             else
@@ -520,8 +537,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             {
                 dst = buf1;
             }
-            if (!fromshader && i > first) uploadTexture(gl, im, w, h, 0, 0, src.tex);
-            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false);
+            if (!fromshader && i > first) uploadTexture(gl, im, wi, hi, 0, 0, src.tex);
+            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false, wi, hi);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
@@ -536,12 +553,17 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             else im = glsl.instance._apply(im0, w, h, metaData);
             if (glsl.instance.hasMeta && null != glsl.instance.meta._IMG_WIDTH && null != glsl.instance.meta._IMG_HEIGHT)
             {
-                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT);
+                resize(glsl.instance.meta._IMG_WIDTH, glsl.instance.meta._IMG_HEIGHT, true);
             }
             fromshader = false;
         }
     }
-    if (fromshader) getPixels(gl, w, h, im);
+    if (fromshader)
+    {
+        n = (w*h) << 2;
+        if (im.length !== n) im = new FILTER.ImArray(n);
+        getPixels(gl, w, h, im);
+    }
     cleanUp();
     return im;
 };

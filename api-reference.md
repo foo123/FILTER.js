@@ -612,6 +612,8 @@ This filter implements basic morphological processing like erode and dilate filt
 
 **NEW Morphological Filter supports WebGL**
 
+**NEW Morphological Filter supports Web Assembly**
+
 The class has some pre-defined filters to use.
 
 * `erode()` Apply morphological erode operation
@@ -783,6 +785,8 @@ image.apply(blend3Images);   // image is a FILTER.Image instance, see examples
 new FILTER.DimensionFilter(mode:String, a:Number, b:Number, c:Number, d:Number);
 ````
 
+**NEW Dimension Filter supports WebGL**
+
 **NEW Dimension Filter supports Web Assembly**
 
 The filter changes the dimensions of the image either by simply setting the new dimensions or (re-)scaling or cropping or padding the image.
@@ -935,16 +939,16 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tbody>
 <tr><td>Noise</td>    <td>generate uniform noise</td></tr>
 <tr><td>PerlinNoise</td>  <td>generate perlin noise</td></tr>
-<tr><td>Threshold</td>    <td>automatic threshold (Otsu method)</td></tr>
-<tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
+<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as <code>AlphaMask</code> depending on operation mode)<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
-<tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
-<tr><td>ChannelCopy</td>  <td>copy a channel from an image to another channel on target image (can also act as <code>AlphaMask</code> depending on operation mode)<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image</td></tr>
+<tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>
+<tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
+<tr><td>OtsuThreshold</td>    <td>automatic threshold (Otsu method)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>

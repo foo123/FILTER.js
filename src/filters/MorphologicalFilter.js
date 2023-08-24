@@ -52,6 +52,7 @@ FILTER.Create({
     ,_indices: null
     ,_structureElement2: null
     ,_indices2: null
+    ,_runWASM: false
     ,mode: MODE.RGB
 
     ,dispose: function() {
@@ -218,6 +219,14 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,_apply_wasm: function(im, w, h) {
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h);
+        self._runWASM = false;
+        return ret;
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;
@@ -230,103 +239,6 @@ FILTER.Create({
 });
 
 // private methods
-function glsl(filter)
-{
-    var matrix_code = function(m, d, op, op0, img) {
-        var code = [], ca = 'c0',
-            x, y, k, i, j,
-            matArea = m.length, matRadius = d,
-            matHalfSide = matRadius>>>1;
-        code.push('int apply=1;');
-        code.push('vec4 res=vec4('+op0+');');
-        code.push('float alpha=1.0;');
-        x=0; y=0; k=0;
-        img = img || 'img';
-        while (k<matArea)
-        {
-            i = x-matHalfSide;
-            j = y-matHalfSide;
-            if (m[k] || (0===i && 0===j))
-            {
-                code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
-            }
-            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
-        }
-        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
-        return code.join('\n');
-    };
-    var morph = function(m, op, img, usesPrev) {
-        return {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D '+(img||'img')+';',
-        'uniform vec2 dp;',
-        'void main(void) {',
-        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
-        '}'
-        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
-    };
-    var toFloat = GLSL.formatFloat, output;
-    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
-    switch (filter._filterName)
-    {
-        case 'dilate':
-        output = morph(filter._structureElement, 'dilate');
-        break;
-        case 'erode':
-        output = morph(filter._structureElement, 'erode');
-        break;
-        case 'open':
-        output = [
-        morph(filter._structureElement, 'erode'),
-        morph(filter._structureElement, 'dilate')
-        ];
-        break;
-        case 'close':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode')
-        ];
-        break;
-        case 'gradient':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
-        'void main(void) {',
-        'vec4 dilate = texture2D(_img_prev, pix);',
-        'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
-        '}'
-        ].join('\n'), _usesPrev:true}
-        ];
-        break;
-        case 'laplacian':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
-        'uniform sampler2D _img_prev_prev;',
-        'void main(void) {',
-        'vec4 original = texture2D(_img_prev_prev, pix);',
-        'vec4 dilate = texture2D(_img_prev, pix);',
-        'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
-        '}'
-        ].join('\n'), _usesPrev:true}
-        ];
-        break;
-        default:
-        output = {instance: filter};
-        break;
-    }
-    return output;
-}
 function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, iter)
 {
     //"use asm";
@@ -443,11 +355,13 @@ function morph_prim_op(mode, inp, out, w, h, stride, index, index2, op, op0, ite
             }
         }
     }
+    return out;
 }
 FILTER.Util.Filter.primitive_morphology_operator = morph_prim_op;
 MORPHO = {
     "dilate": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -460,12 +374,13 @@ MORPHO = {
             for (j=0; j<coverArea; j+=2) {index2[j]=indices[j]; index2[j+1]=indices[j+1]*w;}
         }
 
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
 
         return dst;
     }
     ,"erode": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -478,13 +393,14 @@ MORPHO = {
             for (j=0; j<coverArea; j+=2) {index2[j]=indices[j]; index2[j+1]=indices[j+1]*w;}
         }
 
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
 
         return dst;
     }
     // dilation of erotion
     ,"open": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -498,16 +414,17 @@ MORPHO = {
         }
 
         // erode
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         // dilate
         var tmp = im; im = dst; dst = tmp;
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
 
         return dst;
     }
     // erotion of dilation
     ,"close": function(self, im, w, h) {
-        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length);
+        var j, indices, coverArea, index, index2 = null, dst = new IMG(im.length),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -521,17 +438,18 @@ MORPHO = {
         }
 
         // dilate
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         var tmp = im; im = dst; dst = tmp;
-        morph_prim_op(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, im, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
 
         return dst;
     }
     // 1/2 (dilation - erosion)
     ,"gradient": function(self, im, w, h) {
         var j, indices, coverArea, index, index2 = null,
-            imLen = im.length, imcpy, dst = new IMG(imLen);
+            imLen = im.length, imcpy, dst = new IMG(imLen),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -546,9 +464,9 @@ MORPHO = {
 
         // dilate
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst = morph(self.mode, imcpy, dst, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
-        morph_prim_op(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
+        imcpy = morph(self.mode, im, imcpy, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {
             dst[j  ] = ((dst[j  ]-imcpy[j  ])/2)|0;
@@ -560,7 +478,8 @@ MORPHO = {
     // 1/2 (dilation + erosion -2IM)
     ,"laplacian": function(self, im, w, h) {
         var j, indices, coverArea, index, index2 = null,
-            imLen = im.length, imcpy, dst = new IMG(imLen), dst2 = new IMG(imLen);
+            imLen = im.length, imcpy, dst = new IMG(imLen), dst2 = new IMG(imLen),
+            morph = (self._runWASM ? morph_prim_op.wasm : morph_prim_op) || morph_prim_op;
 
         // pre-compute indices,
         // reduce redundant computations inside the main convolution loop (faster)
@@ -575,10 +494,10 @@ MORPHO = {
 
         // dilate
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
+        dst2 = morph(self.mode, imcpy, dst2, w, h, 2, index, index2, Math.max, 0, self._iter);
         // erode
         imcpy = copy(im);
-        morph_prim_op(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
+        dst = morph(self.mode, imcpy, dst, w, h, 2, index, index2, Math.min, 255, self._iter);
         for (j=0; j<imLen; j+=4)
         {
             dst[j  ] = ((dst[j  ]+dst2[j  ]-2*im[j  ])/2)|0;
@@ -588,5 +507,118 @@ MORPHO = {
         return dst;
     }
 };
+if (FILTER.Util.WASM.isSupported)
+{
+FILTER.waitFor(1);
+FILTER.Util.WASM.instantiate(wasm(), {}, {
+    morphologicalfilter: {inputs: [{arg:1,type:FILTER.ImArray},{arg:2,type:FILTER.ImArray},{arg:6,type:FILTER.Array16I},{arg:7,type:FILTER.Array16I}], output: {type:FILTER.ImArray}}
+}).then(function(wasm) {
+    morph_prim_op.wasm = function(mode, inp, out, w, h, stride, index, index2, op, op0, iter) {
+        return wasm.morphologicalfilter(mode, inp, out, w, h, stride, index, index2 || [], Math.min === op ? -1 : 1, op0, iter||1);
+    };
+    FILTER.unwaitFor(1);
+});
+}
+function glsl(filter)
+{
+    var matrix_code = function(m, d, op, op0, img) {
+        var code = [], ca = 'c0',
+            x, y, k, i, j,
+            matArea = m.length, matRadius = d,
+            matHalfSide = matRadius>>>1;
+        code.push('int apply=1;');
+        code.push('vec4 res=vec4('+op0+');');
+        code.push('float alpha=1.0;');
+        x=0; y=0; k=0;
+        img = img || 'img';
+        while (k<matArea)
+        {
+            i = x-matHalfSide;
+            j = y-matHalfSide;
+            if (m[k] || (0===i && 0===j))
+            {
+                code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
+            }
+            ++k; ++x; if (x>=matRadius) {x=0; ++y;}
+        }
+        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
+        return code.join('\n');
+    };
+    var morph = function(m, op, img, usesPrev) {
+        return {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D '+(img||'img')+';',
+        'uniform vec2 dp;',
+        'void main(void) {',
+        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
+        '}'
+        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
+    };
+    var toFloat = GLSL.formatFloat, output;
+    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
+    switch (filter._filterName)
+    {
+        case 'dilate':
+        output = morph(filter._structureElement, 'dilate');
+        break;
+        case 'erode':
+        output = morph(filter._structureElement, 'erode');
+        break;
+        case 'open':
+        output = [
+        morph(filter._structureElement, 'erode'),
+        morph(filter._structureElement, 'dilate')
+        ];
+        break;
+        case 'close':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode')
+        ];
+        break;
+        case 'gradient':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
+        {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D _img_prev;',
+        'void main(void) {',
+        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
+        '}'
+        ].join('\n'), _usesPrev:true}
+        ];
+        break;
+        case 'laplacian':
+        output = [
+        morph(filter._structureElement, 'dilate'),
+        morph(filter._structureElement, 'erode', '_img_prev', true),
+        {instance: filter, shader: [
+        'varying vec2 pix;',
+        'uniform sampler2D img;',
+        'uniform sampler2D _img_prev;',
+        'uniform sampler2D _img_prev_prev;',
+        'void main(void) {',
+        'vec4 original = texture2D(_img_prev_prev, pix);',
+        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 erode = texture2D(img, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
+        '}'
+        ].join('\n'), _usesPrev:true}
+        ];
+        break;
+        default:
+        output = {instance: filter};
+        break;
+    }
+    return output;
+}
+function wasm()
+{
+    return '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';
+}
 
 }(FILTER);

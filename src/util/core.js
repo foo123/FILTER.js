@@ -102,7 +102,6 @@ function arrayset_shim(a, b, offset, b0, b1)
 
 function crop(im, w, h, x1, y1, x2, y2)
 {
-    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1,
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize),
@@ -117,7 +116,6 @@ function crop(im, w, h, x1, y1, x2, y2)
 }
 function crop_shim(im, w, h, x1, y1, x2, y2)
 {
-    //"use asm";
     x2 = Min(x2, w-1); y2 = Min(y2, h-1);
     var nw = x2-x1+1, nh = y2-y1+1,
         croppedSize = (nw*nh)<<2, cropped = new IMG(croppedSize),
@@ -132,35 +130,31 @@ function crop_shim(im, w, h, x1, y1, x2, y2)
 }
 function pad(im, w, h, pad_right, pad_bot, pad_left, pad_top)
 {
-    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot,
-        paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize),
-        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
-        offtop = pad_top*nw4, offleft = pad_left<<2;
+        paddedSize = ((nw*nh)<<2), padded = new IMG(paddedSize),
+        y, w4 = (w<<2), nw4 = (nw<<2), pixel, pixel2,
+        offtop = pad_top*nw4, offleft = (pad_left<<2);
 
-    for (y=0,yw=0,pixel=offtop; y<h; ++y,yw+=w,pixel+=nw4)
+    for (y=0,pixel2=0,pixel=offtop; y<h; ++y,pixel2+=w4,pixel+=nw4)
     {
-        pixel2 = yw<<2;
-        padded.set(im.subarray(pixel2, pixel2+w4), offleft+pixel);
+        padded.set(im.subarray(pixel2, pixel2+w4), pixel+offleft);
     }
     return padded;
 }
 function pad_shim(im, w, h, pad_right, pad_bot, pad_left, pad_top)
 {
-    //"use asm";
     pad_right = pad_right || 0; pad_bot = pad_bot || 0;
     pad_left = pad_left || 0; pad_top = pad_top || 0;
     var nw = w+pad_left+pad_right, nh = h+pad_top+pad_bot,
         paddedSize = (nw*nh)<<2, padded = new IMG(paddedSize),
-        y, yw, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
+        y, w4 = w<<2, nw4 = nw<<2, pixel, pixel2,
         offtop = pad_top*nw4, offleft = pad_left<<2;
 
-    for (y=0,yw=0,pixel=offtop; y<h; ++y,yw+=w,pixel+=nw4)
+    for (y=0,pixel2=0,pixel=offtop; y<h; ++y,pixel2+=w4,pixel+=nw4)
     {
-        pixel2 = yw<<2;
-        arrayset_shim(padded, im, offleft+pixel, pixel2, pixel2+w4);
+        arrayset_shim(padded, im, pixel+offleft, pixel2, pixel2+w4);
     }
     return padded;
 }
@@ -750,20 +744,21 @@ function image_glsl()
 {
 return {
 'crop': [
-'vec4 crop(vec2 pix, sampler2D img, vec2 wh, float x1, float y1, float x2, float y2) {',
-'   vec2 start = vec2(x1, y1); vec2 end = vec2(x2, y2);',
+'vec4 crop(vec2 pix, sampler2D img, vec2 wh, vec2 nwh, float x1, float y1, float x2, float y2) {',
+'   vec2 start = vec2(x1, y1)/wh; vec2 end = vec2(x2, y2)/wh;',
 '   return texture2D(img, start + pix*(end-start));',
 '}'
 ].join('\n'),
 'pad': [
-'vec4 pad(vec2 pix, sampler2D img, vec2 wh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
-'   if (pix.x < pad_left || pix.x > pad_left+wh.x || pix.y < pad_top || pix.y > pad_top+wh.y) return vec4(0.0);',
-'   return texture2D(img, (pix-vec2(pad_left,pad_top))/(wh+vec2(pad_right,pad_bot)));',
+'vec4 pad(vec2 pix, sampler2D img, vec2 wh, vec2 nwh, float pad_right, float pad_bot, float pad_left, float pad_top) {',
+'   vec2 p = pix*nwh - vec2(pad_left, pad_top);',
+'   if (p.x < 0.0 || p.x > wh.x || p.y < 0.0 || p.y > wh.y) return vec4(0.0);',
+'   return texture2D(img, p/wh);',
 '}'
 ].join('\n'),
 'interpolate': [
 'vec4 interpolate(vec2 pix, sampler2D img, vec2 wh, vec2 nwh) {',
-'   return texture2D(img, wh*pix/nwh);',
+'   return texture2D(img, pix);',
 '}'
 ].join('\n')
 };
@@ -1754,6 +1749,41 @@ function histogram(im, channel, cdf)
     }
     return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
 }
+function otsu(bin, tot, min, max)
+{
+    var omega0, omega1,
+        mu0, mu1, mu,
+        sigmat, sigma,
+        sum0, isum0, i, t;
+
+    if (null == min) min = 0;
+    if (null == max) max = 255;
+    for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
+    t = min;
+    sum0 = bin[min];
+    isum0 = min*bin[min]/tot;
+    omega0 = sum0/tot;
+    omega1 = 1-omega0;
+    mu0 = isum0/omega0;
+    mu1 = (mu - isum0)/omega1;
+    sigmat = omega0*omega1*Pow(mu1 - mu0, 2);
+    for (i=min+1; i<=max; ++i)
+    {
+        sum0 += bin[i];
+        isum0 += i*bin[i]/tot;
+        omega0 = sum0/tot;
+        omega1 = 1-omega0;
+        mu0 = isum0/omega0;
+        mu1 = (mu - isum0)/omega1;
+        sigma = omega0*omega1*Pow(mu1 - mu0, 2);
+        if (sigma > sigmat)
+        {
+            sigmat = sigma;
+            t = i;
+        }
+    }
+    return t;
+}
 
 function ct_eye(c1, c0)
 {
@@ -1917,6 +1947,7 @@ FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
+FilterUtil.otsu = otsu;
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_bilinear:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
