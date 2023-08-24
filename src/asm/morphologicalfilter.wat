@@ -40,7 +40,7 @@
  (data $9.1 (i32.const 1512) "\02\00\00\00*\00\00\00O\00b\00j\00e\00c\00t\00 \00a\00l\00r\00e\00a\00d\00y\00 \00p\00i\00n\00n\00e\00d")
  (data $10 (i32.const 1564) "<")
  (data $10.1 (i32.const 1576) "\02\00\00\00(\00\00\00O\00b\00j\00e\00c\00t\00 \00i\00s\00 \00n\00o\00t\00 \00p\00i\00n\00n\00e\00d")
- (data $11 (i32.const 1632) "\06\00\00\00 \00\00\00 \00\00\00 \00\00\00\00\00\00\00A\00\00\00\81\08")
+ (data $11 (i32.const 1632) "\06\00\00\00 \00\00\00 \00\00\00 \00\00\00\00\00\00\00A\00\00\00\01\t")
  (export "__new" (func $~lib/rt/itcms/__new))
  (export "__pin" (func $~lib/rt/itcms/__pin))
  (export "__unpin" (func $~lib/rt/itcms/__unpin))
@@ -1740,7 +1740,7 @@
   i32.const 1408
   global.set $~lib/rt/itcms/fromSpace
  )
- (func $~lib/typedarray/Int16Array#get:length (param $0 i32) (result i32)
+ (func $~lib/typedarray/Int32Array#get:length (param $0 i32) (result i32)
   (local $1 i32)
   global.get $~lib/memory/__stack_pointer
   i32.const 4
@@ -1766,7 +1766,7 @@
   i32.store $0
   local.get $0
   i32.load $0 offset=8
-  i32.const 1
+  i32.const 2
   i32.shr_u
   local.set $0
   local.get $1
@@ -1775,7 +1775,7 @@
   global.set $~lib/memory/__stack_pointer
   local.get $0
  )
- (func $~lib/typedarray/Int16Array#__get (param $0 i32) (param $1 i32) (result i32)
+ (func $~lib/typedarray/Int32Array#__get (param $0 i32) (param $1 i32) (result i32)
   (local $2 i32)
   global.get $~lib/memory/__stack_pointer
   i32.const 4
@@ -1802,13 +1802,13 @@
   local.get $1
   local.get $0
   i32.load $0 offset=8
-  i32.const 1
+  i32.const 2
   i32.shr_u
   i32.ge_u
   if
    i32.const 1056
    i32.const 1120
-   i32.const 452
+   i32.const 736
    i32.const 64
    call $~lib/builtins/abort
    unreachable
@@ -1820,10 +1820,10 @@
   local.get $0
   i32.load $0 offset=4
   local.get $1
-  i32.const 1
+  i32.const 2
   i32.shl
   i32.add
-  i32.load16_s $0
+  i32.load $0
   local.set $0
   local.get $2
   i32.const 4
@@ -2029,7 +2029,7 @@
     local.get $5
     i32.store $0
     local.get $5
-    call $~lib/typedarray/Int16Array#get:length
+    call $~lib/typedarray/Int32Array#get:length
     local.set $10
     loop $for-loop|6
      local.get $9
@@ -2087,7 +2087,7 @@
           i32.store $0
           local.get $5
           local.get $12
-          call $~lib/typedarray/Int16Array#__get
+          call $~lib/typedarray/Int32Array#__get
           local.get $4
           i32.add
           local.set $13
@@ -2105,7 +2105,7 @@
           local.get $12
           i32.const 1
           i32.add
-          call $~lib/typedarray/Int16Array#__get
+          call $~lib/typedarray/Int32Array#__get
           local.get $14
           i32.add
           local.tee $19
@@ -2217,7 +2217,11 @@
       br $for-loop|6
      end
     end
+    global.get $~lib/memory/__stack_pointer
     local.get $6
+    i32.store $0
+    local.get $6
+    call $~lib/typedarray/Int32Array#get:length
     if
      global.get $~lib/memory/__stack_pointer
      local.tee $0
@@ -2227,7 +2231,7 @@
      local.get $6
      i32.store $0
      local.get $6
-     call $~lib/typedarray/Int16Array#get:length
+     call $~lib/typedarray/Int32Array#get:length
      local.set $5
      i32.const 0
      local.set $15
@@ -2287,7 +2291,7 @@
            i32.store $0
            local.get $6
            local.get $12
-           call $~lib/typedarray/Int16Array#__get
+           call $~lib/typedarray/Int32Array#__get
            local.get $4
            i32.add
            local.set $10
@@ -2305,7 +2309,7 @@
            local.get $12
            i32.const 1
            i32.add
-           call $~lib/typedarray/Int16Array#__get
+           call $~lib/typedarray/Int32Array#__get
            local.get $14
            i32.add
            local.tee $13
@@ -2423,7 +2427,7 @@
     local.get $5
     i32.store $0
     local.get $5
-    call $~lib/typedarray/Int16Array#get:length
+    call $~lib/typedarray/Int32Array#get:length
     local.set $20
     loop $for-loop|18
      local.get $9
@@ -2484,7 +2488,7 @@
           i32.store $0
           local.get $5
           local.get $12
-          call $~lib/typedarray/Int16Array#__get
+          call $~lib/typedarray/Int32Array#__get
           local.get $10
           i32.add
           local.set $19
@@ -2502,7 +2506,7 @@
           local.get $12
           i32.const 1
           i32.add
-          call $~lib/typedarray/Int16Array#__get
+          call $~lib/typedarray/Int32Array#__get
           local.get $14
           i32.add
           local.tee $21
@@ -2676,7 +2680,11 @@
       br $for-loop|18
      end
     end
+    global.get $~lib/memory/__stack_pointer
     local.get $6
+    i32.store $0
+    local.get $6
+    call $~lib/typedarray/Int32Array#get:length
     if
      global.get $~lib/memory/__stack_pointer
      local.tee $0
@@ -2686,7 +2694,7 @@
      local.get $6
      i32.store $0
      local.get $6
-     call $~lib/typedarray/Int16Array#get:length
+     call $~lib/typedarray/Int32Array#get:length
      local.set $10
      i32.const 0
      local.set $15
@@ -2749,7 +2757,7 @@
            i32.store $0
            local.get $6
            local.get $12
-           call $~lib/typedarray/Int16Array#__get
+           call $~lib/typedarray/Int32Array#__get
            local.get $5
            i32.add
            local.set $19
@@ -2767,7 +2775,7 @@
            local.get $12
            i32.const 1
            i32.add
-           call $~lib/typedarray/Int16Array#__get
+           call $~lib/typedarray/Int32Array#__get
            local.get $14
            i32.add
            local.tee $20

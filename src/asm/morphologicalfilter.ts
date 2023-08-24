@@ -1,5 +1,5 @@
 // The entry file of your WebAssembly module.
-export function primitive_morphology_operator(mode:i32, inp:Uint8ClampedArray, out:Uint8ClampedArray, w:i32, h:i32, stride:i32, index:Int16Array, index2:Int16Array, op:i32, op0:u8, iter:i32):Uint8ClampedArray
+export function primitive_morphology_operator(mode:i32, inp:Uint8ClampedArray, out:Uint8ClampedArray, w:i32, h:i32, stride:i32, index:Int32Array, index2:Int32Array, op:i32, op0:u8, iter:i32):Uint8ClampedArray
 {
     const GRAY:i32 = 9;
     let tmp:Uint8ClampedArray,
@@ -43,7 +43,7 @@ export function primitive_morphology_operator(mode:i32, inp:Uint8ClampedArray, o
             }
         }
 
-        if (index2)
+        if (index2.length)
         {
             index = index2; coverArea = index.length;
             for (it=0; it<iter; ++it)
@@ -113,7 +113,7 @@ export function primitive_morphology_operator(mode:i32, inp:Uint8ClampedArray, o
                 out[i] = rM; out[i+1] = gM; out[i+2] = bM; out[i+3] = inp[i+3];
             }
         }
-        if (index2)
+        if (index2.length)
         {
             index = index2; coverArea = index.length;
             for (it=0; it<iter; ++it)

@@ -38,7 +38,7 @@ function instantiate(base64, _imports, _exports)
                 obj[field] = __getF32(pointer + struct[field].offset);
                 break;
                 default:
-                if (FILTER.Array32F === struct[field].type || FILTER.Array16I === struct[field].type || FILTER.Array8U === struct[field].type || FILTER.ImArray === struct[field].type)
+                if (FILTER.Array32F === struct[field].type || FILTER.Array32I === struct[field].type || FILTER.Array16I === struct[field].type || FILTER.Array8U === struct[field].type || FILTER.ImArray === struct[field].type)
                 {
                     obj[field] = __liftTypedArray(struct[field].type, __getU32(pointer + struct[field].offset));
                 }
@@ -64,6 +64,10 @@ function instantiate(base64, _imports, _exports)
         if (FILTER.Array16I === constructor)
         {
             id = 6; align = 1;
+        }
+        else if (FILTER.Array32I === constructor)
+        {
+            id = 5; align = 2;
         }
         else if (FILTER.Array32F === constructor)
         {
