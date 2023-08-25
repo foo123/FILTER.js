@@ -780,6 +780,8 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     convolutionmatrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ConvolutionMatrix},{arg:5,type:FILTER.ConvolutionMatrix},{arg:6,type:FILTER.Array16I},{arg:7,type:FILTER.Array16I}], output: {type:FILTER.ImArray}},
     weighted: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.Array32F}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ConvolutionMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, mode = self.mode;
         if (!self.matrix) return im;
@@ -798,6 +800,7 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
         }
         return wasm.convolutionmatrixfilter(im, w, h, mode, self._mat, self._mat2 ? self._mat2 : [], self._indices, self._indices2 ? self._indices2 : [], self._coeff[0], self._coeff[1], self._isGrad, self._mat2 ? 1 : 0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

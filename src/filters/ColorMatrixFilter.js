@@ -729,10 +729,13 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     colormatrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ColorMatrix}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ColorMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         if (!this.matrix) return im;
         return wasm.colormatrixfilter(im, w, h, this.matrix);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

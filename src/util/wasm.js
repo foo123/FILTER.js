@@ -217,9 +217,14 @@ function instantiate(base64, _imports, _exports)
 
     return WebAssembly.compile(base64ToArrayBuffer(base64))
     .then(function(module) {
-        return WebAssembly.instantiate(module, imports);
+        return module ? WebAssembly.instantiate(module, imports) : Promise.resolve(null);
+    })
+    .catch(function(err) {
+        FILTER.error(err);
+        return Promise.resolve(null);
     })
     .then(function(wasm) {
+        if (!wasm) return null;
         exports = wasm.exports;
         memory = exports.memory || _imports.env.memory;
         __dataview = new DataView(memory.buffer);
@@ -264,17 +269,25 @@ if (WASM.isSupported && FILTER.Util.Filter._wasm)
     FILTER.waitFor(1);
     var module = FILTER.Util.Filter._wasm();
     instantiate(module.wasm, module.imports, module.exports).then(function(wasm) {
-        FILTER.Util.Image.wasm = {
-            interpolate: wasm.interpolate_bilinear
-        };
-        FILTER.Util.Filter.wasm = {
-            integral_convolution: wasm.integral_convolution,
-            separable_convolution: wasm.separable_convolution,
-            histogram: wasm.histogram,
-            gaussian: wasm.gaussian,
-            gradient: wasm.gradient,
-            optimum_gradient: wasm.optimum_gradient
-        };
+        if (wasm)
+        {
+            FILTER.Util.Image.wasm = {
+                interpolate: wasm.interpolate_bilinear
+            };
+            FILTER.Util.Filter.wasm = {
+                integral_convolution: wasm.integral_convolution,
+                separable_convolution: wasm.separable_convolution,
+                histogram: wasm.histogram,
+                gaussian: wasm.gaussian,
+                gradient: wasm.gradient,
+                optimum_gradient: wasm.optimum_gradient
+            };
+        }
+        /*else
+        {
+            FILTER.Util.Image.wasm = {};
+            FILTER.Util.Filter.wasm = {};
+        }*/
         FILTER.unwaitFor(1);
     });
 }

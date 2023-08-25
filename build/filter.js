@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.8.0
-*   @built on 2023-08-24 22:53:01
+*   @built on 2023-08-25 15:55:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.8.0
-*   @built on 2023-08-24 22:53:01
+*   @built on 2023-08-25 15:55:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -4305,9 +4305,14 @@ function instantiate(base64, _imports, _exports)
 
     return WebAssembly.compile(base64ToArrayBuffer(base64))
     .then(function(module) {
-        return WebAssembly.instantiate(module, imports);
+        return module ? WebAssembly.instantiate(module, imports) : Promise.resolve(null);
+    })
+    .catch(function(err) {
+        FILTER.error(err);
+        return Promise.resolve(null);
     })
     .then(function(wasm) {
+        if (!wasm) return null;
         exports = wasm.exports;
         memory = exports.memory || _imports.env.memory;
         __dataview = new DataView(memory.buffer);
@@ -4352,17 +4357,25 @@ if (WASM.isSupported && FILTER.Util.Filter._wasm)
     FILTER.waitFor(1);
     var module = FILTER.Util.Filter._wasm();
     instantiate(module.wasm, module.imports, module.exports).then(function(wasm) {
-        FILTER.Util.Image.wasm = {
-            interpolate: wasm.interpolate_bilinear
-        };
-        FILTER.Util.Filter.wasm = {
-            integral_convolution: wasm.integral_convolution,
-            separable_convolution: wasm.separable_convolution,
-            histogram: wasm.histogram,
-            gaussian: wasm.gaussian,
-            gradient: wasm.gradient,
-            optimum_gradient: wasm.optimum_gradient
-        };
+        if (wasm)
+        {
+            FILTER.Util.Image.wasm = {
+                interpolate: wasm.interpolate_bilinear
+            };
+            FILTER.Util.Filter.wasm = {
+                integral_convolution: wasm.integral_convolution,
+                separable_convolution: wasm.separable_convolution,
+                histogram: wasm.histogram,
+                gaussian: wasm.gaussian,
+                gradient: wasm.gradient,
+                optimum_gradient: wasm.optimum_gradient
+            };
+        }
+        /*else
+        {
+            FILTER.Util.Image.wasm = {};
+            FILTER.Util.Filter.wasm = {};
+        }*/
         FILTER.unwaitFor(1);
     });
 }
@@ -4578,6 +4591,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,_isWASM: false
     ,_glsl: null
     ,_wasm: null
+    ,_runWASM: false
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -4881,7 +4895,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // for internal use, each filter overrides this
     ,_apply_wasm: function(im, w, h, metaData) {
         /* by default use javascript _apply, override */
-        return this._apply(im, w, h, metaData);
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h, metaData);
+        self._runWASM = false;
+        return ret;
     }
 
     // @override
@@ -7037,7 +7055,6 @@ var CompositeFilter = FILTER.Create({
     ,filters: null
     ,hasInputs: true
     ,_stable: true
-    ,_runWASM: false
 
     ,dispose: function(withFilters) {
         var self = this, i, stack = self.filters;
@@ -7240,13 +7257,6 @@ var CompositeFilter = FILTER.Create({
     }
 
     // used for internal purposes
-    ,_apply_wasm: function(im, w, h, metaData) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h, metaData);
-        self._runWASM = false;
-        return ret;
-    }
     ,_apply: function(im, w, h, metaData) {
         var self = this, runWASM = self._runWASM /*|| self.isWASM()*/,
             meta, filtermeta = null, metalen = 0,
@@ -7588,6 +7598,8 @@ FILTER.Util.WASM.instantiate(wasm(), {env:{
 }}, {
     blendfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:'f32',array:1},{arg:4,type:FILTER.ImArray,array:1},{arg:5,type:'i32',array:1}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     BlendFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, matrix = self.matrix, inputs, inputSizes, input, m, i, j, l, mode;
         if (!matrix || !matrix.length) return im;
@@ -7616,6 +7628,7 @@ FILTER.Util.WASM.instantiate(wasm(), {env:{
         }
         return wasm.blendfilter(im, w, h, m, inputs, inputSizes);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -7768,7 +7781,6 @@ FILTER.Create({
     ,d: 0
     ,meta: null
     ,hasMeta: true
-    ,_runWASM: false
 
     ,dispose: function() {
         var self = this;
@@ -7833,13 +7845,6 @@ FILTER.Create({
         return glsl(this);
     }
 
-    ,_apply_wasm: function(im, w, h, metaData) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h, metaData);
-        self._runWASM = false;
-        return ret;
-    }
     ,_apply: function(im, w, h, metaData) {
         var self = this, isWASM = self._runWASM, mode = self.m,
             a = self.a, b = self.b, c = self.c, d = self.d;
@@ -8478,6 +8483,8 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     colortablefilter_RGB: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray},{arg:5,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
     colortablefilter_RGBA: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray},{arg:5,type:FILTER.ImArray},{arg:6,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ColorTableFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this;
         if (!self.table || !self.table[CHANNEL.R]) return im;
@@ -8487,6 +8494,7 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
             A = self.table[CHANNEL.A];
         return A ? wasm.colortablefilter_RGBA(im, w, h, R, G, B, A) : wasm.colortablefilter_RGB(im, w, h, R, G, B);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -9249,10 +9257,13 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     colormatrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ColorMatrix}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ColorMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         if (!this.matrix) return im;
         return wasm.colormatrixfilter(im, w, h, this.matrix);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -10106,11 +10117,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     affinematrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.AffineMatrix}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     AffineMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this;
         if (!self.matrix) return im;
         return wasm.affinematrixfilter(im, w, h, self.mode||0, self.matrix, self.color||0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -10448,11 +10462,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     displacementmapfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
-    DisplacementMapFilter.prototype._apply_wasm = function(im, w, h) {
-        var self = this, map = self.input("map");
-        if (!map) return im;
-        return wasm.displacementmapfilter(im, w, h, self.mode||IGNORE, map[0], map[1], map[2], self.startX||0, self.startY||0, self.componentX||0, self.componentY||0, self.scaleX, self.scaleY, self.color||0);
-    };
+    if (wasm)
+    {
+        DisplacementMapFilter.prototype._apply_wasm = function(im, w, h) {
+            var self = this, map = self.input("map");
+            if (!map) return im;
+            return wasm.displacementmapfilter(im, w, h, self.mode||IGNORE, map[0], map[1], map[2], self.startX||0, self.startY||0, self.componentX||0, self.componentY||0, self.scaleX, self.scaleY, self.color||0);
+        };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -10728,20 +10745,23 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     geometricmapfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:5,type:FILTER.Array32F}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
-    GeometricMapFilter.prototype._apply_wasm = function(im, w, h) {
-        var self = this, map = self._mapName, mapCode;
-        if (!map) return im;
-        mapCode = 'twirl' === map ? 1 : (
-                'sphere' === map ? 2 : (
-                'polar' === map ? 3 : (
-                'cartesian' === map ? 4 : 0
+    if (wasm)
+    {
+        GeometricMapFilter.prototype._apply_wasm = function(im, w, h) {
+            var self = this, map = self._mapName, mapCode;
+            if (!map) return im;
+            mapCode = 'twirl' === map ? 1 : (
+                    'sphere' === map ? 2 : (
+                    'polar' === map ? 3 : (
+                    'cartesian' === map ? 4 : 0
+                    )
                 )
-            )
-        );
-        // custom
-        if (0 === mapCode) return self._apply(im, w, h);
-        return wasm.geometricmapfilter(im, w, h, self.mode||0, mapCode, [self.centerX||0, self.centerY||0,self.radius||0,self.angle||0,self.posX||0,self.posY||0], self.color||0);
-    };
+            );
+            // custom
+            if (0 === mapCode) return self._apply(im, w, h);
+            return wasm.geometricmapfilter(im, w, h, self.mode||0, mapCode, [self.centerX||0, self.centerY||0,self.radius||0,self.angle||0,self.posX||0,self.posY||0], self.color||0);
+        };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -11916,6 +11936,8 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     convolutionmatrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ConvolutionMatrix},{arg:5,type:FILTER.ConvolutionMatrix},{arg:6,type:FILTER.Array16I},{arg:7,type:FILTER.Array16I}], output: {type:FILTER.ImArray}},
     weighted: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.Array32F}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ConvolutionMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, mode = self.mode;
         if (!self.matrix) return im;
@@ -11934,6 +11956,7 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
         }
         return wasm.convolutionmatrixfilter(im, w, h, mode, self._mat, self._mat2 ? self._mat2 : [], self._indices, self._indices2 ? self._indices2 : [], self._coeff[0], self._coeff[1], self._isGrad, self._mat2 ? 1 : 0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -12329,7 +12352,6 @@ FILTER.Create({
     ,_indices: null
     ,_structureElement2: null
     ,_indices2: null
-    ,_runWASM: false
     ,mode: MODE.RGB
 
     ,dispose: function() {
@@ -12494,14 +12516,6 @@ FILTER.Create({
 
     ,getGLSL: function() {
         return glsl(this);
-    }
-
-    ,_apply_wasm: function(im, w, h) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h);
-        self._runWASM = false;
-        return ret;
     }
 
     ,_apply: function(im, w, h) {
@@ -12790,9 +12804,12 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     primitive_morphology_operator: {inputs: [{arg:1,type:FILTER.ImArray},{arg:2,type:FILTER.ImArray},{arg:6,type:FILTER.Array32I},{arg:7,type:FILTER.Array32I}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     morph_prim_op.wasm = function(mode, inp, out, w, h, stride, index, index2, op, op0, iter) {
         return wasm.primitive_morphology_operator(mode, inp, out, w, h, stride, index, index2 || [], Math.min === op ? -1 : 1, Math.min === op ? 255 : 0, iter||1);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -14186,11 +14203,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     channelcopyfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ChannelCopyFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, src;
         src = self.input("source"); if (!src) return im;
         return wasm.channelcopyfilter(im, w, h, self.mode||0, src[0], src[1], src[2], self.centerX||0, self.centerY||0, self.srcChannel||0, self.dstChannel||0, self.color||0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -14365,12 +14385,15 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     rhomboidal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
     hexagonal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     PixelateFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, pattern = self.pattern;
         if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
         if (self.scale > 100) self.scale = 100;
         return (wasm[pattern] || PIXELATION[pattern])(im, w, h, self.scale);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }
@@ -17054,7 +17077,6 @@ FILTER.Create({
     ,low: 25
     ,high: 75
     ,lowpass: true
-    ,_runWASM: false
 
     ,path: FILTER.Path
 
@@ -17096,13 +17118,6 @@ FILTER.Create({
 
 
     // this is the filter actual apply method routine
-    ,_apply_wasm: function(im, w, h) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h);
-        self._runWASM = false;
-        return ret;
-    }
     ,_apply: function(im, w, h) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)

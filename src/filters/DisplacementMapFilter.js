@@ -281,11 +281,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     displacementmapfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
-    DisplacementMapFilter.prototype._apply_wasm = function(im, w, h) {
-        var self = this, map = self.input("map");
-        if (!map) return im;
-        return wasm.displacementmapfilter(im, w, h, self.mode||IGNORE, map[0], map[1], map[2], self.startX||0, self.startY||0, self.componentX||0, self.componentY||0, self.scaleX, self.scaleY, self.color||0);
-    };
+    if (wasm)
+    {
+        DisplacementMapFilter.prototype._apply_wasm = function(im, w, h) {
+            var self = this, map = self.input("map");
+            if (!map) return im;
+            return wasm.displacementmapfilter(im, w, h, self.mode||IGNORE, map[0], map[1], map[2], self.startX||0, self.startY||0, self.componentX||0, self.componentY||0, self.scaleX, self.scaleY, self.color||0);
+        };
+    }
     FILTER.unwaitFor(1);
 });
 }

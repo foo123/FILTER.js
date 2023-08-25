@@ -210,6 +210,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,_isWASM: false
     ,_glsl: null
     ,_wasm: null
+    ,_runWASM: false
     ,_update: true
     ,id: null
     ,onComplete: null
@@ -513,7 +514,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // for internal use, each filter overrides this
     ,_apply_wasm: function(im, w, h, metaData) {
         /* by default use javascript _apply, override */
-        return this._apply(im, w, h, metaData);
+        var self = this, ret;
+        self._runWASM = true;
+        ret = self._apply(im, w, h, metaData);
+        self._runWASM = false;
+        return ret;
     }
 
     // @override

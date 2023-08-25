@@ -239,11 +239,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     affinematrixfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.AffineMatrix}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     AffineMatrixFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this;
         if (!self.matrix) return im;
         return wasm.affinematrixfilter(im, w, h, self.mode||0, self.matrix, self.color||0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

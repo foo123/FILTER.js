@@ -6,6 +6,7 @@ __1.8.0__
 * DimensionFilter glsl version, fix pad mode, fix parallel operation
 * HistogramEqualizeFilter have balance factor in [0,1] (default operation is 0)
 * rename ThresholdFilter to OtsuThresholdFilter
+* WASM.instantiate handle Out-of-Memory errors blocking rest execution
 
 __1.7.0__
 

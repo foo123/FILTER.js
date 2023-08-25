@@ -137,11 +137,14 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     channelcopyfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ChannelCopyFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, src;
         src = self.input("source"); if (!src) return im;
         return wasm.channelcopyfilter(im, w, h, self.mode||0, src[0], src[1], src[2], self.centerX||0, self.centerY||0, self.srcChannel||0, self.dstChannel||0, self.color||0);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

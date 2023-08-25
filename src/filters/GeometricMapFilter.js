@@ -192,20 +192,23 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     geometricmapfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:5,type:FILTER.Array32F}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
-    GeometricMapFilter.prototype._apply_wasm = function(im, w, h) {
-        var self = this, map = self._mapName, mapCode;
-        if (!map) return im;
-        mapCode = 'twirl' === map ? 1 : (
-                'sphere' === map ? 2 : (
-                'polar' === map ? 3 : (
-                'cartesian' === map ? 4 : 0
+    if (wasm)
+    {
+        GeometricMapFilter.prototype._apply_wasm = function(im, w, h) {
+            var self = this, map = self._mapName, mapCode;
+            if (!map) return im;
+            mapCode = 'twirl' === map ? 1 : (
+                    'sphere' === map ? 2 : (
+                    'polar' === map ? 3 : (
+                    'cartesian' === map ? 4 : 0
+                    )
                 )
-            )
-        );
-        // custom
-        if (0 === mapCode) return self._apply(im, w, h);
-        return wasm.geometricmapfilter(im, w, h, self.mode||0, mapCode, [self.centerX||0, self.centerY||0,self.radius||0,self.angle||0,self.posX||0,self.posY||0], self.color||0);
-    };
+            );
+            // custom
+            if (0 === mapCode) return self._apply(im, w, h);
+            return wasm.geometricmapfilter(im, w, h, self.mode||0, mapCode, [self.centerX||0, self.centerY||0,self.radius||0,self.angle||0,self.posX||0,self.posY||0], self.color||0);
+        };
+    }
     FILTER.unwaitFor(1);
 });
 }

@@ -69,12 +69,15 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     rhomboidal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
     hexagonal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     PixelateFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, pattern = self.pattern;
         if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
         if (self.scale > 100) self.scale = 100;
         return (wasm[pattern] || PIXELATION[pattern])(im, w, h, self.scale);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

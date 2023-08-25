@@ -471,6 +471,8 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
     colortablefilter_RGB: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray},{arg:5,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
     colortablefilter_RGBA: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:FILTER.ImArray},{arg:4,type:FILTER.ImArray},{arg:5,type:FILTER.ImArray},{arg:6,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     ColorTableFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this;
         if (!self.table || !self.table[CHANNEL.R]) return im;
@@ -480,6 +482,7 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
             A = self.table[CHANNEL.A];
         return A ? wasm.colortablefilter_RGBA(im, w, h, R, G, B, A) : wasm.colortablefilter_RGB(im, w, h, R, G, B);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

@@ -276,6 +276,8 @@ FILTER.Util.WASM.instantiate(wasm(), {env:{
 }}, {
     blendfilter: {inputs: [{arg:0,type:FILTER.ImArray},{arg:3,type:'f32',array:1},{arg:4,type:FILTER.ImArray,array:1},{arg:5,type:'i32',array:1}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     BlendFilter.prototype._apply_wasm = function(im, w, h) {
         var self = this, matrix = self.matrix, inputs, inputSizes, input, m, i, j, l, mode;
         if (!matrix || !matrix.length) return im;
@@ -304,6 +306,7 @@ FILTER.Util.WASM.instantiate(wasm(), {env:{
         }
         return wasm.blendfilter(im, w, h, m, inputs, inputSizes);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

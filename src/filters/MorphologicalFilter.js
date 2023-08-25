@@ -52,7 +52,6 @@ FILTER.Create({
     ,_indices: null
     ,_structureElement2: null
     ,_indices2: null
-    ,_runWASM: false
     ,mode: MODE.RGB
 
     ,dispose: function() {
@@ -217,14 +216,6 @@ FILTER.Create({
 
     ,getGLSL: function() {
         return glsl(this);
-    }
-
-    ,_apply_wasm: function(im, w, h) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h);
-        self._runWASM = false;
-        return ret;
     }
 
     ,_apply: function(im, w, h) {
@@ -513,9 +504,12 @@ FILTER.waitFor(1);
 FILTER.Util.WASM.instantiate(wasm(), {}, {
     primitive_morphology_operator: {inputs: [{arg:1,type:FILTER.ImArray},{arg:2,type:FILTER.ImArray},{arg:6,type:FILTER.Array32I},{arg:7,type:FILTER.Array32I}], output: {type:FILTER.ImArray}}
 }).then(function(wasm) {
+    if (wasm)
+    {
     morph_prim_op.wasm = function(mode, inp, out, w, h, stride, index, index2, op, op0, iter) {
         return wasm.primitive_morphology_operator(mode, inp, out, w, h, stride, index, index2 || [], Math.min === op ? -1 : 1, Math.min === op ? 255 : 0, iter||1);
     };
+    }
     FILTER.unwaitFor(1);
 });
 }

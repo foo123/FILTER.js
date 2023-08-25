@@ -30,7 +30,6 @@ FILTER.Create({
     ,d: 0
     ,meta: null
     ,hasMeta: true
-    ,_runWASM: false
 
     ,dispose: function() {
         var self = this;
@@ -95,13 +94,6 @@ FILTER.Create({
         return glsl(this);
     }
 
-    ,_apply_wasm: function(im, w, h, metaData) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h, metaData);
-        self._runWASM = false;
-        return ret;
-    }
     ,_apply: function(im, w, h, metaData) {
         var self = this, isWASM = self._runWASM, mode = self.m,
             a = self.a, b = self.b, c = self.c, d = self.d;

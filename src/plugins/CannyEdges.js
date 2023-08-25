@@ -18,7 +18,6 @@ FILTER.Create({
     ,low: 25
     ,high: 75
     ,lowpass: true
-    ,_runWASM: false
 
     ,path: FILTER.Path
 
@@ -60,13 +59,6 @@ FILTER.Create({
 
 
     // this is the filter actual apply method routine
-    ,_apply_wasm: function(im, w, h) {
-        var self = this, ret;
-        self._runWASM = true;
-        ret = self._apply(im, w, h);
-        self._runWASM = false;
-        return ret;
-    }
     ,_apply: function(im, w, h) {
         var self = this;
         // NOTE: assume image is already grayscale (and contrast-normalised if needed)
