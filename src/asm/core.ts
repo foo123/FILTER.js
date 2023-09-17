@@ -3,6 +3,32 @@ function clamp(x:f32):u8
 {
     return u8(Mathf.min(Mathf.max(0.0, Mathf.round(x)), 255.0));
 }
+function clampi(x:f32, min:i32, max:i32):i32
+{
+    return i32(Mathf.min(Mathf.max(f32(min), Mathf.round(x)), f32(max)));
+}
+export function interpolate_nearest(im:Uint8ClampedArray, w:i32, h:i32, nw:i32, nh:i32):Uint8ClampedArray
+{
+    let size:i32 = (nw*nh) << 2,
+        interpolated:Uint8ClampedArray = new Uint8ClampedArray(size),
+        x:i32, y:i32, xn:i32, yn:i32, pixel:i32, nearest:i32
+    ;
+    x=0; y=0;
+    for (pixel=0; pixel<size; pixel+=4,++x)
+    {
+        if (x >= nw) {x=0; ++y;}
+
+        xn = clampi(f32(x)/f32(nw)*f32(w), 0, w-1);
+        yn = clampi(f32(y)/f32(nh)*f32(h), 0, h-1);
+        nearest = (xn + yn*w) << 2;
+
+        interpolated[pixel  ] = im[nearest  ];
+        interpolated[pixel+1] = im[nearest+1];
+        interpolated[pixel+2] = im[nearest+2];
+        interpolated[pixel+3] = im[nearest+3];
+    }
+    return interpolated;
+}
 export function interpolate_bilinear(im:Uint8ClampedArray, w:i32, h:i32, nw:i32, nh:i32):Uint8ClampedArray
 {
     let size:i32 = (nw*nh) << 2,

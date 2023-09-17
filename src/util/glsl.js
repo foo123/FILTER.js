@@ -9,8 +9,10 @@
 
 var proto = 'prototype',
     stdMath = Math,
+    HAS = Object.prototype.hasOwnProperty,
     trim = FILTER.Util.String.trim,
     GLSL = FILTER.Util.GLSL || {},
+    A32F = FILTER.Array32F, A32I = FILTER.Array32I,
     VERTEX_DEAULT = trim([
     '#ifdef GL_FRAGMENT_PRECISION_HIGH',
     'precision highp float;',
@@ -51,17 +53,17 @@ var proto = 'prototype',
     ].join('\n'),
     COMMENTS = /\/\*.*?\*\//gmi,
     LINE_COMMENTS = /\/\/.*?$/gmi,
-    ATTRIBUTE = /\battribute\s+\w+\s+(\w+)/gi,
-    UNIFORM = /\buniform\s+\w+\s+(\w+)/gi
+    ATTRIBUTE = /\battribute\s+(\w+)\s+(\w+)\s*(\[)?/gi,
+    UNIFORM = /\buniform\s+(\w+)\s+(\w+)\s*(\[)?/gi
 ;
 
 GLSL.DEFAULT = FRAGMENT_DEFAULT;
 
 function extract(source, type, store)
 {
-    var r = type/*new RegExp('\\b' + type + '\\s+\\w+\\s+(\\w+)', 'ig')*/;
-    source.replace(COMMENTS, '').replace(LINE_COMMENTS, '').replace(r, function(match, varName) {
-        store[varName] = 0;
+    var r = type/*new RegExp('\\b' + type + '\\s+(\\w+)\\s+(\\w+)\\s*(\\[)?', 'ig')*/;
+    source.replace(COMMENTS, '').replace(LINE_COMMENTS, '').replace(r, function(match, typeName, varName, bracket) {
+        store[varName] = {name:varName, type:typeName+(bracket||''), loc:0};
         return match;
     });
     return store;
@@ -99,6 +101,7 @@ function GLSLProgram(fragmentSource, gl)
         FILTER.error(gl.getShaderInfoLog(vsh));
         FILTER.error(gl.getShaderInfoLog(fsh));
         FILTER.error(gl.getProgramInfoLog(self.id));
+        FILTER.log(fragmentSource);
         gl.deleteShader(vsh);
         gl.deleteShader(fsh);
         gl.deleteProgram(self.id);
@@ -113,8 +116,8 @@ function GLSLProgram(fragmentSource, gl)
         // extract uniforms
         extract(self.vertexSource, UNIFORM, self.uniform);
         extract(self.fragmentSource, UNIFORM, self.uniform);
-        for (a in self.attribute) self.attribute[a] = gl.getAttribLocation(self.id, a);
-        for (u in self.uniform) self.uniform[u] = gl.getUniformLocation(self.id, u);
+        for (a in self.attribute) self.attribute[a].loc = gl.getAttribLocation(self.id, a);
+        for (u in self.uniform) self.uniform[u].loc = gl.getUniformLocation(self.id, u);
     }
     // release references
     vsh = fsh = gl = null;
@@ -134,6 +137,144 @@ function getProgram(gl, filter, programCache)
     if (!program) program = programCache[shader] = new GLSLProgram(shader, gl);
     return program;
 }
+function GLSLFilter(filter)
+{
+    var self = this, glsls = [], glsl, vars = {};
+    self.code = function() {
+        return glsls;
+    };
+    self.begin = function() {
+        glsl = {
+        _save: false,
+        _inputs: {},
+        _output: null,
+        iterations: 1,
+        instance: filter,
+        shader: null,
+        init: function(gl, im, w, h, fromshader) {
+            if (this._save) vars[this._save] = {data:fromshader ? getPixels(gl, w, h) : im, width:w, height:h};
+        },
+        inputs: function(gl, program, w, h, wi, hi, input) {
+            var inputs = this._inputs || {}, unit = 0;
+            Object.keys(inputs).forEach(function(i) {
+                if (('*' === i) && inputs[i].setter)
+                {
+                    inputs[i].setter(filter, w, h, wi, hi, gl, program, vars, input);
+                }
+                else if (HAS.call(program.uniform, i))
+                {
+                    var inp = inputs[i], type = program.uniform[inp.name].type, value, loc = program.uniform[inp.name].loc;
+                    if ('sampler2D' === type)
+                    {
+                        // texture
+                        value = !inp.setter && HAS.call(vars, inp.name) ? vars[inp.name] : inp.setter(filter, w, h, wi, hi);
+                        if (inp.isInput)
+                        {
+                            uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
+                            gl.uniform1i(loc, 0);
+                        }
+                        else
+                        {
+                            ++unit;
+                            uploadTexture(gl, value.data, value.width, value.height, unit);
+                            gl.uniform1i(loc, unit);
+                        }
+                    }
+                    else
+                    {
+                        // uniform
+                        value = inp.setter(filter, w, h, wi, hi, vars);
+                        switch (type)
+                        {
+                            case 'ivec4':
+                            gl.uniform4iv(loc, new A32I(value || [0,0,0,0]));
+                            break;
+                            case 'vec4':
+                            gl.uniform4fv(loc, new A32F(value || [0,0,0,0]));
+                            break;
+                            case 'ivec3':
+                            gl.uniform3iv(loc, new A32I(value || [0,0,0]));
+                            break;
+                            case 'vec3':
+                            gl.uniform3fv(loc, new A32F(value || [0,0,0]));
+                            break;
+                            case 'ivec2':
+                            gl.uniform2iv(loc, new A32I(value || [0,0]));
+                            break;
+                            case 'vec2':
+                            gl.uniform2fv(loc, new A32F(value || [0,0]));
+                            break;
+                            case 'int[':
+                            gl.uniform1iv(loc, new A32I(value || [0]));
+                            break;
+                            case 'float[':
+                            gl.uniform1fv(loc, new A32F(value || [0]));
+                            break;
+                            case 'int':
+                            gl.uniform1i(loc, value || 0);
+                            break;
+                            case 'float':
+                            default:
+                            gl.uniform1f(loc, value || 0);
+                            break;
+                        }
+                    }
+                }
+            });
+        },
+        output: function(gl, output) {
+            if (this._islast) vars = {};
+            else if (this._output) vars[this._output] = {data:getPixels(gl, output.w, output.h), width:output.w, height:output.h};
+        },
+        _islast: true
+        };
+        return self;
+    };
+    self.shader = function(shader, iterations) {
+        if (glsl)
+        {
+            glsl.shader = shader;
+            glsl.iterations = iterations || 1;
+        }
+        return self;
+    };
+    self.dimensions = function(df) {
+        if (glsl && df) glsl.dimensions = function(w, h) {return df(w, h, vars);};
+        return self;
+    };
+    self.save = function(name) {
+        if (glsl && name) glsl._save = name;
+        return self;
+    };
+    self.input = function(name, setter, isInput) {
+        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, isInput:!!isInput};
+        return self;
+    };
+    self.output = function(name) {
+        if (glsl) glsl._output = name;
+        return self;
+    };
+    self.end = function() {
+        if (glsl)
+        {
+            if (glsls.length) glsls[glsls.length-1]._islast = false;
+            glsls.push(glsl);
+        }
+        glsl = null;
+        return self;
+    };
+}
+GLSLFilter[proto] = {
+    constructor: GLSLFilter,
+    begin: null,
+    shader: null,
+    dimensions: null,
+    save: null,
+    input: null,
+    output: null,
+    end: null,
+    code: null
+};
 function createTexture(gl, width, height)
 {
     var tex = gl.createTexture();
@@ -169,7 +310,7 @@ function createFramebufferTexture(gl, width, height)
 
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return {fbo: fbo, tex: tex};
+    return {fbo: fbo, tex: tex, w: width, h: height};
 }
 function unbindFramebufferTexture(gl, buf)
 {
@@ -195,10 +336,15 @@ function deleteFramebufferTexture(gl, buf)
 {
     if (buf)
     {
-        unbindFramebufferTexture(gl, buf);
-        deleteFramebuffer(gl, buf.fbo)
-        deleteTexture(gl, buf.tex);
-        buf = null;
+        if (buf.fbo)
+        {
+            unbindFramebufferTexture(gl, buf);
+            deleteFramebuffer(gl, buf.fbo);
+        }
+        if (buf.tex) deleteTexture(gl, buf.tex);
+        buf.fbo = null;
+        buf.tex = null;
+        //buf = null;
     }
 }
 function createBuffer(gl, data)
@@ -234,6 +380,10 @@ function uploadTexture(gl, pixels, width, height, index, useSub, tex)
                     // target, level, internalformat, width, height, border, format, type, pixels
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     }
+    /*if (null != index)
+    {
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }*/
     return tex;
 }
 function getPixels(gl, width, height, pixels)
@@ -274,7 +424,7 @@ function prepareGL(img, ws, hs)
 function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY, wi, hi)
 {
     var iterations = glsl.iterations || 1;
-    if ('function' === typeof iterations) iterations = iterations(w, h) || 1;
+    if ('function' === typeof iterations) iterations = iterations(w, h, wi, hi) || 1;
     var i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
 
@@ -282,52 +432,48 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
     gl.useProgram(program.id);
     if ('pos' in program.attribute)
     {
-        gl.enableVertexAttribArray(program.attribute.pos);
+        gl.enableVertexAttribArray(program.attribute.pos.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, pos);
-        gl.vertexAttribPointer(program.attribute.pos, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(program.attribute.pos.loc, 2, gl.FLOAT, false, 0, 0);
     }
     if ('uv' in program.attribute)
     {
-        gl.enableVertexAttribArray(program.attribute.uv);
+        gl.enableVertexAttribArray(program.attribute.uv.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, uv);
-        gl.vertexAttribPointer(program.attribute.uv, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(program.attribute.uv.loc, 2, gl.FLOAT, false, 0, 0);
     }
     if ('resolution' in program.uniform)
     {
-        gl.uniform2f(program.uniform.resolution, w, h);
+        gl.uniform2f(program.uniform.resolution.loc, w, h);
     }
     if ('dp' in program.uniform)
     {
-        gl.uniform2f(program.uniform.dp, 1/w, 1/h);
+        gl.uniform2f(program.uniform.dp.loc, 1/w, 1/h);
     }
     if (glsl.instance && ('mode' in program.uniform))
     {
-        gl.uniform1i(program.uniform.mode, glsl.instance.mode);
+        gl.uniform1i(program.uniform.mode.loc, glsl.instance.mode);
     }
-    if (('_img_prev_prev' in program.uniform) && prev[1])
+    /*if (('_img_prev_prev' in program.uniform) && prev[1])
     {
         gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
         gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-        gl.uniform1i(program.uniform._img_prev_prev, prevUnit + 1);
+        gl.uniform1i(program.uniform._img_prev_prev.loc, prevUnit + 1);
     }
     if (('_img_prev' in program.uniform) && prev[0])
     {
         if (!('img' in program.uniform))
         {
             input = {fbo:null, tex:prev[0]};
-            /*gl.activeTexture(gl.TEXTURE0 + 0);
-            gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-            gl.uniform1i(program.uniform._img_prev, 0);*/
         }
         else
         {
             gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
             gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-            gl.uniform1i(program.uniform._img_prev, prevUnit + 0);
+            gl.uniform1i(program.uniform._img_prev.loc, prevUnit + 0);
         }
-    }
-    if (glsl.vars) glsl.vars(gl, w, h, program, wi, hi);
-    if (glsl.textures) glsl.textures(gl, w, h, program, wi, hi);
+    }*/
+    if (glsl.inputs) glsl.inputs(gl, program, w, h, wi, hi, input);
 
     if (last > 0)
     {
@@ -356,19 +502,19 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
             //buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        if (('_img_prev' in program.uniform) && !('img' in program.uniform))
+        /*if (('_img_prev' in program.uniform) && !('img' in program.uniform))
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(program.uniform._img_prev, 0);
+            gl.uniform1i(program.uniform._img_prev.loc, 0);
         }
-        else if ('img' in program.uniform)
+        else*/ if ('img' in program.uniform)
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(program.uniform.img, 0);
+            gl.uniform1i(program.uniform.img.loc, 0);
         }
-        gl.uniform1f(program.uniform.flipY, flip ? -1 : 1);
+        gl.uniform1f(program.uniform.flipY.loc, flip ? -1 : 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
         gl.viewport(0, 0, w, h);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -376,6 +522,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         t = buf[0]; buf[0] = buf[1]; buf[1] = t;
         flip = false;
     }
+    if (glsl.output) glsl.output(gl, output);
 }
 GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
     var gl = prepareGL(img, w, h),
@@ -387,7 +534,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         canRun, isContextLost,
         cleanUp, lost, resize, refreshBuffers,
         first = -1, last = -1,
-        nw, nh, wi, hi,
+        nw, nh, wi, hi, d,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -498,19 +645,19 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         }
         if (canRun)
         {
-            if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
-            if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
+            //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
+            /*if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
             {
                 // store previous frames
                 deleteTexture(gl, prev[1]);
                 prev[1] = prev[0];
                 if (fromshader) prev[0] = uploadTexture(gl, getPixels(gl, w, h), w, h);
                 else prev[0] = uploadTexture(gl, im, w, h);
-            }
-            if (null != glsl.width && null != glsl.height)
+            }*/
+            if (null != glsl.dimensions)
             {
-                nw = 'function' === typeof glsl.width ? glsl.width(w, h) : glsl.width;
-                nh = 'function' === typeof glsl.height ? glsl.height(w, h) : glsl.height;
+                d = 'function' === typeof glsl.dimensions ? glsl.dimensions(w, h) : glsl.dimensions;
+                nw = d[0]; nh = d[1];
                 resize(nw, nh, false);
                 if (wi !== w || hi !== h) refreshBuffers(w, h, buf0, false);
             }
@@ -522,7 +669,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             if (i === first)
             {
                 if (!input) input = uploadTexture(gl, im, wi, hi, 0);
-                src = {fbo: null, tex: input};
+                src = {fbo:null, tex:input, w:wi, h:hi};
             }
             else
             {
@@ -535,8 +682,14 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             }
             else
             {
+                if (buf1.w !== w || buf1.h !== h)
+                {
+                    deleteFramebufferTexture(gl, buf1);
+                    buf1 = createFramebufferTexture(gl, w, h);
+                }
                 dst = buf1;
             }
+            if (glsl.init) glsl.init(gl, im, wi, hi, w, h, fromshader);
             if (!fromshader && i > first) uploadTexture(gl, im, wi, hi, 0, 0, src.tex);
             isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false, wi, hi);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
@@ -605,6 +758,7 @@ GLSL.staticSort = function(items, temp, swap) {
     }
     return code;
 };
+GLSL.Filter = GLSLFilter;
 GLSL.isSupported = FILTER.supportsGLSL();
 GLSL.isLoaded = true;
 FILTER.Util.GLSL = GLSL;

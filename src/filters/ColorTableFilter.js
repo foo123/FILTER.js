@@ -489,8 +489,9 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 
 function glsl(filter)
 {
-    if (!filter.table || !filter.table[CHANNEL.R]) return {instance: filter, shader: GLSL.DEFAULT};
-    return {instance: filter, shader: [
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader(!filter.table || !filter.table[CHANNEL.R] ? GLSL.DEFAULT : [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform sampler2D map;',
@@ -500,15 +501,11 @@ function glsl(filter)
     '   if (1 == hasAlpha) gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,texture2D(map, vec2(col.a, 0.0)).a);',
     '   else gl_FragColor = vec4(texture2D(map, vec2(col.r, 0.0)).r,texture2D(map, vec2(col.g, 0.0)).g,texture2D(map, vec2(col.b, 0.0)).b,col.a);',
     '}'
-    ].join('\n'),
-    textures: function(gl, w, h, program) {
-        GLSL.uploadTexture(gl, filter.getImage(), 256, 1, 1);
-    },
-    vars: function(gl, w, h, program) {
-        gl.uniform1i(program.uniform.map, 1);  // texture unit 1
-        gl.uniform1i(program.uniform.hasAlpha, filter.table[CHANNEL.A] ? 1 : 0);
-    }
-    };
+    ].join('\n'))
+    .input('hasAlpha', function(filter) {return filter.table[CHANNEL.A] ? 1 : 0;})
+    .input('map', function(filter) {return {data:filter.getImage(), width:256, height:1};})
+    .end();
+    return glslcode.code();
 }
 function wasm()
 {

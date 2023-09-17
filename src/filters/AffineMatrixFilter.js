@@ -253,8 +253,10 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 
 function glsl(filter)
 {
-    var m = filter.matrix, color = filter.color || 0;
-    return {instance: filter, shader: m ? [
+    var m = filter.matrix, glslcode = new GLSL.Filter(filter);
+    glslcode
+    .begin()
+    .shader(m ? [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform float am[6];',
@@ -281,21 +283,26 @@ function glsl(filter)
     '       gl_FragColor = texture2D(img, p);',
     '   }',
     '}'
-    ].join('\n') : GLSL.DEFAULT,
-    vars: m ? function(gl, w, h, program) {
-        var m = filter.matrix, color = filter.color || 0;
-        gl.uniform1fv(program.uniform.am, new FILTER.Array32F([
-            m[0], m[1], m[2]/w+m[3],
-            m[4], m[5], m[6]/h+m[7]
-        ]));
-        gl.uniform4f(program.uniform.color,
+    ].join('\n') : GLSL.DEFAULT);
+    if (m)
+    {
+        glslcode.input('color', function(filter) {
+            var color = filter.color || 0;
+            return [
             ((color >>> 16) & 255)/255,
             ((color >>> 8) & 255)/255,
             (color & 255)/255,
             ((color >>> 24) & 255)/255
-        );
-    } : null
-    };
+            ];
+        }).input('am', function(filter, w, h) {
+            var m = filter.matrix;
+            return [
+            m[0], m[1], m[2]/w+m[3],
+            m[4], m[5], m[6]/h+m[7]
+            ];
+        });
+    }
+    return glslcode.end().code();
 }
 function wasm()
 {

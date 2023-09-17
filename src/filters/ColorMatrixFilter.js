@@ -743,7 +743,9 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 // private
 function glsl(filter)
 {
-    return {instance: filter, shader: filter.matrix ? [
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader(filter.matrix ? [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform float cm[20];',
@@ -754,17 +756,18 @@ function glsl(filter)
     '   gl_FragColor.b = clamp(cm[10]*col.r+cm[11]*col.g+cm[12]*col.b+cm[13]*col.a+cm[14],0.0,1.0);',
     '   gl_FragColor.a = clamp(cm[15]*col.r+cm[16]*col.g+cm[17]*col.b+cm[18]*col.a+cm[19],0.0,1.0);',
     '}'
-    ].join('\n') : GLSL.DEFAULT,
-    vars: filter.matrix ? function(gl, w, h, program) {
+    ].join('\n') : GLSL.DEFAULT)
+    .input('cm', function(filter) {
         var m = filter.matrix;
-        gl.uniform1fv(program.uniform.cm, new FILTER.Array32F([
-            m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
-            m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
-            m[10], m[11], m[12], m[13], m[14]/255,
-            m[15], m[16], m[17], m[18], m[19]/255
-        ]));
-    } : null
-    };
+        return [
+        m[0 ], m[1 ], m[2 ], m[3 ], m[4 ]/255,
+        m[5 ], m[6 ], m[7 ], m[8 ], m[9 ]/255,
+        m[10], m[11], m[12], m[13], m[14]/255,
+        m[15], m[16], m[17], m[18], m[19]/255
+        ];
+    })
+    .end();
+    return glslcode.code();
 }
 function wasm()
 {

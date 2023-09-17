@@ -5,8 +5,8 @@
  (type $i32_i32_=>_i32 (func (param i32 i32) (result i32)))
  (type $i32_i32_=>_none (func (param i32 i32)))
  (type $i32_i32_i32_=>_i32 (func (param i32 i32 i32) (result i32)))
- (type $i32_i32_i32_=>_none (func (param i32 i32 i32)))
  (type $i32_i32_i32_i32_i32_=>_i32 (func (param i32 i32 i32 i32 i32) (result i32)))
+ (type $i32_i32_i32_=>_none (func (param i32 i32 i32)))
  (type $i32_i32_i32_i32_i32_i32_f32_f32_f32_f32_f32_=>_i32 (func (param i32 i32 i32 i32 i32 i32 f32 f32 f32 f32 f32) (result i32)))
  (type $i32_i32_i32_i32_i32_i32_i32_f32_f32_f32_f32_f32_=>_i32 (func (param i32 i32 i32 i32 i32 i32 i32 f32 f32 f32 f32 f32) (result i32)))
  (type $i32_i32_i32_i32_=>_none (func (param i32 i32 i32 i32)))
@@ -71,6 +71,7 @@
  (export "__rtti_base" (global $~lib/rt/__rtti_base))
  (export "memory" (memory $0))
  (export "__setArgumentsLength" (func $~setArgumentsLength))
+ (export "interpolate_nearest" (func $export:src/asm/core/interpolate_nearest))
  (export "interpolate_bilinear" (func $export:src/asm/core/interpolate_bilinear))
  (export "integral_convolution" (func $export:src/asm/core/integral_convolution@varargs))
  (export "separable_convolution" (func $export:src/asm/core/separable_convolution))
@@ -8764,6 +8765,222 @@
   i32.add
   global.set $~lib/memory/__stack_pointer
   local.get $0
+ )
+ (func $export:src/asm/core/interpolate_nearest (param $0 i32) (param $1 i32) (param $2 i32) (param $3 i32) (param $4 i32) (result i32)
+  (local $5 i32)
+  (local $6 i32)
+  (local $7 f32)
+  (local $8 i32)
+  (local $9 i32)
+  (local $10 i32)
+  (local $11 i32)
+  (local $12 f32)
+  (local $13 i32)
+  global.get $~lib/memory/__stack_pointer
+  i32.const 4
+  i32.sub
+  global.set $~lib/memory/__stack_pointer
+  block $folding-inner0
+   global.get $~lib/memory/__stack_pointer
+   i32.const 2280
+   i32.lt_s
+   br_if $folding-inner0
+   global.get $~lib/memory/__stack_pointer
+   local.tee $9
+   local.get $0
+   i32.store $0
+   local.get $9
+   i32.const 12
+   i32.sub
+   global.set $~lib/memory/__stack_pointer
+   global.get $~lib/memory/__stack_pointer
+   i32.const 2280
+   i32.lt_s
+   br_if $folding-inner0
+   global.get $~lib/memory/__stack_pointer
+   local.tee $9
+   i64.const 0
+   i64.store $0
+   local.get $9
+   i32.const 0
+   i32.store $0 offset=8
+   local.get $9
+   local.get $3
+   local.get $4
+   i32.mul
+   i32.const 2
+   i32.shl
+   local.tee $9
+   call $~lib/typedarray/Uint8ClampedArray#constructor
+   local.tee $11
+   i32.store $0
+   loop $for-loop|0
+    local.get $6
+    local.get $9
+    i32.lt_s
+    if
+     global.get $~lib/memory/__stack_pointer
+     local.tee $10
+     local.get $11
+     i32.store $0 offset=4
+     local.get $10
+     local.get $0
+     i32.store $0 offset=8
+     local.get $3
+     local.get $5
+     i32.le_s
+     if
+      local.get $8
+      i32.const 1
+      i32.add
+      local.set $8
+      i32.const 0
+      local.set $5
+     end
+     local.get $11
+     local.get $6
+     local.get $0
+     local.get $1
+     i32.const 1
+     i32.sub
+     f32.convert_i32_s
+     local.get $5
+     f32.convert_i32_s
+     local.get $3
+     f32.convert_i32_s
+     f32.div
+     local.get $1
+     f32.convert_i32_s
+     f32.mul
+     local.tee $7
+     f32.ceil
+     local.tee $12
+     local.get $12
+     f32.const -1
+     f32.add
+     local.get $12
+     f32.const -0.5
+     f32.add
+     local.get $7
+     f32.le
+     select
+     f32.const 0
+     f32.max
+     f32.min
+     i32.trunc_sat_f32_s
+     local.get $2
+     i32.const 1
+     i32.sub
+     f32.convert_i32_s
+     local.get $8
+     f32.convert_i32_s
+     local.get $4
+     f32.convert_i32_s
+     f32.div
+     local.get $2
+     f32.convert_i32_s
+     f32.mul
+     local.tee $7
+     f32.ceil
+     local.tee $12
+     local.get $12
+     f32.const -1
+     f32.add
+     local.get $12
+     f32.const -0.5
+     f32.add
+     local.get $7
+     f32.le
+     select
+     f32.const 0
+     f32.max
+     f32.min
+     i32.trunc_sat_f32_s
+     local.get $1
+     i32.mul
+     i32.add
+     i32.const 2
+     i32.shl
+     local.tee $13
+     call $~lib/typedarray/Uint8ClampedArray#__get
+     call $~lib/typedarray/Uint8ClampedArray#__set
+     global.get $~lib/memory/__stack_pointer
+     local.tee $10
+     local.get $11
+     i32.store $0 offset=4
+     local.get $10
+     local.get $0
+     i32.store $0 offset=8
+     local.get $11
+     local.get $6
+     i32.const 1
+     i32.add
+     local.get $0
+     local.get $13
+     i32.const 1
+     i32.add
+     call $~lib/typedarray/Uint8ClampedArray#__get
+     call $~lib/typedarray/Uint8ClampedArray#__set
+     global.get $~lib/memory/__stack_pointer
+     local.get $11
+     i32.store $0 offset=4
+     global.get $~lib/memory/__stack_pointer
+     local.get $0
+     i32.store $0 offset=8
+     local.get $11
+     local.get $6
+     i32.const 2
+     i32.add
+     local.get $0
+     local.get $13
+     i32.const 2
+     i32.add
+     call $~lib/typedarray/Uint8ClampedArray#__get
+     call $~lib/typedarray/Uint8ClampedArray#__set
+     global.get $~lib/memory/__stack_pointer
+     local.get $11
+     i32.store $0 offset=4
+     global.get $~lib/memory/__stack_pointer
+     local.get $0
+     i32.store $0 offset=8
+     local.get $11
+     local.get $6
+     i32.const 3
+     i32.add
+     local.get $0
+     local.get $13
+     i32.const 3
+     i32.add
+     call $~lib/typedarray/Uint8ClampedArray#__get
+     call $~lib/typedarray/Uint8ClampedArray#__set
+     local.get $6
+     i32.const 4
+     i32.add
+     local.set $6
+     local.get $5
+     i32.const 1
+     i32.add
+     local.set $5
+     br $for-loop|0
+    end
+   end
+   global.get $~lib/memory/__stack_pointer
+   i32.const 12
+   i32.add
+   global.set $~lib/memory/__stack_pointer
+   global.get $~lib/memory/__stack_pointer
+   i32.const 4
+   i32.add
+   global.set $~lib/memory/__stack_pointer
+   local.get $11
+   return
+  end
+  i32.const 35072
+  i32.const 35120
+  i32.const 1
+  i32.const 1
+  call $~lib/builtins/abort
+  unreachable
  )
  (func $export:src/asm/core/interpolate_bilinear (param $0 i32) (param $1 i32) (param $2 i32) (param $3 i32) (param $4 i32) (result i32)
   global.get $~lib/memory/__stack_pointer

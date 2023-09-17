@@ -538,77 +538,106 @@ function glsl(filter)
         code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
         return code.join('\n');
     };
-    var morph = function(m, op, img, usesPrev) {
-        return {instance: filter, shader: [
+    var morph = function(m, op, img) {
+        return glslcode.shader([
         'varying vec2 pix;',
         'uniform sampler2D '+(img||'img')+';',
         'uniform vec2 dp;',
         'void main(void) {',
         'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
         '}'
-        ].join('\n'), iterations: filter._iter || 1, _usesPrev:!!usesPrev};
+        ].join('\n'), filter._iter || 1);
     };
-    var toFloat = GLSL.formatFloat, output;
-    if (!filter._dim) return {instance: filter, shader: GLSL.DEFAULT};
+    var toFloat = GLSL.formatFloat, glslcode = new GLSL.Filter(filter);
+    if (!filter._dim) return glslcode.begin().shader(GLSL.DEFAULT).end().code();
     switch (filter._filterName)
     {
         case 'dilate':
-        output = morph(filter._structureElement, 'dilate');
+        glslcode.begin();
+        morph(filter._structureElement, 'dilate');
+        glslcode.end();
         break;
         case 'erode':
-        output = morph(filter._structureElement, 'erode');
+        glslcode.begin();
+        morph(filter._structureElement, 'erode')
+        glslcode.end();
         break;
         case 'open':
-        output = [
-        morph(filter._structureElement, 'erode'),
-        morph(filter._structureElement, 'dilate')
-        ];
+        glslcode.begin();
+        morph(filter._structureElement, 'erode')
+        glslcode.end();
+        glslcode.begin();
+        morph(filter._structureElement, 'dilate');
+        glslcode.end();
         break;
         case 'close':
-        output = [
-        morph(filter._structureElement, 'dilate'),
+        glslcode.begin();
+        morph(filter._structureElement, 'dilate');
+        glslcode.end();
+        glslcode.begin();
         morph(filter._structureElement, 'erode')
-        ];
+        glslcode.end();
         break;
         case 'gradient':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
+        glslcode.begin();
+        morph(filter._structureElement, 'dilate');
+        glslcode.save('original');
+        glslcode.output('dilated');
+        glslcode.end();
+        glslcode.begin();
+        morph(filter._structureElement, 'erode');
+        glslcode.input('original', null, true);
+        //glslcode.output('eroded');
+        glslcode.end();
+        glslcode.begin();
+        glslcode.shader([
         'varying vec2 pix;',
+        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
         'void main(void) {',
-        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
-        ].join('\n'), _usesPrev:true}
-        ];
+        ].join('\n'));
+        glslcode.input('dilated');
+        //glslcode.input('eroded');
+        glslcode.end();
         break;
         case 'laplacian':
-        output = [
-        morph(filter._structureElement, 'dilate'),
-        morph(filter._structureElement, 'erode', '_img_prev', true),
-        {instance: filter, shader: [
+        glslcode.begin();
+        morph(filter._structureElement, 'dilate');
+        glslcode.save('original');
+        glslcode.output('dilated');
+        glslcode.end();
+        glslcode.begin();
+        morph(filter._structureElement, 'erode');
+        glslcode.input('original', null, true);
+        //glslcode.output('eroded');
+        glslcode.end();
+        glslcode.begin();
+        glslcode.shader([
         'varying vec2 pix;',
+        'uniform sampler2D original;',
+        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
-        'uniform sampler2D _img_prev;',
-        'uniform sampler2D _img_prev_prev;',
         'void main(void) {',
-        'vec4 original = texture2D(_img_prev_prev, pix);',
-        'vec4 dilate = texture2D(_img_prev, pix);',
+        'vec4 original = texture2D(original, pix);',
+        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
         'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
         '}'
-        ].join('\n'), _usesPrev:true}
-        ];
+        ].join('\n'));
+        glslcode.input('original');
+        glslcode.input('dilated');
+        //glslcode.input('original', null, true);
+        glslcode.end();
         break;
         default:
-        output = {instance: filter};
+        glslcode.begin().end();
         break;
     }
-    return output;
+    return glslcode.code();
 }
 function wasm()
 {

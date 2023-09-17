@@ -317,110 +317,97 @@ function apply__(map, preample)
 }
 function glsl(filter)
 {
-    if (!filter._map) return {instance: filter, shader: GLSL.DEFAULT};
-    return {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        '#define TWOPI  6.283185307179586',
-        '#define IGNORE '+MODE.IGNORE+'',
-        '#define CLAMP '+MODE.CLAMP+'',
-        '#define COLOR '+MODE.COLOR+'',
-        '#define WRAP '+MODE.WRAP+'',
-        'uniform int mode;',
-        'uniform int swap;',
-        'uniform vec2 size;',
-        'uniform vec2 center;',
-        'uniform float angle;',
-        'uniform float radius;',
-        'uniform float radius2;',
-        'uniform float AMAX;',
-        'uniform float RMAX;',
-        'uniform vec4 color;',
-        'uniform int mapping;',
-        GLSLMAP['twirl'],
-        GLSLMAP['sphere'],
-        GLSLMAP['polar'],
-        GLSLMAP['cartesian'],
-        (HAS.call(GLSLMAP, filter._mapName) || !filter._map.shader
-        ? 'vec2 map(vec2 pix) {return pix;}'
-        : filter._map.shader.toString()),
-        'void main(void) {',
-            'vec2 p = pix;',
-            'if (1 == mapping)      p = twirl(pix, center, radius, angle, size);',
-            'else if (2 == mapping) p = sphere(pix, center, radius2, size);',
-            'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, size, swap);',
-            'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, size, swap);',
-            'else                   p = map(pix);',
-            'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
-                'if (COLOR == mode) {gl_FragColor = color;}',
-                'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
-                'else if (WRAP == mode) {',
-                    'if (0.0 > p.x) p.x += 1.0;',
-                    'if (1.0 < p.x) p.x -= 1.0;',
-                    'if (0.0 > p.y) p.y += 1.0;',
-                    'if (1.0 < p.y) p.y -= 1.0;',
-                    'gl_FragColor = texture2D(img, p);',
-                '}',
-                'else {gl_FragColor = texture2D(img, pix);}',
-            '} else {',
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader(!filter._map ? GLSL.DEFAULT : [
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    '#define TWOPI  6.283185307179586',
+    '#define IGNORE '+MODE.IGNORE+'',
+    '#define CLAMP '+MODE.CLAMP+'',
+    '#define COLOR '+MODE.COLOR+'',
+    '#define WRAP '+MODE.WRAP+'',
+    'uniform int mode;',
+    'uniform int swap;',
+    'uniform vec2 size;',
+    'uniform vec2 center;',
+    'uniform float angle;',
+    'uniform float radius;',
+    'uniform float radius2;',
+    'uniform float AMAX;',
+    'uniform float RMAX;',
+    'uniform vec4 color;',
+    'uniform int mapping;',
+    GLSLMAP['twirl'],
+    GLSLMAP['sphere'],
+    GLSLMAP['polar'],
+    GLSLMAP['cartesian'],
+    (HAS.call(GLSLMAP, filter._mapName) || !filter._map.shader
+    ? 'vec2 map(vec2 pix) {return pix;}'
+    : filter._map.shader.toString()),
+    'void main(void) {',
+        'vec2 p = pix;',
+        'if (1 == mapping)      p = twirl(pix, center, radius, angle, size);',
+        'else if (2 == mapping) p = sphere(pix, center, radius2, size);',
+        'else if (3 == mapping) p = polar(pix, center, RMAX, AMAX, size, swap);',
+        'else if (4 == mapping) p = cartesian(pix, center, RMAX, AMAX, size, swap);',
+        'else                   p = map(pix);',
+        'if (0.0 > p.x || 1.0 < p.x || 0.0 > p.y || 1.0 < p.y) {',
+            'if (COLOR == mode) {gl_FragColor = color;}',
+            'else if (CLAMP == mode) {gl_FragColor = texture2D(img, vec2(clamp(p.x, 0.0, 1.0),clamp(p.y, 0.0, 1.0)));}',
+            'else if (WRAP == mode) {',
+                'if (0.0 > p.x) p.x += 1.0;',
+                'if (1.0 < p.x) p.x -= 1.0;',
+                'if (0.0 > p.y) p.y += 1.0;',
+                'if (1.0 < p.y) p.y -= 1.0;',
                 'gl_FragColor = texture2D(img, p);',
             '}',
-        '}'
-        ].join('\n'),
-        vars: function(gl, w, h, program) {
-            var color = filter.color || 0,
-                cx = filter.centerX,
-                cy = filter.centerY,
-                fx = (w-1)*(w-1), fy = (h-1)*(h-1),
-                RMAX = max(
-                    sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 0) * (cy - 0)),
-                    sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 0) * (cy - 0)),
-                    sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 1) * (cy - 1)),
-                    sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 1) * (cy - 1))
-                );
-            gl.uniform4f(program.uniform.color,
-                ((color >>> 16) & 255)/255,
-                ((color >>> 8) & 255)/255,
-                (color & 255)/255,
-                ((color >>> 24) & 255)/255
-            );
-            gl.uniform2f(program.uniform.size,
-                w, h
-            );
-            gl.uniform2f(program.uniform.center,
-                cx, cy
-            );
-            gl.uniform1f(program.uniform.angle,
-                filter.angle
-            );
-            gl.uniform1f(program.uniform.radius,
-                filter.radius
-            );
-            gl.uniform1f(program.uniform.radius2,
-                filter.radius*filter.radius
-            );
-            gl.uniform1f(program.uniform.AMAX,
-                TWOPI
-            );
-            gl.uniform1f(program.uniform.RMAX,
-                RMAX
-            );
-            gl.uniform1i(program.uniform.swap,
-                filter.posX === Y ? 1 : 0
-            );
-            gl.uniform1i(program.uniform.mapping,
-                'twirl' === filter._mapName ? 1 : (
-                'sphere' === filter._mapName ? 2 : (
-                'polar' === filter._mapName ? 3 : (
-                'cartesian' === filter._mapName ? 4 : 0
-                )
-                )
-                )
-            );
-            if (filter._map.shader && filter._map.vars)
-                filter._map.vars(gl, w, h, program);
-        }
-    };
+            'else {gl_FragColor = texture2D(img, pix);}',
+        '} else {',
+            'gl_FragColor = texture2D(img, p);',
+        '}',
+    '}'
+    ].join('\n'))
+    .input('size', function(filter, w, h) {return [w, h];})
+    .input('center', function(filter) {return [filter.centerX, filter.centerY];})
+    .input('angle', function(filter) {return filter.angle;})
+    .input('radius', function(filter) {return filter.radius;})
+    .input('radius2', function(filter) {return filter.radius*filter.radius;})
+    .input('AMAX', function(filter) {return TWOPI;})
+    .input('RMAX', function(filter, w, h) {
+        var cx = filter.centerX,
+            cy = filter.centerY,
+            fx = (w-1)*(w-1), fy = (h-1)*(h-1);
+        return max(
+        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 0) * (cy - 0)),
+        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 0) * (cy - 0)),
+        sqrt(fx * (cx - 0) * (cx - 0) + fy * (cy - 1) * (cy - 1)),
+        sqrt(fx * (cx - 1) * (cx - 1) + fy * (cy - 1) * (cy - 1))
+        );
+    })
+    .input('swap', function(filter) {return filter.posX === Y ? 1 : 0;})
+    .input('color', function(filter) {
+        var color = filter.color || 0;
+        return [
+        ((color >>> 16) & 255)/255,
+        ((color >>> 8) & 255)/255,
+        (color & 255)/255,
+        ((color >>> 24) & 255)/255
+        ];
+    })
+    .input('mapping', function(filter) {
+        return 'twirl' === filter._mapName ? 1 : (
+        'sphere' === filter._mapName ? 2 : (
+        'polar' === filter._mapName ? 3 : (
+        'cartesian' === filter._mapName ? 4 : 0
+        )
+        )
+        );
+    });
+    if (filter._map.shader && filter._map.inputs) filter._map.inputs.forEach(function(i) {
+        if (i.name && i.setter) glslcode.input(i.name, i.setter);
+    });
+    return glslcode.end().code();
 }
 // geometric maps
 MAP = {

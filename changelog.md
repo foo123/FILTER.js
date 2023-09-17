@@ -1,5 +1,12 @@
 ## ChangeLog
 
+__1.9.0__
+
+* SeamlessTileFilter glsl version
+* better handling of dimensions changing in glsl
+* small intuitive glsl framework in progress
+* interpolate_nearest method
+
 __1.8.0__
 
 * MorphologicalFilter web assembly version

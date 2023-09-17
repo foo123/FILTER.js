@@ -400,8 +400,11 @@ var PIXELATION = PixelateFilter.PATTERN = {
 };
 function glsl(filter)
 {
-    if (filter.scale <= 1 || !filter.pattern || !PIXELATION[filter.pattern]) return {instance: filter, shader: FILTER.Util.GLSL.DEFAULT};
-    return {instance: filter, shader: [
+    var GLSL = FILTER.Util.GLSL, glslcode;
+    if (filter.scale <= 1 || !filter.pattern || !PIXELATION[filter.pattern]) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
+    glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform vec2 imgSize;',
@@ -419,23 +422,18 @@ function glsl(filter)
         'else p = rectangular(p, imgSize, tileSize);',
         'gl_FragColor = vec4(texture2D(img, p).rgb, texture2D(img, pix).a);',
     '}'
-    ].join('\n'),
-    vars: function(gl, w, h, program) {
-        gl.uniform2f(program.uniform.imgSize,
-            w, h
-        );
-        gl.uniform1f(program.uniform.tileSize,
-            sqrt(w*h)*(filter.scale||1)*1e-2
-        );
-        gl.uniform1i(program.uniform.pixelate,
-            'triangular' === filter.pattern ? 1 : (
+    ].join('\n'))
+    .input('imgSize', function(filter, w, h) {return [w, h];})
+    .input('tileSize', function(filter, w, h) {return sqrt(w*h)*(filter.scale||1)*1e-2;})
+    .input('pixelate', function(filter) {
+        return 'triangular' === filter.pattern ? 1 : (
             'rhomboidal' === filter.pattern ? 2 : (
             'hexagonal' === filter.pattern ? 3 : 0
             )
-            )
         );
-    }
-    };
+    })
+    .end();
+    return glslcode.code();
 }
 function wasm()
 {

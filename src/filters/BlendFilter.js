@@ -313,14 +313,16 @@ FILTER.Util.WASM.instantiate(wasm(), {env:{
 
 function glsl(filter)
 {
-    if (!filter.matrix || !filter.matrix.length) return {instance: filter, shader: GLSL.DEFAULT};
+    if (!filter.matrix || !filter.matrix.length) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
     var matrix = filter.matrix, inputs = '', code = '', i, j, glslcode;
     for (j=1,i=0; i<matrix.length; i+=4,++j)
     {
         inputs += (inputs.length ? '\n' : '')+'uniform sampler2D input'+j+';\n'+'uniform vec2 inputSize'+j+';\n'+'uniform int inputMode'+j+';\n'+'uniform vec2 inputStart'+j+';\n'+'uniform int inputEnabled'+j+';';
         code += (code.length ? '\n' : '')+'col = doblend(col, pix, input'+j+', inputSize'+j+', inputStart'+j+', inputMode'+j+', inputEnabled'+j+');';
     }
-    glslcode = [
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
     modes.map(function(m, i) {
         if ('LINEARDODGE' === m)
         {
@@ -376,31 +378,24 @@ function glsl(filter)
     code,
     'gl_FragColor = col;',
     '}'
-    ].join('\n');
-    return {instance: filter, shader: glslcode,
-    textures: function(gl, w, h, program) {
-        var matrix = filter.matrix, i, j, input;
-        for (j=1,i=0; i<matrix.length; i+=4,++j)
-        {
-            input = filter.input(j);
-            GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
-        }
-    },
-    vars: function(gl, w, h, program) {
+    ].join('\n'))
+    .input('*', function(filter, w, h, wi, hi, gl, program) {
         var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {
             input = filter.input(j);
-            gl.uniform1i(program.uniform['input'+j], j);
-            gl.uniform2f(program.uniform['inputSize'+j], input[1]/w, input[2]/h);
+            GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
+            gl.uniform1i(program.uniform['input'+j].loc, j);
+            gl.uniform2f(program.uniform['inputSize'+j].loc, input[1]/w, input[2]/h);
             mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
             if (same[mode]) mode = same[mode];
-            gl.uniform1i(program.uniform['inputMode'+j], modes.indexOf(mode));
-            gl.uniform2f(program.uniform['inputStart'+j], matrix[i+1]/w, matrix[i+2]/h);
-            gl.uniform1i(program.uniform['inputEnabled'+j], matrix[i+3] ? 1 : 0);
+            gl.uniform1i(program.uniform['inputMode'+j].loc, modes.indexOf(mode));
+            gl.uniform2f(program.uniform['inputStart'+j].loc, matrix[i+1]/w, matrix[i+2]/h);
+            gl.uniform1i(program.uniform['inputEnabled'+j].loc, matrix[i+3] ? 1 : 0);
         }
-    }
-    };
+    })
+    .end();
+    return glslcode.code();
 }
 var BLEND_GLSL = {
 'normal': 'float normal(float Dca, float Da, float Sca, float Sa){return Sca + Dca * (1.0 - Sa);}',

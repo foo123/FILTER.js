@@ -162,7 +162,6 @@ FILTER.Create({
 
 function glsl(filter)
 {
-    if (!filter.m) return {instance: filter, shader: GLSL.DEFAULT};
     var img_util = ImageUtil.glsl();
     var get = function(filter, w, h) {
         var modeCode,
@@ -215,7 +214,9 @@ function glsl(filter)
         nw: stdMath.round(nw), nh: stdMath.round(nh)
         };
     };
-    return {instance: filter, shader: [
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader(!filter.m ? GLSL.DEFAULT : [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform vec2 wh;',
@@ -237,26 +238,17 @@ function glsl(filter)
     '    else if (3 == m) gl_FragColor = crop(pix, img, wh, nwh, a, b, a+c-1.0, b+d-1.0);',
     '    else gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
-    ].join('\n'),
-    vars: function(gl, nw, nh, program, w, h) {
-        var params = get(filter, w, h);
-        gl.uniform2fv(program.uniform.wh, new FILTER.Array32F([
-            w, h
-        ]));
-        gl.uniform2fv(program.uniform.nwh, new FILTER.Array32F([
-            nw, nh
-        ]));
-        gl.uniform1i(program.uniform.m, params.m);
-        gl.uniform1f(program.uniform.a, params.a);
-        gl.uniform1f(program.uniform.b, params.b);
-        gl.uniform1f(program.uniform.c, params.c);
-        gl.uniform1f(program.uniform.d, params.d);
-    }, width: function(w, h) {
-        return get(filter, w, h).nw;
-    }, height: function(w, h) {
-        return get(filter, w, h).nh;
-    }
-    };
+    ].join('\n'))
+    .dimensions(function(w, h, vars) {vars.p = get(filter, w, h); return [vars.p.nw, vars.p.nh];})
+    .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
+    .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
+    .input('m', function(filter, nw, nh, w, h, vars) {return vars.p.m;})
+    .input('a', function(filter, nw, nh, w, h, vars) {return vars.p.a;})
+    .input('b', function(filter, nw, nh, w, h, vars) {return vars.p.b;})
+    .input('c', function(filter, nw, nh, w, h, vars) {return vars.p.c;})
+    .input('d', function(filter, nw, nh, w, h, vars) {return vars.p.d;})
+    .end();
+    return glslcode.code();
 }
 
 }(FILTER);

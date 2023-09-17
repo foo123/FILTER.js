@@ -68,25 +68,25 @@ FILTER.Create({
 
 function glsl(filter)
 {
-    var glslcode = FILTER.Util.Filter.gradient_glsl(), output = [];
+    var code = FILTER.Util.Filter.gradient_glsl(), glslcode = new FILTER.Util.GLSL.Filter(filter);
     if (filter.lowpass)
     {
-        output.push({
-        instance: filter,
-        shader: [
+        glslcode
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform vec2 dp;',
         'uniform sampler2D img;',
-        glslcode.lowpass,
+        code.lowpass,
         'void main(void) {',
         '    gl_FragColor = lowpass(img, pix, dp);',
         '}'
-        ].join('\n')
-        });
+        ].join('\n'))
+        .end();
     }
-    output.push({
-    instance: filter,
-    shader: [
+    glslcode
+    .begin()
+    .shader([
     '#define MAGNITUDE_SCALE 1.0',
     '#define MAGNITUDE_LIMIT 510.0',
     '#define MAGNITUDE_MAX 510.0',
@@ -95,28 +95,25 @@ function glsl(filter)
     'uniform sampler2D img;',
     'uniform float low;',
     'uniform float high;',
-    glslcode.gradient,
+    code.gradient,
     'void main(void) {',
     '    gl_FragColor = gradient(img, pix, dp, low, high, MAGNITUDE_SCALE, MAGNITUDE_LIMIT, MAGNITUDE_MAX);',
     '}'
-    ].join('\n'),
-    vars: function(gl, w, h, program) {
-        gl.uniform1f(program.uniform.low, filter.low*MAGNITUDE_SCALE/255);
-        gl.uniform1f(program.uniform.high, filter.high*MAGNITUDE_SCALE/255);
-    }
-    });
-    output.push({
-    instance: filter,
-    shader: [
+    ].join('\n'))
+    .input('low', function(filter) {return filter.low*MAGNITUDE_SCALE/255;})
+    .input('high', function(filter) {return filter.high*MAGNITUDE_SCALE/255;})
+    .end()
+    .begin()
+    .shader([
     'varying vec2 pix;',
     'uniform vec2 dp;',
     'uniform sampler2D img;',
-    glslcode.hysteresis,
+    code.hysteresis,
     'void main(void) {',
     '    gl_FragColor = hysteresis(img, pix, dp);',
     '}'
-    ].join('\n'), iterations: 50
-    });
-    return output;
+    ].join('\n'), 50)
+    .end();
+    return glslcode.code();
 }
 }(FILTER);

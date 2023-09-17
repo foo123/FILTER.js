@@ -212,24 +212,17 @@ function glsl(filter)
         code.push('gl_FragColor = vec4(rkth,gkth,bkth,'+ca+');');
         return code.join('\n');
     };
-    var stat = function(type) {
-        return {instance: filter, shader: [
-        'varying vec2 pix;',
-        'uniform sampler2D img;',
-        'uniform vec2 dp;',
-        'uniform int isColored;',
-        //'uniform float kth;',
-        'void main(void) {',
-        '1th' === type ? minmax_code(filter.d, 'max', '0.0') : ('0th' === type ? minmax_code(filter.d, 'min', '1.0') : kth_code(filter.d, filter.k)),
-        '}'
-        ].join('\n'), vars: function(gl, w, h, program) {
-            gl.uniform1i(program.uniform.isColored, MODE.GRAY !== filter.mode ? 1 : 0);
-            //gl.uniform1f(program.uniform.kth, filter.k);
-        }};
-    };
-    var toFloat = GLSL.formatFloat, staticSort = GLSL.staticSort, output;
-    if (!filter.d) return {instance: filter, shader: GLSL.DEFAULT};
-    return stat(filter._filter);
+    var toFloat = GLSL.formatFloat, staticSort = GLSL.staticSort, glslcode = new GLSL.Filter(filter);
+    return !filter.d ? glslcode.begin().shader(GLSL.DEFAULT).end().code() : glslcode.begin().shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 dp;',
+    'uniform int isColored;',
+    //'uniform float kth;',
+    'void main(void) {',
+    '1th' === filter._filter ? minmax_code(filter.d, 'max', '0.0') : ('0th' === filter._filter ? minmax_code(filter.d, 'min', '1.0') : kth_code(filter.d, filter.k)),
+    '}'
+    ].join('\n')).input('isColored', function(filter) {return MODE.GRAY !== filter.mode ? 1 : 0;}).end().code();
 }
 STAT = {
      "01th": function(self, im, w, h) {

@@ -295,9 +295,9 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 
 function glsl(filter)
 {
-    var displaceMap = filter.input("map"), color = filter.color || 0;
-    if (!displaceMap) return {instance: filter, shader: GLSL.DEFAULT};
-    return {instance: filter, shader: [
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader(!filter.input("map") ? GLSL.DEFAULT : [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform sampler2D map;',
@@ -345,26 +345,29 @@ function glsl(filter)
     '       }',
     '   }',
     '}'
-    ].join('\n'),
-    textures: function(gl, w, h, program) {
+    ].join('\n'))
+    .input('map', function(filter) {
         var displaceMap = filter.input("map");
-        GLSL.uploadTexture(gl, displaceMap[0], displaceMap[1], displaceMap[2], 1);
-    },
-    vars: function(gl, w, h, program) {
+        return {data:displaceMap[0], width:displaceMap[1], height:displaceMap[2]};
+    })
+    .input('mapSize', function(filter, w, h) {
         var displaceMap = filter.input("map");
-        gl.uniform1i(program.uniform.map, 1);  // img unit 1
-        gl.uniform2f(program.uniform.mapSize, displaceMap[1]/w, displaceMap[2]/h);
-        gl.uniform2f(program.uniform.scale, 1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.4*filter.scaleY/255);
-        gl.uniform2f(program.uniform.start, filter.startX, filter.startY);
-        gl.uniform2i(program.uniform.component, filter.componentX, filter.componentY);
-        gl.uniform4f(program.uniform.color,
-            ((color >>> 16) & 255)/255,
-            ((color >>> 8) & 255)/255,
-            (color & 255)/255,
-            ((color >>> 24) & 255)/255
-        );
-    }
-    };
+        return [displaceMap[1]/w, displaceMap[2]/h];
+    })
+    .input('scale', function(filter) {return [1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.4*filter.scaleY/255];})
+    .input('start', function(filter) {return [filter.startX, filter.startY];})
+    .input('component', function(filter) {return [filter.componentX, filter.componentY];})
+    .input('color', function(filter) {
+        var color = filter.color || 0;
+        return [
+        ((color >>> 16) & 255)/255,
+        ((color >>> 8) & 255)/255,
+        (color & 255)/255,
+        ((color >>> 24) & 255)/255
+        ];
+    })
+    .end();
+    return glslcode.code();
 }
 function wasm()
 {

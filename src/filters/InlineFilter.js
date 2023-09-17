@@ -107,11 +107,16 @@ FILTER.Create({
     }
 
     ,getGLSL: function() {
-        var self = this, filter = self._filter;
-        return filter && filter.shader ? {
-            instance: self, shader: filter.shader,
-            textures: filter.textures, vars: filter.vars
-        } : {instance: self, shader: filter ? null : GLSL.DEFAULT};
+        var self = this, filter = self._filter, glslcode;
+        if (filter && filter.shader)
+        {
+            glslcode = (new GLSL.Filter(self)).begin().shader(filter.shader);
+            if (filter.inputs) filter.inputs.forEach(function(i) {
+                if (i.name && i.setter) glslcode.input(i.name, i.setter);
+            });
+            return glslcode.end().code();
+        }
+        return (new GLSL.Filter(self)).begin().shader(filter ? null : GLSL.DEFAULT).end().code();
     }
 
     ,_apply: function(im, w, h, metaData) {

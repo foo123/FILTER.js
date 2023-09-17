@@ -151,9 +151,10 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 
 function glsl(filter)
 {
-    var color = filter.color||0, src = filter.input("source");
-    if (!src) return {instance: filter, shader: GLSL.DEFAULT};
-    return {instance: filter, shader: [
+    if (!filter.input("source")) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform sampler2D src;',
@@ -210,39 +211,48 @@ function glsl(filter)
     '   }',
     '   gl_FragColor = tCol;',
     '}'
-    ].join('\n'),
-    textures: function(gl, w, h, program) {
+    ].join('\n'))
+    .input('src', function(filter) {
         var src = filter.input("source");
-        GLSL.uploadTexture(gl, src[0], src[1], src[2], 1);
-    },
-    vars: function(gl, w, h, program) {
-        var src = filter.input("source"), color = filter.color||0;
-        gl.uniform1i(program.uniform.src, 1);  // img unit 1
-        gl.uniform2f(program.uniform.srcSize, src[1]/w, src[2]/h);
-        gl.uniform2f(program.uniform.center, filter.centerX, filter.centerY);
-        gl.uniform1i(program.uniform.sC, filter.srcChannel);
-        gl.uniform1i(program.uniform.tC, filter.dstChannel);
+        return {data:src[0], width:src[1], height:src[2]};
+    })
+    .input('srcSize', function(filter, w, h) {
+        var src = filter.input("source");
+        return [src[1]/w, src[2]/h];
+    })
+    .input('center', function(filter) {
+        return [filter.centerX, filter.centerY];
+    })
+    .input('sC', function(filter) {
+        return filter.srcChannel;
+    })
+    .input('tC', function(filter) {
+        return filter.dstChannel;
+    })
+    .input('color', function(filter) {
+        var color = filter.color||0;
         if (MODE.COLOR8 === filter.mode || MODE.MASK8 === filter.mode)
         {
             color = (color & 255)/255;
-            gl.uniform4f(program.uniform.color,
-                color,
-                color,
-                color,
-                color
-            );
+            return [
+            color,
+            color,
+            color,
+            color
+            ];
         }
         else
         {
-            gl.uniform4f(program.uniform.color,
-                ((color >>> 16) & 255)/255,
-                ((color >>> 8) & 255)/255,
-                (color & 255)/255,
-                ((color >>> 24) & 255)/255
-            );
+            return [
+            ((color >>> 16) & 255)/255,
+            ((color >>> 8) & 255)/255,
+            (color & 255)/255,
+            ((color >>> 24) & 255)/255
+            ];
         }
-    }
-    };
+    })
+    .end();
+    return glslcode.code();
 }
 function wasm()
 {

@@ -272,6 +272,8 @@ if (WASM.isSupported && FILTER.Util.Filter._wasm)
         if (wasm)
         {
             FILTER.Util.Image.wasm = {
+                interpolate_nearest: wasm.interpolate_nearest,
+                interpolate_bilinear: wasm.interpolate_bilinear,
                 interpolate: wasm.interpolate_bilinear
             };
             FILTER.Util.Filter.wasm = {

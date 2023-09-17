@@ -876,13 +876,15 @@ function glsl(filter)
         }
         return [def.join('\n')+'\n'+calc.join('\n'), 'vec4(o/f,col.a)'];
     };
-    var toFloat = GLSL.formatFloat, code, output,
+    var toFloat = GLSL.formatFloat, code, glslcode,
         m = filter.matrix, m2 = filter.matrix2, t;
-    if (!m) return {instance: filter, shader: GLSL.DEFAULT};
+    if (!m) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
     if (filter._w)
     {
         code = bilateral_code(filter.dimx);
-        return {instance: filter, shader: [
+        glslcode = (new GLSL.Filter(filter))
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -893,16 +895,19 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), vars: function(gl, w, h, program) {
-            gl.uniform1fv(program.uniform.wS, filter._w[0]);
-            gl.uniform1f(program.uniform.fC, filter._w[1]*255*255);
-        }};
+        ].join('\n'))
+        .input('wS', function(filter) {return filter._w[0];})
+        .input('fC', function(filter) {return filter._w[1]*255*255;})
+        .end();
+        return glslcode.code();
     }
     else if (t = filter._doIntegralSeparable)
     {
-        output = [];
+        glslcode = new GLSL.Filter(filter);
         code = matrix_code(t[0], null, t[1], t[2], t[1], t[2], t[3], t[4], false);
-        output.push({instance: filter, shader: [
+        glslcode
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -910,9 +915,12 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), iterations: filter._doIntegral || 1});
+        ].join('\n'), filter._doIntegral || 1)
+        .end();
         code = matrix_code(t[5], null, t[6], t[7], t[6], t[7], t[8], t[9], false);
-        output.push({instance: filter, shader: [
+        glslcode
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -920,14 +928,17 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), iterations: filter._doIntegral || 1});
-        return output;
+        ].join('\n'), filter._doIntegral || 1)
+        .end();
+        return glslcode.code();
     }
     else if (filter._doSeparable && m2)
     {
-        output = [];
+        glslcode = new GLSL.Filter(filter);
         code = matrix_code(m, null, filter.dimx, filter.dimy, filter.dimx, filter.dimy, filter._coeff[0], 0, false);
-        output.push({instance: filter, shader: [
+        glslcode
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -935,9 +946,12 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), iterations: 1});
+        ].join('\n'))
+        .end();
         code = matrix_code(m2, null, filter.dimx2, filter.dimy2, filter.dimx2, filter.dimy2, filter._coeff[1], 0, false);
-        output.push({instance: filter, shader: [
+        glslcode
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -945,8 +959,9 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), iterations: 1});
-        return output;
+        ].join('\n'))
+        .end();
+        return glslcode.code();
     }
     else
     {
@@ -961,7 +976,9 @@ function glsl(filter)
             m2 = null;
         }*/
         code = matrix_code(m, m2, filter.dimx, filter.dimy, filter.dimx2, filter.dimy2, filter._coeff[0], filter._coeff[1], filter._isGrad);
-        return {instance: filter, shader: [
+        glslcode = (new GLSL.Filter(filter))
+        .begin()
+        .shader([
         'varying vec2 pix;',
         'uniform sampler2D img;',
         'uniform vec2 dp;',
@@ -969,7 +986,9 @@ function glsl(filter)
         code[0],
         'gl_FragColor = '+code[1]+';',
         '}'
-        ].join('\n'), iterations: filter._doIntegral || 1};
+        ].join('\n'), filter._doIntegral || 1)
+        .end();
+        return glslcode.code();
     }
 }
 function wasm()
