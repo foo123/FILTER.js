@@ -3,9 +3,10 @@
 __1.9.0__
 
 * SeamlessTileFilter glsl version
-* better handling of dimensions changing in glsl
+* MorphologicalFilter corrections for glsl
+* better handling of dimensions changing in glsl filter
 * small intuitive glsl framework in progress
-* interpolate_nearest method
+* interpolate_nearest method (js,wasm,glsl)
 
 __1.8.0__
 

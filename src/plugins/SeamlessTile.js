@@ -177,7 +177,7 @@ function glsl(filter)
     '   gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {vars.w = w; vars.h = h; return [stdMath.max(w, h), stdMath.max(w, h)];})
+    .dimensions(function(w, h, io) {io.w = w; io.h = h; w = stdMath.max(w, h); return [w, w];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .output('original')
@@ -251,9 +251,9 @@ function glsl(filter)
     '}'
     ].join('\n'))
     .input('N', function(filter, nw) {return nw;})
-    .input('diagonal')
     .input('original')
-    //.input('img', null, true)
+    .input('diagonal')
+    //.input('img')
     .end()
     .begin()
     .shader([
@@ -266,7 +266,7 @@ function glsl(filter)
     '    gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {return [vars.w, vars.h];})
+    .dimensions(function(w, h, io) {return [io.w, io.h];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .end();

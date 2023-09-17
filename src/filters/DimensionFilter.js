@@ -239,14 +239,14 @@ function glsl(filter)
     '    else gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {vars.p = get(filter, w, h); return [vars.p.nw, vars.p.nh];})
+    .dimensions(function(w, h, io) {io.params = get(filter, w, h); return [io.params.nw, io.params.nh];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
-    .input('m', function(filter, nw, nh, w, h, vars) {return vars.p.m;})
-    .input('a', function(filter, nw, nh, w, h, vars) {return vars.p.a;})
-    .input('b', function(filter, nw, nh, w, h, vars) {return vars.p.b;})
-    .input('c', function(filter, nw, nh, w, h, vars) {return vars.p.c;})
-    .input('d', function(filter, nw, nh, w, h, vars) {return vars.p.d;})
+    .input('m', function(filter, nw, nh, w, h, io) {return io.params.m;})
+    .input('a', function(filter, nw, nh, w, h, io) {return io.params.a;})
+    .input('b', function(filter, nw, nh, w, h, io) {return io.params.b;})
+    .input('c', function(filter, nw, nh, w, h, io) {return io.params.c;})
+    .input('d', function(filter, nw, nh, w, h, io) {return io.params.d;})
     .end();
     return glslcode.code();
 }

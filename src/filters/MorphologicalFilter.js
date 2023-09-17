@@ -586,7 +586,7 @@ function glsl(filter)
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, true);
+        glslcode.input('original', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
@@ -612,7 +612,7 @@ function glsl(filter)
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, true);
+        glslcode.input('original', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
@@ -630,7 +630,7 @@ function glsl(filter)
         ].join('\n'));
         glslcode.input('original');
         glslcode.input('dilated');
-        //glslcode.input('original', null, true);
+        //glslcode.input('original', null, 'img');
         glslcode.end();
         break;
         default:

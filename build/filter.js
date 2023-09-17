@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-17 16:26:11
+*   @built on 2023-09-17 20:11:42
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-17 16:26:11
+*   @built on 2023-09-17 20:11:42
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3654,7 +3654,7 @@ function getProgram(gl, filter, programCache)
 }
 function GLSLFilter(filter)
 {
-    var self = this, glsls = [], glsl, vars = {};
+    var self = this, glsls = [], glsl = null, io = {};
     self.code = function() {
         return glsls;
     };
@@ -3666,24 +3666,25 @@ function GLSLFilter(filter)
         iterations: 1,
         instance: filter,
         shader: null,
-        init: function(gl, im, w, h, fromshader) {
-            if (this._save) vars[this._save] = {data:fromshader ? getPixels(gl, w, h) : im, width:w, height:h};
+        init: function(gl, im, wi, hi, w, h, fromshader) {
+            if (this._save) io[this._save] = {data:fromshader ? getPixels(gl, wi, hi) : im, width:wi, height:hi};
         },
         inputs: function(gl, program, w, h, wi, hi, input) {
             var inputs = this._inputs || {}, unit = 0;
             Object.keys(inputs).forEach(function(i) {
-                if (('*' === i) && inputs[i].setter)
+                if (('*' === i) && inputs['*'].setter)
                 {
-                    inputs[i].setter(filter, w, h, wi, hi, gl, program, vars, input);
+                    inputs['*'].setter(filter, w, h, wi, hi, gl, program, io, input);
                 }
-                else if (HAS.call(program.uniform, i))
+                else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
-                    var inp = inputs[i], type = program.uniform[inp.name].type, value, loc = program.uniform[inp.name].loc;
+                    var inp = inputs[i], name = HAS.call(program.uniform, inp.name) ? inp.name : inp.iname,
+                        type = program.uniform[name].type, value, loc = program.uniform[name].loc;
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(vars, inp.name) ? vars[inp.name] : inp.setter(filter, w, h, wi, hi);
-                        if (inp.isInput)
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
+                        if (inp.iname === 'img') // main input texture is named 'img'
                         {
                             uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
                             gl.uniform1i(loc, 0);
@@ -3697,8 +3698,8 @@ function GLSLFilter(filter)
                     }
                     else
                     {
-                        // uniform
-                        value = inp.setter(filter, w, h, wi, hi, vars);
+                        // other uniform
+                        value = inp.setter(filter, w, h, wi, hi, io);
                         switch (type)
                         {
                             case 'ivec4':
@@ -3738,8 +3739,8 @@ function GLSLFilter(filter)
             });
         },
         output: function(gl, output) {
-            if (this._islast) vars = {};
-            else if (this._output) vars[this._output] = {data:getPixels(gl, output.w, output.h), width:output.w, height:output.h};
+            if (this._islast) io = {};
+            else if (this._output) io[this._output] = {data:getPixels(gl, output.w, output.h), width:output.w, height:output.h};
         },
         _islast: true
         };
@@ -3748,25 +3749,25 @@ function GLSLFilter(filter)
     self.shader = function(shader, iterations) {
         if (glsl)
         {
-            glsl.shader = shader;
+            glsl.shader = shader || null;
             glsl.iterations = iterations || 1;
         }
         return self;
     };
     self.dimensions = function(df) {
-        if (glsl && df) glsl.dimensions = function(w, h) {return df(w, h, vars);};
+        if (glsl && df) glsl.dimensions = function(w, h) {return df(w, h, io);};
         return self;
     };
     self.save = function(name) {
         if (glsl && name) glsl._save = name;
         return self;
     };
-    self.input = function(name, setter, isInput) {
-        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, isInput:!!isInput};
+    self.input = function(name, setter, iname) {
+        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, iname:iname||name};
         return self;
     };
     self.output = function(name) {
-        if (glsl) glsl._output = name;
+        if (glsl && name) glsl._output = name;
         return self;
     };
     self.end = function() {
@@ -3936,9 +3937,10 @@ function prepareGL(img, ws, hs)
     }
     return FILTER.getGL(img, ws, hs);
 }
-function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY, wi, hi)
+function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/)
 {
-    var iterations = glsl.iterations || 1;
+    var iterations = glsl.iterations || 1,
+        w = output.w, h = output.h, wi = input.w, hi = input.h;
     if ('function' === typeof iterations) iterations = iterations(w, h, wi, hi) || 1;
     var i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
@@ -4010,7 +4012,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         if (i === last)
         {
             dst = output;
-            flip = flipY;
+            //flip = flipY;
         }
         else
         {
@@ -4205,8 +4207,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (glsl.init) glsl.init(gl, im, wi, hi, w, h, fromshader);
-            if (!fromshader && i > first) uploadTexture(gl, im, wi, hi, 0, 0, src.tex);
-            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false, wi, hi);
+            if (!fromshader && i > first) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
+            isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
@@ -7898,12 +7900,12 @@ function glsl(filter)
         var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {
+            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
+            if (same[mode]) mode = same[mode];
             input = filter.input(j);
             GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
             gl.uniform1i(program.uniform['input'+j].loc, j);
             gl.uniform2f(program.uniform['inputSize'+j].loc, input[1]/w, input[2]/h);
-            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
-            if (same[mode]) mode = same[mode];
             gl.uniform1i(program.uniform['inputMode'+j].loc, modes.indexOf(mode));
             gl.uniform2f(program.uniform['inputStart'+j].loc, matrix[i+1]/w, matrix[i+2]/h);
             gl.uniform1i(program.uniform['inputEnabled'+j].loc, matrix[i+3] ? 1 : 0);
@@ -8178,14 +8180,14 @@ function glsl(filter)
     '    else gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {vars.p = get(filter, w, h); return [vars.p.nw, vars.p.nh];})
+    .dimensions(function(w, h, io) {io.params = get(filter, w, h); return [io.params.nw, io.params.nh];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
-    .input('m', function(filter, nw, nh, w, h, vars) {return vars.p.m;})
-    .input('a', function(filter, nw, nh, w, h, vars) {return vars.p.a;})
-    .input('b', function(filter, nw, nh, w, h, vars) {return vars.p.b;})
-    .input('c', function(filter, nw, nh, w, h, vars) {return vars.p.c;})
-    .input('d', function(filter, nw, nh, w, h, vars) {return vars.p.d;})
+    .input('m', function(filter, nw, nh, w, h, io) {return io.params.m;})
+    .input('a', function(filter, nw, nh, w, h, io) {return io.params.a;})
+    .input('b', function(filter, nw, nh, w, h, io) {return io.params.b;})
+    .input('c', function(filter, nw, nh, w, h, io) {return io.params.c;})
+    .input('d', function(filter, nw, nh, w, h, io) {return io.params.d;})
     .end();
     return glslcode.code();
 }
@@ -9826,7 +9828,7 @@ function glsl(filter)
             (t1);
     });
     if (filter._map.shader && filter._map.inputs) filter._map.inputs.forEach(function(i) {
-        if (i.name && i.setter) glslcode.input(i.name, i.setter);
+        if (i.name && i.setter) glslcode.input(i.name, i.setter, i.iname);
     });
     return glslcode.end().code();
 }
@@ -11157,7 +11159,7 @@ function glsl(filter)
         );
     });
     if (filter._map.shader && filter._map.inputs) filter._map.inputs.forEach(function(i) {
-        if (i.name && i.setter) glslcode.input(i.name, i.setter);
+        if (i.name && i.setter) glslcode.input(i.name, i.setter, i.iname);
     });
     return glslcode.end().code();
 }
@@ -13091,7 +13093,7 @@ function glsl(filter)
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, true);
+        glslcode.input('original', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
@@ -13117,7 +13119,7 @@ function glsl(filter)
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, true);
+        glslcode.input('original', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
@@ -13135,7 +13137,7 @@ function glsl(filter)
         ].join('\n'));
         glslcode.input('original');
         glslcode.input('dilated');
-        //glslcode.input('original', null, true);
+        //glslcode.input('original', null, 'img');
         glslcode.end();
         break;
         default:
@@ -13711,7 +13713,7 @@ FILTER.Create({
         {
             glslcode = (new GLSL.Filter(self)).begin().shader(filter.shader);
             if (filter.inputs) filter.inputs.forEach(function(i) {
-                if (i.name && i.setter) glslcode.input(i.name, i.setter);
+                if (i.name && i.setter) glslcode.input(i.name, i.setter, i.iname);
             });
             return glslcode.end().code();
         }
@@ -15722,7 +15724,7 @@ function glsl(filter)
     '   gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {vars.w = w; vars.h = h; return [stdMath.max(w, h), stdMath.max(w, h)];})
+    .dimensions(function(w, h, io) {io.w = w; io.h = h; w = stdMath.max(w, h); return [w, w];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .output('original')
@@ -15798,7 +15800,7 @@ function glsl(filter)
     .input('N', function(filter, nw) {return nw;})
     .input('diagonal')
     .input('original')
-    //.input('img', null, true)
+    //.input('img')
     .end()
     .begin()
     .shader([
@@ -15811,7 +15813,7 @@ function glsl(filter)
     '    gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
     ].join('\n'))
-    .dimensions(function(w, h, vars) {return [vars.w, vars.h];})
+    .dimensions(function(w, h, io) {return [io.w, io.h];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .end();

@@ -383,12 +383,12 @@ function glsl(filter)
         var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {
+            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
+            if (same[mode]) mode = same[mode];
             input = filter.input(j);
             GLSL.uploadTexture(gl, input[0], input[1], input[2], j);
             gl.uniform1i(program.uniform['input'+j].loc, j);
             gl.uniform2f(program.uniform['inputSize'+j].loc, input[1]/w, input[2]/h);
-            mode = (matrix[i]||'normal').toUpperCase().replace('-', '');
-            if (same[mode]) mode = same[mode];
             gl.uniform1i(program.uniform['inputMode'+j].loc, modes.indexOf(mode));
             gl.uniform2f(program.uniform['inputStart'+j].loc, matrix[i+1]/w, matrix[i+2]/h);
             gl.uniform1i(program.uniform['inputEnabled'+j].loc, matrix[i+3] ? 1 : 0);

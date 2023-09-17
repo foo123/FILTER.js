@@ -112,7 +112,7 @@ FILTER.Create({
         {
             glslcode = (new GLSL.Filter(self)).begin().shader(filter.shader);
             if (filter.inputs) filter.inputs.forEach(function(i) {
-                if (i.name && i.setter) glslcode.input(i.name, i.setter);
+                if (i.name && i.setter) glslcode.input(i.name, i.setter, i.iname);
             });
             return glslcode.end().code();
         }

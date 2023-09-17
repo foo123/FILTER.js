@@ -139,7 +139,7 @@ function getProgram(gl, filter, programCache)
 }
 function GLSLFilter(filter)
 {
-    var self = this, glsls = [], glsl, vars = {};
+    var self = this, glsls = [], glsl = null, io = {};
     self.code = function() {
         return glsls;
     };
@@ -151,24 +151,25 @@ function GLSLFilter(filter)
         iterations: 1,
         instance: filter,
         shader: null,
-        init: function(gl, im, w, h, fromshader) {
-            if (this._save) vars[this._save] = {data:fromshader ? getPixels(gl, w, h) : im, width:w, height:h};
+        init: function(gl, im, wi, hi, w, h, fromshader) {
+            if (this._save) io[this._save] = {data:fromshader ? getPixels(gl, wi, hi) : im, width:wi, height:hi};
         },
         inputs: function(gl, program, w, h, wi, hi, input) {
             var inputs = this._inputs || {}, unit = 0;
             Object.keys(inputs).forEach(function(i) {
-                if (('*' === i) && inputs[i].setter)
+                if (('*' === i) && inputs['*'].setter)
                 {
-                    inputs[i].setter(filter, w, h, wi, hi, gl, program, vars, input);
+                    inputs['*'].setter(filter, w, h, wi, hi, gl, program, io, input);
                 }
-                else if (HAS.call(program.uniform, i))
+                else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
-                    var inp = inputs[i], type = program.uniform[inp.name].type, value, loc = program.uniform[inp.name].loc;
+                    var inp = inputs[i], name = HAS.call(program.uniform, inp.name) ? inp.name : inp.iname,
+                        type = program.uniform[name].type, value, loc = program.uniform[name].loc;
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(vars, inp.name) ? vars[inp.name] : inp.setter(filter, w, h, wi, hi);
-                        if (inp.isInput)
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
+                        if (inp.iname === 'img') // main input texture is named 'img'
                         {
                             uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
                             gl.uniform1i(loc, 0);
@@ -182,8 +183,8 @@ function GLSLFilter(filter)
                     }
                     else
                     {
-                        // uniform
-                        value = inp.setter(filter, w, h, wi, hi, vars);
+                        // other uniform
+                        value = inp.setter(filter, w, h, wi, hi, io);
                         switch (type)
                         {
                             case 'ivec4':
@@ -223,8 +224,8 @@ function GLSLFilter(filter)
             });
         },
         output: function(gl, output) {
-            if (this._islast) vars = {};
-            else if (this._output) vars[this._output] = {data:getPixels(gl, output.w, output.h), width:output.w, height:output.h};
+            if (this._islast) io = {};
+            else if (this._output) io[this._output] = {data:getPixels(gl, output.w, output.h), width:output.w, height:output.h};
         },
         _islast: true
         };
@@ -233,25 +234,25 @@ function GLSLFilter(filter)
     self.shader = function(shader, iterations) {
         if (glsl)
         {
-            glsl.shader = shader;
+            glsl.shader = shader || null;
             glsl.iterations = iterations || 1;
         }
         return self;
     };
     self.dimensions = function(df) {
-        if (glsl && df) glsl.dimensions = function(w, h) {return df(w, h, vars);};
+        if (glsl && df) glsl.dimensions = function(w, h) {return df(w, h, io);};
         return self;
     };
     self.save = function(name) {
         if (glsl && name) glsl._save = name;
         return self;
     };
-    self.input = function(name, setter, isInput) {
-        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, isInput:!!isInput};
+    self.input = function(name, setter, iname) {
+        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, iname:iname||name};
         return self;
     };
     self.output = function(name) {
-        if (glsl) glsl._output = name;
+        if (glsl && name) glsl._output = name;
         return self;
     };
     self.end = function() {
@@ -421,9 +422,10 @@ function prepareGL(img, ws, hs)
     }
     return FILTER.getGL(img, ws, hs);
 }
-function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flipY, wi, hi)
+function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/)
 {
-    var iterations = glsl.iterations || 1;
+    var iterations = glsl.iterations || 1,
+        w = output.w, h = output.h, wi = input.w, hi = input.h;
     if ('function' === typeof iterations) iterations = iterations(w, h, wi, hi) || 1;
     var i, src, dst, t, prevUnit = 1,
         flip = false, last = iterations - 1;
@@ -495,7 +497,7 @@ function runOne(gl, program, glsl, w, h, pos, uv, input, output, prev, buf, flip
         if (i === last)
         {
             dst = output;
-            flip = flipY;
+            //flip = flipY;
         }
         else
         {
@@ -690,8 +692,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (glsl.init) glsl.init(gl, im, wi, hi, w, h, fromshader);
-            if (!fromshader && i > first) uploadTexture(gl, im, wi, hi, 0, 0, src.tex);
-            isContextLost = runOne(gl, program, glsl, w, h, pos, uv, src, dst, prev, buf, false, wi, hi);
+            if (!fromshader && i > first) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
+            isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
