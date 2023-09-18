@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-17 20:11:42
+*   @built on 2023-09-18 09:25:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-17 20:11:42
+*   @built on 2023-09-18 09:25:34
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3655,9 +3655,6 @@ function getProgram(gl, filter, programCache)
 function GLSLFilter(filter)
 {
     var self = this, glsls = [], glsl = null, io = {};
-    self.code = function() {
-        return glsls;
-    };
     self.begin = function() {
         glsl = {
         _save: false,
@@ -3666,8 +3663,8 @@ function GLSLFilter(filter)
         iterations: 1,
         instance: filter,
         shader: null,
-        init: function(gl, im, wi, hi, w, h, fromshader) {
-            if (this._save) io[this._save] = {data:fromshader ? getPixels(gl, wi, hi) : im, width:wi, height:hi};
+        init: function(gl, im, wi, hi, fromshader) {
+            if (this._save) io[this._save] = {data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
         },
         inputs: function(gl, program, w, h, wi, hi, input) {
             var inputs = this._inputs || {}, unit = 0;
@@ -3679,12 +3676,12 @@ function GLSLFilter(filter)
                 else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
                     var inp = inputs[i], name = HAS.call(program.uniform, inp.name) ? inp.name : inp.iname,
-                        type = program.uniform[name].type, value, loc = program.uniform[name].loc;
+                        type = program.uniform[name].type, loc = program.uniform[name].loc, value;
                     if ('sampler2D' === type)
                     {
                         // texture
                         value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
-                        if (inp.iname === 'img') // main input texture is named 'img'
+                        if ('img' === inp.iname) // main input texture is named 'img'
                         {
                             uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
                             gl.uniform1i(loc, 0);
@@ -3778,6 +3775,9 @@ function GLSLFilter(filter)
         }
         glsl = null;
         return self;
+    };
+    self.code = function() {
+        return glsls;
     };
 }
 GLSLFilter[proto] = {
@@ -4206,7 +4206,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 }
                 dst = buf1;
             }
-            if (glsl.init) glsl.init(gl, im, wi, hi, w, h, fromshader);
+            if (glsl.init) glsl.init(gl, im, wi, hi, fromshader);
             if (!fromshader && i > first) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
             isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
@@ -13099,16 +13099,16 @@ function glsl(filter)
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
+        'uniform sampler2D dilated;',
         'void main(void) {',
-        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
+        'vec4 dilate = texture2D(dilated, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n'));
+        //glslcode.input('eroded', null, 'img');
         glslcode.input('dilated');
-        //glslcode.input('eroded');
         glslcode.end();
         break;
         case 'laplacian':
@@ -13125,23 +13125,24 @@ function glsl(filter)
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D original;',
-        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
+        'uniform sampler2D dilated;',
+        'uniform sampler2D original;',
         'void main(void) {',
-        'vec4 original = texture2D(original, pix);',
-        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
+        'vec4 dilate = texture2D(dilated, pix);',
+        'vec4 image = texture2D(original, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*image)*0.5).rgb, image.a);',
         '}'
         ].join('\n'));
-        glslcode.input('original');
-        glslcode.input('dilated');
         //glslcode.input('original', null, 'img');
+        //glslcode.input('eroded');
+        glslcode.input('dilated');
+        glslcode.input('original');
         glslcode.end();
         break;
         default:
-        glslcode.begin().end();
+        //glslcode.begin().end();
         break;
     }
     return glslcode.code();
@@ -15756,11 +15757,11 @@ function glsl(filter)
     'vec4 mask(vec2 pix, float N, int masktype) {',
     '   vec2 ij = vec2(pix.x, pix.y);',
     '   float d = 0.0;',
-    '   if (ij.x > 0.5) ij.x -= 0.5;',
-    '   if (ij.y > 0.5) ij.y -= 0.5;',
+    '   if (ij.x >= 0.5) ij.x -= 0.5;',
+    '   if (ij.y >= 0.5) ij.y -= 0.5;',
     '   if (0 == masktype) //RADIAL',
     '   {',
-    '       d = clamp(1.0 - length(vec2(0.5) - ij) * 2.0, M, 1.0);',
+    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, M, 1.0);',
     '   }',
     '   else if (1 == masktype) //LINEAR 1',
     '   {',
@@ -15768,7 +15769,7 @@ function glsl(filter)
     '   }',
     '   else //if (2 == masktype) //LINEAR 2',
     '   {',
-    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(vec2(1.0) - ij) :*/ length(vec2(1.0) - ij)) / 1.13, M, 1.0);',
+    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), M, 1.0);',
     '   }',
     '   return vec4(d);',
     '}',
@@ -15783,15 +15784,15 @@ function glsl(filter)
     .begin()
     .shader([
     'varying vec2 pix;',
-    'uniform sampler2D original;',
-    'uniform sampler2D diagonal;',
     'uniform sampler2D img;',
+    'uniform sampler2D diagonal;',
+    'uniform sampler2D original;',
     'uniform float N;',
     'void main(void) {',
     '   vec4 c = texture2D(original, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
-    '   if (pix2.x > 1.0) pix2.x -= 1.0;',
-    '   if (pix2.y > 1.0) pix2.y -= 1.0;',
+    '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
+    '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
     '   float a1 = texture2D(img, pix).a;',
     '   float a2 = texture2D(img, pix2).a;',
     '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
@@ -15800,7 +15801,7 @@ function glsl(filter)
     .input('N', function(filter, nw) {return nw;})
     .input('diagonal')
     .input('original')
-    //.input('img')
+    //.input('mask', null, 'img')
     .end()
     .begin()
     .shader([

@@ -592,16 +592,16 @@ function glsl(filter)
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
+        'uniform sampler2D dilated;',
         'void main(void) {',
-        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
+        'vec4 dilate = texture2D(dilated, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n'));
+        //glslcode.input('eroded', null, 'img');
         glslcode.input('dilated');
-        //glslcode.input('eroded');
         glslcode.end();
         break;
         case 'laplacian':
@@ -618,23 +618,24 @@ function glsl(filter)
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D original;',
-        'uniform sampler2D dilated;',
         'uniform sampler2D img;',
+        'uniform sampler2D dilated;',
+        'uniform sampler2D original;',
         'void main(void) {',
-        'vec4 original = texture2D(original, pix);',
-        'vec4 dilate = texture2D(dilated, pix);',
         'vec4 erode = texture2D(img, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*original)*0.5).rgb, original.a);',
+        'vec4 dilate = texture2D(dilated, pix);',
+        'vec4 image = texture2D(original, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*image)*0.5).rgb, image.a);',
         '}'
         ].join('\n'));
-        glslcode.input('original');
-        glslcode.input('dilated');
         //glslcode.input('original', null, 'img');
+        //glslcode.input('eroded');
+        glslcode.input('dilated');
+        glslcode.input('original');
         glslcode.end();
         break;
         default:
-        glslcode.begin().end();
+        //glslcode.begin().end();
         break;
     }
     return glslcode.code();

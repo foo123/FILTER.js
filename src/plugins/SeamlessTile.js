@@ -209,11 +209,11 @@ function glsl(filter)
     'vec4 mask(vec2 pix, float N, int masktype) {',
     '   vec2 ij = vec2(pix.x, pix.y);',
     '   float d = 0.0;',
-    '   if (ij.x > 0.5) ij.x -= 0.5;',
-    '   if (ij.y > 0.5) ij.y -= 0.5;',
+    '   if (ij.x >= 0.5) ij.x -= 0.5;',
+    '   if (ij.y >= 0.5) ij.y -= 0.5;',
     '   if (0 == masktype) //RADIAL',
     '   {',
-    '       d = clamp(1.0 - length(vec2(0.5) - ij) * 2.0, M, 1.0);',
+    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, M, 1.0);',
     '   }',
     '   else if (1 == masktype) //LINEAR 1',
     '   {',
@@ -221,7 +221,7 @@ function glsl(filter)
     '   }',
     '   else //if (2 == masktype) //LINEAR 2',
     '   {',
-    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(vec2(1.0) - ij) :*/ length(vec2(1.0) - ij)) / 1.13, M, 1.0);',
+    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), M, 1.0);',
     '   }',
     '   return vec4(d);',
     '}',
@@ -236,24 +236,24 @@ function glsl(filter)
     .begin()
     .shader([
     'varying vec2 pix;',
-    'uniform sampler2D original;',
-    'uniform sampler2D diagonal;',
     'uniform sampler2D img;',
+    'uniform sampler2D diagonal;',
+    'uniform sampler2D original;',
     'uniform float N;',
     'void main(void) {',
     '   vec4 c = texture2D(original, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
-    '   if (pix2.x > 1.0) pix2.x -= 1.0;',
-    '   if (pix2.y > 1.0) pix2.y -= 1.0;',
+    '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
+    '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
     '   float a1 = texture2D(img, pix).a;',
     '   float a2 = texture2D(img, pix2).a;',
     '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
     '}'
     ].join('\n'))
     .input('N', function(filter, nw) {return nw;})
-    .input('original')
+    //.input('mask', null, 'img')
     .input('diagonal')
-    //.input('img')
+    .input('original')
     .end()
     .begin()
     .shader([
