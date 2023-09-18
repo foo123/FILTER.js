@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 09:25:34
+*   @built on 2023-09-18 12:47:04
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 09:25:34
+*   @built on 2023-09-18 12:47:04
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3654,20 +3654,26 @@ function getProgram(gl, filter, programCache)
 }
 function GLSLFilter(filter)
 {
-    var self = this, glsls = [], glsl = null, io = {};
+    var self = this, glsls = [], glsl = null, io = {},
+        prev_output = function(glsl) {
+            return glsl._prev && glsl._prev._output ? io[glsl._prev._output] : null;
+        };
     self.begin = function() {
         glsl = {
-        _save: false,
+        _prev: null,
+        _next: null,
+        _save: null,
         _inputs: {},
+        _input: 'img', // main input (texture) is named 'img' by default
         _output: null,
         iterations: 1,
         instance: filter,
         shader: null,
         init: function(gl, im, wi, hi, fromshader) {
-            if (this._save) io[this._save] = {data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
+            if (this._save) io[this._save] = prev_output(this) || {data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
         },
         inputs: function(gl, program, w, h, wi, hi, input) {
-            var inputs = this._inputs || {}, unit = 0;
+            var this_ = this, inputs = this_._inputs || {}, main_input = this_._input, unit = 0;
             Object.keys(inputs).forEach(function(i) {
                 if (('*' === i) && inputs['*'].setter)
                 {
@@ -3681,9 +3687,17 @@ function GLSLFilter(filter)
                     {
                         // texture
                         value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
-                        if ('img' === inp.iname) // main input texture is named 'img'
+                        if (main_input === inp.iname)
                         {
-                            uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
+                            if (!inp.setter && this_._prev && (inp.name === this_._prev._output))
+                            {
+                                /* prev output is passed as main input by default */
+                            }
+                            else
+                            {
+                                // upload data
+                                uploadTexture(gl, value.data, value.width, value.height, 0, false, input.tex);
+                            }
                             gl.uniform1i(loc, 0);
                         }
                         else
@@ -3760,7 +3774,11 @@ function GLSLFilter(filter)
         return self;
     };
     self.input = function(name, setter, iname) {
-        if (glsl && name) glsl._inputs[name] = {name:name, setter:setter, iname:iname||name};
+        if (glsl && name)
+        {
+            if (true === setter) glsl._input = name; // set main input name if other than the default
+            else glsl._inputs[name] = {name:name, setter:setter, iname:iname||name};
+        }
         return self;
     };
     self.output = function(name) {
@@ -3770,7 +3788,12 @@ function GLSLFilter(filter)
     self.end = function() {
         if (glsl)
         {
-            if (glsls.length) glsls[glsls.length-1]._islast = false;
+            if (glsls.length)
+            {
+                glsl._prev = glsls[glsls.length-1];
+                glsls[glsls.length-1]._next = glsl;
+                glsls[glsls.length-1]._islast = false;
+            }
             glsls.push(glsl);
         }
         glsl = null;
@@ -3971,26 +3994,10 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
     {
         gl.uniform1i(program.uniform.mode.loc, glsl.instance.mode);
     }
-    /*if (('_img_prev_prev' in program.uniform) && prev[1])
+    if (glsl.inputs)
     {
-        gl.activeTexture(gl.TEXTURE0 + prevUnit + 1);
-        gl.bindTexture(gl.TEXTURE_2D, prev[1]);
-        gl.uniform1i(program.uniform._img_prev_prev.loc, prevUnit + 1);
+        glsl.inputs(gl, program, w, h, wi, hi, input);
     }
-    if (('_img_prev' in program.uniform) && prev[0])
-    {
-        if (!('img' in program.uniform))
-        {
-            input = {fbo:null, tex:prev[0]};
-        }
-        else
-        {
-            gl.activeTexture(gl.TEXTURE0 + prevUnit + 0);
-            gl.bindTexture(gl.TEXTURE_2D, prev[0]);
-            gl.uniform1i(program.uniform._img_prev.loc, prevUnit + 0);
-        }
-    }*/
-    if (glsl.inputs) glsl.inputs(gl, program, w, h, wi, hi, input);
 
     if (last > 0)
     {
@@ -4019,17 +4026,11 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
             //buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        /*if (('_img_prev' in program.uniform) && !('img' in program.uniform))
+        if (HAS.call(program.uniform, glsl._input))
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(program.uniform._img_prev.loc, 0);
-        }
-        else*/ if ('img' in program.uniform)
-        {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(program.uniform.img.loc, 0);
+            gl.uniform1i(program.uniform[glsl._input].loc, 0);
         }
         gl.uniform1f(program.uniform.flipY.loc, flip ? -1 : 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
@@ -4060,8 +4061,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         deleteBuffer(gl, uv);
         deleteTexture(gl, input);
         deleteFramebufferTexture(gl, output);
-        deleteTexture(gl, prev[1]);
-        deleteTexture(gl, prev[0]);
+        //deleteTexture(gl, prev[1]);
+        //deleteTexture(gl, prev[0]);
         deleteFramebufferTexture(gl, buf[0]);
         deleteFramebufferTexture(gl, buf[1]);
         deleteFramebufferTexture(gl, buf0);
@@ -4163,14 +4164,6 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         if (canRun)
         {
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
-            /*if (i+1 < n && glsls[i+1].shader && glsls[i+1]._usesPrev)
-            {
-                // store previous frames
-                deleteTexture(gl, prev[1]);
-                prev[1] = prev[0];
-                if (fromshader) prev[0] = uploadTexture(gl, getPixels(gl, w, h), w, h);
-                else prev[0] = uploadTexture(gl, im, w, h);
-            }*/
             if (null != glsl.dimensions)
             {
                 d = 'function' === typeof glsl.dimensions ? glsl.dimensions(w, h) : glsl.dimensions;
@@ -13088,57 +13081,56 @@ function glsl(filter)
         case 'gradient':
         glslcode.begin();
         morph(filter._structureElement, 'dilate');
-        glslcode.save('original');
+        glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, 'img');
+        glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D img;',
+        'uniform sampler2D eroded;',
         'uniform sampler2D dilated;',
         'void main(void) {',
-        'vec4 erode = texture2D(img, pix);',
+        'vec4 erode = texture2D(eroded, pix);',
         'vec4 dilate = texture2D(dilated, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n'));
-        //glslcode.input('eroded', null, 'img');
+        glslcode.input('eroded', true);
         glslcode.input('dilated');
         glslcode.end();
         break;
         case 'laplacian':
         glslcode.begin();
         morph(filter._structureElement, 'dilate');
-        glslcode.save('original');
+        glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, 'img');
+        glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D img;',
+        'uniform sampler2D eroded;',
         'uniform sampler2D dilated;',
-        'uniform sampler2D original;',
+        'uniform sampler2D image;',
         'void main(void) {',
-        'vec4 erode = texture2D(img, pix);',
+        'vec4 erode = texture2D(eroded, pix);',
         'vec4 dilate = texture2D(dilated, pix);',
-        'vec4 image = texture2D(original, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*image)*0.5).rgb, image.a);',
+        'vec4 im = texture2D(image, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*im)*0.5).rgb, im.a);',
         '}'
         ].join('\n'));
-        //glslcode.input('original', null, 'img');
-        //glslcode.input('eroded');
+        glslcode.input('eroded', true);
         glslcode.input('dilated');
-        glslcode.input('original');
+        glslcode.input('image');
         glslcode.end();
         break;
         default:
@@ -15728,7 +15720,7 @@ function glsl(filter)
     .dimensions(function(w, h, io) {io.w = w; io.h = h; w = stdMath.max(w, h); return [w, w];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
-    .output('original')
+    .output('image')
     .end()
     .begin()
     .shader([
@@ -15784,24 +15776,24 @@ function glsl(filter)
     .begin()
     .shader([
     'varying vec2 pix;',
-    'uniform sampler2D img;',
+    'uniform sampler2D mask;',
     'uniform sampler2D diagonal;',
-    'uniform sampler2D original;',
+    'uniform sampler2D image;',
     'uniform float N;',
     'void main(void) {',
-    '   vec4 c = texture2D(original, pix);',
+    '   vec4 c = texture2D(image, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
     '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
     '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
-    '   float a1 = texture2D(img, pix).a;',
-    '   float a2 = texture2D(img, pix2).a;',
+    '   float a1 = texture2D(mask, pix).a;',
+    '   float a2 = texture2D(mask, pix2).a;',
     '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
     '}'
     ].join('\n'))
     .input('N', function(filter, nw) {return nw;})
+    .input('mask', true)
     .input('diagonal')
-    .input('original')
-    //.input('mask', null, 'img')
+    .input('image')
     .end()
     .begin()
     .shader([

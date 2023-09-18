@@ -581,57 +581,56 @@ function glsl(filter)
         case 'gradient':
         glslcode.begin();
         morph(filter._structureElement, 'dilate');
-        glslcode.save('original');
+        glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, 'img');
+        glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D img;',
+        'uniform sampler2D eroded;',
         'uniform sampler2D dilated;',
         'void main(void) {',
-        'vec4 erode = texture2D(img, pix);',
+        'vec4 erode = texture2D(eroded, pix);',
         'vec4 dilate = texture2D(dilated, pix);',
         'gl_FragColor = vec4(((dilate-erode)*0.5).rgb, erode.a);',
         '}'
         ].join('\n'));
-        //glslcode.input('eroded', null, 'img');
+        glslcode.input('eroded', true);
         glslcode.input('dilated');
         glslcode.end();
         break;
         case 'laplacian':
         glslcode.begin();
         morph(filter._structureElement, 'dilate');
-        glslcode.save('original');
+        glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
         morph(filter._structureElement, 'erode');
-        glslcode.input('original', null, 'img');
+        glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
         glslcode.begin();
         glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D img;',
+        'uniform sampler2D eroded;',
         'uniform sampler2D dilated;',
-        'uniform sampler2D original;',
+        'uniform sampler2D image;',
         'void main(void) {',
-        'vec4 erode = texture2D(img, pix);',
+        'vec4 erode = texture2D(eroded, pix);',
         'vec4 dilate = texture2D(dilated, pix);',
-        'vec4 image = texture2D(original, pix);',
-        'gl_FragColor = vec4(((dilate+erode-2.0*image)*0.5).rgb, image.a);',
+        'vec4 im = texture2D(image, pix);',
+        'gl_FragColor = vec4(((dilate+erode-2.0*im)*0.5).rgb, im.a);',
         '}'
         ].join('\n'));
-        //glslcode.input('original', null, 'img');
-        //glslcode.input('eroded');
+        glslcode.input('eroded', true);
         glslcode.input('dilated');
-        glslcode.input('original');
+        glslcode.input('image');
         glslcode.end();
         break;
         default:

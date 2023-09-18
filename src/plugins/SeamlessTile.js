@@ -180,7 +180,7 @@ function glsl(filter)
     .dimensions(function(w, h, io) {io.w = w; io.h = h; w = stdMath.max(w, h); return [w, w];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
-    .output('original')
+    .output('image')
     .end()
     .begin()
     .shader([
@@ -236,24 +236,24 @@ function glsl(filter)
     .begin()
     .shader([
     'varying vec2 pix;',
-    'uniform sampler2D img;',
+    'uniform sampler2D mask;',
     'uniform sampler2D diagonal;',
-    'uniform sampler2D original;',
+    'uniform sampler2D image;',
     'uniform float N;',
     'void main(void) {',
-    '   vec4 c = texture2D(original, pix);',
+    '   vec4 c = texture2D(image, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
     '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
     '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
-    '   float a1 = texture2D(img, pix).a;',
-    '   float a2 = texture2D(img, pix2).a;',
+    '   float a1 = texture2D(mask, pix).a;',
+    '   float a2 = texture2D(mask, pix2).a;',
     '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
     '}'
     ].join('\n'))
     .input('N', function(filter, nw) {return nw;})
-    //.input('mask', null, 'img')
+    .input('mask', true)
     .input('diagonal')
-    .input('original')
+    .input('image')
     .end()
     .begin()
     .shader([
