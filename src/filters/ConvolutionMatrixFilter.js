@@ -818,7 +818,14 @@ function glsl(filter)
         {
             if (m[k])
             {
-                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                if (i || j)
+                {
+                    def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                }
+                else
+                {
+                    def.push('vec3 c'+k+'=col.rgb;');
+                }
                 calc.push(toFloat(m[k], calc.length)+'*c'+k);
             }
             ++k; ++i; if (i>rx) {i=-rx; ++j;}
@@ -832,7 +839,14 @@ function glsl(filter)
             {
                 if (m2[k])
                 {
-                    def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 cc'+k+'=vec3(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+').rgb;');
+                    if (i || j)
+                    {
+                        def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 cc'+k+'=vec3(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+').rgb;');
+                    }
+                    else
+                    {
+                        def.push('vec3 cc'+k+'=col.rgb;');
+                    }
                     calc2.push(toFloat(m2[k], calc2.length)+'*cc'+k);
                 }
                 ++k; ++i; if (i>rx) {i=-rx; ++j;}

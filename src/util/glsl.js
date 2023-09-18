@@ -162,7 +162,7 @@ function GLSLFilter(filter)
             Object.keys(inputs).forEach(function(i) {
                 if (('*' === i) && inputs['*'].setter)
                 {
-                    inputs['*'].setter(filter, w, h, wi, hi, gl, program, io, input);
+                    inputs['*'].setter(filter, w, h, wi, hi, io, gl, program, input);
                 }
                 else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
@@ -171,7 +171,7 @@ function GLSLFilter(filter)
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                         if (main_input === inp.iname)
                         {
                             if (!inp.setter && this_._prev && (inp.name === this_._prev._output))

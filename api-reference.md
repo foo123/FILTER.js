@@ -943,7 +943,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>Pixelate</td>  <td>fast pixelate the image to the given scale using various patterns<br />"rectangular" (default)<br />"triangular"<br />"rhomboidal"<br />"hexagonal"<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>Halftone</td> <td>create a halftone/dithered black-white or colored image from target image</td></tr>
 <tr><td>Bokeh</td>    <td>apply a fast Bokeh (Depth-of-Field) effect to an image</td></tr>
-<tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)</td></tr>
+<tr><td>DropShadow</td>   <td>generate drop shadow(s) with opacity on image (analogous to ActionScript filter)<br><b>supports WebGL</b></td></tr>
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>apply a (fast) color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />apply a (fast) pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
 <tr><td>ConnectedComponents</td>  <td>extract fast all or only those matching Color/Intensity/Hue connected components of an image (and their bounding boxes)</td></tr>

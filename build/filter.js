@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 12:47:04
+*   @built on 2023-09-18 15:50:27
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 12:47:04
+*   @built on 2023-09-18 15:50:27
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3677,7 +3677,7 @@ function GLSLFilter(filter)
             Object.keys(inputs).forEach(function(i) {
                 if (('*' === i) && inputs['*'].setter)
                 {
-                    inputs['*'].setter(filter, w, h, wi, hi, gl, program, io, input);
+                    inputs['*'].setter(filter, w, h, wi, hi, io, gl, program, input);
                 }
                 else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
@@ -3686,7 +3686,7 @@ function GLSLFilter(filter)
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi);
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                         if (main_input === inp.iname)
                         {
                             if (!inp.setter && this_._prev && (inp.name === this_._prev._output))
@@ -7889,7 +7889,7 @@ function glsl(filter)
     'gl_FragColor = col;',
     '}'
     ].join('\n'))
-    .input('*', function(filter, w, h, wi, hi, gl, program) {
+    .input('*', function(filter, w, h, wi, hi, io, gl, program) {
         var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {
@@ -12155,7 +12155,14 @@ function glsl(filter)
         {
             if (m[k])
             {
-                def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                if (i || j)
+                {
+                    def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                }
+                else
+                {
+                    def.push('vec3 c'+k+'=col.rgb;');
+                }
                 calc.push(toFloat(m[k], calc.length)+'*c'+k);
             }
             ++k; ++i; if (i>rx) {i=-rx; ++j;}
@@ -12169,7 +12176,14 @@ function glsl(filter)
             {
                 if (m2[k])
                 {
-                    def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 cc'+k+'=vec3(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+').rgb;');
+                    if (i || j)
+                    {
+                        def.push('vec2 pp'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 cc'+k+'=vec3(0.0); if (0.0 <= pp'+k+'.x && 1.0 >= pp'+k+'.x && 0.0 <= pp'+k+'.y && 1.0 >= pp'+k+'.y) cc'+k+'=texture2D(img,  pp'+k+').rgb;');
+                    }
+                    else
+                    {
+                        def.push('vec3 cc'+k+'=col.rgb;');
+                    }
                     calc2.push(toFloat(m2[k], calc2.length)+'*cc'+k);
                 }
                 ++k; ++i; if (i>rx) {i=-rx; ++j;}
@@ -15435,6 +15449,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
@@ -15473,13 +15491,13 @@ FILTER.Create({
                 maxx = max(maxx, x);
                 maxy = max(maxy, y);
             }
-            /*else
+            else
             {
                 shadow[i  ] = 0;
                 shadow[i+1] = 0;
                 shadow[i+2] = 0;
                 shadow[i+3] = 0;
-            }*/
+            }
         }
 
         // blur shadow, quality is applied multiple times for smoother effect
@@ -15537,6 +15555,91 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    var matrix_code = function(m, dx, dy, f, b) {
+        var def = [], calc = [],
+            k, i, j, matArea = m.length,
+            rx = dx>>>1, ry = dy>>>1;
+        def.push('vec4 col=texture2D(img,  pix);');
+        i=-rx; j=-ry; k=0;
+        while (k<matArea)
+        {
+            if (m[k])
+            {
+                if (i || j)
+                {
+                    def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                }
+                else
+                {
+                    def.push('vec3 c'+k+'=col.rgb;');
+                }
+                calc.push(toFloat(m[k], calc.length)+'*c'+k);
+            }
+            ++k; ++i; if (i>rx) {i=-rx; ++j;}
+        }
+        return [def.join('\n'), 'vec4(('+toFloat(f||1)+'*('+calc.join('')+')+vec3('+toFloat(b||0)+')),col.a)'];
+    };
+    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0);
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec4 c;',
+    'void main(void) {',
+    '   vec4 im = texture2D(img, pix);',
+    '   gl_FragColor = im.a > 0.0 ? vec4(c.rgb, c.a*im.a) : vec4(0.0);',
+    '}'
+    ].join('\n'))
+    .save('image')
+    .input('c', function(filter) {
+        var color = filter.color || 0;
+        return [((color>>>16)&255)/255, ((color>>>8)&255)/255, ((color)&255)/255, stdMath.min(stdMath.max(filter.opacity, 0.0), 1.0)];
+    })
+    .end()
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'void main(void) {',
+    code[0],
+    'gl_FragColor = '+code[1]+';',
+    '}'
+    ].join('\n'), function() {return stdMath.min(stdMath.max(filter.quality, 1), 3);})
+    .end()
+    /*padding if shadow exceeds boundaries is not implemented*/
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform vec2 offset;',
+    'uniform int onlyShadow;',
+    'uniform sampler2D shadow;',
+    'uniform sampler2D image;',
+    'void main(void) {',
+    '   vec2 pixo = pix - offset;',
+    '   vec4 sh = pixo.x < 0.0 || pixo.y < 0.0 ? vec4(0.0) : texture2D(shadow, pixo);',
+    '   vec4 im = onlyShadow ? vec4(0.0) : texture2D(image, pix);',
+    '   if (1 == onlyShadow)',
+    '   {',
+    '       gl_FragColor = sh;',
+    '   }',
+    '   else',
+    '   {',
+    '       if ((1.0 == im.a) || (0.0 == sh.a)) gl_FragColor = im;',
+    '       else gl_FragColor = vec4(mix(im.rgb, sh.rgb, sh.a), im.a);',
+    '   }',
+    '}'
+    ].join('\n'))
+    .input('offset', function(filter, w, h) {return [(filter.offsetX||0)/w, (filter.offsetY||0)/h];})
+    .input('onlyShadow', function(filter) {return filter.onlyShadow ? 1 : 0;})
+    .input('shadow', true)
+    .input('image')
+    .end();
+    return glslcode.code();
+}
 
 }(FILTER);/**
 *
@@ -15726,18 +15829,16 @@ function glsl(filter)
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
-    'uniform float N;',
-    'vec4 diagonal(vec2 pix, sampler2D img, float N) {',
+    'vec4 diagonal(vec2 pix, sampler2D img) {',
     '   vec2 ij = pix - vec2(0.5);',
     '   if (ij.x < 0.0) ij.x += 1.0;',
     '   if (ij.y < 0.0) ij.y += 1.0;',
     '   return texture2D(img, ij);',
     '}',
     'void main(void) {',
-    '   gl_FragColor = diagonal(pix, img, N);',
+    '   gl_FragColor = diagonal(pix, img);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
     .output('diagonal')
     .end()
     .begin()
@@ -15769,7 +15870,7 @@ function glsl(filter)
     '   gl_FragColor = mask(pix, N, masktype);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
+    .input('N', function(filter, N) {return N;})
     .input('masktype', function(filter) {return filter.type;})
     //.output('mask')
     .end()
@@ -15779,18 +15880,16 @@ function glsl(filter)
     'uniform sampler2D mask;',
     'uniform sampler2D diagonal;',
     'uniform sampler2D image;',
-    'uniform float N;',
     'void main(void) {',
-    '   vec4 c = texture2D(image, pix);',
+    '   vec4 im = texture2D(image, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
     '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
     '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
     '   float a1 = texture2D(mask, pix).a;',
     '   float a2 = texture2D(mask, pix2).a;',
-    '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
+    '   gl_FragColor = vec4(mix(im.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), im.a);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
     .input('mask', true)
     .input('diagonal')
     .input('image')

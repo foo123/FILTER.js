@@ -379,7 +379,7 @@ function glsl(filter)
     'gl_FragColor = col;',
     '}'
     ].join('\n'))
-    .input('*', function(filter, w, h, wi, hi, gl, program) {
+    .input('*', function(filter, w, h, wi, hi, io, gl, program) {
         var matrix = filter.matrix, i, j, input, mode;
         for (j=1,i=0; i<matrix.length; i+=4,++j)
         {

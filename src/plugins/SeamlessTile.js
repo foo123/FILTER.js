@@ -186,18 +186,16 @@ function glsl(filter)
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
-    'uniform float N;',
-    'vec4 diagonal(vec2 pix, sampler2D img, float N) {',
+    'vec4 diagonal(vec2 pix, sampler2D img) {',
     '   vec2 ij = pix - vec2(0.5);',
     '   if (ij.x < 0.0) ij.x += 1.0;',
     '   if (ij.y < 0.0) ij.y += 1.0;',
     '   return texture2D(img, ij);',
     '}',
     'void main(void) {',
-    '   gl_FragColor = diagonal(pix, img, N);',
+    '   gl_FragColor = diagonal(pix, img);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
     .output('diagonal')
     .end()
     .begin()
@@ -229,7 +227,7 @@ function glsl(filter)
     '   gl_FragColor = mask(pix, N, masktype);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
+    .input('N', function(filter, N) {return N;})
     .input('masktype', function(filter) {return filter.type;})
     //.output('mask')
     .end()
@@ -239,18 +237,16 @@ function glsl(filter)
     'uniform sampler2D mask;',
     'uniform sampler2D diagonal;',
     'uniform sampler2D image;',
-    'uniform float N;',
     'void main(void) {',
-    '   vec4 c = texture2D(image, pix);',
+    '   vec4 im = texture2D(image, pix);',
     '   vec2 pix2 = pix + vec2(0.5);',
     '   if (pix2.x >= 1.0) pix2.x -= 1.0;',
     '   if (pix2.y >= 1.0) pix2.y -= 1.0;',
     '   float a1 = texture2D(mask, pix).a;',
     '   float a2 = texture2D(mask, pix2).a;',
-    '   gl_FragColor = vec4(mix(c.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), c.a);',
+    '   gl_FragColor = vec4(mix(im.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), im.a);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, nw) {return nw;})
     .input('mask', true)
     .input('diagonal')
     .input('image')

@@ -82,6 +82,10 @@ FILTER.Create({
         return self;
     }
 
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
     // this is the filter actual apply method routine
     ,apply: function(im, w, h) {
         var self = this;
@@ -120,13 +124,13 @@ FILTER.Create({
                 maxx = max(maxx, x);
                 maxy = max(maxy, y);
             }
-            /*else
+            else
             {
                 shadow[i  ] = 0;
                 shadow[i+1] = 0;
                 shadow[i+2] = 0;
                 shadow[i+3] = 0;
-            }*/
+            }
         }
 
         // blur shadow, quality is applied multiple times for smoother effect
@@ -184,5 +188,90 @@ FILTER.Create({
         return im;
     }
 });
+
+function glsl(filter)
+{
+    var matrix_code = function(m, dx, dy, f, b) {
+        var def = [], calc = [],
+            k, i, j, matArea = m.length,
+            rx = dx>>>1, ry = dy>>>1;
+        def.push('vec4 col=texture2D(img,  pix);');
+        i=-rx; j=-ry; k=0;
+        while (k<matArea)
+        {
+            if (m[k])
+            {
+                if (i || j)
+                {
+                    def.push('vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec3 c'+k+'=vec3(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) c'+k+'=texture2D(img,  p'+k+').rgb;');
+                }
+                else
+                {
+                    def.push('vec3 c'+k+'=col.rgb;');
+                }
+                calc.push(toFloat(m[k], calc.length)+'*c'+k);
+            }
+            ++k; ++i; if (i>rx) {i=-rx; ++j;}
+        }
+        return [def.join('\n'), 'vec4(('+toFloat(f||1)+'*('+calc.join('')+')+vec3('+toFloat(b||0)+')),col.a)'];
+    };
+    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0);
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec4 c;',
+    'void main(void) {',
+    '   vec4 im = texture2D(img, pix);',
+    '   gl_FragColor = im.a > 0.0 ? vec4(c.rgb, c.a*im.a) : vec4(0.0);',
+    '}'
+    ].join('\n'))
+    .save('image')
+    .input('c', function(filter) {
+        var color = filter.color || 0;
+        return [((color>>>16)&255)/255, ((color>>>8)&255)/255, ((color)&255)/255, stdMath.min(stdMath.max(filter.opacity, 0.0), 1.0)];
+    })
+    .end()
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'void main(void) {',
+    code[0],
+    'gl_FragColor = '+code[1]+';',
+    '}'
+    ].join('\n'), function() {return stdMath.min(stdMath.max(filter.quality, 1), 3);})
+    .end()
+    /*padding if shadow exceeds boundaries is not implemented*/
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform vec2 offset;',
+    'uniform int onlyShadow;',
+    'uniform sampler2D shadow;',
+    'uniform sampler2D image;',
+    'void main(void) {',
+    '   vec2 pixo = pix - offset;',
+    '   vec4 sh = pixo.x < 0.0 || pixo.y < 0.0 ? vec4(0.0) : texture2D(shadow, pixo);',
+    '   vec4 im = onlyShadow ? vec4(0.0) : texture2D(image, pix);',
+    '   if (1 == onlyShadow)',
+    '   {',
+    '       gl_FragColor = sh;',
+    '   }',
+    '   else',
+    '   {',
+    '       if ((1.0 == im.a) || (0.0 == sh.a)) gl_FragColor = im;',
+    '       else gl_FragColor = vec4(mix(im.rgb, sh.rgb, sh.a), im.a);',
+    '   }',
+    '}'
+    ].join('\n'))
+    .input('offset', function(filter, w, h) {return [(filter.offsetX||0)/w, (filter.offsetY||0)/h];})
+    .input('onlyShadow', function(filter) {return filter.onlyShadow ? 1 : 0;})
+    .input('shadow', true)
+    .input('image')
+    .end();
+    return glslcode.code();
+}
 
 }(FILTER);
