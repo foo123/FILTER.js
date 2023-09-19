@@ -516,7 +516,8 @@ FILTER.Util.WASM.instantiate(wasm(), {}, {
 function glsl(filter)
 {
     var matrix_code = function(m, d, op, op0, img) {
-        var code = [], ca = 'c0',
+        var toFloat = GLSL.formatFloat,
+            code = [], ca = false,
             x, y, k, i, j,
             matArea = m.length, matRadius = d,
             matHalfSide = matRadius>>>1;
@@ -529,63 +530,64 @@ function glsl(filter)
         {
             i = x-matHalfSide;
             j = y-matHalfSide;
-            if (m[k] || (0===i && 0===j))
+            if (m[k])
             {
                 code.push('if (1==apply){vec2 p'+k+'=vec2(pix.x'+toFloat(i, 1)+'*dp.x, pix.y'+toFloat(j, 1)+'*dp.y); vec4 c'+k+'=vec4(0.0); if (0.0 <= p'+k+'.x && 1.0 >= p'+k+'.x && 0.0 <= p'+k+'.y && 1.0 >= p'+k+'.y) {c'+k+'=texture2D('+img+',p'+k+');} else {apply=0;} res='+op+'(res, c'+k+');'+(0===i && 0===j?(' alpha=c'+k+'.a;'):'')+'}');
+                if (0===i && 0===j) ca = true;
             }
             ++k; ++x; if (x>=matRadius) {x=0; ++y;}
         }
-        code.push('if (1==apply) gl_FragColor = vec4(res.rgb,alpha); else gl_FragColor = texture2D('+img+',pix);');
+        code.push('if (1==apply) {'+(!ca ? ('alpha = texture2D('+img+',pix).a; ') : '')+'gl_FragColor = vec4(res.rgb,alpha);} else {gl_FragColor = texture2D('+img+',pix);}');
         return code.join('\n');
     };
-    var morph = function(m, op, img) {
+    var morph = function(op) {
         return glslcode.shader([
         'varying vec2 pix;',
-        'uniform sampler2D '+(img||'img')+';',
+        'uniform sampler2D '+('img')+';',
         'uniform vec2 dp;',
         'void main(void) {',
-        'dilate' === op ? matrix_code(m, filter._dim, 'max', '0.0', img) : matrix_code(m, filter._dim, 'min', '1.0', img),
+        'dilate' === op ? matrix_code(filter._structureElement, filter._dim, 'max', '0.0', 'img') : matrix_code(filter._structureElement, filter._dim, 'min', '1.0', 'img'),
         '}'
         ].join('\n'), filter._iter || 1);
     };
-    var toFloat = GLSL.formatFloat, glslcode = new GLSL.Filter(filter);
+    var glslcode = new GLSL.Filter(filter);
     if (!filter._dim) return glslcode.begin().shader(GLSL.DEFAULT).end().code();
     switch (filter._filterName)
     {
         case 'dilate':
         glslcode.begin();
-        morph(filter._structureElement, 'dilate');
+        morph('dilate');
         glslcode.end();
         break;
         case 'erode':
         glslcode.begin();
-        morph(filter._structureElement, 'erode')
+        morph('erode')
         glslcode.end();
         break;
         case 'open':
         glslcode.begin();
-        morph(filter._structureElement, 'erode')
+        morph('erode')
         glslcode.end();
         glslcode.begin();
-        morph(filter._structureElement, 'dilate');
+        morph('dilate');
         glslcode.end();
         break;
         case 'close':
         glslcode.begin();
-        morph(filter._structureElement, 'dilate');
+        morph('dilate');
         glslcode.end();
         glslcode.begin();
-        morph(filter._structureElement, 'erode')
+        morph('erode')
         glslcode.end();
         break;
         case 'gradient':
         glslcode.begin();
-        morph(filter._structureElement, 'dilate');
+        morph('dilate');
         glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
-        morph(filter._structureElement, 'erode');
+        morph('erode');
         glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();
@@ -606,12 +608,12 @@ function glsl(filter)
         break;
         case 'laplacian':
         glslcode.begin();
-        morph(filter._structureElement, 'dilate');
+        morph('dilate');
         glslcode.save('image');
         glslcode.output('dilated');
         glslcode.end();
         glslcode.begin();
-        morph(filter._structureElement, 'erode');
+        morph('erode');
         glslcode.input('image', null, 'img');
         //glslcode.output('eroded');
         glslcode.end();

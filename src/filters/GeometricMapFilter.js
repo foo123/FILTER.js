@@ -405,7 +405,7 @@ function glsl(filter)
         );
     });
     if (filter._map.shader && filter._map.inputs) filter._map.inputs.forEach(function(i) {
-        if (i.name && i.setter) glslcode.input(i.name, i.setter, i.iname);
+        if (i.name) glslcode.input(i.name, i.setter, i.iname);
     });
     return glslcode.end().code();
 }
