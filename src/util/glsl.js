@@ -130,11 +130,16 @@ GLSLProgram[proto] = {
     vertexSource: null,
     fragmentSource: null
 };
-function getProgram(gl, filter, programCache)
+function getProgram(gl, shader, programCache)
 {
-    var shader = trim(filter.shader), program = programCache[shader];
+    shader = trim(shader);
+    var program = programCache ? programCache[shader] : null;
     // new program
-    if (!program) program = programCache[shader] = new GLSLProgram(shader, gl);
+    if (!program)
+    {
+        program = new GLSLProgram(shader, gl);
+        if (programCache) programCache[shader] = program;
+    }
     return program;
 }
 function GLSLFilter(filter)
@@ -154,11 +159,17 @@ function GLSLFilter(filter)
         iterations: 1,
         instance: filter,
         shader: null,
+        program: null,
+        getProgram: function(gl, cache) {
+            this.program = this.shader ? getProgram(gl, this.shader, cache) : null;
+            return this.program;
+        },
         init: function(gl, im, wi, hi, fromshader) {
             if (this._save) io[this._save] = prev_output(this) || {data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
         },
-        inputs: function(gl, program, w, h, wi, hi, input) {
-            var this_ = this, inputs = this_._inputs || {}, main_input = this_._input, unit = 0;
+        inputs: function(gl, w, h, wi, hi, input) {
+            var this_ = this, inputs = this_._inputs || {},
+                main_input = this_._input, program = this_.program, unit = 0;
             Object.keys(inputs).forEach(function(i) {
                 if (('*' === i) && inputs['*'].setter)
                 {
@@ -444,7 +455,7 @@ function prepareGL(img, ws, hs)
     }
     return FILTER.getGL(img, ws, hs);
 }
-function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/)
+function runOne(gl, glsl, pos, uv, input, output, buf /*, flipY*/)
 {
     var iterations = glsl.iterations || 1,
         w = output.w, h = output.h, wi = input.w, hi = input.h;
@@ -453,34 +464,34 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
         flip = false, last = iterations - 1;
 
     if (gl.isContextLost && gl.isContextLost()) return true;
-    gl.useProgram(program.id);
-    if (HAS.call(program.attribute, 'pos'))
+    gl.useProgram(glsl.program.id);
+    if (HAS.call(glsl.program.attribute, 'pos'))
     {
-        gl.enableVertexAttribArray(program.attribute.pos.loc);
+        gl.enableVertexAttribArray(glsl.program.attribute.pos.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, pos);
-        gl.vertexAttribPointer(program.attribute.pos.loc, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(glsl.program.attribute.pos.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if (HAS.call(program.attribute, 'uv'))
+    if (HAS.call(glsl.program.attribute, 'uv'))
     {
-        gl.enableVertexAttribArray(program.attribute.uv.loc);
+        gl.enableVertexAttribArray(glsl.program.attribute.uv.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, uv);
-        gl.vertexAttribPointer(program.attribute.uv.loc, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(glsl.program.attribute.uv.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if (HAS.call(program.uniform, 'resolution'))
+    if (HAS.call(glsl.program.uniform, 'resolution') && ('vec2' === glsl.program.uniform.resolution.type))
     {
-        gl.uniform2f(program.uniform.resolution.loc, w, h);
+        gl.uniform2f(glsl.program.uniform.resolution.loc, w, h);
     }
-    if (HAS.call(program.uniform, 'dp'))
+    if (HAS.call(glsl.program.uniform, 'dp') && ('vec2' === glsl.program.uniform.dp.type))
     {
-        gl.uniform2f(program.uniform.dp.loc, 1/w, 1/h);
+        gl.uniform2f(glsl.program.uniform.dp.loc, 1/w, 1/h);
     }
-    if (glsl.instance && HAS.call(program.uniform, 'mode'))
+    if (glsl.instance && HAS.call(glsl.program.uniform, 'mode') && ('int' === glsl.program.uniform.mode.type))
     {
-        gl.uniform1i(program.uniform.mode.loc, glsl.instance.mode);
+        gl.uniform1i(glsl.program.uniform.mode.loc, glsl.instance.mode);
     }
     if (glsl.inputs)
     {
-        glsl.inputs(gl, program, w, h, wi, hi, input);
+        glsl.inputs(gl, w, h, wi, hi, input);
     }
 
     if (last > 0)
@@ -510,13 +521,13 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
             //buf[1] = buf[1] || createFramebufferTexture(gl, w, h);
             dst = buf[1];
         }
-        if (HAS.call(program.uniform, glsl._input))
+        if (HAS.call(glsl.program.uniform, glsl._input))
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, src.tex);
-            gl.uniform1i(program.uniform[glsl._input].loc, 0);
+            gl.uniform1i(glsl.program.uniform[glsl._input].loc, 0);
         }
-        gl.uniform1f(program.uniform.flipY.loc, flip ? -1 : 1);
+        gl.uniform1f(glsl.program.uniform.flipY.loc, flip ? -1 : 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
         gl.viewport(0, 0, w, h);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -530,7 +541,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
     var gl = prepareGL(img, w, h),
         input = null, output = null,
         i, n = glsls.length, glsl,
-        pos, uv, src, dst, prev = [null, null],
+        pos, uv, src, dst,
         buf0, buf1, buf = [null, null],
         program, cache, im0, t,
         canRun, isContextLost,
@@ -545,8 +556,6 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         deleteBuffer(gl, uv);
         deleteTexture(gl, input);
         deleteFramebufferTexture(gl, output);
-        //deleteTexture(gl, prev[1]);
-        //deleteTexture(gl, prev[0]);
         deleteFramebufferTexture(gl, buf[0]);
         deleteFramebufferTexture(gl, buf[1]);
         deleteFramebufferTexture(gl, buf0);
@@ -555,7 +564,6 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         uv = null;
         input = null;
         output = null;
-        prev = null;
         buf = null;
         buf0 = null;
         buf1 = null;
@@ -640,11 +648,8 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
     {
         canRun = false;
         glsl = glsls[i];
-        if (glsl.shader)
-        {
-            program = getProgram(gl, glsl, cache);
-            if (program && program.id) canRun = true;
-        }
+        program = glsl.getProgram ? glsl.getProgram(gl, cache) : null;
+        if (program && program.id) canRun = true;
         if (canRun)
         {
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
@@ -688,7 +693,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             }
             if (glsl.init) glsl.init(gl, im, wi, hi, fromshader);
             if (!fromshader && (i > first) && src.fbo) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
-            isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
+            isContextLost = runOne(gl, glsl, pos, uv, src, dst, buf /*, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;

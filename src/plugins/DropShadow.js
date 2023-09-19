@@ -202,7 +202,8 @@ function glsl(filter)
     var matrix_code = function(m, dx, dy, f, b) {
         var def = [], calc = [],
             k, i, j, matArea = m.length,
-            rx = dx>>>1, ry = dy>>>1;
+            rx = dx>>>1, ry = dy>>>1,
+            toFloat = GLSL.formatFloat;
         def.push('vec4 col=texture2D(img,  pix);');
         i=-rx; j=-ry; k=0;
         while (k<matArea)
@@ -223,7 +224,7 @@ function glsl(filter)
         }
         return [def.join('\n'), 'vec4(('+toFloat(f||1)+'*('+calc.join('')+')+vec3('+toFloat(b||0)+')),col.a)'];
     };
-    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0), toFloat = GLSL.formatFloat;
+    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0);
     var glslcode = (new GLSL.Filter(filter))
     .begin()
     .shader([
@@ -268,6 +269,7 @@ function glsl(filter)
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
+    'uniform vec2 dp;',
     'void main(void) {',
     code[0],
     'gl_FragColor = '+code[1]+';',
