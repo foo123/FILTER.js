@@ -98,9 +98,9 @@ function GLSLProgram(fragmentSource, gl)
     gl.linkProgram(self.id);
     if (!gl.getProgramParameter(self.id, gl.LINK_STATUS) && !gl.isContextLost())
     {
+        FILTER.error(gl.getProgramInfoLog(self.id));
         FILTER.error(gl.getShaderInfoLog(vsh));
         FILTER.error(gl.getShaderInfoLog(fsh));
-        FILTER.error(gl.getProgramInfoLog(self.id));
         FILTER.log(fragmentSource);
         gl.deleteShader(vsh);
         gl.deleteShader(fsh);
@@ -141,7 +141,7 @@ function GLSLFilter(filter)
 {
     var self = this, glsls = [], glsl = null, io = {},
         prev_output = function(glsl) {
-            return glsl._prev && glsl._prev._output ? io[glsl._prev._output] : null;
+            return glsl._prev && glsl._prev._output && HAS.call(io, glsl._prev._output) ? io[glsl._prev._output] : null;
         };
     self.begin = function() {
         glsl = {
@@ -167,11 +167,11 @@ function GLSLFilter(filter)
                 else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
                     var inp = inputs[i], name = HAS.call(program.uniform, inp.name) ? inp.name : inp.iname,
-                        type = program.uniform[name].type, loc = program.uniform[name].loc, value;
+                        type = program.uniform[name].type, loc = program.uniform[name].loc,
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                         if (main_input === inp.iname)
                         {
                             if (!inp.setter && this_._prev && (inp.name === this_._prev._output))
@@ -195,7 +195,6 @@ function GLSLFilter(filter)
                     else
                     {
                         // other uniform
-                        value = inp.setter(filter, w, h, wi, hi, io);
                         switch (type)
                         {
                             case 'ivec4':
@@ -455,27 +454,27 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
 
     if (gl.isContextLost && gl.isContextLost()) return true;
     gl.useProgram(program.id);
-    if ('pos' in program.attribute)
+    if (HAS.call(program.attribute, 'pos'))
     {
         gl.enableVertexAttribArray(program.attribute.pos.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, pos);
         gl.vertexAttribPointer(program.attribute.pos.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if ('uv' in program.attribute)
+    if (HAS.call(program.attribute, 'uv'))
     {
         gl.enableVertexAttribArray(program.attribute.uv.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, uv);
         gl.vertexAttribPointer(program.attribute.uv.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if ('resolution' in program.uniform)
+    if (HAS.call(program.uniform, 'resolution'))
     {
         gl.uniform2f(program.uniform.resolution.loc, w, h);
     }
-    if ('dp' in program.uniform)
+    if (HAS.call(program.uniform, 'dp'))
     {
         gl.uniform2f(program.uniform.dp.loc, 1/w, 1/h);
     }
-    if (glsl.instance && ('mode' in program.uniform))
+    if (glsl.instance && HAS.call(program.uniform, 'mode'))
     {
         gl.uniform1i(program.uniform.mode.loc, glsl.instance.mode);
     }
@@ -537,7 +536,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         canRun, isContextLost,
         cleanUp, lost, resize, refreshBuffers,
         first = -1, last = -1,
-        nw, nh, wi, hi, d,
+        nw, nh, wi, hi, d, iter,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -649,6 +648,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         if (canRun)
         {
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
+            iter = glsl.iterations || 0;
+            if ('function' === typeof iter) iter = iter(w, h, wi, hi) || 0;
+            if (1 > iter) continue;
             if (null != glsl.dimensions)
             {
                 d = 'function' === typeof glsl.dimensions ? glsl.dimensions(w, h) : glsl.dimensions;
@@ -661,7 +663,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 wi = w;
                 hi = h;
             }
-            if (i === first)
+            if ((i === first) || !input)
             {
                 if (!input) input = uploadTexture(gl, im, wi, hi, 0);
                 src = {fbo:null, tex:input, w:wi, h:hi};
@@ -685,7 +687,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (glsl.init) glsl.init(gl, im, wi, hi, fromshader);
-            if (!fromshader && i > first) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
+            if (!fromshader && (i > first) && src.fbo) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
             isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
@@ -694,7 +696,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         }
         else if (glsl.instance && (glsl._apply || glsl.instance._apply_wasm || glsl.instance._apply))
         {
-            // no glsl program, run js code instead
+            // no glsl program, run js/wasm code instead
             im0 = fromshader ? getPixels(gl, w, h) : im;
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else if (glsl.instance._apply_wasm) im = glsl.instance._apply_wasm(im0, w, h, metaData);

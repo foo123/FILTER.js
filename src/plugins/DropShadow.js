@@ -13,7 +13,10 @@ var MODE = FILTER.MODE,
     1/9,1/9,1/9,
     1/9,1/9,1/9
     ]),
-    stdMath = Math;
+    stdMath = Math, IMG = FILTER.ImArray,
+    FilterUtil = FILTER.Util.Filter,
+    ImageUtil = FILTER.Util.Image,
+    GLSL = FILTER.Util.GLSL;
 
 // adapted from http://www.jhlabs.com/ip/filters/
 // analogous to ActionScript filter
@@ -107,7 +110,7 @@ FILTER.Create({
         if (0 >= quality) quality = 1;
         if (3 < quality) quality = 3;
 
-        shadow = new FILTER.ImArray(shSize);
+        shadow = new IMG(shSize);
 
         // generate shadow from image alpha channel
         var maxx = 0, maxy = 0;
@@ -134,7 +137,7 @@ FILTER.Create({
         }
 
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = FILTER.Util.Filter.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = FilterUtil.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
 
         // pad image to fit whole offseted shadow
         maxx += offX; maxy += offY;
@@ -142,11 +145,16 @@ FILTER.Create({
         {
             var pad_left = maxx < 0 ? -maxx : 0, pad_right = maxx >= w ? maxx-w : 0,
                 pad_top = maxy < 0 ? -maxy : 0, pad_bot = maxy >= h ? maxy-h : 0;
-            im = FILTER.Util.Image.pad(im, w, h, pad_right, pad_bot, pad_left, pad_top);
+            if (onlyShadow) im = new IMG(((w + pad_left + pad_right)*(h + pad_top + pad_bot)) << 2);
+            else im = ImageUtil.pad(im, w, h, pad_right, pad_bot, pad_left, pad_top);
             w += pad_left + pad_right; h += pad_top + pad_bot;
             imArea = w * h; imSize = imArea << 2;
             self.hasMeta = true;
             self.meta = {_IMG_WIDTH: w, _IMG_HEIGHT: h};
+        }
+        else if (pad && onlyShadow)
+        {
+            im = new IMG(imSize);
         }
         // offset and combine with original image
         offY *= w;
@@ -157,7 +165,7 @@ FILTER.Create({
             {
                 if (x >= sw) {x=0; y+=w;}
                 sx = x+offX; sy = y+offY;
-                if (0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/ ) continue;
+                if (0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/) continue;
                 i = (sx + sy) << 2;
                 im[i  ] = shadow[si  ]; im[i+1] = shadow[si+1]; im[i+2] = shadow[si+2]; im[i+3] = shadow[si+3];
             }
@@ -215,8 +223,31 @@ function glsl(filter)
         }
         return [def.join('\n'), 'vec4(('+toFloat(f||1)+'*('+calc.join('')+')+vec3('+toFloat(b||0)+')),col.a)'];
     };
-    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0);
+    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0), toFloat = GLSL.formatFloat;
     var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 wh;',
+    'uniform vec2 nwh;',
+    'uniform float pad_right;',
+    'uniform float pad_bot;',
+    'uniform float pad_left;',
+    'uniform float pad_top;',
+    ImageUtil.glsl()['pad'],
+    'void main(void) {',
+    '    gl_FragColor = pad(pix, img, wh, nwh, pad_right, pad_bot, pad_left, pad_top);',
+    '}'
+    ].join('\n'), function() {return filter.pad ? 1 : 0;})
+    .dimensions(function(w, h) {return [w+stdMath.abs(filter.offsetX||0), h+stdMath.abs(filter.offsetY||0)];})
+    .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
+    .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
+    .input('pad_right', function(filter) {return (filter.offsetX||0) > 0 ? (filter.offsetX||0) : 0;})
+    .input('pad_bot', function(filter) {return (filter.offsetY||0) > 0 ? (filter.offsetY||0) : 0;})
+    .input('pad_left', function(filter) {return (filter.offsetX||0) < 0 ? -(filter.offsetX||0) : 0;})
+    .input('pad_top', function(filter) {return (filter.offsetY||0) < 0 ? -(filter.offsetY||0) : 0;})
+    .end()
     .begin()
     .shader([
     'varying vec2 pix;',
@@ -243,7 +274,6 @@ function glsl(filter)
     '}'
     ].join('\n'), function() {return stdMath.min(stdMath.max(filter.quality, 1), 3);})
     .end()
-    /*padding if shadow exceeds boundaries is not implemented*/
     .begin()
     .shader([
     'varying vec2 pix;',

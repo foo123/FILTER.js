@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 15:50:27
+*   @built on 2023-09-19 09:29:11
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.0
-*   @built on 2023-09-18 15:50:27
+*   @built on 2023-09-19 09:29:11
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3613,9 +3613,9 @@ function GLSLProgram(fragmentSource, gl)
     gl.linkProgram(self.id);
     if (!gl.getProgramParameter(self.id, gl.LINK_STATUS) && !gl.isContextLost())
     {
+        FILTER.error(gl.getProgramInfoLog(self.id));
         FILTER.error(gl.getShaderInfoLog(vsh));
         FILTER.error(gl.getShaderInfoLog(fsh));
-        FILTER.error(gl.getProgramInfoLog(self.id));
         FILTER.log(fragmentSource);
         gl.deleteShader(vsh);
         gl.deleteShader(fsh);
@@ -3656,7 +3656,7 @@ function GLSLFilter(filter)
 {
     var self = this, glsls = [], glsl = null, io = {},
         prev_output = function(glsl) {
-            return glsl._prev && glsl._prev._output ? io[glsl._prev._output] : null;
+            return glsl._prev && glsl._prev._output && HAS.call(io, glsl._prev._output) ? io[glsl._prev._output] : null;
         };
     self.begin = function() {
         glsl = {
@@ -3682,11 +3682,11 @@ function GLSLFilter(filter)
                 else if (HAS.call(program.uniform, i) || HAS.call(program.uniform, inputs[i].iname))
                 {
                     var inp = inputs[i], name = HAS.call(program.uniform, inp.name) ? inp.name : inp.iname,
-                        type = program.uniform[name].type, loc = program.uniform[name].loc, value;
+                        type = program.uniform[name].type, loc = program.uniform[name].loc,
+                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                     if ('sampler2D' === type)
                     {
                         // texture
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
                         if (main_input === inp.iname)
                         {
                             if (!inp.setter && this_._prev && (inp.name === this_._prev._output))
@@ -3710,7 +3710,6 @@ function GLSLFilter(filter)
                     else
                     {
                         // other uniform
-                        value = inp.setter(filter, w, h, wi, hi, io);
                         switch (type)
                         {
                             case 'ivec4':
@@ -3970,27 +3969,27 @@ function runOne(gl, program, glsl, pos, uv, input, output, buf /*, prev, flipY*/
 
     if (gl.isContextLost && gl.isContextLost()) return true;
     gl.useProgram(program.id);
-    if ('pos' in program.attribute)
+    if (HAS.call(program.attribute, 'pos'))
     {
         gl.enableVertexAttribArray(program.attribute.pos.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, pos);
         gl.vertexAttribPointer(program.attribute.pos.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if ('uv' in program.attribute)
+    if (HAS.call(program.attribute, 'uv'))
     {
         gl.enableVertexAttribArray(program.attribute.uv.loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, uv);
         gl.vertexAttribPointer(program.attribute.uv.loc, 2, gl.FLOAT, false, 0, 0);
     }
-    if ('resolution' in program.uniform)
+    if (HAS.call(program.uniform, 'resolution'))
     {
         gl.uniform2f(program.uniform.resolution.loc, w, h);
     }
-    if ('dp' in program.uniform)
+    if (HAS.call(program.uniform, 'dp'))
     {
         gl.uniform2f(program.uniform.dp.loc, 1/w, 1/h);
     }
-    if (glsl.instance && ('mode' in program.uniform))
+    if (glsl.instance && HAS.call(program.uniform, 'mode'))
     {
         gl.uniform1i(program.uniform.mode.loc, glsl.instance.mode);
     }
@@ -4052,7 +4051,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         canRun, isContextLost,
         cleanUp, lost, resize, refreshBuffers,
         first = -1, last = -1,
-        nw, nh, wi, hi, d,
+        nw, nh, wi, hi, d, iter,
         fromshader = false, flipY = false;
     if (!gl) return;
     cleanUp = function() {
@@ -4164,6 +4163,9 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         if (canRun)
         {
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
+            iter = glsl.iterations || 0;
+            if ('function' === typeof iter) iter = iter(w, h, wi, hi) || 0;
+            if (1 > iter) continue;
             if (null != glsl.dimensions)
             {
                 d = 'function' === typeof glsl.dimensions ? glsl.dimensions(w, h) : glsl.dimensions;
@@ -4176,7 +4178,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 wi = w;
                 hi = h;
             }
-            if (i === first)
+            if ((i === first) || !input)
             {
                 if (!input) input = uploadTexture(gl, im, wi, hi, 0);
                 src = {fbo:null, tex:input, w:wi, h:hi};
@@ -4200,7 +4202,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
                 dst = buf1;
             }
             if (glsl.init) glsl.init(gl, im, wi, hi, fromshader);
-            if (!fromshader && i > first) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
+            if (!fromshader && (i > first) && src.fbo) uploadTexture(gl, im, src.w, src.h, 0, 0, src.tex);
             isContextLost = runOne(gl, program, glsl, pos, uv, src, dst, buf /*, prev, false*/);
             if (isContextLost || (gl.isContextLost && gl.isContextLost())) return lost();
             // swap buffers
@@ -4209,7 +4211,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         }
         else if (glsl.instance && (glsl._apply || glsl.instance._apply_wasm || glsl.instance._apply))
         {
-            // no glsl program, run js code instead
+            // no glsl program, run js/wasm code instead
             im0 = fromshader ? getPixels(gl, w, h) : im;
             if (glsl._apply) im = glsl._apply(im0, w, h, metaData);
             else if (glsl.instance._apply_wasm) im = glsl.instance._apply_wasm(im0, w, h, metaData);
@@ -15380,7 +15382,10 @@ var MODE = FILTER.MODE,
     1/9,1/9,1/9,
     1/9,1/9,1/9
     ]),
-    stdMath = Math;
+    stdMath = Math, IMG = FILTER.ImArray,
+    FilterUtil = FILTER.Util.Filter,
+    ImageUtil = FILTER.Util.Image,
+    GLSL = FILTER.Util.GLSL;
 
 // adapted from http://www.jhlabs.com/ip/filters/
 // analogous to ActionScript filter
@@ -15474,7 +15479,7 @@ FILTER.Create({
         if (0 >= quality) quality = 1;
         if (3 < quality) quality = 3;
 
-        shadow = new FILTER.ImArray(shSize);
+        shadow = new IMG(shSize);
 
         // generate shadow from image alpha channel
         var maxx = 0, maxy = 0;
@@ -15501,7 +15506,7 @@ FILTER.Create({
         }
 
         // blur shadow, quality is applied multiple times for smoother effect
-        shadow = FILTER.Util.Filter.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
+        shadow = FilterUtil.integral_convolution(r===g && g===b ? MODE.GRAY : MODE.RGB, shadow, w, h, 2, boxKernel_3x3, null, 3, 3, 1.0, 0.0, quality);
 
         // pad image to fit whole offseted shadow
         maxx += offX; maxy += offY;
@@ -15509,11 +15514,16 @@ FILTER.Create({
         {
             var pad_left = maxx < 0 ? -maxx : 0, pad_right = maxx >= w ? maxx-w : 0,
                 pad_top = maxy < 0 ? -maxy : 0, pad_bot = maxy >= h ? maxy-h : 0;
-            im = FILTER.Util.Image.pad(im, w, h, pad_right, pad_bot, pad_left, pad_top);
+            if (onlyShadow) im = new IMG(((w + pad_left + pad_right)*(h + pad_top + pad_bot)) << 2);
+            else im = ImageUtil.pad(im, w, h, pad_right, pad_bot, pad_left, pad_top);
             w += pad_left + pad_right; h += pad_top + pad_bot;
             imArea = w * h; imSize = imArea << 2;
             self.hasMeta = true;
             self.meta = {_IMG_WIDTH: w, _IMG_HEIGHT: h};
+        }
+        else if (pad && onlyShadow)
+        {
+            im = new IMG(imSize);
         }
         // offset and combine with original image
         offY *= w;
@@ -15524,7 +15534,7 @@ FILTER.Create({
             {
                 if (x >= sw) {x=0; y+=w;}
                 sx = x+offX; sy = y+offY;
-                if (0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/ ) continue;
+                if (0 > sx || sx >= w || 0 > sy || sy >= imArea /*|| 0 === shadow[si+3]*/) continue;
                 i = (sx + sy) << 2;
                 im[i  ] = shadow[si  ]; im[i+1] = shadow[si+1]; im[i+2] = shadow[si+2]; im[i+3] = shadow[si+3];
             }
@@ -15582,8 +15592,31 @@ function glsl(filter)
         }
         return [def.join('\n'), 'vec4(('+toFloat(f||1)+'*('+calc.join('')+')+vec3('+toFloat(b||0)+')),col.a)'];
     };
-    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0);
+    var code = matrix_code(boxKernel_3x3, 3, 3, 1, 0), toFloat = GLSL.formatFloat;
     var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform vec2 wh;',
+    'uniform vec2 nwh;',
+    'uniform float pad_right;',
+    'uniform float pad_bot;',
+    'uniform float pad_left;',
+    'uniform float pad_top;',
+    ImageUtil.glsl()['pad'],
+    'void main(void) {',
+    '    gl_FragColor = pad(pix, img, wh, nwh, pad_right, pad_bot, pad_left, pad_top);',
+    '}'
+    ].join('\n'), function() {return filter.pad ? 1 : 0;})
+    .dimensions(function(w, h) {return [w+stdMath.abs(filter.offsetX||0), h+stdMath.abs(filter.offsetY||0)];})
+    .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
+    .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
+    .input('pad_right', function(filter) {return (filter.offsetX||0) > 0 ? (filter.offsetX||0) : 0;})
+    .input('pad_bot', function(filter) {return (filter.offsetY||0) > 0 ? (filter.offsetY||0) : 0;})
+    .input('pad_left', function(filter) {return (filter.offsetX||0) < 0 ? -(filter.offsetX||0) : 0;})
+    .input('pad_top', function(filter) {return (filter.offsetY||0) < 0 ? -(filter.offsetY||0) : 0;})
+    .end()
     .begin()
     .shader([
     'varying vec2 pix;',
@@ -15610,7 +15643,6 @@ function glsl(filter)
     '}'
     ].join('\n'), function() {return stdMath.min(stdMath.max(filter.quality, 1), 3);})
     .end()
-    /*padding if shadow exceeds boundaries is not implemented*/
     .begin()
     .shader([
     'varying vec2 pix;',
@@ -15843,7 +15875,7 @@ function glsl(filter)
     .end()
     .begin()
     .shader([
-    '#define M 0.003921569/*1/255*/',
+    '#define Z 0.003921569/*1/255*/',
     'varying vec2 pix;',
     'uniform float N;',
     'uniform int masktype;',
@@ -15854,15 +15886,15 @@ function glsl(filter)
     '   if (ij.y >= 0.5) ij.y -= 0.5;',
     '   if (0 == masktype) //RADIAL',
     '   {',
-    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, M, 1.0);',
+    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, Z, 1.0);',
     '   }',
     '   else if (1 == masktype) //LINEAR 1',
     '   {',
-    '       d = clamp(1.0 - (ij.y < ij.x ? (0.5 - ij.y) : (0.5 - ij.x)) * 2.0, M, 1.0);',
+    '       d = clamp(1.0 - (ij.y < ij.x ? (0.5 - ij.y) : (0.5 - ij.x)) * 2.0, Z, 1.0);',
     '   }',
     '   else //if (2 == masktype) //LINEAR 2',
     '   {',
-    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), M, 1.0);',
+    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), Z, 1.0);',
     '   }',
     '   return vec4(d);',
     '}',

@@ -200,7 +200,7 @@ function glsl(filter)
     .end()
     .begin()
     .shader([
-    '#define M 0.003921569/*1/255*/',
+    '#define Z 0.003921569/*1/255*/',
     'varying vec2 pix;',
     'uniform float N;',
     'uniform int masktype;',
@@ -211,15 +211,15 @@ function glsl(filter)
     '   if (ij.y >= 0.5) ij.y -= 0.5;',
     '   if (0 == masktype) //RADIAL',
     '   {',
-    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, M, 1.0);',
+    '       d = clamp(1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N, Z, 1.0);',
     '   }',
     '   else if (1 == masktype) //LINEAR 1',
     '   {',
-    '       d = clamp(1.0 - (ij.y < ij.x ? (0.5 - ij.y) : (0.5 - ij.x)) * 2.0, M, 1.0);',
+    '       d = clamp(1.0 - (ij.y < ij.x ? (0.5 - ij.y) : (0.5 - ij.x)) * 2.0, Z, 1.0);',
     '   }',
     '   else //if (2 == masktype) //LINEAR 2',
     '   {',
-    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), M, 1.0);',
+    '       d = clamp(1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N), Z, 1.0);',
     '   }',
     '   return vec4(d);',
     '}',
