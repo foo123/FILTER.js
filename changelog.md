@@ -2,11 +2,11 @@
 
 __1.9.0__
 
-* SeamlessTileFilter glsl version
-* DropShadowFilter glsl version
+* SeamlessTileFilter glsl version (almost done)
+* DropShadowFilter glsl version (almost done)
 * MorphologicalFilter corrections for glsl
 * better handling of dimensions changing in glsl filter
-* small intuitive glsl framework in progress
+* small intuitive glsl framework
 * interpolate_nearest method (js/wasm/glsl)
 
 __1.8.0__
