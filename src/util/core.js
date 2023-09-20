@@ -739,7 +739,7 @@ return {
 '    float g = gradient_suppressed(img, pix, dp, magnitude_scale, magnitude_limit, magnitude_max);',
 '    if (g >= high) return vec4(vec3(1.0), a);',
 '    else if (g < low) return vec4(vec3(0.0), a);',
-'    return vec4(vec3(/*clamp((g-low)/(high-low)-0.1, 0.0, 0.9)/0.9*/0.1), a);',
+'    return vec4(vec3(/*clamp((g-low)/(high-low)-0.1, 0.0, 0.9)/0.9*/0.01), a);',
 '}'
 ].join('\n'),
 'hysteresis': [

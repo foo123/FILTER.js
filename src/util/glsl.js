@@ -144,7 +144,7 @@ function getProgram(gl, shader, programCache)
 }
 function GLSLFilter(filter)
 {
-    var self = this, glsls = [], glsl = null, io = {},
+    var self = this, glsls = [], glsl = null, shaders = {}, io = {},
         prev_output = function(glsl) {
             return glsl._prev && glsl._prev._output && HAS.call(io, glsl._prev._output) ? io[glsl._prev._output] : null;
         };
@@ -277,9 +277,11 @@ function GLSLFilter(filter)
         };
         return self;
     };
-    self.shader = function(shader, iterations) {
+    self.shader = function(shader, iterations, name) {
         if (glsl)
         {
+            if (shader && HAS.call(shaders, shader)) shader = shaders[shader];
+            if (name && shader) shaders[name] = shader;
             glsl.shader = shader || null;
             glsl.iterations = iterations || 1;
         }

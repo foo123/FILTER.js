@@ -50,7 +50,7 @@ FILTER.Create({
             //needed arrays
             tile, diagonal, mask,
             a1, a2, a3, i, j,
-            index, N, N2, imSize;
+            index, indexd, N, N2, imSize;
 
         //find largest side of the image
         //and resize the image to become square
@@ -59,7 +59,7 @@ FILTER.Create({
         N2 = stdMath.round(N/2);
         imSize = im.length;
         tile = new FILTER.ImArray(imSize);
-        diagonal = getdiagonal(im, N, N2);
+        //diagonal = getdiagonal(im, N, N2);
         mask = getmask(self.type, N, N2);
 
         //Create the tile
@@ -67,11 +67,13 @@ FILTER.Create({
         {
             if (i >= N) {i=0; ++j;}
             index = i+j*N;
-            a1 = mask[index]; a2 = mask[(i+N2) % N + ((j+N2) % N)*N];
-            a3 = a1+a2; a1 /= a3; a2 /= a3; index <<= 2;
-            tile[index  ] = ~~(a1*im[index  ] + a2*diagonal[index  ]);
-            tile[index+1] = ~~(a1*im[index+1] + a2*diagonal[index+1]);
-            tile[index+2] = ~~(a1*im[index+2] + a2*diagonal[index+2]);
+            indexd = ((i+N2) % N) + ((j+N2) % N)*N;
+            a1 = mask[index]; a2 = mask[indexd];
+            a3 = a1+a2; a1 /= a3; a2 /= a3;
+            index <<= 2; indexd <<= 2;
+            tile[index  ] = ~~(a1*im[index  ] + a2*im[indexd  ]/*diagonal[index  ]*/);
+            tile[index+1] = ~~(a1*im[index+1] + a2*im[indexd+1]/*diagonal[index+1]*/);
+            tile[index+2] = ~~(a1*im[index+2] + a2*im[indexd+2]/*diagonal[index+2]*/);
             tile[index+3] = im[index+3];
         }
 
@@ -84,7 +86,7 @@ FILTER.Create({
     }
 });
 
-function getdiagonal(im, N, N2)
+/*function getdiagonal(im, N, N2)
 {
     var imSize = im.length,
         diagonal = new FILTER.ImArray(imSize),
@@ -100,7 +102,7 @@ function getdiagonal(im, N, N2)
         diagonal[index+3] = im[k+3];
     }
     return diagonal;
-}
+}*/
 function getmask(masktype, N, N2)
 {
     var size = N*N, mask = new FILTER.Array8U(size),
@@ -175,13 +177,13 @@ function glsl(filter)
     'void main(void) {',
     '   gl_FragColor = interpolate(pix, img, wh, nwh);',
     '}'
-    ].join('\n'))
+    ].join('\n'), 1, 'resize')
     .dimensions(function(w, h, io) {io.w = w; io.h = h; w = stdMath.max(w, h); return [w, w];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .output('image')
     .end()
-    .begin()
+    /*.begin()
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
@@ -196,7 +198,7 @@ function glsl(filter)
     '}'
     ].join('\n'))
     .output('diagonal')
-    .end()
+    .end()*/
     .begin()
     .shader([
     'varying vec2 pix;',
@@ -233,33 +235,27 @@ function glsl(filter)
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D mask;',
-    'uniform sampler2D diagonal;',
     'uniform sampler2D image;',
+    '/*uniform sampler2D diagonal;*/',
     'void main(void) {',
     '   vec4 im = texture2D(image, pix);',
-    '   vec2 pix2 = pix + vec2(0.5);',
-    '   if (pix2.x > 1.0) pix2.x -= 1.0;',
-    '   if (pix2.y > 1.0) pix2.y -= 1.0;',
+    '   vec2 pixd = pix - vec2(0.5);',
+    '   if (pixd.x < 0.0) pixd.x += 1.0;',
+    '   if (pixd.y < 0.0) pixd.y += 1.0;',
+    '   vec2 pixm = pix + vec2(0.5);',
+    '   if (pixm.x > 1.0) pixm.x -= 1.0;',
+    '   if (pixm.y > 1.0) pixm.y -= 1.0;',
     '   float a1 = texture2D(mask, pix).a;',
-    '   float a2 = texture2D(mask, pix2).a;',
-    '   gl_FragColor = vec4(mix(im.rgb, texture2D(diagonal, pix).rgb, a2/(a1+a2)), im.a);',
+    '   float a2 = texture2D(mask, pixm).a;',
+    '   gl_FragColor = vec4(mix(im.rgb, /*texture2D(diagonal, pix)*/texture2D(image, pixd).rgb, a2/(a1+a2)), im.a);',
     '}'
     ].join('\n'))
     .input('mask', true)
-    .input('diagonal')
     .input('image')
+    //.input('diagonal')
     .end()
     .begin()
-    .shader([
-    'varying vec2 pix;',
-    'uniform sampler2D img;',
-    'uniform vec2 wh;',
-    'uniform vec2 nwh;',
-    ImageUtil.glsl()['interpolate'],
-    'void main(void) {',
-    '    gl_FragColor = interpolate(pix, img, wh, nwh);',
-    '}'
-    ].join('\n'))
+    .shader('resize')
     .dimensions(function(w, h, io) {return [io.w, io.h];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
