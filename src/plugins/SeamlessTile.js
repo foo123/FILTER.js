@@ -61,7 +61,6 @@ FILTER.Create({
         tile = new FILTER.ImArray(imSize);
         diagonal = getdiagonal(im, N, N2);
         mask = getmask(self.type, N, N2);
-        console.log(mask);
 
         //Create the tile
         for (j=0,i=0; j<N; ++i)
@@ -206,8 +205,8 @@ function glsl(filter)
     'vec4 mask(vec2 pix, float N, int masktype) {',
     '   vec2 ij = vec2(pix.x, pix.y);',
     '   float d = 0.0;',
-    '   if (ij.x >= 0.5) ij.x -= 0.5;',
-    '   if (ij.y >= 0.5) ij.y -= 0.5;',
+    '   if (ij.x > 0.5) ij.x = 1.0 - ij.x;',
+    '   if (ij.y > 0.5) ij.y = 1.0 - ij.y;',
     '   if (0 == masktype) //RADIAL',
     '   {',
     '       d = 1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N;',
