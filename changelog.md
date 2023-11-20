@@ -1,5 +1,9 @@
 ## ChangeLog
 
+__1.9.1__
+
+* faster SeamlessTileFilter
+
 __1.9.0__
 
 * SeamlessTileFilter glsl version

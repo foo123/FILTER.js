@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.9.0
-*   @built on 2023-09-20 15:35:50
+*   @version: 1.9.1
+*   @built on 2023-11-20 09:19:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.9.0
-*   @built on 2023-09-20 15:35:50
+*   @version: 1.9.1
+*   @built on 2023-11-20 09:19:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.9.0"};
+var FILTER = {VERSION: "1.9.1"};
 /**
 *
 *   Asynchronous.js
@@ -15777,25 +15777,27 @@ FILTER.Create({
             resize = (self._runWASM ? (ImageUtil.wasm||ImageUtil) : ImageUtil).interpolate,
             //needed arrays
             tile, diagonal, mask,
-            a1, a2, a3, i, j,
+            a1, a2, a3, i, j, w2, h2,
             index, indexd, N, N2, imSize;
 
         //find largest side of the image
         //and resize the image to become square
-        if (w !== h) im = resize(im, w, h, N = w > h ? w : h, N);
-        else  N = w;
-        N2 = stdMath.round(N/2);
+        //if (w !== h) im = resize(im, w, h, N = w > h ? w : h, N);
+        //else  N = w;
+        //N2 = stdMath.round(N/2);
+        w2 = stdMath.round(w/2);
+        h2 = stdMath.round(h/2);
         imSize = im.length;
         tile = new FILTER.ImArray(imSize);
         //diagonal = getdiagonal(im, N, N2);
-        mask = getmask(self.type, N, N2);
+        mask = getmask(self.type, w, h, w2, h2);
 
         //Create the tile
-        for (j=0,i=0; j<N; ++i)
+        for (j=0,i=0; j<h; ++i)
         {
-            if (i >= N) {i=0; ++j;}
-            index = i+j*N;
-            indexd = ((i+N2) % N) + ((j+N2) % N)*N;
+            if (i >= w) {i=0; ++j;}
+            index = i+j*w;
+            indexd = ((i+w2) % w) + ((j+h2) % h)*w;
             a1 = mask[index]; a2 = mask[indexd];
             a3 = a1+a2; a1 /= a3; a2 /= a3;
             index <<= 2; indexd <<= 2;
@@ -15807,7 +15809,7 @@ FILTER.Create({
 
         //create the new tileable image
         //if it wasn't a square image, resize it back to the original scale
-        if (w !== h) tile = resize(tile, N, N, w, h);
+        //if (w !== h) tile = resize(tile, N, N, w, h);
 
         // return the new image data
         return tile;
@@ -15831,63 +15833,65 @@ FILTER.Create({
     }
     return diagonal;
 }*/
-function getmask(masktype, N, N2)
+function getmask(masktype, w, h, w2, h2)
 {
-    var size = N*N, mask = new FILTER.Array8U(size),
-        length = FILTER.Util.Math.hypot, i, j, d;
+    var size = w*h, mask = new FILTER.Array8U(size),
+        length = FILTER.Util.Math.hypot, i, j, d, NN;
     //try to make your own masktypes here
     if (0 === masktype) //RADIAL
     {
         //Create the mask
-        for (i=0,j=0; i<N2; ++j)
+        NN = stdMath.sqrt(w2*h2);
+        for (i=0,j=0; i<w2; ++j)
         {
-            if (j >= N2) {j=0; ++i;}
+            if (j >= h2) {j=0; ++i;}
 
             //Scale d To range from 1 To 255
-            d = 255 - (255 / N2 * length(N2 - i, N2 - j));
+            d = 255 - (255 / NN * length((w2 - i), (h2 - j)));
             d = ~~(d < 1 ? 1 : (d > 255 ? 255 : d));
 
             //Form the mask in Each quadrant
-            mask[i     + j*N      ] = d;
-            mask[i     + (N-1-j)*N] = d;
-            mask[N-1-i + j*N      ] = d;
-            mask[N-1-i + (N-1-j)*N] = d;
+            mask[i     + j*w      ] = d;
+            mask[i     + (h-1-j)*w] = d;
+            mask[w-1-i + j*w      ] = d;
+            mask[w-1-i + (h-1-j)*w] = d;
         }
     }
     else if (1 === masktype) //LINEAR 1
     {
         //Create the mask
-        for (i=0,j=0; i<N2; ++j)
+        for (i=0,j=0; i<w2; ++j)
         {
-            if (j >= N2) {j=0; ++i;}
+            if (j >= h2) {j=0; ++i;}
 
             //Scale d To range from 1 To 255
-            d = 255 - (255 / N2 * (j < i ? (N2 - j) : (N2 - i)));
+            d = 255 - (255 * (j < i ? ((h2 - j)/h2) : ((w2 - i)/w2)));
             d = ~~(d < 1 ? 1 : (d > 255 ? 255 : d));
 
             //Form the mask in Each quadrant
-            mask[i     + j*N      ] = d;
-            mask[i     + (N-1-j)*N] = d;
-            mask[N-1-i + j*N      ] = d;
-            mask[N-1-i + (N-1-j)*N] = d;
+            mask[i     + j*w      ] = d;
+            mask[i     + (h-1-j)*w] = d;
+            mask[w-1-i + j*w      ] = d;
+            mask[w-1-i + (h-1-j)*w] = d;
         }
     }
     else //if (2 === masktype) //LINEAR 2
     {
         //Create the mask
-        for (i=0,j=0; i<N2; ++j)
+        NN = stdMath.sqrt(w*h);
+        for (i=0,j=0; i<w2; ++j)
         {
-            if (j >= N2) {j=0; ++i;}
+            if (j >= h2) {j=0; ++i;}
 
             //Scale d To range from 1 To 255
-            d = 255 - (255 / (1.13*N) * (/*j < i ? length(N - j, N - i) :*/ length(N - i, N - j)));
+            d = 255 - (255 / (1.13*NN) * (/*j < i ? length(N - j, N - i) :*/ length((w - i), (h - j))));
             d = ~~(d < 1 ? 1 : (d > 255 ? 255 : d));
 
             //Form the mask in Each quadrant
-            mask[i     + j*N      ] = d;
-            mask[i     + (N-1-j)*N] = d;
-            mask[N-1-i + j*N      ] = d;
-            mask[N-1-i + (N-1-j)*N] = d;
+            mask[i     + j*w      ] = d;
+            mask[i     + (h-1-j)*w] = d;
+            mask[w-1-i + j*w      ] = d;
+            mask[w-1-i + (h-1-j)*w] = d;
         }
     }
     return mask;
@@ -15895,7 +15899,7 @@ function getmask(masktype, N, N2)
 function glsl(filter)
 {
     var glslcode = (new GLSL.Filter(filter))
-    .begin()
+    /*.begin()
     .shader([
     'varying vec2 pix;',
     'uniform sampler2D img;',
@@ -15910,7 +15914,7 @@ function glsl(filter)
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
     .output('image')
-    .end()
+    .end()*/
     /*.begin()
     .shader([
     'varying vec2 pix;',
@@ -15927,19 +15931,21 @@ function glsl(filter)
     ].join('\n'))
     .output('diagonal')
     .end()*/
-    .begin()
+    /*.begin()
     .shader([
     'varying vec2 pix;',
-    'uniform float N;',
+    'uniform vec2 wh;',
+    'uniform float NN;',
     'uniform int masktype;',
-    'vec4 mask(vec2 pix, float N, int masktype) {',
+    'vec4 mask(vec2 pix, float w, float h, NN, int masktype) {',
     '   vec2 ij = vec2(pix.x, pix.y);',
+    '   //float NN = sqrt(wh.x*wh.y);',
     '   float d = 0.0;',
     '   if (ij.x > 0.5) ij.x = 1.0 - ij.x;',
     '   if (ij.y > 0.5) ij.y = 1.0 - ij.y;',
     '   if (0 == masktype) //RADIAL',
     '   {',
-    '       d = 1.0 - length(N*(vec2(0.5) - ij)) * 2.0 / N;',
+    '       d = 1.0 - length(wh*(vec2(0.5) - ij)) * 2.0 / NN;',
     '   }',
     '   else if (1 == masktype) //LINEAR 1',
     '   {',
@@ -15947,47 +15953,70 @@ function glsl(filter)
     '   }',
     '   else //if (2 == masktype) //LINEAR 2',
     '   {',
-    '       d = 1.0 - (/*ij.y < ij.x ? length(N*(vec2(1.0) - ij)) :*/ length(N*(vec2(1.0) - ij))) / (1.13*N);',
+    '       d = 1.0 - (/*ij.y < ij.x ? length(wh*(vec2(1.0) - ij)) :* / length(wh*(vec2(1.0) - ij))) / (1.13*NN);',
     '   }',
-    '   return vec4(clamp(d, 0.003921569/*1/255*/, 1.0));',
+    '   return vec4(clamp(d, 0.003921569/*1/255* /, 1.0));',
     '}',
     'void main(void) {',
     '   gl_FragColor = mask(pix, N, masktype);',
     '}'
     ].join('\n'))
-    .input('N', function(filter, N) {return N;})
+    .input('wh', function(filter, w, h) {return [w, h];})
+    .input('NN', function(filter, w, h) {return stdMath.sqrt(w*h);})
     .input('masktype', function(filter) {return filter.type;})
     //.output('mask')
-    .end()
+    .end()*/
     .begin()
     .shader([
     'varying vec2 pix;',
-    'uniform sampler2D mask;',
-    'uniform sampler2D image;',
+    'uniform vec2 wh;',
+    'uniform float NN;',
+    'uniform int masktype;',
+    'uniform sampler2D img;',
     '/*uniform sampler2D diagonal;*/',
+    'vec4 mask(vec2 pix, vec2 wh, float NN, int masktype) {',
+    '   vec2 ij = vec2(pix.x, pix.y);',
+    '   float d = 0.0;',
+    '   if (ij.x > 0.5) ij.x = 1.0 - ij.x;',
+    '   if (ij.y > 0.5) ij.y = 1.0 - ij.y;',
+    '   if (0 == masktype) //RADIAL',
+    '   {',
+    '       d = 1.0 - length(wh*(vec2(0.5) - ij)) * 2.0 / NN;',
+    '   }',
+    '   else if (1 == masktype) //LINEAR 1',
+    '   {',
+    '       d = 1.0 - (ij.y < ij.x ? (0.5 - ij.y) : (0.5 - ij.x)) * 2.0;',
+    '   }',
+    '   else //if (2 == masktype) //LINEAR 2',
+    '   {',
+    '       d = 1.0 - (/*ij.y < ij.x ? length(wh*(vec2(1.0) - ij)) :*/ length(wh*(vec2(1.0) - ij))) / (1.13*NN);',
+    '   }',
+    '   return vec4(clamp(d, 0.003921569/*1/255*/, 1.0));',
+    '}',
     'void main(void) {',
-    '   vec4 im = texture2D(image, pix);',
+    '   vec4 im = texture2D(img, pix);',
     '   vec2 pixd = pix - vec2(0.5);',
     '   if (pixd.x < 0.0) pixd.x += 1.0;',
     '   if (pixd.y < 0.0) pixd.y += 1.0;',
     '   vec2 pixm = pix + vec2(0.5);',
     '   if (pixm.x > 1.0) pixm.x -= 1.0;',
     '   if (pixm.y > 1.0) pixm.y -= 1.0;',
-    '   float a1 = texture2D(mask, pix).a;',
-    '   float a2 = texture2D(mask, pixm).a;',
-    '   gl_FragColor = vec4(mix(im.rgb, /*texture2D(diagonal, pix)*/texture2D(image, pixd).rgb, a2/(a1+a2)), im.a);',
+    '   float a1 = mask(pix, wh, NN, masktype).a;',
+    '   float a2 = mask(pixm, wh, NN, masktype).a;',
+    '   gl_FragColor = vec4(mix(im.rgb, /*texture2D(diagonal, pix)*/texture2D(img, pixd).rgb, a2/(a1+a2)), im.a);',
     '}'
     ].join('\n'))
-    .input('mask', true)
-    .input('image')
+    .input('wh', function(filter, w, h) {return [w, h];})
+    .input('NN', function(filter, w, h) {return stdMath.sqrt(w*h);})
+    .input('masktype', function(filter) {return filter.type;})
     //.input('diagonal')
     .end()
-    .begin()
+    /*.begin()
     .shader('resize')
     .dimensions(function(w, h, io) {return [io.w, io.h];})
     .input('wh', function(filter, nw, nh, w, h) {return [w, h];})
     .input('nwh', function(filter, nw, nh, w, h) {return [nw, nh];})
-    .end();
+    .end()*/;
     return glslcode.code();
 }
 
