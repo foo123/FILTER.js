@@ -1,5 +1,12 @@
 ## ChangeLog
 
+__1.9.4__
+
+* FFT1d and FFT2d core utilities
+* FrequenyFilter js version
+* TemplateMatcherFilter js and glsl versions
+* various edits and updates
+
 __1.9.1__
 
 * faster SeamlessTileFilter

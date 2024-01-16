@@ -24,6 +24,7 @@ var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     Min = stdMath.min, Max = stdMath.max, Abs = stdMath.abs,
     PI = stdMath.PI, PI2 = PI+PI, PI_2 = PI/2,
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
+    SQRT1_2 = stdMath.SQRT1_2,
     Log2 = stdMath.log2 || function(x) {return Log(x) / stdMath.LN2;},
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
     func_body_re = /^function[^{]+{([\s\S]*)}$/;
@@ -1819,6 +1820,283 @@ function otsu(bin, tot, min, max)
     }
     return t;
 }
+var SIN = {}, COS = {};
+function sine(i)
+{
+    var sin_i;
+    /*if (i < 500)
+    {*/
+        sin_i = SIN[i];
+        if (null == sin_i) SIN[i] = sin_i = stdMath.sin(PI/i);
+        return sin_i;
+    /*}
+    return stdMath.sin(PI/i);*/
+}
+function cosine(i)
+{
+    var cos_i;
+    /*if (i < 500)
+    {*/
+        cos_i = COS[i];
+        if (null == cos_i) COS[i] = cos_i = stdMath.cos(PI/i);
+        return cos_i;
+    /*}
+    return stdMath.cos(PI/i);*/
+}
+function bitrevidx(idx, n)
+{
+    var rev_idx = 0;
+
+    while (1 < n)
+    {
+        rev_idx <<= 1;
+        rev_idx += idx & 1;
+        idx >>= 1;
+        n >>= 1;
+    }
+    return rev_idx;
+}
+function bitrev(re, im, re2, im2, n)
+{
+    var done = {}, i, j, t;
+
+    for (i = 0; i < n; ++i)
+    {
+        if (1 === done[i]) continue;
+
+        j = bitrevidx(i, n);
+
+        t = re[j];
+        re2[j] = re[i];
+        re2[i] = t;
+        t = im[j];
+        im2[j] = im[i];
+        im2[i] = t;
+
+        done[j] = 1;
+    }
+}
+function first_odd_fac(n)
+{
+    var sqrt_n = stdMath.sqrt(n), f = 3;
+
+    while (f <= sqrt_n)
+    {
+        if (0 === (n % f)) return f;
+        f += 2;
+    }
+    return n;
+}
+function _fft1(re, im, n, inv, output_re, output_im)
+{
+    // adapted from https://github.com/dntj/jsfft
+    if (0 >= n) return;
+    var ret = false;
+    if (null == output_re)
+    {
+        output_re = (new re.constructor(n));
+        output_im = (new im.constructor(n));
+        ret = true;
+    }
+    if (n & (n - 1)) _fft1_r(re, im, n, inv, output_re, output_im)
+    else _fft1_i(re, im, n, inv, output_re, output_im);
+    if (ret) return {r:output_re, i:output_im};
+}
+function _fft1_r(re, im, n, inv, output_re, output_im)
+{
+    var i, j, t;
+    if (1 === n)
+    {
+
+        output_re[0] = (re[0] || 0);
+        output_im[0] = (im[0] || 0);
+        return;
+    }
+    for (i = 0; i < n; ++i)
+    {
+        output_re[i] = 0/*re[i]*/;
+        output_im[i] = 0/*im[i]*/;
+    }
+
+    // Use the lowest odd factor, so we are able to use _fft_i in the
+    // recursive transforms optimally.
+    var p = first_odd_fac(n), m = n / p,
+        normalisation = 1 / stdMath.sqrt(p),
+        recursive_result_re = new re.constructor(m),
+        recursive_result_im = new im.constructor(m),
+        recursive_result2_re = new re.constructor(m),
+        recursive_result2_im = new im.constructor(m),
+        del_f_r, del_f_i, f_r, f_i, _real, _imag;
+
+    // Loops go like O(n Σ p_i), where p_i are the prime factors of n.
+    // for a power of a prime, p, this reduces to O(n p log_p n)
+    for (j = 0; j < p; ++j)
+    {
+        for (i = 0; i < m; ++i)
+        {
+            recursive_result_re[i] = (re[i * p + j] || 0);
+            recursive_result_im[i] = (im[i * p + j] || 0);
+        }
+        // Don't go deeper unless necessary to save allocs.
+        if (m > 1)
+        {
+            _fft1(recursive_result_re, recursive_result_im, m, inv, recursive_result2_re, recursive_result2_im);
+            t = recursive_result_re;
+            recursive_result_re = recursive_result2_re;
+            recursive_result2_re = t;
+            t = recursive_result_im;
+            recursive_result_im = recursive_result2_im;
+            recursive_result2_im = t;
+        }
+
+        del_f_r = stdMath.cos(2*PI*j/n);
+        del_f_i = (inv ? -1 : 1) * stdMath.sin(2*PI*j/n);
+        f_r = 1;
+        f_i = 0;
+
+        for (i = 0; i < n; ++i)
+        {
+            _real = normalisation * recursive_result_re[i % m];
+            _imag = normalisation * recursive_result_im[i % m];
+
+            output_re[i] += (f_r * _real - f_i * _imag);
+            output_im[i] += (f_r * _imag + f_i * _real);
+
+            _real = f_r * del_f_r - f_i * del_f_i;
+            _imag = f_i = f_r * del_f_i + f_i * del_f_r;
+            f_r = _real;
+            f_i = _imag;
+        }
+    }
+
+    /*for (i = 0; i < n; ++i)
+    {
+        output_re[i] *= normalisation;
+        output_im[i] *= normalisation;
+    }*/
+}
+function _fft1_i(re, im, n, inv, output_re, output_im)
+{
+    // Loops go like O(n log n):
+    //   w ~ log n; i,j ~ n
+    var w = 1, del_f_r, del_f_i, i, k, j, t, s,
+        f_r, f_i, l_index, r_index,
+        left_r, left_i, right_r, right_i;
+    bitrev(re, im, output_re, output_im, n);
+    while (w < n)
+    {
+        del_f_r = cosine(w);
+        del_f_i = (inv ? -1 : 1) * sine(w);
+        k = n/(2*w);
+        for (i = 0; i < k; ++i)
+        {
+            f_r = 1;
+            f_i = 0;
+            for (j = 0; j < w; ++j)
+            {
+                l_index = 2*i*w + j;
+                r_index = l_index + w;
+
+                left_r = (output_re[l_index] || 0);
+                left_i = (output_im[l_index] || 0);
+                t = (output_re[r_index] || 0);
+                s = (output_im[r_index] || 0);
+                right_r = f_r * t - f_i * s;
+                right_i = f_i * t + f_r * s;
+
+                output_re[l_index] = SQRT1_2 * (left_r + right_r);
+                output_im[l_index] = SQRT1_2 * (left_i + right_i);
+                output_re[r_index] = SQRT1_2 * (left_r - right_r);
+                output_im[r_index] = SQRT1_2 * (left_i - right_i);
+
+                t = f_r * del_f_r - f_i * del_f_i;
+                s = f_r * del_f_i + f_i * del_f_r;
+                f_r = t;
+                f_i = s;
+            }
+        }
+        w <<= 1;
+    }
+}
+function _fft2(re, im, nx, ny, inv, output_re, output_im)
+{
+    // adapted from https://github.com/dntj/jsfft
+    if (0 >= nx || 0 >= ny) return;
+    var ret = false,
+        RE = re.constructor, IM = im.constructor,
+        n = nx * ny, i, j, jn,
+        row_re = new RE(nx), row_im = new IM(nx),
+        col_re = new RE(ny), col_im = new IM(ny),
+        frow_re = new RE(nx), frow_im = new IM(nx),
+        fcol_re = new RE(ny), fcol_im = new IM(ny);
+
+    if (null == output_re)
+    {
+        output_re = new RE(n);
+        output_im = new IM(n);
+        ret = true;
+    }
+    for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+    {
+        for (i = 0; i < nx; ++i)
+        {
+            row_re[i] = (re[i + jn] || 0);
+            row_im[i] = (im[i + jn] || 0);
+        }
+        _fft1(row_re, row_im, nx, inv, frow_re, frow_im);
+        for (i = 0; i < nx; ++i)
+        {
+            output_re[i + jn] = frow_re[i];
+            output_im[i + jn] = frow_im[i];
+        }
+    }
+    for (i = 0; i < nx; ++i)
+    {
+        for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+        {
+            col_re[j] = output_re[i + jn];
+            col_im[j] = output_im[i + jn];
+        }
+        _fft1(col_re, col_im, ny, inv, fcol_re, fcol_im);
+        for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+        {
+            output_re[i + jn] = fcol_re[j];
+            output_im[i + jn] = fcol_im[j];
+        }
+    }
+
+    if (ret) return {r:output_re, i:output_im};
+}
+function min_max_loc(data, w, h, tlo, thi, stride, offset)
+{
+    stride = stride || 1;
+    offset = offset || 0;
+    var k, l = data.length, x, y, d, minmax = {min:Infinity, max:-Infinity, minpos:[], maxpos:[]};
+    for (k=0,y=0,x=0; k<l; k+=stride,++x)
+    {
+        if (x >= w) {x=0; ++y};
+        d = data[k+offset];
+        if ((d <= minmax.min) && (null == tlo || d <= tlo))
+        {
+            if (d < minmax.min)
+            {
+                minmax.min = d;
+                minmax.minpos = [];
+            }
+            minmax.minpos.push({x:x, y:y});
+        }
+        if ((d >= minmax.max) && (null == thi || d >= thi))
+        {
+            if (d > minmax.max)
+            {
+                minmax.max = d;
+                minmax.maxpos = [];
+            }
+            minmax.maxpos.push({x:x, y:y});
+        }
+    }
+    return minmax;
+}
 
 function ct_eye(c1, c0)
 {
@@ -1984,6 +2262,11 @@ FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
+FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
+FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
+FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
+FilterUtil.minmaxloc = min_max_loc;
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},

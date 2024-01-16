@@ -156,6 +156,7 @@ function GLSLFilter(filter)
         _inputs: {},
         _input: 'img', // main input (texture) is named 'img' by default
         _output: null,
+        io: function() {return io;},
         iterations: 1,
         instance: filter,
         shader: null,
@@ -165,7 +166,7 @@ function GLSLFilter(filter)
             return this.program;
         },*/
         init: function(gl, im, wi, hi, fromshader, cache) {
-            this.program = this.shader ? getProgram(gl, this.shader, cache) : null;
+            this.program = this.shader && this.shader.substring ? getProgram(gl, this.shader, cache) : null;
             if (this.program && this.program.id)
             {
                 if (this._save) io[this._save] = prev_output(this) || {name:this._save, tex:null, data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
@@ -697,6 +698,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         if (glsl.program && glsl.program.id) canRun = true;
         if (canRun)
         {
+            // gpu shader
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
             iter = glsl.iterations || 0;
             if ('function' === typeof iter) iter = iter(w, h, wi, hi) || 0;
@@ -742,6 +744,13 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
+        }
+        else if ('function' === typeof glsl.shader)
+        {
+            // cpu shader
+            im0 = fromshader ? getPixels(gl, w, h) : im;
+            im = glsl.shader(glsl, im0, w, h);
+            fromshader = false;
         }
         else if (glsl.instance && (glsl._apply || glsl.instance._apply_wasm || glsl.instance._apply))
         {

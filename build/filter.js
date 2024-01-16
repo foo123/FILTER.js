@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.9.1
-*   @built on 2023-11-20 09:19:15
+*   @version: 1.9.4
+*   @built on 2024-01-16 11:40:53
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.9.1
-*   @built on 2023-11-20 09:19:15
+*   @version: 1.9.4
+*   @built on 2024-01-16 11:40:53
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.9.1"};
+var FILTER = {VERSION: "1.9.4"};
 /**
 *
 *   Asynchronous.js
@@ -1535,6 +1535,7 @@ var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     Min = stdMath.min, Max = stdMath.max, Abs = stdMath.abs,
     PI = stdMath.PI, PI2 = PI+PI, PI_2 = PI/2,
     pi = PI, pi2 = PI2, pi_2 = PI_2, pi_32 = 3*pi_2,
+    SQRT1_2 = stdMath.SQRT1_2,
     Log2 = stdMath.log2 || function(x) {return Log(x) / stdMath.LN2;},
     esc_re = /([.*+?^${}()|\[\]\/\\\-])/g, trim_re = /^\s+|\s+$/g,
     func_body_re = /^function[^{]+{([\s\S]*)}$/;
@@ -3330,6 +3331,283 @@ function otsu(bin, tot, min, max)
     }
     return t;
 }
+var SIN = {}, COS = {};
+function sine(i)
+{
+    var sin_i;
+    /*if (i < 500)
+    {*/
+        sin_i = SIN[i];
+        if (null == sin_i) SIN[i] = sin_i = stdMath.sin(PI/i);
+        return sin_i;
+    /*}
+    return stdMath.sin(PI/i);*/
+}
+function cosine(i)
+{
+    var cos_i;
+    /*if (i < 500)
+    {*/
+        cos_i = COS[i];
+        if (null == cos_i) COS[i] = cos_i = stdMath.cos(PI/i);
+        return cos_i;
+    /*}
+    return stdMath.cos(PI/i);*/
+}
+function bitrevidx(idx, n)
+{
+    var rev_idx = 0;
+
+    while (1 < n)
+    {
+        rev_idx <<= 1;
+        rev_idx += idx & 1;
+        idx >>= 1;
+        n >>= 1;
+    }
+    return rev_idx;
+}
+function bitrev(re, im, re2, im2, n)
+{
+    var done = {}, i, j, t;
+
+    for (i = 0; i < n; ++i)
+    {
+        if (1 === done[i]) continue;
+
+        j = bitrevidx(i, n);
+
+        t = re[j];
+        re2[j] = re[i];
+        re2[i] = t;
+        t = im[j];
+        im2[j] = im[i];
+        im2[i] = t;
+
+        done[j] = 1;
+    }
+}
+function first_odd_fac(n)
+{
+    var sqrt_n = stdMath.sqrt(n), f = 3;
+
+    while (f <= sqrt_n)
+    {
+        if (0 === (n % f)) return f;
+        f += 2;
+    }
+    return n;
+}
+function _fft1(re, im, n, inv, output_re, output_im)
+{
+    // adapted from https://github.com/dntj/jsfft
+    if (0 >= n) return;
+    var ret = false;
+    if (null == output_re)
+    {
+        output_re = (new re.constructor(n));
+        output_im = (new im.constructor(n));
+        ret = true;
+    }
+    if (n & (n - 1)) _fft1_r(re, im, n, inv, output_re, output_im)
+    else _fft1_i(re, im, n, inv, output_re, output_im);
+    if (ret) return {r:output_re, i:output_im};
+}
+function _fft1_r(re, im, n, inv, output_re, output_im)
+{
+    var i, j, t;
+    if (1 === n)
+    {
+
+        output_re[0] = (re[0] || 0);
+        output_im[0] = (im[0] || 0);
+        return;
+    }
+    for (i = 0; i < n; ++i)
+    {
+        output_re[i] = 0/*re[i]*/;
+        output_im[i] = 0/*im[i]*/;
+    }
+
+    // Use the lowest odd factor, so we are able to use _fft_i in the
+    // recursive transforms optimally.
+    var p = first_odd_fac(n), m = n / p,
+        normalisation = 1 / stdMath.sqrt(p),
+        recursive_result_re = new re.constructor(m),
+        recursive_result_im = new im.constructor(m),
+        recursive_result2_re = new re.constructor(m),
+        recursive_result2_im = new im.constructor(m),
+        del_f_r, del_f_i, f_r, f_i, _real, _imag;
+
+    // Loops go like O(n Σ p_i), where p_i are the prime factors of n.
+    // for a power of a prime, p, this reduces to O(n p log_p n)
+    for (j = 0; j < p; ++j)
+    {
+        for (i = 0; i < m; ++i)
+        {
+            recursive_result_re[i] = (re[i * p + j] || 0);
+            recursive_result_im[i] = (im[i * p + j] || 0);
+        }
+        // Don't go deeper unless necessary to save allocs.
+        if (m > 1)
+        {
+            _fft1(recursive_result_re, recursive_result_im, m, inv, recursive_result2_re, recursive_result2_im);
+            t = recursive_result_re;
+            recursive_result_re = recursive_result2_re;
+            recursive_result2_re = t;
+            t = recursive_result_im;
+            recursive_result_im = recursive_result2_im;
+            recursive_result2_im = t;
+        }
+
+        del_f_r = stdMath.cos(2*PI*j/n);
+        del_f_i = (inv ? -1 : 1) * stdMath.sin(2*PI*j/n);
+        f_r = 1;
+        f_i = 0;
+
+        for (i = 0; i < n; ++i)
+        {
+            _real = normalisation * recursive_result_re[i % m];
+            _imag = normalisation * recursive_result_im[i % m];
+
+            output_re[i] += (f_r * _real - f_i * _imag);
+            output_im[i] += (f_r * _imag + f_i * _real);
+
+            _real = f_r * del_f_r - f_i * del_f_i;
+            _imag = f_i = f_r * del_f_i + f_i * del_f_r;
+            f_r = _real;
+            f_i = _imag;
+        }
+    }
+
+    /*for (i = 0; i < n; ++i)
+    {
+        output_re[i] *= normalisation;
+        output_im[i] *= normalisation;
+    }*/
+}
+function _fft1_i(re, im, n, inv, output_re, output_im)
+{
+    // Loops go like O(n log n):
+    //   w ~ log n; i,j ~ n
+    var w = 1, del_f_r, del_f_i, i, k, j, t, s,
+        f_r, f_i, l_index, r_index,
+        left_r, left_i, right_r, right_i;
+    bitrev(re, im, output_re, output_im, n);
+    while (w < n)
+    {
+        del_f_r = cosine(w);
+        del_f_i = (inv ? -1 : 1) * sine(w);
+        k = n/(2*w);
+        for (i = 0; i < k; ++i)
+        {
+            f_r = 1;
+            f_i = 0;
+            for (j = 0; j < w; ++j)
+            {
+                l_index = 2*i*w + j;
+                r_index = l_index + w;
+
+                left_r = (output_re[l_index] || 0);
+                left_i = (output_im[l_index] || 0);
+                t = (output_re[r_index] || 0);
+                s = (output_im[r_index] || 0);
+                right_r = f_r * t - f_i * s;
+                right_i = f_i * t + f_r * s;
+
+                output_re[l_index] = SQRT1_2 * (left_r + right_r);
+                output_im[l_index] = SQRT1_2 * (left_i + right_i);
+                output_re[r_index] = SQRT1_2 * (left_r - right_r);
+                output_im[r_index] = SQRT1_2 * (left_i - right_i);
+
+                t = f_r * del_f_r - f_i * del_f_i;
+                s = f_r * del_f_i + f_i * del_f_r;
+                f_r = t;
+                f_i = s;
+            }
+        }
+        w <<= 1;
+    }
+}
+function _fft2(re, im, nx, ny, inv, output_re, output_im)
+{
+    // adapted from https://github.com/dntj/jsfft
+    if (0 >= nx || 0 >= ny) return;
+    var ret = false,
+        RE = re.constructor, IM = im.constructor,
+        n = nx * ny, i, j, jn,
+        row_re = new RE(nx), row_im = new IM(nx),
+        col_re = new RE(ny), col_im = new IM(ny),
+        frow_re = new RE(nx), frow_im = new IM(nx),
+        fcol_re = new RE(ny), fcol_im = new IM(ny);
+
+    if (null == output_re)
+    {
+        output_re = new RE(n);
+        output_im = new IM(n);
+        ret = true;
+    }
+    for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+    {
+        for (i = 0; i < nx; ++i)
+        {
+            row_re[i] = (re[i + jn] || 0);
+            row_im[i] = (im[i + jn] || 0);
+        }
+        _fft1(row_re, row_im, nx, inv, frow_re, frow_im);
+        for (i = 0; i < nx; ++i)
+        {
+            output_re[i + jn] = frow_re[i];
+            output_im[i + jn] = frow_im[i];
+        }
+    }
+    for (i = 0; i < nx; ++i)
+    {
+        for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+        {
+            col_re[j] = output_re[i + jn];
+            col_im[j] = output_im[i + jn];
+        }
+        _fft1(col_re, col_im, ny, inv, fcol_re, fcol_im);
+        for (j = 0,jn = 0; j < ny; ++j,jn+=nx)
+        {
+            output_re[i + jn] = fcol_re[j];
+            output_im[i + jn] = fcol_im[j];
+        }
+    }
+
+    if (ret) return {r:output_re, i:output_im};
+}
+function min_max_loc(data, w, h, tlo, thi, stride, offset)
+{
+    stride = stride || 1;
+    offset = offset || 0;
+    var k, l = data.length, x, y, d, minmax = {min:Infinity, max:-Infinity, minpos:[], maxpos:[]};
+    for (k=0,y=0,x=0; k<l; k+=stride,++x)
+    {
+        if (x >= w) {x=0; ++y};
+        d = data[k+offset];
+        if ((d <= minmax.min) && (null == tlo || d <= tlo))
+        {
+            if (d < minmax.min)
+            {
+                minmax.min = d;
+                minmax.minpos = [];
+            }
+            minmax.minpos.push({x:x, y:y});
+        }
+        if ((d >= minmax.max) && (null == thi || d >= thi))
+        {
+            if (d > minmax.max)
+            {
+                minmax.max = d;
+                minmax.maxpos = [];
+            }
+            minmax.maxpos.push({x:x, y:y});
+        }
+    }
+    return minmax;
+}
 
 function ct_eye(c1, c0)
 {
@@ -3495,6 +3773,11 @@ FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 FilterUtil.histogram = histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
+FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
+FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
+FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
+FilterUtil.minmaxloc = min_max_loc;
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
@@ -3671,6 +3954,7 @@ function GLSLFilter(filter)
         _inputs: {},
         _input: 'img', // main input (texture) is named 'img' by default
         _output: null,
+        io: function() {return io;},
         iterations: 1,
         instance: filter,
         shader: null,
@@ -3680,7 +3964,7 @@ function GLSLFilter(filter)
             return this.program;
         },*/
         init: function(gl, im, wi, hi, fromshader, cache) {
-            this.program = this.shader ? getProgram(gl, this.shader, cache) : null;
+            this.program = this.shader && this.shader.substring ? getProgram(gl, this.shader, cache) : null;
             if (this.program && this.program.id)
             {
                 if (this._save) io[this._save] = prev_output(this) || {name:this._save, tex:null, data:fromshader ? getPixels(gl, wi, hi) : FILTER.Util.Array.copy(im), width:wi, height:hi};
@@ -4212,6 +4496,7 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
         if (glsl.program && glsl.program.id) canRun = true;
         if (canRun)
         {
+            // gpu shader
             //if (wi !== w || hi !== h) refreshBuffers(w, h, buf1, true);
             iter = glsl.iterations || 0;
             if ('function' === typeof iter) iter = iter(w, h, wi, hi) || 0;
@@ -4257,6 +4542,13 @@ GLSL.run = function(img, filter, glsls, im, w, h, metaData) {
             // swap buffers
             t = buf0; buf0 = buf1; buf1 = t;
             fromshader = true;
+        }
+        else if ('function' === typeof glsl.shader)
+        {
+            // cpu shader
+            im0 = fromshader ? getPixels(gl, w, h) : im;
+            im = glsl.shader(glsl, im0, w, h);
+            fromshader = false;
         }
         else if (glsl.instance && (glsl._apply || glsl.instance._apply_wasm || glsl.instance._apply))
         {
@@ -13795,6 +14087,208 @@ FILTER.CustomFilter = FILTER.InlineFilter;
 
 }(FILTER);/**
 *
+* Frequency Filter
+*
+* Filter inputs in the Fourier Frequency Domain
+*
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef) {
+"use strict";
+
+var MODE = FILTER.MODE, A32F = FILTER.Array32F,
+    fft = FILTER.Util.Filter.fft2d,
+    ifft = FILTER.Util.Filter.ifft2d;
+
+//
+//  Frequency Filter
+FILTER.Create({
+    name: "FrequencyFilter"
+
+    ,init: function FrequencyFilter(filterR, filterG, filterB) {
+        var self = this;
+        self.set(filterR, filterG, filterB);
+    }
+
+    ,path: FILTER.Path
+    ,_filterE: null
+    ,_filterG: null
+    ,_filterB: null
+    ,_changed: false
+
+    ,dispose: function() {
+        var self = this;
+        self._filterR = null;
+        self._filterG = null;
+        self._filterB = null;
+        self._changed = null;
+        self.$super('dispose');
+        return self;
+    }
+
+    ,serialize: function() {
+        var self = this, json;
+        json = {
+             _filterR: false === self._filterR ? false : (self._changed && self._filterR ? self._filterR.toString() : null)
+             ,_filterG: false === self._filterG ? false : (self._changed && self._filterG ? self._filterG.toString() : null)
+             ,_filterB: false === self._filterB ? false : (self._changed && self._filterB ? self._filterB.toString() : null)
+        };
+        self._changed = false;
+        return json;
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        if (null != params._filterR)
+            self._filterR = false === params._filterR ? null : ((new Function("FILTER", '"use strict"; return ' + params._filterR + ';'))(FILTER));
+        if (null != params._filterG)
+            self._filterG = false === params._filterG ? null : ((new Function("FILTER", '"use strict"; return ' + params._filterG + ';'))(FILTER));
+        if (null != params._filterB)
+            self._filterB = false === params._filterB ? null : ((new Function("FILTER", '"use strict"; return ' + params._filterB + ';'))(FILTER));
+        return self;
+    }
+
+    ,set: function(filterR, filterG, filterB) {
+        var self = this;
+        if (false === filterR)
+        {
+            self._filterR = false;
+            self._changed = true;
+        }
+        else
+        {
+            if (filterR && ("function" === typeof filterR))
+            {
+                self._filterR = filterR;
+                self._changed = true;
+            }
+        }
+        if (false === filterG)
+        {
+            self._filterG = false;
+        }
+        else
+        {
+            if (filterG && ("function" === typeof filterG))
+            {
+                self._filterG = filterG;
+            }
+        }
+        if (false === filterB)
+        {
+            self._filterG = false;
+        }
+        else
+        {
+            if (filterB && ("function" === typeof filterB))
+            {
+                self._filterB = filterB;
+            }
+        }
+        return self;
+    }
+
+    ,_apply: function(im, w, h) {
+        var self = this,
+            gray = MODE.GRAY === self.mode,
+            filterR = self._filterR,
+            filterG = self._filterG,
+            filterB = self._filterB,
+            R_r, G_r, B_r,
+            R_i, G_i, B_i,
+            R, G, B,
+            i, j, v,
+            n = w*h, l = im.length;
+        if (!filterR && !filterG && !filterB) return im;
+        if (filterR)
+        {
+            R_r = new A32F(n); R_i = new A32F(n);
+        }
+        if (filterG && !gray)
+        {
+            G_r = new A32F(n); G_i = new A32F(n);
+        }
+        if (filterB && !gray)
+        {
+            B_r = new A32F(n); B_i = new A32F(n);
+        }
+        for (i=0,j=0; i<l; i+=4,++j)
+        {
+           if (filterR) R_r[j] = im[i  ]/255;
+           if (filterG && !gray) G_r[j] = im[i+1]/255;
+           if (filterB && !gray) B_r[j] = im[i+2]/255;
+        }
+        if (filterR)
+        {
+            R = filter(fft(R_r, R_i, w, h), filterR, w, h);
+            R = ifft(R.r, R.i, w, h).r;
+        }
+        if (filterG && !gray)
+        {
+            G = filter(fft(G_r, G_i, w, h), filterG, w, h);
+            G = ifft(G.r, G.i, w, h).r;
+        }
+        if (filterB && !gray)
+        {
+            B = filter(fft(B_r, B_i, w, h), filterB, w, h);
+            B = ifft(B.r, B.i, w, h).r;
+        }
+        if (gray)
+        {
+            R = R || G || B;
+            for (i=0,j=0; i<l; i+=4,++j)
+            {
+               v = (255*R[j])|0;
+               im[i  ] = v;
+               im[i+1] = v;
+               im[i+2] = v;
+            }
+        }
+        else
+        {
+            for (i=0,j=0; i<l; i+=4,++j)
+            {
+               if (R)
+               {
+                   v = (255*R[j])|0;
+                   im[i  ] = v;
+               }
+               if (G)
+               {
+                   v = (255*G[j])|0;
+                   im[i+1] = v;
+               }
+               if (B)
+               {
+                   v = (255*B[j])|0;
+                   im[i+2] = v;
+               }
+            }
+        }
+        return im;
+    }
+
+    ,canRun: function() {
+        return this._isOn && (this._filterR || this._filterG || this._filterB);
+    }
+});
+FILTER.FourierFilter = FILTER.FrequencyFilter;
+
+function filter(fft, map, w, h)
+{
+    for (var O=[0,0],i=0; i<w; ++i)
+    {
+        for (var j=0,jw=0; j<h; ++j,jw+=w)
+        {
+            var k = i+jw, o = map(fft.r[k], fft.i[k], i, j, w, h, fft) || O;
+            fft.r[k] = o[0] || 0;  fft.i[k] = o[1] || 0;
+        }
+    }
+    return fft;
+}
+}(FILTER);/**
+*
 * Noise
 * @package FILTER.js
 *
@@ -17452,15 +17946,6 @@ FILTER.Create({
         return self;
     }
 
-    ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
-    }
-
-    ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
-        return this;
-    }
-
     ,_apply_rgb: function(im, w, h) {
         var self = this,
             r, g, b,
@@ -18260,6 +18745,184 @@ function merge_features(rects, min_neighbors, epsilon)
 FILTER.Util.Filter.haar_detect = haar_detect;
 FILTER.Util.Filter.merge_features = merge_features;
 
+}(FILTER);/**
+*
+* TemplateMatcher
+* @package FILTER.js
+*
+**/
+!function(FILTER, undef){
+"use strict";
+
+var GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
+    A32F = FILTER.Array32F, stdMath = Math;
+
+// https://docs.opencv.org/4.9.0/d4/dc6/tutorial_py_template_matching.html
+var TemplateMatcherFilter = FILTER.Create({
+    name : "TemplateMatcherFilter"
+
+    ,path: FILTER.Path
+
+    ,_update: false // filter by itself does not alter image data, just processes information
+    ,hasMeta: true
+    ,hasInputs: true
+    ,scale: 1
+    ,dist: 0
+
+    ,init: function(tpl, scale, dist) {
+        var self = this;
+        if (tpl) self.setInput("template", tpl);
+        self.scale = scale || 1;
+        self.dist = dist || 0;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             scale: self.scale
+            ,dist: self.dist
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.scale = params.scale;
+        self.dist = params.dist;
+        return self;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
+    }
+
+    ,apply: function(im, w, h) {
+        var self = this, t = self.input("template");
+        self.meta = [];
+        if (!t) return im;
+        var tpl = t[0], tw = t[1], th = t[2],
+            m = im.length, n = tpl.length,
+            k, l, p, sc = self.scale,
+            tsw = stdMath.round(sc*tw),
+            tsh = stdMath.round(sc*th),
+            out = new A32F(w*h),
+            sumR, sumG, sumB,
+            diffR, diffG, diffB,
+            x, y, xx, yy, v;
+
+        for (k=0,x=0,y=0; k<m; k+=4,++x)
+        {
+            if (x >= w) {x=0; ++y;}
+            if (x + tsw >= w || y + tsh >= h)
+            {
+                out[k>>>2] = 1;
+            }
+            else
+            {
+                sumR=sumG=sumB=0;
+                for (yy=0,xx=0; yy<tsh; ++xx)
+                {
+                    if (xx >= tsw) {xx=0; ++yy; if (yy>=tsh) break;}
+                    l = (((xx/sc)|0) + ((yy/sc)|0) * tw) << 2;
+                    p = (x+xx + (y+yy)*w) << 2;
+                    diffR = (tpl[l  ] - im[p  ])/255;
+                    diffG = (tpl[l+1] - im[p+1])/255;
+                    diffB = (tpl[l+2] - im[p+2])/255;
+                    sumR += diffR * diffR;
+                    sumG += diffG * diffG;
+                    sumB += diffB * diffB;
+                }
+                v = (sumR + sumG + sumB) / (3*255);
+                out[k>>>2] = v;
+            }
+        }
+
+        self.meta = FilterUtil.minmaxloc(out, w, h).minpos.map(function(p) {return {x:p.x, y:p.y, width:tsw, height:tsh};});
+        return im;
+    }
+});
+TemplateMatcherFilter.SQDIFF = 0;
+TemplateMatcherFilter.SQDIFF_NORMED = 1;
+TemplateMatcherFilter.CCORR = 2;
+TemplateMatcherFilter.CCORR_NORMED = 3;
+TemplateMatcherFilter.CCOEFF = 4;
+TemplateMatcherFilter.CCOEFF_NORMED = 5;
+
+function glsl(filter)
+{
+    var glslcode = (new GLSL.Filter(filter))
+    .begin()
+    .shader([
+    'varying vec2 pix;',
+    'uniform sampler2D img;',
+    'uniform sampler2D tpl;',
+    'uniform vec2 imgSize;',
+    'uniform vec2 tplSize;',
+    'uniform float scale;',
+    'uniform int dist;',
+    'void main(void) {',
+    '    vec2 tplSizeScaled = tplSize * scale;',
+    '    if (pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
+    '    {',
+    '        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);',
+    '    }',
+    '    else',
+    '    {',
+    '        float sumR = 0.0;',
+    '        float sumG = 0.0;',
+    '        float sumB = 0.0;',
+    '        float ii = 0.0;',
+    '        float jj = 0.0;',
+    '        int tplW = int(tplSizeScaled.x);',
+    '        int tplH = int(tplSizeScaled.y);',
+    '        for (int i = 0; i < 1000; i++)',
+    '        {',
+    '            if (i >= tplH) break;',
+    '            ii = float(i);',
+    '            for (int j = 0; j < 1000; j++)',
+    '            {',
+    '                if (j >= tplW) break;',
+    '                jj = float(j);',
+    '                vec4 I = texture2D(img, pix + vec2(jj, ii) / imgSize);',
+    '                vec4 T = texture2D(tpl, vec2(jj, ii) / tplSizeScaled);',
+    '                float diffR = T.r - I.r;',
+    '                float diffG = T.g - I.g;',
+    '                float diffB = T.b - I.b;',
+    '                sumR += diffR * diffR;',
+    '                sumG += diffG * diffG;',
+    '                sumB += diffB * diffB;',
+    '            }',
+    '        }',
+    '        float v = (sumR + sumG + sumB) / (3.0*255.0);',
+    '        gl_FragColor = vec4(v, v, v, 1.0);',
+    '    }',
+    '}'
+    ].join('\n'))
+    .save('im')
+    .input('tpl', function(filter) {
+        var tpl = filter.input("template");
+        return {data:tpl[0], width:tpl[1], height:tpl[2]};
+    })
+    .input('tplSize', function(filter, w, h, w2, h2, io) {
+        var tpl = filter.input("template");
+        return io.tplSize = [tpl[1], tpl[2]];
+    })
+    .input('imgSize', function(filter, w, h) {
+        return [w, h];
+    })
+    .input('scale', function(filter) {return filter.scale;})
+    .input('dist', function(filter) {return filter.dist;})
+    .end()
+    .begin()
+    .shader(function(glsl, im, w, h) {
+        var sz = glsl.io().tplSize,
+            tsw = stdMath.round(glsl.instance.scale*sz[0]),
+            tsh = stdMath.round(glsl.instance.scale*sz[1]);
+        filter.meta = FilterUtil.minmaxloc(im, w, h, null, null, 4, 0).minpos.map(function(p) {return {x:p.x, y:p.y, width:tsw, height:tsh};});
+        return glsl.io()['im'].data;//im;
+    })
+    .end();
+    return glslcode.code();
+}
 }(FILTER);/* main code ends here */
 /* export the module */
 return FILTER;

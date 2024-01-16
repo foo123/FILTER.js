@@ -11,8 +11,12 @@ var parse_args = require('./commargs.js'),
 console.log('Test runs "' + (parallel ? 'parallel' : 'synchronous') + (wasm ? ' in assembly' : ' in javascript') + '"');
 
 filter = new F.ColorMatrixFilter().grayscale().contrast(1);
-input = __dirname+'/che.jpg';
-output = __dirname+'/che_grayscale.png';
+/*filter = new F.FrequencyFilter(function(re, im, i, j, w, h){
+    //if (i > 0.2*w || j > 0.2*h) {re = 0; im = 0;}
+    return [re, im];
+}).setMode(F.MODE.GRAY);*/
+input = __dirname+'/marcos.jpg';
+output = __dirname+'/marcos_grayscale.png';
 if (wasm) filter.makeWASM(true);
 if (parallel) filter.worker(true);
 

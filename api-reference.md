@@ -23,7 +23,8 @@ Change the dependencies file to include your own selection of filters and plugin
 * [Dimension Filter](#dimension-filter)
 * [Composite Filter](#composite-filter) (an abstraction of a container for multiple filters)
 * [Inline Filter](#inline-filter) (create dynamic filters at run-time while having the full power of `Filter`s)
-* [Plugins / Extra Filters](#plugins-and-extra-filters)
+* [Frequency Filter](#frequency-filter) (frequency domain filters)
+* [Extra Filters](#plugins-and-extra-filters)
 
 
 ### Image Class
@@ -922,6 +923,35 @@ extractRedChannel.makeGLSL(true);
 extractRedChannel.makeGLSL(false);
 ````
 
+### Frequency Filter
+
+````javascript
+new FILTER.FrequencyFilter(filterR:Function, filterG:Function=null, filterB:Function=null);
+````
+
+This filter creates frequency domain filters (using Discrete Fourier Transform / FFT) using your custom filtering functions per channel.
+
+Example:
+
+````javascript
+var lowFreq = FILTER.FrequencyFilter(function(real, imag, i, j, w, h){
+    if (i > 0.2*w || j > 0.2*h) {real = 0; imag = 0;}
+    return [real, imag];
+}).setMode(FILTER.MODE.GRAY) /*same filter for all channels in grayscale image*/;
+
+// if you want to make this filter work in another thread in parallel through a worker, do:
+lowFreq.worker();
+
+// if you want to stop and dispose the worker for this filter, do:
+lowFreq.worker(false);
+
+//To apply the filter to an image do:
+// this is same even if filter uses a parallel worker filter
+lowFreq.apply(image);   // image is a FILTER.Image instance, see examples
+// this will also work:
+image.apply(lowFreq);   // image is a FILTER.Image instance, see examples
+````
+
 ### Plugins and Extra Filters
 
 The library can be extended by custom plugins which add new filters.
@@ -950,6 +980,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>OtsuThreshold</td>    <td>automatic threshold (Otsu method)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
+<tr><td>TemplateMatcher</td> <td>convolve a template image against another image and find possible matches</td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>

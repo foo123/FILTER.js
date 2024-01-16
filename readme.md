@@ -7,7 +7,7 @@
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers, WebAssembly and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
 
 
-**version 1.9.1** (390 kB minified)
+**version 1.9.4 in progress** (390 kB minified)
 
 
 ### Contents
@@ -72,7 +72,8 @@ The framework defines an [`Image`](/api-reference.md#image-class) class, which r
 11. [**DimensionFilter**](/api-reference.md#dimension-filter)
 12. [**CompositeFilter**](/api-reference.md#composite-filter) (an abstraction of a container for multiple filters)
 13. [**InlineFilter**](/api-reference.md#inline-filter) (create inline filters dynamically at run-time using your custom functions)
-14. [**Plugins**](/api-reference.md#plugins-and-extra-filters) (plugin filters which cover a wider range of functionality and use cases)
+14. [**FrequencyFilter**](/api-reference.md#frequency-filter) (frequency domain filters)
+15. [**Extra Filters**](/api-reference.md#plugins-and-extra-filters) (extra filters which cover a wider range of functionality and use cases)
 
 
 Each of the generic filters is prototype but it also includes a number of implementation filters like  `grayscale` , `colorize` , `threshold` , `gaussBlur` , `laplace` , `emboss` , `gamma`, `twirl` and so on.. (depending on type of filter)

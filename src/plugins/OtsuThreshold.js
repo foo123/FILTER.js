@@ -49,15 +49,6 @@ FILTER.Create({
         return self;
     }
 
-    ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
-    }
-
-    ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
-        return this;
-    }
-
     ,_apply_rgb: function(im, w, h) {
         var self = this,
             r, g, b,
