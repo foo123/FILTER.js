@@ -22,18 +22,16 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,hasInputs: true
-    ,qty: 0.95
-    ,sz: 3
     ,scale: 1
     ,rotation: 0
+    ,_q: 0.98
+    ,_s: 3
     ,_tpldata: null
     ,_draw: false
 
-    ,init: function(tpl, quality, size, scale, rotation) {
+    ,init: function(tpl, scale, rotation) {
         var self = this;
         if (tpl) self.setInput("template", tpl);
-        self.qty = quality || 0.95;
-        self.sz = size || 3;
         self.scale = scale || 1;
         self.rotation = rotation || 0;
     }
@@ -45,27 +43,12 @@ FILTER.Create({
         return self;
     }
 
-    ,serialize: function() {
+    ,quality: function(quality, size) {
         var self = this;
-        return {
-            qty: self.qty
-            ,sz: self.sz
-            ,scale: self.scale
-            ,rotation: self.rotation
-        };
-    }
-
-    ,unserialize: function(params) {
-        var self = this;
-        self.qty = params.qty;
-        self.sz = params.sz;
-        self.scale = params.scale;
-        self.rotation = params.rotation;
+        self._q = null == quality ? 0.98 : (quality || 0);
+        self._s = null == size ? 3 : (size || 0);
+        self._tpldata = null;
         return self;
-    }
-
-    ,getGLSL: function() {
-        return glsl(this);
     }
 
     ,tpldata: function(withBasis, channel) {
@@ -77,7 +60,7 @@ FILTER.Create({
         else if (withBasis)
         {
             if (needsUpdate || !self._tpldata || !self._tpldata.basis)
-                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self.qty, self.sz, channel);
+                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, channel);
         }
         else
         {
@@ -85,6 +68,29 @@ FILTER.Create({
                 self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2]);
         }
         return self._tpldata;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             scale: self.scale
+            ,rotation: self.rotation
+            ,_q: self._q
+            ,_s: self._s
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.scale = params.scale;
+        self.rotation = params.rotation;
+        self._q = params._q;
+        self._s = params._s;
+        return self;
+    }
+
+    ,getGLSL: function() {
+        return glsl(this);
     }
 
     ,apply: function(im, w, h) {
@@ -123,6 +129,7 @@ FILTER.Create({
         }
         else
         {
+            self._update = false;
             out = new A32F(mm);
             sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
             sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
@@ -157,13 +164,13 @@ function ncc(x, y, sat1, sat2, basis, w, h, tw, th, sc, rot)
 {
     var tws = stdMath.round(sc*tw),
         ths = stdMath.round(sc*th),
-        area = tws*ths,
+        //area = tws*ths,
+        k, K, bk,
         x0 = clamp(x-1, 0, w-1),
         x1 = clamp(x0+tws, 0, w-1),
         y0 = clamp(y-1, 0, h-1),
         y1 = clamp(y0+ths, 0, h-1),
         wy0 = w*y0, wy1 = w*y1,
-        k, K, bk,
         sum1 = sat1[x1 + wy1] - sat1[x0 + wy1] - sat1[x1 + wy0] + sat1[x0 + wy0],
         sum2 = sat2[x1 + wy1] - sat2[x0 + wy1] - sat2[x1 + wy0] + sat2[x0 + wy0],
         denom = stdMath.sqrt(stdMath.abs(sum2 - sum1*sum1)/* / area*/) /** (nrg)*/, // template energy is constant, can be left out
@@ -182,77 +189,57 @@ function ncc(x, y, sat1, sat2, basis, w, h, tw, th, sc, rot)
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var sc = 1, rot = 0;
-    var tr = 0, tg = 0, tb = 0,
-        basis = null, avg,
-        sw = stdMath.round(sc*w),
-        sh = stdMath.round(sc*h),
-        n = sw*sh, p, x, y;
-    for (y=0; y<sh; ++y)
+    var tr = 0, tg = 0, tb = 0, a, b, s,
+        l = t.length, n = w*h, p;
+    for (p=0; p<l; p+=4)
     {
-        for (x=0; x<sw; ++x)
-        {
-            p = (((x/sc)|0) + ((y/sc)|0) * w) << 2;
-            tr += t[p  ] / n;
-            tg += t[p+1] / n;
-            tb += t[p+2] / n;
-        }
+        tr += t[p  ]/n;
+        tg += t[p+1]/n;
+        tb += t[p+2]/n;
     }
-    avg = [tr, tg, tb];
+    a = [tr, tg, tb];
     if (null != Jmax)
     {
-        basis = [[], [], []];
+        b = [[], [], []];
+        s = [null, null, null];
         if (null != channel)
         {
-            basis[channel] = approximate(t, avg[channel], w, h, channel, [{k:avg[channel],x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz);
+            sat(t, w, h, 2, channel, s[channel] = new A32F(n));
+            b[channel] = approximate(t, s[channel], [{k:a[channel],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, channel, Jmax, minSz);
         }
         else
         {
-            basis = [
-            approximate(t, tr, w, h, 0, [{k:tr,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz),
-            approximate(t, tg, w, h, 1, [{k:tg,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz),
-            approximate(t, tb, w, h, 2, [{k:tb,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz)
+            sat(t, w, h, 2, 0, s[0] = new A32F(n));
+            sat(t, w, h, 2, 1, s[1] = new A32F(n));
+            sat(t, w, h, 2, 2, s[2] = new A32F(n));
+            b = [
+            approximate(t, s[0], [{k:a[0],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 0, Jmax, minSz),
+            approximate(t, s[1], [{k:a[1],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 1, Jmax, minSz),
+            approximate(t, s[2], [{k:a[2],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 2, Jmax, minSz)
             ];
         }
     }
-    return {avg:avg, basis:basis};
+    return {avg:a, basis:b||null, sat:s||null};
 }
-function cost(t, tm, w, h, c, b)
+function approximate(t, s, b, w, h, c, Jmax, minSz)
 {
-    var sc = 1;
-    var J = 0, x, y, p,
-        sw = stdMath.round(sc*w),
-        sh = stdMath.round(sc*h),
-        n = sw*sh,
-        v, k, K = b.length, bk;
-    for (y=0; y<sh; ++y)
+    var J = 0, J2, Jmin, bmin,
+        x0, x1, y0, y1, ww, hh,
+        x, y, xx, yy, yw, avg1, avg2,
+        p, l = t.length, n = w*h,
+        v, k, K = b.length, bk, bb;
+    for (p=0,x=0,y=0; p<l; p+=4,++x)
     {
-        for (x=0; x<sw; ++x)
+        if (x >= w) {x=0; ++y;}
+        v = t[p+c] / 255;
+        for (k=0; k<K; ++k)
         {
-            p = (((x/sc)|0) + ((y/sc)|0) * w) << 2;
-            v = (t[p+c]/*- tm*/) / 255;
-            for (k=0; k<K; ++k)
-            {
-                bk = b[k];
-                if (bk.x0 <= x && bk.x1 >= x && bk.y0 <= y && bk.y1 >= y)
-                    v -= bk.k / 255;
-            }
-            J += v*v / n;
+            bk = b[k];
+            if (bk.x0 <= x && bk.x1 >= x && bk.y0 <= y && bk.y1 >= y)
+                v -= bk.k / 255;
         }
+        J += v*v / n;
     }
-    return J;
-}
-function avg(t, c, w, h, x0, x1, y0, y1)
-{
-    var sc = 1;
-    var tm = 0, x, y, n = (x1-x0+1)*(y1-y0+1);
-    for (y=y0; y<=y1; ++y) for (x=x0; x<=x1; ++x) tm += t[((((x/sc)|0) + ((y/sc)|0) * w) << 2) + c] / n;
-    return tm;
-}
-function approximate(t, tm, w, h, c, b, Jmax, minSz)
-{
-    var sc = 1;
-    var J = cost(t, tm, w, h, c, b), Jmin, x, y, k, K, bk, bb, bmin;
     while (J > Jmax)
     {
         Jmin = J;
@@ -262,38 +249,94 @@ function approximate(t, tm, w, h, c, b, Jmax, minSz)
         {
             bk = b[k];
             if (minSz >= bk.x1 - bk.x0 + 1 && minSz >= bk.y1 - bk.y0 + 1) continue;
-            //if (bk.x1 - bk.x0 >= bk.y1 - bk.y0)
+            for (x=bk.x0+1; x+1<bk.x1; ++x)
             {
-                //x = (bk.x0 + bk.x1) >>> 1;
-                for (x=bk.x0+1; x+1<bk.x1; ++x)
+                J2 = J;
+                hh = bk.y1-bk.y0+1;
+                y0 = clamp(bk.y0-1, 0, bk.y1);
+                y1 = clamp(bk.y1, 0, bk.y1);
+                x0 = clamp(bk.x0-1, 0, bk.x1);
+                x1 = clamp(x, 0, bk.x1);
+                ww = x-bk.x0+1;
+                avg1 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                x0 = clamp(x, 0, bk.x1);
+                x1 = clamp(bk.x1, 0, bk.x1);
+                ww = bk.x1-(x+1)+1;
+                avg2 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                for (xx=bk.x0; xx<=x; ++xx)
                 {
-                bb = b.slice(0, k);
-                bb.push({k:avg(t, c, w, h, bk.x0, x, bk.y0, bk.y1), x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
-                bb.push({k:avg(t, c, w, h, x+1, bk.x1, bk.y0, bk.y1), x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
-                bb.push.apply(bb, b.slice(k+1));
-                J = cost(t, tm, w, h, c, bb);
-                if (J < Jmin)
-                {
-                    Jmin = J;
-                    bmin = bb;
+                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    {
+                        p = (x + yw) << 2;
+                        v = (t[p+c] - bk.k)/255;
+                        J2 -= v*v/n;
+                        v = (t[p+c] - avg1)/255;
+                        J2 += v*v/n;
+                    }
                 }
+                for (xx=x+1; xx<=bk.x1; ++xx)
+                {
+                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    {
+                        p = (x + yw) << 2;
+                        v = (t[p+c] - bk.k)/255;
+                        J2 -= v*v/n;
+                        v = (t[p+c] - avg2)/255;
+                        J2 += v*v/n;
+                    }
+                }
+                if (J2 < Jmin)
+                {
+                    Jmin = J2;
+                    bmin = b.slice(0, k);
+                    bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
+                    bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                    bmin.push.apply(bmin, b.slice(k+1));
                 }
             }
-            //else if (bk.x1 - bk.x0 < bk.y1 - bk.y0)
+            for (y=bk.y0+1; y+1<bk.y1; ++y)
             {
-                //y = (bk.y0 + bk.y1) >>> 1;
-                for (y=bk.y0+1; y+1<bk.y1; ++y)
+                J2 = J;
+                ww = bk.x1-bk.yx0+1;
+                x0 = clamp(bk.x0-1, 0, bk.x1);
+                x1 = clamp(bk.x1, 0, bk.x1);
+                y0 = clamp(bk.y0-1, 0, bk.y1);
+                y1 = clamp(y, 0, bk.y1);
+                hh = y-bk.y0+1;
+                avg1 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                y0 = clamp(y, 0, bk.y1);
+                y1 = clamp(bk.y1, 0, bk.y1);
+                hh = bk.y1-(y+1)+1;
+                avg2 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
                 {
-                bb = b.slice(0, k);
-                bb.push({k:avg(t, c, w, h, bk.x0, bk.x1, bk.y0, y), x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
-                bb.push({k:avg(t, c, w, h, bk.x0, bk.x1, y+1, bk.y1), x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
-                bb.push.apply(bb, b.slice(k+1));
-                J = cost(t, tm, w, h, c, bb);
-                if (J < Jmin)
-                {
-                    Jmin = J;
-                    bmin = bb;
+                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    {
+                        p = (x + yw) << 2;
+                        v = (t[p+c] - bk.k)/255;
+                        J2 -= v*v/n;
+                        v = (t[p+c] - avg1)/255;
+                        J2 += v*v/n;
+                    }
                 }
+                for (yy=y+1,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                {
+                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    {
+                        p = (x + yw) << 2;
+                        v = (t[p+c] - bk.k)/255;
+                        J2 -= v*v/n;
+                        v = (t[p+c] - avg2)/255;
+                        J2 += v*v/n;
+                    }
+                }
+                if (J2 < Jmin)
+                {
+                    Jmin = J2;
+                    bmin = b.slice(0, k);
+                    bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
+                    bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                    bmin.push.apply(bmin, b.slice(k+1));
                 }
             }
         }

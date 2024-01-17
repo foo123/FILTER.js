@@ -594,8 +594,9 @@ var FilterImage = FILTER.Image = FILTER.Class({
         return self;
     }
 
-    ,image: function(img) {
+    ,image: function(img, sw, sh, sx, sy, dx, dy) {
         if (!img) return this;
+        if (arguments.length > 1) return this.image_s(img, sw, sh, sx, sy, dx, dy);
 
         var self = this, w, h,
             isVideo, isCanvas, isImage//, isImageData
@@ -628,6 +629,38 @@ var FilterImage = FILTER.Image = FILTER.Class({
         {
             if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, 0, 0);
             self.oCanvas.getContext('2d').putImageData(img, 0, 0);
+        }
+        self._refresh |= DATA;
+        if (self.selection) self._refresh |= SEL;
+        self.nref = (self.nref+1) % 1000;
+        return self;
+    }
+    ,image_s: function(img, sw, sh, sx, sy, dx, dy, dw, dh) {
+        if (!img) return this;
+
+        var self = this, w, h,
+            isVideo, isCanvas, isImage//, isImageData
+        ;
+
+        if (img instanceof FilterImage) img = img.oCanvas;
+        isVideo = ("undefined" !== typeof HTMLVideoElement) && (img instanceof HTMLVideoElement);
+        isCanvas = (img instanceof self.oCanvas.constructor);
+        isImage = (img instanceof FILTER.Canvas.Image().constructor);
+        //isImageData = (null != img.data && null != img.width && null != img.height);
+
+        sx = sx || 0;
+        sy = sy || 0;
+        dx = dx || 0;
+        dy = dy || 0;
+        if (isImage || isCanvas || isVideo)
+        {
+            if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, sx, sy, sw, sh, dx, dy, self.iCanvas.width, self.iCanvas.height);
+            self.oCanvas.getContext('2d').drawImage(img, sx, sy, sw, sh, dx, dy, self.oCanvas.width, self.oCanvas.height);
+        }
+        else
+        {
+            if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, dx, dy, sx, sy, sw, sh);
+            self.oCanvas.getContext('2d').putImageData(img, dx, dy, sx, sy, sw, sh);
         }
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
