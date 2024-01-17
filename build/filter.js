@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.4
-*   @built on 2024-01-16 11:40:53
+*   @built on 2024-01-17 13:07:51
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.9.4
-*   @built on 2024-01-16 11:40:53
+*   @built on 2024-01-17 13:07:51
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1758,121 +1758,25 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat)
 
     // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
     // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
+
     // first row
-    sum=sum2=0; j=0;
-    for (i=channel; i<rem; i+=ii)
+    sum=sum2=0;
+    for (i=0+channel,j=0; i<rowLen; i+=ii,++j)
     {
-        c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-    }
-    for (i0=rem+channel; i0<rowLen; i0+=i32)
-    {
-        i =i0; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
-        i+=ii; c=im[i]; sum+=c; sat[j]=sum; rsat[j]=c; sum2+=c*c; sat2[j]=sum2; ++j;
+        c = im[i];
+        sum += c; sat[j] = sum;
+        if (sat2) {sum2 += c*c; sat2[j] = sum2;}
+        if (rsat) {rsat[j] = c;}
     }
 
     // other rows
-    x=0; y=1; j=0; sum=0; sum2=0; rem+=rowLen;
-    for (i=rowLen+channel; i<rem; i+=ii)
+    x=0; y=1; sum=sum2=0;
+    for (i=rowLen+channel,j=0; i<len; i+=ii,++j)
     {
-        c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-    }
-    for (i0=rem+channel; i0<len; i0+=i32)
-    {
-        i =i0; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
-        i+=ii; c=im[i]; sum+=c; sat[j+w]=sat[j]+sum; sum2+=c*c; sat2[j+w]=sat2[j]+sum2; rsat[j+w]=rsat[j+1-w] + (c+im[(j-w)<<stride]) + (y>1?rsat[j-w-w]:0) + (x>0?rsat[j-1-w]:0); ++j;
-        if (++x >=w) {x=0; ++y; sum=sum2=0;}
+        c = im[i]; sum += c; sat[j+w] = sat[j]+sum;
+        if (sat2) {sum2 += c*c; sat2[j+w] = sat2[j]+sum2;}
+        if (rsat) {rsat[j+w] = (rsat[j+1-w]||0) + (c+(im[(j-w)<<stride]||0)) + (y>1?(rsat[j-w-w]||0):0) + (x>0?(rsat[j-1-w]||0):0);}
+        if (++x >= w) {x=0; ++y; sum=sum2=0;}
     }
 }
 function gaussian(dx, dy, sigma)
@@ -5233,6 +5137,12 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
     ,getInput: null
 
+    ,isInputUpdated: function(key) {
+        var input = this.inputs[String(key)];
+        if (input && ((true === input[3]) || (null == input[0]) || (input[1] && (input[2] !== input[1].nref)))) return true;
+        return false;
+    }
+
     // @override
     ,serialize: function() {
         return null;
@@ -5247,13 +5157,14 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         if (!this.hasInputs) return null;
         var inputs = this.inputs, input, k = KEYS(inputs), i, l = k.length, json;
         if (!l) return null;
-        json = {};
+        json = {_updated:{}};
         for (i=0; i<l; ++i)
         {
             input = inputs[k[i]];
             if ((null == input[0]) || (input[1] && (input[2] !== input[1].nref)))
             {
                 // save bandwidth if input is same as main current image being processed
+                json._updated[k[i]] = true;
                 input[2] = input[1].nref; // compare and update current ref count with image ref count
                 json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData(1);
             }
@@ -5264,6 +5175,8 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,unserializeInputs: function(json, curImData) {
         var self = this;
         if (!json || !self.hasInputs) return self;
+        var _updated = json._updated || {};
+        if (json._updated) delete json._updated;
         var inputs = self.inputs, input, k = KEYS(json), i, l = k.length,
             IMG = FILTER.ImArray, TypedArray = FILTER.Util.Array.typed;
         for (i=0; i<l; ++i)
@@ -5273,7 +5186,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             // save bandwidth if input is same as main current image being processed
             if (true === input) input = curImData;
             else input[0] = TypedArray(input[0], IMG)
-            inputs[k[i]] = [input, null, 0];
+            inputs[k[i]] = [input, null, 0, _updated[k[i]] || false];
         }
         return self;
     }
@@ -18755,10 +18668,13 @@ FILTER.Util.Filter.merge_features = merge_features;
 "use strict";
 
 var GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
-    A32F = FILTER.Array32F, stdMath = Math;
+    sat = FilterUtil.sat, minmax = FilterUtil.minmaxloc,
+    stdMath = Math, clamp = FILTER.Util.Math.clamp,
+    A32F = FILTER.Array32F;
 
-// https://docs.opencv.org/4.9.0/d4/dc6/tutorial_py_template_matching.html
-var TemplateMatcherFilter = FILTER.Create({
+// Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
+// https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
+FILTER.Create({
     name : "TemplateMatcherFilter"
 
     ,path: FILTER.Path
@@ -18766,28 +18682,45 @@ var TemplateMatcherFilter = FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,hasInputs: true
+    ,qty: 0.95
+    ,sz: 3
     ,scale: 1
-    ,dist: 0
+    ,rotation: 0
+    ,tpldata: null
+    ,_draw: false
 
-    ,init: function(tpl, scale, dist) {
+    ,init: function(tpl, quality, size, scale, rotation) {
         var self = this;
         if (tpl) self.setInput("template", tpl);
+        self.qty = quality || 0.95;
+        self.sz = size || 3;
         self.scale = scale || 1;
-        self.dist = dist || 0;
+        self.rotation = rotation || 0;
+    }
+
+    ,dispose: function() {
+        var self = this;
+        self.tpldata = null;
+        self.$super('dispose');
+        return self;
     }
 
     ,serialize: function() {
         var self = this;
         return {
-             scale: self.scale
-            ,dist: self.dist
+            qty: self.qty
+            ,sz: self.sz
+            ,scale: self.scale
+            ,rotation: self.rotation
         };
     }
 
     ,unserialize: function(params) {
         var self = this;
+        self.qty = params.qty;
+        self.sz = params.sz;
         self.scale = params.scale;
-        self.dist = params.dist;
+        self.rotation = params.rotation;
         return self;
     }
 
@@ -18796,57 +18729,236 @@ var TemplateMatcherFilter = FILTER.Create({
     }
 
     ,apply: function(im, w, h) {
-        var self = this, t = self.input("template");
+        var self = this,
+            needsUpdate = self.isInputUpdated("template"),
+            t = self.input("template");
         self.meta = [];
         if (!t) return im;
         var tpl = t[0], tw = t[1], th = t[2],
+            sc = self.scale, rot = self.rotation,
+            tws = stdMath.round(sc*tw),
+            ths = stdMath.round(sc*th),
             m = im.length, n = tpl.length,
-            k, l, p, sc = self.scale,
-            tsw = stdMath.round(sc*tw),
-            tsh = stdMath.round(sc*th),
-            out = new A32F(w*h),
-            sumR, sumG, sumB,
-            diffR, diffG, diffB,
-            x, y, xx, yy, v;
+            mm = w*h, nn = tw*th,
+            tpldata, sat1, sat2, out,
+            k, x, y;
 
-        for (k=0,x=0,y=0; k<m; k+=4,++x)
+        if (needsUpdate || !self.tpldata) self.tpldata = process_template(tpl, tw, th, 1-self.qty, self.sz);
+
+        tpldata = self.tpldata;
+        if (self._draw)
         {
-            if (x >= w) {x=0; ++y;}
-            if (x + tsw >= w || y + tsh >= h)
+            self._update = true;
+            for (var c=0; c<3; ++c)
             {
-                out[k>>>2] = 1;
-            }
-            else
-            {
-                sumR=sumG=sumB=0;
-                for (yy=0,xx=0; yy<tsh; ++xx)
+                var bb = tpldata.basis[c];
+                for (var k=0,K=bb.length; k<K; ++k)
                 {
-                    if (xx >= tsw) {xx=0; ++yy; if (yy>=tsh) break;}
-                    l = (((xx/sc)|0) + ((yy/sc)|0) * tw) << 2;
-                    p = (x+xx + (y+yy)*w) << 2;
-                    diffR = (tpl[l  ] - im[p  ])/255;
-                    diffG = (tpl[l+1] - im[p+1])/255;
-                    diffB = (tpl[l+2] - im[p+2])/255;
-                    sumR += diffR * diffR;
-                    sumG += diffG * diffG;
-                    sumB += diffB * diffB;
+                    var bk = bb[k];
+                    for (var yk=bk.y0,wyk=w*yk; yk<bk.y1; ++yk,wyk+=w)
+                    {
+                        for (var xk=bk.x0; xk<bk.x1; ++xk)
+                        {
+                            im[((xk + wyk) << 2) + c] = bk.k;
+                        }
+                    }
                 }
-                v = (sumR + sumG + sumB) / (3*255);
-                out[k>>>2] = v;
             }
         }
+        else
+        {
+            out = new A32F(mm);
+            sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+            sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+            sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
+            sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
+            sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
 
-        self.meta = FilterUtil.minmaxloc(out, w, h).minpos.map(function(p) {return {x:p.x, y:p.y, width:tsw, height:tsh};});
+            for (k=0,x=0,y=0; k<m; k+=4,++x)
+            {
+                if (x >= w) {x=0; ++y;}
+                if (x + tws >= w || y + ths >= h)
+                {
+                    out[k>>>2] = 0;
+                }
+                else
+                {
+                    out[k>>>2] = (
+                      nccorr(x, y, sat1[0], sat2[0], tpldata.basis[0], w, h, tw, th, sc, rot) // R
+                    + nccorr(x, y, sat1[1], sat2[1], tpldata.basis[1], w, h, tw, th, sc, rot) // G
+                    + nccorr(x, y, sat1[2], sat2[2], tpldata.basis[2], w, h, tw, th, sc, rot) // B
+                    );
+                }
+            }
+
+            self.meta = minmax(out, w, h).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};});
+            out = null; sat1 = null; sat2 = null;
+        }
         return im;
     }
 });
-TemplateMatcherFilter.SQDIFF = 0;
-TemplateMatcherFilter.SQDIFF_NORMED = 1;
-TemplateMatcherFilter.CCORR = 2;
-TemplateMatcherFilter.CCORR_NORMED = 3;
-TemplateMatcherFilter.CCOEFF = 4;
-TemplateMatcherFilter.CCOEFF_NORMED = 5;
-
+function preprocessTemplate(tplImg, quality, minsize, channel)
+{
+    var tpl = tplImg.getSelectedData(1);
+    return process_template(tpl[0], tpl[1], tpl[2], 1.0 - (quality || 0.95), minsize || 3, channel);
+}
+function nccorr(x, y, sat1, sat2, basis, w, h, tw, th, sc, rot)
+{
+    var tws = stdMath.round(sc*tw),
+        ths = stdMath.round(sc*th),
+        area = tws*ths,
+        x0 = clamp(x-1, 0, w-1),
+        x1 = clamp(x0+tws, 0, w-1),
+        y0 = clamp(y-1, 0, h-1),
+        y1 = clamp(y0+ths, 0, h-1),
+        wy0 = w*y0, wy1 = w*y1,
+        k, K, bk,
+        sum1 = sat1[x1 + wy1] - sat1[x0 + wy1] - sat1[x1 + wy0] + sat1[x0 + wy0],
+        sum2 = sat2[x1 + wy1] - sat2[x0 + wy1] - sat2[x1 + wy0] + sat2[x0 + wy0],
+        denom = stdMath.sqrt(stdMath.abs(sum2 - sum1*sum1)/* / area*/) /** (nrg)*/, // template energy is constant, can be left out
+        nom = 0;
+    for (k=0,K=basis.length; k<K; ++k)
+    {
+        bk = basis[k];
+        x0 = clamp(x-1+stdMath.round(sc*bk.x0), 0, w-1);
+        x1 = clamp(x+stdMath.round(sc*bk.x1), 0, w-1);
+        y0 = clamp(y-1+stdMath.round(sc*bk.y0), 0, h-1);
+        y1 = clamp(y+stdMath.round(sc*bk.y1), 0, h-1);
+        wy0 = w*y0; wy1 = w*y1;
+        nom += bk.k * (sat1[x1 + wy1] - sat1[x1 + wy0] - sat1[x0 + wy1] + sat1[x0 + wy0]);
+    }
+    return (nom / denom);
+}
+/*function nrg(basis, avg, sc, rot)
+{
+    var n = 0, k, K, bk;
+    for (k=0,K=basis.length; k<K; ++k)
+    {
+        bk = basis[k];
+        n += (bk.k-avg) * (stdMath.round(sc*bk.x1)-stdMath.round(sc*bk.x0)+1) * (stdMath.round(sc*bk.y1)-stdMath.round(sc*bk.y0)+1);
+    }
+    n = n*n;
+    return stdMath.max(n, 1e-3);
+}*/
+function process_template(t, w, h, Jmax, minSz, channel)
+{
+    var sc = 1, rot = 0;
+    var tr = 0, tg = 0, tb = 0,
+        basis = [[], [], []], avg,
+        sw = stdMath.round(sc*w),
+        sh = stdMath.round(sc*h),
+        n = sw*sh, p, x, y;
+    for (y=0; y<sh; ++y)
+    {
+        for (x=0; x<sw; ++x)
+        {
+            p = (((x/sc)|0) + ((y/sc)|0) * w) << 2;
+            tr += t[p  ] / n;
+            tg += t[p+1] / n;
+            tb += t[p+2] / n;
+        }
+    }
+    avg = [tr, tg, tb];
+    if (null != channel)
+    {
+        basis[channel] = approximate(t, avg[channel], w, h, channel, [{k:avg[channel],x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz);
+    }
+    else
+    {
+        basis = [
+        approximate(t, tr, w, h, 0, [{k:tr,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz),
+        approximate(t, tg, w, h, 1, [{k:tg,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz),
+        approximate(t, tb, w, h, 2, [{k:tb,x0:0,x1:sw-1,y0:0,y1:sh-1}], Jmax, minSz)
+        ];
+    }
+    return {avg:avg, basis:basis};
+}
+function cost(t, tm, w, h, c, b)
+{
+    var sc = 1;
+    var J = 0, x, y, p,
+        sw = stdMath.round(sc*w),
+        sh = stdMath.round(sc*h),
+        n = sw*sh,
+        v, k, K = b.length, bk;
+    for (y=0; y<sh; ++y)
+    {
+        for (x=0; x<sw; ++x)
+        {
+            p = (((x/sc)|0) + ((y/sc)|0) * w) << 2;
+            v = (t[p+c]/*- tm*/) / 255;
+            for (k=0; k<K; ++k)
+            {
+                bk = b[k];
+                if (bk.x0 <= x && bk.x1 >= x && bk.y0 <= y && bk.y1 >= y)
+                    v -= bk.k / 255;
+            }
+            J += v*v / n;
+        }
+    }
+    return J;
+}
+function avg(t, c, w, h, x0, x1, y0, y1)
+{
+    var sc = 1;
+    var tm = 0, x, y, n = (x1-x0+1)*(y1-y0+1);
+    for (y=y0; y<=y1; ++y) for (x=x0; x<=x1; ++x) tm += t[((((x/sc)|0) + ((y/sc)|0) * w) << 2) + c] / n;
+    return tm;
+}
+function approximate(t, tm, w, h, c, b, Jmax, minSz)
+{
+    var sc = 1;
+    var J = cost(t, tm, w, h, c, b), Jmin, x, y, k, K, bk, bb, bmin;
+    while (J > Jmax)
+    {
+        Jmin = J;
+        bmin = b;
+        K = b.length;
+        for (k=0; k<K; ++k)
+        {
+            bk = b[k];
+            if (minSz >= bk.x1 - bk.x0 + 1 && minSz >= bk.y1 - bk.y0 + 1) continue;
+            //if (bk.x1 - bk.x0 >= bk.y1 - bk.y0)
+            {
+                //x = (bk.x0 + bk.x1) >>> 1;
+                for (x=bk.x0+1; x+1<bk.x1; ++x)
+                {
+                bb = b.slice(0, k);
+                bb.push({k:avg(t, c, w, h, bk.x0, x, bk.y0, bk.y1), x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
+                bb.push({k:avg(t, c, w, h, x+1, bk.x1, bk.y0, bk.y1), x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                bb.push.apply(bb, b.slice(k+1));
+                J = cost(t, tm, w, h, c, bb);
+                if (J < Jmin)
+                {
+                    Jmin = J;
+                    bmin = bb;
+                }
+                }
+            }
+            //else if (bk.x1 - bk.x0 < bk.y1 - bk.y0)
+            {
+                //y = (bk.y0 + bk.y1) >>> 1;
+                for (y=bk.y0+1; y+1<bk.y1; ++y)
+                {
+                bb = b.slice(0, k);
+                bb.push({k:avg(t, c, w, h, bk.x0, bk.x1, bk.y0, y), x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
+                bb.push({k:avg(t, c, w, h, bk.x0, bk.x1, y+1, bk.y1), x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
+                bb.push.apply(bb, b.slice(k+1));
+                J = cost(t, tm, w, h, c, bb);
+                if (J < Jmin)
+                {
+                    Jmin = J;
+                    bmin = bb;
+                }
+                }
+            }
+        }
+        if (bmin === b) break;
+        J = Jmin;
+        b = bmin;
+    }
+    return b;
+}
 function glsl(filter)
 {
     var glslcode = (new GLSL.Filter(filter))
@@ -18858,7 +18970,6 @@ function glsl(filter)
     'uniform vec2 imgSize;',
     'uniform vec2 tplSize;',
     'uniform float scale;',
-    'uniform int dist;',
     'void main(void) {',
     '    vec2 tplSizeScaled = tplSize * scale;',
     '    if (pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
@@ -18910,19 +19021,19 @@ function glsl(filter)
         return [w, h];
     })
     .input('scale', function(filter) {return filter.scale;})
-    .input('dist', function(filter) {return filter.dist;})
     .end()
     .begin()
     .shader(function(glsl, im, w, h) {
         var sz = glsl.io().tplSize,
             tsw = stdMath.round(glsl.instance.scale*sz[0]),
             tsh = stdMath.round(glsl.instance.scale*sz[1]);
-        filter.meta = FilterUtil.minmaxloc(im, w, h, null, null, 4, 0).minpos.map(function(p) {return {x:p.x, y:p.y, width:tsw, height:tsh};});
+        filter.meta = minmax(im, w, h, null, null, 4, 0).minpos.map(function(p) {return {x:p.x, y:p.y, width:tsw, height:tsh};});
         return glsl.io()['im'].data;//im;
     })
     .end();
     return glslcode.code();
 }
+FILTER.TemplateMatcherFilter.preprocessTemplate = preprocessTemplate;
 }(FILTER);/* main code ends here */
 /* export the module */
 return FILTER;

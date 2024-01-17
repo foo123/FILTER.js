@@ -87,6 +87,7 @@
 * [Converting Color Real Image to Cartoon Image Using Non-Parametric Mean-Shift Technique, Abdulmunen 2012](http://www.iasj.net/iasj?func=fulltext&aId=65525)
 * [Comparing images using joint histograms, Pass, Zabih 1999](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.39.4200&rep=rep1&type=pdf)
 * [Object Recognition with Color Cooccurrence Histograms, Chang, Krumm 1999](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/cvpr1.pdf)
+* [Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001](https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [YEF: Real-Time Object Detection, Abramson, Steux, Ghorayeb 2005](https://www.researchgate.net/publication/221051246_YEF_Yet_Even_Faster_Real-Time_Object_Detection)

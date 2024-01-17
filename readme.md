@@ -7,7 +7,7 @@
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers, WebAssembly and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
 
 
-**version 1.9.4 in progress** (390 kB minified)
+**version 1.9.4 in progress** (400 kB minified)
 
 
 ### Contents
@@ -46,6 +46,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 Some filters code has been adapted from open source libraries, see the comments in the code for details.
 
+* [**OpenCV**](https://github.com/opencv)
 * [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
 * [**AS3 Image Processing Library**](http://je2050.de/imageprocessing/)
 * [**AS3 ColorMatrix**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html) **by @GSkinner**
@@ -56,7 +57,7 @@ Some filters code has been adapted from open source libraries, see the comments 
 
 ### Features
 
-The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 13 generic `Filter` types plus various Plugins and Extra filters (with support for **(low-level) CPU and GPU parallel processing** transparently both for `browser` and `nodejs`)
+The framework defines an [`Image`](/api-reference.md#image-class) class, which represents a proxy for an Image, a number of utilities like `Color` class and 14 generic `Filter` types plus various Plugins and Extra filters (with support for **(low-level) CPU and GPU parallel processing** transparently both for `browser` and `nodejs`)
 
 0. [**AbstractFilter**](/api-reference.md#generic-abstract-filter)
 1. [**ColorTableFilter**](/api-reference.md#color-table-filter)

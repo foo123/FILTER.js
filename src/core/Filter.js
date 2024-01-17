@@ -321,6 +321,12 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
     ,getInput: null
 
+    ,isInputUpdated: function(key) {
+        var input = this.inputs[String(key)];
+        if (input && ((true === input[3]) || (null == input[0]) || (input[1] && (input[2] !== input[1].nref)))) return true;
+        return false;
+    }
+
     // @override
     ,serialize: function() {
         return null;
@@ -335,13 +341,14 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
         if (!this.hasInputs) return null;
         var inputs = this.inputs, input, k = KEYS(inputs), i, l = k.length, json;
         if (!l) return null;
-        json = {};
+        json = {_updated:{}};
         for (i=0; i<l; ++i)
         {
             input = inputs[k[i]];
             if ((null == input[0]) || (input[1] && (input[2] !== input[1].nref)))
             {
                 // save bandwidth if input is same as main current image being processed
+                json._updated[k[i]] = true;
                 input[2] = input[1].nref; // compare and update current ref count with image ref count
                 json[k[i]] = curIm === input[1] ? true : input[1].getSelectedData(1);
             }
@@ -352,6 +359,8 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     ,unserializeInputs: function(json, curImData) {
         var self = this;
         if (!json || !self.hasInputs) return self;
+        var _updated = json._updated || {};
+        if (json._updated) delete json._updated;
         var inputs = self.inputs, input, k = KEYS(json), i, l = k.length,
             IMG = FILTER.ImArray, TypedArray = FILTER.Util.Array.typed;
         for (i=0; i<l; ++i)
@@ -361,7 +370,7 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
             // save bandwidth if input is same as main current image being processed
             if (true === input) input = curImData;
             else input[0] = TypedArray(input[0], IMG)
-            inputs[k[i]] = [input, null, 0];
+            inputs[k[i]] = [input, null, 0, _updated[k[i]] || false];
         }
         return self;
     }
