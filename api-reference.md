@@ -980,7 +980,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>HistogramEqualize</td>    <td>apply fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>OtsuThreshold</td>    <td>automatic threshold (Otsu method)</td></tr>
 <tr><td>CannyEdges</td>   <td>an efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
-<tr><td>TemplateMatcher</td> <td>convolve a template image against another image and find possible matches<br><b>supports WebGL</b></td></tr>
+<tr><td>TemplateMatcher</td> <td>find matches and their bounding boxes of a template image against another image (selection) using very fast and flexible correlation<br><b>supports WebGL</b></td></tr>
 <tr><td>HaarDetector</td> <td>detect features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>
 </table>

@@ -1971,36 +1971,148 @@ function _fft2(re, im, nx, ny, inv, output_re, output_im)
 
     if (ret) return {r:output_re, i:output_im};
 }
-function min_max_loc(data, w, h, tlo, thi, stride, offset)
+function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
 {
-    stride = stride || 1;
-    offset = offset || 0;
-    var k, l = data.length, x, y, d, minmax = {min:Infinity, max:-Infinity, minpos:[], maxpos:[]};
-    for (k=0,y=0,x=0; k<l; k+=stride,++x)
+    stride = stride || 0; offset = offset || 0;
+    var k, l = data.length, ki = (1 << stride), x, y, d,
+        min = Infinity, max = -Infinity,
+        minpos, maxpos, minc = 0, maxc = 0;
+    if (hasMin) minpos = new Array(l >>> stride);
+    if (hasMax) maxpos = new Array(l >>> stride);
+    for (k=0,y=0,x=0; k<l; k+=ki,++x)
     {
         if (x >= w) {x=0; ++y};
         d = data[k+offset];
-        if ((d <= minmax.min) && (null == tlo || d <= tlo))
+        if (hasMin && (d <= min) && (null == tlo || d <= tlo))
         {
-            if (d < minmax.min)
-            {
-                minmax.min = d;
-                minmax.minpos = [];
-            }
-            minmax.minpos.push({x:x, y:y});
+            if (d < min) {min = d; minc = 0;}
+            minpos[minc++] = {x:x, y:y};
         }
-        if ((d >= minmax.max) && (null == thi || d >= thi))
+        if (hasMax && (d >= max) && (null == thi || d >= thi))
         {
-            if (d > minmax.max)
-            {
-                minmax.max = d;
-                minmax.maxpos = [];
-            }
-            minmax.maxpos.push({x:x, y:y});
+            if (d > max) {max = d; maxc = 0;}
+            maxpos[maxc++] = {x:x, y:y};
         }
     }
-    return minmax;
+    if (hasMin && hasMax)
+    {
+        minpos.length = minc;
+        maxpos.length = maxc;
+        return {min:min, minpos:minpos, max:max, maxpos:maxpos};
+    }
+    else if (hasMin)
+    {
+        minpos.length = minc;
+        return {min:min, minpos:minpos};
+    }
+    else if (hasMax)
+    {
+        maxpos.length = maxc;
+        return {max:max, maxpos:maxpos};
+    }
 }
+
+function equals(r1, r2, eps)
+{
+    var delta = eps * (stdMath.min(r1.width, r2.width) + stdMath.min(r1.height, r2.height)) * 0.5;
+    return stdMath.abs(r1.x - r2.x) <= delta &&
+        stdMath.abs(r1.y - r2.y) <= delta &&
+        stdMath.abs(r1.x + r1.width - r2.x - r2.width) <= delta &&
+        stdMath.abs(r1.y + r1.height - r2.y - r2.height) <= delta;
+}
+function is_inside(r1, r2, eps)
+{
+    var dx = r2.width * eps, dy = r2.height * eps;
+    return (r1.x >= r2.x - dx) &&
+        (r1.y >= r2.y - dy) &&
+        (r1.x + r1.width <= r2.x + r2.width + dx) &&
+        (r1.y + r1.height <= r2.y + r2.height + dy);
+}
+function add(r1, r2)
+{
+    r1.x += r2.x;
+    r1.y += r2.y;
+    r1.width += r2.width;
+    r1.height += r2.height;
+    return r1;
+}
+function snap_to_grid(r)
+{
+    r.x = stdMath.round(r.x);
+    r.y = stdMath.round(r.y);
+    r.width = stdMath.round(r.width);
+    r.height = stdMath.round(r.height);
+    r.area = r.width*r.height;
+    return r;
+}
+function merge_features(rects, min_neighbors, epsilon)
+{
+    var rlen = rects.length, ref = new Array(rlen), feats = [],
+        nb_classes = 0, neighbors, r, found = false, i, j, n, t, ri;
+
+    // original code
+    // find number of neighbour classes
+    for (i = 0; i < rlen; ++i) ref[i] = 0;
+    for (i = 0; i < rlen; ++i)
+    {
+        found = false;
+        for (j = 0; j < i; ++j)
+        {
+            if (equals(rects[j], rects[i], epsilon))
+            {
+                found = true;
+                ref[i] = ref[j];
+            }
+        }
+
+        if (!found)
+        {
+            ref[i] = nb_classes;
+            ++nb_classes;
+        }
+    }
+
+    // merge neighbor classes
+    neighbors = new Array(nb_classes);  r = new Array(nb_classes);
+    for (i = 0; i < nb_classes; ++i) {neighbors[i] = 0;  r[i] = {x:0,y:0,width:0,height:0};}
+    for (i = 0; i < rlen; ++i) {ri=ref[i]; ++neighbors[ri]; add(r[ri], rects[i]);}
+    for (i = 0; i < nb_classes; ++i)
+    {
+        n = neighbors[i];
+        if (n >= min_neighbors)
+        {
+            t = 1/(n + n);
+            ri = {
+                x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
+                width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
+            };
+
+            feats.push(ri);
+        }
+    }
+
+    // filter inside rectangles
+    rlen = feats.length;
+    for (i=0; i<rlen; ++i)
+    {
+        for (j=i+1; j<rlen; ++j)
+        {
+            if (!feats[i].isInside && is_inside(feats[i], feats[j], epsilon))
+                feats[i].isInside = true;
+            if (!feats[j].isInside && is_inside(feats[j], feats[i], epsilon))
+                feats[j].isInside = true;
+        }
+    }
+    i = rlen;
+    while (--i >= 0)
+    {
+        if (feats[i].isInside) feats.splice(i, 1);
+        else snap_to_grid(feats[i]);
+    }
+
+    return feats/*.sort(by_area)*/;
+}
+
 
 function ct_eye(c1, c0)
 {
@@ -2164,13 +2276,30 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
+FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
+    x0 = clamp(x0, 0, w-1);
+    y0 = clamp(y0, 0, h-1);
+    x1 = clamp(x1, 0, w-1);
+    y1 = clamp(y1, 0, h-1);
+    x0 -= 1; y0 -= 1;
+    return sat[x1 + w*y1] - (x0 >= 0 ? sat[x0 + w*y1] : 0) - (y0 >= 0 ? sat[x1 + w*y0] : 0) + (x0 >= 0 && y0 >= 0 ? sat[x0 + w*y0] : 0);
+};
 FilterUtil.histogram = histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
 FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
 FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
-FilterUtil.minmaxloc = min_max_loc;
+FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
+    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
+};
+FilterUtil.min = function(d, w, h, tl, stride, offset) {
+    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
+};
+FilterUtil.max = function(d, w, h, th, stride, offset) {
+    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
+};
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},

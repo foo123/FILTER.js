@@ -1,10 +1,11 @@
 ## ChangeLog
 
-__1.9.4__
+__1.10.0__
 
-* FFT1d and FFT2d core utilities
+* FFT1d, FFT2d, minmax core utilities
+* Image.image_s method
 * FrequenyFilter js version
-* TemplateMatcherFilter js and glsl versions
+* TemplateMatcherFilter js/glsl versions
 * various edits and updates
 
 __1.9.1__

@@ -1,7 +1,7 @@
 /**
 *
 *   Asynchronous.js
-*   @version: 0.5.1
+*   @version: 0.5.2
 *
 *   Simple JavaScript class to manage asynchronous, parallel, linear, sequential and interleaved tasks
 *   https://github.com/foo123/asynchronous.js
@@ -10,7 +10,7 @@
 !function(root_, FILTER, undef) {
 "use strict";
 
-var  PROTO = "prototype" 
+var  PROTO = "prototype"
     ,Obj = Object, Arr = Array, Func = Function
     ,FP = Func[PROTO], OP = Obj[PROTO], AP = Arr[PROTO]
     ,fromJSON = JSON.parse, toJSON = JSON.stringify
@@ -41,7 +41,7 @@ var  PROTO = "prototype"
     ,isInstantiatedThread = (isNodeProcess && (0 === process.listenerCount('message'))) || (isSharedWorker && !root.onconnect) || (isWebWorker && !root.onmessage)
     ,Listener = isInstantiatedThread ? function Listener( msg ) { if ( Listener.handler ) Listener.handler( isNodeProcess ? msg : msg.data );  } : NOP
     ,Thread, component = null, LOADED = {}, numProcessors = isNode ? require('os').cpus( ).length : 4
-    
+
     ,URL = !isNode ? ("undefined" !== typeof root.webkitURL ? root.webkitURL : ("undefined" !== typeof root.URL ? root.URL : null)) : null
     ,blobURL = function(src, options) {
         return src && URL
@@ -49,7 +49,7 @@ var  PROTO = "prototype"
             : src
         ;
     }
-    
+
     // Get current filename/path
     ,path = function path(moduleUri) {
         var f;
@@ -74,19 +74,19 @@ var  PROTO = "prototype"
         }
         return {path: null, file: null};
     }
-    
+
     ,thisPath = path(ModuleFactory__FILTER.moduleUri), tpf = thisPath.file
-    
+
     ,extend = function(o1, o2) {
         o1 = o1 || {};
         if (o2)
         {
-            for (var k in o2) 
+            for (var k in o2)
                 if (HAS.call(o2, k)) o1[k] = o2[k];
         }
         return o1;
     }
-    
+
     ,_uuid = 0
 ;
 
@@ -110,7 +110,7 @@ if (isNode)
     Thread[PROTO] = {
         constructor: Thread,
         process: null,
-        
+
         onmessage: null,
         onerror: null,
 
@@ -148,7 +148,7 @@ else
     Thread[PROTO] = {
         constructor: Thread,
         process: null,
-        
+
         onmessage: null,
         onerror: null,
 
@@ -185,7 +185,7 @@ else
         Thread.Shared[PROTO] = {
             constructor: Thread.Shared,
             process: null,
-            
+
             onmessage: null,
             onerror: null,
 
@@ -239,115 +239,21 @@ else if (isNodeProcess)
 }
 }
 
-// Proxy to communication/asyc to another browser window
-function formatOptions(o) 
-{
-    var s = [], k;
-    if (o)
-    {
-        for (k in o)
-            if (HAS.call(o, k))
-                s.push(k + '=' + (true===o[k]||1===o[k]?'yes':(false===o[k]||0===o[k]?'no':o[k])));
-    }
-    return s.join(",");
-}
-var BrowserWindow = function BrowserWindow(options) {
-    var self = this;
-    if (!( self instanceof BrowserWindow)) return new BrowserWindow(options);
-    self.$id = (++_uuid).toString(16);
-    self.options = extend({
-        width: 400,
-        height: 400,
-        toolbar: 0,
-        location: 0,
-        directories: 0,
-        status: 0,
-        menubar: 0,
-        scrollbars: 1,
-        resizable: 1
-    }, options);
-};
-BrowserWindow[PROTO] = {
-    constructor: BrowserWindow
-    
-    ,options: null
-    ,$id: null
-    ,$window: null
-    
-    ,dispose: function() {
-        var self = this;
-        if (self.$window) self.close();
-        self.$window = null;
-        self.$id = null;
-        self.options = null;
-        return self;
-    }
-    
-    ,close: function() {
-        var self = this;
-        if (self.$window)
-        {
-            if (!self.$window.closed) self.$window.close();
-            self.$window = null;
-        }
-        return self;
-    }
-    
-    ,ready: function(variable, cb) {
-        var self = this, 
-            on_window_ready = function on_window_ready() {
-                if (!self.$window || (!!variable && !self.$window[variable]))
-                    setTimeout(on_window_ready, 60);
-                else cb();
-            };
-        setTimeout(on_window_ready, 0);
-        return self;
-    }
-    
-    ,open: function(url_or_html) {
-        var self = this;
-        if (!self.$window && !!url_or_html)
-        {
-            self.$window = window.open( 
-                url_or_html.push // dynamic content as blob array (with utf-8 BOM prepended)
-                    ? blobURL(["\ufeff"].concat(url_or_html), {type: 'text/html;charset=utf-8'})
-                    : url_or_html, 
-                self.$id, 
-                formatOptions(self.options)
-            );
-            /*if (autoDispose)
-            {
-                self.$window.onbeforeunload = function() {
-                   setTimeout(function() {self.dispose();}, 1500);
-                };
-            }*/
-        }
-        return self;
-    }
-    
-    ,write: function(html) {
-        var self = this;
-        if (self.$window && html)
-            self.$window.document.write(html);
-        return self;
-    }
-};
-
 // Task class/combinator
 var Task = function Task(aTask) {
     if (aTask instanceof Task) return aTask;
     if (!(this instanceof Task)) return new Task(aTask);
-    
+
     var self = this, aqueue = null, task = null,
         onComplete = null, run_once = false,
         times = false, loop = false, recurse = false,
-        until = false, untilNot = false, 
+        until = false, untilNot = false,
         loopObject = null, repeatCounter = 0,
         repeatIncrement = 1, repeatTimes = null,
         repeatUntil = null, repeatUntilNot = null,
         lastResult = undef, run
     ;
-    
+
     self.queue = function(q) {
         if (arguments.length)
         {
@@ -356,38 +262,38 @@ var Task = function Task(aTask) {
         }
         return aqueue;
     };
-    
-    self.jumpNext = function(offset) { 
-        if (aqueue) aqueue.jumpNext(false, offset); 
+
+    self.jumpNext = function(offset) {
+        if (aqueue) aqueue.jumpNext(false, offset);
     };
-    
+
     self.abort = function(dispose) {
-        if (aqueue) 
+        if (aqueue)
         {
             aqueue.abort(false);
-            if (dispose) 
+            if (dispose)
             {
                 aqueue.dispose();
                 aqueue = null;
             }
         }
     };
-    
-    self.dispose = function() { 
-        if (aqueue) 
+
+    self.dispose = function() {
+        if (aqueue)
         {
-            aqueue.dispose(); 
+            aqueue.dispose();
             aqueue = null;
         }
     };
-    
+
     self.task = function(t) {
         task = t;
         return self;
     };
-    
+
     if (aTask) self.task(aTask);
-    
+
     self.run = run = function() {
         // add queue/task methods on task func itself
         // instead of passing "this" as task param
@@ -402,7 +308,7 @@ var Task = function Task(aTask) {
         task.dispose = null;
         return lastResult;
     };
-    
+
     self.runWithArgs = function(args) {
         task.jumpNext = self.jumpNext;
         task.abort = self.abort;
@@ -414,7 +320,7 @@ var Task = function Task(aTask) {
         task.dispose = null;
         return lastResult;
     };
-    
+
     self.canRun = function() {
         if (!task) return false;
         if (run_once && !times && !loop && !recurse && !until && !untilNot) return false;
@@ -423,14 +329,14 @@ var Task = function Task(aTask) {
         if ((recurse || until) && lastResult === repeatUntil) return false;
         return true;
     };
-    
+
     self.iif = function(cond, if_true_task, else_task) {
         if (is_function(cond)) cond = cond();
         if (cond) self.task(if_true_task);
         else if (arguments.length > 2) self.task(else_task);
         return self;
     };
-    
+
     self.until = function(result) {
         lastResult = undef;
         loopObject = null;
@@ -443,7 +349,7 @@ var Task = function Task(aTask) {
         self.run = run;
         return self;
     };
-    
+
     self.untilNot = function(result) {
         lastResult = undef;
         loopObject = null;
@@ -456,7 +362,7 @@ var Task = function Task(aTask) {
         self.run = run;
         return self;
     };
-    
+
     self.loop = function(numTimes, startCounter, increment) {
         lastResult = undef;
         loopObject = null;
@@ -478,7 +384,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.each = function(loopObj) {
         lastResult = undef;
         loopObject = loopObj;
@@ -500,7 +406,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.recurse = function(initialVal, finalVal) {
         loopObject = null;
         lastResult = initialVal;
@@ -519,7 +425,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.isFinished = function() {
         var notfinished = !run_once || untilNot || until || times || loop || recurse;
         if (notfinished && (until||recurse) && lastResult === repeatUntil) notfinished = false;
@@ -527,12 +433,12 @@ var Task = function Task(aTask) {
         if (notfinished && (times||loop) && repeatCounter >= repeatTimes) notfinished = false;
         return !notfinished;
     };
-    
+
     self.onComplete = function(callback) {
         onComplete = callback || null;
         return self;
     };
-    
+
     self.complete = function() {
         if (onComplete && is_function(onComplete)) onComplete();
         return self;
@@ -540,22 +446,22 @@ var Task = function Task(aTask) {
 };
 
 // run tasks in parallel threads (eg. web workers, child processes)
-function runParallelised(scope, args) 
-{ 
+function runParallelised(scope, args)
+{
     scope.$runmode = PARALLELISED;
     scope.$running = false;
 }
 
 // serialize async-tasks that are non-blocking/asynchronous in a quasi-sequential manner
-function runLinearised(scope, args) 
-{ 
+function runLinearised(scope, args)
+{
     var self = scope, queue = self.$queue, task;
     self.$runmode = LINEARISED;
     if (queue)
     {
         while (queue.length && (!queue[0] || !queue[0].canRun())) queue.shift();
         // first task should call next tasks upon completion, via "in-place callback templates"
-        if (queue.length) 
+        if (queue.length)
         {
             self.$running = true;
             task = queue.shift();
@@ -570,8 +476,8 @@ function runLinearised(scope, args)
 }
 
 // interleave async-tasks in background in quasi-parallel manner
-function runInterleaved(scope, args) 
-{ 
+function runInterleaved(scope, args)
+{
     var self = scope, queue = self.$queue, task, index = 0;
     self.$runmode = INTERLEAVED;
     if (queue && queue.length)
@@ -580,7 +486,7 @@ function runInterleaved(scope, args)
         while (index < queue.length)
         {
             task = queue[index];
-            
+
             if (task && task.canRun())
             {
                 if (args) task.runWithArgs(args); else task.run();
@@ -605,14 +511,14 @@ function runInterleaved(scope, args)
 }
 
 // run tasks in a quasi-asynchronous manner (avoid blocking the thread)
-function runSequenced(scope, args) 
+function runSequenced(scope, args)
 {
     var self = scope, queue = self.$queue, task;
     self.$runmode = SEQUENCED;
     if (queue && queue.length)
     {
         task = queue[0];
-        
+
         if (task && task.canRun())
         {
             self.$running = true;
@@ -650,19 +556,18 @@ function Asynchronous(interval, initThread)
 Asynchronous.VERSION = "0.5.2";
 Asynchronous.Thread = Thread;
 Asynchronous.Task = Task;
-Asynchronous.BrowserWindow = BrowserWindow;
 Asynchronous.MODE = {NONE: NONE, INTERLEAVE: INTERLEAVED, LINEAR: LINEARISED, PARALLEL: PARALLELISED, SEQUENCE: SEQUENCED};
 Asynchronous.Platform = {UNDEFINED: UNDEFINED, UNKNOWN: UNKNOWN, NODE: NODE, BROWSER: BROWSER};
 Asynchronous.supportsMultiThreading = function() {return supportsMultiThread;};
-Asynchronous.isPlatform = function(platform) { 
+Asynchronous.isPlatform = function(platform) {
     if (NODE === platform) return isNode;
     else if (BROWSER === platform) return isBrowser;
 };
-Asynchronous.isThread = function(platform, instantiated) { 
+Asynchronous.isThread = function(platform, instantiated) {
     instantiated = true === instantiated ? isInstantiatedThread : true;
     if (NODE === platform) return instantiated && isNodeProcess;
     else if (BROWSER === platform) return instantiated && (isSharedWorker || isWebWorker);
-    return instantiated && isThread; 
+    return instantiated && isThread;
 };
 Asynchronous.path = path;
 Asynchronous.blob = blobURL;
@@ -671,11 +576,11 @@ Asynchronous.load = function(component, imports, asInstance) {
     {
         var initComponent = function() {
             // init the given component if needed
-            component = component.split('.'); 
+            component = component.split('.');
             var o = scope;
             while (component.length)
             {
-                if (component[0] && component[0].length && o[component[0]]) 
+                if (component[0] && component[0].length && o[component[0]])
                     o = o[component[0]];
                 component.shift();
             }
@@ -685,11 +590,11 @@ Asynchronous.load = function(component, imports, asInstance) {
                 return o;
             }
         };
-        
+
         // do any imports if needed
         if (imports && imports.length)
         {
-            /*if ( isBrowserWindow ) 
+            /*if ( isBrowserWindow )
             {
                 Asynchronous.importScripts( imports.join( ',' ), initComponent );
             }
@@ -744,7 +649,7 @@ Asynchronous.serialize = function(queue) {
 Asynchronous[PROTO] = {
 
     constructor: Asynchronous
-    
+
     ,$interval: DEFAULT_INTERVAL
     ,$timer: null
     ,$queue: null
@@ -752,7 +657,7 @@ Asynchronous[PROTO] = {
     ,$events: null
     ,$runmode: NONE
     ,$running: false
-    
+
     ,dispose: function(thread) {
         var self = this;
         self.unfork(true);
@@ -766,7 +671,7 @@ Asynchronous[PROTO] = {
         if (isInstantiatedThread && (true === thread)) Asynchronous.close();
         return self;
     }
-    
+
     ,empty: function() {
         var self = this;
         if (self.$timer) ClearTime(self.$timer);
@@ -776,20 +681,20 @@ Asynchronous[PROTO] = {
         self.$running = false;
         return self;
     }
-    
+
     ,interval: function(interval) {
-        if (arguments.length) 
+        if (arguments.length)
         {
             this.$interval = parseInt(interval, 10)||this.$interval;
             return this;
         }
         return this.$interval;
     }
-    
+
     // fork a new process/thread (e.g WebWorker, NodeProcess etc..)
     ,fork: function(component, imports, asInstance, shared) {
         var self = this, thread, msgLog, msgErr;
-        
+
         if (!self.$thread)
         {
             if (!supportsMultiThread)
@@ -798,7 +703,7 @@ Asynchronous[PROTO] = {
                 throw new Error('Asynchronous: Multi-Threading is NOT supported!');
                 return self;
             }
-            
+
             if (isNode)
             {
                 msgLog = 'Asynchronous: Thread (Process): ';
@@ -809,14 +714,14 @@ Asynchronous[PROTO] = {
                 msgLog = 'Asynchronous: Thread (Worker): ';
                 msgErr = 'Asynchronous: Thread (Worker) Error: ';
             }
-            
+
             self.$events = self.$events || {};
             thread = self.$thread = true === shared ? new Thread.Shared(tpf) : new Thread(tpf);
             thread.onmessage = function(msg) {
                 if (msg.event)
                 {
                     var event = msg.event, data = msg.data || null;
-                    if (self.$events && self.$events[event]) 
+                    if (self.$events && self.$events[event])
                     {
                         self.$events[event](data);
                     }
@@ -840,7 +745,7 @@ Asynchronous[PROTO] = {
         }
         return self;
     }
-    
+
     ,unfork: function(explicit) {
         var self = this;
         if (self.$thread)
@@ -852,7 +757,7 @@ Asynchronous[PROTO] = {
         self.$events = null;
         return self;
     }
-    
+
     ,initThread: function() {
         var self = this;
         if (isInstantiatedThread)
@@ -873,7 +778,7 @@ Asynchronous[PROTO] = {
         }
         return self;
     }
-    
+
     ,listen: function(event, handler) {
         if (event && is_function(handler) && this.$events)
         {
@@ -881,7 +786,7 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,unlisten: function(event, handler) {
         if (event && this.$events && this.$events[event])
         {
@@ -890,7 +795,7 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,send: function(event, data) {
         if (event)
         {
@@ -901,55 +806,55 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,task: function(task) {
         if (is_instance(task, Task)) return task;
         else if (is_function(task)) return Task(task);
     }
-    
-    ,iif: function() { 
-        var args = arguments, T = new Task(); 
-        return T.iif.apply(T, args); 
+
+    ,iif: function() {
+        var args = arguments, T = new Task();
+        return T.iif.apply(T, args);
     }
-    
-    ,until: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.until.apply(T, args); 
+
+    ,until: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.until.apply(T, args);
     }
-    
-    ,untilNot: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.untilNot.apply(T, args); 
+
+    ,untilNot: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.untilNot.apply(T, args);
     }
-    
-    ,loop: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.loop.apply(T, args); 
+
+    ,loop: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.loop.apply(T, args);
     }
-    
-    ,each: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.each.apply(T, args); 
+
+    ,each: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.each.apply(T, args);
     }
-    
-    ,recurse: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.recurse.apply(T, args); 
+
+    ,recurse: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.recurse.apply(T, args);
     }
-    
+
     ,step: function(task) {
         var self = this;
         if (task) self.$queue.push(self.task(task).queue(self));
         return self;
     }
-    
+
     ,steps: function() {
         var self = this, tasks = arguments, i, l;
         l = tasks.length;
         for (i=0; i<l; ++i) self.step(tasks[i]);
         return self;
     }
-    
+
     // callback template for use as "inverted-control in-place callbacks"
     ,jumpNext: function(returnCallback, offset) {
         var self = this, queue = self.$queue;
@@ -975,7 +880,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     // callback template for use as "inverted-control in-place callbacks"
     ,jumpNextWithArgs: function(returnCallback, offset, args) {
         var self = this, queue = self.$queue;
@@ -1001,7 +906,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     ,abort: function(returnCallback, delayed) {
         var self = this;
         if (false !== returnCallback)
@@ -1035,7 +940,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     ,run: function(run_mode, args) {
         var self = this;
         if (arguments.length) self.$runmode = run_mode;
@@ -1063,7 +968,7 @@ if (isInstantiatedThread)
     Asynchronous.log = function(o) {
         Asynchronous.send({event: 'console.log', data: "string" !== typeof o ? toJSON(o) : o});
     };
-    
+
     Asynchronous.listen(function(msg) {
         var event = msg.event, data = msg.data || null;
         switch (event)
@@ -1091,7 +996,7 @@ if (isInstantiatedThread)
                 Asynchronous.close();
                 break;
         }
-    });        
+    });
 }
 
 // export it

@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.9.4
-*   @built on 2024-01-17 18:30:58
+*   @version: 1.10.0
+*   @built on 2024-01-18 07:46:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.9.4
-*   @built on 2024-01-17 18:30:58
+*   @version: 1.10.0
+*   @built on 2024-01-18 07:46:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,11 +32,11 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.9.4"};
+var FILTER = {VERSION: "1.10.0"};
 /**
 *
 *   Asynchronous.js
-*   @version: 0.5.1
+*   @version: 0.5.2
 *
 *   Simple JavaScript class to manage asynchronous, parallel, linear, sequential and interleaved tasks
 *   https://github.com/foo123/asynchronous.js
@@ -45,7 +45,7 @@ var FILTER = {VERSION: "1.9.4"};
 !function(root_, FILTER, undef) {
 "use strict";
 
-var  PROTO = "prototype" 
+var  PROTO = "prototype"
     ,Obj = Object, Arr = Array, Func = Function
     ,FP = Func[PROTO], OP = Obj[PROTO], AP = Arr[PROTO]
     ,fromJSON = JSON.parse, toJSON = JSON.stringify
@@ -76,7 +76,7 @@ var  PROTO = "prototype"
     ,isInstantiatedThread = (isNodeProcess && (0 === process.listenerCount('message'))) || (isSharedWorker && !root.onconnect) || (isWebWorker && !root.onmessage)
     ,Listener = isInstantiatedThread ? function Listener( msg ) { if ( Listener.handler ) Listener.handler( isNodeProcess ? msg : msg.data );  } : NOP
     ,Thread, component = null, LOADED = {}, numProcessors = isNode ? require('os').cpus( ).length : 4
-    
+
     ,URL = !isNode ? ("undefined" !== typeof root.webkitURL ? root.webkitURL : ("undefined" !== typeof root.URL ? root.URL : null)) : null
     ,blobURL = function(src, options) {
         return src && URL
@@ -84,7 +84,7 @@ var  PROTO = "prototype"
             : src
         ;
     }
-    
+
     // Get current filename/path
     ,path = function path(moduleUri) {
         var f;
@@ -109,19 +109,19 @@ var  PROTO = "prototype"
         }
         return {path: null, file: null};
     }
-    
+
     ,thisPath = path(ModuleFactory__FILTER.moduleUri), tpf = thisPath.file
-    
+
     ,extend = function(o1, o2) {
         o1 = o1 || {};
         if (o2)
         {
-            for (var k in o2) 
+            for (var k in o2)
                 if (HAS.call(o2, k)) o1[k] = o2[k];
         }
         return o1;
     }
-    
+
     ,_uuid = 0
 ;
 
@@ -145,7 +145,7 @@ if (isNode)
     Thread[PROTO] = {
         constructor: Thread,
         process: null,
-        
+
         onmessage: null,
         onerror: null,
 
@@ -183,7 +183,7 @@ else
     Thread[PROTO] = {
         constructor: Thread,
         process: null,
-        
+
         onmessage: null,
         onerror: null,
 
@@ -220,7 +220,7 @@ else
         Thread.Shared[PROTO] = {
             constructor: Thread.Shared,
             process: null,
-            
+
             onmessage: null,
             onerror: null,
 
@@ -274,115 +274,21 @@ else if (isNodeProcess)
 }
 }
 
-// Proxy to communication/asyc to another browser window
-function formatOptions(o) 
-{
-    var s = [], k;
-    if (o)
-    {
-        for (k in o)
-            if (HAS.call(o, k))
-                s.push(k + '=' + (true===o[k]||1===o[k]?'yes':(false===o[k]||0===o[k]?'no':o[k])));
-    }
-    return s.join(",");
-}
-var BrowserWindow = function BrowserWindow(options) {
-    var self = this;
-    if (!( self instanceof BrowserWindow)) return new BrowserWindow(options);
-    self.$id = (++_uuid).toString(16);
-    self.options = extend({
-        width: 400,
-        height: 400,
-        toolbar: 0,
-        location: 0,
-        directories: 0,
-        status: 0,
-        menubar: 0,
-        scrollbars: 1,
-        resizable: 1
-    }, options);
-};
-BrowserWindow[PROTO] = {
-    constructor: BrowserWindow
-    
-    ,options: null
-    ,$id: null
-    ,$window: null
-    
-    ,dispose: function() {
-        var self = this;
-        if (self.$window) self.close();
-        self.$window = null;
-        self.$id = null;
-        self.options = null;
-        return self;
-    }
-    
-    ,close: function() {
-        var self = this;
-        if (self.$window)
-        {
-            if (!self.$window.closed) self.$window.close();
-            self.$window = null;
-        }
-        return self;
-    }
-    
-    ,ready: function(variable, cb) {
-        var self = this, 
-            on_window_ready = function on_window_ready() {
-                if (!self.$window || (!!variable && !self.$window[variable]))
-                    setTimeout(on_window_ready, 60);
-                else cb();
-            };
-        setTimeout(on_window_ready, 0);
-        return self;
-    }
-    
-    ,open: function(url_or_html) {
-        var self = this;
-        if (!self.$window && !!url_or_html)
-        {
-            self.$window = window.open( 
-                url_or_html.push // dynamic content as blob array (with utf-8 BOM prepended)
-                    ? blobURL(["\ufeff"].concat(url_or_html), {type: 'text/html;charset=utf-8'})
-                    : url_or_html, 
-                self.$id, 
-                formatOptions(self.options)
-            );
-            /*if (autoDispose)
-            {
-                self.$window.onbeforeunload = function() {
-                   setTimeout(function() {self.dispose();}, 1500);
-                };
-            }*/
-        }
-        return self;
-    }
-    
-    ,write: function(html) {
-        var self = this;
-        if (self.$window && html)
-            self.$window.document.write(html);
-        return self;
-    }
-};
-
 // Task class/combinator
 var Task = function Task(aTask) {
     if (aTask instanceof Task) return aTask;
     if (!(this instanceof Task)) return new Task(aTask);
-    
+
     var self = this, aqueue = null, task = null,
         onComplete = null, run_once = false,
         times = false, loop = false, recurse = false,
-        until = false, untilNot = false, 
+        until = false, untilNot = false,
         loopObject = null, repeatCounter = 0,
         repeatIncrement = 1, repeatTimes = null,
         repeatUntil = null, repeatUntilNot = null,
         lastResult = undef, run
     ;
-    
+
     self.queue = function(q) {
         if (arguments.length)
         {
@@ -391,38 +297,38 @@ var Task = function Task(aTask) {
         }
         return aqueue;
     };
-    
-    self.jumpNext = function(offset) { 
-        if (aqueue) aqueue.jumpNext(false, offset); 
+
+    self.jumpNext = function(offset) {
+        if (aqueue) aqueue.jumpNext(false, offset);
     };
-    
+
     self.abort = function(dispose) {
-        if (aqueue) 
+        if (aqueue)
         {
             aqueue.abort(false);
-            if (dispose) 
+            if (dispose)
             {
                 aqueue.dispose();
                 aqueue = null;
             }
         }
     };
-    
-    self.dispose = function() { 
-        if (aqueue) 
+
+    self.dispose = function() {
+        if (aqueue)
         {
-            aqueue.dispose(); 
+            aqueue.dispose();
             aqueue = null;
         }
     };
-    
+
     self.task = function(t) {
         task = t;
         return self;
     };
-    
+
     if (aTask) self.task(aTask);
-    
+
     self.run = run = function() {
         // add queue/task methods on task func itself
         // instead of passing "this" as task param
@@ -437,7 +343,7 @@ var Task = function Task(aTask) {
         task.dispose = null;
         return lastResult;
     };
-    
+
     self.runWithArgs = function(args) {
         task.jumpNext = self.jumpNext;
         task.abort = self.abort;
@@ -449,7 +355,7 @@ var Task = function Task(aTask) {
         task.dispose = null;
         return lastResult;
     };
-    
+
     self.canRun = function() {
         if (!task) return false;
         if (run_once && !times && !loop && !recurse && !until && !untilNot) return false;
@@ -458,14 +364,14 @@ var Task = function Task(aTask) {
         if ((recurse || until) && lastResult === repeatUntil) return false;
         return true;
     };
-    
+
     self.iif = function(cond, if_true_task, else_task) {
         if (is_function(cond)) cond = cond();
         if (cond) self.task(if_true_task);
         else if (arguments.length > 2) self.task(else_task);
         return self;
     };
-    
+
     self.until = function(result) {
         lastResult = undef;
         loopObject = null;
@@ -478,7 +384,7 @@ var Task = function Task(aTask) {
         self.run = run;
         return self;
     };
-    
+
     self.untilNot = function(result) {
         lastResult = undef;
         loopObject = null;
@@ -491,7 +397,7 @@ var Task = function Task(aTask) {
         self.run = run;
         return self;
     };
-    
+
     self.loop = function(numTimes, startCounter, increment) {
         lastResult = undef;
         loopObject = null;
@@ -513,7 +419,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.each = function(loopObj) {
         lastResult = undef;
         loopObject = loopObj;
@@ -535,7 +441,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.recurse = function(initialVal, finalVal) {
         loopObject = null;
         lastResult = initialVal;
@@ -554,7 +460,7 @@ var Task = function Task(aTask) {
         };
         return self;
     };
-    
+
     self.isFinished = function() {
         var notfinished = !run_once || untilNot || until || times || loop || recurse;
         if (notfinished && (until||recurse) && lastResult === repeatUntil) notfinished = false;
@@ -562,12 +468,12 @@ var Task = function Task(aTask) {
         if (notfinished && (times||loop) && repeatCounter >= repeatTimes) notfinished = false;
         return !notfinished;
     };
-    
+
     self.onComplete = function(callback) {
         onComplete = callback || null;
         return self;
     };
-    
+
     self.complete = function() {
         if (onComplete && is_function(onComplete)) onComplete();
         return self;
@@ -575,22 +481,22 @@ var Task = function Task(aTask) {
 };
 
 // run tasks in parallel threads (eg. web workers, child processes)
-function runParallelised(scope, args) 
-{ 
+function runParallelised(scope, args)
+{
     scope.$runmode = PARALLELISED;
     scope.$running = false;
 }
 
 // serialize async-tasks that are non-blocking/asynchronous in a quasi-sequential manner
-function runLinearised(scope, args) 
-{ 
+function runLinearised(scope, args)
+{
     var self = scope, queue = self.$queue, task;
     self.$runmode = LINEARISED;
     if (queue)
     {
         while (queue.length && (!queue[0] || !queue[0].canRun())) queue.shift();
         // first task should call next tasks upon completion, via "in-place callback templates"
-        if (queue.length) 
+        if (queue.length)
         {
             self.$running = true;
             task = queue.shift();
@@ -605,8 +511,8 @@ function runLinearised(scope, args)
 }
 
 // interleave async-tasks in background in quasi-parallel manner
-function runInterleaved(scope, args) 
-{ 
+function runInterleaved(scope, args)
+{
     var self = scope, queue = self.$queue, task, index = 0;
     self.$runmode = INTERLEAVED;
     if (queue && queue.length)
@@ -615,7 +521,7 @@ function runInterleaved(scope, args)
         while (index < queue.length)
         {
             task = queue[index];
-            
+
             if (task && task.canRun())
             {
                 if (args) task.runWithArgs(args); else task.run();
@@ -640,14 +546,14 @@ function runInterleaved(scope, args)
 }
 
 // run tasks in a quasi-asynchronous manner (avoid blocking the thread)
-function runSequenced(scope, args) 
+function runSequenced(scope, args)
 {
     var self = scope, queue = self.$queue, task;
     self.$runmode = SEQUENCED;
     if (queue && queue.length)
     {
         task = queue[0];
-        
+
         if (task && task.canRun())
         {
             self.$running = true;
@@ -685,19 +591,18 @@ function Asynchronous(interval, initThread)
 Asynchronous.VERSION = "0.5.2";
 Asynchronous.Thread = Thread;
 Asynchronous.Task = Task;
-Asynchronous.BrowserWindow = BrowserWindow;
 Asynchronous.MODE = {NONE: NONE, INTERLEAVE: INTERLEAVED, LINEAR: LINEARISED, PARALLEL: PARALLELISED, SEQUENCE: SEQUENCED};
 Asynchronous.Platform = {UNDEFINED: UNDEFINED, UNKNOWN: UNKNOWN, NODE: NODE, BROWSER: BROWSER};
 Asynchronous.supportsMultiThreading = function() {return supportsMultiThread;};
-Asynchronous.isPlatform = function(platform) { 
+Asynchronous.isPlatform = function(platform) {
     if (NODE === platform) return isNode;
     else if (BROWSER === platform) return isBrowser;
 };
-Asynchronous.isThread = function(platform, instantiated) { 
+Asynchronous.isThread = function(platform, instantiated) {
     instantiated = true === instantiated ? isInstantiatedThread : true;
     if (NODE === platform) return instantiated && isNodeProcess;
     else if (BROWSER === platform) return instantiated && (isSharedWorker || isWebWorker);
-    return instantiated && isThread; 
+    return instantiated && isThread;
 };
 Asynchronous.path = path;
 Asynchronous.blob = blobURL;
@@ -706,11 +611,11 @@ Asynchronous.load = function(component, imports, asInstance) {
     {
         var initComponent = function() {
             // init the given component if needed
-            component = component.split('.'); 
+            component = component.split('.');
             var o = scope;
             while (component.length)
             {
-                if (component[0] && component[0].length && o[component[0]]) 
+                if (component[0] && component[0].length && o[component[0]])
                     o = o[component[0]];
                 component.shift();
             }
@@ -720,11 +625,11 @@ Asynchronous.load = function(component, imports, asInstance) {
                 return o;
             }
         };
-        
+
         // do any imports if needed
         if (imports && imports.length)
         {
-            /*if ( isBrowserWindow ) 
+            /*if ( isBrowserWindow )
             {
                 Asynchronous.importScripts( imports.join( ',' ), initComponent );
             }
@@ -779,7 +684,7 @@ Asynchronous.serialize = function(queue) {
 Asynchronous[PROTO] = {
 
     constructor: Asynchronous
-    
+
     ,$interval: DEFAULT_INTERVAL
     ,$timer: null
     ,$queue: null
@@ -787,7 +692,7 @@ Asynchronous[PROTO] = {
     ,$events: null
     ,$runmode: NONE
     ,$running: false
-    
+
     ,dispose: function(thread) {
         var self = this;
         self.unfork(true);
@@ -801,7 +706,7 @@ Asynchronous[PROTO] = {
         if (isInstantiatedThread && (true === thread)) Asynchronous.close();
         return self;
     }
-    
+
     ,empty: function() {
         var self = this;
         if (self.$timer) ClearTime(self.$timer);
@@ -811,20 +716,20 @@ Asynchronous[PROTO] = {
         self.$running = false;
         return self;
     }
-    
+
     ,interval: function(interval) {
-        if (arguments.length) 
+        if (arguments.length)
         {
             this.$interval = parseInt(interval, 10)||this.$interval;
             return this;
         }
         return this.$interval;
     }
-    
+
     // fork a new process/thread (e.g WebWorker, NodeProcess etc..)
     ,fork: function(component, imports, asInstance, shared) {
         var self = this, thread, msgLog, msgErr;
-        
+
         if (!self.$thread)
         {
             if (!supportsMultiThread)
@@ -833,7 +738,7 @@ Asynchronous[PROTO] = {
                 throw new Error('Asynchronous: Multi-Threading is NOT supported!');
                 return self;
             }
-            
+
             if (isNode)
             {
                 msgLog = 'Asynchronous: Thread (Process): ';
@@ -844,14 +749,14 @@ Asynchronous[PROTO] = {
                 msgLog = 'Asynchronous: Thread (Worker): ';
                 msgErr = 'Asynchronous: Thread (Worker) Error: ';
             }
-            
+
             self.$events = self.$events || {};
             thread = self.$thread = true === shared ? new Thread.Shared(tpf) : new Thread(tpf);
             thread.onmessage = function(msg) {
                 if (msg.event)
                 {
                     var event = msg.event, data = msg.data || null;
-                    if (self.$events && self.$events[event]) 
+                    if (self.$events && self.$events[event])
                     {
                         self.$events[event](data);
                     }
@@ -875,7 +780,7 @@ Asynchronous[PROTO] = {
         }
         return self;
     }
-    
+
     ,unfork: function(explicit) {
         var self = this;
         if (self.$thread)
@@ -887,7 +792,7 @@ Asynchronous[PROTO] = {
         self.$events = null;
         return self;
     }
-    
+
     ,initThread: function() {
         var self = this;
         if (isInstantiatedThread)
@@ -908,7 +813,7 @@ Asynchronous[PROTO] = {
         }
         return self;
     }
-    
+
     ,listen: function(event, handler) {
         if (event && is_function(handler) && this.$events)
         {
@@ -916,7 +821,7 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,unlisten: function(event, handler) {
         if (event && this.$events && this.$events[event])
         {
@@ -925,7 +830,7 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,send: function(event, data) {
         if (event)
         {
@@ -936,55 +841,55 @@ Asynchronous[PROTO] = {
         }
         return this;
     }
-    
+
     ,task: function(task) {
         if (is_instance(task, Task)) return task;
         else if (is_function(task)) return Task(task);
     }
-    
-    ,iif: function() { 
-        var args = arguments, T = new Task(); 
-        return T.iif.apply(T, args); 
+
+    ,iif: function() {
+        var args = arguments, T = new Task();
+        return T.iif.apply(T, args);
     }
-    
-    ,until: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.until.apply(T, args); 
+
+    ,until: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.until.apply(T, args);
     }
-    
-    ,untilNot: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.untilNot.apply(T, args); 
+
+    ,untilNot: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.untilNot.apply(T, args);
     }
-    
-    ,loop: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.loop.apply(T, args); 
+
+    ,loop: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.loop.apply(T, args);
     }
-    
-    ,each: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.each.apply(T, args); 
+
+    ,each: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.each.apply(T, args);
     }
-    
-    ,recurse: function() { 
-        var args = slice(arguments), T = new Task(args.pop()); 
-        return T.recurse.apply(T, args); 
+
+    ,recurse: function() {
+        var args = slice(arguments), T = new Task(args.pop());
+        return T.recurse.apply(T, args);
     }
-    
+
     ,step: function(task) {
         var self = this;
         if (task) self.$queue.push(self.task(task).queue(self));
         return self;
     }
-    
+
     ,steps: function() {
         var self = this, tasks = arguments, i, l;
         l = tasks.length;
         for (i=0; i<l; ++i) self.step(tasks[i]);
         return self;
     }
-    
+
     // callback template for use as "inverted-control in-place callbacks"
     ,jumpNext: function(returnCallback, offset) {
         var self = this, queue = self.$queue;
@@ -1010,7 +915,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     // callback template for use as "inverted-control in-place callbacks"
     ,jumpNextWithArgs: function(returnCallback, offset, args) {
         var self = this, queue = self.$queue;
@@ -1036,7 +941,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     ,abort: function(returnCallback, delayed) {
         var self = this;
         if (false !== returnCallback)
@@ -1070,7 +975,7 @@ Asynchronous[PROTO] = {
             return self;
         }
     }
-    
+
     ,run: function(run_mode, args) {
         var self = this;
         if (arguments.length) self.$runmode = run_mode;
@@ -1098,7 +1003,7 @@ if (isInstantiatedThread)
     Asynchronous.log = function(o) {
         Asynchronous.send({event: 'console.log', data: "string" !== typeof o ? toJSON(o) : o});
     };
-    
+
     Asynchronous.listen(function(msg) {
         var event = msg.event, data = msg.data || null;
         switch (event)
@@ -1126,7 +1031,7 @@ if (isInstantiatedThread)
                 Asynchronous.close();
                 break;
         }
-    });        
+    });
 }
 
 // export it
@@ -3482,36 +3387,148 @@ function _fft2(re, im, nx, ny, inv, output_re, output_im)
 
     if (ret) return {r:output_re, i:output_im};
 }
-function min_max_loc(data, w, h, tlo, thi, stride, offset)
+function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
 {
-    stride = stride || 1;
-    offset = offset || 0;
-    var k, l = data.length, x, y, d, minmax = {min:Infinity, max:-Infinity, minpos:[], maxpos:[]};
-    for (k=0,y=0,x=0; k<l; k+=stride,++x)
+    stride = stride || 0; offset = offset || 0;
+    var k, l = data.length, ki = (1 << stride), x, y, d,
+        min = Infinity, max = -Infinity,
+        minpos, maxpos, minc = 0, maxc = 0;
+    if (hasMin) minpos = new Array(l >>> stride);
+    if (hasMax) maxpos = new Array(l >>> stride);
+    for (k=0,y=0,x=0; k<l; k+=ki,++x)
     {
         if (x >= w) {x=0; ++y};
         d = data[k+offset];
-        if ((d <= minmax.min) && (null == tlo || d <= tlo))
+        if (hasMin && (d <= min) && (null == tlo || d <= tlo))
         {
-            if (d < minmax.min)
-            {
-                minmax.min = d;
-                minmax.minpos = [];
-            }
-            minmax.minpos.push({x:x, y:y});
+            if (d < min) {min = d; minc = 0;}
+            minpos[minc++] = {x:x, y:y};
         }
-        if ((d >= minmax.max) && (null == thi || d >= thi))
+        if (hasMax && (d >= max) && (null == thi || d >= thi))
         {
-            if (d > minmax.max)
-            {
-                minmax.max = d;
-                minmax.maxpos = [];
-            }
-            minmax.maxpos.push({x:x, y:y});
+            if (d > max) {max = d; maxc = 0;}
+            maxpos[maxc++] = {x:x, y:y};
         }
     }
-    return minmax;
+    if (hasMin && hasMax)
+    {
+        minpos.length = minc;
+        maxpos.length = maxc;
+        return {min:min, minpos:minpos, max:max, maxpos:maxpos};
+    }
+    else if (hasMin)
+    {
+        minpos.length = minc;
+        return {min:min, minpos:minpos};
+    }
+    else if (hasMax)
+    {
+        maxpos.length = maxc;
+        return {max:max, maxpos:maxpos};
+    }
 }
+
+function equals(r1, r2, eps)
+{
+    var delta = eps * (stdMath.min(r1.width, r2.width) + stdMath.min(r1.height, r2.height)) * 0.5;
+    return stdMath.abs(r1.x - r2.x) <= delta &&
+        stdMath.abs(r1.y - r2.y) <= delta &&
+        stdMath.abs(r1.x + r1.width - r2.x - r2.width) <= delta &&
+        stdMath.abs(r1.y + r1.height - r2.y - r2.height) <= delta;
+}
+function is_inside(r1, r2, eps)
+{
+    var dx = r2.width * eps, dy = r2.height * eps;
+    return (r1.x >= r2.x - dx) &&
+        (r1.y >= r2.y - dy) &&
+        (r1.x + r1.width <= r2.x + r2.width + dx) &&
+        (r1.y + r1.height <= r2.y + r2.height + dy);
+}
+function add(r1, r2)
+{
+    r1.x += r2.x;
+    r1.y += r2.y;
+    r1.width += r2.width;
+    r1.height += r2.height;
+    return r1;
+}
+function snap_to_grid(r)
+{
+    r.x = stdMath.round(r.x);
+    r.y = stdMath.round(r.y);
+    r.width = stdMath.round(r.width);
+    r.height = stdMath.round(r.height);
+    r.area = r.width*r.height;
+    return r;
+}
+function merge_features(rects, min_neighbors, epsilon)
+{
+    var rlen = rects.length, ref = new Array(rlen), feats = [],
+        nb_classes = 0, neighbors, r, found = false, i, j, n, t, ri;
+
+    // original code
+    // find number of neighbour classes
+    for (i = 0; i < rlen; ++i) ref[i] = 0;
+    for (i = 0; i < rlen; ++i)
+    {
+        found = false;
+        for (j = 0; j < i; ++j)
+        {
+            if (equals(rects[j], rects[i], epsilon))
+            {
+                found = true;
+                ref[i] = ref[j];
+            }
+        }
+
+        if (!found)
+        {
+            ref[i] = nb_classes;
+            ++nb_classes;
+        }
+    }
+
+    // merge neighbor classes
+    neighbors = new Array(nb_classes);  r = new Array(nb_classes);
+    for (i = 0; i < nb_classes; ++i) {neighbors[i] = 0;  r[i] = {x:0,y:0,width:0,height:0};}
+    for (i = 0; i < rlen; ++i) {ri=ref[i]; ++neighbors[ri]; add(r[ri], rects[i]);}
+    for (i = 0; i < nb_classes; ++i)
+    {
+        n = neighbors[i];
+        if (n >= min_neighbors)
+        {
+            t = 1/(n + n);
+            ri = {
+                x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
+                width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
+            };
+
+            feats.push(ri);
+        }
+    }
+
+    // filter inside rectangles
+    rlen = feats.length;
+    for (i=0; i<rlen; ++i)
+    {
+        for (j=i+1; j<rlen; ++j)
+        {
+            if (!feats[i].isInside && is_inside(feats[i], feats[j], epsilon))
+                feats[i].isInside = true;
+            if (!feats[j].isInside && is_inside(feats[j], feats[i], epsilon))
+                feats[j].isInside = true;
+        }
+    }
+    i = rlen;
+    while (--i >= 0)
+    {
+        if (feats[i].isInside) feats.splice(i, 1);
+        else snap_to_grid(feats[i]);
+    }
+
+    return feats/*.sort(by_area)*/;
+}
+
 
 function ct_eye(c1, c0)
 {
@@ -3675,13 +3692,30 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
+FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
+    x0 = clamp(x0, 0, w-1);
+    y0 = clamp(y0, 0, h-1);
+    x1 = clamp(x1, 0, w-1);
+    y1 = clamp(y1, 0, h-1);
+    x0 -= 1; y0 -= 1;
+    return sat[x1 + w*y1] - (x0 >= 0 ? sat[x0 + w*y1] : 0) - (y0 >= 0 ? sat[x1 + w*y0] : 0) + (x0 >= 0 && y0 >= 0 ? sat[x0 + w*y0] : 0);
+};
 FilterUtil.histogram = histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
 FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
 FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
-FilterUtil.minmaxloc = min_max_loc;
+FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
+    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
+};
+FilterUtil.min = function(d, w, h, tl, stride, offset) {
+    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
+};
+FilterUtil.max = function(d, w, h, th, stride, offset) {
+    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
+};
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
@@ -3849,7 +3883,8 @@ function GLSLFilter(filter)
     var self = this, glsls = [], glsl = null, shaders = {}, io = {},
         prev_output = function(glsl) {
             return glsl._prev && glsl._prev._output && HAS.call(io, glsl._prev._output) ? io[glsl._prev._output] : null;
-        };
+        },
+        get_io = function() {return io;};
     self.begin = function() {
         glsl = {
         _prev: null,
@@ -3858,7 +3893,7 @@ function GLSLFilter(filter)
         _inputs: {},
         _input: 'img', // main input (texture) is named 'img' by default
         _output: null,
-        io: function() {return io;},
+        io: get_io,
         iterations: 1,
         instance: filter,
         shader: null,
@@ -3890,7 +3925,7 @@ function GLSLFilter(filter)
                 {
                     var inp = inputs[i], name = HAS.call(uniform, inp.name) ? inp.name : inp.iname,
                         type = uniform[name].type, loc = uniform[name].loc,
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
+                        value = null==inp.setter && HAS.call(io, inp.name) ? io[inp.name] : ('function' === typeof inp.setter ? inp.setter(filter, w, h, wi, hi, io) : inp.setter);
                     if ('sampler2D' === type)
                     {
                         // texture
@@ -18385,7 +18420,7 @@ FILTER.Create({
         if (features.length > features.count) features.length = features.count;
 
         // return results as meta
-        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance)};
+        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area)};
 
         // return im back
         return im;
@@ -18584,112 +18619,10 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         }
     }
 }
-function equals(r1, r2, eps)
-{
-    var delta = eps * (Min(r1.width, r2.width) + Min(r1.height, r2.height)) * 0.5;
-    return Abs(r1.x - r2.x) <= delta &&
-        Abs(r1.y - r2.y) <= delta &&
-        Abs(r1.x + r1.width - r2.x - r2.width) <= delta &&
-        Abs(r1.y + r1.height - r2.y - r2.height) <= delta;
-}
-function is_inside(r1, r2, eps)
-{
-    var dx = r2.width * eps, dy = r2.height * eps;
-    return (r1.x >= r2.x - dx) &&
-        (r1.y >= r2.y - dy) &&
-        (r1.x + r1.width <= r2.x + r2.width + dx) &&
-        (r1.y + r1.height <= r2.y + r2.height + dy);
-}
-function add(r1, r2)
-{
-    r1.x += r2.x;
-    r1.y += r2.y;
-    r1.width += r2.width;
-    r1.height += r2.height;
-    return r1;
-}
-function snap_to_grid(r)
-{
-    r.x = Round(r.x);
-    r.y = Round(r.y);
-    r.width = Round(r.width);
-    r.height = Round(r.height);
-    r.area = r.width*r.height;
-    return r;
-}
 function by_area(r1, r2) {return r2.area-r1.area;}
-// merge the detected features if needed
-function merge_features(rects, min_neighbors, epsilon)
-{
-    var rlen = rects.length, ref = new Array(rlen), feats = [],
-        nb_classes = 0, neighbors, r, found = false, i, j, n, t, ri;
-
-    // original code
-    // find number of neighbour classes
-    for (i = 0; i < rlen; ++i) ref[i] = 0;
-    for (i = 0; i < rlen; ++i)
-    {
-        found = false;
-        for (j = 0; j < i; ++j)
-        {
-            if (equals(rects[j], rects[i], epsilon))
-            {
-                found = true;
-                ref[i] = ref[j];
-            }
-        }
-
-        if (!found)
-        {
-            ref[i] = nb_classes;
-            ++nb_classes;
-        }
-    }
-
-    // merge neighbor classes
-    neighbors = new Array(nb_classes);  r = new Array(nb_classes);
-    for (i = 0; i < nb_classes; ++i) {neighbors[i] = 0;  r[i] = {x:0,y:0,width:0,height:0};}
-    for (i = 0; i < rlen; ++i) {ri=ref[i]; ++neighbors[ri]; add(r[ri], rects[i]);}
-    for (i = 0; i < nb_classes; ++i)
-    {
-        n = neighbors[i];
-        if (n >= min_neighbors)
-        {
-            t = 1/(n + n);
-            ri = {
-                x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
-                width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
-            };
-
-            feats.push(ri);
-        }
-    }
-
-    // filter inside rectangles
-    rlen = feats.length;
-    for (i=0; i<rlen; ++i)
-    {
-        for (j=i+1; j<rlen; ++j)
-        {
-            if (!feats[i].isInside && is_inside(feats[i], feats[j], epsilon))
-                feats[i].isInside = true;
-            if (!feats[j].isInside && is_inside(feats[j], feats[i], epsilon))
-                feats[j].isInside = true;
-        }
-    }
-    i = rlen;
-    while (--i >= 0)
-    {
-        if (feats[i].isInside) feats.splice(i, 1);
-        else snap_to_grid(feats[i]);
-    }
-
-    return feats.sort(by_area);
-}
 
 // expose as static utility methods, can be overriden
 FILTER.Util.Filter.haar_detect = haar_detect;
-FILTER.Util.Filter.merge_features = merge_features;
 
 }(FILTER);/**
 *
@@ -18701,9 +18634,9 @@ FILTER.Util.Filter.merge_features = merge_features;
 "use strict";
 
 var GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
-    sat = FilterUtil.sat, minmax = FilterUtil.minmaxloc,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp,
-    A32F = FILTER.Array32F;
+    sat = FilterUtil.sat, satsum = FilterUtil.satsum,
+    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -18715,18 +18648,21 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,hasInputs: true
-    ,scale: 1
-    ,rotation: 0
+    ,sc: null
+    ,rot: null
+    ,threshold: 0.7
+    ,tolerance: 0.2
+    ,minNeighbors: 1
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
     ,_draw: false
 
-    ,init: function(tpl, scale, rotation) {
+    ,init: function(tpl) {
         var self = this;
+        self.sc = [1,1,1.1];
+        self.rot = [0];
         if (tpl) self.setInput("template", tpl);
-        self.scale = scale || 1;
-        self.rotation = rotation || 0;
     }
 
     ,dispose: function() {
@@ -18736,11 +18672,38 @@ FILTER.Create({
         return self;
     }
 
+    ,params: function(params) {
+        var self = this;
+        if (params)
+        {
+            if (null != params.threshold) self.thresh = params.threshold || 0;
+            if (null != params.tolerance) self.tolerance = params.tolerance || 0;
+            if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
+            if (null != params.selection) self.selection = params.selection || null;
+        }
+        return self;
+    }
+
+    ,scales: function(sMin, sMax, sInc) {
+        this.sc = [sMin, sMax, sInc];
+        this._glsl = null;
+        return this;
+    }
+    ,rotations: function(rot) {
+        this.rot = rot || [0];
+        this._glsl = null;
+        return this;
+    }
     ,quality: function(quality, size) {
         var self = this;
-        self._q = null == quality ? 0.98 : (quality || 0);
-        self._s = null == size ? 3 : (size || 0);
-        self._tpldata = null;
+        quality = null == quality ? 0.98 : (quality || 0);
+        size = null == size ? 3 : (size || 0);
+        if (quality !== self._q || size !== self._s)
+        {
+            self._tpldata = null;
+            self._q = quality;
+            self._s = size;
+        }
         return self;
     }
 
@@ -18766,8 +18729,11 @@ FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-             scale: self.scale
-            ,rotation: self.rotation
+            threshold: self.threshold
+            ,tolerance: self.tolerance
+            ,minNeighbors: self.minNeighbors
+            ,sc: self.sc
+            ,rot: self.rot
             ,_q: self._q
             ,_s: self._s
         };
@@ -18775,114 +18741,190 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.scale = params.scale;
-        self.rotation = params.rotation;
+        self.threshold = params.threshold;
+        self.tolerance = params.tolerance;
+        self.minNeighbors = params.minNeighbors;
+        self.sc = params.sc;
+        self.rot = params.rot;
         self._q = params._q;
         self._s = params._s;
         return self;
+    }
+
+    // detected objects are passed as filter metadata (if filter is run in parallel thread)
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
     }
 
     ,getGLSL: function() {
         return glsl(this);
     }
 
-    ,apply: function(im, w, h) {
+    ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template");
 
         self.meta = [];
         if (!t || !tpldata) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
-            sc = self.scale, rot = self.rotation,
-            tws = stdMath.round(sc*tw),
-            ths = stdMath.round(sc*th),
+            selection = self.selection || null,
+            rot = /*self.rot*/[0], scale = self.sc,
+            r, rl, sc, t, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
-            mm = w*h, nn = tw*th,
-            tpldata, sat1, sat2, out,
-            k, x, y;
+            mm = w*h, nn = tw*th, m4,
+            tpldata, sat1, sat2, out, matches = [],
+            k, x, y, x1, y1, x2, y2, xf, yf;
 
-        if (self._draw)
+        if (selection)
         {
-            self._update = true;
-            for (var c=0; c<3; ++c)
+            if (selection[4])
             {
-                var bb = tpldata.basis[c];
-                for (var k=0,K=bb.length; k<K; ++k)
-                {
-                    var bk = bb[k];
-                    for (var yk=bk.y0,wyk=w*yk; yk<bk.y1; ++yk,wyk+=w)
-                    {
-                        for (var xk=bk.x0; xk<bk.x1; ++xk)
-                        {
-                            im[((xk + wyk) << 2) + c] = bk.k;
-                        }
-                    }
-                }
+                // selection is relative, make absolute
+                xf = w-1;
+                yf = h-1;
             }
+            else
+            {
+                // selection is absolute
+                xf = 1;
+                yf = 1;
+            }
+            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf));
+            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf));
+            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf));
+            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf));
         }
         else
         {
-            self._update = false;
-            out = new A32F(mm);
+            x1 = 0; y1 = 0;
+            x2 = w-1; y2 = h-1;
+        }
+
+        if (metaData && metaData.tm_SAT1 && metaData.tm_SAT2)
+        {
+            sat1 = metaData.tm_SAT1;
+            sat2 = metaData.tm_SAT2;
+        }
+        else
+        {
             sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
             sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
             sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
             sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
             sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
-
-            for (k=0,x=0,y=0; k<m; k+=4,++x)
+            if (metaData)
             {
-                if (x >= w) {x=0; ++y;}
-                if (x + tws >= w || y + ths >= h)
-                {
-                    out[k>>>2] = 0;
-                }
-                else
-                {
-                    out[k>>>2] = (
-                      ncc(x, y, sat1[0], sat2[0], tpldata.basis[0], w, h, tw, th, sc, rot) // R
-                    + ncc(x, y, sat1[1], sat2[1], tpldata.basis[1], w, h, tw, th, sc, rot) // G
-                    + ncc(x, y, sat1[2], sat2[2], tpldata.basis[2], w, h, tw, th, sc, rot) // B
-                    );
-                }
+                metaData.tm_SAT1 = sat1;
+                metaData.tm_SAT2 = sat2;
             }
-
-            self.meta = minmax(out, w, h).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};});
-            out = null; sat1 = null; sat2 = null;
         }
+
+        out = new A32F(mm);
+        for (r=0,rl=rot.length; r<rl; ++r)
+        {
+            if (90 === rot[r] || -270 === rot[r] || 270 === rot[r] || -90 === rot[r])
+            {
+                // swap x/y
+                tw2 = th;
+                th2 = tw;
+            }
+            else
+            {
+                tw2 = tw;
+                th2 = th;
+            }
+            for (sc=scale[0]; sc<=scale[1]; sc*=scale[2])
+            {
+                tws = stdMath.round(sc*tw2); ths = stdMath.round(sc*th2);
+                for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
+                {
+                    if (x > x2) {x=x1; ++y;}
+                    out[k>>>2] = 0;
+                    if (x + tws <= x2 && y + ths <= y2)
+                    {
+                        out[k>>>2] = (
+                          ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, rot[r]) // R
+                        + ncc(x, y, sat1[1], sat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, rot[r]) // G
+                        + ncc(x, y, sat1[2], sat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, rot[r]) // B
+                        ) / 3;
+                    }
+                }
+                matches.push.apply(matches, FilterUtil.max(out, w, h, self.threshold).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                console.log(matches.length);
+            }
+        }
+
+        self.meta = {matches: FilterUtil.merge_features(matches, self.minNeighbors, self.tolerance)};
+        out = null; sat1 = null; sat2 = null;
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, basis, w, h, tw, th, sc, rot)
+function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
 {
-    var tws = stdMath.round(sc*tw),
-        ths = stdMath.round(sc*th),
-        //area = tws*ths,
-        k, K, bk,
-        x0 = clamp(x-1, 0, w-1),
-        x1 = clamp(x0+tws, 0, w-1),
-        y0 = clamp(y-1, 0, h-1),
-        y1 = clamp(y0+ths, 0, h-1),
-        wy0 = w*y0, wy1 = w*y1,
-        sum1 = sat1[x1 + wy1] - sat1[x0 + wy1] - sat1[x1 + wy0] + sat1[x0 + wy0],
-        sum2 = sat2[x1 + wy1] - sat2[x0 + wy1] - sat2[x1 + wy0] + sat2[x0 + wy0],
-        denom = stdMath.sqrt(stdMath.abs(sum2 - sum1*sum1)/* / area*/) /** (nrg)*/, // template energy is constant, can be left out
-        nom = 0;
+    var tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th),
+        area, t, k, K, bk, x0, y0, x1, y1,
+        sum1 = 0, sum2 = 0, nrg = 0, denom = 0, nom = 0;
+    if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
+    {
+        // swap x/y
+        t = tws;
+        tws = ths;
+        ths = t;
+    }
+    area = tws*ths;
     for (k=0,K=basis.length; k<K; ++k)
     {
         bk = basis[k];
-        x0 = clamp(x-1+stdMath.round(sc*bk.x0), 0, w-1);
-        x1 = clamp(x+stdMath.round(sc*bk.x1), 0, w-1);
-        y0 = clamp(y-1+stdMath.round(sc*bk.y0), 0, h-1);
-        y1 = clamp(y+stdMath.round(sc*bk.y1), 0, h-1);
-        wy0 = w*y0; wy1 = w*y1;
-        nom += bk.k * (sat1[x1 + wy1] - sat1[x1 + wy0] - sat1[x0 + wy1] + sat1[x0 + wy0]);
+        // up to 4 cardinal rotations supported
+        if (90 === rot || -270 === rot)
+        {
+            x0 = bk.y0;
+            y0 = bk.x0;
+            x1 = bk.y1;
+            y1 = bk.x1;
+        }
+        else if (180 === rot || -180 === rot)
+        {
+            x1 = tw-1-bk.x0;
+            y1 = th-1-bk.y0;
+            x0 = tw-1-bk.x1;
+            y0 = th-1-bk.y1;
+        }
+        else if (270 === rot || -90 === rot)
+        {
+            y1 = tw-1-bk.x0;
+            x1 = th-1-bk.y0;
+            y0 = tw-1-bk.x1;
+            x0 = th-1-bk.y1;
+        }
+        else // 0, 360, -360
+        {
+            x0 = bk.x0;
+            y0 = bk.y0;
+            x1 = bk.x1;
+            y1 = bk.y1;
+        }
+        x0 = stdMath.round(sc*x0);
+        y0 = stdMath.round(sc*y0);
+        x1 = stdMath.round(sc*x1);
+        y1 = stdMath.round(sc*y1);
+        nom += (bk.k-avg)*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
+        nrg += (bk.k-avg)*(bk.k-avg)*(x1-x0+1)*(y1-y0+1);
     }
-    return (nom / denom);
+    sum1 = satsum(sat1, w, h, x, y, x+tws, y+ths);
+    sum2 = satsum(sat2, w, h, x, y, x+tws, y+ths);
+    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg)) || 1;
+    return clamp(stdMath.abs(nom)/denom, 0, 1);
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b, s,
+    var tr = 0, tg = 0, tb = 0,
+        a, b, s,
         l = t.length, n = w*h, p;
     for (p=0; p<l; p+=4)
     {
@@ -18898,7 +18940,7 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
         if (null != channel)
         {
             sat(t, w, h, 2, channel, s[channel] = new A32F(n));
-            b[channel] = approximate(t, s[channel], [{k:a[channel],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, channel, Jmax, minSz);
+            b[channel] = approximate(t, s[channel], w, h, channel, Jmax, minSz);
         }
         else
         {
@@ -18906,33 +18948,25 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
             sat(t, w, h, 2, 1, s[1] = new A32F(n));
             sat(t, w, h, 2, 2, s[2] = new A32F(n));
             b = [
-            approximate(t, s[0], [{k:a[0],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 0, Jmax, minSz),
-            approximate(t, s[1], [{k:a[1],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 1, Jmax, minSz),
-            approximate(t, s[2], [{k:a[2],x0:0,x1:w-1,y0:0,y1:h-1}], w, h, 2, Jmax, minSz)
+            approximate(t, s[0], w, h, 0, Jmax, minSz),
+            approximate(t, s[1], w, h, 1, Jmax, minSz),
+            approximate(t, s[2], w, h, 2, Jmax, minSz)
             ];
         }
     }
     return {avg:a, basis:b||null, sat:s||null};
 }
-function approximate(t, s, b, w, h, c, Jmax, minSz)
+function approximate(t, s, w, h, c, Jmax, minSz)
 {
-    var J = 0, J2, Jmin, bmin,
+    var J, J2, Jmin, bmin,
         x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, l = t.length, n = w*h,
-        v, k, K = b.length, bk, bb;
-    for (p=0,x=0,y=0; p<l; p+=4,++x)
-    {
-        if (x >= w) {x=0; ++y;}
-        v = t[p+c] / 255;
-        for (k=0; k<K; ++k)
-        {
-            bk = b[k];
-            if (bk.x0 <= x && bk.x1 >= x && bk.y0 <= y && bk.y1 >= y)
-                v -= bk.k / 255;
-        }
-        J += v*v / n;
-    }
+        v, k, K, b, bk, bb;
+    b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
+    bk = b[0];
+    Jmax *= 255*255; J = 0;
+    for (p=0; p<l; p+=4) {v = t[p+c]-bk.k; J += v*v/n;}
     while (J > Jmax)
     {
         Jmin = J;
@@ -18946,24 +18980,18 @@ function approximate(t, s, b, w, h, c, Jmax, minSz)
             {
                 J2 = J;
                 hh = bk.y1-bk.y0+1;
-                y0 = clamp(bk.y0-1, 0, bk.y1);
-                y1 = clamp(bk.y1, 0, bk.y1);
-                x0 = clamp(bk.x0-1, 0, bk.x1);
-                x1 = clamp(x, 0, bk.x1);
                 ww = x-bk.x0+1;
-                avg1 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
-                x0 = clamp(x, 0, bk.x1);
-                x1 = clamp(bk.x1, 0, bk.x1);
+                avg1 = satsum(s, w, h, bk.x0, bk.y0, x, bk.y1)/(ww*hh);
                 ww = bk.x1-(x+1)+1;
-                avg2 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                avg2 = satsum(s, w, h, x+1, bk.y0, bk.x1, bk.y1)/(ww*hh);
                 for (xx=bk.x0; xx<=x; ++xx)
                 {
                     for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
                         p = (x + yw) << 2;
-                        v = (t[p+c] - bk.k)/255;
+                        v = t[p+c] - bk.k;
                         J2 -= v*v/n;
-                        v = (t[p+c] - avg1)/255;
+                        v = t[p+c] - avg1;
                         J2 += v*v/n;
                     }
                 }
@@ -18972,9 +19000,9 @@ function approximate(t, s, b, w, h, c, Jmax, minSz)
                     for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
                         p = (x + yw) << 2;
-                        v = (t[p+c] - bk.k)/255;
+                        v = t[p+c] - bk.k;
                         J2 -= v*v/n;
-                        v = (t[p+c] - avg2)/255;
+                        v = t[p+c] - avg2;
                         J2 += v*v/n;
                     }
                 }
@@ -18991,24 +19019,18 @@ function approximate(t, s, b, w, h, c, Jmax, minSz)
             {
                 J2 = J;
                 ww = bk.x1-bk.yx0+1;
-                x0 = clamp(bk.x0-1, 0, bk.x1);
-                x1 = clamp(bk.x1, 0, bk.x1);
-                y0 = clamp(bk.y0-1, 0, bk.y1);
-                y1 = clamp(y, 0, bk.y1);
                 hh = y-bk.y0+1;
-                avg1 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
-                y0 = clamp(y, 0, bk.y1);
-                y1 = clamp(bk.y1, 0, bk.y1);
+                avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
                 hh = bk.y1-(y+1)+1;
-                avg2 = (s[x1 + w*y1] - s[x1 + w*y0] - s[x0 + w*y1] + s[x0 + w*y0]) / (ww*hh);
+                avg2 = satsum(s, w, h, bk.x0, y+1, bk.x1, bk.y1)/(ww*hh);
                 for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
                 {
                     for (xx=bk.x0; xx<=bk.x1; ++xx)
                     {
                         p = (x + yw) << 2;
-                        v = (t[p+c] - bk.k)/255;
+                        v = t[p+c] - bk.k;
                         J2 -= v*v/n;
-                        v = (t[p+c] - avg1)/255;
+                        v = t[p+c] - avg1;
                         J2 += v*v/n;
                     }
                 }
@@ -19017,9 +19039,9 @@ function approximate(t, s, b, w, h, c, Jmax, minSz)
                     for (xx=bk.x0; xx<=bk.x1; ++xx)
                     {
                         p = (x + yw) << 2;
-                        v = (t[p+c] - bk.k)/255;
+                        v = t[p+c] - bk.k;
                         J2 -= v*v/n;
-                        v = (t[p+c] - avg2)/255;
+                        v = t[p+c] - avg2;
                         J2 += v*v/n;
                     }
                 }
@@ -19039,6 +19061,7 @@ function approximate(t, s, b, w, h, c, Jmax, minSz)
     }
     return b;
 }
+FilterUtil.approximate = approximate;
 function glsl(filter)
 {
     var glslcode = (new GLSL.Filter(filter))
@@ -19046,24 +19069,24 @@ function glsl(filter)
     .shader(function(glsl, im) {
         var tpldata = filter.tpldata(), tpl = filter.input("template");
         filter.meta = [];
+        glsl.io().matches = [];
         glsl.io().im = im;
         glsl.io().tpl = {data:tpl[0], width:tpl[1], height:tpl[2]};
         glsl.io().avgT = [tpldata.avg[0]/255, tpldata.avg[1]/255, tpldata.avg[2]/255];
         return im;
     })
-    .end()
-    .begin()
-    .shader([
+    .end();
+    var shader = [
     'varying vec2 pix;',
     'uniform sampler2D img;',
     'uniform sampler2D tpl;',
     'uniform vec2 imgSize;',
     'uniform vec2 tplSize;',
     'uniform vec3 avgT;',
-    'uniform float scale;',
-    'uniform float rotation;',
+    'uniform float sc;',
+    'uniform float rot;',
     'void main(void) {',
-    '    vec2 tplSizeScaled = tplSize * scale;',
+    '    vec2 tplSizeScaled = tplSize * sc;',
     '    if (pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
     '    {',
     '        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);',
@@ -19112,28 +19135,45 @@ function glsl(filter)
     '        gl_FragColor = vec4(score, score, score, 1.0);',
     '    }',
     '}'
-    ].join('\n'))
-    .input('tpl', function(filter, w, h, w2, h2, io) {
-        return io.tpl;
-    })
-    .input('imgSize', function(filter, w, h) {
-        return [w, h];
-    })
-    .input('tplSize', function(filter, w, h, w2, h2, io) {
-        return [io.tpl.width, io.tpl.height];
-    })
-    .input('avgT', function(filter, w, h, w2, h2, io) {
-        return io.avgT;
-    })
-    .input('scale', function(filter) {return filter.scale || 1;})
-    .input('rotation', function(filter) {return filter.rotation || 0;})
-    .end()
+    ].join('\n');
+    var rot = /*filter.rot*/[0];
+    for (var r=0,rl=rot.length; r<rl; ++r)
+    {
+        for (var sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
+        {
+            glslcode
+            .begin()
+            .shader(shader)
+            .input('imgSize', function(filter, w, h, w2, h2, io) {
+                io.sc = sc;
+                return [w, h];
+            })
+            .input('tpl', function(filter, w, h, w2, h2, io) {
+                return io.tpl;
+            })
+            .input('tplSize', function(filter, w, h, w2, h2, io) {
+                return [io.tpl.width, io.tpl.height];
+            })
+            .input('avgT', function(filter, w, h, w2, h2, io) {
+                return io.avgT;
+            })
+            .input('sc', sc)
+            .input('rot', rot[r])
+            .end()
+            .begin()
+            .shader(function(glsl, im, w, h) {
+                var sc = glsl.io().sc, tw = glsl.io().tpl.width, th = glsl.io().tpl.height,
+                    tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th);
+                glsl.io().matches.push.apply(glsl.io().matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                return glsl.io().im;
+            })
+            .end();
+        }
+    }
+    glslcode
     .begin()
     .shader(function(glsl, im, w, h) {
-        var tw = glsl.io().tpl.width, th = glsl.io().tpl.height,
-            tws = stdMath.round(filter.scale*tw),
-            ths = stdMath.round(filter.scale*th);
-        filter.meta = minmax(im, w, h, null, null, 4, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};});
+        filter.meta = {matches: FilterUtil.merge_features(glsl.io().matches, filter.minNeighbors, filter.tolerance)};
         return glsl.io().im;
     })
     .end();

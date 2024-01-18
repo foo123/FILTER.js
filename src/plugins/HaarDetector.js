@@ -208,7 +208,7 @@ FILTER.Create({
         if (features.length > features.count) features.length = features.count;
 
         // return results as meta
-        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance)};
+        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area)};
 
         // return im back
         return im;
@@ -407,111 +407,9 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         }
     }
 }
-function equals(r1, r2, eps)
-{
-    var delta = eps * (Min(r1.width, r2.width) + Min(r1.height, r2.height)) * 0.5;
-    return Abs(r1.x - r2.x) <= delta &&
-        Abs(r1.y - r2.y) <= delta &&
-        Abs(r1.x + r1.width - r2.x - r2.width) <= delta &&
-        Abs(r1.y + r1.height - r2.y - r2.height) <= delta;
-}
-function is_inside(r1, r2, eps)
-{
-    var dx = r2.width * eps, dy = r2.height * eps;
-    return (r1.x >= r2.x - dx) &&
-        (r1.y >= r2.y - dy) &&
-        (r1.x + r1.width <= r2.x + r2.width + dx) &&
-        (r1.y + r1.height <= r2.y + r2.height + dy);
-}
-function add(r1, r2)
-{
-    r1.x += r2.x;
-    r1.y += r2.y;
-    r1.width += r2.width;
-    r1.height += r2.height;
-    return r1;
-}
-function snap_to_grid(r)
-{
-    r.x = Round(r.x);
-    r.y = Round(r.y);
-    r.width = Round(r.width);
-    r.height = Round(r.height);
-    r.area = r.width*r.height;
-    return r;
-}
 function by_area(r1, r2) {return r2.area-r1.area;}
-// merge the detected features if needed
-function merge_features(rects, min_neighbors, epsilon)
-{
-    var rlen = rects.length, ref = new Array(rlen), feats = [],
-        nb_classes = 0, neighbors, r, found = false, i, j, n, t, ri;
-
-    // original code
-    // find number of neighbour classes
-    for (i = 0; i < rlen; ++i) ref[i] = 0;
-    for (i = 0; i < rlen; ++i)
-    {
-        found = false;
-        for (j = 0; j < i; ++j)
-        {
-            if (equals(rects[j], rects[i], epsilon))
-            {
-                found = true;
-                ref[i] = ref[j];
-            }
-        }
-
-        if (!found)
-        {
-            ref[i] = nb_classes;
-            ++nb_classes;
-        }
-    }
-
-    // merge neighbor classes
-    neighbors = new Array(nb_classes);  r = new Array(nb_classes);
-    for (i = 0; i < nb_classes; ++i) {neighbors[i] = 0;  r[i] = {x:0,y:0,width:0,height:0};}
-    for (i = 0; i < rlen; ++i) {ri=ref[i]; ++neighbors[ri]; add(r[ri], rects[i]);}
-    for (i = 0; i < nb_classes; ++i)
-    {
-        n = neighbors[i];
-        if (n >= min_neighbors)
-        {
-            t = 1/(n + n);
-            ri = {
-                x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
-                width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
-            };
-
-            feats.push(ri);
-        }
-    }
-
-    // filter inside rectangles
-    rlen = feats.length;
-    for (i=0; i<rlen; ++i)
-    {
-        for (j=i+1; j<rlen; ++j)
-        {
-            if (!feats[i].isInside && is_inside(feats[i], feats[j], epsilon))
-                feats[i].isInside = true;
-            if (!feats[j].isInside && is_inside(feats[j], feats[i], epsilon))
-                feats[j].isInside = true;
-        }
-    }
-    i = rlen;
-    while (--i >= 0)
-    {
-        if (feats[i].isInside) feats.splice(i, 1);
-        else snap_to_grid(feats[i]);
-    }
-
-    return feats.sort(by_area);
-}
 
 // expose as static utility methods, can be overriden
 FILTER.Util.Filter.haar_detect = haar_detect;
-FILTER.Util.Filter.merge_features = merge_features;
 
 }(FILTER);

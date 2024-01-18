@@ -21,7 +21,7 @@ fs.readFile(__dirname+'/che_tpl.png', function(err, tplbuf) {
                 template_matcher.apply(img, function() {
                     if (parallel) template_matcher.worker(false);
                     console.log('Matching completed');
-                    var matches = template_matcher.metaData();
+                    var matches = template_matcher.metaData().matches;
                     console.log(matches.length + (1 === matches.length ? ' match was found' : ' matches were found'));
                     if (matches.length) console.log('1st match is found at :' + JSON.stringify(matches[0]));
                 });

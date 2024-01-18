@@ -147,7 +147,8 @@ function GLSLFilter(filter)
     var self = this, glsls = [], glsl = null, shaders = {}, io = {},
         prev_output = function(glsl) {
             return glsl._prev && glsl._prev._output && HAS.call(io, glsl._prev._output) ? io[glsl._prev._output] : null;
-        };
+        },
+        get_io = function() {return io;};
     self.begin = function() {
         glsl = {
         _prev: null,
@@ -156,7 +157,7 @@ function GLSLFilter(filter)
         _inputs: {},
         _input: 'img', // main input (texture) is named 'img' by default
         _output: null,
-        io: function() {return io;},
+        io: get_io,
         iterations: 1,
         instance: filter,
         shader: null,
@@ -188,7 +189,7 @@ function GLSLFilter(filter)
                 {
                     var inp = inputs[i], name = HAS.call(uniform, inp.name) ? inp.name : inp.iname,
                         type = uniform[name].type, loc = uniform[name].loc,
-                        value = !inp.setter && HAS.call(io, inp.name) ? io[inp.name] : inp.setter(filter, w, h, wi, hi, io);
+                        value = null==inp.setter && HAS.call(io, inp.name) ? io[inp.name] : ('function' === typeof inp.setter ? inp.setter(filter, w, h, wi, hi, io) : inp.setter);
                     if ('sampler2D' === type)
                     {
                         // texture
