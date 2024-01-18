@@ -27,7 +27,7 @@ FILTER.Create({
     ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
-    ,_q: 0.98
+    ,_q: 0.99
     ,_s: 3
     ,_tpldata: null
     ,_draw: false
@@ -50,7 +50,7 @@ FILTER.Create({
         var self = this;
         if (params)
         {
-            if (null != params.threshold) self.thresh = params.threshold || 0;
+            if (null != params.threshold) self.threshold = params.threshold || 0;
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.selection) self.selection = params.selection || null;
@@ -70,8 +70,8 @@ FILTER.Create({
     }
     ,quality: function(quality, size) {
         var self = this;
-        quality = null == quality ? 0.98 : (quality || 0);
-        size = null == size ? 2 : (size || 0);
+        quality = null == quality ? 0.99 : (quality || 0);
+        size = null == size ? 3 : (size || 0);
         if (quality !== self._q || size !== self._s)
         {
             self._tpldata = null;
@@ -154,25 +154,6 @@ FILTER.Create({
             tpldata, sat1, sat2, out, matches = [],
             k, x, y, x1, y1, x2, y2, xf, yf;
 
-        if (self._draw)
-        {
-            self._update = true;
-            for (var c=0; c<3; ++c)
-            {
-                for (var b=tpldata.basis[c],k=0,K=b.length; k<K; ++k)
-                {
-                    var bk = b[k];
-                    for (y=bk.y0; y<=bk.y1; ++y)
-                    {
-                        for (x=bk.x0; x<=bk.x1; ++x)
-                        {
-                            im[(x + w*y)*4 + c] = bk.k;
-                        }
-                    }
-                }
-            }
-            return im;
-        }
         if (selection)
         {
             if (selection[4])
@@ -249,7 +230,6 @@ FILTER.Create({
                     }
                 }
                 matches.push.apply(matches, FilterUtil.max(out, w, h, self.threshold).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                //console.log(matches.length, mm);
             }
         }
 
@@ -348,7 +328,7 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 function approximate(t, w, h, c, Jmax, minSz)
 {
     var J, J2, Jmin, bmin,
-        x0, x1, y0, y1, ww, hh, dobreak,
+        x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, tp, l = t.length, n = w*h,
         s, v, k, K, b, bk, bb, done;
@@ -362,7 +342,6 @@ function approximate(t, w, h, c, Jmax, minSz)
         Jmin = J;
         bmin = b;
         K = b.length;
-        dobreak = false;
         for (k=0; k<K; ++k)
         {
             bk = b[k];
@@ -406,14 +385,12 @@ function approximate(t, w, h, c, Jmax, minSz)
                     bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
                     bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
-                    dobreak = true; //break;
                 }
             }
-            //if (dobreak) break;
             for (y=bk.y0; y<bk.y1; ++y)
             {
                 J2 = J;
-                ww = bk.x1-bk.yx0+1;
+                ww = bk.x1-bk.x0+1;
                 hh = y-bk.y0+1;
                 avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
                 hh = bk.y1-(y+1)+1;
@@ -449,10 +426,8 @@ function approximate(t, w, h, c, Jmax, minSz)
                     bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
                     bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
-                    dobreak = true; //break;
                 }
             }
-            //if (dobreak) break;
         }
         if (bmin === b) break;
         J = Jmin;
@@ -467,7 +442,7 @@ function glsl(filter)
     .begin()
     .shader(function(glsl, im) {
         var tpldata = filter.tpldata(), tpl = filter.input("template");
-        filter.meta = {matches:[]};
+        filter.meta = {matches: []};
         glsl.io().matches = [];
         glsl.io().im = im;
         glsl.io().tpl = {data:tpl[0], width:tpl[1], height:tpl[2]};
@@ -486,8 +461,16 @@ function glsl(filter)
     'uniform float sc;',
     'uniform int rot;',
     'void main(void) {',
-    '    vec2 tplSizeScaled = tplSize * sc;',
-    '    if (pix.x < selection.x || pix.y < selection.y || pix.x > selection.z || pix.y > selection.w || pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
+    '    vec2 tplSizeScaled = tplSize * sc; vec2 twh;',
+    '    if (90 == rot || -270 == rot || 270 == rot || -90 == rot)',
+    '    {',
+    '        twh.xy = tplSizeScaled.yx;',
+    '    }',
+    '    else',
+    '    {',
+    '        twh.xy = tplSizeScaled.xy;',
+    '    }',
+    '    if (pix.x < selection.x || pix.y < selection.y || pix.x > selection.z || pix.y > selection.w || pix.y*imgSize.y + twh.y > imgSize.y || pix.x*imgSize.x + twh.x > imgSize.x)',
     '    {',
     '        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);',
     '    }',
@@ -499,7 +482,7 @@ function glsl(filter)
     '        vec3 avgF = vec3(0.0); /*vec3 avgT = vec3(0.0);*/',
     '        vec3 dF; vec3 dT;',
     '        vec3 sumFF = vec3(0.0); vec3 sumTT = vec3(0.0); vec3 sumFT = vec3(0.0);',
-    '        float ii; float jj;',
+    '        float ii; float jj; float x; float y;',
     '        for (int i = 0; i < 1000; i++)',
     '        {',
     '            if (i >= tplH) break;',
@@ -508,8 +491,28 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
-    '                /*T = texture2D(tpl, vec2(jj, ii) / tplSizeScaled);*/',
+    '                if (90 == rot || -270 == rot)',
+    '                {',
+    '                    x = ii;',
+    '                    y = jj;',
+    '                }',
+    '                else if (180 == rot || -180 == rot)',
+    '                {',
+    '                    x = tplSizeScaled.x-jj;',
+    '                    y = tplSizeScaled.y-ii;',
+    '                }',
+    '                else if (270 == rot || -90 == rot)',
+    '                {',
+    '                    y = tplSizeScaled.x-jj;',
+    '                    x = tplSizeScaled.y-ii;',
+    '                }',
+    '                else /* 0, 360, -360 */',
+    '                {',
+    '                    x = jj;',
+    '                    y = ii;',
+    '                }',
+    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                /*T = texture2D(tpl, vec2(x, y) / twh);*/',
     '                avgF.rgb += F.rgb; /*avgT.rgb += T.rgb;*/',
     '            }',
     '        }',
@@ -522,8 +525,28 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
-    '                T = texture2D(tpl, vec2(jj, ii) / tplSizeScaled);',
+    '                if (90 == rot || -270 == rot)',
+    '                {',
+    '                    x = ii;',
+    '                    y = jj;',
+    '                }',
+    '                else if (180 == rot || -180 == rot)',
+    '                {',
+    '                    x = tplSizeScaled.x-jj;',
+    '                    y = tplSizeScaled.y-ii;',
+    '                }',
+    '                else if (270 == rot || -90 == rot)',
+    '                {',
+    '                    y = tplSizeScaled.x-jj;',
+    '                    x = tplSizeScaled.y-ii;',
+    '                }',
+    '                else /* 0, 360, -360 */',
+    '                {',
+    '                    x = jj;',
+    '                    y = ii;',
+    '                }',
+    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                T = texture2D(tpl, vec2(x, y) / twh);',
     '                dF.rgb = F.rgb - avgF.rgb; dT.rgb = T.rgb - avgT.rgb;',
     '                sumFF += dF * dF;',
     '                sumTT += dT * dT;',
@@ -536,10 +559,10 @@ function glsl(filter)
     '    }',
     '}'
     ].join('\n');
-    var rot = /*filter.rot*/[0];
-    for (var r=0,rl=rot.length; r<rl; ++r)
+    var rot = /*filter.rot*/[0], r, rl, sc;
+    for (r=0,rl=rot.length; r<rl; ++r)
     {
-        for (var sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
+        for (sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
         {
             glslcode
             .begin()
@@ -562,7 +585,7 @@ function glsl(filter)
             .begin()
             .shader(function(glsl, im, w, h) {
                 var io = glsl.io(), inputs = glsl._inputs,
-                    sc = inputs.sc, rot = inputs.rot, t,
+                    sc = inputs.sc.setter, rot = inputs.rot.setter, t,
                     tw = io.tpl.width, th = io.tpl.height,
                     tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th);
                 if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
@@ -573,15 +596,16 @@ function glsl(filter)
                     ths = t;
                 }
                 io.matches.push.apply(io.matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                //console.log(io.matches.length);
                 return io.im;
             })
+            .input('sc', sc)
+            .input('rot', rot[r])
             .end();
         }
     }
     glslcode
     .begin()
-    .shader(function(glsl, im, w, h) {
+    .shader(function(glsl) {
         filter.meta = {matches: FilterUtil.merge_features(glsl.io().matches, filter.minNeighbors, filter.tolerance)};
         return glsl.io().im;
     })

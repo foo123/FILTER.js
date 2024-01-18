@@ -536,15 +536,15 @@ function runOne(gl, glsl, pos, uv, input, output, buf /*, flipY*/)
         {
             if (sel[4])
             {
-                // selection is relative, make absolute
+                // selection is relative
                 xf = 1;
                 yf = 1;
             }
             else
             {
-                // selection is absolute
-                xf = 1/w;
-                yf = 1/h;
+                // selection is absolute, make relative
+                xf = 1/((w-1)||1);
+                yf = 1/((h-1)||1);
             }
             x1 = stdMath.min(1, stdMath.max(0, sel[0]*xf));
             y1 = stdMath.min(1, stdMath.max(0, sel[1]*yf));

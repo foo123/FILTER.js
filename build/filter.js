@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-18 17:07:53
+*   @built on 2024-01-18 18:06:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-18 17:07:53
+*   @built on 2024-01-18 18:06:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -4272,15 +4272,15 @@ function runOne(gl, glsl, pos, uv, input, output, buf /*, flipY*/)
         {
             if (sel[4])
             {
-                // selection is relative, make absolute
+                // selection is relative
                 xf = 1;
                 yf = 1;
             }
             else
             {
-                // selection is absolute
-                xf = 1/w;
-                yf = 1/h;
+                // selection is absolute, make relative
+                xf = 1/((w-1)||1);
+                yf = 1/((h-1)||1);
             }
             x1 = stdMath.min(1, stdMath.max(0, sel[0]*xf));
             y1 = stdMath.min(1, stdMath.max(0, sel[1]*yf));
@@ -6784,13 +6784,14 @@ var PROTO = 'prototype', DPR = 1,// / FILTER.devicePixelRatio,
 var FilterImage = FILTER.Image = FILTER.Class({
     name: "Image"
 
-    ,constructor: function FilterImage(img) {
+    ,constructor: function FilterImage(img, ctxOpts) {
         var self = this, w = 0, h = 0;
         // factory-constructor pattern
-        if (!(self instanceof FilterImage)) return new FilterImage(img);
+        if (!(self instanceof FilterImage)) return new FilterImage(img, ctxOpts);
         self.id = ++ID;
         self.width = w;
         self.height = h;
+        self.ctxOpts = ctxOpts || {};
         self.iCanvas = FILTER.Canvas(w, h);
         self.oCanvas = FILTER.Canvas(w, h);
         self.domElement = self.oCanvas;
@@ -6814,6 +6815,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,height: 0
     ,gray: false
     ,selection: null
+    ,ctxOpts: null
     ,iCanvas: null
     ,oCanvas: null
     ,gl: null
@@ -6837,12 +6839,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.domElement = self.iCanvas = self.oCanvas = self.gl = null;
         self._restorable = null;
         self._refresh = self.nref = null;
-        self.cache = null;
+        self.cache = self.ctxOpts = null;
         return self;
     }
 
-    ,clone: function(original) {
-        return new FilterImage(true === original ? this.iCanvas : this.oCanvas);
+    ,clone: function(original, ctxOpts) {
+        return new FilterImage(true === original ? this.iCanvas : this.oCanvas, ctxOpts || this.ctxOpts);
     }
 
     ,grayscale: function(bool) {
@@ -6920,7 +6922,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._restorable)
         {
-            self.iCanvas.getContext('2d').drawImage(self.oCanvas, 0, 0);
+            self.iCanvas.getContext('2d',self.ctxOpts).drawImage(self.oCanvas, 0, 0);
             self._refresh |= IDATA;
             if (self.selection) self._refresh |= ISEL;
             self.nref = (self.nref+1) % 1000;
@@ -6934,7 +6936,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this;
         if (self._restorable)
         {
-            self.oCanvas.getContext('2d').drawImage(self.iCanvas, 0, 0);
+            self.oCanvas.getContext('2d',self.ctxOpts).drawImage(self.iCanvas, 0, 0);
             self._refresh |= ODATA;
             if (self.selection) self._refresh |= OSEL;
             self.nref = (self.nref+1) % 1000;
@@ -6975,7 +6977,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.style.width = String(w) + 'px';
             self.oCanvas.style.height = String(h) + 'px';
         }*/
-        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
@@ -6987,7 +6989,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
             }*/
-            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
@@ -7006,12 +7008,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.scale(-1, 1);
 
         ctx.drawImage(self.oCanvas, 0, 0);
-        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, 0, 0);
-            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
@@ -7030,12 +7032,12 @@ var FilterImage = FILTER.Image = FILTER.Class({
         ctx.scale(1, -1);
 
         ctx.drawImage(self.oCanvas, 0, 0);
-        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
 
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, 0, 0);
-            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
@@ -7049,8 +7051,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         var self = this, w = self.oCanvas.width, h = self.oCanvas.height;
         if (w && h)
         {
-            if (self._restorable) self.iCanvas.getContext('2d').clearRect(0, 0, w, h);
-            self.oCanvas.getContext('2d').clearRect(0, 0, w, h);
+            if (self._restorable) self.iCanvas.getContext('2d',self.ctxOpts).clearRect(0, 0, w, h);
+            self.oCanvas.getContext('2d',self.ctxOpts).clearRect(0, 0, w, h);
             self._refresh |= DATA;
             if (self.selection) self._refresh |= SEL;
             self.nref = (self.nref+1) % 1000;
@@ -7116,7 +7118,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.oCanvas.style.width = String(self.width) + 'px';
             self.oCanvas.style.height = String(self.height) + 'px';
         }*/
-        self.oCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+        self.oCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
         if (self._restorable)
         {
             ctx.drawImage(self.iCanvas, x, y, w, h, 0, 0, w, h);
@@ -7127,7 +7129,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 self.iCanvas.style.width = self.oCanvas.style.width;
                 self.iCanvas.style.height = self.oCanvas.style.height;
             }*/
-            self.iCanvas.getContext('2d').drawImage(tmpCanvas, 0, 0);
+            self.iCanvas.getContext('2d',self.ctxOpts).drawImage(tmpCanvas, 0, 0);
         }
 
         self._refresh |= DATA;
@@ -7182,8 +7184,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         x = clamp(x, xs, ws);
         y = clamp(y, ys, hs);
 
-        var octx = self.oCanvas.getContext('2d'),
-            ictx = self.iCanvas.getContext('2d');
+        var octx = self.oCanvas.getContext('2d',self.ctxOpts),
+            ictx = self.iCanvas.getContext('2d',self.ctxOpts);
 
         x *= DPR;
         y *= DPR;
@@ -7258,7 +7260,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     // set direct data array
     ,setData: function(a) {
         var self = this;
-        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
+        self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, self.oCanvas.width, self.oCanvas.height), 0, 0);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         self.nref = (self.nref+1) % 1000;
@@ -7286,11 +7288,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
             ys = Floor(sel[1]*yf);
             ws = Floor(sel[2]*xf)-xs+1;
             hs = Floor(sel[3]*yf)-ys+1;
-            self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
+            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
         }
         else
         {
-            self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(a, DPR*w, DPR*h), 0, 0);
+            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*w, DPR*h), 0, 0);
         }
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
@@ -7307,8 +7309,8 @@ var FilterImage = FILTER.Image = FILTER.Class({
         x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
         x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
         ws = x2-x1+DPR; hs = y2-y1+DPR;
-        data = self.oCanvas.getContext('2d').getImageData(x1, y1, ws, hs);
-        if (!data) data = self.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
+        data = self.oCanvas.getContext('2d',self.ctxOpts).getImageData(x1, y1, ws, hs);
+        if (!data) data = self.oCanvas.getContext('2d',self.ctxOpts).createImageData(0, 0, ws, hs);
         return [copy(data.data), data.width, data.height, 2];
     }
     ,setDataToSelection: function(data, x1, y1, x2, y2, absolute) {
@@ -7321,7 +7323,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
         x1 = DPR*Floor(x1*fx); y1 = DPR*Floor(y1*fy);
         x2 = DPR*Floor(x2*fx); y2 = DPR*Floor(y2*fy);
         ws = x2-x1+DPR; hs = y2-y1+DPR;
-        self.oCanvas.getContext('2d').putImageData(FILTER.Canvas.ImageData(data, ws, hs), x1, y1);
+        self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(data, ws, hs), x1, y1);
         self._refresh |= ODATA;
         if (self.selection) self._refresh |= OSEL;
         self.nref = (self.nref+1) % 1000;
@@ -7373,13 +7375,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
         set_dimensions(self, w, h, WIDTH_AND_HEIGHT);
         if (isImage || isCanvas || isVideo)
         {
-            if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, 0, 0, self.iCanvas.width, self.iCanvas.height);
-            self.oCanvas.getContext('2d').drawImage(img, 0, 0, self.oCanvas.width, self.oCanvas.height);
+            if (self._restorable) self.iCanvas.getContext('2d',self.ctxOpts).drawImage(img, 0, 0, self.iCanvas.width, self.iCanvas.height);
+            self.oCanvas.getContext('2d',self.ctxOpts).drawImage(img, 0, 0, self.oCanvas.width, self.oCanvas.height);
         }
         else
         {
-            if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, 0, 0);
-            self.oCanvas.getContext('2d').putImageData(img, 0, 0);
+            if (self._restorable) self.iCanvas.getContext('2d',self.ctxOpts).putImageData(img, 0, 0);
+            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(img, 0, 0);
         }
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
@@ -7405,13 +7407,13 @@ var FilterImage = FILTER.Image = FILTER.Class({
         dy = dy || 0;
         if (isImage || isCanvas || isVideo)
         {
-            if (self._restorable) self.iCanvas.getContext('2d').drawImage(img, sx, sy, sw, sh, dx, dy, self.iCanvas.width, self.iCanvas.height);
-            self.oCanvas.getContext('2d').drawImage(img, sx, sy, sw, sh, dx, dy, self.oCanvas.width, self.oCanvas.height);
+            if (self._restorable) self.iCanvas.getContext('2d',self.ctxOpts).drawImage(img, sx, sy, sw, sh, dx, dy, self.iCanvas.width, self.iCanvas.height);
+            self.oCanvas.getContext('2d',self.ctxOpts).drawImage(img, sx, sy, sw, sh, dx, dy, self.oCanvas.width, self.oCanvas.height);
         }
         else
         {
-            if (self._restorable) self.iCanvas.getContext('2d').putImageData(img, dx, dy, sx, sy, sw, sh);
-            self.oCanvas.getContext('2d').putImageData(img, dx, dy, sx, sy, sw, sh);
+            if (self._restorable) self.iCanvas.getContext('2d',self.ctxOpts).putImageData(img, dx, dy, sx, sy, sw, sh);
+            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(img, dx, dy, sx, sy, sw, sh);
         }
         self._refresh |= DATA;
         if (self.selection) self._refresh |= SEL;
@@ -7526,14 +7528,14 @@ function refresh_data(scope, what)
     what = what || 255;
     if (scope._restorable && (what & IDATA) && (scope._refresh & IDATA))
     {
-        scope.iData = scope.iCanvas.getContext('2d').getImageData(0, 0, w, h);
-        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d').createImageData(0, 0, w, h);
+        scope.iData = scope.iCanvas.getContext('2d',scope.ctxOpts).getImageData(0, 0, w, h);
+        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, w, h);
         scope._refresh &= ~IDATA;
     }
     if ((what & ODATA) && (scope._refresh & ODATA))
     {
-        scope.oData = scope.oCanvas.getContext('2d').getImageData(0, 0, w, h);
-        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d').createImageData(0, 0, w, h);
+        scope.oData = scope.oCanvas.getContext('2d',scope.ctxOpts).getImageData(0, 0, w, h);
+        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, w, h);
         scope._refresh &= ~ODATA;
     }
     return scope;
@@ -7558,14 +7560,14 @@ function refresh_selected_data(scope, what)
         what = what || 255;
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
-            scope.iDataSel = scope.iCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
-            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d').createImageData(0, 0, ws, hs);
+            scope.iDataSel = scope.iCanvas.getContext('2d',scope.ctxOpts).getImageData(xs, ys, ws, hs);
+            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, ws, hs);
             scope._refresh &= ~ISEL;
         }
         if ((what & OSEL) && (scope._refresh & OSEL))
         {
-            scope.oDataSel = scope.oCanvas.getContext('2d').getImageData(xs, ys, ws, hs);
-            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d').createImageData(0, 0, ws, hs);
+            scope.oDataSel = scope.oCanvas.getContext('2d',scope.ctxOpts).getImageData(xs, ys, ws, hs);
+            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, ws, hs);
             scope._refresh &= ~OSEL;
         }
     }
@@ -18682,7 +18684,7 @@ FILTER.Create({
     ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
-    ,_q: 0.98
+    ,_q: 0.99
     ,_s: 3
     ,_tpldata: null
     ,_draw: false
@@ -18705,7 +18707,7 @@ FILTER.Create({
         var self = this;
         if (params)
         {
-            if (null != params.threshold) self.thresh = params.threshold || 0;
+            if (null != params.threshold) self.threshold = params.threshold || 0;
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.selection) self.selection = params.selection || null;
@@ -18725,8 +18727,8 @@ FILTER.Create({
     }
     ,quality: function(quality, size) {
         var self = this;
-        quality = null == quality ? 0.98 : (quality || 0);
-        size = null == size ? 2 : (size || 0);
+        quality = null == quality ? 0.99 : (quality || 0);
+        size = null == size ? 3 : (size || 0);
         if (quality !== self._q || size !== self._s)
         {
             self._tpldata = null;
@@ -18809,25 +18811,6 @@ FILTER.Create({
             tpldata, sat1, sat2, out, matches = [],
             k, x, y, x1, y1, x2, y2, xf, yf;
 
-        if (self._draw)
-        {
-            self._update = true;
-            for (var c=0; c<3; ++c)
-            {
-                for (var b=tpldata.basis[c],k=0,K=b.length; k<K; ++k)
-                {
-                    var bk = b[k];
-                    for (y=bk.y0; y<=bk.y1; ++y)
-                    {
-                        for (x=bk.x0; x<=bk.x1; ++x)
-                        {
-                            im[(x + w*y)*4 + c] = bk.k;
-                        }
-                    }
-                }
-            }
-            return im;
-        }
         if (selection)
         {
             if (selection[4])
@@ -18904,7 +18887,6 @@ FILTER.Create({
                     }
                 }
                 matches.push.apply(matches, FilterUtil.max(out, w, h, self.threshold).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                //console.log(matches.length, mm);
             }
         }
 
@@ -19003,7 +18985,7 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 function approximate(t, w, h, c, Jmax, minSz)
 {
     var J, J2, Jmin, bmin,
-        x0, x1, y0, y1, ww, hh, dobreak,
+        x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, tp, l = t.length, n = w*h,
         s, v, k, K, b, bk, bb, done;
@@ -19017,7 +18999,6 @@ function approximate(t, w, h, c, Jmax, minSz)
         Jmin = J;
         bmin = b;
         K = b.length;
-        dobreak = false;
         for (k=0; k<K; ++k)
         {
             bk = b[k];
@@ -19061,14 +19042,12 @@ function approximate(t, w, h, c, Jmax, minSz)
                     bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
                     bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
-                    dobreak = true; //break;
                 }
             }
-            //if (dobreak) break;
             for (y=bk.y0; y<bk.y1; ++y)
             {
                 J2 = J;
-                ww = bk.x1-bk.yx0+1;
+                ww = bk.x1-bk.x0+1;
                 hh = y-bk.y0+1;
                 avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
                 hh = bk.y1-(y+1)+1;
@@ -19104,10 +19083,8 @@ function approximate(t, w, h, c, Jmax, minSz)
                     bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
                     bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
-                    dobreak = true; //break;
                 }
             }
-            //if (dobreak) break;
         }
         if (bmin === b) break;
         J = Jmin;
@@ -19122,7 +19099,7 @@ function glsl(filter)
     .begin()
     .shader(function(glsl, im) {
         var tpldata = filter.tpldata(), tpl = filter.input("template");
-        filter.meta = {matches:[]};
+        filter.meta = {matches: []};
         glsl.io().matches = [];
         glsl.io().im = im;
         glsl.io().tpl = {data:tpl[0], width:tpl[1], height:tpl[2]};
@@ -19141,8 +19118,16 @@ function glsl(filter)
     'uniform float sc;',
     'uniform int rot;',
     'void main(void) {',
-    '    vec2 tplSizeScaled = tplSize * sc;',
-    '    if (pix.x < selection.x || pix.y < selection.y || pix.x > selection.z || pix.y > selection.w || pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
+    '    vec2 tplSizeScaled = tplSize * sc; vec2 twh;',
+    '    if (90 == rot || -270 == rot || 270 == rot || -90 == rot)',
+    '    {',
+    '        twh.xy = tplSizeScaled.yx;',
+    '    }',
+    '    else',
+    '    {',
+    '        twh.xy = tplSizeScaled.xy;',
+    '    }',
+    '    if (pix.x < selection.x || pix.y < selection.y || pix.x > selection.z || pix.y > selection.w || pix.y*imgSize.y + twh.y > imgSize.y || pix.x*imgSize.x + twh.x > imgSize.x)',
     '    {',
     '        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);',
     '    }',
@@ -19154,7 +19139,7 @@ function glsl(filter)
     '        vec3 avgF = vec3(0.0); /*vec3 avgT = vec3(0.0);*/',
     '        vec3 dF; vec3 dT;',
     '        vec3 sumFF = vec3(0.0); vec3 sumTT = vec3(0.0); vec3 sumFT = vec3(0.0);',
-    '        float ii; float jj;',
+    '        float ii; float jj; float x; float y;',
     '        for (int i = 0; i < 1000; i++)',
     '        {',
     '            if (i >= tplH) break;',
@@ -19163,8 +19148,28 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
-    '                /*T = texture2D(tpl, vec2(jj, ii) / tplSizeScaled);*/',
+    '                if (90 == rot || -270 == rot)',
+    '                {',
+    '                    x = ii;',
+    '                    y = jj;',
+    '                }',
+    '                else if (180 == rot || -180 == rot)',
+    '                {',
+    '                    x = tplSizeScaled.x-jj;',
+    '                    y = tplSizeScaled.y-ii;',
+    '                }',
+    '                else if (270 == rot || -90 == rot)',
+    '                {',
+    '                    y = tplSizeScaled.x-jj;',
+    '                    x = tplSizeScaled.y-ii;',
+    '                }',
+    '                else /* 0, 360, -360 */',
+    '                {',
+    '                    x = jj;',
+    '                    y = ii;',
+    '                }',
+    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                /*T = texture2D(tpl, vec2(x, y) / twh);*/',
     '                avgF.rgb += F.rgb; /*avgT.rgb += T.rgb;*/',
     '            }',
     '        }',
@@ -19177,8 +19182,28 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
-    '                T = texture2D(tpl, vec2(jj, ii) / tplSizeScaled);',
+    '                if (90 == rot || -270 == rot)',
+    '                {',
+    '                    x = ii;',
+    '                    y = jj;',
+    '                }',
+    '                else if (180 == rot || -180 == rot)',
+    '                {',
+    '                    x = tplSizeScaled.x-jj;',
+    '                    y = tplSizeScaled.y-ii;',
+    '                }',
+    '                else if (270 == rot || -90 == rot)',
+    '                {',
+    '                    y = tplSizeScaled.x-jj;',
+    '                    x = tplSizeScaled.y-ii;',
+    '                }',
+    '                else /* 0, 360, -360 */',
+    '                {',
+    '                    x = jj;',
+    '                    y = ii;',
+    '                }',
+    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                T = texture2D(tpl, vec2(x, y) / twh);',
     '                dF.rgb = F.rgb - avgF.rgb; dT.rgb = T.rgb - avgT.rgb;',
     '                sumFF += dF * dF;',
     '                sumTT += dT * dT;',
@@ -19191,10 +19216,10 @@ function glsl(filter)
     '    }',
     '}'
     ].join('\n');
-    var rot = /*filter.rot*/[0];
-    for (var r=0,rl=rot.length; r<rl; ++r)
+    var rot = /*filter.rot*/[0], r, rl, sc;
+    for (r=0,rl=rot.length; r<rl; ++r)
     {
-        for (var sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
+        for (sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
         {
             glslcode
             .begin()
@@ -19217,7 +19242,7 @@ function glsl(filter)
             .begin()
             .shader(function(glsl, im, w, h) {
                 var io = glsl.io(), inputs = glsl._inputs,
-                    sc = inputs.sc, rot = inputs.rot, t,
+                    sc = inputs.sc.setter, rot = inputs.rot.setter, t,
                     tw = io.tpl.width, th = io.tpl.height,
                     tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th);
                 if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
@@ -19228,15 +19253,16 @@ function glsl(filter)
                     ths = t;
                 }
                 io.matches.push.apply(io.matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                //console.log(io.matches.length);
                 return io.im;
             })
+            .input('sc', sc)
+            .input('rot', rot[r])
             .end();
         }
     }
     glslcode
     .begin()
-    .shader(function(glsl, im, w, h) {
+    .shader(function(glsl) {
         filter.meta = {matches: FilterUtil.merge_features(glsl.io().matches, filter.minNeighbors, filter.tolerance)};
         return glsl.io().im;
     })
