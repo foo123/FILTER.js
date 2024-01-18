@@ -500,6 +500,7 @@ function runOne(gl, glsl, pos, uv, input, output, buf /*, flipY*/)
 {
     var w = output.w, h = output.h,
         wi = input.w, hi = input.h,
+        xf, yf, x1, y1, x2, y2, sel,
         iterations = ('function' === typeof glsl.iterations ? glsl.iterations(w, h, wi, hi) : glsl.iterations) || 1,
         program = glsl.program,
         uniform = program.uniform,
@@ -528,6 +529,34 @@ function runOne(gl, glsl, pos, uv, input, output, buf /*, flipY*/)
     if (HAS.call(uniform, 'dp') && ('vec2' === uniform.dp.type))
     {
         gl.uniform2f(uniform.dp.loc, 1/w, 1/h);
+    }
+    if (glsl.instance && HAS.call(uniform, 'selection') && ('vec4' === uniform.selection.type))
+    {
+        if (sel=glsl.instance.selection)
+        {
+            if (sel[4])
+            {
+                // selection is relative, make absolute
+                xf = 1;
+                yf = 1;
+            }
+            else
+            {
+                // selection is absolute
+                xf = 1/w;
+                yf = 1/h;
+            }
+            x1 = stdMath.min(1, stdMath.max(0, sel[0]*xf));
+            y1 = stdMath.min(1, stdMath.max(0, sel[1]*yf));
+            x2 = stdMath.min(1, stdMath.max(0, sel[2]*xf));
+            y2 = stdMath.min(1, stdMath.max(0, sel[3]*yf));
+        }
+        else
+        {
+            x1 = 0; y1 = 0;
+            x2 = 1; y2 = 1;
+        }
+        gl.uniform4f(uniform.selection.loc, x1, y1, x2, y2);
     }
     if (glsl.instance && HAS.call(uniform, 'mode') && ('int' === uniform.mode.type))
     {

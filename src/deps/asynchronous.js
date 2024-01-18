@@ -1,7 +1,7 @@
 /**
 *
 *   Asynchronous.js
-*   @version: 0.5.2
+*   @version: 0.5.1
 *
 *   Simple JavaScript class to manage asynchronous, parallel, linear, sequential and interleaved tasks
 *   https://github.com/foo123/asynchronous.js
@@ -553,7 +553,7 @@ function Asynchronous(interval, initThread)
     self.$queue = [ ];
     if (isInstantiatedThread && (false !== initThread)) self.initThread();
 };
-Asynchronous.VERSION = "0.5.2";
+Asynchronous.VERSION = "0.5.1";
 Asynchronous.Thread = Thread;
 Asynchronous.Task = Task;
 Asynchronous.MODE = {NONE: NONE, INTERLEAVE: INTERLEAVED, LINEAR: LINEARISED, PARALLEL: PARALLELISED, SEQUENCE: SEQUENCED};

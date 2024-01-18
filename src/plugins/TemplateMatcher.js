@@ -71,7 +71,7 @@ FILTER.Create({
     ,quality: function(quality, size) {
         var self = this;
         quality = null == quality ? 0.98 : (quality || 0);
-        size = null == size ? 3 : (size || 0);
+        size = null == size ? 2 : (size || 0);
         if (quality !== self._q || size !== self._s)
         {
             self._tpldata = null;
@@ -142,18 +142,37 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template");
 
-        self.meta = [];
+        self.meta = {matches:[]};
         if (!t || !tpldata) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
             rot = /*self.rot*/[0], scale = self.sc,
-            r, rl, sc, t, tw2, th2, tws, ths,
+            r, rl, ro, sc, t, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4,
             tpldata, sat1, sat2, out, matches = [],
             k, x, y, x1, y1, x2, y2, xf, yf;
 
+        if (self._draw)
+        {
+            self._update = true;
+            for (var c=0; c<3; ++c)
+            {
+                for (var b=tpldata.basis[c],k=0,K=b.length; k<K; ++k)
+                {
+                    var bk = b[k];
+                    for (y=bk.y0; y<=bk.y1; ++y)
+                    {
+                        for (x=bk.x0; x<=bk.x1; ++x)
+                        {
+                            im[(x + w*y)*4 + c] = bk.k;
+                        }
+                    }
+                }
+            }
+            return im;
+        }
         if (selection)
         {
             if (selection[4])
@@ -179,10 +198,10 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
 
-        if (metaData && metaData.tm_SAT1 && metaData.tm_SAT2)
+        if (metaData && metaData.tmfilter_SAT1 && metaData.tmfilter_SAT2)
         {
-            sat1 = metaData.tm_SAT1;
-            sat2 = metaData.tm_SAT2;
+            sat1 = metaData.tmfilter_SAT1;
+            sat2 = metaData.tmfilter_SAT2;
         }
         else
         {
@@ -193,15 +212,16 @@ FILTER.Create({
             sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
             if (metaData)
             {
-                metaData.tm_SAT1 = sat1;
-                metaData.tm_SAT2 = sat2;
+                metaData.tmfilter_SAT1 = sat1;
+                metaData.tmfilter_SAT2 = sat2;
             }
         }
 
         out = new A32F(mm);
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            if (90 === rot[r] || -270 === rot[r] || 270 === rot[r] || -90 === rot[r])
+            ro = rot[r];
+            if (90 === ro || -270 === ro || 270 === ro || -90 === ro)
             {
                 // swap x/y
                 tw2 = th;
@@ -222,14 +242,14 @@ FILTER.Create({
                     if (x + tws <= x2 && y + ths <= y2)
                     {
                         out[k>>>2] = (
-                          ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, rot[r]) // R
-                        + ncc(x, y, sat1[1], sat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, rot[r]) // G
-                        + ncc(x, y, sat1[2], sat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, rot[r]) // B
+                        ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
+                        ncc(x, y, sat1[1], sat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
+                        ncc(x, y, sat1[2], sat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
                         ) / 3;
                     }
                 }
                 matches.push.apply(matches, FilterUtil.max(out, w, h, self.threshold).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                console.log(matches.length);
+                //console.log(matches.length, mm);
             }
         }
 
@@ -242,7 +262,7 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
 {
     var tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th),
         area, t, k, K, bk, x0, y0, x1, y1,
-        sum1 = 0, sum2 = 0, nrg = 0, denom = 0, nom = 0;
+        sum1 = 0, sum2 = 0, diff, nrg = 0, denom = 0, nom = 0;
     if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
     {
         // swap x/y
@@ -250,7 +270,6 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
         tws = ths;
         ths = t;
     }
-    area = tws*ths;
     for (k=0,K=basis.length; k<K; ++k)
     {
         bk = basis[k];
@@ -287,18 +306,19 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
         y0 = stdMath.round(sc*y0);
         x1 = stdMath.round(sc*x1);
         y1 = stdMath.round(sc*y1);
-        nom += (bk.k-avg)*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
-        nrg += (bk.k-avg)*(bk.k-avg)*(x1-x0+1)*(y1-y0+1);
+        diff = bk.k-avg;
+        nom += diff*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
+        nrg += diff*diff*(x1-x0+1)*(y1-y0+1);
     }
-    sum1 = satsum(sat1, w, h, x, y, x+tws, y+ths);
-    sum2 = satsum(sat2, w, h, x, y, x+tws, y+ths);
-    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg)) || 1;
-    return clamp(stdMath.abs(nom)/denom, 0, 1);
+    area = tws*ths;
+    sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
+    sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg));
+    return clamp(denom ? stdMath.abs(nom)/denom : 1, 0, 1);
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var tr = 0, tg = 0, tb = 0,
-        a, b, s,
+    var tr = 0, tg = 0, tb = 0, a, b,
         l = t.length, n = w*h, p;
     for (p=0; p<l; p+=4)
     {
@@ -310,47 +330,44 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
     if (null != Jmax)
     {
         b = [[], [], []];
-        s = [null, null, null];
         if (null != channel)
         {
-            sat(t, w, h, 2, channel, s[channel] = new A32F(n));
-            b[channel] = approximate(t, s[channel], w, h, channel, Jmax, minSz);
+            b[channel] = approximate(t, w, h, channel, Jmax, minSz);
         }
         else
         {
-            sat(t, w, h, 2, 0, s[0] = new A32F(n));
-            sat(t, w, h, 2, 1, s[1] = new A32F(n));
-            sat(t, w, h, 2, 2, s[2] = new A32F(n));
             b = [
-            approximate(t, s[0], w, h, 0, Jmax, minSz),
-            approximate(t, s[1], w, h, 1, Jmax, minSz),
-            approximate(t, s[2], w, h, 2, Jmax, minSz)
+            approximate(t, w, h, 0, Jmax, minSz),
+            approximate(t, w, h, 1, Jmax, minSz),
+            approximate(t, w, h, 2, Jmax, minSz)
             ];
         }
     }
-    return {avg:a, basis:b||null, sat:s||null};
+    return {avg:a, basis:b||null};
 }
-function approximate(t, s, w, h, c, Jmax, minSz)
+function approximate(t, w, h, c, Jmax, minSz)
 {
     var J, J2, Jmin, bmin,
-        x0, x1, y0, y1, ww, hh,
+        x0, x1, y0, y1, ww, hh, dobreak,
         x, y, xx, yy, yw, avg1, avg2,
-        p, l = t.length, n = w*h,
-        v, k, K, b, bk, bb;
+        p, tp, l = t.length, n = w*h,
+        s, v, k, K, b, bk, bb, done;
+    sat(t, w, h, 2, c, s=new A32F(n));
     b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
-    for (p=0; p<l; p+=4) {v = t[p+c]-bk.k; J += v*v/n;}
-    while (J > Jmax)
+    for (p=0; p<l; p+=4) {v = (t[p+c]-bk.k); J += v*v/n;}
+    while (J >= Jmax)
     {
         Jmin = J;
         bmin = b;
         K = b.length;
+        dobreak = false;
         for (k=0; k<K; ++k)
         {
             bk = b[k];
             if (minSz >= bk.x1 - bk.x0 + 1 && minSz >= bk.y1 - bk.y0 + 1) continue;
-            for (x=bk.x0+1; x+1<bk.x1; ++x)
+            for (x=bk.x0; x<bk.x1; ++x)
             {
                 J2 = J;
                 hh = bk.y1-bk.y0+1;
@@ -362,10 +379,11 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                 {
                     for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
-                        p = (x + yw) << 2;
-                        v = t[p+c] - bk.k;
+                        p = (xx + yw) << 2;
+                        tp = t[p+c];
+                        v = (tp - bk.k);
                         J2 -= v*v/n;
-                        v = t[p+c] - avg1;
+                        v = (tp - avg1);
                         J2 += v*v/n;
                     }
                 }
@@ -373,10 +391,11 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                 {
                     for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
-                        p = (x + yw) << 2;
-                        v = t[p+c] - bk.k;
+                        p = (xx + yw) << 2;
+                        tp = t[p+c];
+                        v = (tp - bk.k);
                         J2 -= v*v/n;
-                        v = t[p+c] - avg2;
+                        v = (tp - avg2);
                         J2 += v*v/n;
                     }
                 }
@@ -387,9 +406,11 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                     bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
                     bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
+                    dobreak = true; //break;
                 }
             }
-            for (y=bk.y0+1; y+1<bk.y1; ++y)
+            //if (dobreak) break;
+            for (y=bk.y0; y<bk.y1; ++y)
             {
                 J2 = J;
                 ww = bk.x1-bk.yx0+1;
@@ -401,10 +422,11 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                 {
                     for (xx=bk.x0; xx<=bk.x1; ++xx)
                     {
-                        p = (x + yw) << 2;
-                        v = t[p+c] - bk.k;
+                        p = (xx + yw) << 2;
+                        tp = t[p+c];
+                        v = (tp - bk.k);
                         J2 -= v*v/n;
-                        v = t[p+c] - avg1;
+                        v = (tp - avg1);
                         J2 += v*v/n;
                     }
                 }
@@ -412,10 +434,11 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                 {
                     for (xx=bk.x0; xx<=bk.x1; ++xx)
                     {
-                        p = (x + yw) << 2;
-                        v = t[p+c] - bk.k;
+                        p = (xx + yw) << 2;
+                        tp = t[p+c];
+                        v = (tp - bk.k);
                         J2 -= v*v/n;
-                        v = t[p+c] - avg2;
+                        v = (tp - avg2);
                         J2 += v*v/n;
                     }
                 }
@@ -423,11 +446,13 @@ function approximate(t, s, w, h, c, Jmax, minSz)
                 {
                     Jmin = J2;
                     bmin = b.slice(0, k);
-                    bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
-                    bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                    bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
+                    bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
                     bmin.push.apply(bmin, b.slice(k+1));
+                    dobreak = true; //break;
                 }
             }
+            //if (dobreak) break;
         }
         if (bmin === b) break;
         J = Jmin;
@@ -442,7 +467,7 @@ function glsl(filter)
     .begin()
     .shader(function(glsl, im) {
         var tpldata = filter.tpldata(), tpl = filter.input("template");
-        filter.meta = [];
+        filter.meta = {matches:[]};
         glsl.io().matches = [];
         glsl.io().im = im;
         glsl.io().tpl = {data:tpl[0], width:tpl[1], height:tpl[2]};
@@ -457,11 +482,12 @@ function glsl(filter)
     'uniform vec2 imgSize;',
     'uniform vec2 tplSize;',
     'uniform vec3 avgT;',
+    'uniform vec4 selection;',
     'uniform float sc;',
-    'uniform float rot;',
+    'uniform int rot;',
     'void main(void) {',
     '    vec2 tplSizeScaled = tplSize * sc;',
-    '    if (pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
+    '    if (pix.x < selection.x || pix.y < selection.y || pix.x > selection.z || pix.y > selection.w || pix.y*imgSize.y + tplSizeScaled.y > imgSize.y || pix.x*imgSize.x + tplSizeScaled.x > imgSize.x)',
     '    {',
     '        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);',
     '    }',
@@ -518,8 +544,7 @@ function glsl(filter)
             glslcode
             .begin()
             .shader(shader)
-            .input('imgSize', function(filter, w, h, w2, h2, io) {
-                io.sc = sc;
+            .input('imgSize', function(filter, w, h) {
                 return [w, h];
             })
             .input('tpl', function(filter, w, h, w2, h2, io) {
@@ -536,10 +561,20 @@ function glsl(filter)
             .end()
             .begin()
             .shader(function(glsl, im, w, h) {
-                var sc = glsl.io().sc, tw = glsl.io().tpl.width, th = glsl.io().tpl.height,
+                var io = glsl.io(), inputs = glsl._inputs,
+                    sc = inputs.sc, rot = inputs.rot, t,
+                    tw = io.tpl.width, th = io.tpl.height,
                     tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th);
-                glsl.io().matches.push.apply(glsl.io().matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
-                return glsl.io().im;
+                if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
+                {
+                    // swap x/y
+                    t = tws;
+                    tws = ths;
+                    ths = t;
+                }
+                io.matches.push.apply(io.matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                //console.log(io.matches.length);
+                return io.im;
             })
             .end();
         }
