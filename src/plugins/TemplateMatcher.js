@@ -25,6 +25,7 @@ FILTER.Create({
     ,mode: MODE.RGB
     ,sc: null
     ,rot: null
+    ,scaleThreshold: null
     ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
@@ -52,6 +53,7 @@ FILTER.Create({
         if (params)
         {
             if (null != params.threshold) self.threshold = params.threshold || 0;
+            if (null != params.scaleThreshold) self.scaleThreshold = params.scaleThreshold;
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
@@ -99,6 +101,7 @@ FILTER.Create({
         var self = this;
         return {
             threshold: self.threshold
+            ,scaleThreshold: 'function' === typeof self.scaleThreshold ? self.scaleThreshold.toString() : null
             ,tolerance: self.tolerance
             ,minNeighbors: self.minNeighbors
             ,maxMatches: self.maxMatches
@@ -112,6 +115,7 @@ FILTER.Create({
     ,unserialize: function(params) {
         var self = this;
         self.threshold = params.threshold;
+        self.scaleThreshold = params.scaleThreshold ? (new Function('FILTER', 'return '+params.scaleThreshold+';'))(FILTER) : null;
         self.tolerance = params.tolerance;
         self.minNeighbors = params.minNeighbors;
         self.maxMatches = params.maxMatches;
@@ -145,7 +149,8 @@ FILTER.Create({
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
             is_grayscale = MODE.GRAY === self.mode,
-            rot = /*self.rot*/[0], scale = self.sc, thresh = self.threshold,
+            rot = /*self.rot*/[0], scale = self.sc,
+            thresh = self.threshold, scaleThresh = self.scaleThreshold,
             r, rl, ro, sc, t, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4,
@@ -229,7 +234,7 @@ FILTER.Create({
                         ) / 3));
                     }
                 }
-                max = FilterUtil.max(out, w, h, thresh);
+                max = FilterUtil.max(out, w, h, scaleThresh ? scaleThresh(sc) : thresh);
                 if (max.maxpos.length && max.maxpos.length < stdMath.min(self.maxMatches, mm)) // if not too many
                     matches.push.apply(matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
             }
@@ -579,7 +584,7 @@ function glsl(filter)
                     tws = ths;
                     ths = t;
                 }
-                max = FilterUtil.max(im, w, h, filter.threshold, 2, 0);
+                max = FilterUtil.max(im, w, h, filter.scaleThreshold ? filter.scaleThreshold(sc) : filter.threshold, 2, 0);
                 if (max.maxpos.length && max.maxpos.length < stdMath.min(filter.maxMatches, w*h)) // if not too many
                     io.matches.push.apply(io.matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
                 return io.im;
