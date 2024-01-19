@@ -136,9 +136,9 @@ FILTER.Create({
         return this;
     }
 
-    ,getGLSL: function() {
+    /*,getGLSL: function() {
         return glsl(this);
-    }
+    }*/
 
     ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template");
@@ -149,7 +149,7 @@ FILTER.Create({
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
             is_grayscale = MODE.GRAY === self.mode,
-            rot = /*self.rot*/[0], scale = self.sc,
+            rot = self.rot, scale = self.sc,
             thresh = self.threshold, scaleThresh = self.scaleThreshold,
             r, rl, ro, sc, t, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
@@ -261,7 +261,7 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
     {
         bk = basis[k];
         // up to 4 cardinal rotations supported
-        if (90 === rot || -270 === rot)
+        if (-90 === rot || 270 === rot)
         {
             x0 = bk.y0;
             y0 = bk.x0;
@@ -275,7 +275,7 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
             x0 = tw-1-bk.x1;
             y0 = th-1-bk.y1;
         }
-        else if (270 === rot || -90 === rot)
+        else if (-270 === rot || 90 === rot)
         {
             y1 = tw-1-bk.x0;
             x1 = th-1-bk.y0;
@@ -443,7 +443,7 @@ function approximate(t, w, h, c, Jmax, minSz)
     return b;
 }
 FilterUtil.tm_approximate = approximate;
-function glsl(filter)
+/*function glsl(filter)
 {
     if (!filter.input("template")) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
     var glslcode = (new GLSL.Filter(filter))
@@ -487,7 +487,7 @@ function glsl(filter)
     '        int tplW = int(tplSizeScaled.x); int tplH = int(tplSizeScaled.y);',
     '        float N = tplSizeScaled.x*tplSizeScaled.y;',
     '        vec4 F; vec4 T;',
-    '        vec3 avgF = vec3(0.0); /*vec3 avgT = vec3(0.0);*/',
+    '        vec3 avgF = vec3(0.0); //vec3 avgT = vec3(0.0);',
     '        vec3 dF; vec3 dT;',
     '        vec3 sumFF = vec3(0.0); vec3 sumTT = vec3(0.0); vec3 sumFT = vec3(0.0);',
     '        float ii; float jj; float x; float y;',
@@ -500,11 +500,11 @@ function glsl(filter)
     '                if (j >= tplW) break;',
     '                jj = float(j);',
     '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
-    '                /*T = texture2D(tpl, vec2(x, y) / twh);*/',
-    '                avgF.rgb += F.rgb; /*avgT.rgb += T.rgb;*/',
+    '                //T = texture2D(tpl, vec2(x, y) / twh);',
+    '                avgF.rgb += F.rgb; //avgT.rgb += T.rgb;',
     '            }',
     '        }',
-    '        avgF /= N; /*avgT /= N;*/',
+    '        avgF /= N; //avgT /= N;',
     '        for (int i = 0; i < 1000; i++)',
     '        {',
     '            if (i >= tplH) break;',
@@ -528,7 +528,7 @@ function glsl(filter)
     '                    y = tplSizeScaled.x-1.0-jj;',
     '                    x = tplSizeScaled.y-1.0-ii;',
     '                }',
-    '                else /* 0, 360, -360 */',
+    '                else // 0, 360, -360',
     '                {',
     '                    x = jj;',
     '                    y = ii;',
@@ -547,7 +547,7 @@ function glsl(filter)
     '    }',
     '}'
     ].join('\n');
-    var rot = /*filter.rot*/[0], r, rl, ro, sc;
+    var rot = filter.rot, r, rl, ro, sc;
     for (r=0,rl=rot.length; r<rl; ++r)
     {
         ro = rot[r];
@@ -602,5 +602,5 @@ function glsl(filter)
     })
     .end();
     return glslcode.code();
-}
+}*/
 }(FILTER);

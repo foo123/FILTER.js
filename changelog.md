@@ -4,8 +4,8 @@ __1.10.0__
 
 * FFT1d, FFT2d, minmax core utilities
 * Image.image_s method
-* FrequenyFilter js version
-* TemplateMatcherFilter js/glsl versions
+* FrequenyFilter very fast js version
+* TemplateMatcherFilter very fast rotation/scale-invariant js version
 * various edits and updates
 
 __1.9.1__
