@@ -7,7 +7,7 @@
 !function(FILTER, undef){
 "use strict";
 
-var GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
+var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
     sat = FilterUtil.sat, satsum = FilterUtil.satsum,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
@@ -22,15 +22,16 @@ FILTER.Create({
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
     ,hasInputs: true
+    ,mode: MODE.RGB
     ,sc: null
     ,rot: null
     ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
-    ,_q: 0.99
+    ,maxMatches: 1000
+    ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
-    ,_draw: false
 
     ,init: function(tpl) {
         var self = this;
@@ -53,24 +54,18 @@ FILTER.Create({
             if (null != params.threshold) self.threshold = params.threshold || 0;
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
+            if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
+            if (null != params.scales) {self.sc = params.scales || [1,1,1.1]; self._glsl = null;}
+            if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
+            if (null != params.q) self.quality(params.q, self._s);
+            if (null != params.s) self.quality(self._q, params.s);
             if (null != params.selection) self.selection = params.selection || null;
         }
         return self;
     }
-
-    ,scales: function(sMin, sMax, sInc) {
-        this.sc = [sMin, sMax, sInc];
-        this._glsl = null;
-        return this;
-    }
-    ,rotations: function(rot) {
-        this.rot = rot || [0];
-        this._glsl = null;
-        return this;
-    }
     ,quality: function(quality, size) {
         var self = this;
-        quality = null == quality ? 0.99 : (quality || 0);
+        quality = null == quality ? 0.98 : (quality || 0);
         size = null == size ? 3 : (size || 0);
         if (quality !== self._q || size !== self._s)
         {
@@ -106,6 +101,7 @@ FILTER.Create({
             threshold: self.threshold
             ,tolerance: self.tolerance
             ,minNeighbors: self.minNeighbors
+            ,maxMatches: self.maxMatches
             ,sc: self.sc
             ,rot: self.rot
             ,_q: self._q
@@ -118,6 +114,7 @@ FILTER.Create({
         self.threshold = params.threshold;
         self.tolerance = params.tolerance;
         self.minNeighbors = params.minNeighbors;
+        self.maxMatches = params.maxMatches;
         self.sc = params.sc;
         self.rot = params.rot;
         self._q = params._q;
@@ -142,16 +139,17 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template");
 
-        self.meta = {matches:[]};
+        self.meta = {matches: []};
         if (!t || !tpldata) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
-            rot = /*self.rot*/[0], scale = self.sc,
+            is_grayscale = MODE.GRAY === self.mode,
+            rot = /*self.rot*/[0], scale = self.sc, thresh = self.threshold,
             r, rl, ro, sc, t, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4,
-            tpldata, sat1, sat2, out, matches = [],
+            tpldata, sat1, sat2, out, matches = [], max,
             k, x, y, x1, y1, x2, y2, xf, yf;
 
         if (selection)
@@ -179,10 +177,10 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
 
-        if (metaData && metaData.tmfilter_SAT1 && metaData.tmfilter_SAT2)
+        if (metaData && ((metaData.tmfilter_SAT && metaData.tmfilter_SAT2) || (metaData.haarfilter_SAT && metaData.haarfilter_SAT2)))
         {
-            sat1 = metaData.tmfilter_SAT1;
-            sat2 = metaData.tmfilter_SAT2;
+            sat1 = metaData.tmfilter_SAT || [metaData.haarfilter_SAT,metaData.haarfilter_SAT,metaData.haarfilter_SAT];
+            sat2 = metaData.tmfilter_SAT2 || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
         }
         else
         {
@@ -193,7 +191,7 @@ FILTER.Create({
             sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
             if (metaData)
             {
-                metaData.tmfilter_SAT1 = sat1;
+                metaData.tmfilter_SAT = sat1;
                 metaData.tmfilter_SAT2 = sat2;
             }
         }
@@ -222,14 +220,18 @@ FILTER.Create({
                     out[k>>>2] = 0;
                     if (x + tws <= x2 && y + ths <= y2)
                     {
-                        out[k>>>2] = (
+                        out[k>>>2] = (is_grayscale ?
+                        ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
+                        : ((
                         ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
                         ncc(x, y, sat1[1], sat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
                         ncc(x, y, sat1[2], sat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
-                        ) / 3;
+                        ) / 3));
                     }
                 }
-                matches.push.apply(matches, FilterUtil.max(out, w, h, self.threshold).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                max = FilterUtil.max(out, w, h, thresh);
+                if (max.maxpos.length && max.maxpos.length < stdMath.min(self.maxMatches, mm)) // if not too many
+                    matches.push.apply(matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
             }
         }
 
@@ -294,7 +296,7 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
     sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
     sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg));
-    return clamp(denom ? stdMath.abs(nom)/denom : 1, 0, 1);
+    return stdMath.min(stdMath.max(denom ? stdMath.abs(nom)/denom : 1, 0), 1);
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
@@ -312,14 +314,14 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
         b = [[], [], []];
         if (null != channel)
         {
-            b[channel] = approximate(t, w, h, channel, Jmax, minSz);
+            b[channel] = FilterUtil.tm_approximate(t, w, h, channel, Jmax, minSz);
         }
         else
         {
             b = [
-            approximate(t, w, h, 0, Jmax, minSz),
-            approximate(t, w, h, 1, Jmax, minSz),
-            approximate(t, w, h, 2, Jmax, minSz)
+            FilterUtil.tm_approximate(t, w, h, 0, Jmax, minSz),
+            FilterUtil.tm_approximate(t, w, h, 1, Jmax, minSz),
+            FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
             ];
         }
     }
@@ -330,8 +332,8 @@ function approximate(t, w, h, c, Jmax, minSz)
     var J, J2, Jmin, bmin,
         x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
-        p, tp, l = t.length, n = w*h,
-        s, v, k, K, b, bk, bb, done;
+        p, tp, l = t.length, n = l>>>2,
+        s, v, k, K, b, bk, bb;
     sat(t, w, h, 2, c, s=new A32F(n));
     b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
     bk = b[0];
@@ -435,9 +437,10 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
-FilterUtil.approximate = approximate;
+FilterUtil.tm_approximate = approximate;
 function glsl(filter)
 {
+    if (!filter.input("template")) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
     var glslcode = (new GLSL.Filter(filter))
     .begin()
     .shader(function(glsl, im) {
@@ -459,10 +462,10 @@ function glsl(filter)
     'uniform vec3 avgT;',
     'uniform vec4 selection;',
     'uniform float sc;',
-    'uniform int rot;',
+    'uniform int ro;',
     'void main(void) {',
     '    vec2 tplSizeScaled = tplSize * sc; vec2 twh;',
-    '    if (90 == rot || -270 == rot || 270 == rot || -90 == rot)',
+    '    if (90 == ro || -270 == ro || 270 == ro || -90 == ro)',
     '    {',
     '        twh.xy = tplSizeScaled.yx;',
     '    }',
@@ -491,27 +494,7 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                if (90 == rot || -270 == rot)',
-    '                {',
-    '                    x = ii;',
-    '                    y = jj;',
-    '                }',
-    '                else if (180 == rot || -180 == rot)',
-    '                {',
-    '                    x = tplSizeScaled.x-jj;',
-    '                    y = tplSizeScaled.y-ii;',
-    '                }',
-    '                else if (270 == rot || -90 == rot)',
-    '                {',
-    '                    y = tplSizeScaled.x-jj;',
-    '                    x = tplSizeScaled.y-ii;',
-    '                }',
-    '                else /* 0, 360, -360 */',
-    '                {',
-    '                    x = jj;',
-    '                    y = ii;',
-    '                }',
-    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
     '                /*T = texture2D(tpl, vec2(x, y) / twh);*/',
     '                avgF.rgb += F.rgb; /*avgT.rgb += T.rgb;*/',
     '            }',
@@ -525,27 +508,27 @@ function glsl(filter)
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                if (90 == rot || -270 == rot)',
+    '                if (90 == ro || -270 == ro)',
     '                {',
     '                    x = ii;',
     '                    y = jj;',
     '                }',
-    '                else if (180 == rot || -180 == rot)',
+    '                else if (180 == ro || -180 == ro)',
     '                {',
-    '                    x = tplSizeScaled.x-jj;',
-    '                    y = tplSizeScaled.y-ii;',
+    '                    x = tplSizeScaled.x-1.0-jj;',
+    '                    y = tplSizeScaled.y-1.0-ii;',
     '                }',
-    '                else if (270 == rot || -90 == rot)',
+    '                else if (270 == ro || -90 == ro)',
     '                {',
-    '                    y = tplSizeScaled.x-jj;',
-    '                    x = tplSizeScaled.y-ii;',
+    '                    y = tplSizeScaled.x-1.0-jj;',
+    '                    x = tplSizeScaled.y-1.0-ii;',
     '                }',
     '                else /* 0, 360, -360 */',
     '                {',
     '                    x = jj;',
     '                    y = ii;',
     '                }',
-    '                F = texture2D(img, pix + vec2(x, y) / imgSize);',
+    '                F = texture2D(img, pix + vec2(jj, ii) / imgSize);',
     '                T = texture2D(tpl, vec2(x, y) / twh);',
     '                dF.rgb = F.rgb - avgF.rgb; dT.rgb = T.rgb - avgT.rgb;',
     '                sumFF += dF * dF;',
@@ -559,9 +542,10 @@ function glsl(filter)
     '    }',
     '}'
     ].join('\n');
-    var rot = /*filter.rot*/[0], r, rl, sc;
+    var rot = /*filter.rot*/[0], r, rl, ro, sc;
     for (r=0,rl=rot.length; r<rl; ++r)
     {
+        ro = rot[r];
         for (sc=filter.sc[0]; sc<=filter.sc[1]; sc*=filter.sc[2])
         {
             glslcode
@@ -580,26 +564,28 @@ function glsl(filter)
                 return io.avgT;
             })
             .input('sc', sc)
-            .input('rot', rot[r])
+            .input('ro', ro)
             .end()
             .begin()
             .shader(function(glsl, im, w, h) {
-                var io = glsl.io(), inputs = glsl._inputs,
-                    sc = inputs.sc.setter, rot = inputs.rot.setter, t,
+                var io = glsl.io(), inputs = glsl._inputs, max,
+                    sc = inputs.sc.setter, ro = inputs.ro.setter, t,
                     tw = io.tpl.width, th = io.tpl.height,
                     tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th);
-                if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
+                if (90 === ro || -270 === ro || 270 === ro || -90 === ro)
                 {
                     // swap x/y
                     t = tws;
                     tws = ths;
                     ths = t;
                 }
-                io.matches.push.apply(io.matches, FilterUtil.max(im, w, h, filter.threshold, 2, 0).maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                max = FilterUtil.max(im, w, h, filter.threshold, 2, 0);
+                if (max.maxpos.length && max.maxpos.length < stdMath.min(filter.maxMatches, w*h)) // if not too many
+                    io.matches.push.apply(io.matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
                 return io.im;
             })
             .input('sc', sc)
-            .input('rot', rot[r])
+            .input('ro', ro)
             .end();
         }
     }

@@ -12,6 +12,8 @@ var stdMath = Math, Abs = stdMath.abs, Max = stdMath.max, Min = stdMath.min,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     MAX_FEATURES = 10, push = Array.prototype.push;
 
+function by_area(r1, r2) {return r2.area-r1.area;}
+
 // HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
 // adapted from: https://github.com/foo123/HAAR.js
 // references:
@@ -135,11 +137,13 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h, metaData) {
         var self = this;
+        self.meta = {objects: []};
         if (!self.haardata) return im;
 
         var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
-            A32F = FILTER.Array32F, SAT=null, SAT2=null, RSAT=null, GSAT=null,
+            A32F = FILTER.Array32F,
+            SAT=null, SAT2=null, RSAT=null, GSAT=null,
             x1, y1, x2, y2, xf, yf,
             features, FilterUtil = FILTER.Util.Filter;
 
@@ -209,6 +213,7 @@ FILTER.Create({
 
         // return results as meta
         self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area)};
+        SAT = null; SAT2 = null; RSAT = null; GSAT = null;
 
         // return im back
         return im;
@@ -236,6 +241,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         rects, nb_rects, thresholdf,
         rect_sum, kr, r, x1, y1, x2, y2,
         x3, y3, x4, y4, rw, rh, yw, yh, sum
+        //,satsum = FILTER.Util.Filter.satsum
     ;
 
     bx=w-1; by=imSize-w;
@@ -253,7 +259,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         tyw = ysize*w; tys = ystep*w;
         startty = starty*tys;
         xl = startx+selw-xsize; yl = starty+selh-ysize;
-        swh = xsize*ysize; inv_area = 1.0/swh;
+        swh = xsize*ysize; //inv_area = 1.0/swh;
 
         for (y=starty,ty=startty; y<yl; y+=ystep,ty+=tys)
         {
@@ -267,22 +273,23 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                 p1 = Min(imArea1,Max(0,p1));
                 p2 = Min(imArea1,Max(0,p2));
                 p3 = Min(imArea1,Max(0,p3));
+                //x1 = x+xsize-1; y1 = y+ysize-1;
 
                 if (thresholdEdgesDensity)
                 {
                     // prune search space based on canny edges density
                     // i.e too few = no feature, too much = noise
                     // avoid overflow
-                    edges_density = inv_area * (GSAT[p3] - GSAT[p2] - GSAT[p1] + GSAT[p0]);
+                    edges_density = /*satsum(GSAT, w, h, x, y, x1, y1)/swh;*/(GSAT[p3] - GSAT[p2] - GSAT[p1] + GSAT[p0]) / swh;
                     if (edges_density < cL || edges_density > cH) continue;
                 }
 
                 // pre-compute some values for speed
 
                 // avoid overflow
-                total_x = inv_area * (SAT[p3] - SAT[p2] - SAT[p1] + SAT[p0]);
+                total_x = /*satsum(SAT, w, h, x, y, x1, y1)/swh;*/(SAT[p3] - SAT[p2] - SAT[p1] + SAT[p0]) / swh;
                 // avoid overflow
-                total_x2 = inv_area * (SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]);
+                total_x2 = /*satsum(SAT2, w, h, x, y, x1, y1)/swh;*/(SAT2[p3] - SAT2[p2] - SAT2[p1] + SAT2[p0]) / swh;
 
                 vnorm = total_x2 - total_x * total_x;
                 //vnorm = 1 < vnorm ? Sqrt(vnorm) : vnorm /*1*/;
@@ -370,14 +377,14 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
 
                                     // SAT(x-1, y-1) + SAT(x+w-1, y+h-1) - SAT(x-1, y+h-1) - SAT(x+w-1, y-1)
                                     //      x1   y1         x2      y2          x1   y1            x2    y1
-                                    rect_sum += r[4] * (SAT[x2 + y2]  - SAT[x1 + y2] - SAT[x2 + y1] + SAT[x1 + y1]);
+                                    rect_sum += r[4] * /*satsum(SAT, w, h, x+(scale * r[0])|0, y+(scale * r[1])|0, x+(scale * (r[0] + r[2]))|0, y+(scale * (r[1] + r[3]))|0);*/(SAT[x2 + y2]  - SAT[x1 + y2] - SAT[x2 + y1] + SAT[x1 + y1]);
                                 }
                             }
 
                             /*where = rect_sum * inv_area < thresholdf * vnorm ? 0 : 1;*/
                             // END Viola-Jones HAAR-Leaf evaluator
 
-                            if (rect_sum * inv_area < thresholdf * vnorm)
+                            if (rect_sum < swh * thresholdf * vnorm)
                             {
                                 if (feature.has_l) {sum += feature.l_val; break;}
                                 else {cur_node_ind = feature.l_node;}
@@ -407,9 +414,5 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
         }
     }
 }
-function by_area(r1, r2) {return r2.area-r1.area;}
-
-// expose as static utility methods, can be overriden
 FILTER.Util.Filter.haar_detect = haar_detect;
-
 }(FILTER);

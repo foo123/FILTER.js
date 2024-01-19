@@ -2047,6 +2047,7 @@ function snap_to_grid(r)
 }
 function merge_features(rects, min_neighbors, epsilon)
 {
+    if (!rects || !rects.length) return rects;
     var rlen = rects.length, ref = new Array(rlen), feats = [],
         nb_classes = 0, neighbors, r, found = false, i, j, n, t, ri;
 
