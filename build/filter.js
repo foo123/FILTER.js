@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-19 14:09:35
+*   @built on 2024-01-19 18:45:24
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-19 14:09:35
+*   @built on 2024-01-19 18:45:24
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -18697,13 +18697,15 @@ FILTER.Create({
 
     ,init: function(tpl) {
         var self = this;
-        self.sc = [1,1,1.1];
+        self.sc = {min:1,max:1,inc:1.1};
         self.rot = [0];
         if (tpl) self.setInput("template", tpl);
     }
 
     ,dispose: function() {
         var self = this;
+        self.sc = self.rot = null;
+        self.scaleThreshold = null;
         self._tpldata = null;
         self.$super('dispose');
         return self;
@@ -18718,7 +18720,7 @@ FILTER.Create({
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
-            if (null != params.scales) {self.sc = params.scales || [1,1,1.1]; self._glsl = null;}
+            if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.q) self.quality(params.q, self._s);
             if (null != params.s) self.quality(self._q, params.s);
@@ -18877,7 +18879,7 @@ FILTER.Create({
                 tw2 = tw;
                 th2 = th;
             }
-            for (sc=scale[0]; sc<=scale[1]; sc*=scale[2])
+            for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
                 tws = stdMath.round(sc*tw2); ths = stdMath.round(sc*th2);
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
