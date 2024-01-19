@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-19 13:37:18
+*   @built on 2024-01-19 14:09:35
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-19 13:37:18
+*   @built on 2024-01-19 14:09:35
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -18895,7 +18895,7 @@ FILTER.Create({
                         ) / 3));
                     }
                 }
-                max = FilterUtil.max(out, w, h, scaleThresh ? scaleThresh(sc) : thresh);
+                max = FilterUtil.max(out, w, h, scaleThresh ? scaleThresh(sc, ro) : thresh);
                 if (max.maxpos.length && max.maxpos.length < stdMath.min(self.maxMatches, mm)) // if not too many
                     matches.push.apply(matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
             }
@@ -18906,64 +18906,6 @@ FILTER.Create({
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
-{
-    var tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th),
-        area, t, k, K, bk, x0, y0, x1, y1,
-        sum1 = 0, sum2 = 0, diff, nrg = 0, denom = 0, nom = 0;
-    if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
-    {
-        // swap x/y
-        t = tws;
-        tws = ths;
-        ths = t;
-    }
-    for (k=0,K=basis.length; k<K; ++k)
-    {
-        bk = basis[k];
-        // up to 4 cardinal rotations supported
-        if (-90 === rot || 270 === rot)
-        {
-            x0 = bk.y0;
-            y0 = bk.x0;
-            x1 = bk.y1;
-            y1 = bk.x1;
-        }
-        else if (180 === rot || -180 === rot)
-        {
-            x1 = tw-1-bk.x0;
-            y1 = th-1-bk.y0;
-            x0 = tw-1-bk.x1;
-            y0 = th-1-bk.y1;
-        }
-        else if (-270 === rot || 90 === rot)
-        {
-            y1 = tw-1-bk.x0;
-            x1 = th-1-bk.y0;
-            y0 = tw-1-bk.x1;
-            x0 = th-1-bk.y1;
-        }
-        else // 0, 360, -360
-        {
-            x0 = bk.x0;
-            y0 = bk.y0;
-            x1 = bk.x1;
-            y1 = bk.y1;
-        }
-        x0 = stdMath.round(sc*x0);
-        y0 = stdMath.round(sc*y0);
-        x1 = stdMath.round(sc*x1);
-        y1 = stdMath.round(sc*y1);
-        diff = bk.k-avg;
-        nom += diff*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
-        nrg += diff*diff*(x1-x0+1)*(y1-y0+1);
-    }
-    area = tws*ths;
-    sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
-    sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
-    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg));
-    return stdMath.min(stdMath.max(denom ? stdMath.abs(nom)/denom : 1, 0), 1);
-}
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
     var tr = 0, tg = 0, tb = 0, a, b,
@@ -19103,7 +19045,66 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
+function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
+{
+    var tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th),
+        area, t, k, K, bk, x0, y0, x1, y1,
+        sum1 = 0, sum2 = 0, diff, nrg = 0, denom = 0, nom = 0;
+    if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
+    {
+        // swap x/y
+        t = tws;
+        tws = ths;
+        ths = t;
+    }
+    for (k=0,K=basis.length; k<K; ++k)
+    {
+        bk = basis[k];
+        // up to 4 cardinal rotations supported
+        if (-90 === rot || 270 === rot)
+        {
+            x0 = bk.y0;
+            y0 = bk.x0;
+            x1 = bk.y1;
+            y1 = bk.x1;
+        }
+        else if (180 === rot || -180 === rot)
+        {
+            x1 = tw-1-bk.x0;
+            y1 = th-1-bk.y0;
+            x0 = tw-1-bk.x1;
+            y0 = th-1-bk.y1;
+        }
+        else if (-270 === rot || 90 === rot)
+        {
+            y1 = tw-1-bk.x0;
+            x1 = th-1-bk.y0;
+            y0 = tw-1-bk.x1;
+            x0 = th-1-bk.y1;
+        }
+        else // 0, 360, -360
+        {
+            x0 = bk.x0;
+            y0 = bk.y0;
+            x1 = bk.x1;
+            y1 = bk.y1;
+        }
+        x0 = stdMath.round(sc*x0);
+        y0 = stdMath.round(sc*y0);
+        x1 = stdMath.round(sc*x1);
+        y1 = stdMath.round(sc*y1);
+        diff = bk.k-avg;
+        nom += diff*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
+        nrg += diff*diff*(x1-x0+1)*(y1-y0+1);
+    }
+    area = tws*ths;
+    sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
+    sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg));
+    return stdMath.min(stdMath.max(denom ? stdMath.abs(nom)/denom : 1, 0), 1);
+}
 FilterUtil.tm_approximate = approximate;
+FilterUtil.tm_ncc = ncc;
 /*function glsl(filter)
 {
     if (!filter.input("template")) return (new GLSL.Filter(filter)).begin().shader(GLSL.DEFAULT).end().code();
@@ -19174,7 +19175,7 @@ FilterUtil.tm_approximate = approximate;
     '            {',
     '                if (j >= tplW) break;',
     '                jj = float(j);',
-    '                if (90 == ro || -270 == ro)',
+    '                if (-90 == ro || 270 == ro)',
     '                {',
     '                    x = ii;',
     '                    y = jj;',
@@ -19184,7 +19185,7 @@ FilterUtil.tm_approximate = approximate;
     '                    x = tplSizeScaled.x-1.0-jj;',
     '                    y = tplSizeScaled.y-1.0-ii;',
     '                }',
-    '                else if (270 == ro || -90 == ro)',
+    '                else if (-270 == ro || 90 == ro)',
     '                {',
     '                    y = tplSizeScaled.x-1.0-jj;',
     '                    x = tplSizeScaled.y-1.0-ii;',
@@ -19245,7 +19246,7 @@ FilterUtil.tm_approximate = approximate;
                     tws = ths;
                     ths = t;
                 }
-                max = FilterUtil.max(im, w, h, filter.scaleThreshold ? filter.scaleThreshold(sc) : filter.threshold, 2, 0);
+                max = FilterUtil.max(im, w, h, filter.scaleThreshold ? filter.scaleThreshold(sc, ro) : filter.threshold, 2, 0);
                 if (max.maxpos.length && max.maxpos.length < stdMath.min(filter.maxMatches, w*h)) // if not too many
                     io.matches.push.apply(io.matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
                 return io.im;
