@@ -22,7 +22,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Todo](#todo)
 
 
-[![Filter.js](/screenshots/filters-image-process.png)](https://foo123.github.io/examples/filter/)
+[![Filter.js](/screenshots/filters-image-process-new.png)](https://foo123.github.io/examples/filter/)
 [![Filter.js](/screenshots/filters-video-process.png)](https://foo123.github.io/examples/filter-video/)
 [![Filter.js](/screenshots/filter-sound-vis.png)](https://foo123.github.io/examples/filter-sound/)
 
