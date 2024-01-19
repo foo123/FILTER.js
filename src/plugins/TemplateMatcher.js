@@ -386,11 +386,12 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
-function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
+function ncc(x, y, sat1, sat2, avgt, basis, w, h, tw, th, sc, rot)
 {
+    // normalized cross-correlation at point (x,y)
     var tws = stdMath.round(sc*tw), ths = stdMath.round(sc*th),
-        area, t, k, K, bk, x0, y0, x1, y1,
-        sum1 = 0, sum2 = 0, diff, nrg = 0, denom = 0, nom = 0;
+        area, t, x0, y0, x1, y1, bk, k, K = basis.length,
+        sum1, sum2, diff, avgf, varf, vart = 0, varft = 0;
     if (90 === rot || -270 === rot || 270 === rot || -90 === rot)
     {
         // swap x/y
@@ -398,51 +399,59 @@ function ncc(x, y, sat1, sat2, avg, basis, w, h, tw, th, sc, rot)
         tws = ths;
         ths = t;
     }
-    for (k=0,K=basis.length; k<K; ++k)
-    {
-        bk = basis[k];
-        // up to 4 cardinal rotations supported
-        if (-90 === rot || 270 === rot)
-        {
-            x0 = bk.y0;
-            y0 = bk.x0;
-            x1 = bk.y1;
-            y1 = bk.x1;
-        }
-        else if (180 === rot || -180 === rot)
-        {
-            x1 = tw-1-bk.x0;
-            y1 = th-1-bk.y0;
-            x0 = tw-1-bk.x1;
-            y0 = th-1-bk.y1;
-        }
-        else if (-270 === rot || 90 === rot)
-        {
-            y1 = tw-1-bk.x0;
-            x1 = th-1-bk.y0;
-            y0 = tw-1-bk.x1;
-            x0 = th-1-bk.y1;
-        }
-        else // 0, 360, -360
-        {
-            x0 = bk.x0;
-            y0 = bk.y0;
-            x1 = bk.x1;
-            y1 = bk.y1;
-        }
-        x0 = stdMath.round(sc*x0);
-        y0 = stdMath.round(sc*y0);
-        x1 = stdMath.round(sc*x1);
-        y1 = stdMath.round(sc*y1);
-        diff = bk.k-avg;
-        nom += diff*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
-        nrg += diff*diff*(x1-x0+1)*(y1-y0+1);
-    }
     area = tws*ths;
     sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
     sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
-    denom = stdMath.sqrt(stdMath.abs((sum2 - sum1*sum1/area)*nrg));
-    return stdMath.min(stdMath.max(denom ? stdMath.abs(nom)/denom : 1, 0), 1);
+    avgf = sum1/area;
+    varf = stdMath.abs(sum2-sum1*avgf);
+    if (1 >= K)
+    {
+        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
+    }
+    else
+    {
+        for (k=0,K=basis.length; k<K; ++k)
+        {
+            bk = basis[k];
+            // up to 4 cardinal rotations supported
+            if (-90 === rot || 270 === rot)
+            {
+                x0 = bk.y0;
+                y0 = bk.x0;
+                x1 = bk.y1;
+                y1 = bk.x1;
+            }
+            else if (180 === rot || -180 === rot)
+            {
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+            }
+            else if (-270 === rot || 90 === rot)
+            {
+                y1 = tw-1-bk.x0;
+                x1 = th-1-bk.y0;
+                y0 = tw-1-bk.x1;
+                x0 = th-1-bk.y1;
+            }
+            else // 0, 360, -360
+            {
+                x0 = bk.x0;
+                y0 = bk.y0;
+                x1 = bk.x1;
+                y1 = bk.y1;
+            }
+            x0 = stdMath.round(sc*x0);
+            y0 = stdMath.round(sc*y0);
+            x1 = stdMath.round(sc*x1);
+            y1 = stdMath.round(sc*y1);
+            diff = bk.k-avgt;
+            vart += diff*diff*(x1-x0+1)*(y1-y0+1);
+            varft += diff*satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1);
+        }
+        return varf < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1);
+    }
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;
