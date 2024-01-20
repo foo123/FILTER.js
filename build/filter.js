@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-20 05:36:12
+*   @built on 2024-01-20 06:32:40
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-20 05:36:12
+*   @built on 2024-01-20 06:32:40
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -18916,6 +18916,7 @@ FILTER.Create({
                         ) / 3));
                         if (score >= tt)
                         {
+                            if (maxOnly && (score < maxv)) continue;
                             if (score > maxv)
                             {
                                 maxv = score;

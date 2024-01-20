@@ -244,6 +244,7 @@ FILTER.Create({
                         ) / 3));
                         if (score >= tt)
                         {
+                            if (maxOnly && (score < maxv)) continue;
                             if (score > maxv)
                             {
                                 maxv = score;
