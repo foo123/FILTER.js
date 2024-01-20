@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-20 01:41:26
+*   @built on 2024-01-20 05:36:12
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.10.0
-*   @built on 2024-01-20 01:41:26
+*   @built on 2024-01-20 05:36:12
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -17919,6 +17919,8 @@ FILTER.Create({
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
+    TypedArray = FILTER.Util.Array.typed,
+    TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 
 // https://en.wikipedia.org/wiki/Thresholding_(image_processing)
@@ -17957,6 +17959,15 @@ FILTER.Create({
         self.color1 = params.color1;
         self.channel = params.channel;
         return self;
+    }
+
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
     }
 
     ,_apply_rgb: function(im, w, h) {
@@ -18691,6 +18702,7 @@ FILTER.Create({
     ,tolerance: 0.2
     ,minNeighbors: 1
     ,maxMatches: 1000
+    ,maxMatchesOnly: true
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -18720,6 +18732,7 @@ FILTER.Create({
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
+            if (undef !== params.maxMatchesOnly) self.maxMatchesOnly = !!params.maxMatchesOnly;
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.q) self.quality(params.q, self._s);
@@ -18741,13 +18754,17 @@ FILTER.Create({
         return self;
     }
 
-    ,tpldata: function(withBasis, channel) {
-        var self = this, needsUpdate = self.isInputUpdated("template"), tpl = self.input("template");
+    ,tpldata: function(basis, channel) {
+        var self = this;
+
+        if (basis && basis.avg && basis.avg.length) return self._tpldata = basis;
+
+        var needsUpdate = self.isInputUpdated("template"), tpl = self.input("template");
         if (!tpl)
         {
             self._tpldata = null;
         }
-        else if (withBasis)
+        else if (basis)
         {
             if (needsUpdate || !self._tpldata || !self._tpldata.basis)
                 self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, channel);
@@ -18813,11 +18830,13 @@ FILTER.Create({
             selection = self.selection || null,
             is_grayscale = MODE.GRAY === self.mode,
             rot = self.rot, scale = self.sc,
-            thresh = self.threshold, scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, t, tw2, th2, tws, ths,
+            thresh = self.threshold,
+            scaleThresh = self.scaleThreshold,
+            r, rl, ro, sc, tt, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
-            mm = w*h, nn = tw*th, m4,
-            tpldata, sat1, sat2, out, matches = [], max,
+            mm = w*h, nn = tw*th, m4, score,
+            maxMatches = self.maxMatches, maxOnly = self.maxMatchesOnly,
+            sat1, sat2, matches = [], max, maxc, maxv,
             k, x, y, x1, y1, x2, y2, xf, yf;
 
         if (selection)
@@ -18864,7 +18883,6 @@ FILTER.Create({
             }
         }
 
-        out = new A32F(mm);
         for (r=0,rl=rot.length; r<rl; ++r)
         {
             ro = rot[r];
@@ -18882,29 +18900,41 @@ FILTER.Create({
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
                 tws = stdMath.round(sc*tw2); ths = stdMath.round(sc*th2);
+                tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
+                max = new Array(mm); maxc = 0; maxv = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
-                    out[k>>>2] = 0;
                     if (x + tws <= x2 && y + ths <= y2)
                     {
-                        out[k>>>2] = (is_grayscale ?
+                        score = (is_grayscale ?
                         ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
                         : ((
                         ncc(x, y, sat1[0], sat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
                         ncc(x, y, sat1[1], sat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
                         ncc(x, y, sat1[2], sat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
                         ) / 3));
+                        if (score >= tt)
+                        {
+                            if (score > maxv)
+                            {
+                                maxv = score;
+                                if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                            }
+                            max[maxc++] = {x:x, y:y, width:tws, height:ths};
+                        }
                     }
                 }
-                max = FilterUtil.max(out, w, h, scaleThresh ? scaleThresh(sc, ro) : thresh);
-                if (max.maxpos.length && max.maxpos.length < stdMath.min(self.maxMatches, mm)) // if not too many
-                    matches.push.apply(matches, max.maxpos.map(function(p) {return {x:p.x, y:p.y, width:tws, height:ths};}));
+                if (maxc && maxc < stdMath.min(maxMatches, mm)) // if not too many
+                {
+                    max.length = maxc;
+                    matches.push.apply(matches, max);
+                }
             }
         }
 
         self.meta = {matches: FilterUtil.merge_features(matches, self.minNeighbors, self.tolerance)};
-        out = null; sat1 = null; sat2 = null;
+        max = null; sat1 = null; sat2 = null;
         return im;
     }
 });
@@ -18949,7 +18979,7 @@ function approximate(t, w, h, c, Jmax, minSz)
     bk = b[0];
     Jmax *= 255*255; J = 0;
     for (p=0; p<l; p+=4) {v = (t[p+c]-bk.k); J += v*v/n;}
-    while (J >= Jmax)
+    while (J > Jmax)
     {
         Jmin = J;
         bmin = b;

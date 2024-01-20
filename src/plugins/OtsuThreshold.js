@@ -9,6 +9,8 @@
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
+    TypedArray = FILTER.Util.Array.typed,
+    TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 
 // https://en.wikipedia.org/wiki/Thresholding_(image_processing)
@@ -47,6 +49,15 @@ FILTER.Create({
         self.color1 = params.color1;
         self.channel = params.channel;
         return self;
+    }
+
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
     }
 
     ,_apply_rgb: function(im, w, h) {
