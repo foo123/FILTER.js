@@ -235,7 +235,7 @@ ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
     return b;
 };
 
-function integral2(im, w, h, stride, channel, sat, sat2, rsat)
+function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2)
 {
     //"use asm";
     var len = im.length, size = len>>>stride, rowLen = w<<stride,
@@ -256,6 +256,7 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat)
         sum += c; sat[j] = sum;
         if (sat2) {sum2 += c*c; sat2[j] = sum2;}
         if (rsat) {rsat[j] = c;}
+        if (rsat2) {rsat2[j] = c*c;}
     }
 
     // other rows
@@ -265,6 +266,7 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat)
         c = im[i]; sum += c; sat[j+w] = sat[j]+sum;
         if (sat2) {sum2 += c*c; sat2[j+w] = sat2[j]+sum2;}
         if (rsat) {rsat[j+w] = (rsat[j+1-w]||0) + (c+(im[(j-w)<<stride]||0)) + (y>1?(rsat[j-w-w]||0):0) + (x>0?(rsat[j-1-w]||0):0);}
+        if (rsat2) {rsat2[j+w] = (rsat2[j+1-w]||0) + (c*c+(im[(j-w)<<stride]||0)*(im[(j-w)<<stride]||0)) + (y>1?(rsat2[j-w-w]||0):0) + (x>0?(rsat2[j-1-w]||0):0);}
         if (++x >= w) {x=0; ++y; sum=sum2=0;}
     }
 }
@@ -2283,7 +2285,13 @@ FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
     x1 = clamp(x1, 0, w-1);
     y1 = clamp(y1, 0, h-1);
     x0 -= 1; y0 -= 1;
-    return sat[x1 + w*y1] - (x0 >= 0 ? sat[x0 + w*y1] : 0) - (y0 >= 0 ? sat[x1 + w*y0] : 0) + (x0 >= 0 && y0 >= 0 ? sat[x0 + w*y0] : 0);
+    return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
+};
+FilterUtil.rsatsum = function(rsat, w, h, x, y, ww, hh) {
+    //x = clamp(x, 0, w-1);
+    //y = clamp(y, 0, h-1);
+    var xw = x+ww-1, yw = y+ww-1, xh = x-hh+1, yh = y+hh-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
+    return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 };
 FilterUtil.histogram = histogram;
 FilterUtil.otsu = otsu;
