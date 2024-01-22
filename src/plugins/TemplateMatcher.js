@@ -31,6 +31,7 @@ FILTER.Create({
     ,minNeighbors: 1
     ,maxMatches: 1000
     ,maxMatchesOnly: true
+    ,returnAngle: false
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -61,6 +62,7 @@ FILTER.Create({
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
             if (undef !== params.maxMatchesOnly) self.maxMatchesOnly = !!params.maxMatchesOnly;
+            if (undef !== params.returnAngle) self.returnAngle = !!params.returnAngle;
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.q) self.quality(params.q, self._s);
@@ -163,10 +165,13 @@ FILTER.Create({
             r, rl, ro, sc, tt, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
-            maxMatches = self.maxMatches, maxOnly = self.maxMatchesOnly,
+            maxMatches = self.maxMatches,
+            maxOnly = self.maxMatchesOnly,
+            returnAngle = self.returnAngle,
             minNeighbors = self.minNeighbors, eps = self.tolerance,
-            sat1, sat2, rsat, rsat2, is_tilted, max, maxc, maxv,
-            k, x, y, x1, y1, x2, y2, xf, yf, matches, all_matches = [];
+            k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
+            sat1, sat2, rsat, rsat2, isTilted, isVertical,
+            max, maxc, maxv, matches, all_matches = [];
 
         if (selection)
         {
@@ -221,22 +226,13 @@ FILTER.Create({
         for (r=0,rl=rot.length; r<rl; ++r)
         {
             ro = rot[r];
-            is_tilted = 45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro;
-            if (90 === ro || -270 === ro || 270 === ro || -90 === ro)
-            {
-                // swap x/y
-                tw2 = th;
-                th2 = tw;
-            }
-            else
-            {
-                tw2 = tw;
-                th2 = th;
-            }
+            isTilted = 45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro;
+            isVertical = 90 === ro || -270 === ro || 270 === ro || -90 === ro;
+            sin = stdMath.sin(-ro*stdMath.PI/180); cos = stdMath.cos(-ro*stdMath.PI/180);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
-                tws = stdMath.round(sc*tw2); ths = stdMath.round(sc*th2);
+                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
@@ -247,9 +243,9 @@ FILTER.Create({
                         score = (is_grayscale ?
                         ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
                         : ((
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
-                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
-                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro, tt) + // R
+                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro, tt) + // G
+                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro, tt)   // B
                         ) / 3));
                         if (score >= tt)
                         {
@@ -259,7 +255,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x, y:y, width:tws, height:ths};
+                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
                         }
                     }
                 }
@@ -269,7 +265,12 @@ FILTER.Create({
                     matches.push.apply(matches, max);
                 }
             }
-            if (matches.length) all_matches.push.apply(all_matches, FilterUtil.merge_features(matches, minNeighbors, eps).map(function(r) {r.angle = is_tilted ? ro : 0; return r;}))
+            if (matches.length)
+            {
+                matches = FilterUtil.merge_features(matches, minNeighbors, eps);
+                if (returnAngle) matches.forEach(function(match) {match.angle = ro;});
+                all_matches.push.apply(all_matches, matches);
+            }
         }
 
         self.meta = {matches: all_matches};
@@ -277,6 +278,26 @@ FILTER.Create({
         return im;
     }
 });
+function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
+{
+    if (with_angle)
+    {
+        return {x:x, y:y, width:w, height:h};
+    }
+    else if (is_tilted)
+    {
+        var dx = stdMath.abs(cos*x - sin*y - x)/2, dy = stdMath.abs(sin*x + cos*y - y)/2;
+        return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
+    }
+    else if (is_vertical)
+    {
+        return {x:x, y:y, width:h, height:w};
+    }
+    else
+    {
+        return {x:x, y:y, width:w, height:h};
+    }
+}
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
     var tr = 0, tg = 0, tb = 0, a, b,
@@ -416,7 +437,7 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot)
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot, tt)
 {
     // normalized cross-correlation at point (x,y)
     var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
@@ -449,7 +470,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot)
     }
     else
     {
-        for (k=0,K=basis.length; k<K; ++k)
+        for (k=0; k<K; ++k)
         {
             bk = basis[k];
             // up to 8 cardinal rotations supported (ie matches every 45 deg)
@@ -507,10 +528,12 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot)
             x1 = stdMath.round(sc*x1);
             y1 = stdMath.round(sc*y1);
             diff = bk.k-avgt;
-            vart += diff*diff*area;
+            vart += diff*diff*(x1-x0+1)*(y1-y0+1);
             varft += diff*(is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1));
         }
-        return varf < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1);
+        var score = varf < 1e-3 ? (vart < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0) : (vart < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1));
+        //if (score >= tt) console.log(x, y, rot, varft, varf, vart);
+        return score;
     }
 }
 FilterUtil.tm_approximate = approximate;
