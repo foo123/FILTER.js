@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-22 11:24:24
+*   @built on 2024-01-22 23:25:04
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-22 11:24:24
+*   @built on 2024-01-22 23:25:04
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -18908,7 +18908,7 @@ FILTER.Create({
             ro = rot[r];
             isTilted = 45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro;
             isVertical = 90 === ro || -270 === ro || 270 === ro || -90 === ro;
-            sin = stdMath.sin(-ro*stdMath.PI/180); cos = stdMath.cos(-ro*stdMath.PI/180);
+            sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
@@ -18921,11 +18921,11 @@ FILTER.Create({
                     if (x + tws <= x2 && y + ths <= y2)
                     {
                         score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
                         : ((
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata.avg[0], tpldata.basis[0], w, h, tw, th, sc, ro, tt) + // R
-                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata.avg[1], tpldata.basis[1], w, h, tw, th, sc, ro, tt) + // G
-                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata.avg[2], tpldata.basis[2], w, h, tw, th, sc, ro, tt)   // B
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
+                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
+                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
                         ) / 3));
                         if (score >= tt)
                         {
@@ -18966,7 +18966,7 @@ function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
     }
     else if (is_tilted)
     {
-        var dx = stdMath.abs(cos*x - sin*y - x)/2, dy = stdMath.abs(sin*x + cos*y - y)/2;
+        var dx = stdMath.abs(cos*w + sin*h - w)/2, dy = stdMath.abs(-sin*w + cos*h - h)/2;
         return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
     }
     else if (is_vertical)
@@ -18980,7 +18980,7 @@ function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b,
+    var tr = 0, tg = 0, tb = 0, a, b, v,
         l = t.length, n = w*h, p;
     for (p=0; p<l; p+=4)
     {
@@ -18992,9 +18992,11 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
     if (null != Jmax)
     {
         b = [[], [], []];
+        v = [0, 0, 0];
         if (null != channel)
         {
             b[channel] = FilterUtil.tm_approximate(t, w, h, channel, Jmax, minSz);
+            v[channel] = basisv(b[channel], avg[channel]);
         }
         else
         {
@@ -19003,9 +19005,14 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
             FilterUtil.tm_approximate(t, w, h, 1, Jmax, minSz),
             FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
             ];
+            v = [
+            basisv(b[0], avg[0]),
+            basisv(b[1], avg[1]),
+            basisv(b[2], avg[2])
+            ];
         }
     }
-    return {avg:a, basis:b||null};
+    return {'avg':a, 'basis':b||null, 'var':v||null};
 }
 function approximate(t, w, h, c, Jmax, minSz)
 {
@@ -19117,12 +19124,18 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot, tt)
+function basisv(basis, avg)
+{
+    var k, K = basis.length, bk, v = 0;
+    for (k=0; k<K; ++k) {bk = basis[k]; v += (bk.k-avg)*(bk.k-avg)*(bk.x1-bk.x0+1)*(bk.y1-bk.y0+1);}
+    return v;
+}
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot, tt)
 {
     // normalized cross-correlation at point (x,y)
     var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
-        area, t, x0, y0, x1, y1, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, vart = 0, varft = 0,
+        area, areat, areaf, t, x0, y0, x1, y1, bk, k, K = basis.length,
+        sum1, sum2, diff, avgf, varf, /*vart = 0,*/ varft = 0,
         is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
         is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
     if (is_vertical)
@@ -19196,7 +19209,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot,
                 x0 = tw-1-bk.x1;
                 y0 = th-1-bk.y1;
             }
-            else // 0, 360, -360, 45, ..
+            else // 0, 360, -360, 45, -315, ..
             {
                 x0 = bk.x0;
                 y0 = bk.y0;
@@ -19207,13 +19220,13 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, basis, w, h, tw, th, sc, rot,
             y0 = stdMath.round(sc*y0);
             x1 = stdMath.round(sc*x1);
             y1 = stdMath.round(sc*y1);
+            areat = (x1-x0+1)*(y1-y0+1);
+            areaf = areat;
             diff = bk.k-avgt;
-            vart += diff*diff*(x1-x0+1)*(y1-y0+1);
-            varft += diff*(is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1));
+            //vart += diff*diff*areat;
+            varft += diff*(is_tilted ? (rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) - avgf*areaf) : (satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*areat));
         }
-        var score = varf < 1e-3 ? (vart < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0) : (vart < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1));
-        //if (score >= tt) console.log(x, y, rot, varft, varf, vart);
-        return score;
+        return varf < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1);
     }
 }
 FilterUtil.tm_approximate = approximate;
