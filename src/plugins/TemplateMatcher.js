@@ -26,7 +26,7 @@ FILTER.Create({
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
-    ,threshold: 0.7
+    ,threshold: 0.55
     ,tolerance: 0.2
     ,minNeighbors: 1
     ,maxMatches: 1000
@@ -151,9 +151,9 @@ FILTER.Create({
     }*/
 
     ,apply: function(im, w, h, metaData) {
-        var self = this, tpldata = self.tpldata(true), t = self.input("template");
+        var self = this, tpldata = self.tpldata(true), t = self.input("template"), all_matches = [];
 
-        self.meta = {matches: []};
+        self.meta = {matches: all_matches};
         if (!t || !tpldata) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
@@ -171,7 +171,7 @@ FILTER.Create({
             minNeighbors = self.minNeighbors, eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, rsat, rsat2, isTilted, isVertical,
-            max, maxc, maxv, matches, all_matches = [];
+            max, maxc, maxv, maxscore, matches;
 
         if (selection)
         {
@@ -234,7 +234,7 @@ FILTER.Create({
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
-                max = new Array(mm); maxc = 0; maxv = -Infinity;
+                max = new Array(mm); maxc = 0; maxv = -Infinity; maxscore = -Infinity
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
@@ -257,6 +257,7 @@ FILTER.Create({
                             }
                             max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
                         }
+                        if (score > maxscore) maxscore = score;
                     }
                 }
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
@@ -264,6 +265,7 @@ FILTER.Create({
                     max.length = maxc;
                     matches.push.apply(matches, max);
                 }
+                console.log(ro, sc, tt, maxscore);
             }
             if (matches.length)
             {
@@ -273,7 +275,6 @@ FILTER.Create({
             }
         }
 
-        self.meta = {matches: all_matches};
         max = null; sat1 = sat2 = rsat = rsat2 = null;
         return im;
     }
@@ -326,9 +327,9 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
             FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
             ];
             v = [
-            basisv(b[0], a[0]),
-            basisv(b[1], a[1]),
-            basisv(b[2], a[2])
+            basisv(b[0], a[0], w, h),
+            basisv(b[1], a[1], w, h),
+            basisv(b[2], a[2], w, h)
             ];
         }
     }
@@ -444,10 +445,10 @@ function approximate(t, w, h, c, Jmax, minSz)
     }
     return b;
 }
-function basisv(basis, avg)
+function basisv(basis, avg, w, h)
 {
     var k, K = basis.length, bk, v = 0;
-    for (k=0; k<K; ++k) {bk = basis[k]; v += (bk.k-avg)*(bk.k-avg)*(bk.x1-bk.x0+1)*(bk.y1-bk.y0+1);}
+    for (k=0; k<K; ++k) {bk = basis[k]; v += ((bk.x1-bk.x0+1)/w*(bk.k-avg))*((bk.y1-bk.y0+1)/h*(bk.k-avg));}
     return v;
 }
 function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
@@ -546,8 +547,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             //vart += diff*diff*areat;
             varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*areat);
         }
-        vart *= sc*sc;
-        return stdMath.min(stdMath.max(stdMath.abs(varft)/(stdMath.sqrt(varf*vart)), 0), 1);
+        //vart *= sc*sc;
+        return stdMath.min(stdMath.max(stdMath.abs(varft/area)/stdMath.sqrt(vart*varf/area), 0), 1);
     }
 }
 FilterUtil.tm_approximate = approximate;
