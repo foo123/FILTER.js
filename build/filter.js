@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-23 15:46:43
+*   @built on 2024-01-23 18:06:03
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-23 15:46:43
+*   @built on 2024-01-23 18:06:03
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -18913,12 +18913,22 @@ FILTER.Create({
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
+                if (isVertical)
+                {
+                    tw2 = ths;
+                    th2 = tws;
+                }
+                else
+                {
+                    tw2 = tws;
+                    th2 = ths;
+                }
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
-                max = new Array(mm); maxc = 0; maxv = -Infinity; maxscore = -Infinity
+                max = new Array(mm); maxc = 0; maxv = -Infinity; maxscore = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
-                    if (x + tws <= x2 && y + ths <= y2)
+                    if (x + tw2 <= x2 && y + th2 <= y2)
                     {
                         score = (is_grayscale ?
                         ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
@@ -19135,8 +19145,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
 {
     // normalized cross-correlation at point (x,y)
     var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
-        area, areat, areaf, t, x0, y0, x1, y1, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, /*vart = 0,*/ varft = 0,
+        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
+        sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
         is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
         is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
     if (is_vertical)
@@ -19165,6 +19175,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     else
     {
         if (varf < 1e-3) return 0;
+        varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
             bk = basis[k];
@@ -19222,13 +19233,15 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             y0 = stdMath.round(sc*y0);
             x1 = stdMath.round(sc*x1);
             y1 = stdMath.round(sc*y1);
-            areaf = areat = (x1-x0+1)*(y1-y0+1);
+            sw = x1-x0+1;
+            sh = y1-y0+1;
+            area2 = sw*sh;
             diff = bk.k-avgt;
-            //vart += diff*diff*areat;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*areat);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            //vart += diff*diff*area2;
         }
-        //vart *= sc*sc;
-        return stdMath.min(stdMath.max(stdMath.abs(varft/area)/stdMath.sqrt(vart*varf/area), 0), 1);
+        vart *= area;
+        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
 FilterUtil.tm_approximate = approximate;
