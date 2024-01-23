@@ -316,7 +316,7 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
         if (null != channel)
         {
             b[channel] = FilterUtil.tm_approximate(t, w, h, channel, Jmax, minSz);
-            v[channel] = basisv(b[channel], avg[channel]);
+            v[channel] = basisv(b[channel], a[channel]);
         }
         else
         {
@@ -326,9 +326,9 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
             FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
             ];
             v = [
-            basisv(b[0], avg[0]),
-            basisv(b[1], avg[1]),
-            basisv(b[2], avg[2])
+            basisv(b[0], a[0]),
+            basisv(b[1], a[1]),
+            basisv(b[2], a[2])
             ];
         }
     }
@@ -450,7 +450,7 @@ function basisv(basis, avg)
     for (k=0; k<K; ++k) {bk = basis[k]; v += (bk.k-avg)*(bk.k-avg)*(bk.x1-bk.x0+1)*(bk.y1-bk.y0+1);}
     return v;
 }
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot, tt)
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
 {
     // normalized cross-correlation at point (x,y)
     var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
@@ -483,6 +483,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     else
     {
+        if (varf < 1e-3) return 0;
         for (k=0; k<K; ++k)
         {
             bk = basis[k];
@@ -540,13 +541,13 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             y0 = stdMath.round(sc*y0);
             x1 = stdMath.round(sc*x1);
             y1 = stdMath.round(sc*y1);
-            areat = (x1-x0+1)*(y1-y0+1);
-            areaf = areat;
+            areaf = areat = (x1-x0+1)*(y1-y0+1);
             diff = bk.k-avgt;
             //vart += diff*diff*areat;
-            varft += diff*(is_tilted ? (rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) - avgf*areaf) : (satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*areat));
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, x1-x0+1, y1-y0+1) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*areat);
         }
-        return varf < 1e-3 ? 0 : stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(varf*vart), 0), 1);
+        vart *= sc*sc;
+        return stdMath.min(stdMath.max(stdMath.abs(varft)/(stdMath.sqrt(varf*vart)), 0), 1);
     }
 }
 FilterUtil.tm_approximate = approximate;
