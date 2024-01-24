@@ -360,10 +360,10 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             }
             else if (-135 === rot || 225 === rot)
             {
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
+                x0 = bk.y0;
+                y0 = tw-1-bk.x1;
+                x1 = bk.y1;
+                y1 = tw-1-bk.x0;
             }
             else if (-225 === rot || 135 === rot)
             {
@@ -372,7 +372,14 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
                 x1 = tw-1-bk.x0;
                 y1 = bk.y1;
             }
-            else // 0, 360, -360, 45, -45, -315, ..
+            else if (-315 === rot || 45 === rot)
+            {
+                x0 = th-1-bk.y1;
+                y0 = bk.x0;
+                x1 = th-1-bk.y0;
+                y1 = bk.x1;
+            }
+            else // 0, 360, -360, ..
             {
                 x0 = bk.x0;
                 y0 = bk.y0;

@@ -343,6 +343,10 @@ function merge(l1, l2)
         l2.y1 = min(l2.y1, l1.y1);
         l2.x2 = max(l2.x2, l1.x2);
         l2.y2 = max(l2.y2, l1.y2);
+        l1.x1 = l2.x1;
+        l1.y1 = l2.y1;
+        l1.x2 = l2.x2;
+        l1.y2 = l2.y2;
         l1.root = l2;
     }
 }
