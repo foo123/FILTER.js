@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-24 13:13:52
+*   @built on 2024-01-24 16:01:59
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-24 13:13:52
+*   @built on 2024-01-24 16:01:59
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -17513,7 +17513,7 @@ FILTER.Create({
     ,hasMeta: true
     ,mode: MODE.COLOR
     ,tolerance: 1e-6
-    ,minArea: 4
+    ,minArea: 20
     ,color: 0
 
     // this is the filter constructor
@@ -17609,7 +17609,7 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
         D = new A32F((x2-x1+1)*(y2-y1+1));
-        dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
+        delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
         self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, x1, y1, x2, y2)};
         return im;
     }
@@ -17743,7 +17743,7 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
         size = len>>>stride,  K8_CONNECTIVITY = 8 === K,
         mylab, c, r, d, row, numlabels, label, background_label = null,
         need_match = null != V0, color, a, b, delta2 = 2*delta,
-        ww = x1 - x0 + 1, hh = y1 - y0 + 1, outc = 0, bbarea;
+        ww = x1 - x0 + 1, hh = y1 - y0 + 1, bbw, bbh, bbarea;
 
     label = new Array(size);
     background_label = need_match ? new Label(0, 0) : null;
@@ -17780,14 +17780,14 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
             if (K8_CONNECTIVITY)
             {
                 //d = -1;
-                if((background_label !== label[row-w+c-1/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c-1/*+d*/])<=delta2))
+                if ((background_label !== label[row-w+c-1/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c-1/*+d*/])<=delta2))
                 {
                     if (null != mylab) merge(mylab, label[row-w+c-1/*+d*/]);
                     else mylab = label[row-w+c-1/*+d*/];
                 }
             }
             //d = 0;
-            if((background_label !== label[row-w+c/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c/*+d*/])<=delta2))
+            if ((background_label !== label[row-w+c/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c/*+d*/])<=delta2))
             {
                 if (null != mylab) merge(mylab, label[row-w+c/*+d*/]);
                 else mylab = label[row-w+c/*+d*/];
@@ -17804,37 +17804,35 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
                 label[row+c] = new Label(c, r);
             }
 
-            if(K8_CONNECTIVITY &&
+            if (K8_CONNECTIVITY &&
                 (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) &&
                 (abs(delta+D[row+c-1]-D[row-w+c])<=delta2))
                 merge(label[row+c-1], label[row-w+c]);
         }
     }
 
-    if (return_bb) output = new Array(size);
     if (invert) {a = -255; b = 255;}
     else {a = 255; b = 0;}
     // compute num of distinct labels and assign ids
     if (null != background_label) {background_label.id = 0; numlabels = 1;}
     else {numlabels = 0;}
+    if (return_bb) output = {};
     for (c=0; c<size; ++c)
     {
         label[c] = root_of(label[c]);
         if (0 > label[c].id)
         {
             label[c].id = numlabels++;
-            if (return_bb)
-            {
-                ww = label[c].x2-label[c].x1+1;
-                hh = label[c].y2-label[c].y1+1;
-                bbarea = ww*hh;
-                if (bbarea >= minArea) output[outc++] = {x:label[c].x1, y:label[c].y1, width:ww, height:hh, area:bbarea};
-            }
+            if (return_bb) output[label[c].id] = label[c];
         }
     }
     if (return_bb)
     {
-        output.length = outc;
+        output = Object.keys(output).reduce(function(out, id) {
+            var label = output[id], w = label.x2-label.x1+1, h = label.y2-label.y1+1, area = w*h;
+            if (area >= minArea) out.push({x:label.x1, y:label.y1, width:w, height:h, area:area});
+            return out;
+        }, []);
     }
     else
     {
