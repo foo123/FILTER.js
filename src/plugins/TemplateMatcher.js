@@ -26,7 +26,7 @@ FILTER.Create({
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
-    ,threshold: 0.55
+    ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
     ,maxMatches: 1000
@@ -171,7 +171,11 @@ FILTER.Create({
             minNeighbors = self.minNeighbors, eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, rsat, rsat2, isTilted, isVertical,
-            max, maxc, maxv, maxscore, matches;
+            max, maxc, maxv, matches;
+
+        if (1 === rot) rot = [0]; // only 1 given direction
+        else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
+        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions (max)
 
         if (selection)
         {
@@ -244,7 +248,7 @@ FILTER.Create({
                     th2 = ths;
                 }
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
-                max = new Array(mm); maxc = 0; maxv = -Infinity; maxscore = -Infinity;
+                max = new Array(mm); maxc = 0; maxv = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
@@ -267,7 +271,6 @@ FILTER.Create({
                             }
                             max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
                         }
-                        if (score > maxscore) maxscore = score;
                     }
                 }
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
@@ -275,7 +278,6 @@ FILTER.Create({
                     max.length = maxc;
                     matches.push.apply(matches, max);
                 }
-                console.log(ro, sc, tt, maxscore);
             }
             if (matches.length)
             {
@@ -289,6 +291,109 @@ FILTER.Create({
         return im;
     }
 });
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
+{
+    // normalized cross-correlation at point (x,y)
+    var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
+        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
+        sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
+        is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
+        is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
+    if (is_vertical)
+    {
+        // swap x/y
+        tws = ths0;
+        ths = tws0;
+    }
+    area = tws0*ths0;
+    if (is_tilted)
+    {
+        sum1 = rsatsum(rsat1, w, h, x, y, tws0, ths0);
+        sum2 = rsatsum(rsat2, w, h, x, y, tws0, ths0);
+    }
+    else
+    {
+        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
+        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+    }
+    avgf = sum1/area;
+    varf = stdMath.abs(sum2-sum1*avgf);
+    if (1 >= K)
+    {
+        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
+    }
+    else
+    {
+        if (varf < 1e-3) return 0;
+        varft = 0; //vart = 0;
+        for (k=0; k<K; ++k)
+        {
+            bk = basis[k];
+            // up to 8 cardinal rotations supported (ie matches every 45 deg)
+            if (270 === rot || -90 === rot)
+            {
+                x0 = bk.y0;
+                y0 = bk.x0;
+                x1 = bk.y1;
+                y1 = bk.x1;
+            }
+            else if (180 === rot || -180 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (90 === rot || -270 === rot)
+            {
+                x0 = th-1-bk.y1;
+                y0 = tw-1-bk.x1;
+                x1 = th-1-bk.y0;
+                y1 = tw-1-bk.x0;
+            }
+            else if (-45 === rot || 315 === rot)
+            {
+                x0 = bk.x0;
+                y0 = th-1-bk.y1;
+                x1 = bk.x1;
+                y1 = th-1-bk.y0;
+            }
+            else if (-135 === rot || 225 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (-225 === rot || 135 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = bk.y0;
+                x1 = tw-1-bk.x0;
+                y1 = bk.y1;
+            }
+            else // 0, 360, -360, 45, -45, -315, ..
+            {
+                x0 = bk.x0;
+                y0 = bk.y0;
+                x1 = bk.x1;
+                y1 = bk.y1;
+            }
+            x0 = stdMath.round(sc*x0);
+            y0 = stdMath.round(sc*y0);
+            x1 = stdMath.round(sc*x1);
+            y1 = stdMath.round(sc*y1);
+            sw = x1-x0+1;
+            sh = y1-y0+1;
+            area2 = sw*sh;
+            diff = bk.k-avgt;
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            //vart += diff*diff*area2;
+        }
+        vart *= area;
+        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
+    }
+}
 function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
 {
     if (with_angle)
@@ -460,109 +565,6 @@ function basisv(basis, avg, w, h)
     var k, K = basis.length, bk, v = 0;
     for (k=0; k<K; ++k) {bk = basis[k]; v += ((bk.x1-bk.x0+1)/w*(bk.k-avg))*((bk.y1-bk.y0+1)/h*(bk.k-avg));}
     return v;
-}
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
-{
-    // normalized cross-correlation at point (x,y)
-    var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
-        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
-        is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
-        is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
-    if (is_vertical)
-    {
-        // swap x/y
-        tws = ths0;
-        ths = tws0;
-    }
-    area = tws0*ths0;
-    if (is_tilted)
-    {
-        sum1 = rsatsum(rsat1, w, h, x, y, tws0, ths0);
-        sum2 = rsatsum(rsat2, w, h, x, y, tws0, ths0);
-    }
-    else
-    {
-        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
-        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
-    }
-    avgf = sum1/area;
-    varf = stdMath.abs(sum2-sum1*avgf);
-    if (1 >= K)
-    {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
-    }
-    else
-    {
-        if (varf < 1e-3) return 0;
-        varft = 0; //vart = 0;
-        for (k=0; k<K; ++k)
-        {
-            bk = basis[k];
-            // up to 8 cardinal rotations supported (ie matches every 45 deg)
-            if (-90 === rot || 270 === rot)
-            {
-                x0 = bk.y0;
-                y0 = bk.x0;
-                x1 = bk.y1;
-                y1 = bk.x1;
-            }
-            else if (180 === rot || -180 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-            }
-            else if (-270 === rot || 90 === rot)
-            {
-                y1 = tw-1-bk.x0;
-                x1 = th-1-bk.y0;
-                y0 = tw-1-bk.x1;
-                x0 = th-1-bk.y1;
-            }
-            else if (-45 === rot || 315 === rot)
-            {
-                x0 = bk.x0;
-                x1 = bk.x1;
-                y1 = th-1-bk.y0;
-                y0 = th-1-bk.y1;
-            }
-            else if (135 === rot || -225 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                x0 = tw-1-bk.x1;
-                y0 = bk.y0;
-                y1 = bk.y1;
-            }
-            else if (-135 === rot || 225 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-            }
-            else // 0, 360, -360, 45, -315, ..
-            {
-                x0 = bk.x0;
-                y0 = bk.y0;
-                x1 = bk.x1;
-                y1 = bk.y1;
-            }
-            x0 = stdMath.round(sc*x0);
-            y0 = stdMath.round(sc*y0);
-            x1 = stdMath.round(sc*x1);
-            y1 = stdMath.round(sc*y1);
-            sw = x1-x0+1;
-            sh = y1-y0+1;
-            area2 = sw*sh;
-            diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
-            //vart += diff*diff*area2;
-        }
-        vart *= area;
-        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
-    }
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;

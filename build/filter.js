@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-23 18:06:03
+*   @built on 2024-01-24 13:13:52
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-23 18:06:03
+*   @built on 2024-01-24 13:13:52
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -17388,7 +17388,7 @@ FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
 FilterUtil.floodRegion = flood_region;
 }(FILTER);/**
 *
-* Connected Components Extractor
+* Connected Components Extractor, Color Detector
 * @package FILTER.js
 *
 **/
@@ -17398,6 +17398,7 @@ FilterUtil.floodRegion = flood_region;
 var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
     FilterUtil = FILTER.Util.Filter,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
+    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
 FILTER.Create({
@@ -17504,51 +17505,186 @@ FILTER.Create({
         }
     }
 });
+FILTER.Create({
+    name: "ColorDetectorFilter"
+
+    // parameters
+    ,_update: false // filter by itself does not alter image data, just processes information
+    ,hasMeta: true
+    ,mode: MODE.COLOR
+    ,tolerance: 1e-6
+    ,minArea: 4
+    ,color: 0
+
+    // this is the filter constructor
+    ,init: function(color) {
+        var self = this;
+        self.color = color || 0;
+    }
+
+    // support worker serialize/unserialize interface
+    ,path: FILTER.Path
+
+    ,params: function(params) {
+        var self = this;
+        if (params)
+        {
+            if (null != params.tolerance) self.tolerance = params.tolerance || 0;
+            if (null != params.minArea) self.minArea = params.minArea || 0;
+            if (null != params.color) self.color = params.color || 0;
+            if (null != params.selection) self.selection = params.selection || null;
+        }
+        return self;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+            tolerance: self.tolerance
+            ,minArea: self.minArea
+            ,color: self.color
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.tolerance = params.tolerance;
+        self.minArea = params.minArea;
+        self.color = params.color;
+        return self;
+    }
+
+    // detected objects are passed as filter metadata (if filter is run in parallel thread)
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
+    }
+
+    // this is the filter actual apply method routine
+    ,apply: function(im, w, h) {
+        var self = this, imLen = im.length, imSize = imLen>>>2,
+            mode = self.mode||MODE.COLOR, color = self.color,
+            delta = min(0.999, max(0.0, self.tolerance||0.0)),
+            selection = self.selection || null,
+            xf, yf, x1, y1, x2, y2, D;
+
+        self.meta = {matches: []};
+        if (null == color) return im;
+
+        if (MODE.HUE === mode)
+        {
+            color = cos(toRad*color);
+        }
+        else if (MODE.COLOR === mode)
+        {
+            var r = ((color >>> 16)&255)/255, g = ((color >>> 8)&255)/255, b = ((color)&255)/255;
+            color = 10000*(r+g+b)/3 + 1000*(r+g)/2 + 100*(g+b)/2 + 10*(r+b)/2 + r;
+        }
+        if (selection)
+        {
+            if (selection[4])
+            {
+                // selection is relative, make absolute
+                xf = w-1;
+                yf = h-1;
+            }
+            else
+            {
+                // selection is absolute
+                xf = 1;
+                yf = 1;
+            }
+            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf));
+            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf));
+            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf));
+            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf));
+        }
+        else
+        {
+            x1 = 0; y1 = 0;
+            x2 = w-1; y2 = h-1;
+        }
+        D = new A32F((x2-x1+1)*(y2-y1+1));
+        dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
+        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, x1, y1, x2, y2)};
+        return im;
+    }
+});
 
 // private methods
-function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode)
+function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
 {
+    if (null == x0) {x0 = 0; y0 = 0; x1 = w-1; y1 = h-1;}
     var MODE = FILTER.MODE, HUE = FILTER.Color.hue, INTENSITY = FILTER.Color.intensity,
-        cos = stdMath.cos, toRad = FILTER.CONST.toRad, i, j, imLen = im.length, dLen = D.length;
+        cos = stdMath.cos, toRad = FILTER.CONST.toRad, i, j, imLen = im.length, dLen = D.length,
+        ww = x1 - x0 + 1, hh = y1 - y0 + 1, x, y, yw;
 
     if (0 < stride)
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
-            for (i=0,j=0; j<dLen; i+=4,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw) << stride;
                 D[j] = 0 === im[i+3] ? 10000 : cos(toRad*HUE(im[i],im[i+1],im[i+2]));
+            }
         }
         else if (MODE.INTENSITY === mode)
         {
             delta *= 255;
-            for (i=0,j=0; j<dLen; i+=4,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw) << stride;
                 D[j] = 0 === im[i+3] ? 10000 : INTENSITY(im[i],im[i+1],im[i+2]);
+            }
         }
         else if (MODE.GRAY === mode)
         {
             delta *= 255;
-            for (i=0,j=0; j<dLen; i+=4,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw) << stride;
                 D[j] = 0 === im[i+3] ? 10000 : im[i];
+            }
         }
         else //if (MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta = 10000*delta + 1000*delta + 100*delta + 10*delta + delta;
-            for (i=0,j=0; j<dLen; i+=4,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw) << stride;
                 D[j] = 0 === im[i+3] ? 100000 : 10000*(im[i]+im[i+1]+im[i+2])/3/255 + 1000*(im[i]+im[i+1])/2/255 + 100*(im[i+1]+im[i+2])/2/255 + 10*(im[i]+im[i+2])/2/255 + im[i]/255;
+            }
         }
     }
     else
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
-            for (i=0,j=0; j<dLen; ++i,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw);
                 D[j] = cos(toRad*im[i]);
+            }
         }
         else //if (MODE.INTENSITY === mode || MODE.GRAY === mode || MODE.COLOR === mode || MODE.COLORIZE === mode)
         {
             delta *= 255;
-            for (i=0,j=0; j<dLen; ++i,++j)
+            for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
+            {
+                if (x >= ww) {x=x0; ++y; yw+=w;}
+                i = (x + yw);
                 D[j] = im[i];
+            }
         }
     }
     return delta;
@@ -17559,30 +17695,55 @@ function Label(x, y, root)
     var self = this;
     self.id = -1;
     self.root = root || self;
+    self.x1 = x; self.y1 = y;
+    self.x2 = x; self.y2 = y;
 }
 Label.prototype = {
     constructor: Label,
     id: 0,
-    root: null
+    root: null,
+    x1:0,
+    y1:0,
+    x2:0,
+    y2:0
 };
 function root_of(label)
 {
-    while (label !== label.root) label = label.root;
+    var x1 = label.x1, y1 = label.y1, x2 = label.x2, y2 = label.y2;
+    while (label !== label.root)
+    {
+        label = label.root;
+        x1 = min(x1, label.x1);
+        y1 = min(y1, label.y1);
+        x2 = max(x2, label.x2);
+        y2 = max(y2, label.y2);
+    }
+    label.x1 = x1; label.y1 = y1;
+    label.x2 = x2; label.y2 = y2;
     return label;
 }
 function merge(l1, l2)
 {
     l1 = root_of(l1); l2 = root_of(l2);
-    if (l1 !== l2) l1.root = l2;
+    if (l1 !== l2)
+    {
+        l2.x1 = min(l2.x1, l1.x1);
+        l2.y1 = min(l2.y1, l1.y1);
+        l2.x2 = max(l2.x2, l1.x2);
+        l2.y2 = max(l2.y2, l1.y2);
+        l1.root = l2;
+    }
 }
 
-// TODO: add bounding boxes, so it can be used as connected color/hue detector/tracker as well efficiently
-function connected_components(output, w, h, stride, D, K, delta, V0, invert)
+function connected_components(output, w, h, stride, D, K, delta, V0, invert, return_bb, minArea, x0, y0, x1, y1)
 {
+    if (null == x0) {x0 = 0; y0 = 0; x1 = w-1; y1 = h-1;}
     stride = stride|0;
-    var i, j, k, len = output.length, size = len>>>stride, K8_CONNECTIVITY = 8 === K,
+    var i, j, k, len = output ? output.length : ((w*h)<<stride),
+        size = len>>>stride,  K8_CONNECTIVITY = 8 === K,
         mylab, c, r, d, row, numlabels, label, background_label = null,
-        need_match = null != V0, color, a, b, delta2 = 2*delta;
+        need_match = null != V0, color, a, b, delta2 = 2*delta,
+        ww = x1 - x0 + 1, hh = y1 - y0 + 1, outc = 0, bbarea;
 
     label = new Array(size);
     background_label = need_match ? new Label(0, 0) : null;
@@ -17650,6 +17811,7 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert)
         }
     }
 
+    if (return_bb) output = new Array(size);
     if (invert) {a = -255; b = 255;}
     else {a = 255; b = 0;}
     // compute num of distinct labels and assign ids
@@ -17658,24 +17820,41 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert)
     for (c=0; c<size; ++c)
     {
         label[c] = root_of(label[c]);
-        if (0 > label[c].id) label[c].id = numlabels++;
-    }
-    // relabel output
-    if (stride)
-    {
-        for (c=0,i=0; i<len; i+=4,++c)
+        if (0 > label[c].id)
         {
-            color = (b+a*label[c].id/numlabels)|0;
-            output[i] = output[i+1] = output[i+2] = color;
-            //output[i+3] = output[i+3];
+            label[c].id = numlabels++;
+            if (return_bb)
+            {
+                ww = label[c].x2-label[c].x1+1;
+                hh = label[c].y2-label[c].y1+1;
+                bbarea = ww*hh;
+                if (bbarea >= minArea) output[outc++] = {x:label[c].x1, y:label[c].y1, width:ww, height:hh, area:bbarea};
+            }
         }
+    }
+    if (return_bb)
+    {
+        output.length = outc;
     }
     else
     {
-        for (c=0; c<len; ++c)
+        // relabel output
+        if (stride)
         {
-            color = (b+a*label[c].id/numlabels)|0;
-            output[c] = color;
+            for (c=0,i=0; i<len; i+=4,++c)
+            {
+                color = (b+a*label[c].id/numlabels)|0;
+                output[i] = output[i+1] = output[i+2] = color;
+                //output[i+3] = output[i+3];
+            }
+        }
+        else
+        {
+            for (c=0; c<len; ++c)
+            {
+                color = (b+a*label[c].id/numlabels)|0;
+                output[c] = color;
+            }
         }
     }
     return output;
@@ -18706,7 +18885,7 @@ FILTER.Create({
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
-    ,threshold: 0.55
+    ,threshold: 0.7
     ,tolerance: 0.2
     ,minNeighbors: 1
     ,maxMatches: 1000
@@ -18851,7 +19030,11 @@ FILTER.Create({
             minNeighbors = self.minNeighbors, eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, rsat, rsat2, isTilted, isVertical,
-            max, maxc, maxv, maxscore, matches;
+            max, maxc, maxv, matches;
+
+        if (1 === rot) rot = [0]; // only 1 given direction
+        else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
+        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions (max)
 
         if (selection)
         {
@@ -18924,7 +19107,7 @@ FILTER.Create({
                     th2 = ths;
                 }
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
-                max = new Array(mm); maxc = 0; maxv = -Infinity; maxscore = -Infinity;
+                max = new Array(mm); maxc = 0; maxv = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
@@ -18947,7 +19130,6 @@ FILTER.Create({
                             }
                             max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
                         }
-                        if (score > maxscore) maxscore = score;
                     }
                 }
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
@@ -18955,7 +19137,6 @@ FILTER.Create({
                     max.length = maxc;
                     matches.push.apply(matches, max);
                 }
-                console.log(ro, sc, tt, maxscore);
             }
             if (matches.length)
             {
@@ -18969,6 +19150,109 @@ FILTER.Create({
         return im;
     }
 });
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
+{
+    // normalized cross-correlation at point (x,y)
+    var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
+        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
+        sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
+        is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
+        is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
+    if (is_vertical)
+    {
+        // swap x/y
+        tws = ths0;
+        ths = tws0;
+    }
+    area = tws0*ths0;
+    if (is_tilted)
+    {
+        sum1 = rsatsum(rsat1, w, h, x, y, tws0, ths0);
+        sum2 = rsatsum(rsat2, w, h, x, y, tws0, ths0);
+    }
+    else
+    {
+        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
+        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+    }
+    avgf = sum1/area;
+    varf = stdMath.abs(sum2-sum1*avgf);
+    if (1 >= K)
+    {
+        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
+    }
+    else
+    {
+        if (varf < 1e-3) return 0;
+        varft = 0; //vart = 0;
+        for (k=0; k<K; ++k)
+        {
+            bk = basis[k];
+            // up to 8 cardinal rotations supported (ie matches every 45 deg)
+            if (270 === rot || -90 === rot)
+            {
+                x0 = bk.y0;
+                y0 = bk.x0;
+                x1 = bk.y1;
+                y1 = bk.x1;
+            }
+            else if (180 === rot || -180 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (90 === rot || -270 === rot)
+            {
+                x0 = th-1-bk.y1;
+                y0 = tw-1-bk.x1;
+                x1 = th-1-bk.y0;
+                y1 = tw-1-bk.x0;
+            }
+            else if (-45 === rot || 315 === rot)
+            {
+                x0 = bk.x0;
+                y0 = th-1-bk.y1;
+                x1 = bk.x1;
+                y1 = th-1-bk.y0;
+            }
+            else if (-135 === rot || 225 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (-225 === rot || 135 === rot)
+            {
+                x0 = tw-1-bk.x1;
+                y0 = bk.y0;
+                x1 = tw-1-bk.x0;
+                y1 = bk.y1;
+            }
+            else // 0, 360, -360, 45, -45, -315, ..
+            {
+                x0 = bk.x0;
+                y0 = bk.y0;
+                x1 = bk.x1;
+                y1 = bk.y1;
+            }
+            x0 = stdMath.round(sc*x0);
+            y0 = stdMath.round(sc*y0);
+            x1 = stdMath.round(sc*x1);
+            y1 = stdMath.round(sc*y1);
+            sw = x1-x0+1;
+            sh = y1-y0+1;
+            area2 = sw*sh;
+            diff = bk.k-avgt;
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            //vart += diff*diff*area2;
+        }
+        vart *= area;
+        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
+    }
+}
 function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
 {
     if (with_angle)
@@ -19140,109 +19424,6 @@ function basisv(basis, avg, w, h)
     var k, K = basis.length, bk, v = 0;
     for (k=0; k<K; ++k) {bk = basis[k]; v += ((bk.x1-bk.x0+1)/w*(bk.k-avg))*((bk.y1-bk.y0+1)/h*(bk.k-avg));}
     return v;
-}
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
-{
-    // normalized cross-correlation at point (x,y)
-    var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
-        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
-        is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
-        is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
-    if (is_vertical)
-    {
-        // swap x/y
-        tws = ths0;
-        ths = tws0;
-    }
-    area = tws0*ths0;
-    if (is_tilted)
-    {
-        sum1 = rsatsum(rsat1, w, h, x, y, tws0, ths0);
-        sum2 = rsatsum(rsat2, w, h, x, y, tws0, ths0);
-    }
-    else
-    {
-        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
-        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
-    }
-    avgf = sum1/area;
-    varf = stdMath.abs(sum2-sum1*avgf);
-    if (1 >= K)
-    {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
-    }
-    else
-    {
-        if (varf < 1e-3) return 0;
-        varft = 0; //vart = 0;
-        for (k=0; k<K; ++k)
-        {
-            bk = basis[k];
-            // up to 8 cardinal rotations supported (ie matches every 45 deg)
-            if (-90 === rot || 270 === rot)
-            {
-                x0 = bk.y0;
-                y0 = bk.x0;
-                x1 = bk.y1;
-                y1 = bk.x1;
-            }
-            else if (180 === rot || -180 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-            }
-            else if (-270 === rot || 90 === rot)
-            {
-                y1 = tw-1-bk.x0;
-                x1 = th-1-bk.y0;
-                y0 = tw-1-bk.x1;
-                x0 = th-1-bk.y1;
-            }
-            else if (-45 === rot || 315 === rot)
-            {
-                x0 = bk.x0;
-                x1 = bk.x1;
-                y1 = th-1-bk.y0;
-                y0 = th-1-bk.y1;
-            }
-            else if (135 === rot || -225 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                x0 = tw-1-bk.x1;
-                y0 = bk.y0;
-                y1 = bk.y1;
-            }
-            else if (-135 === rot || 225 === rot)
-            {
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-            }
-            else // 0, 360, -360, 45, -315, ..
-            {
-                x0 = bk.x0;
-                y0 = bk.y0;
-                x1 = bk.x1;
-                y1 = bk.y1;
-            }
-            x0 = stdMath.round(sc*x0);
-            y0 = stdMath.round(sc*y0);
-            x1 = stdMath.round(sc*x1);
-            y1 = stdMath.round(sc*y1);
-            sw = x1-x0+1;
-            sh = y1-y0+1;
-            area2 = sw*sh;
-            diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
-            //vart += diff*diff*area2;
-        }
-        vart *= area;
-        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
-    }
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;
