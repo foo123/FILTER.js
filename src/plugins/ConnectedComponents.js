@@ -126,6 +126,7 @@ FILTER.Create({
     ,mode: MODE.COLOR
     ,tolerance: 1e-6
     ,minArea: 20
+    ,maxArea: Infinity
     ,color: 0
 
     // this is the filter constructor
@@ -143,6 +144,7 @@ FILTER.Create({
         {
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minArea) self.minArea = params.minArea || 0;
+            if (null != params.maxArea) self.maxArea = params.maxArea;
             if (null != params.color) self.color = params.color || 0;
             if (null != params.selection) self.selection = params.selection || null;
         }
@@ -154,6 +156,7 @@ FILTER.Create({
         return {
             tolerance: self.tolerance
             ,minArea: self.minArea
+            ,maxArea: self.maxArea
             ,color: self.color
         };
     }
@@ -162,6 +165,7 @@ FILTER.Create({
         var self = this;
         self.tolerance = params.tolerance;
         self.minArea = params.minArea;
+        self.maxArea = params.maxArea;
         self.color = params.color;
         return self;
     }
@@ -222,7 +226,7 @@ FILTER.Create({
         }
         D = new A32F((x2-x1+1)*(y2-y1+1));
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
-        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, x1, y1, x2, y2)};
+        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, self.maxArea, x1, y1, x2, y2)};
         return im;
     }
 });
@@ -239,6 +243,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
+            //delta *= 360;
             for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
             {
                 if (x >= ww) {x=x0; ++y; yw+=w;}
@@ -281,6 +286,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
+            //delta *= 360;
             for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
             {
                 if (x >= ww) {x=x0; ++y; yw+=w;}
@@ -317,7 +323,7 @@ Label.prototype = {
     x1:0,
     y1:0,
     x2:0,
-    y2:0
+    y2:0,
 };
 function root_of(label)
 {
@@ -329,9 +335,9 @@ function root_of(label)
         y1 = min(y1, label.y1);
         x2 = max(x2, label.x2);
         y2 = max(y2, label.y2);
+        label.x1 = x1; label.y1 = y1;
+        label.x2 = x2; label.y2 = y2;
     }
-    label.x1 = x1; label.y1 = y1;
-    label.x2 = x2; label.y2 = y2;
     return label;
 }
 function merge(l1, l2)
@@ -339,19 +345,15 @@ function merge(l1, l2)
     l1 = root_of(l1); l2 = root_of(l2);
     if (l1 !== l2)
     {
-        l2.x1 = min(l2.x1, l1.x1);
-        l2.y1 = min(l2.y1, l1.y1);
-        l2.x2 = max(l2.x2, l1.x2);
-        l2.y2 = max(l2.y2, l1.y2);
-        l1.x1 = l2.x1;
-        l1.y1 = l2.y1;
-        l1.x2 = l2.x2;
-        l1.y2 = l2.y2;
+        l1.x1 = l2.x1 = min(l2.x1, l1.x1);
+        l1.y1 = l2.y1 = min(l2.y1, l1.y1);
+        l1.x2 = l2.x2 = max(l2.x2, l1.x2);
+        l1.y2 = l2.y2 = max(l2.y2, l1.y2);
         l1.root = l2;
     }
 }
 
-function connected_components(output, w, h, stride, D, K, delta, V0, invert, return_bb, minArea, x0, y0, x1, y1)
+function connected_components(output, w, h, stride, D, K, delta, V0, invert, return_bb, minArea, maxArea, x0, y0, x1, y1)
 {
     if (null == x0) {x0 = 0; y0 = 0; x1 = w-1; y1 = h-1;}
     stride = stride|0;
@@ -359,35 +361,35 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
         size = len>>>stride,  K8_CONNECTIVITY = 8 === K,
         mylab, c, r, d, row, numlabels, label, background_label = null,
         need_match = null != V0, color, a, b, delta2 = 2*delta,
-        ww = x1 - x0 + 1, hh = y1 - y0 + 1, bbw, bbh, bbarea;
+        /*ww = x1 - x0 + 1, hh = y1 - y0 + 1,*/ total, bb, bbw, bbh, bbarea;
 
     label = new Array(size);
     background_label = need_match ? new Label(0, 0) : null;
 
-    label[0] = need_match && (abs(delta+D[0]-V0)>delta2) ? background_label : new Label(0, 0);
+    label[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new Label(0, 0);
 
     // label the first row.
     for (c=1; c<w; ++c)
     {
-        label[c] = need_match && (abs(delta+D[c]-V0)>delta2) ? background_label : (abs(delta+D[c]-D[c-1])<=delta2 ? label[c-1] : new Label(c, 0));
+        label[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? label[c-1] : new Label(c, 0));
     }
 
     // label subsequent rows.
     for (r=1,row=w; r<h; ++r,row+=w)
     {
         // label the first pixel on this row.
-        label[row] = need_match && (abs(delta+D[row]-V0)>delta2) ? background_label : (abs(delta+D[row]-D[row-w])<=delta2 ? label[row-w] : new Label(0, r));
+        label[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? label[row-w] : new Label(0, r));
 
         // label subsequent pixels on this row.
         for (c=1; c<w; ++c)
         {
-            if (need_match && (abs(delta+D[row+c]-V0)>delta2))
+            if (need_match && (abs(D[row+c]-V0)>delta))
             {
                 label[row+c] = background_label;
                 continue;
             }
             // inherit label from pixel on the left if we're in the same blob.
-            mylab = background_label === label[row+c-1] ? null : (abs(delta+D[row+c]-D[row+c-1])<=delta2 ? label[row+c-1] : null);
+            mylab = background_label === label[row+c-1] ? null : (abs(D[row+c]-D[row+c-1])<=delta ? label[row+c-1] : null);
 
             //for(d=d0; d<1; d++)
             // full loop unrolling
@@ -396,14 +398,14 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
             if (K8_CONNECTIVITY)
             {
                 //d = -1;
-                if ((background_label !== label[row-w+c-1/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c-1/*+d*/])<=delta2))
+                if ((background_label !== label[row-w+c-1/*+d*/]) && (abs(D[row+c]-D[row-w+c-1/*+d*/])<=delta))
                 {
                     if (null != mylab) merge(mylab, label[row-w+c-1/*+d*/]);
                     else mylab = label[row-w+c-1/*+d*/];
                 }
             }
             //d = 0;
-            if ((background_label !== label[row-w+c/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c/*+d*/])<=delta2))
+            if ((background_label !== label[row-w+c/*+d*/]) && (abs(D[row+c]-D[row-w+c/*+d*/])<=delta))
             {
                 if (null != mylab) merge(mylab, label[row-w+c/*+d*/]);
                 else mylab = label[row-w+c/*+d*/];
@@ -422,7 +424,7 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
 
             if (K8_CONNECTIVITY &&
                 (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) &&
-                (abs(delta+D[row+c-1]-D[row-w+c])<=delta2))
+                (abs(D[row+c-1]-D[row-w+c])<=delta))
                 merge(label[row+c-1], label[row-w+c]);
         }
     }
@@ -436,17 +438,30 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
     for (c=0; c<size; ++c)
     {
         label[c] = root_of(label[c]);
-        if (0 > label[c].id)
+        if (0 > label[c].id) label[c].id = numlabels++;
+        if (return_bb && (background_label !== label[c]))
         {
-            label[c].id = numlabels++;
-            if (return_bb) output[label[c].id] = label[c];
+            bb = output[label[c].id];
+            if (!bb)
+            {
+                output[label[c].id] = {x1:label[c].x1, y1:label[c].y1, x2:label[c].x2, y2:label[c].y2, k:abs(D[c]-V0)};
+            }
+            else
+            {
+                bb.x1 = min(bb.x1, label[c].x1);
+                bb.y1 = min(bb.y1, label[c].y1);
+                bb.x2 = max(bb.x2, label[c].x2);
+                bb.y2 = max(bb.y2, label[c].y2);
+                bb.k = max(bb.k, abs(D[c]-V0));
+            }
         }
     }
     if (return_bb)
     {
+        total = w*h;
         output = Object.keys(output).reduce(function(out, id) {
-            var label = output[id], w = label.x2-label.x1+1, h = label.y2-label.y1+1, area = w*h;
-            if (area >= minArea) out.push({x:label.x1, y:label.y1, width:w, height:h, area:area});
+            var bb = output[id], w = bb.x2-bb.x1+1, h = bb.y2-bb.y1+1, area = w*h;
+            if (area >= minArea && area <= maxArea) out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, k:bb.k/delta});
             return out;
         }, []);
     }
