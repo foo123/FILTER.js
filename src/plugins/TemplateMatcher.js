@@ -233,7 +233,7 @@ FILTER.Create({
             ro = rot[r];
             isTilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro);
             isVertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
-            isSwap = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
+            isSwap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || 135 === ro || -225 === ro || -45 === ro || 315 === ro);
             sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
@@ -271,7 +271,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
+                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, ro, sin, cos);
                         }
                     }
                 }
@@ -300,11 +300,11 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     if (null == ro) ro = 0;
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
     var tws = tws0, ths = ths0, area, area2, sw, sh,
-        x0, y0, x1, y1, dx = 0, dy = 0, bk, k, K = basis.length,
+        x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
         is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_tilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro),
-        is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || -135 === ro || 225 === ro || 45 === ro || -315 === ro);
+        is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || 135 === ro || -225 === ro || -45 === ro || 315 === ro);
     if (is_swap)
     {
         // swap x/y
@@ -313,10 +313,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     if (is_tilted)
     {
-        //if (45 === ro || -315 === ro) {dx = stdMath.round(2*tws); dy = stdMath.round(-ths);}
-        //if (-135 === ro || 225 === ro) {dx = stdMath.round(2*tws); dy = stdMath.round(-ths);}
-        sum1 = rsatsum(rsat1, w, h, x+dx, y+dy, tws, ths);
-        sum2 = rsatsum(rsat2, w, h, x+dx, y+dy, tws, ths);
+        sum1 = rsatsum(rsat1, w, h, x, y, tws, ths);
+        sum2 = rsatsum(rsat2, w, h, x, y, tws, ths);
     }
     else
     {
@@ -338,60 +336,28 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
         {
             bk = basis[k];
             // up to 8 cardinal rotations supported (ie matches every 45 deg)
-            if (270 === ro || -90 === ro)
+            if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
             {
                 x0 = bk.y0;
-                y0 = bk.x0;
+                y0 = tw-1-bk.x1;
                 x1 = bk.y1;
-                y1 = bk.x1;
+                y1 = tw-1-bk.x0;
             }
-            else if (180 === ro || -180 === ro)
+            else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
             {
                 x0 = tw-1-bk.x1;
                 y0 = th-1-bk.y1;
                 x1 = tw-1-bk.x0;
                 y1 = th-1-bk.y0;
             }
-            else if (90 === ro || -270 === ro)
+            else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
             {
-                x0 = th-1-bk.y1;
-                y0 = tw-1-bk.x1;
-                x1 = th-1-bk.y0;
-                y1 = tw-1-bk.x0;
-            }
-            else if (-135 === ro || 225 === ro)
-            {
-                // -180 - 45
-                x0 = tw-1-bk.x1;
-                y0 = bk.y0;
-                x1 = tw-1-bk.x0;
-                y1 = bk.y1;
-            }
-            else if (-225 === ro || 135 === ro)
-            {
-                // -90 - 45
                 x0 = th-1-bk.y1;
                 y0 = bk.x0;
                 x1 = th-1-bk.y0;
                 y1 = bk.x1;
             }
-            else if (315 === ro || -45 === ro)
-            {
-                // 90 - 45
-                x0 = bk.y0;
-                y0 = tw-1-bk.x1;
-                x1 = bk.y1;
-                y1 = tw-1-bk.x0;
-            }
-            else if (45 === ro || -315 === ro)
-            {
-                // as is
-                x0 = bk.x0;
-                y0 = bk.y0;
-                x1 = bk.x1;
-                y1 = bk.y1;
-            }
-            else // 0, 360, -360, ..
+            else // 0, 360, -360, 45, -315..
             {
                 // as is
                 x0 = bk.x0;
@@ -407,31 +373,36 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0+dx, y+y0+dy, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
             //vart += diff*diff*area2;
         }
         vart *= area;
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
+function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sin, cos)
 {
+    var x0 = 0, y0 = 0, dx = 0, dy = 0, d = 0;
+    // ??
+    if (45 === ro || -315 === ro || -45 === ro || 315 === ro) {d = stdMath.sqrt(w*w+h*h); x0 = y0 = stdMath.abs(d/2*sin/cos);}
+    else if (135 === ro || -225 === ro || -135 === ro || 225 === ro) {d = stdMath.sqrt(w*w+h*h); x0 = y0 = -stdMath.abs(d/2*sin/cos);}
     if (with_angle)
     {
-        return {x:x, y:y, width:w, height:h};
+        return {x:x+x0, y:y+y0, width:w, height:h};
     }
     else if (is_tilted)
     {
-        var dx = stdMath.abs(cos*w + sin*h - w)/2, dy = stdMath.abs(-sin*w + cos*h - h)/2;
-        return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
+        dx = stdMath.abs(cos*w + sin*h - w)/2;
+        dy = stdMath.abs(-sin*w + cos*h - h)/2;
+        return {x:x+x0-dx/2, y:y+y0-dy/2, width:w+dx, height:h+dy};
     }
     else if (is_vertical)
     {
-        return {x:x, y:y, width:h, height:w};
+        return {x:x+x0, y:y+y0, width:h, height:w};
     }
     else
     {
-        return {x:x, y:y, width:w, height:h};
+        return {x:x+x0, y:y+y0, width:w, height:h};
     }
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
