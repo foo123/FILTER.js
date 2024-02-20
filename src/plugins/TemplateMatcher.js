@@ -9,8 +9,10 @@
 
 var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
     sat = FilterUtil.sat, satsum = FilterUtil.satsum, rsatsum = FilterUtil.rsatsum,
+    merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
+    cos45 = stdMath.sqrt(2)/2, sin45 = cos45;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -162,7 +164,7 @@ FILTER.Create({
             rot = self.rot, scale = self.sc,
             thresh = self.threshold,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, tt, tw2, th2, tws, ths,
+            r, rl, ro, sc, tt, twh, tw2, th2, tws, ths, twhs,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
             maxMatches = self.maxMatches,
@@ -205,9 +207,9 @@ FILTER.Create({
 
         if (metaData && (metaData.tmfilter_SAT/* || metaData.haarfilter_SAT*/))
         {
-            sat1 = metaData.tmfilter_SAT//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
-            sat2 = metaData.tmfilter_SAT2// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
-            rsat = metaData.tmfilter_RSAT// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
+            sat1 = metaData.tmfilter_SAT;//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
+            sat2 = metaData.tmfilter_SAT2;// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
+            rsat = metaData.tmfilter_RSAT;// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
             rsat2 = metaData.tmfilter_RSAT2;
         }
         else
@@ -228,6 +230,7 @@ FILTER.Create({
             }
         }
 
+        twh = stdMath.sqrt(tw*tw + th*th);
         for (r=0,rl=rot.length; r<rl; ++r)
         {
             ro = rot[r];
@@ -238,7 +241,7 @@ FILTER.Create({
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
-                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
+                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th); twhs = stdMath.round(sc*twh);
                 if (isSwap)
                 {
                     tw2 = ths;
@@ -271,7 +274,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, ro, sin, cos);
+                            max[maxc++] = rect(x, y, tws, ths, twhs, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
                         }
                     }
                 }
@@ -283,7 +286,7 @@ FILTER.Create({
             }
             if (matches.length)
             {
-                matches = FilterUtil.merge_features(matches, minNeighbors, eps);
+                matches = merge_features(matches, minNeighbors, eps);
                 if (returnAngle) matches.forEach(function(match) {match.angle = ro;});
                 all_matches.push.apply(all_matches, matches);
             }
@@ -299,8 +302,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     if (null == sc) sc = 1;
     if (null == ro) ro = 0;
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
-    var tws = tws0, ths = ths0, area, area2, sw, sh,
-        x0, y0, x1, y1, bk, k, K = basis.length,
+    var tws = tws0, ths = ths0, area, area2, wh, sw, sh,
+        x0, y0, x1, y1, sgn = 1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
         is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_tilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro),
@@ -321,6 +324,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
+    wh = stdMath.sqrt(tws*tws+ths*ths);
     area = tws0*ths0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
@@ -356,6 +360,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
                 y0 = bk.x0;
                 x1 = th-1-bk.y0;
                 y1 = bk.x1;
+                sgn = 1;
             }
             else // 0, 360, -360, 45, -315..
             {
@@ -364,6 +369,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
                 y0 = bk.y0;
                 x1 = bk.x1;
                 y1 = bk.y1;
+                sgn = -1;
             }
             x0 = stdMath.round(sc*x0);
             y0 = stdMath.round(sc*y0);
@@ -373,19 +379,22 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+stdMath.round(cos45*(x0+tws/2)+sgn*sin45*(y0+ths/2)-wh/2), y+stdMath.round(cos45*(y0+ths/2)-sgn*sin45*(x0+tws/2)-wh/2), sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
             //vart += diff*diff*area2;
         }
         vart *= area;
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sin, cos)
+function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
 {
-    var x0 = 0, y0 = 0, dx = 0, dy = 0, d = 0;
+    var x0 = 0, y0 = 0, dx = 0, dy = 0;
     // ??
-    if (45 === ro || -315 === ro || -45 === ro || 315 === ro) {d = stdMath.sqrt(w*w+h*h); x0 = y0 = stdMath.abs(d/2*sin/cos);}
-    else if (135 === ro || -225 === ro || -135 === ro || 225 === ro) {d = stdMath.sqrt(w*w+h*h); x0 = y0 = -stdMath.abs(d/2*sin/cos);}
+    /*if (is_tilted)
+    {
+        x0 = stdMath.abs(0.5*wh);
+        y0 = stdMath.abs(0.5*wh);
+    }*/
     if (with_angle)
     {
         return {x:x+x0, y:y+y0, width:w, height:h};
