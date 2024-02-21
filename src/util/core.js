@@ -2287,10 +2287,10 @@ FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
     x0 -= 1; y0 -= 1;
     return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
 };
-FilterUtil.rsatsum = function(rsat, w, h, x, y, ww, hh) {
+FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
     //x = clamp(x, 0, w-1);
     //y = clamp(y, 0, h-1);
-    var xw = x+ww-1, yw = y+ww-1, xh = x-hh+1, yh = y+hh-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
+    var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 };
 FilterUtil.histogram = histogram;

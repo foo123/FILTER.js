@@ -260,11 +260,11 @@ FILTER.Create({
                     if (x + tw2 <= x2 && y + th2 <= y2)
                     {
                         score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths)   // R
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs)   // R
                         : ((
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths) + // R
-                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths) + // G
-                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths)   // B
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs) + // R
+                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths, twhs) + // G
+                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths, twhs)   // B
                         ) / 3));
                         if (score >= tt)
                         {
@@ -274,7 +274,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, twhs, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
+                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
                         }
                     }
                 }
@@ -296,18 +296,38 @@ FILTER.Create({
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0)
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0, twhs)
 {
     // normalized cross-correlation at point (x,y)
     if (null == sc) sc = 1;
     if (null == ro) ro = 0;
-    if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
-    var tws = tws0, ths = ths0, area, area2, wh, sw, sh,
-        x0, y0, x1, y1, sgn = 1, bk, k, K = basis.length,
+    if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
+    var tws = tws0, ths = ths0, area, area2, sw, sh,
+        x0, y0, x1, y1, c, s, cx, cy, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
         is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_tilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro),
         is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || 135 === ro || -225 === ro || -45 === ro || 315 === ro);
+    if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
+    {
+        c = cos45;
+        s = sin45;
+    }
+    else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
+    {
+        c = cos45;
+        s = sin45;
+    }
+    else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
+    {
+        c = cos45;
+        s = sin45;
+    }
+    else
+    {
+        c = cos45;
+        s = sin45;
+    }
     if (is_swap)
     {
         // swap x/y
@@ -316,15 +336,18 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     if (is_tilted)
     {
-        sum1 = rsatsum(rsat1, w, h, x, y, tws, ths);
-        sum2 = rsatsum(rsat2, w, h, x, y, tws, ths);
+        cx = stdMath.round(c*(-tws/2)+s*(-ths/2)-(-tws/2));
+        cy = stdMath.round(c*(-ths/2)-s*(-tws/2)-(-ths/2));
+        sum1 = rsatsum(rsat1, w, h, x+cx, y+cy, tws, ths);
+        sum2 = rsatsum(rsat2, w, h, x+cx, y+cy, tws, ths);
     }
     else
     {
+        cx = 0;
+        cy = 0;
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
-    wh = stdMath.sqrt(tws*tws+ths*ths);
     area = tws0*ths0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
@@ -360,7 +383,6 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
                 y0 = bk.x0;
                 x1 = th-1-bk.y0;
                 y1 = bk.x1;
-                sgn = 1;
             }
             else // 0, 360, -360, 45, -315..
             {
@@ -369,7 +391,6 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
                 y0 = bk.y0;
                 x1 = bk.x1;
                 y1 = bk.y1;
-                sgn = -1;
             }
             x0 = stdMath.round(sc*x0);
             y0 = stdMath.round(sc*y0);
@@ -379,39 +400,42 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+stdMath.round(cos45*(x0+tws/2)+sgn*sin45*(y0+ths/2)-wh/2), y+stdMath.round(cos45*(y0+ths/2)-sgn*sin45*(x0+tws/2)-wh/2), sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+cx+stdMath.round(c*x0+s*y0), y+cy+stdMath.round(c*y0-s*x0), sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
             //vart += diff*diff*area2;
         }
         vart *= area;
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
+function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
 {
-    var x0 = 0, y0 = 0, dx = 0, dy = 0;
-    // ??
-    /*if (is_tilted)
-    {
-        x0 = stdMath.abs(0.5*wh);
-        y0 = stdMath.abs(0.5*wh);
-    }*/
+    var dx = 0, dy = 0;
     if (with_angle)
     {
-        return {x:x+x0, y:y+y0, width:w, height:h};
+        if (is_tilted)
+        {
+            dx = cos*(w/2)+sin*(h/2)+x;
+            dy = -sin*(w/2)+cos*(h/2)+y;
+            return {x:dx-w/2, y:dy-h/2, width:w, height:h};
+        }
+        else
+        {
+            return {x:x, y:y, width:w, height:h};
+        }
     }
     else if (is_tilted)
     {
         dx = stdMath.abs(cos*w + sin*h - w)/2;
         dy = stdMath.abs(-sin*w + cos*h - h)/2;
-        return {x:x+x0-dx/2, y:y+y0-dy/2, width:w+dx, height:h+dy};
+        return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
     }
     else if (is_vertical)
     {
-        return {x:x+x0, y:y+y0, width:h, height:w};
+        return {x:x, y:y, width:h, height:w};
     }
     else
     {
-        return {x:x+x0, y:y+y0, width:w, height:h};
+        return {x:x, y:y, width:w, height:h};
     }
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
