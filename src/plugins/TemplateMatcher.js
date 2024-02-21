@@ -303,7 +303,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     if (null == ro) ro = 0;
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
     var tws = tws0, ths = ths0, area, area2, sw, sh,
-        x0, y0, x1, y1, c, s, cx, cy, bk, k, K = basis.length,
+        x0, y0, x1, y1, c, s, sx, sy, cx, cy, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
         is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_tilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro),
@@ -312,21 +312,29 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     {
         c = cos45;
         s = sin45;
+        sx = 1;
+        sy = 1;
     }
     else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
     {
         c = cos45;
         s = sin45;
+        sx = 1;
+        sy = 1;
     }
     else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
     {
         c = cos45;
         s = sin45;
+        sx = 1;
+        sy = 1;
     }
     else
     {
         c = cos45;
-        s = sin45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
     }
     if (is_swap)
     {
@@ -336,8 +344,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     if (is_tilted)
     {
-        cx = stdMath.round(c*(-tws/2)+s*(-ths/2)-(-tws/2));
-        cy = stdMath.round(c*(-ths/2)-s*(-tws/2)-(-ths/2));
+        cx = stdMath.round(c*(-sx*tws/2)+s*(-sy*ths/2)-(-sx*tws/2));
+        cy = stdMath.round(c*(-sy*ths/2)-s*(-sx*tws/2)-(-sy*ths/2));
         sum1 = rsatsum(rsat1, w, h, x+cx, y+cy, tws, ths);
         sum2 = rsatsum(rsat2, w, h, x+cx, y+cy, tws, ths);
     }
@@ -409,14 +417,42 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
 }
 function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
 {
-    var dx = 0, dy = 0;
+    var dx = 0, dy = 0, sx = 1, sy = 1, c = 1, s = 0;
     if (with_angle)
     {
         if (is_tilted)
         {
-            dx = cos*(w/2)+sin*(h/2)+x;
-            dy = -sin*(w/2)+cos*(h/2)+y;
-            return {x:dx-w/2, y:dy-h/2, width:w, height:h};
+            if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
+            {
+                c = cos45;
+                s = sin45;
+                sx = 1;
+                sy = 1;
+            }
+            else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
+            {
+                c = cos45;
+                s = sin45;
+                sx = 1;
+                sy = 1;
+            }
+            else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
+            {
+                c = cos45;
+                s = sin45;
+                sx = 1;
+                sy = 1;
+            }
+            else
+            {
+                c = cos45;
+                s = -sin45;
+                sx = -1;
+                sy = 1;
+            }
+            dx = c*(-sx*w/2)+s*(-sy*h/2)-(-sx*w/2);
+            dy = c*(-sy*h/2)-s*(-sx*w/2)-(-sy*h/2);
+            return {x:x+dx, y:y+dy, width:w, height:h};
         }
         else
         {
@@ -437,6 +473,10 @@ function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
     {
         return {x:x, y:y, width:w, height:h};
     }
+}
+function sign(x)
+{
+    return 0 > x ? -1 : 1;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
