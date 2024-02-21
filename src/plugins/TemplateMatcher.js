@@ -12,7 +12,7 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
-    cos45 = stdMath.sqrt(2)/2, sin45 = cos45;
+    cos45 = 1/stdMath.sqrt(2), sin45 = cos45;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -274,7 +274,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
+                            max[maxc++] = rect(x, y, tws, ths, twhs, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
                         }
                     }
                 }
@@ -318,8 +318,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
     {
         c = cos45;
-        s = sin45;
-        sx = 1;
+        s = -sin45;
+        sx = -1;
         sy = 1;
     }
     else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
@@ -344,8 +344,8 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     if (is_tilted)
     {
-        cx = stdMath.round(c*(-sx*tws/2)+s*(-sy*ths/2)-(-sx*tws/2));
-        cy = stdMath.round(c*(-sy*ths/2)-s*(-sx*tws/2)-(-sy*ths/2));
+        cx = stdMath.round((c*(-sx*tws)+s*(-sy*ths)-(-sx*tws))/2);
+        cy = stdMath.round((c*(-sy*ths)-s*(-sx*tws)-(-sy*ths))/2);
         sum1 = rsatsum(rsat1, w, h, x+cx, y+cy, tws, ths);
         sum2 = rsatsum(rsat2, w, h, x+cx, y+cy, tws, ths);
     }
@@ -415,43 +415,43 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
+function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
 {
     var dx = 0, dy = 0, sx = 1, sy = 1, c = 1, s = 0;
+    if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
+    else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
     if (with_angle)
     {
         if (is_tilted)
         {
-            if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
-            {
-                c = cos45;
-                s = sin45;
-                sx = 1;
-                sy = 1;
-            }
-            else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
-            {
-                c = cos45;
-                s = sin45;
-                sx = 1;
-                sy = 1;
-            }
-            else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
-            {
-                c = cos45;
-                s = sin45;
-                sx = 1;
-                sy = 1;
-            }
-            else
-            {
-                c = cos45;
-                s = -sin45;
-                sx = -1;
-                sy = 1;
-            }
-            dx = c*(-sx*w/2)+s*(-sy*h/2)-(-sx*w/2);
-            dy = c*(-sy*h/2)-s*(-sx*w/2)-(-sy*h/2);
+            dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
+            dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
             return {x:x+dx, y:y+dy, width:w, height:h};
         }
         else
@@ -461,9 +461,9 @@ function rect(x, y, w, h, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
     }
     else if (is_tilted)
     {
-        dx = stdMath.abs(cos*w + sin*h - w)/2;
-        dy = stdMath.abs(-sin*w + cos*h - h)/2;
-        return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
+        dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
+        dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
+        return {x:x+dx, y:y+dy, width:w, height:h};
     }
     else if (is_vertical)
     {
