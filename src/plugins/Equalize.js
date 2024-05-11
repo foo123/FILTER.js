@@ -23,19 +23,23 @@ FILTER.Create({
     ,mode: MODE.INTENSITY
     ,channel: 0
     ,factor: 0.0
+    ,range: null
 
-    ,init: function(mode, channel, factor) {
+    ,init: function(mode, channel, factor, range) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.channel = channel || 0;
+        self.range = [0, 255];
         if (null != factor) self.factor = (+factor) || 0;
+        if (null != range) self.range = range;
     }
 
     ,serialize: function() {
         var self = this;
         return {
              channel: self.channel,
-             factor: self.factor
+             factor: self.factor,
+             range: self.range
         };
     }
 
@@ -43,6 +47,7 @@ FILTER.Create({
         var self = this;
         self.channel = params.channel;
         self.factor = params.factor;
+        self.range = params.range;
         return self;
     }
 
@@ -52,6 +57,13 @@ FILTER.Create({
             rangeR, rangeG, rangeB,
             cdfR, cdfG, cdfB,
             f = self.factor || 0,
+            range = self.range,
+            ra = range[0] || 0,
+            rb = range[1] || 255,
+            ga = (null == range[2] ? ra : range[2]) || 0,
+            gb = (null == range[3] ? rb : range[3]) || 255,
+            ba = (null == range[4] ? ra : range[4]) || 0,
+            bb = (null == range[5] ? rb : range[5]) || 255,
             t0, t1, t2, v,
             i, l=im.length;
 
@@ -70,12 +82,33 @@ FILTER.Create({
                 r = im[i  ];
                 g = im[i+1];
                 b = im[i+2];
-                v = cdf.binR[r]*rangeR;
-                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
-                v = cdf.binG[g]*rangeG;
-                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
-                v = cdf.binB[b]*rangeB;
-                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                if (ra <= r && r <= rb)
+                {
+                    v = cdf.binR[r]*rangeR;
+                    t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                }
+                else
+                {
+                    t0 = r;
+                }
+                if (ga <= g && g <= gb)
+                {
+                    v = cdf.binG[g]*rangeG;
+                    t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                }
+                else
+                {
+                    t1 = g;
+                }
+                if (ba <= b && b <= bb)
+                {
+                    v = cdf.binB[b]*rangeB;
+                    t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                }
+                else
+                {
+                    t2 = b;
+                }
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
@@ -92,12 +125,33 @@ FILTER.Create({
                 r = im[i  ];
                 g = im[i+1];
                 b = im[i+2];
-                v = cdf.binR[r]*rangeR;
-                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
-                v = cdf.binG[g]*rangeG;
-                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
-                v = cdf.binB[b]*rangeB;
-                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                if (ra <= r && r <= rb)
+                {
+                    v = cdf.binR[r]*rangeR;
+                    t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                }
+                else
+                {
+                    t0 = r;
+                }
+                if (ga <= g && g <= gb)
+                {
+                    v = cdf.binG[g]*rangeG;
+                    t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                }
+                else
+                {
+                    t1 = g;
+                }
+                if (ba <= b && b <= bb)
+                {
+                    v = cdf.binB[b]*rangeB;
+                    t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                }
+                else
+                {
+                    t2 = b;
+                }
                 im[i  ] = t0|0;
                 im[i+1] = t1|0;
                 im[i+2] = t2|0;
@@ -116,6 +170,8 @@ FILTER.Create({
             range, cdf, i, v,
             l = im.length, f = self.factor || 0,
             channel = self.channel || 0,
+            va = self.range[0] || 0,
+            vb = self.range[1] || 255,
             mode = self.mode;
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
@@ -151,8 +207,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     r = r|0;
@@ -163,8 +227,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i+channel] = r|0;
@@ -174,8 +246,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+1]]*range;
-                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+1];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        y = v;
+                    }
                     cb = im[i+2];
                     cr = im[i  ];
                     r = (y                      + 1.402   * (cr-128));
@@ -197,8 +277,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     im[i] = r; im[i+1] = r; im[i+2] = r;
                 }
             }
@@ -206,8 +294,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     im[i+channel] = r;
                 }
             }
@@ -215,8 +311,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+1]]*range;
-                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+1];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        y = v;
+                    }
                     cb = im[i+2];
                     cr = im[i  ];
                     r = (y                      + 1.402   * (cr-128));

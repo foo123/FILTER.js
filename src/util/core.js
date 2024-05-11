@@ -1691,6 +1691,41 @@ function histogram(im, channel, cdf)
     }
     return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
 }
+function integral_histogram(im, w, h, channel)
+{
+    channel = channel || 0;
+    var v, i, j, k, x, y, sum = new A32F(256),
+        l = im.length, total = (l>>>2),
+        w4 = (w << 2), w256 = w*256,
+        min = 255, max = 0,
+        h = new A32F(256*total);
+
+    for (x=0,y=0,i=0,k=0; i<w4; ++x,i+=4,k+=256)
+    {
+        v = im[i+channel];
+        for (j=0; j<256; ++j) h[k+j] = (x > 0 ? h[k-256+j] : 0) + (v === j ? 1 : 0);
+        min = Min(v, min);
+        max = Max(v, max);
+    }
+    for (j=0; j<256; ++j) sum[j] = 0;
+    for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+    {
+        if (x >= w)
+        {
+            x=0; ++y;
+            for (j=0; j<256; ++j) sum[j] = 0;
+        }
+        v = im[i+channel];
+        for (j=0; j<256; ++j)
+        {
+            h[k+j] = h[k-w256+j] + sum[j] + (v === j ? 1 : 0);
+            ++sum[v];
+        }
+        min = Min(v, min);
+        max = Max(v, max);
+    }
+    return {bin:h, channel:channel, min:min, max:max, width:w, height: h, total:total};
+}
 function otsu(bin, tot, min, max)
 {
     var omega0, omega1,
@@ -2293,6 +2328,7 @@ FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 };
 FilterUtil.histogram = histogram;
+FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
