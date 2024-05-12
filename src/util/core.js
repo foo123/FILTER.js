@@ -1671,12 +1671,16 @@ function histogram(im, channel, cdf)
     channel = channel || 0;
     var h = new A32F(256), v, i, l = im.length,
         accum = 0, min = 255, max = 0;
+    for (i=0; i<256; ++i) h[i] = 0;
     for (i=0; i<l; i+=4)
     {
-        v = im[i+channel];
-        ++h[v];
-        min = Min(v, min);
-        max = Max(v, max);
+        if (0 < im[i+3])
+        {
+            v = im[i+channel];
+            ++h[v];
+            min = Min(v, min);
+            max = Max(v, max);
+        }
     }
     if (cdf)
     {
@@ -1693,38 +1697,142 @@ function histogram(im, channel, cdf)
 }
 function integral_histogram(im, w, h, channel)
 {
-    channel = channel || 0;
-    var v, i, j, k, x, y, sum = new A32F(256),
+    var r, g, b, i, j, k, kk, x, y,
         l = im.length, total = (l>>>2),
-        w4 = (w << 2), w256 = w*256,
-        min = 255, max = 0,
-        h = new A32F(256*total);
+        w4 = w*4, w256 = w*256,
+        minr = 255, maxr = 0,
+        ming = 255, maxg = 0,
+        minb = 255, maxb = 0,
+        sumr = new A32F(256), sumg, sumb,
+        hr = new A32F(256*total), hg, hb;
 
-    for (x=0,y=0,i=0,k=0; i<w4; ++x,i+=4,k+=256)
+    if (null == channel)
     {
-        v = im[i+channel];
-        for (j=0; j<256; ++j) h[k+j] = (x > 0 ? h[k-256+j] : 0) + (v === j ? 1 : 0);
-        min = Min(v, min);
-        max = Max(v, max);
+        sumg = new A32F(256);
+        sumb = new A32F(256);
+        hg = new A32F(256*total);
+        hb = new A32F(256*total);
+        for (x=0,y=0,j=0; j<256; ++j)
+        {
+            hr[0+j] = 0;
+            hg[0+j] = 0;
+            hb[0+j] = 0;
+        }
+        if (0 < im[0+3])
+        {
+            r = im[0  ];
+            g = im[0+1];
+            b = im[0+2];
+            hr[0+r] = 1;
+            hg[0+g] = 1;
+            hb[0+b] = 1;
+            minr = Min(r, minr);
+            maxr = Max(r, maxr);
+            ming = Min(g, ming);
+            maxg = Max(g, maxg);
+            minb = Min(b, minb);
+            maxb = Max(b, maxb);
+        }
+        for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
+        {
+            for (kk=k-256,j=0; j<256; ++j)
+            {
+                hr[k+j] = hr[kk+j];
+                hg[k+j] = hg[kk+j];
+                hb[k+j] = hb[kk+j];
+            }
+            if (0 < im[i+3])
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                ++hr[k+r];
+                ++hg[k+g];
+                ++hb[k+b];
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+                ming = Min(g, ming);
+                maxg = Max(g, maxg);
+                minb = Min(b, minb);
+                maxb = Max(b, maxb);
+            }
+        }
+        for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+        {
+            if (x >= w)
+            {
+                x=0; ++y;
+                for (j=0; j<256; ++j) sumr[j] = sumg[j] = sumb[j] = 0;
+            }
+            for (kk=k-w256,j=0; j<256; ++j)
+            {
+                hr[k+j] = hr[kk+j] + (sumr[j]||0);
+                hg[k+j] = hg[kk+j] + (sumg[j]||0);
+                hb[k+j] = hb[kk+j] + (sumb[j]||0);
+            }
+            if (0 < im[i+3])
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                ++hr[k+r];
+                ++hg[k+g];
+                ++hb[k+b];
+                sumr[r] = (sumr[r]||0) + 1;
+                sumg[g] = (sumg[g]||0) + 1;
+                sumb[b] = (sumb[b]||0) + 1;
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+                ming = Min(g, ming);
+                maxg = Max(g, maxg);
+                minb = Min(b, minb);
+                maxb = Max(b, maxb);
+            }
+        }
+        // pdfs
+        return {bin:[hr,hg,hb], min:[minr,ming,minb], max:[maxr,maxg,maxb], width:w, height:h, total:total};
     }
-    for (j=0; j<256; ++j) sum[j] = 0;
-    for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+    else
     {
-        if (x >= w)
+        channel = channel || 0;
+        for (x=0,y=0,j=0; j<256; ++j) hr[0+j] = 0;
+        if (0 < im[0+3])
         {
-            x=0; ++y;
-            for (j=0; j<256; ++j) sum[j] = 0;
+            r = im[i+channel];
+            hr[0+r] = 1;
+            minr = Min(r, minr);
+            maxr = Max(r, maxr);
         }
-        v = im[i+channel];
-        for (j=0; j<256; ++j)
+        for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
         {
-            h[k+j] = h[k-w256+j] + sum[j] + (v === j ? 1 : 0);
-            ++sum[v];
+            for (kk=k-256,j=0; j<256; ++j) hr[k+j] = hr[kk+j];
+            if (0 < im[i+3])
+            {
+                r = im[i+channel];
+                ++hr[k+r];
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+            }
         }
-        min = Min(v, min);
-        max = Max(v, max);
+        for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+        {
+            if (x >= w)
+            {
+                x=0; ++y;
+                for (j=0; j<256; ++j) sumr[j] = 0;
+            }
+            for (kk=k-w256,j=0; j<256; ++j) hr[k+j] = hr[kk+j] + (sumr[j]||0);
+            if (0 < im[i+3])
+            {
+                r = im[i+channel];
+                ++hr[k+r]; sumr[r] = (sumr[r]||0) + 1;
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+            }
+        }
+        // pdf
+        return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
-    return {bin:h, channel:channel, min:min, max:max, width:w, height: h, total:total};
 }
 function otsu(bin, tot, min, max)
 {
