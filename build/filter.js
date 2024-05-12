@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-12 18:52:13
+*   @built on 2024-05-12 20:12:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-12 18:52:13
+*   @built on 2024-05-12 20:12:15
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -19640,10 +19640,12 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
     }
     if (is_tilted)
     {
-        cx = stdMath.round((c*(-sx*tws)+s*(-sy*ths)-(-sx*tws))/2);
-        cy = stdMath.round((c*(-sy*ths)-s*(-sx*tws)-(-sy*ths))/2);
-        sum1 = rsatsum(rsat1, w, h, x+cx, y+cy, tws, ths);
-        sum2 = rsatsum(rsat2, w, h, x+cx, y+cy, tws, ths);
+        //cx = stdMath.round((c*(-sx*tws)+s*(-sy*ths)-(-sx*tws))/2);
+        //cy = stdMath.round((c*(-sy*ths)-s*(-sx*tws)-(-sy*ths))/2);
+        cx = 0;
+        cy = 0;
+        sum1 = rsatsum(rsat1, w, h, x-ths, y+ths, tws, ths);
+        sum2 = rsatsum(rsat2, w, h, x-ths, y+ths, tws, ths);
     }
     else
     {
@@ -19704,7 +19706,7 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+cx+stdMath.round(c*x0+s*y0), y+cy+stdMath.round(c*y0-s*x0), sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0-sh, y+y0+sh, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
             //vart += diff*diff*area2;
         }
         vart *= area;
@@ -19744,16 +19746,7 @@ function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, c
     }
     if (with_angle)
     {
-        if (is_tilted)
-        {
-            dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
-            dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
-            return {x:x+dx, y:y+dy, width:w, height:h};
-        }
-        else
-        {
-            return {x:x, y:y, width:w, height:h};
-        }
+        return {x:x, y:y, width:w, height:h};
     }
     else if (is_tilted)
     {
