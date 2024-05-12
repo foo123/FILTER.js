@@ -1889,22 +1889,16 @@ function otsu_multi(bin, tot, min, max, sigma_thresh)
 function otsu_multiclass(bin, tot, min, max, n)
 {
     if (n <= 1 || min >= max) return [];
-    var split = _otsu(bin, tot, min, max, true), thresh = split[0], left, right, split2;
+    var thresh = _otsu(bin, tot, min, max), f, left, right;
+    n = stdMath.round(n);
     if (2 === n) return [thresh];
-    left = _otsu(bin, tot, min, thresh, true);
-    right = _otsu(bin, tot, thresh, max, true);
-    if (left[1] > right[1])
-    {
-        split2 = otsu_multiclass(bin, tot, thresh, max, n-2);
-        if (left[0] === thresh) return (split2.length && split2[0] === thresh ? [] : [thresh]).concat(split2);
-        else return (split2.length && split2[0] === thresh ? [left[0]] : [left[0], thresh]).concat(split2);
-    }
-    else
-    {
-        split2 = otsu_multiclass(bin, tot, min, thresh, n-2);
-        if (right[0] === thresh) return split2.concat((split2.length && split2[split2.length-1] === thresh ? [] : [thresh]));
-        else return split2.concat((split2.length && split2[split2.length-1] === thresh ? [right[0]] : [thresh, right[0]]));
-    }
+    f = (thresh-min)/(max-min);
+    left = otsu_multiclass(bin, tot, min, thresh, stdMath.round((n-1)*(f)));
+    right = otsu_multiclass(bin, tot, thresh, max, stdMath.round((n-1)*(1-f)));
+    if (!left.length || left[left.length-1] < thresh) left.push(thresh);
+    if (right.length && right[0] === thresh) right.shift();
+    left.push.apply(left, right);
+    return left;
 }
 var SIN = {}, COS = {};
 function sine(i)

@@ -35,7 +35,7 @@ FILTER.Create({
         if (null != color1) self.color1 = color1;
         self.channel = channel || 0;
         if (null != nclasses) self.nclasses = (+nclasses) || 0;
-        if (sigma && 0 < sigma.length) self.sigma = sigma;
+        if (sigma && sigma.length) self.sigma = sigma;
     }
 
     ,serialize: function() {

@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-24 18:43:19
+*   @built on 2024-05-12 18:52:13
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-01-24 18:43:19
+*   @built on 2024-05-12 18:52:13
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3087,12 +3087,16 @@ function histogram(im, channel, cdf)
     channel = channel || 0;
     var h = new A32F(256), v, i, l = im.length,
         accum = 0, min = 255, max = 0;
+    for (i=0; i<256; ++i) h[i] = 0;
     for (i=0; i<l; i+=4)
     {
-        v = im[i+channel];
-        ++h[v];
-        min = Min(v, min);
-        max = Max(v, max);
+        if (0 < im[i+3])
+        {
+            v = im[i+channel];
+            ++h[v];
+            min = Min(v, min);
+            max = Max(v, max);
+        }
     }
     if (cdf)
     {
@@ -3107,15 +3111,153 @@ function histogram(im, channel, cdf)
     }
     return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
 }
-function otsu(bin, tot, min, max)
+function integral_histogram(im, w, h, channel)
+{
+    var r, g, b, i, j, k, kk, x, y,
+        l = im.length, total = (l>>>2),
+        w4 = w*4, w256 = w*256,
+        minr = 255, maxr = 0,
+        ming = 255, maxg = 0,
+        minb = 255, maxb = 0,
+        sumr = new A32F(256), sumg, sumb,
+        hr = new A32F(256*total), hg, hb;
+
+    if (null == channel)
+    {
+        sumg = new A32F(256);
+        sumb = new A32F(256);
+        hg = new A32F(256*total);
+        hb = new A32F(256*total);
+        for (x=0,y=0,j=0; j<256; ++j)
+        {
+            hr[0+j] = 0;
+            hg[0+j] = 0;
+            hb[0+j] = 0;
+        }
+        if (0 < im[0+3])
+        {
+            r = im[0  ];
+            g = im[0+1];
+            b = im[0+2];
+            hr[0+r] = 1;
+            hg[0+g] = 1;
+            hb[0+b] = 1;
+            minr = Min(r, minr);
+            maxr = Max(r, maxr);
+            ming = Min(g, ming);
+            maxg = Max(g, maxg);
+            minb = Min(b, minb);
+            maxb = Max(b, maxb);
+        }
+        for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
+        {
+            for (kk=k-256,j=0; j<256; ++j)
+            {
+                hr[k+j] = hr[kk+j];
+                hg[k+j] = hg[kk+j];
+                hb[k+j] = hb[kk+j];
+            }
+            if (0 < im[i+3])
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                ++hr[k+r];
+                ++hg[k+g];
+                ++hb[k+b];
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+                ming = Min(g, ming);
+                maxg = Max(g, maxg);
+                minb = Min(b, minb);
+                maxb = Max(b, maxb);
+            }
+        }
+        for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+        {
+            if (x >= w)
+            {
+                x=0; ++y;
+                for (j=0; j<256; ++j) sumr[j] = sumg[j] = sumb[j] = 0;
+            }
+            for (kk=k-w256,j=0; j<256; ++j)
+            {
+                hr[k+j] = hr[kk+j] + (sumr[j]||0);
+                hg[k+j] = hg[kk+j] + (sumg[j]||0);
+                hb[k+j] = hb[kk+j] + (sumb[j]||0);
+            }
+            if (0 < im[i+3])
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                ++hr[k+r];
+                ++hg[k+g];
+                ++hb[k+b];
+                sumr[r] = (sumr[r]||0) + 1;
+                sumg[g] = (sumg[g]||0) + 1;
+                sumb[b] = (sumb[b]||0) + 1;
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+                ming = Min(g, ming);
+                maxg = Max(g, maxg);
+                minb = Min(b, minb);
+                maxb = Max(b, maxb);
+            }
+        }
+        // pdfs only
+        return {bin:[hr,hg,hb], min:[minr,ming,minb], max:[maxr,maxg,maxb], width:w, height:h, total:total};
+    }
+    else
+    {
+        channel = channel || 0;
+        for (x=0,y=0,j=0; j<256; ++j) hr[0+j] = 0;
+        if (0 < im[0+3])
+        {
+            r = im[i+channel];
+            hr[0+r] = 1;
+            minr = Min(r, minr);
+            maxr = Max(r, maxr);
+        }
+        for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
+        {
+            for (kk=k-256,j=0; j<256; ++j) hr[k+j] = hr[kk+j];
+            if (0 < im[i+3])
+            {
+                r = im[i+channel];
+                ++hr[k+r];
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+            }
+        }
+        for (x=0,y=1,i=w4,k=w256; i<l; ++x,i+=4,k+=256)
+        {
+            if (x >= w)
+            {
+                x=0; ++y;
+                for (j=0; j<256; ++j) sumr[j] = 0;
+            }
+            for (kk=k-w256,j=0; j<256; ++j) hr[k+j] = hr[kk+j] + (sumr[j]||0);
+            if (0 < im[i+3])
+            {
+                r = im[i+channel];
+                ++hr[k+r]; sumr[r] = (sumr[r]||0) + 1;
+                minr = Min(r, minr);
+                maxr = Max(r, maxr);
+            }
+        }
+        // pdf only
+        return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
+    }
+}
+function _otsu(bin, tot, min, max, ret_sigma)
 {
     var omega0, omega1,
         mu0, mu1, mu,
         sigmat, sigma,
         sum0, isum0, i, t;
 
-    if (null == min) min = 0;
-    if (null == max) max = 255;
+    if (min >= max) return true === ret_sigma ? [min, 0] : min;
     for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
     t = min;
     sum0 = bin[min];
@@ -3140,7 +3282,39 @@ function otsu(bin, tot, min, max)
             t = i;
         }
     }
-    return t;
+    return true === ret_sigma ? [t, sigmat] : t;
+}
+function otsu(bin, tot, min, max)
+{
+    if (null == min) min = 0;
+    if (null == max) max = 255;
+    return _otsu(bin, tot, min, max);
+}
+function otsu_multi(bin, tot, min, max, sigma_thresh)
+{
+    if (min >= max) return [];
+    var split = _otsu(bin, tot, min, max, true), thresh = split[0], sigma = split[1], left, right;
+    if (sigma < sigma_thresh*sigma_thresh) return [];
+    left = otsu_multi(bin, tot, min, thresh, sigma_thresh);
+    if (!left.length || left[left.length-1] < thresh) left.push(thresh);
+    right = otsu_multi(bin, tot, thresh, max, sigma_thresh);
+    if (right.length && right[0] === thresh) right.shift();
+    left.push.apply(left, right);
+    return left;
+}
+function otsu_multiclass(bin, tot, min, max, n)
+{
+    if (n <= 1 || min >= max) return [];
+    var thresh = _otsu(bin, tot, min, max), f, left, right;
+    n = stdMath.round(n);
+    if (2 === n) return [thresh];
+    f = (thresh-min)/(max-min);
+    left = otsu_multiclass(bin, tot, min, thresh, stdMath.round((n-1)*(f)));
+    right = otsu_multiclass(bin, tot, thresh, max, stdMath.round((n-1)*(1-f)));
+    if (!left.length || left[left.length-1] < thresh) left.push(thresh);
+    if (right.length && right[0] === thresh) right.shift();
+    left.push.apply(left, right);
+    return left;
 }
 var SIN = {}, COS = {};
 function sine(i)
@@ -3703,14 +3877,16 @@ FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
     x0 -= 1; y0 -= 1;
     return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
 };
-FilterUtil.rsatsum = function(rsat, w, h, x, y, ww, hh) {
-    //x = clamp(x, 0, w-1);
-    //y = clamp(y, 0, h-1);
-    var xw = x+ww-1, yw = y+ww-1, xh = x-hh+1, yh = y+hh-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
+FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
+    // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
+    var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 };
 FilterUtil.histogram = histogram;
+FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.otsu_multi = otsu_multi;
+FilterUtil.otsu_multiclass = otsu_multiclass;
 FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
@@ -17514,6 +17690,7 @@ FILTER.Create({
     ,mode: MODE.COLOR
     ,tolerance: 1e-6
     ,minArea: 20
+    ,maxArea: Infinity
     ,color: 0
 
     // this is the filter constructor
@@ -17531,6 +17708,7 @@ FILTER.Create({
         {
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minArea) self.minArea = params.minArea || 0;
+            if (null != params.maxArea) self.maxArea = params.maxArea;
             if (null != params.color) self.color = params.color || 0;
             if (null != params.selection) self.selection = params.selection || null;
         }
@@ -17542,6 +17720,7 @@ FILTER.Create({
         return {
             tolerance: self.tolerance
             ,minArea: self.minArea
+            ,maxArea: self.maxArea
             ,color: self.color
         };
     }
@@ -17550,6 +17729,7 @@ FILTER.Create({
         var self = this;
         self.tolerance = params.tolerance;
         self.minArea = params.minArea;
+        self.maxArea = params.maxArea;
         self.color = params.color;
         return self;
     }
@@ -17610,7 +17790,7 @@ FILTER.Create({
         }
         D = new A32F((x2-x1+1)*(y2-y1+1));
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
-        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, x1, y1, x2, y2)};
+        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, self.maxArea, x1, y1, x2, y2)};
         return im;
     }
 });
@@ -17627,6 +17807,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
+            //delta *= 360;
             for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
             {
                 if (x >= ww) {x=x0; ++y; yw+=w;}
@@ -17669,6 +17850,7 @@ function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
     {
         if (MODE.HUE === mode || MODE.COLORIZEHUE === mode)
         {
+            //delta *= 360;
             for (x=x0,y=y0,yw=y*w,j=0; j<dLen; ++j,++x)
             {
                 if (x >= ww) {x=x0; ++y; yw+=w;}
@@ -17705,7 +17887,7 @@ Label.prototype = {
     x1:0,
     y1:0,
     x2:0,
-    y2:0
+    y2:0,
 };
 function root_of(label)
 {
@@ -17717,9 +17899,9 @@ function root_of(label)
         y1 = min(y1, label.y1);
         x2 = max(x2, label.x2);
         y2 = max(y2, label.y2);
+        label.x1 = x1; label.y1 = y1;
+        label.x2 = x2; label.y2 = y2;
     }
-    label.x1 = x1; label.y1 = y1;
-    label.x2 = x2; label.y2 = y2;
     return label;
 }
 function merge(l1, l2)
@@ -17727,19 +17909,15 @@ function merge(l1, l2)
     l1 = root_of(l1); l2 = root_of(l2);
     if (l1 !== l2)
     {
-        l2.x1 = min(l2.x1, l1.x1);
-        l2.y1 = min(l2.y1, l1.y1);
-        l2.x2 = max(l2.x2, l1.x2);
-        l2.y2 = max(l2.y2, l1.y2);
-        l1.x1 = l2.x1;
-        l1.y1 = l2.y1;
-        l1.x2 = l2.x2;
-        l1.y2 = l2.y2;
+        l1.x1 = l2.x1 = min(l2.x1, l1.x1);
+        l1.y1 = l2.y1 = min(l2.y1, l1.y1);
+        l1.x2 = l2.x2 = max(l2.x2, l1.x2);
+        l1.y2 = l2.y2 = max(l2.y2, l1.y2);
         l1.root = l2;
     }
 }
 
-function connected_components(output, w, h, stride, D, K, delta, V0, invert, return_bb, minArea, x0, y0, x1, y1)
+function connected_components(output, w, h, stride, D, K, delta, V0, invert, return_bb, minArea, maxArea, x0, y0, x1, y1)
 {
     if (null == x0) {x0 = 0; y0 = 0; x1 = w-1; y1 = h-1;}
     stride = stride|0;
@@ -17747,35 +17925,35 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
         size = len>>>stride,  K8_CONNECTIVITY = 8 === K,
         mylab, c, r, d, row, numlabels, label, background_label = null,
         need_match = null != V0, color, a, b, delta2 = 2*delta,
-        ww = x1 - x0 + 1, hh = y1 - y0 + 1, bbw, bbh, bbarea;
+        /*ww = x1 - x0 + 1, hh = y1 - y0 + 1,*/ total, bb, bbw, bbh, bbarea;
 
     label = new Array(size);
     background_label = need_match ? new Label(0, 0) : null;
 
-    label[0] = need_match && (abs(delta+D[0]-V0)>delta2) ? background_label : new Label(0, 0);
+    label[0] = need_match && (abs(D[0]-V0)>delta) ? background_label : new Label(0, 0);
 
     // label the first row.
     for (c=1; c<w; ++c)
     {
-        label[c] = need_match && (abs(delta+D[c]-V0)>delta2) ? background_label : (abs(delta+D[c]-D[c-1])<=delta2 ? label[c-1] : new Label(c, 0));
+        label[c] = need_match && (abs(D[c]-V0)>delta) ? background_label : (abs(D[c]-D[c-1])<=delta ? label[c-1] : new Label(c, 0));
     }
 
     // label subsequent rows.
     for (r=1,row=w; r<h; ++r,row+=w)
     {
         // label the first pixel on this row.
-        label[row] = need_match && (abs(delta+D[row]-V0)>delta2) ? background_label : (abs(delta+D[row]-D[row-w])<=delta2 ? label[row-w] : new Label(0, r));
+        label[row] = need_match && (abs(D[row]-V0)>delta) ? background_label : (abs(D[row]-D[row-w])<=delta ? label[row-w] : new Label(0, r));
 
         // label subsequent pixels on this row.
         for (c=1; c<w; ++c)
         {
-            if (need_match && (abs(delta+D[row+c]-V0)>delta2))
+            if (need_match && (abs(D[row+c]-V0)>delta))
             {
                 label[row+c] = background_label;
                 continue;
             }
             // inherit label from pixel on the left if we're in the same blob.
-            mylab = background_label === label[row+c-1] ? null : (abs(delta+D[row+c]-D[row+c-1])<=delta2 ? label[row+c-1] : null);
+            mylab = background_label === label[row+c-1] ? null : (abs(D[row+c]-D[row+c-1])<=delta ? label[row+c-1] : null);
 
             //for(d=d0; d<1; d++)
             // full loop unrolling
@@ -17784,14 +17962,14 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
             if (K8_CONNECTIVITY)
             {
                 //d = -1;
-                if ((background_label !== label[row-w+c-1/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c-1/*+d*/])<=delta2))
+                if ((background_label !== label[row-w+c-1/*+d*/]) && (abs(D[row+c]-D[row-w+c-1/*+d*/])<=delta))
                 {
                     if (null != mylab) merge(mylab, label[row-w+c-1/*+d*/]);
                     else mylab = label[row-w+c-1/*+d*/];
                 }
             }
             //d = 0;
-            if ((background_label !== label[row-w+c/*+d*/]) && (abs(delta+D[row+c]-D[row-w+c/*+d*/])<=delta2))
+            if ((background_label !== label[row-w+c/*+d*/]) && (abs(D[row+c]-D[row-w+c/*+d*/])<=delta))
             {
                 if (null != mylab) merge(mylab, label[row-w+c/*+d*/]);
                 else mylab = label[row-w+c/*+d*/];
@@ -17810,7 +17988,7 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
 
             if (K8_CONNECTIVITY &&
                 (background_label !== label[row+c-1]) && (background_label !== label[row-w+c]) &&
-                (abs(delta+D[row+c-1]-D[row-w+c])<=delta2))
+                (abs(D[row+c-1]-D[row-w+c])<=delta))
                 merge(label[row+c-1], label[row-w+c]);
         }
     }
@@ -17824,17 +18002,30 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
     for (c=0; c<size; ++c)
     {
         label[c] = root_of(label[c]);
-        if (0 > label[c].id)
+        if (0 > label[c].id) label[c].id = numlabels++;
+        if (return_bb && (background_label !== label[c]))
         {
-            label[c].id = numlabels++;
-            if (return_bb) output[label[c].id] = label[c];
+            bb = output[label[c].id];
+            if (!bb)
+            {
+                output[label[c].id] = {x1:label[c].x1, y1:label[c].y1, x2:label[c].x2, y2:label[c].y2, k:abs(D[c]-V0)};
+            }
+            else
+            {
+                bb.x1 = min(bb.x1, label[c].x1);
+                bb.y1 = min(bb.y1, label[c].y1);
+                bb.x2 = max(bb.x2, label[c].x2);
+                bb.y2 = max(bb.y2, label[c].y2);
+                bb.k = max(bb.k, abs(D[c]-V0));
+            }
         }
     }
     if (return_bb)
     {
+        total = w*h;
         output = Object.keys(output).reduce(function(out, id) {
-            var label = output[id], w = label.x2-label.x1+1, h = label.y2-label.y1+1, area = w*h;
-            if (area >= minArea) out.push({x:label.x1, y:label.y1, width:w, height:h, area:area});
+            var bb = output[id], w = bb.x2-bb.x1+1, h = bb.y2-bb.y1+1, area = w*h;
+            if (area >= minArea && area <= maxArea) out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, k:bb.k/delta});
             return out;
         }, []);
     }
@@ -17888,19 +18079,23 @@ FILTER.Create({
     ,mode: MODE.INTENSITY
     ,channel: 0
     ,factor: 0.0
+    ,range: null
 
-    ,init: function(mode, channel, factor) {
+    ,init: function(mode, channel, factor, range) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.channel = channel || 0;
+        self.range = [0, 255];
         if (null != factor) self.factor = (+factor) || 0;
+        if (range && (0 < range.length) && (0 === (range.length&1))) self.range = range;
     }
 
     ,serialize: function() {
         var self = this;
         return {
              channel: self.channel,
-             factor: self.factor
+             factor: self.factor,
+             range: self.range
         };
     }
 
@@ -17908,6 +18103,7 @@ FILTER.Create({
         var self = this;
         self.channel = params.channel;
         self.factor = params.factor;
+        self.range = params.range;
         return self;
     }
 
@@ -17917,6 +18113,13 @@ FILTER.Create({
             rangeR, rangeG, rangeB,
             cdfR, cdfG, cdfB,
             f = self.factor || 0,
+            range = self.range,
+            ra = range[0] || 0,
+            rb = range[1] || 255,
+            ga = (null == range[2] ? ra : range[2]) || 0,
+            gb = (null == range[3] ? rb : range[3]) || 255,
+            ba = (null == range[4] ? ra : range[4]) || 0,
+            bb = (null == range[5] ? rb : range[5]) || 255,
             t0, t1, t2, v,
             i, l=im.length;
 
@@ -17935,12 +18138,33 @@ FILTER.Create({
                 r = im[i  ];
                 g = im[i+1];
                 b = im[i+2];
-                v = cdf.binR[r]*rangeR;
-                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
-                v = cdf.binG[g]*rangeG;
-                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
-                v = cdf.binB[b]*rangeB;
-                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                if (ra <= r && r <= rb)
+                {
+                    v = cdf.binR[r]*rangeR;
+                    t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                }
+                else
+                {
+                    t0 = r;
+                }
+                if (ga <= g && g <= gb)
+                {
+                    v = cdf.binG[g]*rangeG;
+                    t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                }
+                else
+                {
+                    t1 = g;
+                }
+                if (ba <= b && b <= bb)
+                {
+                    v = cdf.binB[b]*rangeB;
+                    t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                }
+                else
+                {
+                    t2 = b;
+                }
                 // clamp them manually
                 t0 = t0<0 ? 0 : (t0>255 ? 255 : t0);
                 t1 = t1<0 ? 0 : (t1>255 ? 255 : t1);
@@ -17957,12 +18181,33 @@ FILTER.Create({
                 r = im[i  ];
                 g = im[i+1];
                 b = im[i+2];
-                v = cdf.binR[r]*rangeR;
-                t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
-                v = cdf.binG[g]*rangeG;
-                t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
-                v = cdf.binB[b]*rangeB;
-                t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                if (ra <= r && r <= rb)
+                {
+                    v = cdf.binR[r]*rangeR;
+                    t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
+                }
+                else
+                {
+                    t0 = r;
+                }
+                if (ga <= g && g <= gb)
+                {
+                    v = cdf.binG[g]*rangeG;
+                    t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
+                }
+                else
+                {
+                    t1 = g;
+                }
+                if (ba <= b && b <= bb)
+                {
+                    v = cdf.binB[b]*rangeB;
+                    t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
+                }
+                else
+                {
+                    t2 = b;
+                }
                 im[i  ] = t0|0;
                 im[i+1] = t1|0;
                 im[i+2] = t2|0;
@@ -17981,6 +18226,8 @@ FILTER.Create({
             range, cdf, i, v,
             l = im.length, f = self.factor || 0,
             channel = self.channel || 0,
+            va = self.range[0] || 0,
+            vb = self.range[1] || 255,
             mode = self.mode;
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
@@ -18016,8 +18263,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     r = r|0;
@@ -18028,8 +18283,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     // clamp them manually
                     r = r<0 ? 0 : (r>255 ? 255 : r);
                     im[i+channel] = r|0;
@@ -18039,8 +18302,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+1]]*range;
-                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+1];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        y = v;
+                    }
                     cb = im[i+2];
                     cr = im[i  ];
                     r = (y                      + 1.402   * (cr-128));
@@ -18062,8 +18333,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     im[i] = r; im[i+1] = r; im[i+2] = r;
                 }
             }
@@ -18071,8 +18350,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+channel]]*range;
-                    r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v))|0;
+                    v = im[i+channel];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        r = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        r = v;
+                    }
                     im[i+channel] = r;
                 }
             }
@@ -18080,8 +18367,16 @@ FILTER.Create({
             {
                 for (i=0; i<l; i+=4)
                 {
-                    v = cdf.bin[im[i+1]]*range;
-                    y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    v = im[i+1];
+                    if (va <= v && v <= vb)
+                    {
+                        v = cdf.bin[v]*range;
+                        y = ((f)*(v + cdf.min) + (1-f)*(cdf.max - v));
+                    }
+                    else
+                    {
+                        y = v;
+                    }
                     cb = im[i+2];
                     cr = im[i  ];
                     r = (y                      + 1.402   * (cr-128));
@@ -18124,13 +18419,17 @@ FILTER.Create({
     ,color0: 0
     ,color1: null
     ,channel: 0
+    ,nclasses: 2
+    ,sigma: null
 
-    ,init: function(mode, color0, color1, channel) {
+    ,init: function(mode, color0, color1, channel, nclasses, sigma) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.color0 = color0 || 0;
         if (null != color1) self.color1 = color1;
         self.channel = channel || 0;
+        if (null != nclasses) self.nclasses = (+nclasses) || 0;
+        if (sigma && sigma.length) self.sigma = sigma;
     }
 
     ,serialize: function() {
@@ -18139,6 +18438,8 @@ FILTER.Create({
              color0: self.color0
             ,color1: self.color1
             ,channel: self.channel
+            ,nclasses: self.nclasses
+            ,sigma: self.sigma
         };
     }
 
@@ -18147,6 +18448,8 @@ FILTER.Create({
         self.color0 = params.color0;
         self.color1 = params.color1;
         self.channel = params.channel;
+        self.nclasses = params.nclasses;
+        self.sigma = params.sigma;
         return self;
     }
 
@@ -18170,8 +18473,10 @@ FILTER.Create({
             b0 = (color0)&255,
             //a0 = (color0 >>> 24)&255,
             color1 = self.color1,
+            nclasses = self.nclasses,
+            sigma = self.sigma,
             r1, g1, b1, //a1,
-            i, l=im.length;
+            i, j, n, l=im.length;
 
         if (null != color1)
         {
@@ -18182,17 +18487,65 @@ FILTER.Create({
         binR = FilterUtil.histogram(im, CHANNEL.R);
         binG = FilterUtil.histogram(im, CHANNEL.G);
         binB = FilterUtil.histogram(im, CHANNEL.B);
-        tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
-        tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
-        tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
-        for (i=0; i<l; i+=4)
+        if (sigma || (2 < nclasses))
         {
-            if (im[i  ] < tR) im[i  ] = r0;
-            else if (null != color1) im[i  ] = r1;
-            if (im[i+1] < tG) im[i+1] = g0;
-            else if (null != color1) im[i+1] = g1;
-            if (im[i+2] < tB) im[i+2] = b0;
-            else if (null != color1) im[i+2] = b1;
+            if (sigma)
+            {
+                tR = FilterUtil.otsu_multi(binR.bin, binR.total, binR.min, binR.max, sigma[0] || 0);
+                tG = FilterUtil.otsu_multi(binG.bin, binG.total, binG.min, binG.max, sigma[1] || 0);
+                tB = FilterUtil.otsu_multi(binB.bin, binB.total, binB.min, binB.max, sigma[2] || 0);
+            }
+            else
+            {
+                tR = FilterUtil.otsu_multiclass(binR.bin, binR.total, binR.min, binR.max, nclasses);
+                tG = FilterUtil.otsu_multiclass(binG.bin, binG.total, binG.min, binG.max, nclasses);
+                tB = FilterUtil.otsu_multiclass(binB.bin, binB.total, binB.min, binB.max, nclasses);
+            }
+            for (i=0; i<l; i+=4)
+            {
+                for (r=im[i  ],j=0,n=tR.length; j<n; ++j)
+                {
+                    if (r < tR[j])
+                    {
+                        im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i  ] = r1;
+                for (g=im[i+1],j=0,n=tG.length; j<n; ++j)
+                {
+                    if (g < tG[j])
+                    {
+                        im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i+1] = g1;
+                for (b=im[i+2],j=0,n=tB.length; j<n; ++j)
+                {
+                    if (b < tB[j])
+                    {
+                        im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i+2] = b1;
+            }
+        }
+        else
+        {
+            tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
+            tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
+            tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i  ] < tR) im[i  ] = r0;
+                else if (null != color1) im[i  ] = r1;
+                if (im[i+1] < tG) im[i+1] = g0;
+                else if (null != color1) im[i+1] = g1;
+                if (im[i+2] < tB) im[i+2] = b0;
+                else if (null != color1) im[i+2] = b1;
+            }
         }
         // return thresholds as meta
         self.meta = [tR, tG, tB];
@@ -18212,8 +18565,10 @@ FILTER.Create({
             //a0 = (color0 >>> 24)&255,
             color1 = self.color1,
             r1, g1, b1, //a1,
-            bin, i, t, l = im.length,
+            bin, i, j, n, t, l = im.length,
             channel = self.channel || 0,
+            nclasses = self.nclasses,
+            sigma = self.sigma,
             mode = self.mode;
 
         if (null != color1)
@@ -18249,73 +18604,153 @@ FILTER.Create({
             }
             bin = FilterUtil.histogram(im, CHANNEL.G);
         }
-        t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
-        if (MODE.GRAY === mode)
+        if (sigma || (2 < nclasses))
         {
-            for (i=0; i<l; i+=4)
+            if (sigma)
             {
-                if (im[i+channel] < t)
+                t = FilterUtil.otsu_multi(bin.bin, bin.total, bin.min, bin.max, sigma[0] || 0);
+            }
+            else
+            {
+                t = FilterUtil.otsu_multiclass(bin.bin, bin.total, bin.min, bin.max, nclasses);
+            }
+            if (MODE.GRAY === mode)
+            {
+                for (i=0; i<l; i+=4)
                 {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
+                    for (r=im[i+channel],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (r < t[j])
+                        {
+                            im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                            im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                            im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
                 }
             }
-        }
-        else if (MODE.CHANNEL === mode)
-        {
-            for (i=0; i<l; i+=4)
+            else if (MODE.CHANNEL === mode)
             {
-                if (im[i+channel] < t)
+                for (i=0; i<l; i+=4)
                 {
-                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                    for (r=im[i+channel],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (r < t[j])
+                        {
+                            if (2 === channel) im[i+channel] = (b0 + (b1 - b0)*j/n)|0;
+                            else if (1 === channel) im[i+channel] = (g0 + (g1 - g0)*j/n)|0;
+                            else im[i+channel] = (r0 + (r1 - r0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        if (2 === channel) im[i+channel] = b1;
+                        else if (1 === channel) im[i+channel] = g1;
+                        else im[i+channel] = r1;
+                    }
                 }
-                else if (null != color1)
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
                 {
-                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
+                    for (y=im[i+1],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (y < t[j])
+                        {
+                            im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                            im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                            im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
                 }
             }
         }
         else
         {
-            for (i=0; i<l; i+=4)
+            t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
+            if (MODE.GRAY === mode)
             {
-                cr = im[i  ];
-                y  = im[i+1];
-                cb = im[i+2];
-                if (y < t)
+                for (i=0; i<l; i+=4)
                 {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
-                }
-                else
-                {
-                    r = (y                      + 1.402   * (cr-128));
-                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
-                    b = (y + 1.772   * (cb-128));
-                    if (notSupportClamp)
+                    if (im[i+channel] < t)
                     {
-                        // clamp them manually
-                        r = r<0 ? 0 : (r>255 ? 255 : r);
-                        g = g<0 ? 0 : (g>255 ? 255 : g);
-                        b = b<0 ? 0 : (b>255 ? 255 : b);
+                        im[i  ] = r0;
+                        im[i+1] = g0;
+                        im[i+2] = b0;
                     }
-                    im[i  ] = r|0;
-                    im[i+1] = g|0;
-                    im[i+2] = b|0;
+                    else if (null != color1)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    if (im[i+channel] < t)
+                    {
+                        im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                    }
+                    else if (null != color1)
+                    {
+                        im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
+                    }
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    cr = im[i  ];
+                    y  = im[i+1];
+                    cb = im[i+2];
+                    if (y < t)
+                    {
+                        im[i  ] = r0;
+                        im[i+1] = g0;
+                        im[i+2] = b0;
+                    }
+                    else if (null != color1)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
+                    else
+                    {
+                        r = (y                      + 1.402   * (cr-128));
+                        g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                        b = (y + 1.772   * (cb-128));
+                        if (notSupportClamp)
+                        {
+                            // clamp them manually
+                            r = r<0 ? 0 : (r>255 ? 255 : r);
+                            g = g<0 ? 0 : (g>255 ? 255 : g);
+                            b = b<0 ? 0 : (b>255 ? 255 : b);
+                        }
+                        im[i  ] = r|0;
+                        im[i+1] = g|0;
+                        im[i+2] = b|0;
+                    }
                 }
             }
         }
@@ -18870,8 +19305,10 @@ FILTER.Util.Filter.haar_detect = haar_detect;
 
 var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
     sat = FilterUtil.sat, satsum = FilterUtil.satsum, rsatsum = FilterUtil.rsatsum,
+    merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
+    cos45 = 1/stdMath.sqrt(2), sin45 = cos45;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -19023,7 +19460,7 @@ FILTER.Create({
             rot = self.rot, scale = self.sc,
             thresh = self.threshold,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, tt, tw2, th2, tws, ths,
+            r, rl, ro, sc, tt, twh, tw2, th2, tws, ths, twhs,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
             maxMatches = self.maxMatches,
@@ -19031,7 +19468,8 @@ FILTER.Create({
             returnAngle = self.returnAngle,
             minNeighbors = self.minNeighbors, eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
-            sat1, sat2, rsat, rsat2, isTilted, isVertical,
+            sat1, sat2, rsat, rsat2,
+            isTilted, isVertical, isSwap,
             max, maxc, maxv, matches;
 
         if (1 === rot) rot = [0]; // only 1 given direction
@@ -19065,9 +19503,9 @@ FILTER.Create({
 
         if (metaData && (metaData.tmfilter_SAT/* || metaData.haarfilter_SAT*/))
         {
-            sat1 = metaData.tmfilter_SAT//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
-            sat2 = metaData.tmfilter_SAT2// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
-            rsat = metaData.tmfilter_RSAT// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
+            sat1 = metaData.tmfilter_SAT;//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
+            sat2 = metaData.tmfilter_SAT2;// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
+            rsat = metaData.tmfilter_RSAT;// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
             rsat2 = metaData.tmfilter_RSAT2;
         }
         else
@@ -19088,17 +19526,19 @@ FILTER.Create({
             }
         }
 
+        twh = stdMath.sqrt(tw*tw + th*th);
         for (r=0,rl=rot.length; r<rl; ++r)
         {
             ro = rot[r];
-            isTilted = 45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro;
-            isVertical = 90 === ro || -270 === ro || 270 === ro || -90 === ro;
+            isTilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro);
+            isVertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
+            isSwap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || 135 === ro || -225 === ro || -45 === ro || 315 === ro);
             sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
-                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
-                if (isVertical)
+                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th); twhs = stdMath.round(sc*twh);
+                if (isSwap)
                 {
                     tw2 = ths;
                     th2 = tws;
@@ -19116,11 +19556,11 @@ FILTER.Create({
                     if (x + tw2 <= x2 && y + th2 <= y2)
                     {
                         score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro)   // R
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs)   // R
                         : ((
-                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro) + // R
-                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro) + // G
-                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro)   // B
+                        ncc(x, y, sat1[0], sat2[0], rsat[0], rsat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs) + // R
+                        ncc(x, y, sat1[1], sat2[1], rsat[1], rsat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths, twhs) + // G
+                        ncc(x, y, sat1[2], sat2[2], rsat[2], rsat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths, twhs)   // B
                         ) / 3));
                         if (score >= tt)
                         {
@@ -19130,7 +19570,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, returnAngle, isVertical, isTilted, sin, cos);
+                            max[maxc++] = rect(x, y, tws, ths, twhs, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
                         }
                     }
                 }
@@ -19142,41 +19582,77 @@ FILTER.Create({
             }
             if (matches.length)
             {
-                matches = FilterUtil.merge_features(matches, minNeighbors, eps);
+                matches = merge_features(matches, minNeighbors, eps);
                 if (returnAngle) matches.forEach(function(match) {match.angle = ro;});
                 all_matches.push.apply(all_matches, matches);
             }
         }
 
-        max = null; sat1 = sat2 = rsat = rsat2 = null;
+        max = matches = null; sat1 = sat2 = rsat = rsat2 = null;
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, rot)
+function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0, twhs)
 {
     // normalized cross-correlation at point (x,y)
-    var tws0 = stdMath.round(sc*tw), ths0 = stdMath.round(sc*th), tws = tws0, ths = ths0,
-        area, area2, sw, sh, t, x0, y0, x1, y1, bk, k, K = basis.length,
+    if (null == sc) sc = 1;
+    if (null == ro) ro = 0;
+    if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
+    var tws = tws0, ths = ths0, area, area2, sw, sh,
+        x0, y0, x1, y1, c, s, sx, sy, cx, cy, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, /*vart,*/ varft,
-        is_vertical = 90 === rot || -270 === rot || 270 === rot || -90 === rot,
-        is_tilted = 45 === rot || -45 === rot || 315 === rot || -315 === rot || 135 === rot || -135 === rot || 225 === rot || -225 === rot;
-    if (is_vertical)
+        is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
+        is_tilted = (45 === ro || -45 === ro || 315 === ro || -315 === ro || 135 === ro || -135 === ro || 225 === ro || -225 === ro),
+        is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro || 135 === ro || -225 === ro || -45 === ro || 315 === ro);
+    if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
+    else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
+    if (is_swap)
     {
         // swap x/y
         tws = ths0;
         ths = tws0;
     }
-    area = tws0*ths0;
     if (is_tilted)
     {
-        sum1 = rsatsum(rsat1, w, h, x, y, tws0, ths0);
-        sum2 = rsatsum(rsat2, w, h, x, y, tws0, ths0);
+        cx = stdMath.round((c*(-sx*tws)+s*(-sy*ths)-(-sx*tws))/2);
+        cy = stdMath.round((c*(-sy*ths)-s*(-sx*tws)-(-sy*ths))/2);
+        sum1 = rsatsum(rsat1, w, h, x+cx, y+cy, tws, ths);
+        sum2 = rsatsum(rsat2, w, h, x+cx, y+cy, tws, ths);
     }
     else
     {
+        cx = 0;
+        cy = 0;
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
+    area = tws0*ths0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -19191,57 +19667,30 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
         {
             bk = basis[k];
             // up to 8 cardinal rotations supported (ie matches every 45 deg)
-            if (270 === rot || -90 === rot)
-            {
-                x0 = bk.y0;
-                y0 = bk.x0;
-                x1 = bk.y1;
-                y1 = bk.x1;
-            }
-            else if (180 === rot || -180 === rot)
-            {
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-            }
-            else if (90 === rot || -270 === rot)
-            {
-                x0 = th-1-bk.y1;
-                y0 = tw-1-bk.x1;
-                x1 = th-1-bk.y0;
-                y1 = tw-1-bk.x0;
-            }
-            else if (-45 === rot || 315 === rot)
-            {
-                x0 = bk.x0;
-                y0 = th-1-bk.y1;
-                x1 = bk.x1;
-                y1 = th-1-bk.y0;
-            }
-            else if (-135 === rot || 225 === rot)
+            if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
             {
                 x0 = bk.y0;
                 y0 = tw-1-bk.x1;
                 x1 = bk.y1;
                 y1 = tw-1-bk.x0;
             }
-            else if (-225 === rot || 135 === rot)
+            else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
             {
                 x0 = tw-1-bk.x1;
-                y0 = bk.y0;
+                y0 = th-1-bk.y1;
                 x1 = tw-1-bk.x0;
-                y1 = bk.y1;
+                y1 = th-1-bk.y0;
             }
-            else if (-315 === rot || 45 === rot)
+            else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
             {
                 x0 = th-1-bk.y1;
                 y0 = bk.x0;
                 x1 = th-1-bk.y0;
                 y1 = bk.x1;
             }
-            else // 0, 360, -360, ..
+            else // 0, 360, -360, 45, -315..
             {
+                // as is
                 x0 = bk.x0;
                 y0 = bk.y0;
                 x1 = bk.x1;
@@ -19255,23 +19704,62 @@ function ncc(x, y, sat1, sat2, rsat1, rsat2, avgt, vart, basis, w, h, tw, th, sc
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+x0, y+y0, sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
+            varft += diff*((is_tilted ? rsatsum(rsat1, w, h, x+cx+stdMath.round(c*x0+s*y0), y+cy+stdMath.round(c*y0-s*x0), sw, sh) : satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1)) - avgf*area2);
             //vart += diff*diff*area2;
         }
         vart *= area;
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
+function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
 {
+    var dx = 0, dy = 0, sx = 1, sy = 1, c = 1, s = 0;
+    if (270 === ro || -90 === ro || -225 === ro || 135 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else if (180 === ro || -180 === ro || -135 === ro || 225 === ro)
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
+    else if (90 === ro || -270 === ro || 315 === ro || -45 === ro)
+    {
+        c = cos45;
+        s = sin45;
+        sx = 1;
+        sy = 1;
+    }
+    else
+    {
+        c = cos45;
+        s = -sin45;
+        sx = -1;
+        sy = 1;
+    }
     if (with_angle)
     {
-        return {x:x, y:y, width:w, height:h};
+        if (is_tilted)
+        {
+            dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
+            dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
+            return {x:x+dx, y:y+dy, width:w, height:h};
+        }
+        else
+        {
+            return {x:x, y:y, width:w, height:h};
+        }
     }
     else if (is_tilted)
     {
-        var dx = stdMath.abs(cos*w + sin*h - w)/2, dy = stdMath.abs(-sin*w + cos*h - h)/2;
-        return {x:x-dx/2, y:y-dy/2, width:w+dx, height:h+dy};
+        dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
+        dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
+        return {x:x+dx, y:y+dy, width:w, height:h};
     }
     else if (is_vertical)
     {
@@ -19281,6 +19769,10 @@ function rect(x, y, w, h, with_angle, is_vertical, is_tilted, sin, cos)
     {
         return {x:x, y:y, width:w, height:h};
     }
+}
+function sign(x)
+{
+    return 0 > x ? -1 : 1;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
