@@ -1789,7 +1789,7 @@ function integral_histogram(im, w, h, channel)
                 maxb = Max(b, maxb);
             }
         }
-        // pdfs
+        // pdfs only
         return {bin:[hr,hg,hb], min:[minr,ming,minb], max:[maxr,maxg,maxb], width:w, height:h, total:total};
     }
     else
@@ -1830,11 +1830,11 @@ function integral_histogram(im, w, h, channel)
                 maxr = Max(r, maxr);
             }
         }
-        // pdf
+        // pdf only
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
 }
-function otsu(bin, tot, min, max)
+function _otsu(bin, tot, min, max, ret_sigma)
 {
     var omega0, omega1,
         mu0, mu1, mu,
@@ -1867,7 +1867,23 @@ function otsu(bin, tot, min, max)
             t = i;
         }
     }
-    return t;
+    return true === ret_sigma ? [t, sigmat] : t;
+}
+function otsu(bin, tot, min, max)
+{
+    return _otsu(bin, tot, min, max);
+}
+function otsu_multi(bin, tot, min, max, sigma_thresh)
+{
+    if (min >= max) return [];
+    var split = _otsu(bin, tot, min, max, true), thresh = split[0], sigma = split[1], left, right;
+    if (sigma < sigma_thresh) return [];
+    left = otsu_multi(bin, tot, min, thresh, sigma_thresh);
+    if (!left.length || left[left.length-1] < thresh) left.push(thresh);
+    right = otsu_multi(bin, tot, thresh, max, sigma_thresh);
+    if (right.length && right[0] === thresh) right.shift();
+    left.push.apply(left, right);
+    return left;
 }
 var SIN = {}, COS = {};
 function sine(i)
@@ -2438,6 +2454,7 @@ FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
 FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
+FilterUtil.otsu_multi = otsu_multi;
 FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
