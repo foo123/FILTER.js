@@ -1841,8 +1841,7 @@ function _otsu(bin, tot, min, max, ret_sigma)
         sigmat, sigma,
         sum0, isum0, i, t;
 
-    if (null == min) min = 0;
-    if (null == max) max = 255;
+    if (min >= max) return true === ret_sigma ? [min, 0] : min;
     for (mu=0,i=min; i<=max; ++i) mu += i*bin[i]/tot;
     t = min;
     sum0 = bin[min];
@@ -1871,19 +1870,41 @@ function _otsu(bin, tot, min, max, ret_sigma)
 }
 function otsu(bin, tot, min, max)
 {
+    if (null == min) min = 0;
+    if (null == max) max = 255;
     return _otsu(bin, tot, min, max);
 }
 function otsu_multi(bin, tot, min, max, sigma_thresh)
 {
     if (min >= max) return [];
     var split = _otsu(bin, tot, min, max, true), thresh = split[0], sigma = split[1], left, right;
-    if (sigma < sigma_thresh) return [];
+    if (sigma < sigma_thresh*sigma_thresh) return [];
     left = otsu_multi(bin, tot, min, thresh, sigma_thresh);
     if (!left.length || left[left.length-1] < thresh) left.push(thresh);
     right = otsu_multi(bin, tot, thresh, max, sigma_thresh);
     if (right.length && right[0] === thresh) right.shift();
     left.push.apply(left, right);
     return left;
+}
+function otsu_multiclass(bin, tot, min, max, n)
+{
+    if (n <= 1 || min >= max) return [];
+    var split = _otsu(bin, tot, min, max, true), thresh = split[0], left, right, split2;
+    if (2 === n) return [thresh];
+    left = _otsu(bin, tot, min, thresh, true);
+    right = _otsu(bin, tot, thresh, max, true);
+    if (left[1] > right[1])
+    {
+        split2 = otsu_multiclass(bin, tot, thresh, max, n-2);
+        if (left[0] === thresh) return (split2.length && split2[0] === thresh ? [] : [thresh]).concat(split2);
+        else return (split2.length && split2[0] === thresh ? [left[0]] : [left[0], thresh]).concat(split2);
+    }
+    else
+    {
+        split2 = otsu_multiclass(bin, tot, min, thresh, n-2);
+        if (right[0] === thresh) return split2.concat((split2.length && split2[split2.length-1] === thresh ? [] : [thresh]));
+        else return split2.concat((split2.length && split2[split2.length-1] === thresh ? [right[0]] : [thresh, right[0]]));
+    }
 }
 var SIN = {}, COS = {};
 function sine(i)
@@ -2455,6 +2476,7 @@ FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.otsu_multi = otsu_multi;
+FilterUtil.otsu_multiclass = otsu_multiclass;
 FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};

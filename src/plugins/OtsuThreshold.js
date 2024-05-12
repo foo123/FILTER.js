@@ -25,13 +25,17 @@ FILTER.Create({
     ,color0: 0
     ,color1: null
     ,channel: 0
+    ,nclasses: 2
+    ,sigma: null
 
-    ,init: function(mode, color0, color1, channel) {
+    ,init: function(mode, color0, color1, channel, nclasses, sigma) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.color0 = color0 || 0;
         if (null != color1) self.color1 = color1;
         self.channel = channel || 0;
+        if (null != nclasses) self.nclasses = (+nclasses) || 0;
+        if (sigma && 0 < sigma.length) self.sigma = sigma;
     }
 
     ,serialize: function() {
@@ -40,6 +44,8 @@ FILTER.Create({
              color0: self.color0
             ,color1: self.color1
             ,channel: self.channel
+            ,nclasses: self.nclasses
+            ,sigma: self.sigma
         };
     }
 
@@ -48,6 +54,8 @@ FILTER.Create({
         self.color0 = params.color0;
         self.color1 = params.color1;
         self.channel = params.channel;
+        self.nclasses = params.nclasses;
+        self.sigma = params.sigma;
         return self;
     }
 
@@ -71,8 +79,10 @@ FILTER.Create({
             b0 = (color0)&255,
             //a0 = (color0 >>> 24)&255,
             color1 = self.color1,
+            nclasses = self.nclasses,
+            sigma = self.sigma,
             r1, g1, b1, //a1,
-            i, l=im.length;
+            i, j, n, l=im.length;
 
         if (null != color1)
         {
@@ -83,17 +93,65 @@ FILTER.Create({
         binR = FilterUtil.histogram(im, CHANNEL.R);
         binG = FilterUtil.histogram(im, CHANNEL.G);
         binB = FilterUtil.histogram(im, CHANNEL.B);
-        tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
-        tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
-        tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
-        for (i=0; i<l; i+=4)
+        if (sigma || (2 < nclasses))
         {
-            if (im[i  ] < tR) im[i  ] = r0;
-            else if (null != color1) im[i  ] = r1;
-            if (im[i+1] < tG) im[i+1] = g0;
-            else if (null != color1) im[i+1] = g1;
-            if (im[i+2] < tB) im[i+2] = b0;
-            else if (null != color1) im[i+2] = b1;
+            if (sigma)
+            {
+                tR = FilterUtil.otsu_multi(binR.bin, binR.total, binR.min, binR.max, sigma[0] || 0);
+                tG = FilterUtil.otsu_multi(binG.bin, binG.total, binG.min, binG.max, sigma[1] || 0);
+                tB = FilterUtil.otsu_multi(binB.bin, binB.total, binB.min, binB.max, sigma[2] || 0);
+            }
+            else
+            {
+                tR = FilterUtil.otsu_multiclass(binR.bin, binR.total, binR.min, binR.max, nclasses);
+                tG = FilterUtil.otsu_multiclass(binG.bin, binG.total, binG.min, binG.max, nclasses);
+                tB = FilterUtil.otsu_multiclass(binB.bin, binB.total, binB.min, binB.max, nclasses);
+            }
+            for (i=0; i<l; i+=4)
+            {
+                for (r=im[i  ],j=0,n=tR.length; j<n; ++j)
+                {
+                    if (r < tR[j])
+                    {
+                        im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i  ] = r1;
+                for (g=im[i+1],j=0,n=tG.length; j<n; ++j)
+                {
+                    if (g < tG[j])
+                    {
+                        im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i+1] = g1;
+                for (b=im[i+2],j=0,n=tB.length; j<n; ++j)
+                {
+                    if (b < tB[j])
+                    {
+                        im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                        break;
+                    }
+                }
+                if (j >= n) im[i+2] = b1;
+            }
+        }
+        else
+        {
+            tR = FilterUtil.otsu(binR.bin, binR.total, binR.min, binR.max);
+            tG = FilterUtil.otsu(binG.bin, binG.total, binG.min, binG.max);
+            tB = FilterUtil.otsu(binB.bin, binB.total, binB.min, binB.max);
+            for (i=0; i<l; i+=4)
+            {
+                if (im[i  ] < tR) im[i  ] = r0;
+                else if (null != color1) im[i  ] = r1;
+                if (im[i+1] < tG) im[i+1] = g0;
+                else if (null != color1) im[i+1] = g1;
+                if (im[i+2] < tB) im[i+2] = b0;
+                else if (null != color1) im[i+2] = b1;
+            }
         }
         // return thresholds as meta
         self.meta = [tR, tG, tB];
@@ -113,8 +171,10 @@ FILTER.Create({
             //a0 = (color0 >>> 24)&255,
             color1 = self.color1,
             r1, g1, b1, //a1,
-            bin, i, t, l = im.length,
+            bin, i, j, n, t, l = im.length,
             channel = self.channel || 0,
+            nclasses = self.nclasses,
+            sigma = self.sigma,
             mode = self.mode;
 
         if (null != color1)
@@ -150,73 +210,153 @@ FILTER.Create({
             }
             bin = FilterUtil.histogram(im, CHANNEL.G);
         }
-        t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
-        if (MODE.GRAY === mode)
+        if (sigma || (2 < nclasses))
         {
-            for (i=0; i<l; i+=4)
+            if (sigma)
             {
-                if (im[i+channel] < t)
+                t = FilterUtil.otsu_multi(bin.bin, bin.total, bin.min, bin.max, sigma[0] || 0);
+            }
+            else
+            {
+                t = FilterUtil.otsu_multiclass(bin.bin, bin.total, bin.min, bin.max, nclasses);
+            }
+            if (MODE.GRAY === mode)
+            {
+                for (i=0; i<l; i+=4)
                 {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
+                    for (r=im[i+channel],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (r < t[j])
+                        {
+                            im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                            im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                            im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
                 }
             }
-        }
-        else if (MODE.CHANNEL === mode)
-        {
-            for (i=0; i<l; i+=4)
+            else if (MODE.CHANNEL === mode)
             {
-                if (im[i+channel] < t)
+                for (i=0; i<l; i+=4)
                 {
-                    im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                    for (r=im[i+channel],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (r < t[j])
+                        {
+                            if (2 === channel) im[i+channel] = (b0 + (b1 - b0)*j/n)|0;
+                            else if (1 === channel) im[i+channel] = (g0 + (g1 - g0)*j/n)|0;
+                            else im[i+channel] = (r0 + (r1 - r0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        if (2 === channel) im[i+channel] = b1;
+                        else if (1 === channel) im[i+channel] = g1;
+                        else im[i+channel] = r1;
+                    }
                 }
-                else if (null != color1)
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
                 {
-                    im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
+                    for (y=im[i+1],j=0,n=t.length; j<n; ++j)
+                    {
+                        if (y < t[j])
+                        {
+                            im[i  ] = (r0 + (r1 - r0)*j/n)|0;
+                            im[i+1] = (g0 + (g1 - g0)*j/n)|0;
+                            im[i+2] = (b0 + (b1 - b0)*j/n)|0;
+                            break;
+                        }
+                    }
+                    if (j >= n)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
                 }
             }
         }
         else
         {
-            for (i=0; i<l; i+=4)
+            t = FilterUtil.otsu(bin.bin, bin.total, bin.min, bin.max);
+            if (MODE.GRAY === mode)
             {
-                cr = im[i  ];
-                y  = im[i+1];
-                cb = im[i+2];
-                if (y < t)
+                for (i=0; i<l; i+=4)
                 {
-                    im[i  ] = r0;
-                    im[i+1] = g0;
-                    im[i+2] = b0;
-                }
-                else if (null != color1)
-                {
-                    im[i  ] = r1;
-                    im[i+1] = g1;
-                    im[i+2] = b1;
-                }
-                else
-                {
-                    r = (y                      + 1.402   * (cr-128));
-                    g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
-                    b = (y + 1.772   * (cb-128));
-                    if (notSupportClamp)
+                    if (im[i+channel] < t)
                     {
-                        // clamp them manually
-                        r = r<0 ? 0 : (r>255 ? 255 : r);
-                        g = g<0 ? 0 : (g>255 ? 255 : g);
-                        b = b<0 ? 0 : (b>255 ? 255 : b);
+                        im[i  ] = r0;
+                        im[i+1] = g0;
+                        im[i+2] = b0;
                     }
-                    im[i  ] = r|0;
-                    im[i+1] = g|0;
-                    im[i+2] = b|0;
+                    else if (null != color1)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
+                }
+            }
+            else if (MODE.CHANNEL === mode)
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    if (im[i+channel] < t)
+                    {
+                        im[i+channel] = 2 === channel ? b0 : (1 === channel ? g0 : r0);
+                    }
+                    else if (null != color1)
+                    {
+                        im[i+channel] = 2 === channel ? b1 : (1 === channel ? g1 : r1);
+                    }
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i+=4)
+                {
+                    cr = im[i  ];
+                    y  = im[i+1];
+                    cb = im[i+2];
+                    if (y < t)
+                    {
+                        im[i  ] = r0;
+                        im[i+1] = g0;
+                        im[i+2] = b0;
+                    }
+                    else if (null != color1)
+                    {
+                        im[i  ] = r1;
+                        im[i+1] = g1;
+                        im[i+2] = b1;
+                    }
+                    else
+                    {
+                        r = (y                      + 1.402   * (cr-128));
+                        g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                        b = (y + 1.772   * (cb-128));
+                        if (notSupportClamp)
+                        {
+                            // clamp them manually
+                            r = r<0 ? 0 : (r>255 ? 255 : r);
+                            g = g<0 ? 0 : (g>255 ? 255 : g);
+                            b = b<0 ? 0 : (b>255 ? 255 : b);
+                        }
+                        im[i  ] = r|0;
+                        im[i+1] = g|0;
+                        im[i+2] = b|0;
+                    }
                 }
             }
         }

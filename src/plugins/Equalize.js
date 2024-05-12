@@ -31,7 +31,7 @@ FILTER.Create({
         self.channel = channel || 0;
         self.range = [0, 255];
         if (null != factor) self.factor = (+factor) || 0;
-        if (null != range) self.range = range;
+        if (range && (0 < range.length) && (0 === (range.length&1))) self.range = range;
     }
 
     ,serialize: function() {
