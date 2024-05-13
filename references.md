@@ -47,6 +47,7 @@
 * [Optimizations in perlin noise-generated procedural terrain, Marinescu 2012](http://www.cs.ubbcluj.ro/~studia-i/2012-2/05-Marinescu.pdf)
 * [A Computational Approach to Edge Detection, Canny 1986](https://perso.limsi.fr/vezien/PAPIERS_ACS/canny1986.pdf)
 * [Using Canny's Criteria to Derive a Recursively Implemented Optimal Edge Detector, Deriche 1987](https://ena.etsmtl.ca/pluginfile.php/59286/mod_resource/content/0/Lecture2.pdf)
+* [An Iterative Image Registration Technique with an Application to Stereo Vision, Bruce Lucas, Takeo Kanade 1981](https://www.ri.cmu.edu/pub_files/pub3/lucas_bruce_d_1981_2/lucas_bruce_d_1981_2.pdf)
 * [Morphological Filters-Part I: Their Set-Theoretic Analysis and Relations to Linear Shift-Invariant Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part1_ieeetASSP_+corrections1989.pdf)
 * [Morphological Filters-Part II: Their Relations to Median, Order-Statistic, and Stack Filters, Maragos, Schafer 1987](http://cvsp.cs.ntua.gr/publications/jpubl+bchap/1987_MaragosSchafer_MorphologicFilters-part2_ieeetASSP_+corrections1989.pdf)
 * [Morphological Grayscale Reconstruction: Definition, Efficient Algorithm and Applications in Image Analysis, Vincent 1992](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.116.5241&rep=rep1&type=pdf)
