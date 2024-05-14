@@ -12,8 +12,7 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     satsuma = FilterUtil.satsuma, rsatsum = FilterUtil.rsatsum,
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
-    cos45 = 1/stdMath.sqrt(2), sin45 = cos45;
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -34,7 +33,6 @@ FILTER.Create({
     ,minNeighbors: 1
     ,maxMatches: 1000
     ,maxMatchesOnly: true
-    ,returnAngle: false
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -65,7 +63,6 @@ FILTER.Create({
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
             if (undef !== params.maxMatchesOnly) self.maxMatchesOnly = !!params.maxMatchesOnly;
-            if (undef !== params.returnAngle) self.returnAngle = !!params.returnAngle;
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.q) self.quality(params.q, self._s);
@@ -170,8 +167,8 @@ FILTER.Create({
             mm = w*h, nn = tw*th, m4, score,
             maxMatches = self.maxMatches,
             maxOnly = self.maxMatchesOnly,
-            returnAngle = self.returnAngle,
-            minNeighbors = self.minNeighbors, eps = self.tolerance,
+            minNeighbors = self.minNeighbors,
+            eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, rsat, rsat2,
             isTilted, isVertical, isSwap,
@@ -179,7 +176,7 @@ FILTER.Create({
 
         if (1 === rot) rot = [0]; // only 1 given direction
         else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
-        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions (max)
+        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions
 
         if (selection)
         {
@@ -237,7 +234,7 @@ FILTER.Create({
             ro = rot[r];
             isTilted = !(0 === ro || 180 === ro || -180 === ro || 360 === ro || -360 === ro || 90 === ro || -270 === ro || 270 === ro || -90 === ro);
             isVertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
-            isSwap = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
+            isSwap = isVertical;
             sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
@@ -275,7 +272,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = rect(x, y, tws, ths, twhs, returnAngle, isVertical, isTilted, ro, sc, sin, cos);
+                            max[maxc++] = {x:x, y:y, width:tws, height:ths};//rect(x, y, tws, ths/*, ro, isVertical*/);
                         }
                     }
                 }
@@ -288,7 +285,7 @@ FILTER.Create({
             if (matches.length)
             {
                 matches = merge_features(matches, minNeighbors, eps);
-                if (returnAngle) matches.forEach(function(match) {match.angle = ro;});
+                matches.forEach(function(match) {match.angle = ro;});
                 all_matches.push.apply(all_matches, matches);
             }
         }
@@ -305,12 +302,12 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
     if (null == sin) {sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);}
     var tws = tws0, ths = ths0, tws2, ths2, area, area2, sw, sh,
-        x0, y0, x1, y1, bk, k, K = basis.length, rr,
+        x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_tilted = !(0 === ro || 180 === ro || -180 === ro || 360 === ro || -360 === ro || 90 === ro || -270 === ro || 270 === ro || -90 === ro),
         is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
-        p = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};
+        r = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};
     if (is_swap)
     {
         // swap x/y
@@ -321,13 +318,13 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
     ths2 = ths/2;
     if (is_tilted)
     {
-        p.x1 = 0;       p.y1 = 0;
-        p.x2 = tws - 1; p.y2 = 0;
-        p.x3 = tws - 1; p.y3 = ths - 1;
-        p.x4 = 0;       p.y4 = ths - 1;
-        rot(p, sin, cos, tws2, ths2);
-        sum1 = satsuma(sat1, w, h, x+p.x1, y+p.y1, x+p.x2, y+p.y2, x+p.x3, y+p.y3, x+p.x4, y+p.y4);
-        sum2 = satsuma(sat2, w, h, x+p.x1, y+p.y1, x+p.x2, y+p.y2, x+p.x3, y+p.y3, x+p.x4, y+p.y4);
+        r.x1 = 0;       r.y1 = 0;
+        r.x2 = tws - 1; r.y2 = 0;
+        r.x3 = tws - 1; r.y3 = ths - 1;
+        r.x4 = 0;       r.y4 = ths - 1;
+        rot(r, sin, cos, tws2, ths2);
+        sum1 = satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
+        sum2 = satsuma(sat2, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
     }
     else
     {
@@ -387,12 +384,12 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
             diff = bk.k-avgt;
             if (is_tilted)
             {
-                p.x1 = 0;      p.y1 = 0;
-                p.x2 = sw - 1; p.y2 = 0;
-                p.x3 = sw - 1; p.y3 = sh - 1;
-                p.x4 = 0;      p.y4 = sh - 1;
-                rot(p, sin, cos, tws2, ths2);
-                varft += diff*(satsuma(sat1, w, h, x+p.x1, y+p.y1, x+p.x2, y+p.y2, x+p.x3, y+p.y3, x+p.x4, y+p.y4) - avgf*area2);
+                r.x1 = x0;  r.y1 = y0;
+                r.x2 = x1;  r.y2 = y0;
+                r.x3 = x1;  r.y3 = y1;
+                r.x4 = x0;  r.y4 = y1;
+                rot(r, sin, cos, tws2, ths2);
+                varft += diff*(satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4) - avgf*area2);
             }
             else
             {
@@ -404,76 +401,31 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h, wh, with_angle, is_vertical, is_tilted, ro, sc, sin, cos)
+function rect(x, y, w, h/*, a, is_vertical*/)
 {
-    var dx = 0, dy = 0, sx = 1, sy = 1, c = 1, s = 0;
-    if (270 === ro || -90 === ro)
-    {
-        c = cos45;
-        s = sin45;
-        sx = 1;
-        sy = 1;
-    }
-    else if (180 === ro || -180 === ro)
-    {
-        c = cos45;
-        s = -sin45;
-        sx = -1;
-        sy = 1;
-    }
-    else if (90 === ro || -270 === ro)
-    {
-        c = cos45;
-        s = sin45;
-        sx = 1;
-        sy = 1;
-    }
-    else
-    {
-        c = cos45;
-        s = -sin45;
-        sx = -1;
-        sy = 1;
-    }
-    if (with_angle)
-    {
-        return {x:x, y:y, width:w, height:h};
-    }
-    else if (is_tilted)
-    {
-        dx = (c*(-sx*w)+s*(-sy*h)-(-sx*w))/2;
-        dy = (c*(-sy*h)-s*(-sx*w)-(-sy*h))/2;
-        return {x:x+dx, y:y+dy, width:w, height:h};
-    }
-    else if (is_vertical)
-    {
-        return {x:x, y:y, width:h, height:w};
-    }
-    else
-    {
-        return {x:x, y:y, width:w, height:h};
-    }
+    return {x:x, y:y, width:w, height:h/*, angle:a||0*/};
+    //return is_vertical ? {x:x, y:y, width:h, height:w} : {x:x, y:y, width:w, height:h};
 }
-function rot(p, sin, cos, ox, oy)
+function rot(r, sin, cos, ox, oy)
 {
     //sin = -sin;
     var x, y;
 
-    x = p.x1 - ox; y = p.y1 - oy;
-    p.x1 = stdMath.round( cos*x + sin*y + ox);
-    p.y1 = stdMath.round(-sin*x + cos*y + oy);
+    x = r.x1 - ox; y = r.y1 - oy;
+    r.x1 = stdMath.round( cos*x + sin*y + ox);
+    r.y1 = stdMath.round(-sin*x + cos*y + oy);
 
-    x = p.x2 - ox; y = p.y2 - oy;
-    p.x2 = stdMath.round( cos*x + sin*y + ox);
-    p.y2 = stdMath.round(-sin*x + cos*y + oy);
+    x = r.x2 - ox; y = r.y2 - oy;
+    r.x2 = stdMath.round( cos*x + sin*y + ox);
+    r.y2 = stdMath.round(-sin*x + cos*y + oy);
 
-    x = p.x3 - ox; y = p.y3 - oy;
-    p.x3 = stdMath.round( cos*x + sin*y + ox);
-    p.y3 = stdMath.round(-sin*x + cos*y + oy);
+    x = r.x3 - ox; y = r.y3 - oy;
+    r.x3 = stdMath.round( cos*x + sin*y + ox);
+    r.y3 = stdMath.round(-sin*x + cos*y + oy);
 
-    x = p.x4 - ox; y = p.y4 - oy;
-    p.x4 = stdMath.round( cos*x + sin*y + ox);
-    p.y4 = stdMath.round(-sin*x + cos*y + oy);
+    x = r.x4 - ox; y = r.y4 - oy;
+    r.x4 = stdMath.round( cos*x + sin*y + ox);
+    r.y4 = stdMath.round(-sin*x + cos*y + oy);
 }
 function sign(x)
 {

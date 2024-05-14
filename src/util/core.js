@@ -2455,6 +2455,7 @@ FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 function satsum(sat, w, h, x0, y0, x1, y1)
 {
+    // sat sum given top left and bottom right points
     x0 = clamp(x0, 0, w-1);
     y0 = clamp(y0, 0, h-1);
     x1 = clamp(x1, 0, w-1);
@@ -2464,10 +2465,11 @@ function satsum(sat, w, h, x0, y0, x1, y1)
 }
 FilterUtil.satsum = satsum;
 FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
-    // approximate sat for arbitrary rotated rectangle defined (clockwise) by (x1,y1) to (x4,y4)
+    // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by (x1,y1) to (x4,y4)
     var xM = stdMath.max(x1, x2, x3, x4), xm = stdMath.min(x1, x2, x3, x4),
         yM = stdMath.max(y1, y2, y3, y4), ym = stdMath.min(y1, y2, y3, y4),
         xi1, xi2, yi1, yi2, xt1, yt1, xt2, yt2, xt3, yt3, xt4, yt4;
+    // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     if (y1 === ym)
     {
         xi1 = x1;
@@ -2541,11 +2543,11 @@ FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
     else if (x3 === xM) yi2 = y3;
     else yi2 = y4;
     return (
-    satsum(sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) +
-    (satsum(sat, w, h, stdMath.min(xi1, xt1), ym, stdMath.max(xi1, xt1), yt1) +
-    satsum(sat, w, h, stdMath.min(xi1, xt2), ym, stdMath.max(xi1, xt2), yt2) +
-    satsum(sat, w, h, stdMath.min(xi2, xt3), yt3, stdMath.max(xi2, xt3), yM) +
-    satsum(sat, w, h, stdMath.min(xi2, xt4), yt4, stdMath.max(xi2, xt4), yM))/2
+     satsum(sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) +
+    (satsum(sat, w, h, stdMath.min(xi1, xt1), ym,  stdMath.max(xi1, xt1), yt1) +
+     satsum(sat, w, h, stdMath.min(xi1, xt2), ym,  stdMath.max(xi1, xt2), yt2) +
+     satsum(sat, w, h, stdMath.min(xi2, xt3), yt3, stdMath.max(xi2, xt3), yM)  +
+     satsum(sat, w, h, stdMath.min(xi2, xt4), yt4, stdMath.max(xi2, xt4), yM))/2
     );
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
