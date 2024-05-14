@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-14 16:41:38
+*   @built on 2024-05-14 19:55:29
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-14 16:41:38
+*   @built on 2024-05-14 19:55:29
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -19617,11 +19617,12 @@ FILTER.Create({
         twh = stdMath.sqrt(tw*tw + th*th);
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            ro = rot[r];
-            isTilted = !(0 === ro || 180 === ro || -180 === ro || 360 === ro || -360 === ro || 90 === ro || -270 === ro || 270 === ro || -90 === ro);
-            isVertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro);
+            ro = (rot[r]||0);
+            if (0 > ro) ro += 360;
+            //isTilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
+            isVertical = (90 === ro || 270 === ro);
             isSwap = isVertical;
-            sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);
+            sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
@@ -19658,7 +19659,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x, y:y, width:tws, height:ths};//rect(x, y, tws, ths/*, ro, isVertical*/);
+                            max[maxc++] = {x:x, y:y, width:tws, height:ths};
                         }
                     }
                 }
@@ -19686,13 +19687,13 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
     if (null == sc) sc = 1;
     if (null == ro) ro = 0;
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
-    if (null == sin) {sin = stdMath.sin(ro*stdMath.PI/180); cos = stdMath.cos(ro*stdMath.PI/180);}
+    if (null == sin) {sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);}
     var tws = tws0, ths = ths0, tws2, ths2, area, area2, sw, sh,
         x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
-        is_vertical = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
-        is_tilted = !(0 === ro || 180 === ro || -180 === ro || 360 === ro || -360 === ro || 90 === ro || -270 === ro || 270 === ro || -90 === ro),
-        is_swap = (90 === ro || -270 === ro || 270 === ro || -90 === ro),
+        is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro),
+        is_vertical = (90 === ro || 270 === ro),
+        is_swap = is_vertical,
         r = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};
     if (is_swap)
     {
@@ -19700,14 +19701,14 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         tws = ths0;
         ths = tws0;
     }
-    tws2 = tws/2;
-    ths2 = ths/2;
-    if (is_tilted)
+    tws2 = tws0/2;
+    ths2 = ths0/2;
+    if (/*is_tilted*/true)
     {
-        r.x1 = 0;       r.y1 = 0;
-        r.x2 = tws - 1; r.y2 = 0;
-        r.x3 = tws - 1; r.y3 = ths - 1;
-        r.x4 = 0;       r.y4 = ths - 1;
+        r.x1 = 0;        r.y1 = 0;
+        r.x2 = tws0 - 1; r.y2 = 0;
+        r.x3 = tws0 - 1; r.y3 = ths0 - 1;
+        r.x4 = 0;        r.y4 = ths0 - 1;
         rot(r, sin, cos, tws2, ths2);
         sum1 = satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
         sum2 = satsuma(sat2, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
@@ -19731,35 +19732,35 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         for (k=0; k<K; ++k)
         {
             bk = basis[k];
-            if (270 === ro || -90 === ro)
+            /*if (270 === ro)
             {
                 x0 = bk.y0;
                 y0 = tw-1-bk.x1;
                 x1 = bk.y1;
                 y1 = tw-1-bk.x0;
             }
-            else if (180 === ro || -180 === ro)
+            else if (180 === ro)
             {
                 x0 = tw-1-bk.x1;
                 y0 = th-1-bk.y1;
                 x1 = tw-1-bk.x0;
                 y1 = th-1-bk.y0;
             }
-            else if (90 === ro || -270 === ro)
+            else if (90 === ro)
             {
                 x0 = th-1-bk.y1;
                 y0 = bk.x0;
                 x1 = th-1-bk.y0;
                 y1 = bk.x1;
             }
-            else // 0, 360, -360, ..
-            {
+            else // 0, ..
+            {*/
                 // as is
                 x0 = bk.x0;
                 y0 = bk.y0;
                 x1 = bk.x1;
                 y1 = bk.y1;
-            }
+            /*}*/
             x0 = stdMath.round(sc*x0);
             y0 = stdMath.round(sc*y0);
             x1 = stdMath.round(sc*x1);
@@ -19768,7 +19769,7 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
             sh = y1-y0+1;
             area2 = sw*sh;
             diff = bk.k-avgt;
-            if (is_tilted)
+            if (true/*is_tilted*/)
             {
                 r.x1 = x0;  r.y1 = y0;
                 r.x2 = x1;  r.y2 = y0;
@@ -19787,31 +19788,25 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rect(x, y, w, h/*, a, is_vertical*/)
-{
-    return {x:x, y:y, width:w, height:h/*, angle:a||0*/};
-    //return is_vertical ? {x:x, y:y, width:h, height:w} : {x:x, y:y, width:w, height:h};
-}
 function rot(r, sin, cos, ox, oy)
 {
-    //sin = -sin;
     var x, y;
 
     x = r.x1 - ox; y = r.y1 - oy;
-    r.x1 = stdMath.round( cos*x + sin*y + ox);
-    r.y1 = stdMath.round(-sin*x + cos*y + oy);
+    r.x1 = stdMath.round(cos*x - sin*y + ox);
+    r.y1 = stdMath.round(sin*x + cos*y + oy);
 
     x = r.x2 - ox; y = r.y2 - oy;
-    r.x2 = stdMath.round( cos*x + sin*y + ox);
-    r.y2 = stdMath.round(-sin*x + cos*y + oy);
+    r.x2 = stdMath.round(cos*x - sin*y + ox);
+    r.y2 = stdMath.round(sin*x + cos*y + oy);
 
     x = r.x3 - ox; y = r.y3 - oy;
-    r.x3 = stdMath.round( cos*x + sin*y + ox);
-    r.y3 = stdMath.round(-sin*x + cos*y + oy);
+    r.x3 = stdMath.round(cos*x - sin*y + ox);
+    r.y3 = stdMath.round(sin*x + cos*y + oy);
 
     x = r.x4 - ox; y = r.y4 - oy;
-    r.x4 = stdMath.round( cos*x + sin*y + ox);
-    r.y4 = stdMath.round(-sin*x + cos*y + oy);
+    r.x4 = stdMath.round(cos*x - sin*y + ox);
+    r.y4 = stdMath.round(sin*x + cos*y + oy);
 }
 function sign(x)
 {
@@ -19861,10 +19856,11 @@ function approximate(t, w, h, c, Jmax, minSz)
         p, tp, l = t.length, n = l>>>2,
         s, v, k, K, b, bk, bb;
     sat(t, w, h, 2, c, s=new A32F(n));
-    b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
+    b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
     for (p=0; p<l; p+=4) {v = (t[p+c]-bk.k); J += v*v/n;}
+    Jmin = J;
     while (J > Jmax)
     {
         Jmin = J;
@@ -19961,6 +19957,7 @@ function approximate(t, w, h, c, Jmax, minSz)
         J = Jmin;
         b = bmin;
     }
+    b[0].q = 1-Jmin/255/255;
     return b;
 }
 function basisv(basis, avg, w, h)
