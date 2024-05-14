@@ -2453,15 +2453,103 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
-FilterUtil.satsum = function(sat, w, h, x0, y0, x1, y1) {
+function satsum(sat, w, h, x0, y0, x1, y1)
+{
     x0 = clamp(x0, 0, w-1);
     y0 = clamp(y0, 0, h-1);
     x1 = clamp(x1, 0, w-1);
     y1 = clamp(y1, 0, h-1);
     x0 -= 1; y0 -= 1;
     return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
+}
+FilterUtil.satsum = satsum;
+FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
+    // approximate sat for arbitrary rotated rectangle defined (clockwise) by (x1,y1) to (x4,y4)
+    var xM = stdMath.max(x1, x2, x3, x4), xm = stdMath.min(x1, x2, x3, x4),
+        yM = stdMath.max(y1, y2, y3, y4), ym = stdMath.min(y1, y2, y3, y4),
+        xi1, xi2, yi1, yi2, xt1, yt1, xt2, yt2, xt3, yt3, xt4, yt4;
+    if (y1 === ym)
+    {
+        xi1 = x1;
+        xt1 = x4;
+        yt1 = y4;
+        xt2 = x2;
+        yt2 = y2;
+    }
+    else if (y2 === ym)
+    {
+        xi1 = x2;
+        xt1 = x1;
+        yt1 = y1;
+        xt2 = x3;
+        yt2 = y3;
+    }
+    else if (y3 === ym)
+    {
+        xi1 = x3;
+        xt1 = x2;
+        yt1 = y2;
+        xt2 = x4;
+        yt2 = y4;
+    }
+    else
+    {
+        xi1 = x4;
+        xt1 = x3;
+        yt1 = y3;
+        xt2 = x1;
+        yt2 = y1;
+    }
+    if (y1 === yM)
+    {
+        xi2 = x1;
+        xt3 = x4;
+        yt3 = y4;
+        xt4 = x2;
+        yt4 = y2;
+    }
+    else if (y2 === yM)
+    {
+        xi2 = x2;
+        xt3 = x1;
+        yt3 = y1;
+        xt4 = x3;
+        yt4 = y3;
+    }
+    else if (y3 === yM)
+    {
+        xi2 = x3;
+        xt3 = x2;
+        yt3 = y2;
+        xt4 = x4;
+        yt4 = y4;
+    }
+    else
+    {
+        xi2 = x4;
+        xt3 = x3;
+        yt3 = y3;
+        xt4 = x1;
+        yt4 = y1;
+    }
+    if (x1 === xm) yi1 = y1;
+    else if (x2 === xm) yi1 = y2;
+    else if (x3 === xm) yi1 = y3;
+    else yi1 = y4;
+    if (x1 === xM) yi2 = y1;
+    else if (x2 === xM) yi2 = y2;
+    else if (x3 === xM) yi2 = y3;
+    else yi2 = y4;
+    return (
+    satsum(sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) +
+    (satsum(sat, w, h, stdMath.min(xi1, xt1), ym, stdMath.max(xi1, xt1), yt1) +
+    satsum(sat, w, h, stdMath.min(xi1, xt2), ym, stdMath.max(xi1, xt2), yt2) +
+    satsum(sat, w, h, stdMath.min(xi2, xt3), yt3, stdMath.max(xi2, xt3), yM) +
+    satsum(sat, w, h, stdMath.min(xi2, xt4), yt4, stdMath.max(xi2, xt4), yM))/2
+    );
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
+    // 45deg rotated (tilted) sat sum
     // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
     var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
