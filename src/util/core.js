@@ -2456,7 +2456,7 @@ FilterUtil.sat = integral2;
 function satsum(sat, w, h, x0, y0, x1, y1)
 {
     // exact sat sum of axis-aligned rectangle defined by p0, p1 (top left, bottom right)
-    if (y1 < y0 || x1 < x0 || x1 < 0 || y1 < 0) return 0;
+    if (y1 < y0 || x1 < x0 || y1 < 0 || x1 < 0) return 0;
     x0 = clamp(x0, 0, w-1);
     y0 = clamp(y0, 0, h-1);
     x1 = clamp(x1, 0, w-1);
@@ -2493,13 +2493,13 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         //better approximation, subdivide along y
         if (y0 === ym)
         {
-            if (y1 === ym) xym = x2 === xm ? stdMath.max(x0, x1) : stdMath.min(x0, x1);
-            else if (y2 === ym) xym = x1 === xm ? stdMath.max(x0, x2) : stdMath.min(x0, x2);
+            if (y1 === ym) xym = x2 === xm ? xM : xm;
+            else if (y2 === ym) xym = x1 === xm ? xM : xm;
             else xym = x0;
         }
         else if (y1 === ym)
         {
-            if (y2 === ym) xym = x0 === xm ? stdMath.max(x1, x2) : stdMath.min(x1, x2);
+            if (y2 === ym) xym = x0 === xm ? xM : xm;
             else xym = x1;
         }
         else
@@ -2508,13 +2508,13 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         }
         if (y0 === yM)
         {
-            if (y1 === yM) xyM = x2 === xm ? stdMath.max(x0, x1) : stdMath.min(x0, x1);
-            else if (y2 === yM) xym = x1 === xm ? stdMath.max(x0, x2) : stdMath.min(x0, x2);
+            if (y1 === yM) xyM = x2 === xm ? xM : xm;
+            else if (y2 === yM) xym = x1 === xm ? xM : xm;
             else xyM = x0;
         }
         else if (y1 === yM)
         {
-            if (y2 === yM) xyM = x0 === xm ? stdMath.max(x1, x2) : stdMath.min(x1, x2);
+            if (y2 === yM) xyM = x0 === xm ? xM : xm;
             else xyM = x1;
         }
         else
@@ -2527,7 +2527,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
             if (y > yM) y = yM;
             xi = stdMath.round(xym + (y-ym)/dy*(xyM-xym));
             s += satsum(sat, w, h, stdMath.min(xym, xi), p, stdMath.max(xym, xi), y);
-            p = y;
+            p = stdMath.min(y+1, yM);
         }
         if (y < yM) s += satsum(sat, w, h, stdMath.min(xym, xyM), y, stdMath.max(xym, xyM), yM);
     }
@@ -2536,13 +2536,13 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         //better approximation, subdivide along x
         if (x0 === xm)
         {
-            if (x1 === xm) yxm = y2 === ym ? stdMath.max(y0, y1) : stdMath.min(y0, y1);
-            else if (x2 === xm) yxm = y1 === ym ? stdMath.max(y0, y2) : stdMath.min(y0, y2);
+            if (x1 === xm) yxm = y2 === ym ? yM : ym;
+            else if (x2 === xm) yxm = y1 === ym ? yM : ym;
             else yxm = y0;
         }
         else if (x1 === xm)
         {
-            if (x2 === xm) yxm = y0 === ym ? stdMath.max(y1, y2) : stdMath.min(y1, y2);
+            if (x2 === xm) yxm = y0 === ym ? yM : ym;
             else yxm = y1;
         }
         else
@@ -2551,13 +2551,13 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         }
         if (x0 === xM)
         {
-            if (x1 === xM) yxM = y2 === ym ? stdMath.max(y0, y1) : stdMath.min(y0, y1);
-            else if (x2 === xM) yxM = y1 === ym ? stdMath.max(y0, y2) : stdMath.min(y0, y2);
+            if (x1 === xM) yxM = y2 === ym ? yM : ym;
+            else if (x2 === xM) yxM = y1 === ym ? yM : ym;
             else yxM = y0;
         }
         else if (x1 === xM)
         {
-            if (x2 === xM) yxM = y0 === ym ? stdMath.max(y1, y2) : stdMath.min(y1, y2);
+            if (x2 === xM) yxM = y0 === ym ? yM : ym;
             else yxM = y1;
         }
         else
@@ -2570,7 +2570,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + (x-xm)/dx*(yxM-yxm));
             s += satsum(sat, w, h, p, stdMath.min(yxm, yi), x, stdMath.max(yxm, yi));
-            p = x;
+            p = stdMath.min(x+1, xM);
         }
         if (x < xM) s += satsum(sat, w, h, x, stdMath.min(yxm, yxM), xM, stdMath.max(yxm, yxM));
     }
