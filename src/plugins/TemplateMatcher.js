@@ -8,8 +8,7 @@
 "use strict";
 
 var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
-    sat = FilterUtil.sat, satsum = FilterUtil.satsum,
-    satsuma = FilterUtil.satsuma, rsatsum = FilterUtil.rsatsum,
+    sat = FilterUtil.sat, satsum = FilterUtil.satsum, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
@@ -169,10 +168,9 @@ FILTER.Create({
             maxOnly = self.maxMatchesOnly,
             minNeighbors = self.minNeighbors,
             eps = self.tolerance,
+            rr = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0},
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
-            sat1, sat2, rsat, rsat2,
-            isTilted, isVertical, isSwap,
-            max, maxc, maxv, matches;
+            isVertical, isSwap, sat1, sat2, max, maxc, maxv, matches;
 
         if (1 === rot) rot = [0]; // only 1 given direction
         else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
@@ -203,28 +201,22 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
 
-        if (metaData && (metaData.tmfilter_SAT/* || metaData.haarfilter_SAT*/))
+        if (metaData && (metaData.tmfilter_SAT || metaData.haarfilter_SAT))
         {
-            sat1 = metaData.tmfilter_SAT;//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
-            sat2 = metaData.tmfilter_SAT2;// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
-            //rsat = metaData.tmfilter_RSAT;// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
-            //rsat2 = metaData.tmfilter_RSAT2;
+            sat1 = metaData.tmfilter_SAT  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
+            sat2 = metaData.tmfilter_SAT2 || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
         }
         else
         {
             sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
             sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            //rsat = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            //rsat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            sat(im, w, h, 2, 0, sat1[0], sat2[0]/*, rsat[0], rsat2[0]*/); // R
-            sat(im, w, h, 2, 1, sat1[1], sat2[1]/*, rsat[1], rsat2[1]*/); // G
-            sat(im, w, h, 2, 2, sat1[2], sat2[2]/*, rsat[2], rsat2[2]*/); // B
+            sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
+            sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
+            sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
             if (metaData)
             {
                 metaData.tmfilter_SAT = sat1;
                 metaData.tmfilter_SAT2 = sat2;
-                //metaData.tmfilter_RSAT = rsat;
-                //metaData.tmfilter_RSAT2 = rsat2;
             }
         }
 
@@ -233,7 +225,6 @@ FILTER.Create({
         {
             ro = (rot[r]||0);
             if (0 > ro) ro += 360;
-            //isTilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
             isVertical = (90 === ro || 270 === ro);
             isSwap = isVertical;
             sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);
@@ -259,11 +250,11 @@ FILTER.Create({
                     if (x + tw2 <= x2 && y + th2 <= y2)
                     {
                         score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], /*rsat[0], rsat2[0],*/ tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos)   // R
+                        ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos, rr)   // R
                         : ((
-                        ncc(x, y, sat1[0], sat2[0], /*rsat[0], rsat2[0],*/ tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos) + // R
-                        ncc(x, y, sat1[1], sat2[1], /*rsat[1], rsat2[1],*/ tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos) + // G
-                        ncc(x, y, sat1[2], sat2[2], /*rsat[2], rsat2[2],*/ tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos)   // B
+                        ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos, rr) + // R
+                        ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos, rr) + // G
+                        ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos, rr)   // B
                         ) / 3));
                         if (score >= tt)
                         {
@@ -291,24 +282,24 @@ FILTER.Create({
             }
         }
 
-        max = matches = null; sat1 = sat2 = rsat = rsat2 = null;
+        max = matches = null; sat1 = sat2 = null;
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0, twhs, sin, cos)
+function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0, twhs, sin, cos, r)
 {
     // normalized cross-correlation at point (x,y)
     if (null == sc) sc = 1;
     if (null == ro) ro = 0;
     if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
     if (null == sin) {sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);}
+    if (null == r) {r = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};}
     var tws = tws0, ths = ths0, tws2, ths2, area, area2, sw, sh,
         x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro),
         is_vertical = (90 === ro || 270 === ro),
-        is_swap = is_vertical,
-        r = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};
+        is_swap = is_vertical;
     if (is_swap)
     {
         // swap x/y
@@ -319,13 +310,9 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
     ths2 = ths0/2;
     if (/*is_tilted*/true)
     {
-        r.x1 = 0;        r.y1 = 0;
-        r.x2 = tws0 - 1; r.y2 = 0;
-        r.x3 = tws0 - 1; r.y3 = ths0 - 1;
-        r.x4 = 0;        r.y4 = ths0 - 1;
-        rot(r, sin, cos, tws2, ths2);
-        sum1 = satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
-        sum2 = satsuma(sat2, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
+        rot(r, 0, 0, tws0 - 1, ths0 - 1, sin, cos, tws2, ths2);
+        sum1 = satsumr(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4, 3);
+        sum2 = satsumr(sat2, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4, 3);
     }
     else
     {
@@ -385,12 +372,8 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
             diff = bk.k-avgt;
             if (true/*is_tilted*/)
             {
-                r.x1 = x0;  r.y1 = y0;
-                r.x2 = x1;  r.y2 = y0;
-                r.x3 = x1;  r.y3 = y1;
-                r.x4 = x0;  r.y4 = y1;
-                rot(r, sin, cos, tws2, ths2);
-                varft += diff*(satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4) - avgf*area2);
+                rot(r, x0, y0, x1, y1, sin, cos, tws2, ths2);
+                varft += diff*(satsumr(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4, 3) - avgf*area2);
             }
             else
             {
@@ -402,23 +385,23 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
     }
 }
-function rot(r, sin, cos, ox, oy)
+function rot(r, x1, y1, x3, y3, sin, cos, ox, oy)
 {
     var x, y;
 
-    x = r.x1 - ox; y = r.y1 - oy;
+    x = x1 - ox; y = y1 - oy;
     r.x1 = stdMath.round(cos*x - sin*y + ox);
     r.y1 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x2 - ox; y = r.y2 - oy;
+    x = x3 - ox; y = y1 - oy;
     r.x2 = stdMath.round(cos*x - sin*y + ox);
     r.y2 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x3 - ox; y = r.y3 - oy;
+    x = x3 - ox; y = y3 - oy;
     r.x3 = stdMath.round(cos*x - sin*y + ox);
     r.y3 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x4 - ox; y = r.y4 - oy;
+    x = x1 - ox; y = y3 - oy;
     r.x4 = stdMath.round(cos*x - sin*y + ox);
     r.y4 = stdMath.round(sin*x + cos*y + oy);
 }

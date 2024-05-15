@@ -2455,85 +2455,147 @@ FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
 function satsum(sat, w, h, x0, y0, x1, y1)
 {
-    // sat sum given top left and bottom right points
+    // exact sat sum of axis-aligned rectangle defined by p0, p1 (top left, bottom right)
+    if (y1 < y0 || x1 < x0 || x1 < 0 || y1 < 0) return 0;
     x0 = clamp(x0, 0, w-1);
     y0 = clamp(y0, 0, h-1);
     x1 = clamp(x1, 0, w-1);
     y1 = clamp(y1, 0, h-1);
     x0 -= 1; y0 -= 1;
-    return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
+    var wy0 = w*y0, wy1 = w*y1;
+    return sat[x1 + wy1] - sat[x0 + wy1] - sat[x1 + wy0] + sat[x0 + wy0];
+}
+function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
+{
+    // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
+    var xm = stdMath.min(x0, x1, x2),
+        xM = stdMath.max(x0, x1, x2),
+        ym = stdMath.min(y0, y1, y2),
+        yM = stdMath.max(y0, y1, y2),
+        dx = xM - xm, dy = yM - ym,
+        s = 0, d, p, i,
+        x, y, xi, yi,
+        yxm, yxM, xym, xyM;
+
+    k = k || 0;
+    if (0 === dx || 0 === dy)
+    {
+        // zero area
+        s = 0;
+    }
+    else if (k <= 1)
+    {
+        //most crude approximation, half of enclosing rectangle sum
+        s = satsum(sat, w, h, xm, ym, xM, yM)/2;
+    }
+    else if (dx > dy)
+    {
+        //better approximation, subdivide along y
+        if (y0 === ym)
+        {
+            if (y1 === ym) xym = x2 === xm ? stdMath.max(x0, x1) : stdMath.min(x0, x1);
+            else if (y2 === ym) xym = x1 === xm ? stdMath.max(x0, x2) : stdMath.min(x0, x2);
+            else xym = x0;
+        }
+        else if (y1 === ym)
+        {
+            if (y2 === ym) xym = x0 === xm ? stdMath.max(x1, x2) : stdMath.min(x1, x2);
+            else xym = x1;
+        }
+        else
+        {
+            xym = x2;
+        }
+        if (y0 === yM)
+        {
+            if (y1 === yM) xyM = x2 === xm ? stdMath.max(x0, x1) : stdMath.min(x0, x1);
+            else if (y2 === yM) xym = x1 === xm ? stdMath.max(x0, x2) : stdMath.min(x0, x2);
+            else xyM = x0;
+        }
+        else if (y1 === yM)
+        {
+            if (y2 === yM) xyM = x0 === xm ? stdMath.max(x1, x2) : stdMath.min(x1, x2);
+            else xyM = x1;
+        }
+        else
+        {
+            xyM = x2;
+        }
+        d = stdMath.max(1, stdMath.round(dy/k)||0);
+        for (i=1,p=ym,y=ym+d; i<=k && y<=yM; ++i,y+=d)
+        {
+            if (y > yM) y = yM;
+            xi = stdMath.round(xym + (y-ym)/dy*(xyM-xym));
+            s += satsum(sat, w, h, stdMath.min(xym, xi), p, stdMath.max(xym, xi), y);
+            p = y;
+        }
+        if (y < yM) s += satsum(sat, w, h, stdMath.min(xym, xyM), y, stdMath.max(xym, xyM), yM);
+    }
+    else
+    {
+        //better approximation, subdivide along x
+        if (x0 === xm)
+        {
+            if (x1 === xm) yxm = y2 === ym ? stdMath.max(y0, y1) : stdMath.min(y0, y1);
+            else if (x2 === xm) yxm = y1 === ym ? stdMath.max(y0, y2) : stdMath.min(y0, y2);
+            else yxm = y0;
+        }
+        else if (x1 === xm)
+        {
+            if (x2 === xm) yxm = y0 === ym ? stdMath.max(y1, y2) : stdMath.min(y1, y2);
+            else yxm = y1;
+        }
+        else
+        {
+            yxm = y2;
+        }
+        if (x0 === xM)
+        {
+            if (x1 === xM) yxM = y2 === ym ? stdMath.max(y0, y1) : stdMath.min(y0, y1);
+            else if (x2 === xM) yxM = y1 === ym ? stdMath.max(y0, y2) : stdMath.min(y0, y2);
+            else yxM = y0;
+        }
+        else if (x1 === xM)
+        {
+            if (x2 === xM) yxM = y0 === ym ? stdMath.max(y1, y2) : stdMath.min(y1, y2);
+            else yxM = y1;
+        }
+        else
+        {
+            yxM = y2;
+        }
+        d = stdMath.max(1, stdMath.round(dx/k)||0);
+        for (i=1,p=xm,x=xm+d; i<=k && x<=xM; ++i,x+=d)
+        {
+            if (x > xM) x = xM;
+            yi = stdMath.round(yxm + (x-xm)/dx*(yxM-yxm));
+            s += satsum(sat, w, h, p, stdMath.min(yxm, yi), x, stdMath.max(yxm, yi));
+            p = x;
+        }
+        if (x < xM) s += satsum(sat, w, h, x, stdMath.min(yxm, yxM), xM, stdMath.max(yxm, yxM));
+    }
+    return s;
 }
 FilterUtil.satsum = satsum;
-FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
-    // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by (x1,y1) to (x4,y4)
-    var xM = stdMath.max(x1, x2, x3, x4), xm = stdMath.min(x1, x2, x3, x4),
-        yM = stdMath.max(y1, y2, y3, y4), ym = stdMath.min(y1, y2, y3, y4),
-        xi1, xi2, yi1, yi2, xt1, yt1, xt2, yt2, xt3, yt3, xt4, yt4;
+FilterUtil.satsumt = satsumt;
+FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
+    // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
+    var xm = stdMath.min(x1, x2, x3, x4),
+        ym = stdMath.min(y1, y2, y3, y4),
+        xM = stdMath.max(x1, x2, x3, x4),
+        yM = stdMath.max(y1, y2, y3, y4),
+        xi1, xi2, yi1, yi2;
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
-    if (y1 === ym)
-    {
-        xi1 = x1;
-        xt1 = x4;
-        yt1 = y4;
-        xt2 = x2;
-        yt2 = y2;
-    }
-    else if (y2 === ym)
-    {
-        xi1 = x2;
-        xt1 = x1;
-        yt1 = y1;
-        xt2 = x3;
-        yt2 = y3;
-    }
-    else if (y3 === ym)
-    {
-        xi1 = x3;
-        xt1 = x2;
-        yt1 = y2;
-        xt2 = x4;
-        yt2 = y4;
-    }
-    else
-    {
-        xi1 = x4;
-        xt1 = x3;
-        yt1 = y3;
-        xt2 = x1;
-        yt2 = y1;
-    }
-    if (y1 === yM)
-    {
-        xi2 = x1;
-        xt3 = x4;
-        yt3 = y4;
-        xt4 = x2;
-        yt4 = y2;
-    }
-    else if (y2 === yM)
-    {
-        xi2 = x2;
-        xt3 = x1;
-        yt3 = y1;
-        xt4 = x3;
-        yt4 = y3;
-    }
-    else if (y3 === yM)
-    {
-        xi2 = x3;
-        xt3 = x2;
-        yt3 = y2;
-        xt4 = x4;
-        yt4 = y4;
-    }
-    else
-    {
-        xi2 = x4;
-        xt3 = x3;
-        yt3 = y3;
-        xt4 = x1;
-        yt4 = y1;
-    }
+    // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
+    // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
+    if (y1 === ym) xi1 = x1;
+    else if (y2 === ym) xi1 = x2;
+    else if (y3 === ym) xi1 = x3;
+    else xi1 = x4;
+    if (y1 === yM) xi2 = x1;
+    else if (y2 === yM) xi2 = x2;
+    else if (y3 === yM) xi2 = x3;
+    else xi2 = x4;
     if (x1 === xm) yi1 = y1;
     else if (x2 === xm) yi1 = y2;
     else if (x3 === xm) yi1 = y3;
@@ -2543,11 +2605,11 @@ FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
     else if (x3 === xM) yi2 = y3;
     else yi2 = y4;
     return (
-     satsum(sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) +
-    (satsum(sat, w, h, stdMath.min(xi1, xt1), ym,  stdMath.max(xi1, xt1), yt1) +
-     satsum(sat, w, h, stdMath.min(xi1, xt2), ym,  stdMath.max(xi1, xt2), yt2) +
-     satsum(sat, w, h, stdMath.min(xi2, xt3), yt3, stdMath.max(xi2, xt3), yM)  +
-     satsum(sat, w, h, stdMath.min(xi2, xt4), yt4, stdMath.max(xi2, xt4), yM))/2
+    satsumt(sat, w, h, xm, yi1, xi1, ym, xi1, yi1, k) + // top left right triagle
+    satsumt(sat, w, h, xM, yi2, xi1, ym, xi1, yi2, k) + // top right right triagle
+    satsumt(sat, w, h, xm, yi1, xi2, yM, xi2, yi1, k) + // bottom left right triagle
+    satsumt(sat, w, h, xM, yi2, xi2, yM, xi2, yi2, k) + // bottom right right triagle
+    satsum (sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) // center rectangle
     );
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
