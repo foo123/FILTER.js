@@ -2456,18 +2456,20 @@ FilterUtil.sat = integral2;
 function satsum(sat, w, h, x0, y0, x1, y1)
 {
     // exact sat sum of axis-aligned rectangle defined by p0, p1 (top left, bottom right)
-    if (y1 < y0 || x1 < x0 || y1 < 0 || x1 < 0) return 0;
-    x0 = clamp(x0, 0, w-1);
-    y0 = clamp(y0, 0, h-1);
-    x1 = clamp(x1, 0, w-1);
-    y1 = clamp(y1, 0, h-1);
+    if (w <= 0 || h <= 0 || y1 < y0 || x1 < x0 || y1 < 0 || x1 < 0) return 0;
+    var w1 = w-1, h1 = h-1;
+    x0 = 0>x0 ? 0 : (w1<x0 ? w1 : x0);
+    y0 = 0>y0 ? 0 : (h1<y0 ? h1 : y0);
+    x1 = 0>x1 ? 0 : (w1<x1 ? w1 : x1);
+    y1 = 0>y1 ? 0 : (h1<y1 ? h1 : y1);
     x0 -= 1; y0 -= 1;
     var wy0 = w*y0, wy1 = w*y1;
-    return sat[x1 + wy1] - sat[x0 + wy1] - sat[x1 + wy0] + sat[x0 + wy0];
+    return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
 }
 function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
 {
     // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
+    if (w <= 0 || h <= 0) return 0;
     var xm = stdMath.min(x0, x1, x2),
         xM = stdMath.max(x0, x1, x2),
         ym = stdMath.min(y0, y1, y2),
@@ -2522,14 +2524,15 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
             xyM = x2;
         }
         d = stdMath.max(1, stdMath.round(dy/k)||0);
-        for (i=1,p=ym,y=ym+d; i<=k && y<=yM; ++i,y+=d)
+        for (i=1,p=ym,y=ym+d; i<=k; ++i,y+=d)
         {
             if (y > yM) y = yM;
             xi = stdMath.round(xym + (y-ym)/dy*(xyM-xym));
             s += satsum(sat, w, h, stdMath.min(xym, xi), p, stdMath.max(xym, xi), y);
+            if (y >= yM) break;
             p = stdMath.min(y+1, yM);
         }
-        if (y < yM) s += satsum(sat, w, h, stdMath.min(xym, xyM), y, stdMath.max(xym, xyM), yM);
+        if (y < yM) s += satsum(sat, w, h, stdMath.min(xym, xyM), y+1, stdMath.max(xym, xyM), yM);
     }
     else
     {
@@ -2565,14 +2568,15 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
             yxM = y2;
         }
         d = stdMath.max(1, stdMath.round(dx/k)||0);
-        for (i=1,p=xm,x=xm+d; i<=k && x<=xM; ++i,x+=d)
+        for (i=1,p=xm,x=xm+d; i<=k; ++i,x+=d)
         {
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + (x-xm)/dx*(yxM-yxm));
             s += satsum(sat, w, h, p, stdMath.min(yxm, yi), x, stdMath.max(yxm, yi));
+            if (x >= xM) break;
             p = stdMath.min(x+1, xM);
         }
-        if (x < xM) s += satsum(sat, w, h, x, stdMath.min(yxm, yxM), xM, stdMath.max(yxm, yxM));
+        if (x < xM) s += satsum(sat, w, h, x+1, stdMath.min(yxm, yxM), xM, stdMath.max(yxm, yxM));
     }
     return s;
 }
@@ -2580,6 +2584,7 @@ FilterUtil.satsum = satsum;
 FilterUtil.satsumt = satsumt;
 FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
+    if (w <= 0 || h <= 0) return 0;
     var xm = stdMath.min(x1, x2, x3, x4),
         ym = stdMath.min(y1, y2, y3, y4),
         xM = stdMath.max(x1, x2, x3, x4),
@@ -2615,6 +2620,7 @@ FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
     // 45deg rotated (tilted) sat sum
     // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
+    if (w <= 0 || h <= 0 || ww <= 0 || hh <= 0) return 0;
     var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 };

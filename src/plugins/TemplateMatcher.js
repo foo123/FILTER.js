@@ -291,32 +291,36 @@ FILTER.Create({
 function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
     // normalized cross-correlation at point (x,y)
-    if (null == sc) sc = 1;
-    if (null == ro) ro = 0;
-    if (null == kk) kk = 3;
-    if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
-    if (null == sin) {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
-    if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};}
+    if (null == sc)
+    {
+        sc = 1;
+    }
+    if (null == ro)
+    {
+        ro = 0;
+    }
+    if (null == kk)
+    {
+        kk = 3;
+        if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
+        if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
+        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};}
+    }
     var tws = tws0, ths = ths0, tws2, ths2, area, area2,
         x0, y0, x1, y1, sw, sh, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
     if (is_tilted)
     {
-        tws2 = tws0/2;
-        ths2 = ths0/2;
+        tws2 = tws0/2; ths2 = ths0/2;
         rot(rect, 0, 0, tws0 - 1, ths0 - 1, sin, cos, tws2, ths2);
         sum1 = satsumr(sat1, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
         sum2 = satsumr(sat2, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
     }
     else
     {
-        if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315))
-        {
-            // swap x/y
-            tws = ths0;
-            ths = tws0;
-        }
+        // swap x/y
+        if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315)) {tws = ths0; ths = tws0;}
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
