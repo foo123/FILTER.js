@@ -2480,7 +2480,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         yxm, yxM, xym, xyM;
 
     k = k || 0;
-    if (0 === dx || 0 === dy)
+    if (!dx || !dy)
     {
         // zero area
         s = 0;
@@ -2511,7 +2511,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         if (y0 === yM)
         {
             if (y1 === yM) xyM = x2 === xm ? xM : xm;
-            else if (y2 === yM) xym = x1 === xm ? xM : xm;
+            else if (y2 === yM) xyM = x1 === xm ? xM : xm;
             else xyM = x0;
         }
         else if (y1 === yM)
@@ -2527,7 +2527,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         for (i=1,p=ym,y=ym+d; i<=k; ++i,y+=d)
         {
             if (y > yM) y = yM;
-            xi = stdMath.round(xym + (y-ym)/dy*(xyM-xym));
+            xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
             s += satsum(sat, w, h, stdMath.min(xym, xi), p, stdMath.max(xym, xi), y);
             if (y >= yM) break;
             p = stdMath.min(y+1, yM);
@@ -2571,7 +2571,7 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         for (i=1,p=xm,x=xm+d; i<=k; ++i,x+=d)
         {
             if (x > xM) x = xM;
-            yi = stdMath.round(yxm + (x-xm)/dx*(yxM-yxm));
+            yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
             s += satsum(sat, w, h, p, stdMath.min(yxm, yi), x, stdMath.max(yxm, yi));
             if (x >= xM) break;
             p = stdMath.min(x+1, xM);
@@ -2593,19 +2593,20 @@ FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (y1 === ym) xi1 = x1;
+    if (xm >= xM || ym >= yM) return 0;
+    if (y1 === ym) xi1 = y2 === ym ? x1 : (y4 === ym ? x4 : x1);
     else if (y2 === ym) xi1 = x2;
     else if (y3 === ym) xi1 = x3;
     else xi1 = x4;
-    if (y1 === yM) xi2 = x1;
+    if (y1 === yM) xi2 = y2 === yM ? x1 : (y4 === yM ? x4 : x1);
     else if (y2 === yM) xi2 = x2;
     else if (y3 === yM) xi2 = x3;
     else xi2 = x4;
-    if (x1 === xm) yi1 = y1;
+    if (x1 === xm) yi1 = x2 === xm ? y1 : (x4 === xm ? y4 : y1);
     else if (x2 === xm) yi1 = y2;
     else if (x3 === xm) yi1 = y3;
     else yi1 = y4;
-    if (x1 === xM) yi2 = y1;
+    if (x1 === xM) yi2 = x2 === xM ? y1 : (x4 === xM ? y4 : y1);
     else if (x2 === xM) yi2 = y2;
     else if (x3 === xM) yi2 = y3;
     else yi2 = y4;

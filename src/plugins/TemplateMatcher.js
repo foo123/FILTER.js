@@ -179,6 +179,7 @@ FILTER.Create({
             r, rl, ro, sc, tt, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
+            nccR, nccG, nccB,
             maxMatches = self.maxMatches,
             maxOnly = self.maxMatchesOnly,
             minNeighbors = self.minNeighbors,
@@ -276,15 +277,19 @@ FILTER.Create({
                     if (x > x2) {x=x1; ++y;}
                     if (x + tw2 <= x2 && y + th2 <= y2)
                     {
-                        score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect)   // R
-                        : ((
-                        ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) + // R
-                        ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) + // G
-                        ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect)   // B
-                        ) / 3));
-                        if (score >= tt)
+                        if (is_grayscale)
                         {
+                            nccB = nccG = nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        }
+                        else
+                        {
+                            nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                            nccG = ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // G
+                            nccB = ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // B
+                        }
+                        if (nccR >= tt && nccG >= tt && nccB >= tt)
+                        {
+                            score = (nccR + nccG + nccB)/3;
                             if (maxOnly && (score < maxv)) continue;
                             if (score > maxv)
                             {
@@ -423,7 +428,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             //vart += diff*diff*area2;
         }
         vart *= area;
-        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
+        return stdMath.min(stdMath.max((stdMath.abs(varft)/stdMath.sqrt(vart*varf)) || 0, 0), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
