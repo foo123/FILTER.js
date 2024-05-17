@@ -2462,6 +2462,7 @@ function satsum(sat, w, h, x0, y0, x1, y1)
     y0 = 0>y0 ? 0 : (h1<y0 ? h1 : y0);
     x1 = 0>x1 ? 0 : (w1<x1 ? w1 : x1);
     y1 = 0>y1 ? 0 : (h1<y1 ? h1 : y1);
+    if (!sat) return (y1-y0+1)*(x1-x0+1);
     x0 -= 1; y0 -= 1;
     var wy0 = w*y0, wy1 = w*y1;
     return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
