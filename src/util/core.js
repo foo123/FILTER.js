@@ -2471,8 +2471,8 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
     // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
     if (w <= 0 || h <= 0) return 0;
     var xm = stdMath.min(x0, x1, x2),
-        xM = stdMath.max(x0, x1, x2),
         ym = stdMath.min(y0, y1, y2),
+        xM = stdMath.max(x0, x1, x2),
         yM = stdMath.max(y0, y1, y2),
         dx = xM - xm, dy = yM - ym,
         s = 0, d, p, i,

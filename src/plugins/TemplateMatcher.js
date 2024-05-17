@@ -11,7 +11,16 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     sat = FilterUtil.sat, satsum = FilterUtil.satsum, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
+    // 1 default direction
+    rot1  = [0],
+    // 4 cardinal directions
+    rot4  = [0, 90, 180, 270],
+    // 8 cardinal directions
+    rot8  = [0, 45, 90, 135, 180, 225, 270, 315],
+    // 16 cardinal directions
+    rot16 = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]
+;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
 // https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
@@ -116,6 +125,7 @@ FILTER.Create({
             ,tolerance: self.tolerance
             ,minNeighbors: self.minNeighbors
             ,maxMatches: self.maxMatches
+            ,maxMatchesOnly: self.maxMatchesOnly
             ,sc: self.sc
             ,rot: self.rot
             ,_k: self._k
@@ -131,6 +141,7 @@ FILTER.Create({
         self.tolerance = params.tolerance;
         self.minNeighbors = params.minNeighbors;
         self.maxMatches = params.maxMatches;
+        self.maxMatchesOnly = params.maxMatchesOnly;
         self.sc = params.sc;
         self.rot = params.rot;
         self._k = params._k;
@@ -176,9 +187,14 @@ FILTER.Create({
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             isVertical, sat1, sat2, max, maxc, maxv, matches;
 
-        if (1 === rot) rot = [0]; // only 1 given direction
-        else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
-        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions
+        // 1 default direction
+        if       (1 === rot) rot = rot1;
+        // 4 cardinal directions
+        else if  (4 === rot) rot = rot4;
+        // 8 cardinal directions
+        else if  (8 === rot) rot = rot8;
+        // 16 cardinal directions
+        else if (16 === rot) rot = rot16;
 
         if (selection)
         {
@@ -212,11 +228,20 @@ FILTER.Create({
         }
         else
         {
-            sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
-            sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
-            sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
+            if (is_grayscale)
+            {
+                sat1 = [new A32F(mm), null, null];
+                sat2 = [new A32F(mm), null, null];
+                sat(im, w, h, 2, 0, sat1[2] = sat1[1] = sat1[0], sat2[2] = sat2[1] = sat2[0]); // R
+            }
+            else
+            {
+                sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+                sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+                sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
+                sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
+                sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
+            }
             if (metaData)
             {
                 metaData.tmfilter_SAT = sat1;
@@ -420,10 +445,6 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
     x = x1 - ox; /*y = y3 - oy;*/
     rect.x4 = stdMath.round(cos*x - sin*y + ox);
     rect.y4 = stdMath.round(sin*x + cos*y + oy);
-}
-function sign(x)
-{
-    return 0 > x ? -1 : 1;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
