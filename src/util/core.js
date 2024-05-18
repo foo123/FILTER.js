@@ -2529,8 +2529,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         {
             if (y > yM) y = yM;
             xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
-            xi1 = stdMath.min(xym, xi);
-            xi2 = stdMath.max(xym, xi);
+            xi1 = stdMath.min(xym, xi); xi2 = stdMath.max(xym, xi);
             o.area += satsum(null, w, h, xi1, p, xi2, y);
             o.sum += satsum(o.sat, w, h, xi1, p, xi2, y);
             if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, p, xi2, y);
@@ -2539,8 +2538,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         }
         if (y < yM)
         {
-            xi1 = stdMath.min(xym, xyM);
-            xi2 = stdMath.max(xym, xyM);
+            xi1 = stdMath.min(xym, xyM); xi2 = stdMath.max(xym, xyM);
             o.area += satsum(null, w, h, xi1, y+1, xi2, yM);
             o.sum += satsum(o.sat, w, h, xi1, y+1, xi2, yM);
             if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, y+1, xi2, yM);
@@ -2584,8 +2582,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         {
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
-            yi1 = stdMath.min(yxm, yi);
-            yi2 = stdMath.max(yxm, yi);
+            yi1 = stdMath.min(yxm, yi); yi2 = stdMath.max(yxm, yi);
             o.area += satsum(null, w, h, p, yi1, x, yi2);
             o.sum += satsum(o.sat, w, h, p, yi1, x, yi2);
             if (o.sat2) o.sum2 += satsum(o.sat2, w, h, p, yi1, x, yi2);
@@ -2594,8 +2591,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         }
         if (x < xM)
         {
-            yi1 = stdMath.min(yxm, yxM);
-            yi2 = stdMath.max(yxm, yxM);
+            yi1 = stdMath.min(yxm, yxM); yi2 = stdMath.max(yxm, yxM);
             o.area += satsum(null, w, h, x+1, yi1, xM, yi2);
             o.sum += satsum(o.sat, w, h, x+1, yi1, xM, yi2);
             if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x+1, yi1, xM, yi2);
@@ -2632,17 +2628,15 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     else if (x2 === xM) yi2 = y2;
     else if (x3 === xM) yi2 = y3;
     else yi2 = y4;
-    xr1 = stdMath.min(xi1, xi2);
-    yr1 = stdMath.min(yi1, yi2);
-    xr2 = stdMath.max(xi1, xi2);
-    yr2 = stdMath.max(yi1, yi2);
+    xr1 = stdMath.min(xi1, xi2); yr1 = stdMath.min(yi1, yi2);
+    xr2 = stdMath.max(xi1, xi2); yr2 = stdMath.max(yi1, yi2);
+    o.area += satsum(null, w, h, xr1, yr1, xr2, yr2); // center rectangle
+    o.sum += satsum(o.sat, w, h, xr1, yr1, xr2, yr2); // center rectangle
+    if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xr1, yr1, xr2, yr2); // center rectangle
     satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // top left right triagle
     satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right right triagle
     satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom left right triagle
     satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // bottom right right triagle
-    o.area += satsum(null, w, h, xr1, yr1, xr2, yr2); // center rectangle
-    o.sum += satsum(o.sat, w, h, xr1, yr1, xr2, yr2); // center rectangle
-    if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xr1, yr1, xr2, yr2); // center rectangle
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
     // 45deg rotated (tilted) sat sum
