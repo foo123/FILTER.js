@@ -184,7 +184,7 @@ FILTER.Create({
             maxOnly = self.maxMatchesOnly,
             minNeighbors = self.minNeighbors,
             eps = self.tolerance,
-            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0},
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null},
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             isVertical, sat1, sat2, max, maxc, maxv, matches;
 
@@ -336,25 +336,28 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         kk = 0;
         if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
-        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};}
+        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};}
     }
     var tws = tws0, ths = ths0, tws2, ths2, area, area2,
-        x0, y0, x1, y1, sw, sh, bk, k, K = basis.length,
+        x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
     if (is_tilted)
     {
         tws2 = tws0/2; ths2 = ths0/2;
         rot(rect, 0, 0, tws0 - 1, ths0 - 1, sin, cos, tws2, ths2);
-        area = satsumr(null, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-        sum1 = satsumr(sat1, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-        sum2 = satsumr(sat2, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        rect.sat = sat1; rect.sat2 = sat2;
+        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        area = rect.area;
+        sum1 = rect.sum;
+        sum2 = rect.sum2;
+        rect.sat2 = null;
     }
     else
     {
         // swap x/y
         if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315)) {tws = ths0; ths = tws0;}
-        area = tws0*ths0;
+        area = satsum(null, w, h, x, y, x+tws-1, y+ths-1);
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
@@ -419,14 +422,13 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             if (is_tilted)
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, tws2, ths2);
-                area2 = satsumr(null, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                varft += diff*(satsumr(sat1, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk) - avgf*area2);
+                satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+                area2 = rect.area;
+                varft += diff*(rect.sum - avgf*area2);
             }
             else
             {
-                sw = x1-x0+1;
-                sh = y1-y0+1;
-                area2 = sw*sh;
+                area2 = satsum(null, w, h, x+x0, y+y0, x+x1, y+y1);
                 varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*area2);
             }
             //vart += diff*diff*area2;
@@ -454,6 +456,10 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
     x = x1 - ox; /*y = y3 - oy;*/
     rect.x4 = stdMath.round(cos*x - sin*y + ox);
     rect.y4 = stdMath.round(sin*x + cos*y + oy);
+    
+    rect.area = 0;
+    rect.sum = 0;
+    rect.sum2 = 0;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {

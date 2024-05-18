@@ -2467,29 +2467,29 @@ function satsum(sat, w, h, x0, y0, x1, y1)
     var wy0 = w*y0, wy1 = w*y1;
     return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
 }
-function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
+function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
 {
     // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
-    if (w <= 0 || h <= 0) return 0;
+    if (w <= 0 || h <= 0) return;
     var xm = stdMath.min(x0, x1, x2),
         ym = stdMath.min(y0, y1, y2),
         xM = stdMath.max(x0, x1, x2),
         yM = stdMath.max(y0, y1, y2),
-        dx = xM - xm, dy = yM - ym,
-        s = 0, d, p, i,
-        x, y, xi, yi,
+        dx = xM - xm, dy = yM - ym, d, p, i,
+        x, y, xi, yi, xi1, xi2, yi1, yi2,
         yxm, yxM, xym, xyM;
 
     k = k || 0;
     if (!dx || !dy)
     {
         // zero area
-        s = 0;
     }
     else if (k <= 1)
     {
         //most crude approximation, half of enclosing rectangle sum
-        s = satsum(sat, w, h, xm, ym, xM, yM)/2;
+        o.area += satsum(null, w, h, xm, ym, xM, yM)/2;
+        o.sum += satsum(o.sat, w, h, xm, ym, xM, yM)/2;
+        if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xm, ym, xM, yM)/2;
     }
     else if (dx > dy)
     {
@@ -2529,11 +2529,22 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         {
             if (y > yM) y = yM;
             xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
-            s += satsum(sat, w, h, stdMath.min(xym, xi), p, stdMath.max(xym, xi), y);
+            xi1 = stdMath.min(xym, xi);
+            xi2 = stdMath.max(xym, xi);
+            o.area += satsum(null, w, h, xi1, p, xi2, y);
+            o.sum += satsum(o.sat, w, h, xi1, p, xi2, y);
+            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, p, xi2, y);
             if (y >= yM) break;
             p = stdMath.min(y+1, yM);
         }
-        if (y < yM) s += satsum(sat, w, h, stdMath.min(xym, xyM), y+1, stdMath.max(xym, xyM), yM);
+        if (y < yM)
+        {
+            xi1 = stdMath.min(xym, xyM);
+            xi2 = stdMath.max(xym, xyM);
+            o.area += satsum(null, w, h, xi1, y+1, xi2, yM);
+            o.sum += satsum(o.sat, w, h, xi1, y+1, xi2, yM);
+            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, y+1, xi2, yM);
+        }
     }
     else
     {
@@ -2573,28 +2584,38 @@ function satsumt(sat, w, h, x0, y0, x1, y1, x2, y2, k)
         {
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
-            s += satsum(sat, w, h, p, stdMath.min(yxm, yi), x, stdMath.max(yxm, yi));
+            yi1 = stdMath.min(yxm, yi);
+            yi2 = stdMath.max(yxm, yi);
+            o.area += satsum(null, w, h, p, yi1, x, yi2);
+            o.sum += satsum(o.sat, w, h, p, yi1, x, yi2);
+            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, p, yi1, x, yi2);
             if (x >= xM) break;
             p = stdMath.min(x+1, xM);
         }
-        if (x < xM) s += satsum(sat, w, h, x+1, stdMath.min(yxm, yxM), xM, stdMath.max(yxm, yxM));
+        if (x < xM)
+        {
+            yi1 = stdMath.min(yxm, yxM);
+            yi2 = stdMath.max(yxm, yxM);
+            o.area += satsum(null, w, h, x+1, yi1, xM, yi2);
+            o.sum += satsum(o.sat, w, h, x+1, yi1, xM, yi2);
+            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x+1, yi1, xM, yi2);
+        }
     }
-    return s;
 }
 FilterUtil.satsum = satsum;
 FilterUtil.satsumt = satsumt;
-FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
+FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
-    if (w <= 0 || h <= 0) return 0;
+    if (w <= 0 || h <= 0) return;
     var xm = stdMath.min(x1, x2, x3, x4),
         ym = stdMath.min(y1, y2, y3, y4),
         xM = stdMath.max(x1, x2, x3, x4),
         yM = stdMath.max(y1, y2, y3, y4),
-        xi1, xi2, yi1, yi2;
+        xi1, xi2, yi1, yi2, xr1, yr1, xr2, yr2;
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (xm >= xM || ym >= yM) return 0;
+    if (xm >= xM || ym >= yM) return;
     if (y1 === ym) xi1 = y2 === ym ? x1 : (y4 === ym ? x4 : x1);
     else if (y2 === ym) xi1 = x2;
     else if (y3 === ym) xi1 = x3;
@@ -2611,13 +2632,17 @@ FilterUtil.satsumr = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     else if (x2 === xM) yi2 = y2;
     else if (x3 === xM) yi2 = y3;
     else yi2 = y4;
-    return (
-    satsumt(sat, w, h, xm, yi1, xi1, ym, xi1, yi1, k) + // top left right triagle
-    satsumt(sat, w, h, xM, yi2, xi1, ym, xi1, yi2, k) + // top right right triagle
-    satsumt(sat, w, h, xm, yi1, xi2, yM, xi2, yi1, k) + // bottom left right triagle
-    satsumt(sat, w, h, xM, yi2, xi2, yM, xi2, yi2, k) + // bottom right right triagle
-    satsum (sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) // center rectangle
-    );
+    xr1 = stdMath.min(xi1, xi2);
+    yr1 = stdMath.min(yi1, yi2);
+    xr2 = stdMath.max(xi1, xi2);
+    yr2 = stdMath.max(yi1, yi2);
+    satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // top left right triagle
+    satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right right triagle
+    satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom left right triagle
+    satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // bottom right right triagle
+    o.area += satsum(null, w, h, xr1, yr1, xr2, yr2); // center rectangle
+    o.sum += satsum(o.sat, w, h, xr1, yr1, xr2, yr2); // center rectangle
+    if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xr1, yr1, xr2, yr2); // center rectangle
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
     // 45deg rotated (tilted) sat sum
