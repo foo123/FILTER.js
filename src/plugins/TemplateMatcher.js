@@ -23,7 +23,9 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
 ;
 
 // Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
-// https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
+// https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734
+// A NEW APPROACH TO REPRESENT ROTATED HAAR-LIKE FEATURES FOR OBJECTS DETECTION, MOHAMED OUALLA, ABDELALIM SADIQ, SAMIR MBARKI, 2015
+// http://www.jatit.org/volumes/Vol78No1/3Vol78No1.pdf
 FILTER.Create({
     name : "TemplateMatcherFilter"
 
@@ -67,7 +69,7 @@ FILTER.Create({
         if (params)
         {
             if (null != params.threshold) self.threshold = params.threshold || 0;
-            if (null != params.scaleThreshold) self.scaleThreshold = params.scaleThreshold;
+            if (null != params.scaleThreshold) {self.scaleThreshold = params.scaleThreshold; if (self.scaleThreshold) self.scaleThreshold.changed = true;}
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
@@ -118,10 +120,10 @@ FILTER.Create({
     }
 
     ,serialize: function() {
-        var self = this;
-        return {
+        var self = this, ret;
+        ret = {
             threshold: self.threshold
-            ,scaleThreshold: 'function' === typeof self.scaleThreshold ? self.scaleThreshold.toString() : null
+            ,scaleThreshold: 'function' === typeof self.scaleThreshold ? (self.scaleThreshold.changed ? self.scaleThreshold.toString() : null) : false
             ,tolerance: self.tolerance
             ,minNeighbors: self.minNeighbors
             ,maxMatches: self.maxMatches
@@ -132,12 +134,14 @@ FILTER.Create({
             ,_q: self._q
             ,_s: self._s
         };
+        if (self.scaleThreshold && self.scaleThreshold.changed) self.scaleThreshold.changed = null;
+        return ret;
     }
 
     ,unserialize: function(params) {
         var self = this;
         self.threshold = params.threshold;
-        self.scaleThreshold = params.scaleThreshold ? (new Function('FILTER', 'return '+params.scaleThreshold+';'))(FILTER) : null;
+        self.scaleThreshold = false === params.scaleThreshold ? null : (params.scaleThreshold ? (new Function('FILTER', 'return '+params.scaleThreshold+';'))(FILTER) : self.scaleThreshold);
         self.tolerance = params.tolerance;
         self.minNeighbors = params.minNeighbors;
         self.maxMatches = params.maxMatches;
@@ -300,14 +304,12 @@ FILTER.Create({
                         }
                     }
                 }
-                //console.log(maxc, maxMatches, maxv, ro, sc);
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
                 {
                     max.length = maxc;
                     matches.push.apply(matches, max);
                 }
             }
-            //console.log(matches.length);
             if (matches.length)
             {
                 matches = merge_features(matches, minNeighbors, eps);
@@ -338,14 +340,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
         if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};}
     }
-    var tws = tws0, ths = ths0, tws2, ths2, area, area2,
+    var tws = tws0, ths = ths0, tws2, ths2, area,
         x0, y0, x1, y1, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
     if (is_tilted)
     {
-        tws2 = tws0/2; ths2 = ths0/2;
-        rot(rect, 0, 0, tws0 - 1, ths0 - 1, sin, cos, tws2, ths2);
+        tws2 = tws>>>1; ths2 = ths>>>1;
+        rot(rect, 0, 0, tws - 1, ths - 1, sin, cos, tws2, ths2);
         rect.sat = sat1; rect.sat2 = sat2;
         satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
         area = rect.area;
@@ -423,13 +425,11 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, tws2, ths2);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                area2 = rect.area;
-                varft += diff*(rect.sum - avgf*area2);
+                varft += diff*(rect.sum - avgf*rect.area);
             }
             else
             {
-                area2 = satsum(null, w, h, x+x0, y+y0, x+x1, y+y1);
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*area2);
+                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1));
             }
             //vart += diff*diff*area2;
         }
@@ -456,10 +456,8 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
     x = x1 - ox; /*y = y3 - oy;*/
     rect.x4 = stdMath.round(cos*x - sin*y + ox);
     rect.y4 = stdMath.round(sin*x + cos*y + oy);
-    
-    rect.area = 0;
-    rect.sum = 0;
-    rect.sum2 = 0;
+
+    rect.area = 0; rect.sum = 0; rect.sum2 = 0;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
