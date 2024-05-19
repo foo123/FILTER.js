@@ -347,8 +347,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     if (is_tilted)
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
-        rot(rect, 0, 0, tws - 1, ths - 1, sin, cos, tws2, ths2);
         rect.sat = sat1; rect.sat2 = sat2;
+        rot(rect, 0, 0, tws - 1, ths - 1, sin, cos, tws2, ths2);
         satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
         area = rect.area;
         sum1 = rect.sum;
