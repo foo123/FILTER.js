@@ -363,6 +363,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
         sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
     }
+    if (area < 0.5*tws*ths) return 0; // percent of matched area too small, reject
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -440,7 +441,6 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 {
     var x, y;
-
     x = x1 - ox; y = y1 - oy;
     rect.x1 = stdMath.round(cos*x - sin*y + ox);
     rect.y1 = stdMath.round(sin*x + cos*y + oy);
