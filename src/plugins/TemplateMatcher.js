@@ -266,20 +266,20 @@ FILTER.Create({
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
                 if (isVertical)
                 {
-                    tw2 = ths;
-                    th2 = tws;
+                    tw2 = ths>>>1;
+                    th2 = tws>>>1;
                 }
                 else
                 {
-                    tw2 = tws;
-                    th2 = ths;
+                    tw2 = tws>>>1;
+                    th2 = ths>>>1;
                 }
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
                 for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
                 {
                     if (x > x2) {x=x1; ++y;}
-                    if (x + tw2 <= x2 && y + th2 <= y2)
+                    if (x1 <= x - tw2 && x + tw2 <= x2 && y1 <= y - th2 && y + th2 <= y2)
                     {
                         if (is_grayscale)
                         {
@@ -300,7 +300,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x, y:y, width:tws, height:ths};
+                            max[maxc++] = {x:x-tws/2, y:y-ths/2, width:tws, height:ths};
                         }
                     }
                 }
@@ -324,7 +324,7 @@ FILTER.Create({
 });
 function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
-    // normalized cross-correlation at point (x,y)
+    // normalized cross-correlation centered at point (x,y)
     if (null == sc)
     {
         sc = 1;
@@ -348,7 +348,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
         rect.sat = sat1; rect.sat2 = sat2;
-        rot(rect, 0, 0, tws - 1, ths - 1, sin, cos, tws2, ths2);
+        rot(rect, -tws2, -ths2, tws-1-tws2, ths-1-ths2, sin, cos, 0, 0);
         satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
         area = rect.area;
         sum1 = rect.sum;
@@ -359,9 +359,10 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     {
         // swap x/y
         if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315)) {tws = ths0; ths = tws0;}
-        area = satsum(null, w, h, x, y, x+tws-1, y+ths-1);
-        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
-        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+        tws2 = tws>>>1; ths2 = ths>>>1;
+        area = satsum(null, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
+        sum1 = satsum(sat1, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
+        sum2 = satsum(sat2, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
     }
     if (area < 0.5*tws*ths) return 0; // percent of matched area too small, reject
     avgf = sum1/area;
@@ -417,14 +418,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
                     y1 = bk.y1;
                 }
             }
-            x0 = stdMath.round(sc*x0);
-            y0 = stdMath.round(sc*y0);
-            x1 = stdMath.round(sc*x1);
-            y1 = stdMath.round(sc*y1);
+            x0 = stdMath.round(sc*x0)-tws2;
+            y0 = stdMath.round(sc*y0)-ths2;
+            x1 = stdMath.round(sc*x1)-tws2;
+            y1 = stdMath.round(sc*y1)-ths2;
             diff = bk.k-avgt;
             if (is_tilted)
             {
-                rot(rect, x0, y0, x1, y1, sin, cos, tws2, ths2);
+                rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
                 varft += diff*(rect.sum - avgf*rect.area);
             }
