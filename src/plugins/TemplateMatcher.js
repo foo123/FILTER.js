@@ -177,7 +177,7 @@ FILTER.Create({
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
             is_grayscale = MODE.GRAY === self.mode,
-            rot = self.rot, scale = self.sc,
+            is_vertical, rot = self.rot, scale = self.sc,
             thresh = self.threshold, _k = self._k || 0,
             scaleThresh = self.scaleThreshold,
             r, rl, ro, sc, tt, tw2, th2, tws, ths,
@@ -188,9 +188,9 @@ FILTER.Create({
             maxOnly = self.maxMatchesOnly,
             minNeighbors = self.minNeighbors,
             eps = self.tolerance,
-            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null},
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
-            isVertical, sat1, sat2, max, maxc, maxv, matches;
+            sat1, sat2, max, maxc, maxv, matches,
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};
 
         // 1 default direction
         if       (1 === rot) rot = rot1;
@@ -254,17 +254,18 @@ FILTER.Create({
             }
         }
 
+        if (sat1[0] === sat1[1] && sat1[0] === sat1[2]) is_grayscale = true;
         for (r=0,rl=rot.length; r<rl; ++r)
         {
             ro = ((rot[r]||0) % 360);
             if (0 > ro) ro += 360;
-            isVertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
+            is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
             sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
             matches = [];
             for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
-                if (isVertical)
+                if (is_vertical)
                 {
                     tw2 = ths>>>1;
                     th2 = tws>>>1;
@@ -347,8 +348,9 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     if (is_tilted)
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
+        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rect.sat = sat1; rect.sat2 = sat2;
-        rot(rect, -tws2, -ths2, tws-1-tws2, ths-1-ths2, sin, cos, 0, 0);
+        rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
         satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
         area = rect.area;
         sum1 = rect.sum;
@@ -360,9 +362,10 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         // swap x/y
         if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315)) {tws = ths0; ths = tws0;}
         tws2 = tws>>>1; ths2 = ths>>>1;
-        area = satsum(null, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
-        sum1 = satsum(sat1, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
-        sum2 = satsum(sat2, w, h, x-tws2, y-ths2, x+tws-1-tws2, y+ths-1-ths2);
+        x0 = x-tws2; y0 = y-ths2; x1 = x+tws-1-tws2; y1 = y+ths-1-ths2;
+        area = satsum(null, w, h, x0, y0, x1, y1);
+        sum1 = satsum(sat1, w, h, x0, y0, x1, y1);
+        sum2 = satsum(sat2, w, h, x0, y0, x1, y1);
     }
     if (area < 0.5*tws*ths) return 0; // percent of matched area too small, reject
     avgf = sum1/area;
