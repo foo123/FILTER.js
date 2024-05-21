@@ -267,31 +267,44 @@ FILTER.Create({
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
                 if (is_vertical)
                 {
-                    tw2 = ths>>>1;
-                    th2 = tws>>>1;
+                    tw2 = (ths>>>1);
+                    th2 = (tws>>>1);
                 }
                 else
                 {
-                    tw2 = tws>>>1;
-                    th2 = ths>>>1;
+                    tw2 = (tws>>>1);
+                    th2 = (ths>>>1);
                 }
+                if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) continue;
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
-                for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
+                if (is_grayscale)
                 {
-                    if (x > x2) {x=x1; ++y;}
-                    if (x1 <= x - tw2 && x + tw2 <= x2 && y1 <= y - th2 && y + th2 <= y2)
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; ++x)
                     {
-                        if (is_grayscale)
+                        if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        if (nccR >= tt)
                         {
-                            nccB = nccG = nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                            score = nccR;
+                            if (maxOnly && (score < maxv)) continue;
+                            if (score > maxv)
+                            {
+                                maxv = score;
+                                if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                            }
+                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths};
                         }
-                        else
-                        {
-                            nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
-                            nccG = ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // G
-                            nccB = ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // B
-                        }
+                    }
+                }
+                else
+                {
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; ++x)
+                    {
+                        if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccG = ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // G
+                        nccB = ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // B
                         if (nccR >= tt && nccG >= tt && nccB >= tt)
                         {
                             score = (nccR + nccG + nccB)/3;
@@ -301,7 +314,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x-tws/2, y:y-ths/2, width:tws, height:ths};
+                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths};
                         }
                     }
                 }
@@ -342,7 +355,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};}
     }
     var tws = tws0, ths = ths0, tws2, ths2, area,
-        x0, y0, x1, y1, bk, k, K = basis.length,
+        x0, y0, x1, y1, f, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
         is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
     if (is_tilted)
@@ -367,7 +380,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         sum1 = satsum(sat1, w, h, x0, y0, x1, y1);
         sum2 = satsum(sat2, w, h, x0, y0, x1, y1);
     }
-    if (area < 0.5*tws*ths) return 0; // percent of matched area too small, reject
+    f = area/(tws*ths);
+    if (f < 0.5) return 0; // percent of matched area too small, reject
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -377,6 +391,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     else
     {
         if (varf < 1e-3) return 0;
+        if (1 >= f) f = 1;
         varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
@@ -438,7 +453,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             }
             //vart += diff*diff*area2;
         }
-        vart *= area;
+        vart *= /*area*/tws*ths; varft /= f;
         return stdMath.min(stdMath.max((stdMath.abs(varft)/stdMath.sqrt(vart*varf)) || 0, 0), 1);
     }
 }

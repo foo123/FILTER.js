@@ -2611,10 +2611,9 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (xm >= xM || ym >= yM) return; // degenerate rectangle, zero area ??
-    if (y1 === y2 || y2 === y3 || y3 === y4 || y4 === y1)
+    if (xm >= xM || ym >= yM || y1 === y2 || y2 === y3 || y3 === y4 || y4 === y1)
     {
-        // axis-aligned unrotated rectangle
+        // axis-aligned unrotated or degenerate rectangle
         o.area += satsum(null, w, h, xm, ym, xM, yM);
         o.sum  += satsum(o.sat, w, h, xm, ym, xM, yM);
         if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xm, ym, xM, yM);
