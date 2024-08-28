@@ -19,6 +19,14 @@ var // utils
     esc = FILTER.Util.String.esc,
     trim = FILTER.Util.String.trim,
 
+    // color format regexes
+    hexieRE = /^#([0-9a-fA-F]{8})\b/,
+    hexRE = /^#([0-9a-fA-F]{3,6})\b/,
+    rgbRE = /^(rgba?)\b\s*\(([^\)]*)\)/i,
+    hslRE = /^(hsla?)\b\s*\(([^\)]*)\)/i,
+    hwbRE = /^(hwba?)\b\s*\(([^\)]*)\)/i,
+    sepRE = /\s+|,/gm, aRE = /\/\s*(\d*?\.?\d+%?)/,
+
     LUMA = FILTER.LUMA, CHANNEL = FILTER.CHANNEL,
     //RED = CHANNEL.RED, GREEN = CHANNEL.GREEN, BLUE = CHANNEL.BLUE, ALPHA = CHANNEL.ALPHA,
     C2F = 1/255, C2P = 100/255, P2C = 2.55
@@ -294,6 +302,10 @@ function cmyk2rgb(c, m, y, k)
         clamp(round(b), 0, 255)
     ];
 }
+function lightness(r, g, b)
+{
+    return (LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+}
 var GLSL = [
 '#define FORMAT_HWB 3',
 '#define FORMAT_HSV 2',
@@ -488,7 +500,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
 
         intensity: function(r, g, b) {
-            return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+            return ~~lightness(r, g, b);
         },
 
         hue: function(r, g, b) {
@@ -798,7 +810,74 @@ var Color = FILTER.Color = FILTER.Class({
             return cmyk2rgb(c, m, y, k);
         },
 
-        parse: function(s, parsed, onlyColor) {
+        parse: function parse(s) {
+            var m, m2, hasOpacity, rgb = null, opacity = 1, c = null, end = 0, end2 = 0, kw = null;
+            s = trim(String(s)).toLowerCase();
+            if (m = s.match(hexRE))
+            {
+                // hex
+                rgb = hex2rgb(m[1]);
+                opacity = 1;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(hwbRE))
+            {
+                // hwb(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    h = col[0] ? col[0] : '0',
+                    w = col[1] ? col[1] : '0',
+                    b = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : '1';
+                h = parseFloat(h, 10);
+                w = '%' === w.slice(-1) ? parseFloat(w, 10) : parseFloat(w, 10)*100/255;
+                b = '%' === b.slice(-1) ? parseFloat(b, 10) : parseFloat(b, 10)*100/255;
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = hwb2rgb(h, w, b);
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(hslRE))
+            {
+                // hsl(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    h = col[0] ? col[0] : '0',
+                    s = col[1] ? col[1] : '0',
+                    l = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : ('hsla' === m[1] && null != col[3] ? col[3] : '1');
+                h = parseFloat(h, 10);
+                s = '%' === s.slice(-1) ? parseFloat(s, 10) : parseFloat(s, 10)*100/255;
+                l = '%' === l.slice(-1) ? parseFloat(l, 10) : parseFloat(l, 10)*100/255;
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = hsl2rgb(h, s, l);
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(rgbRE))
+            {
+                // rgb(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    r = col[0] ? col[0] : '0',
+                    g = col[1] ? col[1] : '0',
+                    b = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : ('rgba' === m[1] && null != col[3] ? col[3] : '1');
+                r = '%' === r.slice(-1) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
+                g = '%' === g.slice(-1) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
+                b = '%' === b.slice(-1) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = [r, g, b];
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            if (rgb) return new Color().fromRGB([rgb[0], rgb[1], rgb[2], opacity]);
+        },
+        /*parse: function(s, parsed, onlyColor) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
 
             if ('hsl' === parsed ||
@@ -891,9 +970,9 @@ var Color = FILTER.Color = FILTER.Class({
                 return onlyColor ? c : [c, 0, end+end2];
             }
             return null;
-        },
-        fromString: function(s, parsed) {
-            return Color.parse(s, parsed, 1);
+        },*/
+        fromString: function(s/*, parsed*/) {
+            return Color.parse(s/*, parsed, 1*/);
         },
         fromRGB: function(rgb) {
             return new Color().fromRGB(rgb);
@@ -965,6 +1044,11 @@ var Color = FILTER.Color = FILTER.Class({
             this.kword = null;
         }
         return this;
+    },
+
+    isLight: function(threshold) {
+        if (null == threshold) threshold = 127.5;
+        return threshold <= lightness(this.col[0], this.col[1], this.col[2]);
     },
 
     isTransparent: function() {
@@ -1132,17 +1216,48 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
 
+    toHWB: function(asString, condenced, noTransparency) {
+        var opcty = this.col[3];
+        var hwb = rgb2hwb(this.col[0], this.col[1], this.col[2]);
+
+        if (asString)
+        {
+            if (condenced)
+            {
+                hwb[1] = (0 === hwb[1] ? hwb[1] : (String(hwb[1])+'%'));
+                hwb[2] = (0 === hwb[2] ? hwb[2] : (String(hwb[2])+'%'));
+                opcty = 1 > opcty && opcty > 0 ? opcty.toString().slice(1) : opcty;
+            }
+
+            if (noTransparency || 1 === this.col[3])
+                return 'hwb(' + [hwb[0], hwb[1], hwb[2]].join(' ') + ')';
+            else
+                return 'hwb(' + [hwb[0], hwb[1], hwb[2]].join(' ') + ' / ' + opcty + ')';
+        }
+        else
+        {
+            if (noTransparency)
+                return hwb;
+            else
+                return hwb.concat(this.col[3]);
+        }
+    },
+
     toString: function(format, condenced) {
         format = format ? format.toLowerCase() : 'hex';
-        if ('rgb' == format || 'rgba' == format)
+        if ('rgb' === format || 'rgba' === format)
         {
-            return this.toRGB(1, false!==condenced, 'rgb' == format);
+            return this.toRGB(1, false !== condenced, 'rgb' === format);
         }
-        else if ('hsl' == format || 'hsla' == format)
+        else if ('hsl' === format || 'hsla' === format)
         {
-            return this.toHSL(1, false!==condenced, 'hsl' == format);
+            return this.toHSL(1, false !== condenced, 'hsl' === format);
         }
-        return this.toHEX(1, false!==condenced, 'hexie' == format);
+        else if ('hwb' === format)
+        {
+            return this.toHWB(1, false !== condenced, false);
+        }
+        return this.toHEX(1, false !== condenced, 'hexie' === format);
     }
 });
 // aliases and utilites
