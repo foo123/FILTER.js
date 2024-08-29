@@ -257,7 +257,7 @@ FILTER.Create({
         if (sat1[0] === sat1[1] && sat1[0] === sat1[2]) is_grayscale = true;
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            ro = ((rot[r]||0) % 360);
+            ro = ((/*-*/(rot[r] || 0)) % 360); // - minus rotation sign has to be taken account of in passed rot (see examples)
             if (0 > ro) ro += 360;
             is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
             sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
@@ -357,7 +357,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     var tws = tws0, ths = ths0, tws2, ths2, area,
         x0, y0, x1, y1, f, bk, k, K = basis.length,
         sum1, sum2, diff, avgf, varf, varft,
-        is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
+        is_tilted = true;//!(0 === ro || 90 === ro || 180 === ro || 270 === ro);
     if (is_tilted)
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
@@ -391,7 +391,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     else
     {
         if (varf < 1e-3) return 0;
-        if (1 >= f) f = 1;
+        //if (1 >= f) f = 1;
         varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
@@ -453,7 +453,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             }
             //vart += diff*diff*area2;
         }
-        vart *= /*area*/tws*ths; varft /= f;
+        vart *= /*area*/tws*ths; //varft /= f;
         return stdMath.min(stdMath.max((stdMath.abs(varft)/stdMath.sqrt(vart*varf)) || 0, 0), 1);
     }
 }
