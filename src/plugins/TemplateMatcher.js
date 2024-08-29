@@ -190,7 +190,7 @@ FILTER.Create({
             eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, max, maxc, maxv, matches,
-            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};
 
         // 1 default direction
         if       (1 === rot) rot = rot1;
@@ -257,7 +257,7 @@ FILTER.Create({
         if (sat1[0] === sat1[1] && sat1[0] === sat1[2]) is_grayscale = true;
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            ro = ((/*-*/(rot[r] || 0)) % 360); // - minus rotation sign has to be taken account of in passed rot (see examples)
+            ro = ((rot[r] || 0) % 360); // rotation represents template rotation (ie opposite of image rotation)
             if (0 > ro) ro += 360;
             is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
             sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
@@ -293,7 +293,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths};
+                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths, score:score};
                         }
                     }
                 }
@@ -314,7 +314,7 @@ FILTER.Create({
                                 maxv = score;
                                 if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                             }
-                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths};
+                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths, score:score};
                         }
                     }
                 }
@@ -352,12 +352,13 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         kk = 0;
         if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
-        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0,sat:null,sat2:null};}
+        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};}
     }
-    var tws = tws0, ths = ths0, tws2, ths2, area,
+    // convert from template rotation to image rotation (ie opposite of template rotation)??
+    var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
         x0, y0, x1, y1, f, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, varft,
-        is_tilted = true;//!(0 === ro || 90 === ro || 180 === ro || 270 === ro);
+        area, areat, sum1, sum2, diff, avgf, varf, varft, cc,
+        is_tilted = true;//!(0 === roa || 90 === roa || 180 === roa || 270 === roa);
     if (is_tilted)
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
@@ -373,7 +374,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     else
     {
         // swap x/y
-        if ((45 < ro && ro <= 135) || (225 < ro && ro <= 315)) {tws = ths0; ths = tws0;}
+        if ((45 < roa && roa <= 135) || (225 < roa && roa <= 315)) {tws = ths0; ths = tws0;}
         tws2 = tws>>>1; ths2 = ths>>>1;
         x0 = x-tws2; y0 = y-ths2; x1 = x+tws-1-tws2; y1 = y+ths-1-ths2;
         area = satsum(null, w, h, x0, y0, x1, y1);
@@ -391,7 +392,6 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     else
     {
         if (varf < 1e-3) return 0;
-        //if (1 >= f) f = 1;
         varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
@@ -405,7 +405,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             }
             else
             {
-                if (225 < ro && ro <= 315) // 270
+                if (225 < roa && roa <= 315) // 270
                 {
                     // swap x/y
                     x0 = bk.y0;
@@ -413,14 +413,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
                     x1 = bk.y1;
                     y1 = tw-1-bk.x0;
                 }
-                else if (135 < ro && ro <= 225) // 180
+                else if (135 < roa && roa <= 225) // 180
                 {
                     x0 = tw-1-bk.x1;
                     y0 = th-1-bk.y1;
                     x1 = tw-1-bk.x0;
                     y1 = th-1-bk.y0;
                 }
-                else if (45 < ro && ro <= 135) // 90
+                else if (45 < roa && roa <= 135) // 90
                 {
                     // swap x/y
                     x0 = th-1-bk.y1;
@@ -441,20 +441,23 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             x1 = stdMath.round(sc*x1)-tws2;
             y1 = stdMath.round(sc*y1)-ths2;
             diff = bk.k-avgt;
+            //areat = (x1-x0+1)*(y1-y0+1);
             if (is_tilted)
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                varft += diff*(rect.sum - avgf*rect.area);
+                varft += diff*(rect.sum - avgf*rect.area/*areat*/);
             }
             else
             {
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1));
+                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1)/*areat*/);
             }
-            //vart += diff*diff*area2;
+            //vart += diff*diff*areat;
         }
-        vart *= /*area*/tws*ths; //varft /= f;
-        return stdMath.min(stdMath.max((stdMath.abs(varft)/stdMath.sqrt(vart*varf)) || 0, 0), 1);
+        vart *= area/*tws*ths*/;
+        cc = ((varft)/stdMath.sqrt(vart*varf)) || 0;
+        if (1 < stdMath.abs(cc) && 1 > f) cc *= f;
+        return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)

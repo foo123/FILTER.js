@@ -2210,6 +2210,7 @@ function add(r1, r2)
     r1.y += r2.y;
     r1.width += r2.width;
     r1.height += r2.height;
+    if (null != r2.score) r1.score = (r1.score||0) + r2.score;
     return r1;
 }
 function snap_to_grid(r)
@@ -2263,6 +2264,7 @@ function merge_features(rects, min_neighbors, epsilon)
                 x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
                 width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
             };
+            if (null != r[i].score) ri.score = r[i].score/n;
 
             feats.push(ri);
         }
@@ -2480,11 +2482,11 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         yxm, yxM, xym, xyM;
 
     k = k || 0;
-    if (!dx || !dy)
+    /*if (!dx || !dy)
     {
         // zero area ??
     }
-    else if (k <= 1)
+    else*/ if (!dx || !dy || k <= 1)
     {
         //simplest approximation, half of enclosing rectangle sum
         o.area += satsum(null, w, h, xm, ym, xM, yM)/2;
