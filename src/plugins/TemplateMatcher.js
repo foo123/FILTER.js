@@ -535,87 +535,92 @@ function approximate(t, w, h, c, Jmax, minSz)
         for (k=0; k<K; ++k)
         {
             bk = b[k];
-            if (minSz >= bk.x1 - bk.x0 + 1 && minSz >= bk.y1 - bk.y0 + 1) continue;
-            for (x=bk.x0; x<bk.x1; ++x)
+            if (minSz < bk.x1 - bk.x0 + 1)
             {
-                J2 = J;
-                hh = bk.y1-bk.y0+1;
-                ww = x-bk.x0+1;
-                avg1 = satsum(s, w, h, bk.x0, bk.y0, x, bk.y1)/(ww*hh);
-                ww = bk.x1-(x+1)+1;
-                avg2 = satsum(s, w, h, x+1, bk.y0, bk.x1, bk.y1)/(ww*hh);
-                for (xx=bk.x0; xx<=x; ++xx)
+                for (x=bk.x0; x<bk.x1; ++x)
                 {
-                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    J2 = J;
+                    hh = bk.y1-bk.y0+1;
+                    ww = x-bk.x0+1;
+                    avg1 = satsum(s, w, h, bk.x0, bk.y0, x, bk.y1)/(ww*hh);
+                    ww = bk.x1-(x+1)+1;
+                    avg2 = satsum(s, w, h, x+1, bk.y0, bk.x1, bk.y1)/(ww*hh);
+                    for (xx=bk.x0; xx<=x; ++xx)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg1);
-                        J2 += v*v/n;
+                        for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg1);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                for (xx=x+1; xx<=bk.x1; ++xx)
-                {
-                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    for (xx=x+1; xx<=bk.x1; ++xx)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg2);
-                        J2 += v*v/n;
+                        for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg2);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                if (J2 < Jmin)
-                {
-                    Jmin = J2;
-                    bmin = b.slice(0, k);
-                    bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
-                    bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
-                    bmin.push.apply(bmin, b.slice(k+1));
+                    if (J2 < Jmin)
+                    {
+                        Jmin = J2;
+                        bmin = b.slice(0, k);
+                        bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
+                        bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                        bmin.push.apply(bmin, b.slice(k+1));
+                    }
                 }
             }
-            for (y=bk.y0; y<bk.y1; ++y)
+            if (minSz < bk.y1 - bk.y0 + 1)
             {
-                J2 = J;
-                ww = bk.x1-bk.x0+1;
-                hh = y-bk.y0+1;
-                avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
-                hh = bk.y1-(y+1)+1;
-                avg2 = satsum(s, w, h, bk.x0, y+1, bk.x1, bk.y1)/(ww*hh);
-                for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
+                for (y=bk.y0; y<bk.y1; ++y)
                 {
-                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    J2 = J;
+                    ww = bk.x1-bk.x0+1;
+                    hh = y-bk.y0+1;
+                    avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
+                    hh = bk.y1-(y+1)+1;
+                    avg2 = satsum(s, w, h, bk.x0, y+1, bk.x1, bk.y1)/(ww*hh);
+                    for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg1);
-                        J2 += v*v/n;
+                        for (xx=bk.x0; xx<=bk.x1; ++xx)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg1);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                for (yy=y+1,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
-                {
-                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    for (yy=y+1,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg2);
-                        J2 += v*v/n;
+                        for (xx=bk.x0; xx<=bk.x1; ++xx)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg2);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                if (J2 < Jmin)
-                {
-                    Jmin = J2;
-                    bmin = b.slice(0, k);
-                    bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
-                    bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
-                    bmin.push.apply(bmin, b.slice(k+1));
+                    if (J2 < Jmin)
+                    {
+                        Jmin = J2;
+                        bmin = b.slice(0, k);
+                        bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
+                        bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
+                        bmin.push.apply(bmin, b.slice(k+1));
+                    }
                 }
             }
         }
