@@ -2482,11 +2482,11 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
         yxm, yxM, xym, xyM;
 
     k = k || 0;
-    /*if (!dx || !dy)
+    if (0 >= dx || 0 >= dy)
     {
-        // zero area ??
+        // zero triangle area
     }
-    else*/ if (!dx || !dy || k <= 1)
+    else if (k <= 1)
     {
         //simplest approximation, half of enclosing rectangle sum
         o.area += satsum(null, w, h, xm, ym, xM, yM)/2;
@@ -2613,14 +2613,14 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (xm >= xM || ym >= yM || y1 === y2 || y2 === y3 || y3 === y4 || y4 === y1)
+    /*if (xm >= xM || ym >= yM || y1 === y2 || y2 === y3 || y3 === y4 || y4 === y1)
     {
         // axis-aligned unrotated or degenerate rectangle
         o.area += satsum(null, w, h, xm, ym, xM, yM);
         o.sum  += satsum(o.sat, w, h, xm, ym, xM, yM);
         if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xm, ym, xM, yM);
     }
-    else
+    else*/
     {
         if (y1 === ym) xi1 = x1;
         else if (y2 === ym) xi1 = x2;
@@ -2647,6 +2647,55 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right right triagle
         satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom left right triagle
         satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // bottom right right triagle
+        // remove common lines area computed multiple times
+        if (xi1 === xr1)
+        {
+            o.area -= (
+            satsum(null, w, h, xr1, ym, xr1, yr2)+
+            satsum(null, w, h, xr2, yr1, xr2, yM)+
+            satsum(null, w, h, xm, yr2, xr2, yr2)+
+            satsum(null, w, h, xr1, yr1, xM, yr1)
+            );
+            o.sum -= (
+            satsum(o.sat, w, h, xr1, ym, xr1, yr2)+
+            satsum(o.sat, w, h, xr2, yr1, xr2, yM)+
+            satsum(o.sat, w, h, xm, yr2, xr2, yr2)+
+            satsum(o.sat, w, h, xr1, yr1, xM, yr1)
+            );
+            if (o.sat2)
+            {
+                o.sum2 -= (
+                satsum(o.sat2, w, h, xr1, ym, xr1, yr2)+
+                satsum(o.sat2, w, h, xr2, yr1, xr2, yM)+
+                satsum(o.sat2, w, h, xm, yr2, xr2, yr2)+
+                satsum(o.sat2, w, h, xr1, yr1, xM, yr1)
+                );
+            }
+        }
+        else
+        {
+            o.area -= (
+            satsum(null, w, h, xr2, ym, xr2, yr2)+
+            satsum(null, w, h, xr1, yr1, xr1, yM)+
+            satsum(null, w, h, xm, yr1, xr2, yr1)+
+            satsum(null, w, h, xr1, yr2, xM, yr2)
+            );
+            o.sum -= (
+            satsum(o.sat, w, h, xr2, ym, xr2, yr2)+
+            satsum(o.sat, w, h, xr1, yr1, xr1, yM)+
+            satsum(o.sat, w, h, xm, yr1, xr2, yr1)+
+            satsum(o.sat, w, h, xr1, yr2, xM, yr2)
+            );
+            if (o.sat2)
+            {
+                o.sum2 -= (
+                satsum(o.sat2, w, h, xr2, ym, xr2, yr2)+
+                satsum(o.sat2, w, h, xr1, yr1, xr1, yM)+
+                satsum(o.sat2, w, h, xm, yr1, xr2, yr1)+
+                satsum(o.sat2, w, h, xr1, yr2, xM, yr2)
+                );
+            }
+        }
     }
 };
 FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {

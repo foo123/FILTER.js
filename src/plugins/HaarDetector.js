@@ -303,7 +303,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                     stage = haar_stages[s];
                     threshold = stage.thres;
                     trees = stage.trees; tl = trees.length;
-                    sum=0;
+                    sum = 0;
 
                     for (t=0; t<tl; ++t)
                     {
@@ -408,7 +408,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                     // expand
                     if (feats.count === feats.length) push.apply(feats, new Array(MAX_FEATURES));
                     //                      x, y, width, height
-                    feats[feats.count++] = {x:x, y:y, width:xsize, height:ysize};
+                    feats[feats.count++] = {x:x, y:y, width:xsize, height:ysize, score:sum};
                 }
             }
         }

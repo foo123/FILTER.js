@@ -180,7 +180,7 @@ FILTER.Create({
             is_vertical, rot = self.rot, scale = self.sc,
             thresh = self.threshold, _k = self._k || 0,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, tt, tw2, th2, tws, ths,
+            r, rl, ro, sc, scm, sci, tt, tw2, th2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
             nccR, nccG, nccB,
@@ -261,8 +261,7 @@ FILTER.Create({
             if (0 > ro) ro += 360;
             is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
             sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
-            matches = [];
-            for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
+            for (sc=scale.min,scm=scale.max,sci=scale.inc; sc<=scm; sc*=sci)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
                 if (is_vertical)
@@ -275,7 +274,7 @@ FILTER.Create({
                     tw2 = (tws>>>1);
                     th2 = (ths>>>1);
                 }
-                if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) continue;
+                if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) break;
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
                 if (is_grayscale)
@@ -307,7 +306,7 @@ FILTER.Create({
                         nccB = ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // B
                         if (nccR >= tt && nccG >= tt && nccB >= tt)
                         {
-                            score = (nccR + nccG + nccB)/3;
+                            score = stdMath.min(nccR, nccG, nccB);
                             if (maxOnly && (score < maxv)) continue;
                             if (score > maxv)
                             {
@@ -321,14 +320,10 @@ FILTER.Create({
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
                 {
                     max.length = maxc;
-                    matches.push.apply(matches, max);
+                    matches = merge_features(max, minNeighbors, eps);
+                    matches.forEach(function(match) {match.scale = sc; match.angle = ro;});
+                    all_matches.push.apply(all_matches, matches);
                 }
-            }
-            if (matches.length)
-            {
-                matches = merge_features(matches, minNeighbors, eps);
-                matches.forEach(function(match) {match.angle = ro;});
-                all_matches.push.apply(all_matches, matches);
             }
         }
 
@@ -356,8 +351,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     }
     // convert from template rotation to image rotation (ie opposite of template rotation)??
     var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
-        x0, y0, x1, y1, f, bk, k, K = basis.length,
-        area, areat, sum1, sum2, diff, avgf, varf, varft, cc,
+        x0, y0, x1, y1, bk, k, K = basis.length, f,
+        area, areat, areak, sum1, sum2, diff, avgf, varf, varft, cc,
         is_tilted = true;//!(0 === roa || 90 === roa || 180 === roa || 270 === roa);
     if (is_tilted)
     {
@@ -381,13 +376,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         sum1 = satsum(sat1, w, h, x0, y0, x1, y1);
         sum2 = satsum(sat2, w, h, x0, y0, x1, y1);
     }
-    f = area/(tws*ths);
-    if (f < 0.5) return 0; // percent of matched area too small, reject
+    areat = tws*ths;
+    if (2*area < areat) return 0; // percent of matched area too small, reject
+    f = area/areat;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
     {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : (1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))) : 0;
+        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : /*(1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))*/0) : 0;
     }
     else
     {
@@ -441,22 +437,27 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             x1 = stdMath.round(sc*x1)-tws2;
             y1 = stdMath.round(sc*y1)-ths2;
             diff = bk.k-avgt;
-            //areat = (x1-x0+1)*(y1-y0+1);
+            //areak = stdMath.abs((x1-x0+1)*(y1-y0+1));
             if (is_tilted)
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                varft += diff*(rect.sum - avgf*rect.area/*areat*/);
+                varft += diff*(rect.sum - avgf*rect.area/*areak*/);
             }
             else
             {
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1)/*areat*/);
+                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1)/*areak*/);
             }
-            //vart += diff*diff*areat;
+            //vart += diff*diff*areak;
         }
-        vart *= area/*tws*ths*/;
+        vart *= area/*areat*/;
         cc = ((varft)/stdMath.sqrt(vart*varf)) || 0;
-        if (1 < stdMath.abs(cc) && 1 > f) cc *= f;
+        /*if (1 < cc)
+        {
+            if (1 !== f) cc = (1 < f ? (cc/f) : (cc*f));
+            else cc = 0;
+        }*/
+        //if (1 < cc) cc = 0;
         return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
