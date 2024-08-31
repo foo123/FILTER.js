@@ -457,8 +457,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             if (1 !== f) cc = (1 < f ? (cc/f) : (cc*f));
             else cc = 0;
         }*/
-        //if (1 < cc) cc = 0;
-        return stdMath.min(stdMath.max(cc, -1), 1);
+        if (1 < cc) cc = 0;
+        return cc;//stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
