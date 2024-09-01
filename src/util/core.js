@@ -2455,6 +2455,14 @@ FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.sat = integral2;
+function intersect_x(y, x1, y1, x2, y2)
+{
+    return y2 === y1 ? (y === y1 ? x2 : null) : stdMath.round((y2-y)*(x2-x1)/(y2-y1)+x1);
+}
+function intersect_y(x, x1, y1, x2, y2)
+{
+    return x2 === x1 ? (x === x1 ? y2 : null) : stdMath.round((x2-x)*(y2-y1)/(x2-x1)+y1);
+}
 function satsum(sat, w, h, x0, y0, x1, y1)
 {
     // exact sat sum of axis-aligned rectangle defined by p0, p1 (top left, bottom right)
@@ -2468,6 +2476,12 @@ function satsum(sat, w, h, x0, y0, x1, y1)
     x0 -= 1; y0 -= 1;
     var wy0 = w*y0, wy1 = w*y1;
     return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
+}
+function satsumc(o, w, h, x0, y0, x1, y1, f)
+{
+    o.area += satsum(null, w, h, x0, y0, x1, y1)*f;
+    o.sum  += satsum(o.sat, w, h, x0, y0, x1, y1)*f;
+    if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x0, y0, x1, y1)*f;
 }
 function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
 {
@@ -2489,9 +2503,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
     else if (k <= 1)
     {
         //simplest approximation, half of enclosing rectangle sum
-        o.area += satsum(null, w, h, xm, ym, xM, yM)/2;
-        o.sum += satsum(o.sat, w, h, xm, ym, xM, yM)/2;
-        if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xm, ym, xM, yM)/2;
+        satsumc(o, w, h, xm, ym, xM, yM, 0.5);
     }
     else if (dx > dy)
     {
@@ -2532,18 +2544,14 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
             if (y > yM) y = yM;
             xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
             xi1 = stdMath.min(xym, xi); xi2 = stdMath.max(xym, xi);
-            o.area += satsum(null, w, h, xi1, p, xi2, y);
-            o.sum  += satsum(o.sat, w, h, xi1, p, xi2, y);
-            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, p, xi2, y);
+            satsumc(o, w, h, xi1, p, xi2, y, 1);
             if (y >= yM) break;
             p = stdMath.min(y+1, yM);
         }
         if (y < yM)
         {
             xi1 = stdMath.min(xym, xyM); xi2 = stdMath.max(xym, xyM);
-            o.area += satsum(null, w, h, xi1, y+1, xi2, yM);
-            o.sum  += satsum(o.sat, w, h, xi1, y+1, xi2, yM);
-            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xi1, y+1, xi2, yM);
+            satsumc(o, w, h, xi1, y+1, xi2, yM, 1);
         }
     }
     else
@@ -2585,22 +2593,19 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
             yi1 = stdMath.min(yxm, yi); yi2 = stdMath.max(yxm, yi);
-            o.area += satsum(null, w, h, p, yi1, x, yi2);
-            o.sum  += satsum(o.sat, w, h, p, yi1, x, yi2);
-            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, p, yi1, x, yi2);
+            satsumc(o, w, h, p, yi1, x, yi2, 1);
             if (x >= xM) break;
             p = stdMath.min(x+1, xM);
         }
         if (x < xM)
         {
             yi1 = stdMath.min(yxm, yxM); yi2 = stdMath.max(yxm, yxM);
-            o.area += satsum(null, w, h, x+1, yi1, xM, yi2);
-            o.sum  += satsum(o.sat, w, h, x+1, yi1, xM, yi2);
-            if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x+1, yi1, xM, yi2);
+            satsumc(o, w, h, x+1, yi1, xM, yi2, 1);
         }
     }
 }
 FilterUtil.satsum = satsum;
+FilterUtil.satsumc = satsumc;
 FilterUtil.satsumt = satsumt;
 FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
@@ -2609,16 +2614,16 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         ym = stdMath.min(y1, y2, y3, y4),
         xM = stdMath.max(x1, x2, x3, x4),
         yM = stdMath.max(y1, y2, y3, y4),
-        xi1, xi2, yi1, yi2, xr1, yr1, xr2, yr2;
+        xi1, xi2, yi1, yi2,
+        xr1, yr1, xr2, yr2,
+        xc1, xc2, yc1, yc2;
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
     if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 0.5 || stdMath.abs(y2-y3) <= 0.5 || stdMath.abs(y3-y4) <= 0.5 || stdMath.abs(y4-y1) <= 0.5)
     {
         // axis-aligned unrotated or degenerate rectangle
-        o.area += satsum(null, w, h, xm, ym, xM, yM);
-        o.sum  += satsum(o.sat, w, h, xm, ym, xM, yM);
-        if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xm, ym, xM, yM);
+        satsumc(o, w, h, xm, ym, xM, yM, 1);
     }
     else
     {
@@ -2640,89 +2645,119 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         else yi2 = y4;
         xr1 = stdMath.min(xi1, xi2); yr1 = stdMath.min(yi1, yi2);
         xr2 = stdMath.max(xi1, xi2); yr2 = stdMath.max(yi1, yi2);
-        o.area += satsum(null, w, h, xr1, yr1, xr2, yr2); // center rectangle
-        o.sum  += satsum(o.sat, w, h, xr1, yr1, xr2, yr2); // center rectangle
-        if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xr1, yr1, xr2, yr2); // center rectangle
-        /*
-        satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // left right triagle
-        satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right triagle
-        satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // right right triagle
-        satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom right triagle
-        */
-        if (xi1 === xr1)
+        if ((yi1 >= yi2 && xi1 <= xi2) || (yi1 <= yi2 && xi1 >= xi2))
         {
-            satsumt(o, w, h, xm, yr2, xr1, ym, xr1, yr2, k); // left right triagle
-            satsumt(o, w, h, xr1, ym, xM, yr1, xr1, yr1, k); // top right triagle
-            satsumt(o, w, h, xr2, yr1, xM, yr1, xr2, yM, k); // right right triagle
-            satsumt(o, w, h, xm, yr2, xr2, yr2, xr2, yM, k); // bottom right triagle
-            // remove common lines area computed multiple times
-            o.area -= (
-            satsum(null, w, h, xr1, ym, xr1, yr2)+
-            satsum(null, w, h, xr2, yr1, xr2, yM)+
-            satsum(null, w, h, xm, yr2, xr2, yr2)+
-            satsum(null, w, h, xr1, yr1, xM, yr1)
-            );
-            o.sum -= (
-            satsum(o.sat, w, h, xr1, ym, xr1, yr2)+
-            satsum(o.sat, w, h, xr2, yr1, xr2, yM)+
-            satsum(o.sat, w, h, xm, yr2, xr2, yr2)+
-            satsum(o.sat, w, h, xr1, yr1, xM, yr1)
-            );
-            if (o.sat2)
+            // can be subdivided into 1 center rectangle + 4 right triangles axis-aligned
+            satsumc(o, w, h, xr1, yr1, xr2, yr2, 1); // center
+            if (xi1 === xr1)
             {
-                o.sum2 -= (
-                satsum(o.sat2, w, h, xr1, ym, xr1, yr2)+
-                satsum(o.sat2, w, h, xr2, yr1, xr2, yM)+
-                satsum(o.sat2, w, h, xm, yr2, xr2, yr2)+
-                satsum(o.sat2, w, h, xr1, yr1, xM, yr1)
-                );
+                satsumt(o, w, h, xm, yr2, xr1, ym, xr1, yr2, k); // left
+                satsumt(o, w, h, xr1, ym, xM, yr1, xr1, yr1, k); // top
+                satsumt(o, w, h, xr2, yr1, xM, yr1, xr2, yM, k); // right
+                satsumt(o, w, h, xm, yr2, xr2, yr2, xr2, yM, k); // bottom
+                // remove common area computed multiple times
+                satsumc(o, w, h, xr1, ym, xr1, yr2, -1);
+                satsumc(o, w, h, xr2, yr1, xr2, yM, -1);
+                satsumc(o, w, h, xm, yr2, xr2, yr2, -1);
+                satsumc(o, w, h, xr1, yr1, xM, yr1, -1);
             }
+            else
+            {
+                satsumt(o, w, h, xm, yr1, xr1, yr1, xr1, yM, k); // left
+                satsumt(o, w, h, xm, yr1, xr2, ym, xr2, yr1, k); // top
+                satsumt(o, w, h, xr1, ym, xM, yr2, xr2, yr2, k); // right
+                satsumt(o, w, h, xr1, yM, xr1, yr2, xM, yr2, k); // bottom
+                // remove common area computed multiple times
+                satsumc(o, w, h, xr2, ym, xr2, yr2, -1);
+                satsumc(o, w, h, xr1, yr1, xr1, yM, -1);
+                satsumc(o, w, h, xm, yr1, xr2, yr1, -1);
+                satsumc(o, w, h, xr1, yr2, xM, yr2, -1);
+            }
+            // add area removed more than once
+            satsumc(o, w, h, xr1, yr1, xr1, yr1, 1);
+            satsumc(o, w, h, xr1, yr2, xr1, yr2, 1);
+            satsumc(o, w, h, xr2, yr2, xr2, yr2, 1);
+            satsumc(o, w, h, xr2, yr1, xr2, yr1, 1);
         }
         else
         {
-            satsumt(o, w, h, xm, yr1, xr1, yr1, xr1, yM, k); // left right triagle
-            satsumt(o, w, h, xm, yr1, xr2, ym, xr2, yr1, k); // top right triagle
-            satsumt(o, w, h, xr1, ym, xM, yr2, xr2, yr2, k); // right right triagle
-            satsumt(o, w, h, xr1, yM, xr1, yr2, xM, yr2, k); // bottom right triagle
-            // remove common lines area computed multiple times
-            o.area -= (
-            satsum(null, w, h, xr2, ym, xr2, yr2)+
-            satsum(null, w, h, xr1, yr1, xr1, yM)+
-            satsum(null, w, h, xm, yr1, xr2, yr1)+
-            satsum(null, w, h, xr1, yr2, xM, yr2)
-            );
-            o.sum -= (
-            satsum(o.sat, w, h, xr2, ym, xr2, yr2)+
-            satsum(o.sat, w, h, xr1, yr1, xr1, yM)+
-            satsum(o.sat, w, h, xm, yr1, xr2, yr1)+
-            satsum(o.sat, w, h, xr1, yr2, xM, yr2)
-            );
-            if (o.sat2)
+            // can be subdivided into 3 rectangles + 8 right triangles axis-aligned
+            if (xi1 === xr1)
             {
-                o.sum2 -= (
-                satsum(o.sat2, w, h, xr2, ym, xr2, yr2)+
-                satsum(o.sat2, w, h, xr1, yr1, xr1, yM)+
-                satsum(o.sat2, w, h, xm, yr1, xr2, yr1)+
-                satsum(o.sat2, w, h, xr1, yr2, xM, yr2)
-                );
+                xc1 = intersect_x(yi2, xm, yi1, xi2, yM);
+                yc1 = intersect_y(xi1, xm, yi1, xi2, yM);
+                xc2 = intersect_x(yi1, xM, yi2, xi1, ym);
+                yc2 = intersect_y(xi2, xM, yi2, xi1, ym);
+                satsumt(o, w, h, xi1, ym, xc2, yi1, xi1, yi1, k); // right top
+                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // left top
+                satsumt(o, w, h, xm, yi1, xi1, yi1, xi1, yc1, k); // left bottom
+                satsumc(o, w, h, xm, yi1, xi1, yi1, -1); // remove common area
+                satsumc(o, w, h, xi1, ym, xi1, yi1, -1); // remove common area
+                satsumt(o, w, h, xi1, yc1, xc1, yc1, xc1, yi2, k); // inside left
+                satsumt(o, w, h, xc2, yi1, xi2, yc2, xc2, yc2, k); // inside right
+                satsumt(o, w, h, xi2, yi2, xi2, yc2, xM, yi2, k); // right top
+                satsumt(o, w, h, xc1, yi2, xi2, yi2, xi2, yM, k); // left bottom
+                satsumt(o, w, h, xi2, yi2, xM, yi2, xi2, yM, k); // right bottom
+                satsumc(o, w, h, xi2, yi2, xM, yi2, -1); // remove common area
+                satsumc(o, w, h, xi2, yi2, xi2, yM, -1); // remove common area
+                satsumc(o, w, h, xc1, yi1, xc2, yi2, 1); // center
+                satsumc(o, w, h, xc1, yc1, xc1, yi2, -1); // remove common area
+                satsumc(o, w, h, xc2, yi1, xc2, yc2, -1); // remove common area
+                if (yi1 < yc1)
+                {
+                    satsumc(o, w, h, xi1+1, yi1+1, xc1-1, yc1-1, 1); // center left
+                }
+                else
+                {
+                    satsumc(o, w, h, xi1, yi1, xc2, yi1, -1); // remove common area
+                }
+                if (yi2 > yc2)
+                {
+                    satsumc(o, w, h, xc2+1, yc2+1, xi2-1, yi2-1, 1); // center right
+                }
+                else
+                {
+                    satsumc(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                }
             }
-        }
-        // re-add 4 vertices which are removed more than once
-        o.area += 4;
-        o.sum += (
-        satsum(o.sat, w, h, xr1, yr1, xr1, yr1)+
-        satsum(o.sat, w, h, xr1, yr2, xr1, yr2)+
-        satsum(o.sat, w, h, xr2, yr2, xr2, yr2)+
-        satsum(o.sat, w, h, xr2, yr1, xr2, yr1)
-        );
-        if (o.sat2)
-        {
-            o.sum2 += (
-            satsum(o.sat2, w, h, xr1, yr1, xr1, yr1)+
-            satsum(o.sat2, w, h, xr1, yr2, xr1, yr2)+
-            satsum(o.sat2, w, h, xr2, yr2, xr2, yr2)+
-            satsum(o.sat2, w, h, xr2, yr1, xr2, yr1)
-            );
+            else
+            {
+                xc1 = intersect_x(yi2, xm, yi2, xi1, ym);
+                yc1 = intersect_y(xi2, xm, yi2, xi1, ym);
+                xc2 = intersect_x(yi1, xi2, yM, xM, yi2);
+                yc2 = intersect_y(xi1, xi2, yM, xM, yi2);
+                satsumt(o, w, h, xi2, yM, xi2, yi1, xc2, yi1, k); // right bottom
+                satsumt(o, w, h, xm, yi1, xi2, yi1, xi2, yM, k); // left bottom
+                satsumt(o, w, h, xm, yi1, xi2, yc1, xi2, yi1, k); // left top
+                satsumc(o, w, h, xi2, yi1, xi2, yM, -1); // remove common area
+                satsumc(o, w, h, xm, yi1, xi2, yi1, -1); // remove common area
+                satsumt(o, w, h, xi2, yc1, xc1, yi1, xc1, yc1, k); // inside left
+                satsumt(o, w, h, xc2, yi1, xc2, yc2, xi1, yc2, k); // inside right
+                satsumt(o, w, h, xi1, yi2, xM, yi2, xi1, yc2, k); // right bottom
+                satsumt(o, w, h, xi1, yi2, xi1, ym, xM, yi2, k); // right top
+                satsumt(o, w, h, xi1, ym, xi1, yi2, xc1, yi2, k); // left top
+                satsumc(o, w, h, xi1, yi2, xM, yi2, -1); // remove common area
+                satsumc(o, w, h, xi1, ym, xi1, yi2, -1); // remove common area
+                satsumc(o, w, h, xc1, yi2, xc2, yi1, 1); // center
+                satsumc(o, w, h, xc1, yi2, xc1, yc1, -1); // remove common area
+                satsumc(o, w, h, xc2, yc2, xc2, yi1, -1); // remove common area
+                if (yi1 > yc1)
+                {
+                    satsumc(o, w, h, xi2+1, yc1+1, xc1-1, yi1-1, 1); // center left
+                }
+                else
+                {
+                    satsumc(o, w, h, xi2, yi1, xc2, yi1, -1); // remove common area
+                }
+                if (yi2 < yc2)
+                {
+                    satsumc(o, w, h, xc2+1, yi2+1, xi1-1, yc2-1, 1); // center right
+                }
+                else
+                {
+                    satsumc(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                }
+            }
         }
     }
 };
