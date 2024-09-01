@@ -186,7 +186,8 @@ FILTER.Create({
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
             selection = self.selection || null,
-            xf, yf, x1, y1, x2, y2, D;
+            xf, yf, x1, y1, x2, y2, D,
+            area, minArea, maxArea;
 
         self.meta = {matches: []};
         if (null == color) return im;
@@ -224,9 +225,13 @@ FILTER.Create({
             x1 = 0; y1 = 0;
             x2 = w-1; y2 = h-1;
         }
-        D = new A32F((x2-x1+1)*(y2-y1+1));
+        area = (x2-x1+1)*(y2-y1+1);
+        // areas can be given as percentages of total area as well
+        minArea = 0 < self.minArea && self.minArea < 1 ? (self.minArea*area) : self.minArea;
+        maxArea = 0 < self.maxArea && self.maxArea < 1 ? (self.maxArea*area) : self.minArea;
+        D = new A32F(area);
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
-        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, self.maxArea, x1, y1, x2, y2)};
+        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, minArea, maxArea, x1, y1, x2, y2)};
         return im;
     }
 });
