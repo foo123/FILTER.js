@@ -2613,7 +2613,7 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (xm >= xM || ym >= yM || y1 === y2 || y2 === y3 || y3 === y4 || y4 === y1)
+    if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 0.5 || stdMath.abs(y2-y3) <= 0.5 || stdMath.abs(y3-y4) <= 0.5 || stdMath.abs(y4-y1) <= 0.5)
     {
         // axis-aligned unrotated or degenerate rectangle
         o.area += satsum(null, w, h, xm, ym, xM, yM);
@@ -2643,13 +2643,19 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         o.area += satsum(null, w, h, xr1, yr1, xr2, yr2); // center rectangle
         o.sum  += satsum(o.sat, w, h, xr1, yr1, xr2, yr2); // center rectangle
         if (o.sat2) o.sum2 += satsum(o.sat2, w, h, xr1, yr1, xr2, yr2); // center rectangle
-        satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // top left right triagle
-        satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right right triagle
-        satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom left right triagle
-        satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // bottom right right triagle
-        // remove common lines area computed multiple times
+        /*
+        satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // left right triagle
+        satsumt(o, w, h, xM, yi2, xi1, ym, xi1, yi2, k); // top right triagle
+        satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k); // right right triagle
+        satsumt(o, w, h, xm, yi1, xi2, yM, xi2, yi1, k); // bottom right triagle
+        */
         if (xi1 === xr1)
         {
+            satsumt(o, w, h, xm, yr2, xr1, ym, xr1, yr2, k); // left right triagle
+            satsumt(o, w, h, xr1, ym, xM, yr1, xr1, yr1, k); // top right triagle
+            satsumt(o, w, h, xr2, yr1, xM, yr1, xr2, yM, k); // right right triagle
+            satsumt(o, w, h, xm, yr2, xr2, yr2, xr2, yM, k); // bottom right triagle
+            // remove common lines area computed multiple times
             o.area -= (
             satsum(null, w, h, xr1, ym, xr1, yr2)+
             satsum(null, w, h, xr2, yr1, xr2, yM)+
@@ -2674,6 +2680,11 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         }
         else
         {
+            satsumt(o, w, h, xm, yr1, xr1, yr1, xr1, yM, k); // left right triagle
+            satsumt(o, w, h, xm, yr1, xr2, ym, xr2, yr1, k); // top right triagle
+            satsumt(o, w, h, xr1, ym, xM, yr2, xr2, yr2, k); // right right triagle
+            satsumt(o, w, h, xr1, yM, xr1, yr2, xM, yr2, k); // bottom right triagle
+            // remove common lines area computed multiple times
             o.area -= (
             satsum(null, w, h, xr2, ym, xr2, yr2)+
             satsum(null, w, h, xr1, yr1, xr1, yM)+

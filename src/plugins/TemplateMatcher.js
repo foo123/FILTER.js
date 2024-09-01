@@ -38,7 +38,7 @@ FILTER.Create({
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
-    ,threshold: 0.7
+    ,threshold: 0.6
     ,tolerance: 0.2
     ,minNeighbors: 1
     ,maxMatches: 1000
@@ -442,11 +442,13 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                varft += diff*(rect.sum - avgf*rect.area/*areak*/);
+                areak = rect.area;
+                varft += diff*(rect.sum - avgf*areak);
             }
             else
             {
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*satsum(null, w, h, x+x0, y+y0, x+x1, y+y1)/*areak*/);
+                areak = satsum(null, w, h, x+x0, y+y0, x+x1, y+y1);
+                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*areak);
             }
             //vart += diff*diff*areak;
         }
@@ -637,8 +639,8 @@ function approximate(t, w, h, c, Jmax, minSz)
 }
 function basisv(basis, avg, w, h)
 {
-    var k, K = basis.length, bk, v = 0;
-    for (k=0; k<K; ++k) {bk = basis[k]; v += ((bk.x1-bk.x0+1)/w*(bk.k-avg))*((bk.y1-bk.y0+1)/h*(bk.k-avg));}
+    var k, K = basis.length, bk, d, v = 0;
+    for (k=0; k<K; ++k) {bk = basis[k]; d = bk.k-avg; v += (((bk.x1-bk.x0+1)/w)*d)*(((bk.y1-bk.y0+1)/h)*d);}
     return v;
 }
 FilterUtil.tm_approximate = approximate;

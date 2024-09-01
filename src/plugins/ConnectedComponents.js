@@ -125,7 +125,7 @@ FILTER.Create({
     ,hasMeta: true
     ,mode: MODE.COLOR
     ,tolerance: 1e-6
-    ,minArea: 20
+    ,minArea: 20//=Infinity
     ,maxArea: Infinity
     ,color: 0
 
@@ -143,7 +143,7 @@ FILTER.Create({
         if (params)
         {
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
-            if (null != params.minArea) self.minArea = params.minArea || 0;
+            if (null != params.minArea) self.minArea = params.minArea;
             if (null != params.maxArea) self.maxArea = params.maxArea;
             if (null != params.color) self.color = params.color || 0;
             if (null != params.selection) self.selection = params.selection || null;
@@ -461,7 +461,8 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
         total = w*h;
         output = Object.keys(output).reduce(function(out, id) {
             var bb = output[id], w = bb.x2-bb.x1+1, h = bb.y2-bb.y1+1, area = w*h;
-            if (area >= minArea && area <= maxArea) out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, k:bb.k/delta});
+            if ((area < minArea) || (area > maxArea)) return out;
+            out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, score:bb.k/delta});
             return out;
         }, []);
     }
