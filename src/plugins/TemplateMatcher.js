@@ -8,7 +8,8 @@
 "use strict";
 
 var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
-    sat = FilterUtil.sat, satsum = FilterUtil.satsum, satsumr = FilterUtil.satsumr,
+    sat = FilterUtil.sat, satsum = FilterUtil.satsum,
+    satsums = FilterUtil.satsums, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
@@ -354,17 +355,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         x0, y0, x1, y1, bk, k, K = basis.length, f,
         area, areat, areak, sum1, sum2, diff, avgf, varf, varft, cc,
         is_tilted = true;//!(0 === roa || 90 === roa || 180 === roa || 270 === roa);
+    rect.sat = sat1;
+    rect.sat2 = sat2;
     if (is_tilted)
     {
         tws2 = tws>>>1; ths2 = ths>>>1;
         x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
-        rect.sat = sat1; rect.sat2 = sat2;
         rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
         satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-        area = rect.area;
-        sum1 = rect.sum;
-        sum2 = rect.sum2;
-        rect.sat2 = null;
     }
     else
     {
@@ -372,18 +370,20 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if ((45 < roa && roa <= 135) || (225 < roa && roa <= 315)) {tws = ths0; ths = tws0;}
         tws2 = tws>>>1; ths2 = ths>>>1;
         x0 = x-tws2; y0 = y-ths2; x1 = x+tws-1-tws2; y1 = y+ths-1-ths2;
-        area = satsum(null, w, h, x0, y0, x1, y1);
-        sum1 = satsum(sat1, w, h, x0, y0, x1, y1);
-        sum2 = satsum(sat2, w, h, x0, y0, x1, y1);
+        satsums(rect, w, h, x0, y0, x1, y1);
     }
+    rect.sat2 = null;
     areat = tws*ths;
+    area = rect.area;
+    sum1 = rect.sum;
+    sum2 = rect.sum2;
     if (2*area < areat) return 0; // percent of matched area too small, reject
     f = area/areat;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
     {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : /*(1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))*/0) : 0;
+        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : (1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))) : 0;
     }
     else
     {
@@ -436,8 +436,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             y0 = stdMath.round(sc*y0)-ths2;
             x1 = stdMath.round(sc*x1)-tws2;
             y1 = stdMath.round(sc*y1)-ths2;
-            diff = bk.k-avgt;
             //areak = stdMath.abs((x1-x0+1)*(y1-y0+1));
+            diff = bk.k-avgt;
             if (is_tilted)
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);

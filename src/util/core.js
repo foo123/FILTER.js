@@ -2477,16 +2477,18 @@ function satsum(sat, w, h, x0, y0, x1, y1)
     var wy0 = w*y0, wy1 = w*y1;
     return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
 }
-function satsumc(o, w, h, x0, y0, x1, y1, f)
+function satsums(o, w, h, x0, y0, x1, y1, f)
 {
+    //if (null == f) f = 1;
     o.area += satsum(null, w, h, x0, y0, x1, y1)*f;
     o.sum  += satsum(o.sat, w, h, x0, y0, x1, y1)*f;
     if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x0, y0, x1, y1)*f;
 }
-function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
+function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
 {
     // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
     if (w <= 0 || h <= 0) return;
+    //if (null == f) f = 1;
     var xm = stdMath.min(x0, x1, x2),
         ym = stdMath.min(y0, y1, y2),
         xM = stdMath.max(x0, x1, x2),
@@ -2503,7 +2505,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
     else if (k <= 1)
     {
         //simplest approximation, half of enclosing rectangle sum
-        satsumc(o, w, h, xm, ym, xM, yM, 0.5);
+        satsums(o, w, h, xm, ym, xM, yM, f/2);
     }
     else if (dx > dy)
     {
@@ -2544,14 +2546,14 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
             if (y > yM) y = yM;
             xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
             xi1 = stdMath.min(xym, xi); xi2 = stdMath.max(xym, xi);
-            satsumc(o, w, h, xi1, p, xi2, y, 1);
+            satsums(o, w, h, xi1, p, xi2, y, f);
             if (y >= yM) break;
             p = stdMath.min(y+1, yM);
         }
         if (y < yM)
         {
             xi1 = stdMath.min(xym, xyM); xi2 = stdMath.max(xym, xyM);
-            satsumc(o, w, h, xi1, y+1, xi2, yM, 1);
+            satsums(o, w, h, xi1, y+1, xi2, yM, f);
         }
     }
     else
@@ -2593,19 +2595,19 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k)
             if (x > xM) x = xM;
             yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
             yi1 = stdMath.min(yxm, yi); yi2 = stdMath.max(yxm, yi);
-            satsumc(o, w, h, p, yi1, x, yi2, 1);
+            satsums(o, w, h, p, yi1, x, yi2, f);
             if (x >= xM) break;
             p = stdMath.min(x+1, xM);
         }
         if (x < xM)
         {
             yi1 = stdMath.min(yxm, yxM); yi2 = stdMath.max(yxm, yxM);
-            satsumc(o, w, h, x+1, yi1, xM, yi2, 1);
+            satsums(o, w, h, x+1, yi1, xM, yi2, f);
         }
     }
 }
 FilterUtil.satsum = satsum;
-FilterUtil.satsumc = satsumc;
+FilterUtil.satsums = satsums;
 FilterUtil.satsumt = satsumt;
 FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
@@ -2623,7 +2625,7 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
     if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 0.5 || stdMath.abs(y2-y3) <= 0.5 || stdMath.abs(y3-y4) <= 0.5 || stdMath.abs(y4-y1) <= 0.5)
     {
         // axis-aligned unrotated or degenerate rectangle
-        satsumc(o, w, h, xm, ym, xM, yM, 1);
+        satsums(o, w, h, xm, ym, xM, yM, 1);
     }
     else
     {
@@ -2647,117 +2649,139 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         xr2 = stdMath.max(xi1, xi2); yr2 = stdMath.max(yi1, yi2);
         if ((yi1 >= yi2 && xi1 <= xi2) || (yi1 <= yi2 && xi1 >= xi2))
         {
-            // can be subdivided into 1 center rectangle + 4 right triangles axis-aligned
-            satsumc(o, w, h, xr1, yr1, xr2, yr2, 1); // center
-            if (xi1 === xr1)
+            // can be subdivided into 1 enclosed center rectangle + 4 right triangles axis-aligned
+            satsums(o, w, h, xr1, yr1, xr2, yr2, 1); // center
+            if (xi1 <= xi2)
             {
-                satsumt(o, w, h, xm, yr2, xr1, ym, xr1, yr2, k); // left
-                satsumt(o, w, h, xr1, ym, xM, yr1, xr1, yr1, k); // top
-                satsumt(o, w, h, xr2, yr1, xM, yr1, xr2, yM, k); // right
-                satsumt(o, w, h, xm, yr2, xr2, yr2, xr2, yM, k); // bottom
+                satsumt(o, w, h, xm, yr2, xr1, ym, xr1, yr2, k, 1); // left
+                satsumt(o, w, h, xr1, ym, xM, yr1, xr1, yr1, k, 1); // top
+                satsumt(o, w, h, xr2, yr1, xM, yr1, xr2, yM, k, 1); // right
+                satsumt(o, w, h, xm, yr2, xr2, yr2, xr2, yM, k, 1); // bottom
                 // remove common area computed multiple times
-                satsumc(o, w, h, xr1, ym, xr1, yr2, -1);
-                satsumc(o, w, h, xr2, yr1, xr2, yM, -1);
-                satsumc(o, w, h, xm, yr2, xr2, yr2, -1);
-                satsumc(o, w, h, xr1, yr1, xM, yr1, -1);
+                satsums(o, w, h, xr1, ym, xr1, yr2, -1);
+                satsums(o, w, h, xr2, yr1, xr2, yM, -1);
+                satsums(o, w, h, xm, yr2, xr2, yr2, -1);
+                satsums(o, w, h, xr1, yr1, xM, yr1, -1);
             }
             else
             {
-                satsumt(o, w, h, xm, yr1, xr1, yr1, xr1, yM, k); // left
-                satsumt(o, w, h, xm, yr1, xr2, ym, xr2, yr1, k); // top
-                satsumt(o, w, h, xr1, ym, xM, yr2, xr2, yr2, k); // right
-                satsumt(o, w, h, xr1, yM, xr1, yr2, xM, yr2, k); // bottom
+                satsumt(o, w, h, xm, yr1, xr1, yr1, xr1, yM, k, 1); // left
+                satsumt(o, w, h, xm, yr1, xr2, ym, xr2, yr1, k, 1); // top
+                satsumt(o, w, h, xr1, ym, xM, yr2, xr2, yr2, k, 1); // right
+                satsumt(o, w, h, xr1, yM, xr1, yr2, xM, yr2, k, 1); // bottom
                 // remove common area computed multiple times
-                satsumc(o, w, h, xr2, ym, xr2, yr2, -1);
-                satsumc(o, w, h, xr1, yr1, xr1, yM, -1);
-                satsumc(o, w, h, xm, yr1, xr2, yr1, -1);
-                satsumc(o, w, h, xr1, yr2, xM, yr2, -1);
+                satsums(o, w, h, xr2, ym, xr2, yr2, -1);
+                satsums(o, w, h, xr1, yr1, xr1, yM, -1);
+                satsums(o, w, h, xm, yr1, xr2, yr1, -1);
+                satsums(o, w, h, xr1, yr2, xM, yr2, -1);
             }
             // add area removed more than once
-            satsumc(o, w, h, xr1, yr1, xr1, yr1, 1);
-            satsumc(o, w, h, xr1, yr2, xr1, yr2, 1);
-            satsumc(o, w, h, xr2, yr2, xr2, yr2, 1);
-            satsumc(o, w, h, xr2, yr1, xr2, yr1, 1);
+            satsums(o, w, h, xr1, yr1, xr1, yr1, 1);
+            satsums(o, w, h, xr1, yr2, xr1, yr2, 1);
+            satsums(o, w, h, xr2, yr2, xr2, yr2, 1);
+            satsums(o, w, h, xr2, yr1, xr2, yr1, 1);
         }
         else
         {
             // can be subdivided into 3 rectangles + 8 right triangles axis-aligned
-            if (xi1 === xr1)
+            // or even faster
+            // can be subdivided into 1 enclosing rectangle - 4 right triangles axis-aligned
+            //satsums(o, w, h, xm, ym, xM, yM, 1); // enclosing rectangle
+            if (xi1 <= xi2)
             {
+                /*
+                satsumt(o, w, h, xm, yi1, xm, ym, xi1, ym, k, -1); // left
+                satsumt(o, w, h, xi1, ym, xM, ym, xM, yi2, k, -1); // top
+                satsumt(o, w, h, xM, yi2, xM, yM, xi2, yM, k, -1); // right
+                satsumt(o, w, h, xi2, yM, xm, yM, xm, yi1, k, -1); // bottom
+                */
                 xc1 = intersect_x(yi2, xm, yi1, xi2, yM);
                 yc1 = intersect_y(xi1, xm, yi1, xi2, yM);
                 xc2 = intersect_x(yi1, xM, yi2, xi1, ym);
                 yc2 = intersect_y(xi2, xM, yi2, xi1, ym);
-                satsumt(o, w, h, xi1, ym, xc2, yi1, xi1, yi1, k); // right top
-                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k); // left top
-                satsumt(o, w, h, xm, yi1, xi1, yi1, xi1, yc1, k); // left bottom
-                satsumc(o, w, h, xm, yi1, xi1, yi1, -1); // remove common area
-                satsumc(o, w, h, xi1, ym, xi1, yi1, -1); // remove common area
-                satsumt(o, w, h, xi1, yc1, xc1, yc1, xc1, yi2, k); // inside left
-                satsumt(o, w, h, xc2, yi1, xi2, yc2, xc2, yc2, k); // inside right
-                satsumt(o, w, h, xi2, yi2, xi2, yc2, xM, yi2, k); // right top
-                satsumt(o, w, h, xc1, yi2, xi2, yi2, xi2, yM, k); // left bottom
-                satsumt(o, w, h, xi2, yi2, xM, yi2, xi2, yM, k); // right bottom
-                satsumc(o, w, h, xi2, yi2, xM, yi2, -1); // remove common area
-                satsumc(o, w, h, xi2, yi2, xi2, yM, -1); // remove common area
-                satsumc(o, w, h, xc1, yi1, xc2, yi2, 1); // center
-                satsumc(o, w, h, xc1, yc1, xc1, yi2, -1); // remove common area
-                satsumc(o, w, h, xc2, yi1, xc2, yc2, -1); // remove common area
+                satsumt(o, w, h, xi1, ym, xc2, yi1, xi1, yi1, k, 1); // right top
+                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k, 1); // left top
+                satsumt(o, w, h, xm, yi1, xi1, yi1, xi1, yc1, k, 1); // left bottom
+                satsums(o, w, h, xm, yi1, xi1, yi1, -1); // remove common area
+                satsums(o, w, h, xi1, ym, xi1, yi1, -1); // remove common area
+                satsumt(o, w, h, xi1, yc1, xc1, yc1, xc1, yi2, k, 1); // inside left
+                satsumt(o, w, h, xc2, yi1, xi2, yc2, xc2, yc2, k, 1); // inside right
+                satsumt(o, w, h, xi2, yi2, xi2, yc2, xM, yi2, k, 1); // right top
+                satsumt(o, w, h, xc1, yi2, xi2, yi2, xi2, yM, k, 1); // left bottom
+                satsumt(o, w, h, xi2, yi2, xM, yi2, xi2, yM, k, 1); // right bottom
+                satsums(o, w, h, xi2, yi2, xM, yi2, -1); // remove common area
+                satsums(o, w, h, xi2, yi2, xi2, yM, -1); // remove common area
+                satsums(o, w, h, xc1, yi1, xc2, yi2, 1); // center
+                satsums(o, w, h, xc1, yc1, xc1, yi2, -1); // remove common area
+                satsums(o, w, h, xc2, yi1, xc2, yc2, -1); // remove common area
                 if (yi1 < yc1)
                 {
-                    satsumc(o, w, h, xi1+1, yi1+1, xc1-1, yc1-1, 1); // center left
+                    satsums(o, w, h, xi1+1, yi1+1, xc1-1, yc1-1, 1); // center left
                 }
                 else
                 {
-                    satsumc(o, w, h, xi1, yi1, xc2, yi1, -1); // remove common area
+                    satsums(o, w, h, xi1, yi1, xc2, yi1, -1); // remove common area
                 }
                 if (yi2 > yc2)
                 {
-                    satsumc(o, w, h, xc2+1, yc2+1, xi2-1, yi2-1, 1); // center right
+                    satsums(o, w, h, xc2+1, yc2+1, xi2-1, yi2-1, 1); // center right
                 }
                 else
                 {
-                    satsumc(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                    satsums(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
                 }
             }
             else
             {
+                /*
+                satsumt(o, w, h, xm, yi1, xm, yM, xi2, yM, k, -1); // left
+                satsumt(o, w, h, xm, yi1, xm, ym, xi1, ym, k, -1); // top
+                satsumt(o, w, h, xi1, ym, xM, ym, xM, yi2, k, -1); // right
+                satsumt(o, w, h, xM, yi2, xM, yM, xi2, yM, k, -1); // bottom
+                */
                 xc1 = intersect_x(yi2, xm, yi2, xi1, ym);
                 yc1 = intersect_y(xi2, xm, yi2, xi1, ym);
                 xc2 = intersect_x(yi1, xi2, yM, xM, yi2);
                 yc2 = intersect_y(xi1, xi2, yM, xM, yi2);
-                satsumt(o, w, h, xi2, yM, xi2, yi1, xc2, yi1, k); // right bottom
-                satsumt(o, w, h, xm, yi1, xi2, yi1, xi2, yM, k); // left bottom
-                satsumt(o, w, h, xm, yi1, xi2, yc1, xi2, yi1, k); // left top
-                satsumc(o, w, h, xi2, yi1, xi2, yM, -1); // remove common area
-                satsumc(o, w, h, xm, yi1, xi2, yi1, -1); // remove common area
-                satsumt(o, w, h, xi2, yc1, xc1, yi1, xc1, yc1, k); // inside left
-                satsumt(o, w, h, xc2, yi1, xc2, yc2, xi1, yc2, k); // inside right
-                satsumt(o, w, h, xi1, yi2, xM, yi2, xi1, yc2, k); // right bottom
-                satsumt(o, w, h, xi1, yi2, xi1, ym, xM, yi2, k); // right top
-                satsumt(o, w, h, xi1, ym, xi1, yi2, xc1, yi2, k); // left top
-                satsumc(o, w, h, xi1, yi2, xM, yi2, -1); // remove common area
-                satsumc(o, w, h, xi1, ym, xi1, yi2, -1); // remove common area
-                satsumc(o, w, h, xc1, yi2, xc2, yi1, 1); // center
-                satsumc(o, w, h, xc1, yi2, xc1, yc1, -1); // remove common area
-                satsumc(o, w, h, xc2, yc2, xc2, yi1, -1); // remove common area
+                satsumt(o, w, h, xi2, yM, xi2, yi1, xc2, yi1, k, 1); // right bottom
+                satsumt(o, w, h, xm, yi1, xi2, yi1, xi2, yM, k, 1); // left bottom
+                satsumt(o, w, h, xm, yi1, xi2, yc1, xi2, yi1, k, 1); // left top
+                satsums(o, w, h, xi2, yi1, xi2, yM, -1); // remove common area
+                satsums(o, w, h, xm, yi1, xi2, yi1, -1); // remove common area
+                satsumt(o, w, h, xi2, yc1, xc1, yi1, xc1, yc1, k, 1); // inside left
+                satsumt(o, w, h, xc2, yi1, xc2, yc2, xi1, yc2, k, 1); // inside right
+                satsumt(o, w, h, xi1, yi2, xM, yi2, xi1, yc2, k, 1); // right bottom
+                satsumt(o, w, h, xi1, yi2, xi1, ym, xM, yi2, k, 1); // right top
+                satsumt(o, w, h, xi1, ym, xi1, yi2, xc1, yi2, k, 1); // left top
+                satsums(o, w, h, xi1, yi2, xM, yi2, -1); // remove common area
+                satsums(o, w, h, xi1, ym, xi1, yi2, -1); // remove common area
+                satsums(o, w, h, xc1, yi2, xc2, yi1, 1); // center
+                satsums(o, w, h, xc1, yi2, xc1, yc1, -1); // remove common area
+                satsums(o, w, h, xc2, yc2, xc2, yi1, -1); // remove common area
                 if (yi1 > yc1)
                 {
-                    satsumc(o, w, h, xi2+1, yc1+1, xc1-1, yi1-1, 1); // center left
+                    satsums(o, w, h, xi2+1, yc1+1, xc1-1, yi1-1, 1); // center left
                 }
                 else
                 {
-                    satsumc(o, w, h, xi2, yi1, xc2, yi1, -1); // remove common area
+                    satsums(o, w, h, xi2, yi1, xc2, yi1, -1); // remove common area
                 }
                 if (yi2 < yc2)
                 {
-                    satsumc(o, w, h, xc2+1, yi2+1, xi1-1, yc2-1, 1); // center right
+                    satsums(o, w, h, xc2+1, yi2+1, xi1-1, yc2-1, 1); // center right
                 }
                 else
                 {
-                    satsumc(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                    satsums(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
                 }
             }
+            /*
+            // add area removed more than once
+            satsums(o, w, h, xi1, ym, xi1, ym, 1);
+            satsums(o, w, h, xm, yi1, xm, yi1, 1);
+            satsums(o, w, h, xM, yi2, xM, yi2, 1);
+            satsums(o, w, h, xi2, yM, xi2, yM, 1);
+            */
         }
     }
 };
