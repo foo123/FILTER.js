@@ -354,10 +354,11 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
         if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};}
     }
-    // convert from template rotation to image rotation (ie opposite of template rotation)??
+    // not convert from template rotation to image rotation (ie opposite of template rotation)??
     var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
-        x0, y0, x1, y1, bk, k, K = basis.length, f,
-        area, areat, areak, sum1, sum2, diff, avgf, varf, varft, cc,
+        x0, y0, x1, y1, bk, k, K = basis.length,
+        area, areat, areak, sum1, sum2, diff,
+        avgf, varf, varft, cc,
         is_tilted = true;//!(0 === roa || 90 === roa || 180 === roa || 270 === roa);
     rect.sat = sat1;
     rect.sat2 = sat2;
@@ -373,8 +374,9 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         // swap x/y
         if ((45 < roa && roa <= 135) || (225 < roa && roa <= 315)) {tws = ths0; ths = tws0;}
         tws2 = tws>>>1; ths2 = ths>>>1;
-        x0 = x-tws2; y0 = y-ths2; x1 = x+tws-1-tws2; y1 = y+ths-1-ths2;
-        satsums(rect, w, h, x0, y0, x1, y1);
+        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        rect.area = 0; rect.sum = 0; rect.sum2 = 0;
+        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1);
     }
     rect.sat2 = null;
     areat = tws*ths;
@@ -382,7 +384,6 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     sum1 = rect.sum;
     sum2 = rect.sum2;
     if (2*area < areat) return 0; // percent of matched area too small, reject
-    f = area/areat;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -457,9 +458,9 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             //vart += diff*diff*areak;
         }
         vart *= area/*areat*/;
-        cc = ((varft)/stdMath.sqrt(vart*varf)) || 0;
-        if (1+1e-2 < cc) cc = 0;
-        return stdMath.min(stdMath.max(cc, -1), 1);
+        cc = ((varft)/stdMath.sqrt(varf*vart)) || 0;
+        //if (1.1 <= cc) cc = 0;
+        return cc;//stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
