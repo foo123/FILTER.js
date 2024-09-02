@@ -13,8 +13,10 @@ var notSupportClamp = FILTER._notSupportClamp,
     TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 
-// https://en.wikipedia.org/wiki/Thresholding_(image_processing)
-// https://en.wikipedia.org/wiki/Otsu%27s_method
+/*
+1. https://en.wikipedia.org/wiki/Thresholding_(image_processing)
+2. https://en.wikipedia.org/wiki/Otsu%27s_method
+*/
 FILTER.Create({
     name : "OtsuThresholdFilter"
 

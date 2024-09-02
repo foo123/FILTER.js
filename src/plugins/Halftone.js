@@ -11,10 +11,12 @@ var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16,
     MODE = FILTER.MODE, A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
     intensity = FILTER.Color.intensity;
 
-// http://en.wikipedia.org/wiki/Halftone
-// http://en.wikipedia.org/wiki/Error_diffusion
-// http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
-// http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+/*
+http://en.wikipedia.org/wiki/Halftone
+http://en.wikipedia.org/wiki/Error_diffusion
+http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
+http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+*/
 FILTER.Create({
     name: "HalftoneFilter"
 

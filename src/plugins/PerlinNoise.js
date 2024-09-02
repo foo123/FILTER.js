@@ -9,8 +9,10 @@
 
 var MODE = FILTER.MODE;
 
-// an efficient perlin noise and simplex noise plugin
-// http://en.wikipedia.org/wiki/Perlin_noise
+/*
+an efficient perlin noise and simplex noise plugin
+http://en.wikipedia.org/wiki/Perlin_noise
+*/
 FILTER.Create({
     name: "PerlinNoiseFilter"
 

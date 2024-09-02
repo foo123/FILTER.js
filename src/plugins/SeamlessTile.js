@@ -9,8 +9,10 @@
 
 var stdMath = Math, GLSL = FILTER.Util.GLSL, ImageUtil = FILTER.Util.Image;
 
-// a plugin to create a seamless tileable pattern from an image
-// adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+/*
+a plugin to create a seamless tileable pattern from an image
+adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+*/
 FILTER.Create({
     name: "SeamlessTileFilter"
 

@@ -18,8 +18,10 @@ var MODE = FILTER.MODE,
     ImageUtil = FILTER.Util.Image,
     GLSL = FILTER.Util.GLSL;
 
-// adapted from http://www.jhlabs.com/ip/filters/
-// analogous to ActionScript filter
+/*
+adapted from http://www.jhlabs.com/ip/filters/
+analogous to ActionScript filter
+*/
 FILTER.Create({
      name: "DropShadowFilter"
 

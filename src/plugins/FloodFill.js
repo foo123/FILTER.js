@@ -9,9 +9,14 @@
 
 var MODE = FILTER.MODE, stdMath = Math, FilterUtil = FILTER.Util.Filter;
 
-// an extended and fast flood fill and flood pattern fill filter using scanline algorithm
-// adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
-// http://en.wikipedia.org/wiki/Flood_fill
+/*
+an extended and fast [flood fill](https://en.wikipedia.org/wiki/Flood_fill) and flood pattern fill filter using scanline algorithm
+adapted from:
+
+A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
+1. http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
+2. http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+*/
 FILTER.Create({
     name : "ColorFillFilter"
     ,x: 0
@@ -602,9 +607,11 @@ function dissimilarity_rgb(r, g, b, O, I, delta)
     D[c] = ((abs(b-c)<=delta?O:I)<<2)|((abs(g-c)<=delta?O:I)<<1)|((abs(r-c)<=delta?O:I)<<0); ++c;
     return D;
 }
-// adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
-// http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
-// http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+/*
+adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
+http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
+http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+*/
 function flood_region(im, w, h, stride, D, K, x0, y0)
 {
     stride = stride|0;

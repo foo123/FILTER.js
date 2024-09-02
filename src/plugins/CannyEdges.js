@@ -10,8 +10,12 @@
 var MAGNITUDE_SCALE = 1, MAGNITUDE_LIMIT = 510,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
 
-// an efficient Canny Edges Detector
-// http://en.wikipedia.org/wiki/Canny_edge_detector
+/*
+an efficient [Canny Edges Detector](http://en.wikipedia.org/wiki/Canny_edge_detector)
+based on:
+
+1. [A Computational Approach to Edge Detection, Canny 1986](https://perso.limsi.fr/vezien/PAPIERS_ACS/canny1986.pdf)
+*/
 FILTER.Create({
     name : "CannyEdgesFilter"
 
