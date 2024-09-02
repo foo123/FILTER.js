@@ -358,8 +358,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
         x0, y0, x1, y1, bk, k, K = basis.length,
         area, areat, areak, sum1, sum2, diff,
-        avgf, varf, varft, cc,
-        is_tilted = true;//!(0 === roa || 90 === roa || 180 === roa || 270 === roa);
+        avgf, varf, varft, cc, f,
+        is_tilted = !(0 === roa || 90 === roa || 180 === roa || 270 === roa);
     rect.sat = sat1;
     rect.sat2 = sat2;
     if (is_tilted)
@@ -372,18 +372,20 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     else
     {
         // swap x/y
-        if ((45 < roa && roa <= 135) || (225 < roa && roa <= 315)) {tws = ths0; ths = tws0;}
+        if (90 === roa || 270 === roa) {tws = ths0; ths = tws0;}
         tws2 = tws>>>1; ths2 = ths>>>1;
         x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rect.area = 0; rect.sum = 0; rect.sum2 = 0;
-        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1);
+        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
     }
     rect.sat2 = null;
-    areat = tws*ths;
+    areat = tws0*ths0;
     area = rect.area;
     sum1 = rect.sum;
     sum2 = rect.sum2;
-    if (2*area < areat) return 0; // percent of matched area too small, reject
+    f = areat/area;
+    // ratio of matched computed area too different or too different for that scale, reject
+    if (2 <= f || 0.5 >= f || (1 < sc && f > 0.5*sc*sc) /*|| (1 > sc && f < 2*sc*sc)*/) return 0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -404,9 +406,9 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
                 x1 = bk.x1;
                 y1 = bk.y1;
             }
-            else
+            else // not tilted, normal rectangular
             {
-                if (225 < roa && roa <= 315) // 270
+                if (270 === roa) // 270
                 {
                     // swap x/y
                     x0 = bk.y0;
@@ -414,14 +416,14 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
                     x1 = bk.y1;
                     y1 = tw-1-bk.x0;
                 }
-                else if (135 < roa && roa <= 225) // 180
+                else if (180 === roa) // 180
                 {
                     x0 = tw-1-bk.x1;
                     y0 = th-1-bk.y1;
                     x1 = tw-1-bk.x0;
                     y1 = th-1-bk.y0;
                 }
-                else if (45 < roa && roa <= 135) // 90
+                else if (90 === roa) // 90
                 {
                     // swap x/y
                     x0 = th-1-bk.y1;
@@ -447,20 +449,20 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
                 satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
-                areak = rect.area;
-                varft += diff*(rect.sum - avgf*areak);
             }
             else
             {
-                areak = satsum(null, w, h, x+x0, y+y0, x+x1, y+y1);
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*areak);
+                rect.area = 0; rect.sum = 0;
+                satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
             }
+            areak = rect.area;
+            varft += diff*(rect.sum - avgf*areak);
             //vart += diff*diff*areak;
         }
         vart *= area/*areat*/;
         cc = ((varft)/stdMath.sqrt(varf*vart)) || 0;
-        //if (1.1 <= cc) cc = 0;
-        return cc;//stdMath.min(stdMath.max(cc, -1), 1);
+        if (1.01 < cc) cc = 0;
+        return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
