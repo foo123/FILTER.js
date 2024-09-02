@@ -2291,170 +2291,6 @@ function merge_features(rects, min_neighbors, epsilon)
 
     return feats/*.sort(by_area)*/;
 }
-
-
-function ct_eye(c1, c0)
-{
-    if (null == c0) c0 = 0;
-    if (null == c1) c1 = 1;
-    var i, t = new ColorTable(256);
-    if ("function" === typeof c1)
-    {
-        for (i=0; i<256; ++i)
-        {
-            t[i   ] = clamp(c1(i   ),0,255)|0;
-        }
-    }
-    else
-    {
-        for (i=0; i<256; ++i)
-        {
-            t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
-        }
-    }
-    return t;
-}
-// multiply (functionaly compose) 2 Color Tables
-function ct_multiply(ct2, ct1)
-{
-    var i, ct12 = new ColorTable(256);
-    for (i=0; i<256; ++i)
-    {
-        ct12[i   ] = clamp(ct2[clamp(ct1[i   ],0,255)],0,255);
-    }
-    return ct12;
-}
-function cm_eye()
-{
-    return new ColorMatrix([
-    1,0,0,0,0,
-    0,1,0,0,0,
-    0,0,1,0,0,
-    0,0,0,1,0
-    ]);
-}
-// multiply (functionaly compose, matrix multiply) 2 Color Matrices
-/*
-[ rr rg rb ra roff
-  gr gg gb ga goff
-  br bg bb ba boff
-  ar ag ab aa aoff
-  0  0  0  0  1 ]
-*/
-function cm_multiply(cm1, cm2)
-{
-    var cm12 = new ColorMatrix(20), i;
-
-    for (i=0; i<20; i+=5)
-    {
-        cm12[i+0] = cm2[i]*cm1[0] + cm2[i+1]*cm1[5] + cm2[i+2]*cm1[10] + cm2[i+3]*cm1[15];
-        cm12[i+1] = cm2[i]*cm1[1] + cm2[i+1]*cm1[6] + cm2[i+2]*cm1[11] + cm2[i+3]*cm1[16];
-        cm12[i+2] = cm2[i]*cm1[2] + cm2[i+1]*cm1[7] + cm2[i+2]*cm1[12] + cm2[i+3]*cm1[17];
-        cm12[i+3] = cm2[i]*cm1[3] + cm2[i+1]*cm1[8] + cm2[i+2]*cm1[13] + cm2[i+3]*cm1[18];
-        cm12[i+4] = cm2[i]*cm1[4] + cm2[i+1]*cm1[9] + cm2[i+2]*cm1[14] + cm2[i+3]*cm1[19] + cm2[i+4];
-    }
-    return cm12;
-}
-function cm_rechannel(m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao)
-{
-    var cm = new ColorMatrix(20), RO = Ro*5, GO = Go*5, BO = Bo*5, AO = Ao*5;
-    cm[RO+Ri] = m[0 ]; cm[RO+Gi] = m[1 ]; cm[RO+Bi] = m[2 ]; cm[RO+Ai] = m[3 ]; cm[RO+4] = m[4 ];
-    cm[GO+Ri] = m[5 ]; cm[GO+Gi] = m[6 ]; cm[GO+Bi] = m[7 ]; cm[GO+Ai] = m[8 ]; cm[GO+4] = m[9 ];
-    cm[BO+Ri] = m[10]; cm[BO+Gi] = m[11]; cm[BO+Bi] = m[12]; cm[BO+Ai] = m[13]; cm[BO+4] = m[14];
-    cm[AO+Ri] = m[15]; cm[AO+Gi] = m[16]; cm[AO+Bi] = m[17]; cm[AO+Ai] = m[18]; cm[AO+4] = m[19];
-    return cm;
-}
-/*
-[ 0xx 1xy 2xo 3xor
-  4yx 5yy 6yo 7yor
-  0   0   1   0
-  0   0   0   1 ]
-*/
-function am_multiply(am1, am2)
-{
-    var am12 = new AffineMatrix(8);
-    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
-    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
-    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
-    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
-
-    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
-    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
-    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
-    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
-    return am12;
-}
-function am_eye()
-{
-    return new AffineMatrix([
-    1,0,0,0,
-    0,1,0,0
-    ]);
-}
-function cm_combine(m1, m2, a1, a2, matrix)
-{
-    matrix = matrix || Array; a1 = a1 || 1; a2 = a2 || 1;
-    for (var i=0,d=m1.length,m12=new matrix(d); i<d; ++i) m12[i] = a1 * m1[i] + a2 * m2[i];
-    return m12;
-}
-function cm_convolve(cm1, cm2, matrix)
-{
-    matrix = matrix || Array/*ConvolutionMatrix*/;
-    if (cm2 === +cm2) cm2 = [cm2];
-    var i, j, p, d1 = cm1.length, d2 = cm2.length, cm12 = new matrix(d1*d2);
-    for (i=0,j=0; i<d1; )
-    {
-        cm12[i*d2+j] = cm1[i]*cm2[j];
-        if (++j >= d2) {j=0; ++i;}
-    }
-    return cm12;
-}
-
-ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
-    if ((null == a) || (a instanceof A)) return a;
-    else if (Array.isArray(a)) return Array === A ? a : new A(a);
-    if (null == a.length) a.length = Object.keys(a).length;
-    return Array === A ? Array.prototype.slice.call(a) : new A(Array.prototype.slice.call(a));
-} : function(a, A) {return a;};
-ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
-    return null == o ? o : (unserialise ? JSON.parse(o) : JSON.stringify(o));
-} : function(o) {return o;};
-ArrayUtil.arrayset_shim = arrayset_shim;
-ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;
-ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subarray(i1, i2);} : function(a, i1, i2){ return a.slice(i1, i2); };
-
-
-MathUtil.clamp = clamp;
-MathUtil.hypot = hypot;
-
-StringUtil.esc = esc;
-StringUtil.trim = String.prototype.trim
-? function(s) {return s.trim();}
-: function(s) {return s.replace(trim_re, '');};
-StringUtil.function_body = function_body;
-
-ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
-ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
-ImageUtil.interpolate_nearest = interpolate_nearest;
-ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
-ImageUtil.glsl = image_glsl;
-
-FilterUtil.ct_eye = ct_eye;
-FilterUtil.ct_multiply = ct_multiply;
-FilterUtil.cm_eye = cm_eye;
-FilterUtil.cm_multiply = cm_multiply;
-FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.am_eye = am_eye;
-FilterUtil.am_multiply = am_multiply;
-FilterUtil.cm_combine = cm_combine;
-FilterUtil.cm_convolve = cm_convolve;
-FilterUtil.gaussian = gaussian;
-FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
-FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
-FilterUtil.gradient = gradient;
-FilterUtil.optimum_gradient = optimum_gradient;
-FilterUtil.gradient_glsl = gradient_glsl;
-FilterUtil.sat = integral2;
 function intersect_x(y, x1, y1, x2, y2)
 {
     return y2 === y1 ? (y === y1 ? x2 : null) : stdMath.round((y2-y)*(x2-x1)/(y2-y1)+x1);
@@ -2480,9 +2316,9 @@ function satsum(sat, w, h, x0, y0, x1, y1)
 function satsums(o, w, h, x0, y0, x1, y1, f)
 {
     //if (null == f) f = 1;
-    o.area += satsum(null, w, h, x0, y0, x1, y1)*f;
-    o.sum  += satsum(o.sat, w, h, x0, y0, x1, y1)*f;
-    if (o.sat2) o.sum2 += satsum(o.sat2, w, h, x0, y0, x1, y1)*f;
+    o.area += f*satsum(null, w, h, x0, y0, x1, y1);
+    o.sum  += f*satsum(o.sat, w, h, x0, y0, x1, y1);
+    if (o.sat2) o.sum2 += f*satsum(o.sat2, w, h, x0, y0, x1, y1);
 }
 function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
 {
@@ -2606,10 +2442,8 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
         }
     }
 }
-FilterUtil.satsum = satsum;
-FilterUtil.satsums = satsums;
-FilterUtil.satsumt = satsumt;
-FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
+function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
+{
     // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
     if (w <= 0 || h <= 0) return;
     var xm = stdMath.min(x1, x2, x3, x4),
@@ -2684,7 +2518,7 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
         else
         {
             // can be subdivided into 3 rectangles + 8 right triangles axis-aligned
-            // or even faster
+            // or even faster but less accurate
             // can be subdivided into 1 enclosing rectangle - 4 right triangles axis-aligned
             //satsums(o, w, h, xm, ym, xM, yM, 1); // enclosing rectangle
             if (xi1 <= xi2)
@@ -2784,20 +2618,182 @@ FilterUtil.satsumr = function(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k) {
             */
         }
     }
-};
-FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
+}
+function rsatsum(rsat, w, h, xh, yh, ww, hh)
+{
     // 45deg rotated (tilted) sat sum
     // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
     if (w <= 0 || h <= 0 || ww <= 0 || hh <= 0) return 0;
     var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
-};
+}
+
+function am_eye()
+{
+    return new AffineMatrix([
+    1,0,0,0,
+    0,1,0,0
+    ]);
+}
+/*
+[ 0xx 1xy 2xo 3xor
+  4yx 5yy 6yo 7yor
+  0   0   1   0
+  0   0   0   1 ]
+*/
+function am_multiply(am1, am2)
+{
+    var am12 = new AffineMatrix(8);
+    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
+    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
+    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
+    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
+
+    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
+    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
+    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
+    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
+    return am12;
+}
+function ct_eye(c1, c0)
+{
+    if (null == c0) c0 = 0;
+    if (null == c1) c1 = 1;
+    var i, t = new ColorTable(256);
+    if ("function" === typeof c1)
+    {
+        for (i=0; i<256; ++i)
+        {
+            t[i   ] = clamp(c1(i   ),0,255)|0;
+        }
+    }
+    else
+    {
+        for (i=0; i<256; ++i)
+        {
+            t[i   ] = clamp(c0 + c1*(i   ),0,255)|0;
+        }
+    }
+    return t;
+}
+// multiply (functionaly compose) 2 Color Tables
+function ct_multiply(ct2, ct1)
+{
+    var i, ct12 = new ColorTable(256);
+    for (i=0; i<256; ++i)
+    {
+        ct12[i   ] = clamp(ct2[clamp(ct1[i   ],0,255)],0,255);
+    }
+    return ct12;
+}
+function cm_eye()
+{
+    return new ColorMatrix([
+    1,0,0,0,0,
+    0,1,0,0,0,
+    0,0,1,0,0,
+    0,0,0,1,0
+    ]);
+}
+// multiply (functionaly compose, matrix multiply) 2 Color Matrices
+/*
+[ rr rg rb ra roff
+  gr gg gb ga goff
+  br bg bb ba boff
+  ar ag ab aa aoff
+  0  0  0  0  1 ]
+*/
+function cm_multiply(cm1, cm2)
+{
+    var cm12 = new ColorMatrix(20), i;
+
+    for (i=0; i<20; i+=5)
+    {
+        cm12[i+0] = cm2[i]*cm1[0] + cm2[i+1]*cm1[5] + cm2[i+2]*cm1[10] + cm2[i+3]*cm1[15];
+        cm12[i+1] = cm2[i]*cm1[1] + cm2[i+1]*cm1[6] + cm2[i+2]*cm1[11] + cm2[i+3]*cm1[16];
+        cm12[i+2] = cm2[i]*cm1[2] + cm2[i+1]*cm1[7] + cm2[i+2]*cm1[12] + cm2[i+3]*cm1[17];
+        cm12[i+3] = cm2[i]*cm1[3] + cm2[i+1]*cm1[8] + cm2[i+2]*cm1[13] + cm2[i+3]*cm1[18];
+        cm12[i+4] = cm2[i]*cm1[4] + cm2[i+1]*cm1[9] + cm2[i+2]*cm1[14] + cm2[i+3]*cm1[19] + cm2[i+4];
+    }
+    return cm12;
+}
+function cm_rechannel(m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao)
+{
+    var cm = new ColorMatrix(20), RO = Ro*5, GO = Go*5, BO = Bo*5, AO = Ao*5;
+    cm[RO+Ri] = m[0 ]; cm[RO+Gi] = m[1 ]; cm[RO+Bi] = m[2 ]; cm[RO+Ai] = m[3 ]; cm[RO+4] = m[4 ];
+    cm[GO+Ri] = m[5 ]; cm[GO+Gi] = m[6 ]; cm[GO+Bi] = m[7 ]; cm[GO+Ai] = m[8 ]; cm[GO+4] = m[9 ];
+    cm[BO+Ri] = m[10]; cm[BO+Gi] = m[11]; cm[BO+Bi] = m[12]; cm[BO+Ai] = m[13]; cm[BO+4] = m[14];
+    cm[AO+Ri] = m[15]; cm[AO+Gi] = m[16]; cm[AO+Bi] = m[17]; cm[AO+Ai] = m[18]; cm[AO+4] = m[19];
+    return cm;
+}
+function cm_combine(m1, m2, a1, a2, matrix)
+{
+    matrix = matrix || Array; a1 = a1 || 1; a2 = a2 || 1;
+    for (var i=0,d=m1.length,m12=new matrix(d); i<d; ++i) m12[i] = a1 * m1[i] + a2 * m2[i];
+    return m12;
+}
+function cm_convolve(cm1, cm2, matrix)
+{
+    matrix = matrix || Array/*ConvolutionMatrix*/;
+    if (cm2 === +cm2) cm2 = [cm2];
+    var i, j, p, d1 = cm1.length, d2 = cm2.length, cm12 = new matrix(d1*d2);
+    for (i=0,j=0; i<d1; )
+    {
+        cm12[i*d2+j] = cm1[i]*cm2[j];
+        if (++j >= d2) {j=0; ++i;}
+    }
+    return cm12;
+}
+
+ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
+    if ((null == a) || (a instanceof A)) return a;
+    else if (Array.isArray(a)) return Array === A ? a : new A(a);
+    if (null == a.length) a.length = Object.keys(a).length;
+    return Array === A ? Array.prototype.slice.call(a) : new A(Array.prototype.slice.call(a));
+} : function(a, A) {return a;};
+ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
+    return null == o ? o : (unserialise ? JSON.parse(o) : JSON.stringify(o));
+} : function(o) {return o;};
+ArrayUtil.arrayset_shim = arrayset_shim;
+ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;
+ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subarray(i1, i2);} : function(a, i1, i2){ return a.slice(i1, i2); };
+
+
+MathUtil.clamp = clamp;
+MathUtil.hypot = hypot;
+
+StringUtil.esc = esc;
+StringUtil.trim = String.prototype.trim
+? function(s) {return s.trim();}
+: function(s) {return s.replace(trim_re, '');};
+StringUtil.function_body = function_body;
+
+ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
+ImageUtil.interpolate_nearest = interpolate_nearest;
+ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
+ImageUtil.glsl = image_glsl;
+
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
+FilterUtil.ct_eye = ct_eye;
+FilterUtil.ct_multiply = ct_multiply;
+FilterUtil.cm_eye = cm_eye;
+FilterUtil.cm_multiply = cm_multiply;
+FilterUtil.cm_rechannel = cm_rechannel;
+FilterUtil.cm_combine = cm_combine;
+FilterUtil.cm_convolve = cm_convolve;
+FilterUtil.gaussian = gaussian;
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
+FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+FilterUtil.gradient = gradient;
+FilterUtil.optimum_gradient = optimum_gradient;
+FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.otsu_multi = otsu_multi;
 FilterUtil.otsu_multiclass = otsu_multiclass;
-FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
 FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
@@ -2811,6 +2807,14 @@ FilterUtil.min = function(d, w, h, tl, stride, offset) {
 FilterUtil.max = function(d, w, h, th, stride, offset) {
     return min_max_loc(d, w, h, null, th, false, true, stride, offset);
 };
+FilterUtil.merge_features = merge_features;
+FilterUtil.sat = integral2;
+FilterUtil.satsum = satsum;
+FilterUtil.satsums = satsums;
+FilterUtil.satsumt = satsumt;
+FilterUtil.satsumr = satsumr;
+FilterUtil.rsatsum = rsatsum;
+
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},

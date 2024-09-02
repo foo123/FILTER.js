@@ -23,10 +23,15 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     rot16 = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]
 ;
 
-// Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
-// https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734
-// A NEW APPROACH TO REPRESENT ROTATED HAAR-LIKE FEATURES FOR OBJECTS DETECTION, MOHAMED OUALLA, ABDELALIM SADIQ, SAMIR MBARKI, 2015
-// http://www.jatit.org/volumes/Vol78No1/3Vol78No1.pdf
+/*
+
+original code based on a combination of:
+
+1. [TEMPLATE MATCHING USING FAST NORMALIZED CROSS CORRELATION, BRIECHLE, HANEBECK, 2001](https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
+
+2. [A NEW APPROACH TO REPRESENT ROTATED HAAR-LIKE FEATURES FOR OBJECTS DETECTION, MOHAMED OUALLA, ABDELALIM SADIQ, SAMIR MBARKI, 2015](http://www.jatit.org/volumes/Vol78No1/3Vol78No1.pdf)
+
+*/
 FILTER.Create({
     name : "TemplateMatcherFilter"
 
@@ -42,7 +47,7 @@ FILTER.Create({
     ,threshold: 0.6
     ,tolerance: 0.2
     ,minNeighbors: 1
-    ,maxMatches: 1000
+    ,maxMatches: 100
     ,maxMatchesOnly: true
     ,_k: 3
     ,_q: 0.98
@@ -327,7 +332,6 @@ FILTER.Create({
                 }
             }
         }
-
         max = matches = null; sat1 = sat2 = null;
         return im;
     }
@@ -454,13 +458,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         }
         vart *= area/*areat*/;
         cc = ((varft)/stdMath.sqrt(vart*varf)) || 0;
-        /*if (1 < cc)
-        {
-            if (1 !== f) cc = (1 < f ? (cc/f) : (cc*f));
-            else cc = 0;
-        }*/
-        if (1 < cc) cc = 0;
-        return cc;//stdMath.min(stdMath.max(cc, -1), 1);
+        if (1+1e-2 < cc) cc = 0;
+        return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
