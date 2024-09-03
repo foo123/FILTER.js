@@ -1,10 +1,17 @@
 ## ChangeLog
 
+__1.11.0__ (in progress)
+
+* TemplateMatcherFilter fast matching for arbitrary rotation angles and scales (in progress)
+* HaarDetectorFilter/TemplateMatcherFilter returned features include matching score
+* fast ColorDetectorFilter based on ConnectedComponents algorithm
+* various edits and updates
+
 __1.10.0__
 
 * FFT1d, FFT2d, minmax core utilities
 * Image.image_s method
-* FrequenyFilter very fast js version
+* FrequencyFilter very fast js version
 * TemplateMatcherFilter very fast rotation/scale-invariant js version
 * various edits and updates
 

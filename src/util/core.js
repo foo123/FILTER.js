@@ -2456,7 +2456,7 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
     // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
-    if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 0.5 || stdMath.abs(y2-y3) <= 0.5 || stdMath.abs(y3-y4) <= 0.5 || stdMath.abs(y4-y1) <= 0.5)
+    if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 1 || stdMath.abs(y2-y3) <= 1 || stdMath.abs(y3-y4) <= 1 || stdMath.abs(y4-y1) <= 1)
     {
         // axis-aligned unrotated or degenerate rectangle
         satsums(o, w, h, xm, ym, xM, yM, 1);

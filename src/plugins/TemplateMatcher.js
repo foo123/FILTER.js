@@ -49,7 +49,7 @@ FILTER.Create({
     ,minNeighbors: 1
     ,maxMatches: 100
     ,maxMatchesOnly: true
-    ,_k: 3
+    ,_k: 2
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -82,7 +82,7 @@ FILTER.Create({
             if (undef !== params.maxMatchesOnly) self.maxMatchesOnly = !!params.maxMatchesOnly;
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
-            if (null != params.k) self._k = k || 0;
+            if (null != params.k) self._k = params.k || 0;
             if (null != params.q) self.quality(params.q, self._s);
             if (null != params.s) self.quality(self._q, params.s);
             if (null != params.selection) self.selection = params.selection || null;
@@ -186,7 +186,8 @@ FILTER.Create({
             is_vertical, rot = self.rot, scale = self.sc,
             thresh = self.threshold, _k = self._k || 0,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, scm, sci, tt, tw2, th2, tws, ths,
+            r, rl, ro, sc, scm, sci, tt,
+            tw2, th2, tws2, ths2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
             nccR, nccG, nccB,
@@ -270,57 +271,68 @@ FILTER.Create({
             for (sc=scale.min,scm=scale.max,sci=scale.inc; sc<=scm; sc*=sci)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
+                tws2 = (tws>>>1); ths2 = (ths>>>1);
                 if (is_vertical)
                 {
-                    tw2 = (ths>>>1);
-                    th2 = (tws>>>1);
+                    tw2 = ths2;
+                    th2 = tws2;
                 }
                 else
                 {
-                    tw2 = (tws>>>1);
-                    th2 = (ths>>>1);
+                    tw2 = tws2;
+                    th2 = ths2;
                 }
                 if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) break;
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
                 if (is_grayscale)
                 {
-                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; ++x)
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
                         if (nccR >= tt)
                         {
                             score = nccR;
-                            if (maxOnly && (score < maxv)) continue;
-                            if (score > maxv)
+                            if (!maxOnly || (score >= maxv))
                             {
-                                maxv = score;
-                                if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                if (score > maxv)
+                                {
+                                    maxv = score;
+                                    if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                }
+                                max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
+                                x += (tw2 || 1);
+                                continue;
                             }
-                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths, score:score};
                         }
+                        ++x;
                     }
                 }
                 else
                 {
-                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; ++x)
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
-                        nccG = ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // G
-                        nccB = ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // B
+                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
+                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
                         if (nccR >= tt && nccG >= tt && nccB >= tt)
                         {
                             score = stdMath.min(nccR, nccG, nccB);
-                            if (maxOnly && (score < maxv)) continue;
-                            if (score > maxv)
+                            if (!maxOnly || (score >= maxv))
                             {
-                                maxv = score;
-                                if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                if (score > maxv)
+                                {
+                                    maxv = score;
+                                    if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                }
+                                max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
+                                x += (tw2 || 1);
+                                continue;
                             }
-                            max[maxc++] = {x:x-(tws>>>1), y:y-(ths>>>1), width:tws, height:ths, score:score};
                         }
+                        ++x;
                     }
                 }
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
