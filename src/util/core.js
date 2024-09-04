@@ -2291,6 +2291,10 @@ function merge_features(rects, min_neighbors, epsilon)
 
     return feats/*.sort(by_area)*/;
 }
+function clmp(x, a, b)
+{
+    return a > b ? (x < b ? b : (x > a ? a : x)) : (x < a ? a : (x > b ? b : x));
+}
 function intersect_x(y, x1, y1, x2, y2)
 {
     return y2 === y1 ? (y === y1 ? x2 : null) : stdMath.round((y2-y)*(x2-x1)/(y2-y1)+x1);
@@ -2320,6 +2324,88 @@ function satsums(o, w, h, x0, y0, x1, y1, f)
     o.sum  += f*satsum(o.sat, w, h, x0, y0, x1, y1);
     if (o.sat2) o.sum2 += f*satsum(o.sat2, w, h, x0, y0, x1, y1);
 }
+/*function satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, pm, pM, f)
+{
+    // axis-aligned right triangle satsum by optimal subdivision into k rectangular stripes
+    var i, d, p, y, x, dp = pM-pm;
+    if (dx > dy)
+    {
+        //subdivide along y
+        d = stdMath.max(1, stdMath.round((dy-k+1)/k)||0);
+        for (i=1,p=ym,y=stdMath.min(p+d, yM); i<=k; ++i)
+        {
+            x = stdMath.round(pm + ((y-ym)/dy)*dp);
+            satsums(o, w, h, stdMath.min(pm, x), p, stdMath.max(pm, x), y, f);
+            if (y >= yM) return;
+            p = stdMath.min(y+1, yM);
+            y = stdMath.min(p+d, yM);
+        }
+        if (y < yM)
+        {
+            satsums(o, w, h, stdMath.min(pm, pM), y+1, stdMath.max(pm, pM), yM, f);
+        }
+    }
+    else
+    {
+        //subdivide along x
+        d = stdMath.max(1, stdMath.round((dx-k+1)/k)||0);
+        for (i=1,p=xm,x=stdMath.min(p+d, xM); i<=k; ++i)
+        {
+            y = stdMath.round(pm + ((x-xm)/dx)*dp);
+            satsums(o, w, h, p, stdMath.min(pm, y), x, stdMath.max(pm, y), f);
+            if (x >= xM) return;
+            p = stdMath.min(x+1, xM);
+            x = stdMath.min(p+d, xM);
+        }
+        if (x < xM)
+        {
+            satsums(o, w, h, x+1, stdMath.min(pm, pM), xM, stdMath.max(pm, pM), f);
+        }
+    }
+}*/
+function satsumt_kk(o, w, h, k, xm, ym, xM, yM, dx, dy, sgn, p0, o0, f)
+{
+    // axis-aligned right triangle satsum by optimal subdivision into k rectangular stripes
+    var i, d, yp, y, xp, x;
+    if (dx > dy)
+    {
+        //subdivide along y
+        d = stdMath.max(1, stdMath.round((dy-k+1)/k)||0);
+        for (i=1,yp=ym,y=stdMath.min(yp+d, yM); i<=k; ++i)
+        {
+            x = stdMath.round(p0 + sgn*((y-ym)/dy)*dx);
+            satsums(o, w, h, stdMath.min(x, o0), yp, stdMath.max(x, o0), y, f);
+            if (y >= yM) return;
+            yp = stdMath.min(y+1, yM);
+            y = stdMath.min(yp+d, yM);
+        }
+        if (y < yM)
+        {
+            ++y;
+            x = stdMath.round(p0 + sgn*((y-ym)/dy)*dx);
+            satsums(o, w, h, stdMath.min(x, o0), y, stdMath.max(x, o0), yM, f);
+        }
+    }
+    else
+    {
+        //subdivide along x
+        d = stdMath.max(1, stdMath.round((dx-k+1)/k)||0);
+        for (i=1,xp=xm,x=stdMath.min(xp+d, xM); i<=k; ++i)
+        {
+            y = stdMath.round(p0 + sgn*((x-xm)/dx)*dy);
+            satsums(o, w, h, xp, stdMath.min(y, o0), x, stdMath.max(y, o0), f);
+            if (x >= xM) return;
+            xp = stdMath.min(x+1, xM);
+            x = stdMath.min(xp+d, xM);
+        }
+        if (x < xM)
+        {
+            ++x;
+            y = stdMath.round(p0 + sgn*((x-xm)/dx)*dy);
+            satsums(o, w, h, x, stdMath.min(y, o0), xM, stdMath.max(y, o0), f);
+        }
+    }
+}
 function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
 {
     // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
@@ -2329,9 +2415,9 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
         ym = stdMath.min(y0, y1, y2),
         xM = stdMath.max(x0, x1, x2),
         yM = stdMath.max(y0, y1, y2),
-        dx = xM - xm, dy = yM - ym, d, p, i,
-        x, y, xi, yi, xi1, xi2, yi1, yi2,
-        yxm, yxM, xym, xyM;
+        dx = xM - xm, dy = yM - ym,
+        p0, pb, sgn, xmM, ymM,
+        xym, xyM, yxm, yxM;
 
     k = k || 0;
     if (!dx || !dy)
@@ -2343,7 +2429,7 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
         //simplest approximation, half of enclosing rectangle sum
         satsums(o, w, h, xm, ym, xM, yM, f/2);
     }
-    else if (dx > dy)
+    /*else if (dx > dy)
     {
         //better approximation, subdivide along y
         if (y0 === ym)
@@ -2376,23 +2462,9 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
         {
             xyM = x2;
         }
-        d = stdMath.max(1, stdMath.round(dy/k)||0);
-        for (i=1,p=ym,y=ym+d; i<=k; ++i,y+=d)
-        {
-            if (y > yM) y = yM;
-            xi = stdMath.round(xym + ((y-ym)/dy)*(xyM-xym));
-            xi1 = stdMath.min(xym, xi); xi2 = stdMath.max(xym, xi);
-            satsums(o, w, h, xi1, p, xi2, y, f);
-            if (y >= yM) break;
-            p = stdMath.min(y+1, yM);
-        }
-        if (y < yM)
-        {
-            xi1 = stdMath.min(xym, xyM); xi2 = stdMath.max(xym, xyM);
-            satsums(o, w, h, xi1, y+1, xi2, yM, f);
-        }
+        satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, xym, xyM, f);
     }
-    else
+    else if (dx <= dy)
     {
         //better approximation, subdivide along x
         if (x0 === xm)
@@ -2425,21 +2497,105 @@ function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
         {
             yxM = y2;
         }
-        d = stdMath.max(1, stdMath.round(dx/k)||0);
-        for (i=1,p=xm,x=xm+d; i<=k; ++i,x+=d)
+        satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, yxm, yxM, f);
+    }*/
+    else
+    {
+        if ((y0 === ym) && ((y1 === yM && x1 === x0) || (y2 === yM && x2 === x0))) xmM = x0;
+        else if ((y1 === ym) && ((y0 === yM && x0 === x1) || (y2 === yM && x2 === x1))) xmM = x1;
+        else /*if ((y2 === ym) && ((y0 === yM && x0 === x2) || (y1 === yM && x1 === x2)))*/ xmM = x2;
+
+        if ((x0 === xm) && ((x1 === xM && y1 === y0) || (x2 === xM && y2 === y0))) ymM = y0;
+        else if ((x1 === xm) && ((x0 === xM && y0 === y1) || (x2 === xM && y2 === y1))) ymM = y1;
+        else /*if ((x2 === xm) && ((x0 === xM && y0 === y2) || (x1 === xM && y1 === y2)))*/ ymM = y2;
+
+        // 4 cases of axis-aligned right triangles
+        if (xmM === xm && ymM === ym)
         {
-            if (x > xM) x = xM;
-            yi = stdMath.round(yxm + ((x-xm)/dx)*(yxM-yxm));
-            yi1 = stdMath.min(yxm, yi); yi2 = stdMath.max(yxm, yi);
-            satsums(o, w, h, p, yi1, x, yi2, f);
-            if (x >= xM) break;
-            p = stdMath.min(x+1, xM);
+            /*
+             _
+            | /
+            |/
+
+            */
+            if (dx > dy)
+            {
+                p0 = xM;
+                pb = xm;
+                sgn = -1;
+            }
+            else
+            {
+                p0 = yM;
+                pb = ym;
+                sgn = -1;
+            }
         }
-        if (x < xM)
+        else if (xmM === xM && ymM === yM)
         {
-            yi1 = stdMath.min(yxm, yxM); yi2 = stdMath.max(yxm, yxM);
-            satsums(o, w, h, x+1, yi1, xM, yi2, f);
+            /*
+
+             /|
+            /_|
+
+            */
+            if (dx > dy)
+            {
+                p0 = xM;
+                pb = xM;
+                sgn = -1;
+            }
+            else
+            {
+                p0 = yM;
+                pb = yM;
+                sgn = -1;
+            }
         }
+        else if (xmM === xM && ymM === ym)
+        {
+            /*
+             _
+            \ |
+             \|
+
+            */
+            if (dx > dy)
+            {
+                p0 = xm;
+                pb = xM;
+                sgn = 1;
+            }
+            else
+            {
+                p0 = ym;
+                pb = ym;
+                sgn = 1;
+            }
+        }
+        else //if (xmM === xm && ymM === yM)
+        {
+            /*
+
+            |\
+            |_\
+
+            */
+            if (dx > dy)
+            {
+                p0 = xm;
+                pb = xm;
+                sgn = 1;
+            }
+            else
+            {
+                p0 = ym;
+                pb = yM;
+                sgn = 1;
+            }
+        }
+        //better approximation, subdivide along y or x
+        satsumt_kk(o, w, h, k, xm, ym, xM, yM, dx, dy, sgn, p0, pb, f);
     }
 }
 function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
@@ -2455,7 +2611,7 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
         xc1, xc2, yc1, yc2;
     // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
     // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
-    // the rest of the rotated rectangle are 4 axis-aligned right triangles computed approximately by satsumt
+    // the rest of the rotated rectangle are axis-aligned right triangles computed approximately by satsumt
     if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 1 || stdMath.abs(y2-y3) <= 1 || stdMath.abs(y3-y4) <= 1 || stdMath.abs(y4-y1) <= 1)
     {
         // axis-aligned unrotated or degenerate rectangle
@@ -2517,6 +2673,7 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
         }
         else
         {
+            /*
             // can be subdivided into 3 rectangles + 8 right triangles axis-aligned
             if (xi1 <= xi2)
             {
@@ -2594,7 +2751,7 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
                     satsums(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
                 }
             }
-            /*
+            */
             // or even faster but less accurate
             // can be subdivided into 1 enclosing rectangle - 4 right triangles axis-aligned
             // enclosing rectangle
@@ -2618,7 +2775,6 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
             satsums(o, w, h, xm, yi1, xm, yi1, 1);
             satsums(o, w, h, xM, yi2, xM, yi2, 1);
             satsums(o, w, h, xi2, yM, xi2, yM, 1);
-            */
         }
     }
 }

@@ -49,7 +49,7 @@ FILTER.Create({
     ,minNeighbors: 1
     ,maxMatches: 100
     ,maxMatchesOnly: true
-    ,_k: 2
+    ,_k: 5
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -351,7 +351,7 @@ FILTER.Create({
 function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
     // normalized cross-correlation centered at point (x,y)
-    if (null == sc)
+    /*if (null == sc)
     {
         sc = 1;
     }
@@ -365,12 +365,12 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
         if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};}
-    }
+    }*/
     // not convert from template rotation to image rotation (ie opposite of template rotation)??
     var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
         x0, y0, x1, y1, bk, k, K = basis.length,
         area, areat, areak, sum1, sum2, diff,
-        avgf, varf, varft, cc, f,
+        avgf, varf, /*vart,*/ varft, cc, f,
         is_tilted = !(0 === roa || 90 === roa || 180 === roa || 270 === roa);
     rect.sat = sat1;
     rect.sat2 = sat2;
@@ -397,16 +397,16 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     sum2 = rect.sum2;
     f = areat/area;
     // ratio of matched computed area too different or too different for that scale, reject
-    if (2 <= f || 0.5 >= f || (1 < sc && f > 0.5*sc*sc) /*|| (1 > sc && f < 2*sc*sc)*/) return 0;
+    if ((2 <= f || 0.5 >= f || (is_tilted && 1 < sc && f > 0.28*sc*sc) /*|| (is_tilted && 1 > sc && f < 4*sc*sc)*/)) return 0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
     {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : (1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))) : 0;
+        return varf < 1e-2 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : (1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))) : 0;
     }
     else
     {
-        if (varf < 1e-3) return 0;
+        if (varf < 1e-2) return 0;
         varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
@@ -418,7 +418,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
                 x1 = bk.x1;
                 y1 = bk.y1;
             }
-            else // not tilted, normal rectangular
+            else // not tilted, rectangular
             {
                 if (270 === roa) // 270
                 {
@@ -471,8 +471,8 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             varft += diff*(rect.sum - avgf*areak);
             //vart += diff*diff*areak;
         }
-        vart *= area/*areat*/;
-        cc = ((varft)/stdMath.sqrt(varf*vart)) || 0;
+        //vart.v *= area;
+        cc = (((varft)/stdMath.sqrt(varf*vart.v*area)) || 0)/(vart.c ? vart.c : 1);
         if (1.01 < cc) cc = 0;
         return stdMath.min(stdMath.max(cc, -1), 1);
     }
@@ -540,8 +540,8 @@ function approximate(t, w, h, c, Jmax, minSz)
         x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, tp, l = t.length, n = l>>>2,
-        s, v, k, K, b, bk, bb;
-    sat(t, w, h, 2, c, s=new A32F(n));
+        s, s2, v, k, K, b, bk, bb;
+    sat(t, w, h, 2, c, s=new A32F(n), s2=new A32F(n));
     b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
@@ -649,13 +649,26 @@ function approximate(t, w, h, c, Jmax, minSz)
         b = bmin;
     }
     b[0].q = 1-Jmin/255/255;
+    b[0].s = s; b[0].s2 = s2;
     return b;
 }
 function basisv(basis, avg, w, h)
 {
-    var k, K = basis.length, bk, d, v = 0;
-    for (k=0; k<K; ++k) {bk = basis[k]; d = bk.k-avg; v += (((bk.x1-bk.x0+1)/w)*d)*(((bk.y1-bk.y0+1)/h)*d);}
-    return v;
+    var k, K = basis.length, bk, diff, sum, areak, x0, x1, y0, y1, vart = 0, varf = 0, varft = 0;
+    varf = stdMath.abs(satsum(basis[0].s2, w, h, 0, 0, w-1, h-1)-satsum(basis[0].s, w, h, 0, 0, w-1, h-1)*avg);
+    for (k=0; k<K; ++k)
+    {
+        bk = basis[k];
+        x0 = bk.x0;
+        y0 = bk.y0;
+        x1 = bk.x1;
+        y1 = bk.y1;
+        areak = (x1-x0+1)*(y1-y0+1);
+        diff = bk.k-avg;
+        vart += diff*diff*areak;
+        varft += diff*(satsum(basis[0].s, w, h, x0, y0, x1, y1) - avg*areak);
+    }
+    return {v:vart/(w*h), c:((varft)/stdMath.sqrt(varf*vart)) || 0};
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;
