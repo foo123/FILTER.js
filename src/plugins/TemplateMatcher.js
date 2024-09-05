@@ -196,7 +196,7 @@ FILTER.Create({
             minNeighbors = self.minNeighbors,
             eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
-            sat1, sat2, max, maxc, maxv, matches,
+            sat1, sat2, max, maxc, maxv, matches, ymat,
             rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};
 
         // 1 default direction
@@ -285,11 +285,13 @@ FILTER.Create({
                 if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) break;
                 tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
+                ymat = new A32F(x2-x1+1);
                 if (is_grayscale)
                 {
                     for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
                         nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
                         if (nccR >= tt)
                         {
@@ -302,7 +304,7 @@ FILTER.Create({
                                     if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                                 }
                                 max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
-                                x += (tw2 || 1);
+                                ymat[x-x1-tw2] = y + (th2 || 0); x += (tw2 || 1);
                                 continue;
                             }
                         }
@@ -314,6 +316,7 @@ FILTER.Create({
                     for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
                         nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
                         nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
                         nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
@@ -328,7 +331,7 @@ FILTER.Create({
                                     if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
                                 }
                                 max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
-                                x += (tw2 || 1);
+                                ymat[x-x1-tw2] = y + (th2 || 0); x += (tw2 || 1);
                                 continue;
                             }
                         }
@@ -339,12 +342,12 @@ FILTER.Create({
                 {
                     max.length = maxc;
                     matches = merge_features(max, minNeighbors, eps);
-                    matches.forEach(function(match) {match.scale = sc; match.angle = ro;});
+                    matches.forEach(function(match) {match.angle = ro; match.scale = sc;});
                     all_matches.push.apply(all_matches, matches);
                 }
             }
         }
-        max = matches = null; sat1 = sat2 = null;
+        max = matches = null; ymat = sat1 = sat2 = null;
         return im;
     }
 });
@@ -366,7 +369,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
         if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};}
     }*/
-    // not convert from template rotation to image rotation (ie opposite of template rotation)??
+    // not convert from template rotation to image rotation (ie opposite of template rotation)
     var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
         x0, y0, x1, y1, bk, k, K = basis.length,
         area, areat, areak, sum1, sum2, diff,
@@ -397,7 +400,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     sum2 = rect.sum2;
     f = areat/area;
     // ratio of matched computed area too different or too different for that scale, reject
-    if ((2 <= f || 0.5 >= f || (is_tilted && 1 < sc && f > 0.28*sc*sc) /*|| (is_tilted && 1 > sc && f < 4*sc*sc)*/)) return 0;
+    if ((2 <= f || 0.5 >= f || (is_tilted && 1 < sc && f > 0.28*sc*sc) /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -406,7 +409,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     }
     else
     {
-        if (varf < 1e-2) return 0;
+        if (varf < 1e-3) return 0;
         varft = 0; //vart = 0;
         for (k=0; k<K; ++k)
         {
@@ -456,7 +459,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             x1 = stdMath.round(sc*x1)-tws2;
             y1 = stdMath.round(sc*y1)-ths2;
             //areak = stdMath.abs((x1-x0+1)*(y1-y0+1));
-            diff = bk.k-avgt;
+            diff = bk.k - avgt;
             if (is_tilted)
             {
                 rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
@@ -500,7 +503,7 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b, v,
+    var tr = 0, tg = 0, tb = 0, a, b, v, s, s2,
         l = t.length, n = w*h, p;
     for (p=0; p<l; p+=4)
     {
@@ -511,37 +514,42 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
     a = [tr, tg, tb];
     if (null != Jmax)
     {
+        s = [null, null, null];
+        s2 = [null, null, null];
         b = [[], [], []];
         v = [0, 0, 0];
         if (null != channel)
         {
-            b[channel] = FilterUtil.tm_approximate(t, w, h, channel, Jmax, minSz);
-            v[channel] = basisv(b[channel], a[channel]);
+            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n));
+            b[channel] = FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz);
+            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], w, h);
         }
         else
         {
+            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n));
+            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n));
+            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n));
             b = [
-            FilterUtil.tm_approximate(t, w, h, 0, Jmax, minSz),
-            FilterUtil.tm_approximate(t, w, h, 1, Jmax, minSz),
-            FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
+            FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz),
+            FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz),
+            FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz)
             ];
             v = [
-            basisv(b[0], a[0], w, h),
-            basisv(b[1], a[1], w, h),
-            basisv(b[2], a[2], w, h)
+            basisv(b[0], a[0], s[0], s2[0], w, h),
+            basisv(b[1], a[1], s[1], s2[1], w, h),
+            basisv(b[2], a[2], s[2], s2[2], w, h)
             ];
         }
     }
     return {'avg':a, 'basis':b||null, 'var':v||null};
 }
-function approximate(t, w, h, c, Jmax, minSz)
+function approximate(t, s, w, h, c, Jmax, minSz)
 {
     var J, J2, Jmin, bmin,
         x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, tp, l = t.length, n = l>>>2,
-        s, s2, v, k, K, b, bk, bb;
-    sat(t, w, h, 2, c, s=new A32F(n), s2=new A32F(n));
+        v, k, K, b, bk, bb;
     b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
@@ -649,13 +657,12 @@ function approximate(t, w, h, c, Jmax, minSz)
         b = bmin;
     }
     b[0].q = 1-Jmin/255/255;
-    b[0].s = s; b[0].s2 = s2;
     return b;
 }
-function basisv(basis, avg, w, h)
+function basisv(basis, avg, sat, sat2, w, h)
 {
-    var k, K = basis.length, bk, diff, sum, areak, x0, x1, y0, y1, vart = 0, varf = 0, varft = 0;
-    varf = stdMath.abs(satsum(basis[0].s2, w, h, 0, 0, w-1, h-1)-satsum(basis[0].s, w, h, 0, 0, w-1, h-1)*avg);
+    var k, K = basis.length, bk, diff, areak, x0, x1, y0, y1, vart = 0, varf = 0, varft = 0;
+    varf = stdMath.abs(satsum(sat2, w, h, 0, 0, w-1, h-1)-satsum(sat, w, h, 0, 0, w-1, h-1)*avg);
     for (k=0; k<K; ++k)
     {
         bk = basis[k];
@@ -664,9 +671,9 @@ function basisv(basis, avg, w, h)
         x1 = bk.x1;
         y1 = bk.y1;
         areak = (x1-x0+1)*(y1-y0+1);
-        diff = bk.k-avg;
+        diff = bk.k - avg;
         vart += diff*diff*areak;
-        varft += diff*(satsum(basis[0].s, w, h, x0, y0, x1, y1) - avg*areak);
+        varft += diff*(satsum(sat, w, h, x0, y0, x1, y1) - avg*areak);
     }
     return {v:vart/(w*h), c:((varft)/stdMath.sqrt(varf*vart)) || 0};
 }
