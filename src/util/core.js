@@ -2752,7 +2752,7 @@ function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
                 }
             }
             */
-            // or even faster but less accurate
+            // or even faster, needs larger k
             // can be subdivided into 1 enclosing rectangle - 4 right triangles axis-aligned
             // enclosing rectangle
             satsums(o, w, h, xm, ym, xM, yM, 1);
