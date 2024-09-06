@@ -29,6 +29,7 @@ FILTER.Create({
     // parameters
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
+    ,noreuse: false
     ,haardata: null
     ,tolerance: 0.2
     ,baseScale: 1.0
@@ -88,6 +89,7 @@ FILTER.Create({
             if (null != params.cannyLow) self.cannyLow = +params.cannyLow;
             if (null != params.cannyHigh) self.cannyHigh = +params.cannyHigh;
             if (null != params.selection) self.selection = params.selection || null;
+            if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
@@ -104,6 +106,7 @@ FILTER.Create({
             ,tolerance: self.tolerance
             ,cannyLow: self.cannyLow
             ,cannyHigh: self.cannyHigh
+            ,noreuse: self.noreuse
         };
         // avoid unnecessary (large) data transfer
         if (self._haarchanged)
@@ -125,6 +128,7 @@ FILTER.Create({
         self.tolerance = params.tolerance;
         self.cannyLow = params.cannyLow;
         self.cannyHigh = params.cannyHigh;
+        self.noreuse = params.noreuse;
         return self;
     }
 
@@ -142,7 +146,7 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this;
         self.meta = {objects: []};
-        if (!self.haardata) return im;
+        if (!self.haardata || !w || !h) return im;
 
         var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
@@ -177,7 +181,7 @@ FILTER.Create({
         }
 
         // NOTE: assume image is already grayscale
-        if (metaData && metaData.haarfilter_SAT)
+        if (!self.noreuse && metaData && metaData.haarfilter_SAT)
         {
             SAT = metaData.haarfilter_SAT;
             SAT2 = metaData.haarfilter_SAT2;
@@ -187,7 +191,7 @@ FILTER.Create({
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
             FilterUtil.sat(im, w, h, 2, 0, SAT=new A32F(imSize), SAT2=new A32F(imSize), RSAT=new A32F(imSize));
-            if (metaData)
+            if (!self.noreuse && metaData)
             {
                 metaData.haarfilter_SAT = SAT;
                 metaData.haarfilter_SAT2 = SAT2;
@@ -198,14 +202,14 @@ FILTER.Create({
         // pre-compute integral canny gradient edges if needed
         if (self.doCannyPruning)
         {
-            if (metaData && metaData.haarfilter_GSAT)
+            if (!self.noreuse && metaData && metaData.haarfilter_GSAT)
             {
                 GSAT = metaData.haarfilter_GSAT;
             }
             else
             {
                 GSAT = FilterUtil.gradient(im, w, h, 2, 0, 1, 1);
-                if (metaData) metaData.haarfilter_GSAT = GSAT;
+                if (!self.noreuse && metaData) metaData.haarfilter_GSAT = GSAT;
             }
         }
 
@@ -216,7 +220,7 @@ FILTER.Create({
         if (features.length > features.count) features.length = features.count;
 
         // return results as meta
-        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area)};
+        self.meta.objects = FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area);
         SAT = null; SAT2 = null; RSAT = null; GSAT = null;
 
         // return im back

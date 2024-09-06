@@ -41,6 +41,7 @@ FILTER.Create({
     ,hasMeta: true
     ,hasInputs: true
     ,mode: MODE.RGB
+    ,noreuse: false
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
@@ -86,6 +87,7 @@ FILTER.Create({
             if (null != params.q) self.quality(params.q, self._s);
             if (null != params.s) self.quality(self._q, params.s);
             if (null != params.selection) self.selection = params.selection || null;
+            if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
@@ -108,7 +110,7 @@ FILTER.Create({
         if (basis && basis.avg && basis.avg.length) return self._tpldata = basis;
 
         var needsUpdate = self.isInputUpdated("template"), tpl = self.input("template");
-        if (!tpl)
+        if (!tpl || !tpl[1] || !tpl[2])
         {
             self._tpldata = null;
         }
@@ -139,6 +141,7 @@ FILTER.Create({
             ,_k: self._k
             ,_q: self._q
             ,_s: self._s
+            ,noreuse: self.noreuse
         };
         if (self.scaleThreshold && self.scaleThreshold.changed) self.scaleThreshold.changed = null;
         return ret;
@@ -157,6 +160,7 @@ FILTER.Create({
         self._k = params._k;
         self._q = params._q;
         self._s = params._s;
+        self.noreuse = params.noreuse;
         return self;
     }
 
@@ -178,7 +182,7 @@ FILTER.Create({
         var self = this, tpldata = self.tpldata(true), t = self.input("template"), all_matches = [];
 
         self.meta = {matches: all_matches};
-        if (!t || !tpldata) return im;
+        if (!t || !tpldata || !w || !h) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
@@ -233,7 +237,7 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
 
-        if (metaData && (metaData.tmfilter_SAT || metaData.haarfilter_SAT))
+        if (!self.noreuse && metaData && (metaData.tmfilter_SAT || metaData.haarfilter_SAT))
         {
             sat1 = metaData.tmfilter_SAT  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
             sat2 = metaData.tmfilter_SAT2 || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
@@ -254,7 +258,7 @@ FILTER.Create({
                 sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
                 sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
             }
-            if (metaData)
+            if (!self.noreuse && metaData)
             {
                 metaData.tmfilter_SAT = sat1;
                 metaData.tmfilter_SAT2 = sat2;
