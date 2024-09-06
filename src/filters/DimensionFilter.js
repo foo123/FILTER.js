@@ -94,6 +94,10 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,getWASM: function() {
+        return null;
+    }
+
     ,_apply: function(im, w, h, metaData) {
         var self = this, isWASM = self._runWASM, mode = self.m,
             a = self.a, b = self.b, c = self.c, d = self.d;

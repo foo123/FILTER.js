@@ -218,6 +218,10 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,getWASM: function() {
+        return wasm(this);
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;

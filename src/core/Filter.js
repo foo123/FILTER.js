@@ -472,35 +472,35 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // allow filters to be GLSL
     ,makeGLSL: function(bool) {
         if (!arguments.length) bool = true;
-        this._isGLSL = (!!bool) && GLSL.isLoaded && FILTER.supportsGLSL();
+        this._isGLSL = !!((!!bool) && GLSL.isLoaded && FILTER.supportsGLSL() && (this.getGLSL !== FILTER.Filter.prototype.getGLSL));
         return this;
     }
 
     // get GLSL code and variables, override
     ,GLSLCode: function() {
         var self = this;
-        if (null == self._glsl) self._glsl = self.getGLSL();
+        if (null == self._glsl) self._glsl = self.getGLSL() || {instance: this};
         return self._glsl;
     }
     ,getGLSL: function() {
-        return {instance: this};
+        return false;
     }
 
     // allow filters to be WASM
     ,makeWASM: function(bool) {
         if (!arguments.length) bool = true;
-        this._isWASM = (!!bool) && WASM.isLoaded && FILTER.supportsWASM();
+        this._isWASM = !!((!!bool) && WASM.isLoaded && FILTER.supportsWASM() && (this.getWASM !== FILTER.Filter.prototype.getWASM));
         return this;
     }
 
     // get WASM code and variables, override
     ,WASMCode: function() {
         var self = this;
-        if (null == self._wasm) self._wasm = self.getWASM();
+        if (null == self._wasm) self._wasm = self.getWASM() || '';
         return self._wasm;
     }
     ,getWASM: function() {
-        return '';
+        return false;
     }
 
     // @override

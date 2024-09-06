@@ -200,6 +200,24 @@ var CompositeFilter = FILTER.Create({
     }
     ,empty: null
 
+    ,getGLSL: function() {
+        return null;
+    }
+
+    ,getWASM: function() {
+        return null;
+    }
+
+    ,isGLSL: function() {
+        if (this._isGLSL) for (var f=this.filters,i=0,n=f.length; i<n; ++i) if (f[i] && f[i].isOn() && f[i].isGLSL()) return true;
+        return false;
+    }
+
+    ,isWASM: function() {
+        if (this._isWASM) for (var f=this.filters,i=0,n=f.length; i<n; ++i) if (f[i] && f[i].isOn() && f[i].isWASM()) return true;
+        return false;
+    }
+
     ,GLSLCode: function() {
         var filters = this.filters, filter, glsl = [], processor, i, n = filters.length;
         for (i=0; i<n; ++i)

@@ -106,6 +106,10 @@ FILTER.Create({
         return self;
     }
 
+    ,isGLSL: function() {
+        return this._isGLSL && !!(!this._filter || this._filter.shader);
+    }
+
     ,getGLSL: function() {
         var self = this, filter = self._filter, glslcode;
         if (filter && filter.shader)
