@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-14 19:55:29
+*   @built on 2024-10-10 17:06:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.11.0
-*   @built on 2024-05-14 19:55:29
+*   @built on 2024-10-10 17:06:31
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3626,6 +3626,7 @@ function add(r1, r2)
     r1.y += r2.y;
     r1.width += r2.width;
     r1.height += r2.height;
+    if (null != r2.score) r1.score = (r1.score||0) + r2.score;
     return r1;
 }
 function snap_to_grid(r)
@@ -3679,6 +3680,7 @@ function merge_features(rects, min_neighbors, epsilon)
                 x:t*(r[i].x * 2 + n),  y:t*(r[i].y * 2 + n),
                 width:t*(r[i].width * 2 + n),  height:t*(r[i].height * 2 + n)
             };
+            if (null != r[i].score) ri.score = r[i].score/n;
 
             feats.push(ri);
         }
@@ -3705,8 +3707,529 @@ function merge_features(rects, min_neighbors, epsilon)
 
     return feats/*.sort(by_area)*/;
 }
+function clmp(x, a, b)
+{
+    return a > b ? (x < b ? b : (x > a ? a : x)) : (x < a ? a : (x > b ? b : x));
+}
+function intersect_x(y, x1, y1, x2, y2)
+{
+    return y2 === y1 ? (y === y1 ? x2 : null) : stdMath.round((y2-y)*(x2-x1)/(y2-y1)+x1);
+}
+function intersect_y(x, x1, y1, x2, y2)
+{
+    return x2 === x1 ? (x === x1 ? y2 : null) : stdMath.round((x2-x)*(y2-y1)/(x2-x1)+y1);
+}
+function satsum(sat, w, h, x0, y0, x1, y1)
+{
+    // exact sat sum of axis-aligned rectangle defined by p0, p1 (top left, bottom right)
+    if (w <= 0 || h <= 0 || y1 < y0 || x1 < x0 || y1 < 0 || x1 < 0) return 0;
+    var w1 = w-1, h1 = h-1;
+    x0 = 0>x0 ? 0 : (w1<x0 ? w1 : x0);
+    y0 = 0>y0 ? 0 : (h1<y0 ? h1 : y0);
+    x1 = 0>x1 ? 0 : (w1<x1 ? w1 : x1);
+    y1 = 0>y1 ? 0 : (h1<y1 ? h1 : y1);
+    if (!sat) return (y1-y0+1)*(x1-x0+1);
+    x0 -= 1; y0 -= 1;
+    var wy0 = w*y0, wy1 = w*y1;
+    return sat[x1 + wy1] - (0>x0 ? 0 : sat[x0 + wy1]) - (0>y0 ? 0 : sat[x1 + wy0]) + (0>x0 || 0>y0 ? 0 : sat[x0 + wy0]);
+}
+function satsums(o, w, h, x0, y0, x1, y1, f)
+{
+    //if (null == f) f = 1;
+    o.area += f*satsum(null, w, h, x0, y0, x1, y1);
+    o.sum  += f*satsum(o.sat, w, h, x0, y0, x1, y1);
+    if (o.sat2) o.sum2 += f*satsum(o.sat2, w, h, x0, y0, x1, y1);
+}
+/*function satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, pm, pM, f)
+{
+    // axis-aligned right triangle satsum by optimal subdivision into k rectangular stripes
+    var i, d, p, y, x, dp = pM-pm;
+    if (dx > dy)
+    {
+        //subdivide along y
+        d = stdMath.max(1, stdMath.round((dy-k+1)/k)||0);
+        for (i=1,p=ym,y=stdMath.min(p+d, yM); i<=k; ++i)
+        {
+            x = stdMath.round(pm + ((y-ym)/dy)*dp);
+            satsums(o, w, h, stdMath.min(pm, x), p, stdMath.max(pm, x), y, f);
+            if (y >= yM) return;
+            p = stdMath.min(y+1, yM);
+            y = stdMath.min(p+d, yM);
+        }
+        if (y < yM)
+        {
+            satsums(o, w, h, stdMath.min(pm, pM), y+1, stdMath.max(pm, pM), yM, f);
+        }
+    }
+    else
+    {
+        //subdivide along x
+        d = stdMath.max(1, stdMath.round((dx-k+1)/k)||0);
+        for (i=1,p=xm,x=stdMath.min(p+d, xM); i<=k; ++i)
+        {
+            y = stdMath.round(pm + ((x-xm)/dx)*dp);
+            satsums(o, w, h, p, stdMath.min(pm, y), x, stdMath.max(pm, y), f);
+            if (x >= xM) return;
+            p = stdMath.min(x+1, xM);
+            x = stdMath.min(p+d, xM);
+        }
+        if (x < xM)
+        {
+            satsums(o, w, h, x+1, stdMath.min(pm, pM), xM, stdMath.max(pm, pM), f);
+        }
+    }
+}*/
+function satsumt_kk(o, w, h, k, xm, ym, xM, yM, dx, dy, sgn, p0, o0, f)
+{
+    // axis-aligned right triangle satsum by optimal subdivision into k rectangular stripes
+    var i, d, yp, y, xp, x;
+    if (dx > dy)
+    {
+        //subdivide along y
+        d = stdMath.max(1, stdMath.round((dy-k+1)/k)||0);
+        for (i=1,yp=ym,y=stdMath.min(yp+d, yM); i<=k; ++i)
+        {
+            x = stdMath.round(p0 + sgn*((y-ym)/dy)*dx);
+            satsums(o, w, h, stdMath.min(x, o0), yp, stdMath.max(x, o0), y, f);
+            if (y >= yM) return;
+            yp = stdMath.min(y+1, yM);
+            y = stdMath.min(yp+d, yM);
+        }
+        if (y < yM)
+        {
+            ++y;
+            x = stdMath.round(p0 + sgn*((y-ym)/dy)*dx);
+            satsums(o, w, h, stdMath.min(x, o0), y, stdMath.max(x, o0), yM, f);
+        }
+    }
+    else
+    {
+        //subdivide along x
+        d = stdMath.max(1, stdMath.round((dx-k+1)/k)||0);
+        for (i=1,xp=xm,x=stdMath.min(xp+d, xM); i<=k; ++i)
+        {
+            y = stdMath.round(p0 + sgn*((x-xm)/dx)*dy);
+            satsums(o, w, h, xp, stdMath.min(y, o0), x, stdMath.max(y, o0), f);
+            if (x >= xM) return;
+            xp = stdMath.min(x+1, xM);
+            x = stdMath.min(xp+d, xM);
+        }
+        if (x < xM)
+        {
+            ++x;
+            y = stdMath.round(p0 + sgn*((x-xm)/dx)*dy);
+            satsums(o, w, h, x, stdMath.min(y, o0), xM, stdMath.max(y, o0), f);
+        }
+    }
+}
+function satsumt(o, w, h, x0, y0, x1, y1, x2, y2, k, f)
+{
+    // approximate sat sum of axis-aligned right triangle defined by p0, p1, p2
+    if (w <= 0 || h <= 0) return;
+    //if (null == f) f = 1;
+    var xm = stdMath.min(x0, x1, x2),
+        ym = stdMath.min(y0, y1, y2),
+        xM = stdMath.max(x0, x1, x2),
+        yM = stdMath.max(y0, y1, y2),
+        dx = xM - xm, dy = yM - ym,
+        p0, pb, sgn, xmM, ymM,
+        xym, xyM, yxm, yxM;
 
+    k = k || 0;
+    if (!dx || !dy)
+    {
+        // zero triangle area
+    }
+    else if (k <= 1)
+    {
+        //simplest approximation, half of enclosing rectangle sum
+        satsums(o, w, h, xm, ym, xM, yM, f/2);
+    }
+    /*else if (dx > dy)
+    {
+        //better approximation, subdivide along y
+        if (y0 === ym)
+        {
+            if (y1 === ym) xym = x2 === xm ? xM : xm;
+            else if (y2 === ym) xym = x1 === xm ? xM : xm;
+            else xym = x0;
+        }
+        else if (y1 === ym)
+        {
+            if (y2 === ym) xym = x0 === xm ? xM : xm;
+            else xym = x1;
+        }
+        else
+        {
+            xym = x2;
+        }
+        if (y0 === yM)
+        {
+            if (y1 === yM) xyM = x2 === xm ? xM : xm;
+            else if (y2 === yM) xyM = x1 === xm ? xM : xm;
+            else xyM = x0;
+        }
+        else if (y1 === yM)
+        {
+            if (y2 === yM) xyM = x0 === xm ? xM : xm;
+            else xyM = x1;
+        }
+        else
+        {
+            xyM = x2;
+        }
+        satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, xym, xyM, f);
+    }
+    else if (dx <= dy)
+    {
+        //better approximation, subdivide along x
+        if (x0 === xm)
+        {
+            if (x1 === xm) yxm = y2 === ym ? yM : ym;
+            else if (x2 === xm) yxm = y1 === ym ? yM : ym;
+            else yxm = y0;
+        }
+        else if (x1 === xm)
+        {
+            if (x2 === xm) yxm = y0 === ym ? yM : ym;
+            else yxm = y1;
+        }
+        else
+        {
+            yxm = y2;
+        }
+        if (x0 === xM)
+        {
+            if (x1 === xM) yxM = y2 === ym ? yM : ym;
+            else if (x2 === xM) yxM = y1 === ym ? yM : ym;
+            else yxM = y0;
+        }
+        else if (x1 === xM)
+        {
+            if (x2 === xM) yxM = y0 === ym ? yM : ym;
+            else yxM = y1;
+        }
+        else
+        {
+            yxM = y2;
+        }
+        satsumt_k(o, w, h, k, xm, ym, xM, yM, dx, dy, yxm, yxM, f);
+    }*/
+    else
+    {
+        if ((y0 === ym) && ((y1 === yM && x1 === x0) || (y2 === yM && x2 === x0))) xmM = x0;
+        else if ((y1 === ym) && ((y0 === yM && x0 === x1) || (y2 === yM && x2 === x1))) xmM = x1;
+        else /*if ((y2 === ym) && ((y0 === yM && x0 === x2) || (y1 === yM && x1 === x2)))*/ xmM = x2;
 
+        if ((x0 === xm) && ((x1 === xM && y1 === y0) || (x2 === xM && y2 === y0))) ymM = y0;
+        else if ((x1 === xm) && ((x0 === xM && y0 === y1) || (x2 === xM && y2 === y1))) ymM = y1;
+        else /*if ((x2 === xm) && ((x0 === xM && y0 === y2) || (x1 === xM && y1 === y2)))*/ ymM = y2;
+
+        // 4 cases of axis-aligned right triangles
+        if (xmM === xm && ymM === ym)
+        {
+            /*
+             _
+            | /
+            |/
+
+            */
+            if (dx > dy)
+            {
+                p0 = xM;
+                pb = xm;
+                sgn = -1;
+            }
+            else
+            {
+                p0 = yM;
+                pb = ym;
+                sgn = -1;
+            }
+        }
+        else if (xmM === xM && ymM === yM)
+        {
+            /*
+
+             /|
+            /_|
+
+            */
+            if (dx > dy)
+            {
+                p0 = xM;
+                pb = xM;
+                sgn = -1;
+            }
+            else
+            {
+                p0 = yM;
+                pb = yM;
+                sgn = -1;
+            }
+        }
+        else if (xmM === xM && ymM === ym)
+        {
+            /*
+             _
+            \ |
+             \|
+
+            */
+            if (dx > dy)
+            {
+                p0 = xm;
+                pb = xM;
+                sgn = 1;
+            }
+            else
+            {
+                p0 = ym;
+                pb = ym;
+                sgn = 1;
+            }
+        }
+        else //if (xmM === xm && ymM === yM)
+        {
+            /*
+
+            |\
+            |_\
+
+            */
+            if (dx > dy)
+            {
+                p0 = xm;
+                pb = xm;
+                sgn = 1;
+            }
+            else
+            {
+                p0 = ym;
+                pb = yM;
+                sgn = 1;
+            }
+        }
+        //better approximation, subdivide along y or x
+        satsumt_kk(o, w, h, k, xm, ym, xM, yM, dx, dy, sgn, p0, pb, f);
+    }
+}
+function satsumr(o, w, h, x1, y1, x2, y2, x3, y3, x4, y4, k)
+{
+    // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by p1 to p4
+    if (w <= 0 || h <= 0) return;
+    var xm = stdMath.min(x1, x2, x3, x4),
+        ym = stdMath.min(y1, y2, y3, y4),
+        xM = stdMath.max(x1, x2, x3, x4),
+        yM = stdMath.max(y1, y2, y3, y4),
+        xi1, xi2, yi1, yi2,
+        xr1, yr1, xr2, yr2,
+        xc1, xc2, yc1, yc2;
+    // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
+    // (min(xi1, xi2),min(yi1, yi2)), (max(xi1, xi2),max(yi1, yi2)) is the maximum normal rectangle enclosed by the rotated rectangle computed by satsum
+    // the rest of the rotated rectangle are axis-aligned right triangles computed approximately by satsumt
+    if (xm >= xM || ym >= yM || stdMath.abs(y1-y2) <= 1 || stdMath.abs(y2-y3) <= 1 || stdMath.abs(y3-y4) <= 1 || stdMath.abs(y4-y1) <= 1)
+    {
+        // axis-aligned unrotated or degenerate rectangle
+        satsums(o, w, h, xm, ym, xM, yM, 1);
+    }
+    else
+    {
+        if (y1 === ym) xi1 = x1;
+        else if (y2 === ym) xi1 = x2;
+        else if (y3 === ym) xi1 = x3;
+        else xi1 = x4;
+        if (y1 === yM) xi2 = x1;
+        else if (y2 === yM) xi2 = x2;
+        else if (y3 === yM) xi2 = x3;
+        else xi2 = x4;
+        if (x1 === xm) yi1 = y1;
+        else if (x2 === xm) yi1 = y2;
+        else if (x3 === xm) yi1 = y3;
+        else yi1 = y4;
+        if (x1 === xM) yi2 = y1;
+        else if (x2 === xM) yi2 = y2;
+        else if (x3 === xM) yi2 = y3;
+        else yi2 = y4;
+        xr1 = stdMath.min(xi1, xi2); yr1 = stdMath.min(yi1, yi2);
+        xr2 = stdMath.max(xi1, xi2); yr2 = stdMath.max(yi1, yi2);
+        if ((yi1 >= yi2 && xi1 <= xi2) || (yi1 <= yi2 && xi1 >= xi2))
+        {
+            // can be subdivided into 1 enclosed center rectangle + 4 right triangles axis-aligned
+            satsums(o, w, h, xr1, yr1, xr2, yr2, 1); // center
+            if (xi1 <= xi2)
+            {
+                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k, 1); // left
+                satsumt(o, w, h, xi1, ym, xM, yi2, xi1, yi2, k, 1); // top
+                satsumt(o, w, h, xM, yi2, xi2, yM, xi2, yi2, k, 1); // right
+                satsumt(o, w, h, xi2, yM, xm, yi1, xi2, yi1, k, 1); // bottom
+                // remove common area computed multiple times
+                satsums(o, w, h, xi1, ym, xi1, yi1, -1);
+                satsums(o, w, h, xm, yi1, xi1, yi1, -1);
+                satsums(o, w, h, xi2, yi2, xi2, yM, -1);
+                satsums(o, w, h, xi2, yi2, xM, yi2, -1);
+            }
+            else
+            {
+                satsumt(o, w, h, xm, yi1, xi2, yi1, xi2, yM, k, 1); // left
+                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k, 1); // top
+                satsumt(o, w, h, xi1, ym, xM, yi2, xi1, yi2, k, 1); // right
+                satsumt(o, w, h, xi2, yM, xi2, yi2, xM, yi2, k, 1); // bottom
+                // remove common area computed multiple times
+                satsums(o, w, h, xi1, ym, xi1, yi2, -1);
+                satsums(o, w, h, xi2, yi2, xM, yi2, -1);
+                satsums(o, w, h, xi2, yi1, xi2, yM, -1);
+                satsums(o, w, h, xm, yi1, xi1, yi1, -1);
+            }
+            // add area removed more than once
+            satsums(o, w, h, xr1, yr1, xr1, yr1, 1);
+            satsums(o, w, h, xr1, yr2, xr1, yr2, 1);
+            satsums(o, w, h, xr2, yr2, xr2, yr2, 1);
+            satsums(o, w, h, xr2, yr1, xr2, yr1, 1);
+        }
+        else
+        {
+            /*
+            // can be subdivided into 3 rectangles + 8 right triangles axis-aligned
+            if (xi1 <= xi2)
+            {
+                xc1 = intersect_x(yi2, xm, yi1, xi2, yM);
+                yc1 = intersect_y(xi1, xm, yi1, xi2, yM);
+                xc2 = intersect_x(yi1, xM, yi2, xi1, ym);
+                yc2 = intersect_y(xi2, xM, yi2, xi1, ym);
+                satsumt(o, w, h, xi1, ym, xc2, yi1, xi1, yi1, k, 1); // right top
+                satsumt(o, w, h, xm, yi1, xi1, ym, xi1, yi1, k, 1); // left top
+                satsumt(o, w, h, xm, yi1, xi1, yi1, xi1, yc1, k, 1); // left bottom
+                satsums(o, w, h, xm, yi1, xi1, yi1, -1); // remove common area
+                satsums(o, w, h, xi1, ym, xi1, yi1, -1); // remove common area
+                satsumt(o, w, h, xi1, yc1, xc1, yc1, xc1, yi2, k, 1); // inside left
+                satsumt(o, w, h, xc2, yi1, xi2, yc2, xc2, yc2, k, 1); // inside right
+                satsumt(o, w, h, xi2, yi2, xi2, yc2, xM, yi2, k, 1); // right top
+                satsumt(o, w, h, xc1, yi2, xi2, yi2, xi2, yM, k, 1); // left bottom
+                satsumt(o, w, h, xi2, yi2, xM, yi2, xi2, yM, k, 1); // right bottom
+                satsums(o, w, h, xi2, yi2, xM, yi2, -1); // remove common area
+                satsums(o, w, h, xi2, yi2, xi2, yM, -1); // remove common area
+                satsums(o, w, h, xc1, yi1, xc2, yi2, 1); // center
+                satsums(o, w, h, xc1, yc1, xc1, yi2, -1); // remove common area
+                satsums(o, w, h, xc2, yi1, xc2, yc2, -1); // remove common area
+                if (yi1 < yc1)
+                {
+                    satsums(o, w, h, xi1+1, yi1+1, xc1-1, yc1-1, 1); // center left
+                }
+                else
+                {
+                    satsums(o, w, h, xi1, yi1, xc2, yi1, -1); // remove common area
+                }
+                if (yi2 > yc2)
+                {
+                    satsums(o, w, h, xc2+1, yc2+1, xi2-1, yi2-1, 1); // center right
+                }
+                else
+                {
+                    satsums(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                }
+            }
+            else
+            {
+                xc1 = intersect_x(yi2, xm, yi2, xi1, ym);
+                yc1 = intersect_y(xi2, xm, yi2, xi1, ym);
+                xc2 = intersect_x(yi1, xi2, yM, xM, yi2);
+                yc2 = intersect_y(xi1, xi2, yM, xM, yi2);
+                satsumt(o, w, h, xi2, yM, xi2, yi1, xc2, yi1, k, 1); // right bottom
+                satsumt(o, w, h, xm, yi1, xi2, yi1, xi2, yM, k, 1); // left bottom
+                satsumt(o, w, h, xm, yi1, xi2, yc1, xi2, yi1, k, 1); // left top
+                satsums(o, w, h, xi2, yi1, xi2, yM, -1); // remove common area
+                satsums(o, w, h, xm, yi1, xi2, yi1, -1); // remove common area
+                satsumt(o, w, h, xi2, yc1, xc1, yi1, xc1, yc1, k, 1); // inside left
+                satsumt(o, w, h, xc2, yi1, xc2, yc2, xi1, yc2, k, 1); // inside right
+                satsumt(o, w, h, xi1, yi2, xM, yi2, xi1, yc2, k, 1); // right bottom
+                satsumt(o, w, h, xi1, yi2, xi1, ym, xM, yi2, k, 1); // right top
+                satsumt(o, w, h, xi1, ym, xi1, yi2, xc1, yi2, k, 1); // left top
+                satsums(o, w, h, xi1, yi2, xM, yi2, -1); // remove common area
+                satsums(o, w, h, xi1, ym, xi1, yi2, -1); // remove common area
+                satsums(o, w, h, xc1, yi2, xc2, yi1, 1); // center
+                satsums(o, w, h, xc1, yi2, xc1, yc1, -1); // remove common area
+                satsums(o, w, h, xc2, yc2, xc2, yi1, -1); // remove common area
+                if (yi1 > yc1)
+                {
+                    satsums(o, w, h, xi2+1, yc1+1, xc1-1, yi1-1, 1); // center left
+                }
+                else
+                {
+                    satsums(o, w, h, xi2, yi1, xc2, yi1, -1); // remove common area
+                }
+                if (yi2 < yc2)
+                {
+                    satsums(o, w, h, xc2+1, yi2+1, xi1-1, yc2-1, 1); // center right
+                }
+                else
+                {
+                    satsums(o, w, h, xc1, yi2, xi2, yi2, -1); // remove common area
+                }
+            }
+            */
+            // or even faster, needs larger k
+            // can be subdivided into 1 enclosing rectangle - 4 right triangles axis-aligned
+            // enclosing rectangle
+            satsums(o, w, h, xm, ym, xM, yM, 1);
+            if (xi1 <= xi2)
+            {
+                satsumt(o, w, h, xm, yi1, xm, ym, xi1, ym, k, -1); // left
+                satsumt(o, w, h, xi1, ym, xM, ym, xM, yi2, k, -1); // top
+                satsumt(o, w, h, xM, yi2, xM, yM, xi2, yM, k, -1); // right
+                satsumt(o, w, h, xi2, yM, xm, yM, xm, yi1, k, -1); // bottom
+            }
+            else
+            {
+                satsumt(o, w, h, xm, yi1, xm, yM, xi2, yM, k, -1); // left
+                satsumt(o, w, h, xm, yi1, xm, ym, xi1, ym, k, -1); // top
+                satsumt(o, w, h, xi1, ym, xM, ym, xM, yi2, k, -1); // right
+                satsumt(o, w, h, xM, yi2, xM, yM, xi2, yM, k, -1); // bottom
+            }
+            // add area removed more than once
+            satsums(o, w, h, xi1, ym, xi1, ym, 1);
+            satsums(o, w, h, xm, yi1, xm, yi1, 1);
+            satsums(o, w, h, xM, yi2, xM, yi2, 1);
+            satsums(o, w, h, xi2, yM, xi2, yM, 1);
+        }
+    }
+}
+function rsatsum(rsat, w, h, xh, yh, ww, hh)
+{
+    // 45deg rotated (tilted) sat sum
+    // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
+    if (w <= 0 || h <= 0 || ww <= 0 || hh <= 0) return 0;
+    var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
+    return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
+}
+
+function am_eye()
+{
+    return new AffineMatrix([
+    1,0,0,0,
+    0,1,0,0
+    ]);
+}
+/*
+[ 0xx 1xy 2xo 3xor
+  4yx 5yy 6yo 7yor
+  0   0   1   0
+  0   0   0   1 ]
+*/
+function am_multiply(am1, am2)
+{
+    var am12 = new AffineMatrix(8);
+    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
+    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
+    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
+    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
+
+    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
+    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
+    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
+    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
+    return am12;
+}
 function ct_eye(c1, c0)
 {
     if (null == c0) c0 = 0;
@@ -3778,33 +4301,6 @@ function cm_rechannel(m, Ri, Gi, Bi, Ai, Ro, Go, Bo, Ao)
     cm[AO+Ri] = m[15]; cm[AO+Gi] = m[16]; cm[AO+Bi] = m[17]; cm[AO+Ai] = m[18]; cm[AO+4] = m[19];
     return cm;
 }
-/*
-[ 0xx 1xy 2xo 3xor
-  4yx 5yy 6yo 7yor
-  0   0   1   0
-  0   0   0   1 ]
-*/
-function am_multiply(am1, am2)
-{
-    var am12 = new AffineMatrix(8);
-    am12[0] = am1[0]*am2[0] + am1[1]*am2[4];
-    am12[1] = am1[0]*am2[1] + am1[1]*am2[5];
-    am12[2] = am1[0]*am2[2] + am1[1]*am2[6] + am1[2];
-    am12[3] = am1[0]*am2[3] + am1[1]*am2[7] + am1[3];
-
-    am12[4] = am1[4]*am2[0] + am1[5]*am2[4];
-    am12[5] = am1[4]*am2[1] + am1[5]*am2[5];
-    am12[6] = am1[4]*am2[2] + am1[5]*am2[6] + am1[6];
-    am12[7] = am1[4]*am2[3] + am1[5]*am2[7] + am1[7];
-    return am12;
-}
-function am_eye()
-{
-    return new AffineMatrix([
-    1,0,0,0,
-    0,1,0,0
-    ]);
-}
 function cm_combine(m1, m2, a1, a2, matrix)
 {
     matrix = matrix || Array; a1 = a1 || 1; a2 = a2 || 1;
@@ -3853,13 +4349,13 @@ ImageUtil.interpolate_nearest = interpolate_nearest;
 ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
 ImageUtil.glsl = image_glsl;
 
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
 FilterUtil.ct_eye = ct_eye;
 FilterUtil.ct_multiply = ct_multiply;
 FilterUtil.cm_eye = cm_eye;
 FilterUtil.cm_multiply = cm_multiply;
 FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.am_eye = am_eye;
-FilterUtil.am_multiply = am_multiply;
 FilterUtil.cm_combine = cm_combine;
 FilterUtil.cm_convolve = cm_convolve;
 FilterUtil.gaussian = gaussian;
@@ -3868,116 +4364,11 @@ FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp
 FilterUtil.gradient = gradient;
 FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
-FilterUtil.sat = integral2;
-function satsum(sat, w, h, x0, y0, x1, y1)
-{
-    // sat sum given top left and bottom right points
-    x0 = clamp(x0, 0, w-1);
-    y0 = clamp(y0, 0, h-1);
-    x1 = clamp(x1, 0, w-1);
-    y1 = clamp(y1, 0, h-1);
-    x0 -= 1; y0 -= 1;
-    return (x1>=0 && x1<w && y1>=0 && y1<h ? sat[x1 + w*y1] : 0) - (x0>=0 && x0<w && y1>=0 && y1<h ? sat[x0 + w*y1] : 0) - (x1>=0 && x1<w && y0>=0 && y0<h ? sat[x1 + w*y0] : 0) + (x0>=0 && x0<w && y0>=0 && y0<h ? sat[x0 + w*y0] : 0);
-}
-FilterUtil.satsum = satsum;
-FilterUtil.satsuma = function(sat, w, h, x1, y1, x2, y2, x3, y3, x4, y4) {
-    // approximate sat sum for arbitrary rotated rectangle defined (clockwise) by (x1,y1) to (x4,y4)
-    var xM = stdMath.max(x1, x2, x3, x4), xm = stdMath.min(x1, x2, x3, x4),
-        yM = stdMath.max(y1, y2, y3, y4), ym = stdMath.min(y1, y2, y3, y4),
-        xi1, xi2, yi1, yi2, xt1, yt1, xt2, yt2, xt3, yt3, xt4, yt4;
-    // (xm,ym), (xM,yM) is the normal rectangle enclosing the rotated rectangle
-    if (y1 === ym)
-    {
-        xi1 = x1;
-        xt1 = x4;
-        yt1 = y4;
-        xt2 = x2;
-        yt2 = y2;
-    }
-    else if (y2 === ym)
-    {
-        xi1 = x2;
-        xt1 = x1;
-        yt1 = y1;
-        xt2 = x3;
-        yt2 = y3;
-    }
-    else if (y3 === ym)
-    {
-        xi1 = x3;
-        xt1 = x2;
-        yt1 = y2;
-        xt2 = x4;
-        yt2 = y4;
-    }
-    else
-    {
-        xi1 = x4;
-        xt1 = x3;
-        yt1 = y3;
-        xt2 = x1;
-        yt2 = y1;
-    }
-    if (y1 === yM)
-    {
-        xi2 = x1;
-        xt3 = x4;
-        yt3 = y4;
-        xt4 = x2;
-        yt4 = y2;
-    }
-    else if (y2 === yM)
-    {
-        xi2 = x2;
-        xt3 = x1;
-        yt3 = y1;
-        xt4 = x3;
-        yt4 = y3;
-    }
-    else if (y3 === yM)
-    {
-        xi2 = x3;
-        xt3 = x2;
-        yt3 = y2;
-        xt4 = x4;
-        yt4 = y4;
-    }
-    else
-    {
-        xi2 = x4;
-        xt3 = x3;
-        yt3 = y3;
-        xt4 = x1;
-        yt4 = y1;
-    }
-    if (x1 === xm) yi1 = y1;
-    else if (x2 === xm) yi1 = y2;
-    else if (x3 === xm) yi1 = y3;
-    else yi1 = y4;
-    if (x1 === xM) yi2 = y1;
-    else if (x2 === xM) yi2 = y2;
-    else if (x3 === xM) yi2 = y3;
-    else yi2 = y4;
-    return (
-     satsum(sat, w, h, stdMath.min(xi1, xi2), stdMath.min(yi1, yi2), stdMath.max(xi1, xi2), stdMath.max(yi1, yi2)) +
-    (satsum(sat, w, h, stdMath.min(xi1, xt1), ym,  stdMath.max(xi1, xt1), yt1) +
-     satsum(sat, w, h, stdMath.min(xi1, xt2), ym,  stdMath.max(xi1, xt2), yt2) +
-     satsum(sat, w, h, stdMath.min(xi2, xt3), yt3, stdMath.max(xi2, xt3), yM)  +
-     satsum(sat, w, h, stdMath.min(xi2, xt4), yt4, stdMath.max(xi2, xt4), yM))/2
-    );
-};
-FilterUtil.rsatsum = function(rsat, w, h, xh, yh, ww, hh) {
-    // 45deg rotated (tilted) sat sum
-    // (xh,yh) top left corner, (x,y) top right, (xw,yw) bottom right, (xwh,ywh) bottom left
-    var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
-    return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
-};
 FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.otsu_multi = otsu_multi;
 FilterUtil.otsu_multiclass = otsu_multiclass;
-FilterUtil.merge_features = merge_features;
 FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
 FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
 FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
@@ -3991,6 +4382,14 @@ FilterUtil.min = function(d, w, h, tl, stride, offset) {
 FilterUtil.max = function(d, w, h, th, stride, offset) {
     return min_max_loc(d, w, h, null, th, false, true, stride, offset);
 };
+FilterUtil.merge_features = merge_features;
+FilterUtil.sat = integral2;
+FilterUtil.satsum = satsum;
+FilterUtil.satsums = satsums;
+FilterUtil.satsumt = satsumt;
+FilterUtil.satsumr = satsumr;
+FilterUtil.rsatsum = rsatsum;
+
 FilterUtil._wasm = function() {
     return {imports:{},exports:{
         interpolate_nearest:{inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
@@ -5627,35 +6026,35 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     // allow filters to be GLSL
     ,makeGLSL: function(bool) {
         if (!arguments.length) bool = true;
-        this._isGLSL = (!!bool) && GLSL.isLoaded && FILTER.supportsGLSL();
+        this._isGLSL = !!((!!bool) && GLSL.isLoaded && FILTER.supportsGLSL() && (this.getGLSL !== FILTER.Filter.prototype.getGLSL));
         return this;
     }
 
     // get GLSL code and variables, override
     ,GLSLCode: function() {
         var self = this;
-        if (null == self._glsl) self._glsl = self.getGLSL();
+        if (null == self._glsl) self._glsl = self.getGLSL() || {instance: this};
         return self._glsl;
     }
     ,getGLSL: function() {
-        return {instance: this};
+        return false;
     }
 
     // allow filters to be WASM
     ,makeWASM: function(bool) {
         if (!arguments.length) bool = true;
-        this._isWASM = (!!bool) && WASM.isLoaded && FILTER.supportsWASM();
+        this._isWASM = !!((!!bool) && WASM.isLoaded && FILTER.supportsWASM() && (this.getWASM !== FILTER.Filter.prototype.getWASM));
         return this;
     }
 
     // get WASM code and variables, override
     ,WASMCode: function() {
         var self = this;
-        if (null == self._wasm) self._wasm = self.getWASM();
+        if (null == self._wasm) self._wasm = self.getWASM() || '';
         return self._wasm;
     }
     ,getWASM: function() {
-        return '';
+        return false;
     }
 
     // @override
@@ -5894,6 +6293,14 @@ var // utils
     clamp = FILTER.Util.Math.clamp,
     esc = FILTER.Util.String.esc,
     trim = FILTER.Util.String.trim,
+
+    // color format regexes
+    hexieRE = /^#([0-9a-fA-F]{8})\b/,
+    hexRE = /^#([0-9a-fA-F]{3,6})\b/,
+    rgbRE = /^(rgba?)\b\s*\(([^\)]*)\)/i,
+    hslRE = /^(hsla?)\b\s*\(([^\)]*)\)/i,
+    hwbRE = /^(hwba?)\b\s*\(([^\)]*)\)/i,
+    sepRE = /\s+|,/gm, aRE = /\/\s*(\d*?\.?\d+%?)/,
 
     LUMA = FILTER.LUMA, CHANNEL = FILTER.CHANNEL,
     //RED = CHANNEL.RED, GREEN = CHANNEL.GREEN, BLUE = CHANNEL.BLUE, ALPHA = CHANNEL.ALPHA,
@@ -6170,6 +6577,10 @@ function cmyk2rgb(c, m, y, k)
         clamp(round(b), 0, 255)
     ];
 }
+function lightness(r, g, b)
+{
+    return (LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+}
 var GLSL = [
 '#define FORMAT_HWB 3',
 '#define FORMAT_HSV 2',
@@ -6364,7 +6775,7 @@ var Color = FILTER.Color = FILTER.Class({
         },
 
         intensity: function(r, g, b) {
-            return ~~(LUMA[0]*r + LUMA[1]*g + LUMA[2]*b);
+            return ~~lightness(r, g, b);
         },
 
         hue: function(r, g, b) {
@@ -6674,7 +7085,74 @@ var Color = FILTER.Color = FILTER.Class({
             return cmyk2rgb(c, m, y, k);
         },
 
-        parse: function(s, parsed, onlyColor) {
+        parse: function parse(s) {
+            var m, m2, hasOpacity, rgb = null, opacity = 1, c = null, end = 0, end2 = 0, kw = null;
+            s = trim(String(s)).toLowerCase();
+            if (m = s.match(hexRE))
+            {
+                // hex
+                rgb = hex2rgb(m[1]);
+                opacity = 1;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(hwbRE))
+            {
+                // hwb(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    h = col[0] ? col[0] : '0',
+                    w = col[1] ? col[1] : '0',
+                    b = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : '1';
+                h = parseFloat(h, 10);
+                w = '%' === w.slice(-1) ? parseFloat(w, 10) : parseFloat(w, 10)*100/255;
+                b = '%' === b.slice(-1) ? parseFloat(b, 10) : parseFloat(b, 10)*100/255;
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = hwb2rgb(h, w, b);
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(hslRE))
+            {
+                // hsl(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    h = col[0] ? col[0] : '0',
+                    s = col[1] ? col[1] : '0',
+                    l = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : ('hsla' === m[1] && null != col[3] ? col[3] : '1');
+                h = parseFloat(h, 10);
+                s = '%' === s.slice(-1) ? parseFloat(s, 10) : parseFloat(s, 10)*100/255;
+                l = '%' === l.slice(-1) ? parseFloat(l, 10) : parseFloat(l, 10)*100/255;
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = hsl2rgb(h, s, l);
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            else if (m = s.match(rgbRE))
+            {
+                // rgb(a)
+                hasOpacity = m[2].match(aRE);
+                var col = trim(m[2]).split(sepRE).map(trim),
+                    r = col[0] ? col[0] : '0',
+                    g = col[1] ? col[1] : '0',
+                    b = col[2] ? col[2] : '0',
+                    a = hasOpacity ? hasOpacity[1] : ('rgba' === m[1] && null != col[3] ? col[3] : '1');
+                r = '%' === r.slice(-1) ? parseFloat(r, 10)*2.55 : parseFloat(r, 10);
+                g = '%' === g.slice(-1) ? parseFloat(g, 10)*2.55 : parseFloat(g, 10);
+                b = '%' === b.slice(-1) ? parseFloat(b, 10)*2.55 : parseFloat(b, 10);
+                a = '%' === a.slice(-1) ? parseFloat(a, 10)/100 : parseFloat(a, 10);
+                rgb = [r, g, b];
+                opacity = a;
+                end = m[0].length;
+                end2 = 0;
+            }
+            if (rgb) return new Color().fromRGB([rgb[0], rgb[1], rgb[2], opacity]);
+        },
+        /*parse: function(s, parsed, onlyColor) {
             var m, m2, s2, end = 0, end2 = 0, c, hasOpacity;
 
             if ('hsl' === parsed ||
@@ -6767,9 +7245,9 @@ var Color = FILTER.Color = FILTER.Class({
                 return onlyColor ? c : [c, 0, end+end2];
             }
             return null;
-        },
-        fromString: function(s, parsed) {
-            return Color.parse(s, parsed, 1);
+        },*/
+        fromString: function(s/*, parsed*/) {
+            return Color.parse(s/*, parsed, 1*/);
         },
         fromRGB: function(rgb) {
             return new Color().fromRGB(rgb);
@@ -6841,6 +7319,11 @@ var Color = FILTER.Color = FILTER.Class({
             this.kword = null;
         }
         return this;
+    },
+
+    isLight: function(threshold) {
+        if (null == threshold) threshold = 127.5;
+        return threshold <= lightness(this.col[0], this.col[1], this.col[2]);
     },
 
     isTransparent: function() {
@@ -7008,17 +7491,48 @@ var Color = FILTER.Color = FILTER.Class({
         }
     },
 
+    toHWB: function(asString, condenced, noTransparency) {
+        var opcty = this.col[3];
+        var hwb = rgb2hwb(this.col[0], this.col[1], this.col[2]);
+
+        if (asString)
+        {
+            if (condenced)
+            {
+                hwb[1] = (0 === hwb[1] ? hwb[1] : (String(hwb[1])+'%'));
+                hwb[2] = (0 === hwb[2] ? hwb[2] : (String(hwb[2])+'%'));
+                opcty = 1 > opcty && opcty > 0 ? opcty.toString().slice(1) : opcty;
+            }
+
+            if (noTransparency || 1 === this.col[3])
+                return 'hwb(' + [hwb[0], hwb[1], hwb[2]].join(' ') + ')';
+            else
+                return 'hwb(' + [hwb[0], hwb[1], hwb[2]].join(' ') + ' / ' + opcty + ')';
+        }
+        else
+        {
+            if (noTransparency)
+                return hwb;
+            else
+                return hwb.concat(this.col[3]);
+        }
+    },
+
     toString: function(format, condenced) {
         format = format ? format.toLowerCase() : 'hex';
-        if ('rgb' == format || 'rgba' == format)
+        if ('rgb' === format || 'rgba' === format)
         {
-            return this.toRGB(1, false!==condenced, 'rgb' == format);
+            return this.toRGB(1, false !== condenced, 'rgb' === format);
         }
-        else if ('hsl' == format || 'hsla' == format)
+        else if ('hsl' === format || 'hsla' === format)
         {
-            return this.toHSL(1, false!==condenced, 'hsl' == format);
+            return this.toHSL(1, false !== condenced, 'hsl' === format);
         }
-        return this.toHEX(1, false!==condenced, 'hexie' == format);
+        else if ('hwb' === format)
+        {
+            return this.toHWB(1, false !== condenced, false);
+        }
+        return this.toHEX(1, false !== condenced, 'hexie' === format);
     }
 });
 // aliases and utilites
@@ -7610,11 +8124,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if (!mapping || !mapping.filter) {++missing; return;}
             var from = mapping.from || {x:0, y:0},
                 to = mapping.to || {x:self.width-1, y:self.height-1},
-                absolute = mapping.absolute,
+                absolute = mapping.to ? mapping.absolute : true,
                 data = self.getDataFromSelection(from.x, from.y, to.x, to.y, absolute);
             mapping.filter.apply_(self, data[0], data[1], data[2], function(resultData, processorFilter) {
                 ++completed;
-                reduce(self, resultData, from, to, absolute, processorFilter, index);
+                if (reduce) reduce(self, resultData, from, to, absolute, processorFilter, index);
                 if ((completed+missing === mappings.length) && done) done(self);
             });
         });
@@ -8049,6 +8563,24 @@ var CompositeFilter = FILTER.Create({
         return this;
     }
     ,empty: null
+
+    ,getGLSL: function() {
+        return null;
+    }
+
+    ,getWASM: function() {
+        return null;
+    }
+
+    ,isGLSL: function() {
+        if (this._isGLSL) for (var f=this.filters,i=0,n=f.length; i<n; ++i) if (f[i] && f[i].isOn() && f[i].isGLSL()) return true;
+        return false;
+    }
+
+    ,isWASM: function() {
+        if (this._isWASM) for (var f=this.filters,i=0,n=f.length; i<n; ++i) if (f[i] && f[i].isOn() && f[i].isWASM()) return true;
+        return false;
+    }
 
     ,GLSLCode: function() {
         var filters = this.filters, filter, glsl = [], processor, i, n = filters.length;
@@ -8656,6 +9188,10 @@ FILTER.Create({
 
     ,getGLSL: function() {
         return glsl(this);
+    }
+
+    ,getWASM: function() {
+        return null;
     }
 
     ,_apply: function(im, w, h, metaData) {
@@ -13362,6 +13898,10 @@ FILTER.Create({
         return glsl(this);
     }
 
+    ,getWASM: function() {
+        return wasm(this);
+    }
+
     ,_apply: function(im, w, h) {
         var self = this;
         if (!self._dim || !self._filter)  return im;
@@ -14346,6 +14886,10 @@ FILTER.Create({
         return self;
     }
 
+    ,isGLSL: function() {
+        return this._isGLSL && !!(!this._filter || this._filter.shader);
+    }
+
     ,getGLSL: function() {
         var self = this, filter = self._filter, glslcode;
         if (filter && filter.shader)
@@ -14677,8 +15221,10 @@ NoiseFilter.random = Math.random;
 
 var MODE = FILTER.MODE;
 
-// an efficient perlin noise and simplex noise plugin
-// http://en.wikipedia.org/wiki/Perlin_noise
+/*
+an efficient perlin noise and simplex noise plugin
+http://en.wikipedia.org/wiki/Perlin_noise
+*/
 FILTER.Create({
     name: "PerlinNoiseFilter"
 
@@ -15853,10 +16399,12 @@ var f1 = 7/16, f2 = 3/16, f3 = 5/16, f4 = 1/16,
     MODE = FILTER.MODE, A32F = FILTER.Array32F, clamp = FILTER.Color.clamp,
     intensity = FILTER.Color.intensity;
 
-// http://en.wikipedia.org/wiki/Halftone
-// http://en.wikipedia.org/wiki/Error_diffusion
-// http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
-// http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+/*
+http://en.wikipedia.org/wiki/Halftone
+http://en.wikipedia.org/wiki/Error_diffusion
+http://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/average_dithering.html
+http://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+*/
 FILTER.Create({
     name: "HalftoneFilter"
 
@@ -16219,8 +16767,10 @@ var MODE = FILTER.MODE,
     ImageUtil = FILTER.Util.Image,
     GLSL = FILTER.Util.GLSL;
 
-// adapted from http://www.jhlabs.com/ip/filters/
-// analogous to ActionScript filter
+/*
+adapted from http://www.jhlabs.com/ip/filters/
+analogous to ActionScript filter
+*/
 FILTER.Create({
      name: "DropShadowFilter"
 
@@ -16518,8 +17068,10 @@ function glsl(filter)
 
 var stdMath = Math, GLSL = FILTER.Util.GLSL, ImageUtil = FILTER.Util.Image;
 
-// a plugin to create a seamless tileable pattern from an image
-// adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+/*
+a plugin to create a seamless tileable pattern from an image
+adapted from: http://www.blitzbasic.com/Community/posts.php?topic=43846
+*/
 FILTER.Create({
     name: "SeamlessTileFilter"
 
@@ -16812,9 +17364,14 @@ function glsl(filter)
 
 var MODE = FILTER.MODE, stdMath = Math, FilterUtil = FILTER.Util.Filter;
 
-// an extended and fast flood fill and flood pattern fill filter using scanline algorithm
-// adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
-// http://en.wikipedia.org/wiki/Flood_fill
+/*
+an extended and fast [flood fill](https://en.wikipedia.org/wiki/Flood_fill) and flood pattern fill filter using scanline algorithm
+adapted from:
+
+A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
+1. http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
+2. http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+*/
 FILTER.Create({
     name : "ColorFillFilter"
     ,x: 0
@@ -17405,9 +17962,11 @@ function dissimilarity_rgb(r, g, b, O, I, delta)
     D[c] = ((abs(b-c)<=delta?O:I)<<2)|((abs(g-c)<=delta?O:I)<<1)|((abs(r-c)<=delta?O:I)<<0); ++c;
     return D;
 }
-// adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
-// http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
-// http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+/*
+adapted from: A Seed Fill Algorithm, by Paul Heckbert from "Graphics Gems", Academic Press, 1990
+http://www.codeproject.com/Articles/6017/QuickFill-An-efficient-flood-fill-algorithm
+http://www.codeproject.com/Articles/16405/Queue-Linear-Flood-Fill-A-Fast-Flood-Fill-Algorith
+*/
 function flood_region(im, w, h, stride, D, K, x0, y0)
 {
     stride = stride|0;
@@ -17654,7 +18213,7 @@ FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
 FilterUtil.floodRegion = flood_region;
 }(FILTER);/**
 *
-* Connected Components Extractor, Color Detector
+* Connected Components Extractor
 * @package FILTER.js
 *
 **/
@@ -17771,7 +18330,8 @@ FILTER.Create({
         }
     }
 });
-FILTER.Create({
+
+/*FILTER.Create({
     name: "ColorDetectorFilter"
 
     // parameters
@@ -17779,7 +18339,7 @@ FILTER.Create({
     ,hasMeta: true
     ,mode: MODE.COLOR
     ,tolerance: 1e-6
-    ,minArea: 20
+    ,minArea: 20//=Infinity
     ,maxArea: Infinity
     ,color: 0
 
@@ -17797,7 +18357,7 @@ FILTER.Create({
         if (params)
         {
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
-            if (null != params.minArea) self.minArea = params.minArea || 0;
+            if (null != params.minArea) self.minArea = params.minArea;
             if (null != params.maxArea) self.maxArea = params.maxArea;
             if (null != params.color) self.color = params.color || 0;
             if (null != params.selection) self.selection = params.selection || null;
@@ -17840,7 +18400,8 @@ FILTER.Create({
             mode = self.mode||MODE.COLOR, color = self.color,
             delta = min(0.999, max(0.0, self.tolerance||0.0)),
             selection = self.selection || null,
-            xf, yf, x1, y1, x2, y2, D;
+            xf, yf, x1, y1, x2, y2, D,
+            area, minArea, maxArea;
 
         self.meta = {matches: []};
         if (null == color) return im;
@@ -17878,12 +18439,16 @@ FILTER.Create({
             x1 = 0; y1 = 0;
             x2 = w-1; y2 = h-1;
         }
-        D = new A32F((x2-x1+1)*(y2-y1+1));
+        area = (x2-x1+1)*(y2-y1+1);
+        // areas can be given as percentages of total area as well
+        minArea = 0 < self.minArea && self.minArea < 1 ? (self.minArea*area) : self.minArea;
+        maxArea = 0 < self.maxArea && self.maxArea < 1 ? (self.maxArea*area) : self.minArea;
+        D = new A32F(area);
         delta = dissimilarity_rgb_2(im, w, h, 2, D, delta, mode, x1, y1, x2, y2);
-        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, self.minArea, self.maxArea, x1, y1, x2, y2)};
+        self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, minArea, maxArea, x1, y1, x2, y2)};
         return im;
     }
-});
+});*/
 
 // private methods
 function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
@@ -18115,7 +18680,8 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
         total = w*h;
         output = Object.keys(output).reduce(function(out, id) {
             var bb = output[id], w = bb.x2-bb.x1+1, h = bb.y2-bb.y1+1, area = w*h;
-            if (area >= minArea && area <= maxArea) out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, k:bb.k/delta});
+            if ((area < minArea) || (area > maxArea)) return out;
+            out.push({x:x0+bb.x1, y:y0+bb.y1, width:w, height:h, area:area, score:bb.k/delta});
             return out;
         }, []);
     }
@@ -18497,8 +19063,10 @@ var notSupportClamp = FILTER._notSupportClamp,
     TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 
-// https://en.wikipedia.org/wiki/Thresholding_(image_processing)
-// https://en.wikipedia.org/wiki/Otsu%27s_method
+/*
+1. https://en.wikipedia.org/wiki/Thresholding_(image_processing)
+2. https://en.wikipedia.org/wiki/Otsu%27s_method
+*/
 FILTER.Create({
     name : "OtsuThresholdFilter"
 
@@ -18861,8 +19429,12 @@ FILTER.Create({
 var MAGNITUDE_SCALE = 1, MAGNITUDE_LIMIT = 510,
     MAGNITUDE_MAX = MAGNITUDE_SCALE * MAGNITUDE_LIMIT;
 
-// an efficient Canny Edges Detector
-// http://en.wikipedia.org/wiki/Canny_edge_detector
+/*
+an efficient [Canny Edges Detector](http://en.wikipedia.org/wiki/Canny_edge_detector)
+based on:
+
+1. [A Computational Approach to Edge Detection, Canny 1986](https://perso.limsi.fr/vezien/PAPIERS_ACS/canny1986.pdf)
+*/
 FILTER.Create({
     name : "CannyEdgesFilter"
 
@@ -18983,17 +19555,22 @@ var stdMath = Math, Abs = stdMath.abs, Max = stdMath.max, Min = stdMath.min,
 
 function by_area(r1, r2) {return r2.area-r1.area;}
 
-// HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
-// adapted from: https://github.com/foo123/HAAR.js
-// references:
-// 1. Viola, Jones 2001 http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf
-// 2. Lienhart et al 2002 http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf
+/*
+HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
+adapted from: https://github.com/foo123/HAAR.js
+based on:
+
+1. [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
+
+2. [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
+*/
 FILTER.Create({
     name: "HaarDetectorFilter"
 
     // parameters
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
+    ,noreuse: false
     ,haardata: null
     ,tolerance: 0.2
     ,baseScale: 1.0
@@ -19053,6 +19630,7 @@ FILTER.Create({
             if (null != params.cannyLow) self.cannyLow = +params.cannyLow;
             if (null != params.cannyHigh) self.cannyHigh = +params.cannyHigh;
             if (null != params.selection) self.selection = params.selection || null;
+            if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
@@ -19069,6 +19647,7 @@ FILTER.Create({
             ,tolerance: self.tolerance
             ,cannyLow: self.cannyLow
             ,cannyHigh: self.cannyHigh
+            ,noreuse: self.noreuse
         };
         // avoid unnecessary (large) data transfer
         if (self._haarchanged)
@@ -19090,6 +19669,7 @@ FILTER.Create({
         self.tolerance = params.tolerance;
         self.cannyLow = params.cannyLow;
         self.cannyHigh = params.cannyHigh;
+        self.noreuse = params.noreuse;
         return self;
     }
 
@@ -19107,7 +19687,7 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this;
         self.meta = {objects: []};
-        if (!self.haardata) return im;
+        if (!self.haardata || !w || !h) return im;
 
         var imLen = im.length, imSize = imLen>>>2,
             selection = self.selection || null,
@@ -19142,7 +19722,7 @@ FILTER.Create({
         }
 
         // NOTE: assume image is already grayscale
-        if (metaData && metaData.haarfilter_SAT)
+        if (!self.noreuse && metaData && metaData.haarfilter_SAT)
         {
             SAT = metaData.haarfilter_SAT;
             SAT2 = metaData.haarfilter_SAT2;
@@ -19152,7 +19732,7 @@ FILTER.Create({
         {
             // pre-compute <del>grayscale,</del> SAT, RSAT and SAT2
             FilterUtil.sat(im, w, h, 2, 0, SAT=new A32F(imSize), SAT2=new A32F(imSize), RSAT=new A32F(imSize));
-            if (metaData)
+            if (!self.noreuse && metaData)
             {
                 metaData.haarfilter_SAT = SAT;
                 metaData.haarfilter_SAT2 = SAT2;
@@ -19163,14 +19743,14 @@ FILTER.Create({
         // pre-compute integral canny gradient edges if needed
         if (self.doCannyPruning)
         {
-            if (metaData && metaData.haarfilter_GSAT)
+            if (!self.noreuse && metaData && metaData.haarfilter_GSAT)
             {
                 GSAT = metaData.haarfilter_GSAT;
             }
             else
             {
                 GSAT = FilterUtil.gradient(im, w, h, 2, 0, 1, 1);
-                if (metaData) metaData.haarfilter_GSAT = GSAT;
+                if (!self.noreuse && metaData) metaData.haarfilter_GSAT = GSAT;
             }
         }
 
@@ -19181,7 +19761,7 @@ FILTER.Create({
         if (features.length > features.count) features.length = features.count;
 
         // return results as meta
-        self.meta = {objects: FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area)};
+        self.meta.objects = FilterUtil.merge_features(features, self.minNeighbors, self.tolerance).sort(by_area);
         SAT = null; SAT2 = null; RSAT = null; GSAT = null;
 
         // return im back
@@ -19272,7 +19852,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                     stage = haar_stages[s];
                     threshold = stage.thres;
                     trees = stage.trees; tl = trees.length;
-                    sum=0;
+                    sum = 0;
 
                     for (t=0; t<tl; ++t)
                     {
@@ -19377,7 +19957,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                     // expand
                     if (feats.count === feats.length) push.apply(feats, new Array(MAX_FEATURES));
                     //                      x, y, width, height
-                    feats[feats.count++] = {x:x, y:y, width:xsize, height:ysize};
+                    feats[feats.count++] = {x:x, y:y, width:xsize, height:ysize, score:sum};
                 }
             }
         }
@@ -19395,13 +19975,29 @@ FILTER.Util.Filter.haar_detect = haar_detect;
 
 var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter,
     sat = FilterUtil.sat, satsum = FilterUtil.satsum,
-    satsuma = FilterUtil.satsuma, rsatsum = FilterUtil.rsatsum,
+    satsums = FilterUtil.satsums, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
     TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
-    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F;
+    stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
+    // 1 default direction
+    rot1  = [0],
+    // 4 cardinal directions
+    rot4  = [0, 90, 180, 270],
+    // 8 cardinal directions
+    rot8  = [0, 45, 90, 135, 180, 225, 270, 315],
+    // 16 cardinal directions
+    rot16 = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]
+;
 
-// Template matching using fast normalized cross correlation, Briechle, Hanebeck, 2001
-// https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
+/*
+
+original code based on a combination of:
+
+1. [TEMPLATE MATCHING USING FAST NORMALIZED CROSS CORRELATION, BRIECHLE, HANEBECK, 2001](https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
+
+2. [A NEW APPROACH TO REPRESENT ROTATED HAAR-LIKE FEATURES FOR OBJECTS DETECTION, MOHAMED OUALLA, ABDELALIM SADIQ, SAMIR MBARKI, 2015](http://www.jatit.org/volumes/Vol78No1/3Vol78No1.pdf)
+
+*/
 FILTER.Create({
     name : "TemplateMatcherFilter"
 
@@ -19411,14 +20007,16 @@ FILTER.Create({
     ,hasMeta: true
     ,hasInputs: true
     ,mode: MODE.RGB
+    ,noreuse: false
     ,sc: null
     ,rot: null
     ,scaleThreshold: null
-    ,threshold: 0.7
+    ,threshold: 0.6
     ,tolerance: 0.2
     ,minNeighbors: 1
-    ,maxMatches: 1000
+    ,maxMatches: 100
     ,maxMatchesOnly: true
+    ,_k: 5
     ,_q: 0.98
     ,_s: 3
     ,_tpldata: null
@@ -19444,16 +20042,18 @@ FILTER.Create({
         if (params)
         {
             if (null != params.threshold) self.threshold = params.threshold || 0;
-            if (null != params.scaleThreshold) self.scaleThreshold = params.scaleThreshold;
+            if (null != params.scaleThreshold) {self.scaleThreshold = params.scaleThreshold; if (self.scaleThreshold) self.scaleThreshold.changed = true;}
             if (null != params.tolerance) self.tolerance = params.tolerance || 0;
             if (null != params.minNeighbors) self.minNeighbors = params.minNeighbors || 0;
             if (null != params.maxMatches) self.maxMatches = params.maxMatches || 0;
             if (undef !== params.maxMatchesOnly) self.maxMatchesOnly = !!params.maxMatchesOnly;
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
+            if (null != params.k) self._k = params.k || 0;
             if (null != params.q) self.quality(params.q, self._s);
             if (null != params.s) self.quality(self._q, params.s);
             if (null != params.selection) self.selection = params.selection || null;
+            if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
@@ -19476,7 +20076,7 @@ FILTER.Create({
         if (basis && basis.avg && basis.avg.length) return self._tpldata = basis;
 
         var needsUpdate = self.isInputUpdated("template"), tpl = self.input("template");
-        if (!tpl)
+        if (!tpl || !tpl[1] || !tpl[2])
         {
             self._tpldata = null;
         }
@@ -19494,31 +20094,39 @@ FILTER.Create({
     }
 
     ,serialize: function() {
-        var self = this;
-        return {
+        var self = this, ret;
+        ret = {
             threshold: self.threshold
-            ,scaleThreshold: 'function' === typeof self.scaleThreshold ? self.scaleThreshold.toString() : null
+            ,scaleThreshold: 'function' === typeof self.scaleThreshold ? (self.scaleThreshold.changed ? self.scaleThreshold.toString() : null) : false
             ,tolerance: self.tolerance
             ,minNeighbors: self.minNeighbors
             ,maxMatches: self.maxMatches
+            ,maxMatchesOnly: self.maxMatchesOnly
             ,sc: self.sc
             ,rot: self.rot
+            ,_k: self._k
             ,_q: self._q
             ,_s: self._s
+            ,noreuse: self.noreuse
         };
+        if (self.scaleThreshold && self.scaleThreshold.changed) self.scaleThreshold.changed = null;
+        return ret;
     }
 
     ,unserialize: function(params) {
         var self = this;
         self.threshold = params.threshold;
-        self.scaleThreshold = params.scaleThreshold ? (new Function('FILTER', 'return '+params.scaleThreshold+';'))(FILTER) : null;
+        self.scaleThreshold = false === params.scaleThreshold ? null : (params.scaleThreshold ? (new Function('FILTER', 'return '+params.scaleThreshold+';'))(FILTER) : self.scaleThreshold);
         self.tolerance = params.tolerance;
         self.minNeighbors = params.minNeighbors;
         self.maxMatches = params.maxMatches;
+        self.maxMatchesOnly = params.maxMatchesOnly;
         self.sc = params.sc;
         self.rot = params.rot;
+        self._k = params._k;
         self._q = params._q;
         self._s = params._s;
+        self.noreuse = params.noreuse;
         return self;
     }
 
@@ -19540,29 +20148,35 @@ FILTER.Create({
         var self = this, tpldata = self.tpldata(true), t = self.input("template"), all_matches = [];
 
         self.meta = {matches: all_matches};
-        if (!t || !tpldata) return im;
+        if (!t || !tpldata || !w || !h) return im;
 
         var tpl = t[0], tw = t[1], th = t[2],
             selection = self.selection || null,
             is_grayscale = MODE.GRAY === self.mode,
-            rot = self.rot, scale = self.sc,
-            thresh = self.threshold,
+            is_vertical, rot = self.rot, scale = self.sc,
+            thresh = self.threshold, _k = self._k || 0,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, tt, twh, tw2, th2, tws, ths, twhs,
+            r, rl, ro, ro0, sc, scm, sci, tt,
+            tw2, th2, tws2, ths2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
+            nccR, nccG, nccB,
             maxMatches = self.maxMatches,
             maxOnly = self.maxMatchesOnly,
             minNeighbors = self.minNeighbors,
             eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
-            sat1, sat2, rsat, rsat2,
-            isTilted, isVertical, isSwap,
-            max, maxc, maxv, matches;
+            sat1, sat2, max, maxc, maxv, matches, ymat,
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};
 
-        if (1 === rot) rot = [0]; // only 1 given direction
-        else if (4 === rot) rot = [0, 90, 180, 270]; // 4 cardinal directions
-        else if (8 === rot) rot = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 cardinal directions
+        // 1 default direction
+        if       (1 === rot) rot = rot1;
+        // 4 cardinal directions
+        else if  (4 === rot) rot = rot4;
+        // 8 cardinal directions
+        else if  (8 === rot) rot = rot8;
+        // 16 cardinal directions
+        else if (16 === rot) rot = rot16;
 
         if (selection)
         {
@@ -19589,141 +20203,180 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
 
-        if (metaData && (metaData.tmfilter_SAT/* || metaData.haarfilter_SAT*/))
+        if (!self.noreuse && metaData && (metaData.tmfilter_SAT || metaData.haarfilter_SAT))
         {
-            sat1 = metaData.tmfilter_SAT;//  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
-            sat2 = metaData.tmfilter_SAT2;// || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
-            //rsat = metaData.tmfilter_RSAT;// || [metaData.haarfilter_RSAT,metaData.haarfilter_RSAT,metaData.haarfilter_RSAT];
-            //rsat2 = metaData.tmfilter_RSAT2;
+            sat1 = metaData.tmfilter_SAT  || [metaData.haarfilter_SAT, metaData.haarfilter_SAT, metaData.haarfilter_SAT];
+            sat2 = metaData.tmfilter_SAT2 || [metaData.haarfilter_SAT2,metaData.haarfilter_SAT2,metaData.haarfilter_SAT2];
         }
         else
         {
-            sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            //rsat = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            //rsat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
-            sat(im, w, h, 2, 0, sat1[0], sat2[0]/*, rsat[0], rsat2[0]*/); // R
-            sat(im, w, h, 2, 1, sat1[1], sat2[1]/*, rsat[1], rsat2[1]*/); // G
-            sat(im, w, h, 2, 2, sat1[2], sat2[2]/*, rsat[2], rsat2[2]*/); // B
-            if (metaData)
+            if (is_grayscale)
+            {
+                sat1 = [new A32F(mm), null, null];
+                sat2 = [new A32F(mm), null, null];
+                sat(im, w, h, 2, 0, sat1[2] = sat1[1] = sat1[0], sat2[2] = sat2[1] = sat2[0]); // R
+            }
+            else
+            {
+                sat1 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+                sat2 = [new A32F(mm), new A32F(mm), new A32F(mm)];
+                sat(im, w, h, 2, 0, sat1[0], sat2[0]); // R
+                sat(im, w, h, 2, 1, sat1[1], sat2[1]); // G
+                sat(im, w, h, 2, 2, sat1[2], sat2[2]); // B
+            }
+            if (!self.noreuse && metaData)
             {
                 metaData.tmfilter_SAT = sat1;
                 metaData.tmfilter_SAT2 = sat2;
-                //metaData.tmfilter_RSAT = rsat;
-                //metaData.tmfilter_RSAT2 = rsat2;
             }
         }
 
-        twh = stdMath.sqrt(tw*tw + th*th);
+        if (sat1[0] === sat1[1] && sat1[0] === sat1[2]) is_grayscale = true;
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            ro = (rot[r]||0);
+            ro0 = (rot[r] || 0);
+            ro = (ro0 % 360); // rotation represents template rotation (ie opposite of image rotation)
             if (0 > ro) ro += 360;
-            //isTilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro);
-            isVertical = (90 === ro || 270 === ro);
-            isSwap = isVertical;
-            sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);
-            matches = [];
-            for (sc=scale.min; sc<=scale.max; sc*=scale.inc)
+            is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
+            sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
+            for (sc=scale.min,scm=scale.max,sci=scale.inc; sc<=scm; sc*=sci)
             {
-                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th); twhs = stdMath.round(sc*twh);
-                if (isSwap)
+                tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
+                tws2 = (tws>>>1); ths2 = (ths>>>1);
+                if (is_vertical)
                 {
-                    tw2 = ths;
-                    th2 = tws;
+                    tw2 = ths2;
+                    th2 = tws2;
                 }
                 else
                 {
-                    tw2 = tws;
-                    th2 = ths;
+                    tw2 = tws2;
+                    th2 = ths2;
                 }
-                tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
+                if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) break;
+                tt = scaleThresh ? scaleThresh(sc, ro0) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
-                for (k=(x1+y1*w)<<2,m4=((x2+y2*w)<<2)+4,x=x1,y=y1; k<m4; k+=4,++x)
+                ymat = new A32F(x2-x1+1);
+                if (is_grayscale)
                 {
-                    if (x > x2) {x=x1; ++y;}
-                    if (x + tw2 <= x2 && y + th2 <= y2)
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
                     {
-                        score = (is_grayscale ?
-                        ncc(x, y, sat1[0], sat2[0], /*rsat[0], rsat2[0],*/ tpldata['avg'][0],  tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos)   // R
-                        : ((
-                        ncc(x, y, sat1[0], sat2[0], /*rsat[0], rsat2[0],*/ tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos) + // R
-                        ncc(x, y, sat1[1], sat2[1], /*rsat[1], rsat2[1],*/ tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos) + // G
-                        ncc(x, y, sat1[2], sat2[2], /*rsat[2], rsat2[2],*/ tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, tws, ths, twhs, sin, cos)   // B
-                        ) / 3));
-                        if (score >= tt)
+                        if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        if (nccR >= tt)
                         {
-                            if (maxOnly && (score < maxv)) continue;
-                            if (score > maxv)
+                            score = nccR;
+                            if (!maxOnly || (score >= maxv))
                             {
-                                maxv = score;
-                                if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                if (score > maxv)
+                                {
+                                    maxv = score;
+                                    if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                }
+                                max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
+                                ymat[x-x1-tw2] = y + (th2 || 0); x += (tw2 || 1);
+                                continue;
                             }
-                            max[maxc++] = {x:x, y:y, width:tws, height:ths};
                         }
+                        ++x;
+                    }
+                }
+                else
+                {
+                    for (x=x1+tw2,y=y1+th2,k=y2-th2; y<=k; )
+                    {
+                        if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
+                        if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
+                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
+                        if (nccR >= tt && nccG >= tt && nccB >= tt)
+                        {
+                            score = stdMath.min(nccR, nccG, nccB);
+                            if (!maxOnly || (score >= maxv))
+                            {
+                                if (score > maxv)
+                                {
+                                    maxv = score;
+                                    if (maxOnly) maxc = 0; // reset for new max if maxOnly, else append this one as well
+                                }
+                                max[maxc++] = {x:x-tws2, y:y-ths2, width:tws, height:ths, score:score};
+                                ymat[x-x1-tw2] = y + (th2 || 0); x += (tw2 || 1);
+                                continue;
+                            }
+                        }
+                        ++x;
                     }
                 }
                 if (maxc && (maxc < stdMath.min(maxMatches, mm))) // if not too many
                 {
                     max.length = maxc;
-                    matches.push.apply(matches, max);
+                    matches = merge_features(max, minNeighbors, eps);
+                    matches.forEach(function(match) {match.angle = ro0; match.scale = sc;});
+                    all_matches.push.apply(all_matches, matches);
                 }
             }
-            if (matches.length)
-            {
-                matches = merge_features(matches, minNeighbors, eps);
-                matches.forEach(function(match) {match.angle = ro;});
-                all_matches.push.apply(all_matches, matches);
-            }
         }
-
-        max = matches = null; sat1 = sat2 = rsat = rsat2 = null;
+        max = matches = null; ymat = sat1 = sat2 = null;
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th, sc, ro, tws0, ths0, twhs, sin, cos)
+function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
-    // normalized cross-correlation at point (x,y)
-    if (null == sc) sc = 1;
-    if (null == ro) ro = 0;
-    if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th); twhs = sc*stdMath.sqrt(tw*tw+th*th);}
-    if (null == sin) {sin = stdMath.sin(ro/180*stdMath.PI); cos = stdMath.cos(ro/180*stdMath.PI);}
-    var tws = tws0, ths = ths0, tws2, ths2, area, area2, sw, sh,
-        x0, y0, x1, y1, bk, k, K = basis.length,
-        sum1, sum2, diff, avgf, varf, varft,
-        is_tilted = !(0 === ro || 90 === ro || 180 === ro || 270 === ro),
-        is_vertical = (90 === ro || 270 === ro),
-        is_swap = is_vertical,
-        r = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0};
-    if (is_swap)
+    // normalized cross-correlation centered at point (x,y)
+    /*if (null == sc)
     {
-        // swap x/y
-        tws = ths0;
-        ths = tws0;
+        sc = 1;
     }
-    tws2 = tws0/2;
-    ths2 = ths0/2;
-    if (/*is_tilted*/true)
+    if (null == ro)
     {
-        r.x1 = 0;        r.y1 = 0;
-        r.x2 = tws0 - 1; r.y2 = 0;
-        r.x3 = tws0 - 1; r.y3 = ths0 - 1;
-        r.x4 = 0;        r.y4 = ths0 - 1;
-        rot(r, sin, cos, tws2, ths2);
-        sum1 = satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
-        sum2 = satsuma(sat2, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4);
+        ro = 0;
+    }
+    if (null == kk)
+    {
+        kk = 0;
+        if (null == tws0) {tws0 = stdMath.round(sc*tw); ths0 = stdMath.round(sc*th);}
+        if (null == sin)  {sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);}
+        if (null == rect) {rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};}
+    }*/
+    // not convert from template rotation to image rotation (ie opposite of template rotation)
+    var tws = tws0, ths = ths0, tws2, ths2, roa = stdMath.abs(ro),
+        x0, y0, x1, y1, bk, k, K = basis.length,
+        area, areat, areak, sum1, sum2, diff,
+        avgf, varf, /*vart,*/ varft, cc, f,
+        is_tilted = !(0 === roa || 90 === roa || 180 === roa || 270 === roa);
+    rect.sat = sat1;
+    rect.sat2 = sat2;
+    if (is_tilted)
+    {
+        tws2 = tws>>>1; ths2 = ths>>>1;
+        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
+        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
     }
     else
     {
-        sum1 = satsum(sat1, w, h, x, y, x+tws-1, y+ths-1);
-        sum2 = satsum(sat2, w, h, x, y, x+tws-1, y+ths-1);
+        // swap x/y
+        if (90 === roa || 270 === roa) {tws = ths0; ths = tws0;}
+        tws2 = tws>>>1; ths2 = ths>>>1;
+        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        rect.area = 0; rect.sum = 0; rect.sum2 = 0;
+        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
     }
-    area = tws0*ths0;
+    rect.sat2 = null;
+    areat = tws0*ths0;
+    area = rect.area;
+    sum1 = rect.sum;
+    sum2 = rect.sum2;
+    f = areat/area;
+    // ratio of matched computed area too different or too different for that scale, reject
+    if ((2 <= f || 0.5 >= f || (is_tilted && 1 < sc && f > 0.28*sc*sc) /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
     {
-        return varf < 1e-3 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : 0) : 0;
+        return varf < 1e-2 ? (stdMath.abs(avgf - avgt) < 0.5 ? 1 : (1 - stdMath.abs(avgf - avgt)/stdMath.max(avgf, avgt))) : 0;
     }
     else
     {
@@ -19732,89 +20385,96 @@ function ncc(x, y, sat1, sat2, /*rsat1, rsat2,*/ avgt, vart, basis, w, h, tw, th
         for (k=0; k<K; ++k)
         {
             bk = basis[k];
-            /*if (270 === ro)
+            if (is_tilted)
             {
-                x0 = bk.y0;
-                y0 = tw-1-bk.x1;
-                x1 = bk.y1;
-                y1 = tw-1-bk.x0;
-            }
-            else if (180 === ro)
-            {
-                x0 = tw-1-bk.x1;
-                y0 = th-1-bk.y1;
-                x1 = tw-1-bk.x0;
-                y1 = th-1-bk.y0;
-            }
-            else if (90 === ro)
-            {
-                x0 = th-1-bk.y1;
-                y0 = bk.x0;
-                x1 = th-1-bk.y0;
-                y1 = bk.x1;
-            }
-            else // 0, ..
-            {*/
-                // as is
                 x0 = bk.x0;
                 y0 = bk.y0;
                 x1 = bk.x1;
                 y1 = bk.y1;
-            /*}*/
-            x0 = stdMath.round(sc*x0);
-            y0 = stdMath.round(sc*y0);
-            x1 = stdMath.round(sc*x1);
-            y1 = stdMath.round(sc*y1);
-            sw = x1-x0+1;
-            sh = y1-y0+1;
-            area2 = sw*sh;
-            diff = bk.k-avgt;
-            if (true/*is_tilted*/)
+            }
+            else // not tilted, rectangular
             {
-                r.x1 = x0;  r.y1 = y0;
-                r.x2 = x1;  r.y2 = y0;
-                r.x3 = x1;  r.y3 = y1;
-                r.x4 = x0;  r.y4 = y1;
-                rot(r, sin, cos, tws2, ths2);
-                varft += diff*(satsuma(sat1, w, h, x+r.x1, y+r.y1, x+r.x2, y+r.y2, x+r.x3, y+r.y3, x+r.x4, y+r.y4) - avgf*area2);
+                if (270 === roa) // 270
+                {
+                    // swap x/y
+                    x0 = bk.y0;
+                    y0 = tw-1-bk.x1;
+                    x1 = bk.y1;
+                    y1 = tw-1-bk.x0;
+                }
+                else if (180 === roa) // 180
+                {
+                    x0 = tw-1-bk.x1;
+                    y0 = th-1-bk.y1;
+                    x1 = tw-1-bk.x0;
+                    y1 = th-1-bk.y0;
+                }
+                else if (90 === roa) // 90
+                {
+                    // swap x/y
+                    x0 = th-1-bk.y1;
+                    y0 = bk.x0;
+                    x1 = th-1-bk.y0;
+                    y1 = bk.x1;
+                }
+                else // 0
+                {
+                    x0 = bk.x0;
+                    y0 = bk.y0;
+                    x1 = bk.x1;
+                    y1 = bk.y1;
+                }
+            }
+            x0 = stdMath.round(sc*x0)-tws2;
+            y0 = stdMath.round(sc*y0)-ths2;
+            x1 = stdMath.round(sc*x1)-tws2;
+            y1 = stdMath.round(sc*y1)-ths2;
+            //areak = stdMath.abs((x1-x0+1)*(y1-y0+1));
+            diff = bk.k - avgt;
+            if (is_tilted)
+            {
+                rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
+                satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
             }
             else
             {
-                varft += diff*(satsum(sat1, w, h, x+x0, y+y0, x+x1, y+y1) - avgf*area2);
+                rect.area = 0; rect.sum = 0;
+                satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
             }
-            //vart += diff*diff*area2;
+            areak = rect.area;
+            varft += diff*(rect.sum - avgf*areak);
+            //vart += diff*diff*areak;
         }
-        vart *= area;
-        return stdMath.min(stdMath.max(stdMath.abs(varft)/stdMath.sqrt(vart*varf), 0), 1);
+        //vart.v *= area;
+        cc = (((varft)/stdMath.sqrt(varf*vart.v*area)) || 0)/(vart.c ? vart.c : 1);
+        if (1.01 < cc) cc = 0;
+        return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
-function rot(r, sin, cos, ox, oy)
+function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 {
     var x, y;
+    x = x1 - ox; y = y1 - oy;
+    rect.x1 = stdMath.round(cos*x - sin*y + ox);
+    rect.y1 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x1 - ox; y = r.y1 - oy;
-    r.x1 = stdMath.round(cos*x - sin*y + ox);
-    r.y1 = stdMath.round(sin*x + cos*y + oy);
+    x = x3 - ox; /*y = y1 - oy;*/
+    rect.x2 = stdMath.round(cos*x - sin*y + ox);
+    rect.y2 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x2 - ox; y = r.y2 - oy;
-    r.x2 = stdMath.round(cos*x - sin*y + ox);
-    r.y2 = stdMath.round(sin*x + cos*y + oy);
+    /*x = x3 - ox;*/ y = y3 - oy;
+    rect.x3 = stdMath.round(cos*x - sin*y + ox);
+    rect.y3 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x3 - ox; y = r.y3 - oy;
-    r.x3 = stdMath.round(cos*x - sin*y + ox);
-    r.y3 = stdMath.round(sin*x + cos*y + oy);
+    x = x1 - ox; /*y = y3 - oy;*/
+    rect.x4 = stdMath.round(cos*x - sin*y + ox);
+    rect.y4 = stdMath.round(sin*x + cos*y + oy);
 
-    x = r.x4 - ox; y = r.y4 - oy;
-    r.x4 = stdMath.round(cos*x - sin*y + ox);
-    r.y4 = stdMath.round(sin*x + cos*y + oy);
-}
-function sign(x)
-{
-    return 0 > x ? -1 : 1;
+    rect.area = 0; rect.sum = 0; rect.sum2 = 0;
 }
 function preprocess_tpl(t, w, h, Jmax, minSz, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b, v,
+    var tr = 0, tg = 0, tb = 0, a, b, v, s, s2,
         l = t.length, n = w*h, p;
     for (p=0; p<l; p+=4)
     {
@@ -19825,37 +20485,42 @@ function preprocess_tpl(t, w, h, Jmax, minSz, channel)
     a = [tr, tg, tb];
     if (null != Jmax)
     {
+        s = [null, null, null];
+        s2 = [null, null, null];
         b = [[], [], []];
         v = [0, 0, 0];
         if (null != channel)
         {
-            b[channel] = FilterUtil.tm_approximate(t, w, h, channel, Jmax, minSz);
-            v[channel] = basisv(b[channel], a[channel]);
+            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n));
+            b[channel] = FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz);
+            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], w, h);
         }
         else
         {
+            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n));
+            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n));
+            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n));
             b = [
-            FilterUtil.tm_approximate(t, w, h, 0, Jmax, minSz),
-            FilterUtil.tm_approximate(t, w, h, 1, Jmax, minSz),
-            FilterUtil.tm_approximate(t, w, h, 2, Jmax, minSz)
+            FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz),
+            FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz),
+            FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz)
             ];
             v = [
-            basisv(b[0], a[0], w, h),
-            basisv(b[1], a[1], w, h),
-            basisv(b[2], a[2], w, h)
+            basisv(b[0], a[0], s[0], s2[0], w, h),
+            basisv(b[1], a[1], s[1], s2[1], w, h),
+            basisv(b[2], a[2], s[2], s2[2], w, h)
             ];
         }
     }
     return {'avg':a, 'basis':b||null, 'var':v||null};
 }
-function approximate(t, w, h, c, Jmax, minSz)
+function approximate(t, s, w, h, c, Jmax, minSz)
 {
     var J, J2, Jmin, bmin,
         x0, x1, y0, y1, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
         p, tp, l = t.length, n = l>>>2,
-        s, v, k, K, b, bk, bb;
-    sat(t, w, h, 2, c, s=new A32F(n));
+        v, k, K, b, bk, bb;
     b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
@@ -19869,87 +20534,92 @@ function approximate(t, w, h, c, Jmax, minSz)
         for (k=0; k<K; ++k)
         {
             bk = b[k];
-            if (minSz >= bk.x1 - bk.x0 + 1 && minSz >= bk.y1 - bk.y0 + 1) continue;
-            for (x=bk.x0; x<bk.x1; ++x)
+            if (minSz < bk.x1 - bk.x0 + 1)
             {
-                J2 = J;
-                hh = bk.y1-bk.y0+1;
-                ww = x-bk.x0+1;
-                avg1 = satsum(s, w, h, bk.x0, bk.y0, x, bk.y1)/(ww*hh);
-                ww = bk.x1-(x+1)+1;
-                avg2 = satsum(s, w, h, x+1, bk.y0, bk.x1, bk.y1)/(ww*hh);
-                for (xx=bk.x0; xx<=x; ++xx)
+                for (x=bk.x0; x<bk.x1; ++x)
                 {
-                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    J2 = J;
+                    hh = bk.y1-bk.y0+1;
+                    ww = x-bk.x0+1;
+                    avg1 = satsum(s, w, h, bk.x0, bk.y0, x, bk.y1)/(ww*hh);
+                    ww = bk.x1-(x+1)+1;
+                    avg2 = satsum(s, w, h, x+1, bk.y0, bk.x1, bk.y1)/(ww*hh);
+                    for (xx=bk.x0; xx<=x; ++xx)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg1);
-                        J2 += v*v/n;
+                        for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg1);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                for (xx=x+1; xx<=bk.x1; ++xx)
-                {
-                    for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                    for (xx=x+1; xx<=bk.x1; ++xx)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg2);
-                        J2 += v*v/n;
+                        for (yy=bk.y0,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg2);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                if (J2 < Jmin)
-                {
-                    Jmin = J2;
-                    bmin = b.slice(0, k);
-                    bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
-                    bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
-                    bmin.push.apply(bmin, b.slice(k+1));
+                    if (J2 < Jmin)
+                    {
+                        Jmin = J2;
+                        bmin = b.slice(0, k);
+                        bmin.push({k:avg1, x0:bk.x0, x1:x, y0:bk.y0, y1:bk.y1});
+                        bmin.push({k:avg2, x0:x+1, x1:bk.x1, y0:bk.y0, y1:bk.y1});
+                        bmin.push.apply(bmin, b.slice(k+1));
+                    }
                 }
             }
-            for (y=bk.y0; y<bk.y1; ++y)
+            if (minSz < bk.y1 - bk.y0 + 1)
             {
-                J2 = J;
-                ww = bk.x1-bk.x0+1;
-                hh = y-bk.y0+1;
-                avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
-                hh = bk.y1-(y+1)+1;
-                avg2 = satsum(s, w, h, bk.x0, y+1, bk.x1, bk.y1)/(ww*hh);
-                for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
+                for (y=bk.y0; y<bk.y1; ++y)
                 {
-                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    J2 = J;
+                    ww = bk.x1-bk.x0+1;
+                    hh = y-bk.y0+1;
+                    avg1 = satsum(s, w, h, bk.x0, bk.y0, bk.x1, y)/(ww*hh);
+                    hh = bk.y1-(y+1)+1;
+                    avg2 = satsum(s, w, h, bk.x0, y+1, bk.x1, bk.y1)/(ww*hh);
+                    for (yy=bk.y0,yw=yy*w; yy<=y; ++yy,yw+=w)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg1);
-                        J2 += v*v/n;
+                        for (xx=bk.x0; xx<=bk.x1; ++xx)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg1);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                for (yy=y+1,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
-                {
-                    for (xx=bk.x0; xx<=bk.x1; ++xx)
+                    for (yy=y+1,yw=yy*w; yy<=bk.y1; ++yy,yw+=w)
                     {
-                        p = (xx + yw) << 2;
-                        tp = t[p+c];
-                        v = (tp - bk.k);
-                        J2 -= v*v/n;
-                        v = (tp - avg2);
-                        J2 += v*v/n;
+                        for (xx=bk.x0; xx<=bk.x1; ++xx)
+                        {
+                            p = (xx + yw) << 2;
+                            tp = t[p+c];
+                            v = (tp - bk.k);
+                            J2 -= v*v/n;
+                            v = (tp - avg2);
+                            J2 += v*v/n;
+                        }
                     }
-                }
-                if (J2 < Jmin)
-                {
-                    Jmin = J2;
-                    bmin = b.slice(0, k);
-                    bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
-                    bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
-                    bmin.push.apply(bmin, b.slice(k+1));
+                    if (J2 < Jmin)
+                    {
+                        Jmin = J2;
+                        bmin = b.slice(0, k);
+                        bmin.push({k:avg1, x0:bk.x0, x1:bk.x1, y0:bk.y0, y1:y});
+                        bmin.push({k:avg2, x0:bk.x0, x1:bk.x1, y0:y+1, y1:bk.y1});
+                        bmin.push.apply(bmin, b.slice(k+1));
+                    }
                 }
             }
         }
@@ -19960,11 +20630,23 @@ function approximate(t, w, h, c, Jmax, minSz)
     b[0].q = 1-Jmin/255/255;
     return b;
 }
-function basisv(basis, avg, w, h)
+function basisv(basis, avg, sat, sat2, w, h)
 {
-    var k, K = basis.length, bk, v = 0;
-    for (k=0; k<K; ++k) {bk = basis[k]; v += ((bk.x1-bk.x0+1)/w*(bk.k-avg))*((bk.y1-bk.y0+1)/h*(bk.k-avg));}
-    return v;
+    var k, K = basis.length, bk, diff, areak, x0, x1, y0, y1, vart = 0, varf = 0, varft = 0;
+    varf = stdMath.abs(satsum(sat2, w, h, 0, 0, w-1, h-1)-satsum(sat, w, h, 0, 0, w-1, h-1)*avg);
+    for (k=0; k<K; ++k)
+    {
+        bk = basis[k];
+        x0 = bk.x0;
+        y0 = bk.y0;
+        x1 = bk.x1;
+        y1 = bk.y1;
+        areak = (x1-x0+1)*(y1-y0+1);
+        diff = bk.k - avg;
+        vart += diff*diff*areak;
+        varft += diff*(satsum(sat, w, h, x0, y0, x1, y1) - avg*areak);
+    }
+    return {v:vart/(w*h), c:((varft)/stdMath.sqrt(varf*vart)) || 0};
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;

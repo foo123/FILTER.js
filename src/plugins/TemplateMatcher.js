@@ -190,7 +190,7 @@ FILTER.Create({
             is_vertical, rot = self.rot, scale = self.sc,
             thresh = self.threshold, _k = self._k || 0,
             scaleThresh = self.scaleThreshold,
-            r, rl, ro, sc, scm, sci, tt,
+            r, rl, ro, ro0, sc, scm, sci, tt,
             tw2, th2, tws2, ths2, tws, ths,
             m = im.length, n = tpl.length,
             mm = w*h, nn = tw*th, m4, score,
@@ -268,7 +268,8 @@ FILTER.Create({
         if (sat1[0] === sat1[1] && sat1[0] === sat1[2]) is_grayscale = true;
         for (r=0,rl=rot.length; r<rl; ++r)
         {
-            ro = ((rot[r] || 0) % 360); // rotation represents template rotation (ie opposite of image rotation)
+            ro0 = (rot[r] || 0);
+            ro = (ro0 % 360); // rotation represents template rotation (ie opposite of image rotation)
             if (0 > ro) ro += 360;
             is_vertical = ((45 < ro && ro <= 135) || (225 < ro && ro <= 315));
             sin = stdMath.sin((ro/180)*stdMath.PI); cos = stdMath.cos((ro/180)*stdMath.PI);
@@ -287,7 +288,7 @@ FILTER.Create({
                     th2 = ths2;
                 }
                 if (x2-x1+1 < (tw2<<1) || y2-y1+1 < (th2<<1)) break;
-                tt = scaleThresh ? scaleThresh(sc, ro) : thresh;
+                tt = scaleThresh ? scaleThresh(sc, ro0) : thresh;
                 max = new Array(mm); maxc = 0; maxv = -Infinity;
                 ymat = new A32F(x2-x1+1);
                 if (is_grayscale)
@@ -346,7 +347,7 @@ FILTER.Create({
                 {
                     max.length = maxc;
                     matches = merge_features(max, minNeighbors, eps);
-                    matches.forEach(function(match) {match.angle = ro; match.scale = sc;});
+                    matches.forEach(function(match) {match.angle = ro0; match.scale = sc;});
                     all_matches.push.apply(all_matches, matches);
                 }
             }

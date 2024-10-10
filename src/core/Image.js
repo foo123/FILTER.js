@@ -584,11 +584,11 @@ var FilterImage = FILTER.Image = FILTER.Class({
             if (!mapping || !mapping.filter) {++missing; return;}
             var from = mapping.from || {x:0, y:0},
                 to = mapping.to || {x:self.width-1, y:self.height-1},
-                absolute = mapping.absolute,
+                absolute = mapping.to ? mapping.absolute : true,
                 data = self.getDataFromSelection(from.x, from.y, to.x, to.y, absolute);
             mapping.filter.apply_(self, data[0], data[1], data[2], function(resultData, processorFilter) {
                 ++completed;
-                reduce(self, resultData, from, to, absolute, processorFilter, index);
+                if (reduce) reduce(self, resultData, from, to, absolute, processorFilter, index);
                 if ((completed+missing === mappings.length) && done) done(self);
             });
         });

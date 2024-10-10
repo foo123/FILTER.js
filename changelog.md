@@ -1,10 +1,9 @@
 ## ChangeLog
 
-__1.11.0__ (in progress)
+__1.11.0__
 
-* TemplateMatcherFilter fast matching for arbitrary rotation angles and scales (in progress)
+* TemplateMatcherFilter fast matching for arbitrary rotation angles and scales
 * HaarDetectorFilter/TemplateMatcherFilter returned features include matching score
-* fast ColorDetectorFilter based on ConnectedComponents algorithm
 * various edits and updates
 
 __1.10.0__

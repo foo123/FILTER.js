@@ -1,6 +1,6 @@
 /**
 *
-* Connected Components Extractor, Color Detector
+* Connected Components Extractor
 * @package FILTER.js
 *
 **/
@@ -117,7 +117,8 @@ FILTER.Create({
         }
     }
 });
-FILTER.Create({
+
+/*FILTER.Create({
     name: "ColorDetectorFilter"
 
     // parameters
@@ -234,7 +235,7 @@ FILTER.Create({
         self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, minArea, maxArea, x1, y1, x2, y2)};
         return im;
     }
-});
+});*/
 
 // private methods
 function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)

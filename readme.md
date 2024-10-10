@@ -7,7 +7,7 @@
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers, WebAssembly and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
 
 
-**version 1.11.0 in progress** (396kB minified)
+**version 1.11.0** (409 kB minified)
 
 
 ### Contents
@@ -22,7 +22,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 * [Todo](#todo)
 
 
-[![Filter.js](/screenshots/filters-image-process-new.png)](https://foo123.github.io/examples/filter/)
+[![Filter.js](/screenshots/filters-image-process.png)](https://foo123.github.io/examples/filter/)
 [![Filter.js](/screenshots/filters-video-process.png)](https://foo123.github.io/examples/filter-video/)
 [![Filter.js](/screenshots/filter-sound-vis.png)](https://foo123.github.io/examples/filter-sound/)
 
@@ -110,6 +110,7 @@ Change the dependencies file to include your own selection of filters and plugin
 **see also:**
 
 * [Abacus](https://github.com/foo123/Abacus) advanced Combinatorics and Algebraic Number Theory Symbolic Computation library for JavaScript, Python
+* [TensorView](https://github.com/foo123/TensorView) view array data as multidimensional tensors of various shapes efficiently
 * [Plot.js](https://github.com/foo123/Plot.js) simple and small library which can plot graphs of functions and various simple charts and can render to Canvas, SVG and plain HTML
 * [HAAR.js](https://github.com/foo123/HAAR.js) image feature detection based on Haar Cascades in JavaScript (Viola-Jones-Lienhart et al Algorithm)
 * [HAARPHP](https://github.com/foo123/HAARPHP) image feature detection based on Haar Cascades in PHP (Viola-Jones-Lienhart et al Algorithm)
