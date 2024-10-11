@@ -4,7 +4,7 @@ var parse_args = require('./commargs.js'),
     fs = require('fs'),
     F = require('./filterwithcanvas.js'),
     parallel = !!parse_args().options['parallel'],
-    template_matcher = F.TemplateMatcherFilter();
+    template_matcher = F.TemplateMatcherFilter().params({threshold:0.95});
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if (parallel) template_matcher.worker(true);

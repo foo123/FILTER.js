@@ -405,7 +405,7 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     sum2 = rect.sum2;
     f = areat/area;
     // ratio of matched computed area too different or too different for that scale, reject
-    if ((2 <= f || 0.5 >= f || (is_tilted && 1 < sc && f > 0.28*sc*sc) /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
+    if ((2 <= f || 0.5 >= f /*|| (is_tilted && 1 < sc && f > 0.28*sc*sc)*/ /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
     avgf = sum1/area;
     varf = stdMath.abs(sum2-sum1*avgf);
     if (1 >= K)
@@ -480,7 +480,9 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
             //vart += diff*diff*areak;
         }
         //vart.v *= area;
-        cc = (((varft)/stdMath.sqrt(varf*vart.v*area)) || 0)/(vart.c ? vart.c : 1);
+        cc = (((varft)/stdMath.sqrt(varf*vart.v*area)) || 0);
+        if (cc <= stdMath.abs(vart.c0 || 0)) return 0;
+        cc = (cc /*- (vart.c0 || 0)*/)/(vart.c ? (vart.c /*- (vart.c0||0)*/) : 1);
         if (1.01 < cc) cc = 0;
         return stdMath.min(stdMath.max(cc, -1), 1);
     }
@@ -666,8 +668,12 @@ function approximate(t, s, w, h, c, Jmax, minSz)
 }
 function basisv(basis, avg, sat, sat2, w, h)
 {
-    var k, K = basis.length, bk, diff, areak, x0, x1, y0, y1, vart = 0, varf = 0, varft = 0;
-    varf = stdMath.abs(satsum(sat2, w, h, 0, 0, w-1, h-1)-satsum(sat, w, h, 0, 0, w-1, h-1)*avg);
+    var k, K = basis.length, bk, areak,
+        x0, x1, y0, y1, diff, diffc, max = 0,
+        sum1 = satsum(sat, w, h, 0, 0, w-1, h-1),
+        sum2 = satsum(sat2, w, h, 0, 0, w-1, h-1),
+        varf = sum2 - sum1*avg, varfc = varf,
+        vart = 0, varft = 0, vartc = 0, varftc = 0;
     for (k=0; k<K; ++k)
     {
         bk = basis[k];
@@ -677,10 +683,25 @@ function basisv(basis, avg, sat, sat2, w, h)
         y1 = bk.y1;
         areak = (x1-x0+1)*(y1-y0+1);
         diff = bk.k - avg;
-        vart += diff*diff*areak;
-        varft += diff*(satsum(sat, w, h, x0, y0, x1, y1) - avg*areak);
+        sum1 = satsum(sat, w, h, x0, y0, x1, y1);
+        if (areak > max)
+        {
+            max = areak;
+            diffc = (255 - bk.k) - avg;
+            vartc = vart + diffc*diffc*areak;
+            varftc = varft + diffc*(sum1 - avg*areak);
+            vart += diff*diff*areak;
+            varft += diff*(sum1 - avg*areak);
+        }
+        else
+        {
+            vart += diff*diff*areak;
+            varft += diff*(sum1 - avg*areak);
+            vartc += diff*diff*areak;
+            varftc += diff*(sum1 - avg*areak);
+        }
     }
-    return {v:vart/(w*h), c:((varft)/stdMath.sqrt(varf*vart)) || 0};
+    return {v:vart/(w*h), c:(varft)/stdMath.sqrt(stdMath.abs(varf*vart)) || 0, c0:(varftc)/stdMath.sqrt(stdMath.abs(varfc*vartc)) || 0};
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;
