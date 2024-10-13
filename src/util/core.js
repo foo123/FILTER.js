@@ -1834,6 +1834,20 @@ function integral_histogram(im, w, h, channel)
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
 }
+function match_histogram(v0, cdf0, cdf1)
+{
+    var min = 0, max = 255, v1 = v0, vp = v1, diff;
+    while (true)
+    {
+        diff = cdf1[v1] - cdf0[v0];
+        if (0 === diff) return v1;
+        else if (0 > diff) min = v1;
+        else max = v1;
+        v1 = (min + max) >>> 1;
+        if (vp === v1 || min >= max) return vp;
+        vp = v1;
+    }
+}
 function _otsu(bin, tot, min, max, ret_sigma)
 {
     var omega0, omega1,
@@ -2950,6 +2964,7 @@ FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
+FilterUtil.match_histogram = match_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.otsu_multi = otsu_multi;
 FilterUtil.otsu_multiclass = otsu_multiclass;

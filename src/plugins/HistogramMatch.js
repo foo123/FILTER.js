@@ -3,6 +3,9 @@
 * Histogram Equalize,
 * Histogram Equalize for grayscale images,
 * RGB Histogram Equalize
+* Histogram Matching,
+* Histogram Matching for grayscale images,
+* RGB Histogram Matching
 * @package FILTER.js
 *
 **/
@@ -11,7 +14,7 @@
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    FilterUtil = FILTER.Util.Filter,
+    FilterUtil = FILTER.Util.Filter, matchHist = FilterUtil.match_histogram,
     stdMath = Math, Min = stdMath.min, Max = stdMath.max;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -53,7 +56,7 @@ FILTER.Create({
 
     ,_apply_rgb: function(im, w, h) {
         var self = this,
-            r ,g, b,
+            r, g, b,
             rangeR, rangeG, rangeB,
             cdfR, cdfG, cdfB,
             f = self.factor || 0,
@@ -65,7 +68,7 @@ FILTER.Create({
             ba = (null == range[4] ? ra : range[4]) || 0,
             bb = (null == range[5] ? rb : range[5]) || 255,
             t0, t1, t2, v,
-            i, l=im.length;
+            i, l = im.length;
 
         cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
         cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
@@ -330,6 +333,140 @@ FILTER.Create({
                     im[i+1] = g|0;
                     im[i+2] = b|0;
                 }
+            }
+        }
+        return im;
+    }
+});
+
+// a simple histogram matching filter  https://en.wikipedia.org/wiki/Histogram_matching
+FILTER.Create({
+    name : "HistogramMatchFilter"
+
+    ,path: FILTER.Path
+
+    ,mode: MODE.INTENSITY
+    ,cdf: null
+    ,channel: 0
+
+    ,init: function(mode, cdf, channel) {
+        var self = this;
+        self.mode = mode || MODE.INTENSITY;
+        self.cdf = cdf;
+        self.channel = channel || 0;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             channel: self.channel,
+             cdf: self.cdf
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.channel = params.channel;
+        self.cdf = params.cdf;
+        return self;
+    }
+
+    ,_apply_rgb: function(im, w, h) {
+        var self = this,
+            r, g, b, v, i,
+            cdf = self.cdf,
+            cdfR, cdfG, cdfB,
+            l = im.length, count = l >>> 2;
+
+        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
+        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
+        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
+        for (i=0; i<256; ++i)
+        {
+            cdfR.bin[i] /= count;
+            cdfG.bin[i] /= count;
+            cdfB.bin[i] /= count;
+        }
+        // match each channel separately
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i  ];
+            g = im[i+1];
+            b = im[i+2];
+            im[i  ] = matchHist(r, cdfR.bin, cdf[0]);
+            im[i+1] = matchHist(g, cdfG.bin, cdf[1]);
+            im[i+2] = matchHist(b, cdfB.bin, cdf[2]);;
+        }
+        // return the new image data
+        return im;
+    }
+
+    ,apply: function(im, w, h) {
+        var self = this;
+
+        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
+
+        var r, g, b, y, cb, cr, cdf, i, v,
+            l = im.length, count = l >>> 2,
+            channel = self.channel || 0,
+            cdf2, mode = self.mode;
+
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
+        {
+            cdf = FilterUtil.histogram(im, channel, true);
+            cdf2 = self.cdf[channel];
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
+                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
+                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i  ] = cr;
+                im[i+1] = y;
+                im[i+2] = cb;
+            }
+            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
+            cdf2 = self.cdf[0];
+        }
+        for (i=0; i<256; ++i) cdf.bin[i] /= count;
+        // match only the intesity channel
+        if (MODE.GRAY === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = matchHist(im[i+channel], cdf.bin, cdf2);
+                im[i] = r; im[i+1] = r; im[i+2] = r;
+            }
+        }
+        else if (MODE.CHANNEL === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                im[i+channel] = matchHist(im[i+channel], cdf.bin, cdf2);
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                y = matchHist(im[i+1], cdf.bin, cdf2);
+                cb = im[i+2];
+                cr = im[i  ];
+                r = (y                      + 1.402   * (cr-128));
+                g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                b = (y + 1.772   * (cb-128));
+                im[i  ] = r|0;
+                im[i+1] = g|0;
+                im[i+2] = b|0;
             }
         }
         return im;

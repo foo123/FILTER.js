@@ -1,5 +1,10 @@
 ## ChangeLog
 
+__1.12.0 (in progress)__
+
+* HistogramMatchFilter
+* various edits and updates
+
 __1.11.0__
 
 * TemplateMatcherFilter fast matching for arbitrary rotation angles and scales
