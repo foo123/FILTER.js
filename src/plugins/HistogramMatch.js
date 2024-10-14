@@ -14,7 +14,10 @@
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    FilterUtil = FILTER.Util.Filter, matchHist = FilterUtil.match_histogram,
+    FilterUtil = FILTER.Util.Filter,
+    compute_histogram = FilterUtil.histogram,
+    match_histogram = FilterUtil.match_histogram,
+    TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, Min = stdMath.min, Max = stdMath.max;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -70,9 +73,9 @@ FILTER.Create({
             t0, t1, t2, v,
             i, l = im.length;
 
-        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
-        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
-        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
+        cdfR = compute_histogram(im, CHANNEL.R, true);
+        cdfG = compute_histogram(im, CHANNEL.G, true);
+        cdfB = compute_histogram(im, CHANNEL.B, true);
         // equalize each channel separately
         f = 1 - Min(Max(f, 0), 1);
         rangeR = (cdfR.max - cdfR.min)/cdfR.total;
@@ -179,7 +182,7 @@ FILTER.Create({
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            cdf = FilterUtil.histogram(im, channel, true);
+            cdf = compute_histogram(im, channel, true);
         }
         else
         {
@@ -199,7 +202,7 @@ FILTER.Create({
                 im[i+1] = y;
                 im[i+2] = cb;
             }
-            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
+            cdf = compute_histogram(im, CHANNEL.G, true);
         }
         // equalize only the intesity channel
         f = 1 - Min(Max(f, 0), 1);
@@ -360,14 +363,14 @@ FILTER.Create({
         var self = this;
         return {
              channel: self.channel,
-             cdf: self.cdf
+             cdf: TypedObj(self.cdf)
         };
     }
 
     ,unserialize: function(params) {
         var self = this;
         self.channel = params.channel;
-        self.cdf = params.cdf;
+        self.cdf = TypedObj(params.cdf, 1);
         return self;
     }
 
@@ -376,26 +379,20 @@ FILTER.Create({
             r, g, b, v, i,
             cdf = self.cdf,
             cdfR, cdfG, cdfB,
-            l = im.length, count = l >>> 2;
+            l = im.length;
 
-        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
-        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
-        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
-        for (i=0; i<256; ++i)
-        {
-            cdfR.bin[i] /= count;
-            cdfG.bin[i] /= count;
-            cdfB.bin[i] /= count;
-        }
+        cdfR = compute_histogram(im, CHANNEL.R, true, true);
+        cdfG = compute_histogram(im, CHANNEL.G, true, true);
+        cdfB = compute_histogram(im, CHANNEL.B, true, true);
         // match each channel separately
         for (i=0; i<l; i+=4)
         {
             r = im[i  ];
             g = im[i+1];
             b = im[i+2];
-            im[i  ] = matchHist(r, cdfR.bin, cdf[0]);
-            im[i+1] = matchHist(g, cdfG.bin, cdf[1]);
-            im[i+2] = matchHist(b, cdfB.bin, cdf[2]);;
+            im[i  ] = match_histogram(r, cdfR.bin, cdf[0], 0, 255);
+            im[i+1] = match_histogram(g, cdfG.bin, cdf[1], 0, 255);
+            im[i+2] = match_histogram(b, cdfB.bin, cdf[2], 0, 255);
         }
         // return the new image data
         return im;
@@ -406,14 +403,14 @@ FILTER.Create({
 
         if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
 
-        var r, g, b, y, cb, cr, cdf, i, v,
-            l = im.length, count = l >>> 2,
+        var r, g, b, y, cb, cr,
+            cdf, i, v, l = im.length,
             channel = self.channel || 0,
             cdf2, mode = self.mode;
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            cdf = FilterUtil.histogram(im, channel, true);
+            cdf = compute_histogram(im, channel, true, true);
             cdf2 = self.cdf[channel];
         }
         else
@@ -434,16 +431,15 @@ FILTER.Create({
                 im[i+1] = y;
                 im[i+2] = cb;
             }
-            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
+            cdf = compute_histogram(im, CHANNEL.G, true, true);
             cdf2 = self.cdf[0];
         }
-        for (i=0; i<256; ++i) cdf.bin[i] /= count;
         // match only the intesity channel
         if (MODE.GRAY === mode)
         {
             for (i=0; i<l; i+=4)
             {
-                r = matchHist(im[i+channel], cdf.bin, cdf2);
+                r = match_histogram(im[i+channel], cdf.bin, cdf2, 0, 255);
                 im[i] = r; im[i+1] = r; im[i+2] = r;
             }
         }
@@ -451,14 +447,14 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                im[i+channel] = matchHist(im[i+channel], cdf.bin, cdf2);
+                im[i+channel] = match_histogram(im[i+channel], cdf.bin, cdf2, 0, 255);
             }
         }
         else
         {
             for (i=0; i<l; i+=4)
             {
-                y = matchHist(im[i+1], cdf.bin, cdf2);
+                y = match_histogram(im[i+1], cdf.bin, cdf2, 0, 255);
                 cb = im[i+2];
                 cr = im[i  ];
                 r = (y                      + 1.402   * (cr-128));

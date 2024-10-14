@@ -1666,10 +1666,11 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
-function histogram(im, channel, cdf)
+function histogram(im, channel, cdf, norm)
 {
     channel = channel || 0;
-    var h = new A32F(256), v, i, l = im.length,
+    var h = new A32F(256), v, i,
+        l = im.length, total = (l >>> 2),
         accum = 0, min = 255, max = 0;
     for (i=0; i<256; ++i) h[i] = 0;
     for (i=0; i<l; i+=4)
@@ -1693,7 +1694,18 @@ function histogram(im, channel, cdf)
             accum += h[i]; h[i++] = accum;
         }
     }
-    return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
+    if (norm)
+    {
+        for (i=0; i<256; )
+        {
+            // partial loop unrolling
+            h[i++] /= total;
+            h[i++] /= total;
+            h[i++] /= total;
+            h[i++] /= total;
+        }
+    }
+    return {bin:h, channel:channel, min:min, max:max, total:total};
 }
 function integral_histogram(im, w, h, channel)
 {
@@ -1834,18 +1846,19 @@ function integral_histogram(im, w, h, channel)
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
 }
-function match_histogram(v0, cdf0, cdf1)
+function match_histogram(i, actual_cdf, desired_cdf, min, max)
 {
-    var min = 0, max = 255, v1 = v0, vp = v1, diff;
-    while (true)
+    var /*min = 0, max = 255,*/ diff, j = i, jprev = j;
+    // binary search, O(log(256))=O(8) thus O(1)
+    for (;;)
     {
-        diff = cdf1[v1] - cdf0[v0];
-        if (0 === diff) return v1;
-        else if (0 > diff) min = v1;
-        else max = v1;
-        v1 = (min + max) >>> 1;
-        if (vp === v1 || min >= max) return vp;
-        vp = v1;
+        diff = desired_cdf[j] - actual_cdf[i];
+        if (0 === diff) return j;
+        else if (0 > diff) min = j;
+        else max = j;
+        j = (min + max) >>> 1;
+        if (jprev === j || min >= max) return j;
+        jprev = j;
     }
 }
 function _otsu(bin, tot, min, max, ret_sigma)
