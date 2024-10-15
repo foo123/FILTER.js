@@ -1,10 +1,9 @@
 ## ChangeLog
 
-__1.12.0 (in progress)__
+__1.12.0__
 
 * HistogramMatchFilter
-* HoughDetectorFilter
-* various edits and updates
+* various edits, corrections and updates
 
 __1.11.0__
 

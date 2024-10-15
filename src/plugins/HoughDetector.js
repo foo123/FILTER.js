@@ -1,11 +1,13 @@
 /**
 *
-* Generalized Hough Detector
+* Generalized Hough Detector (in progress)
 * @package FILTER.js
 *
 **/
 !function(FILTER, undef){
 "use strict";
+
+var TypedObj = FILTER.Util.Array.typed_obj;
 
 FILTER.Create({
     name : "HoughDetectorFilter"

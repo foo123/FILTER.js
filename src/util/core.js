@@ -1666,16 +1666,20 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
-function histogram(im, channel, cdf, norm)
+function histogram(im, channel, ret_cdf, ret_norm)
 {
     channel = channel || 0;
     var h = new A32F(256), v, i,
+        ALPHA = FILTER.CHANNEL.A,
         l = im.length, total = 0,
         accum = 0, min = 255, max = 0;
-    for (i=0; i<256; ++i) h[i] = 0;
+    for (i=0; i<256; ++i)
+    {
+        h[i] = 0;
+    }
     for (i=0; i<l; i+=4)
     {
-        if (0 < im[i+3])
+        if (0 < im[i+ALPHA])
         {
             v = im[i+channel];
             ++h[v];
@@ -1684,19 +1688,30 @@ function histogram(im, channel, cdf, norm)
             max = Max(v, max);
         }
     }
-    if (cdf)
+    if (ret_cdf)
     {
-        for (i=0; i<256; ++i) {accum += h[i]; h[i] = accum;}
+        for (i=0; i<256; ++i)
+        {
+            accum += h[i];
+            h[i] = accum;
+        }
     }
-    if (norm)
+    if (ret_norm)
     {
-        for (i=0; i<256; ++i) h[i] /= total;
+        for (i=0; i<256; ++i)
+        {
+            h[i] /= total;
+        }
     }
     return {bin:h, channel:channel, min:min, max:max, total:total};
 }
 function integral_histogram(im, w, h, channel)
 {
     var r, g, b, i, j, k, kk, x, y,
+        RED = FILTER.CHANNEL.R,
+        GREEN = FILTER.CHANNEL.G,
+        BLUE = FILTER.CHANNEL.B,
+        ALPHA = FILTER.CHANNEL.A,
         l = im.length, total = (l>>>2),
         w4 = w*4, w256 = w*256,
         minr = 255, maxr = 0,
@@ -1717,11 +1732,11 @@ function integral_histogram(im, w, h, channel)
             hg[0+j] = 0;
             hb[0+j] = 0;
         }
-        if (0 < im[0+3])
+        if (0 < im[0+ALPHA])
         {
-            r = im[0  ];
-            g = im[0+1];
-            b = im[0+2];
+            r = im[0+RED];
+            g = im[0+GREEN];
+            b = im[0+BLUE];
             hr[0+r] = 1;
             hg[0+g] = 1;
             hb[0+b] = 1;
@@ -1740,11 +1755,11 @@ function integral_histogram(im, w, h, channel)
                 hg[k+j] = hg[kk+j];
                 hb[k+j] = hb[kk+j];
             }
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
+                r = im[i+RED];
+                g = im[i+GREEN];
+                b = im[i+BLUE];
                 ++hr[k+r];
                 ++hg[k+g];
                 ++hb[k+b];
@@ -1769,11 +1784,11 @@ function integral_histogram(im, w, h, channel)
                 hg[k+j] = hg[kk+j] + (sumg[j]||0);
                 hb[k+j] = hb[kk+j] + (sumb[j]||0);
             }
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
+                r = im[i+RED];
+                g = im[i+GREEN];
+                b = im[i+BLUE];
                 ++hr[k+r];
                 ++hg[k+g];
                 ++hb[k+b];
@@ -1795,7 +1810,7 @@ function integral_histogram(im, w, h, channel)
     {
         channel = channel || 0;
         for (x=0,y=0,j=0; j<256; ++j) hr[0+j] = 0;
-        if (0 < im[0+3])
+        if (0 < im[0+ALPHA])
         {
             r = im[i+channel];
             hr[0+r] = 1;
@@ -1805,7 +1820,7 @@ function integral_histogram(im, w, h, channel)
         for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
         {
             for (kk=k-256,j=0; j<256; ++j) hr[k+j] = hr[kk+j];
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
                 r = im[i+channel];
                 ++hr[k+r];
@@ -1821,7 +1836,7 @@ function integral_histogram(im, w, h, channel)
                 for (j=0; j<256; ++j) sumr[j] = 0;
             }
             for (kk=k-w256,j=0; j<256; ++j) hr[k+j] = hr[kk+j] + (sumr[j]||0);
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
                 r = im[i+channel];
                 ++hr[k+r]; sumr[r] = (sumr[r]||0) + 1;
@@ -1833,12 +1848,14 @@ function integral_histogram(im, w, h, channel)
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
 }
-function match_histogram(l, actual_cdf, desired_cdf, min, max)
+function match_histogram(l, actual_cdf, desired_cdf, min0, max0)
 {
-    var diff, i, j, jprev, min0, max0, count, match;
-    if (null == min) {min = 0; max = 255;}
+    if (null == min0) {min0 = 0; max0 = 255;}
+    var i, j, jprev, min, max, diff, count, match;
     if (l === (+l))
     {
+        min = min0;
+        max = max0;
         i = l;
         j = i;
         jprev = j;
@@ -1857,7 +1874,6 @@ function match_histogram(l, actual_cdf, desired_cdf, min, max)
     else
     {
         // binary search, O(256*log(256))=O(256*8) thus O(1)
-        min0 = min; max0 = max;
         count = max0 - min0 + 1;
         match = l && (count <= l.length) ? l : (new A8U(count));
         for (i=min0; i<=max0; ++i)

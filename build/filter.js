@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.11.0
-*   @built on 2024-10-11 18:32:07
+*   @version: 1.12.0
+*   @built on 2024-10-15 16:51:30
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.11.0
-*   @built on 2024-10-11 18:32:07
+*   @version: 1.12.0
+*   @built on 2024-10-15 16:51:30
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.11.0"};
+var FILTER = {VERSION: "1.12.0"};
 /**
 *
 *   Asynchronous.js
@@ -3082,38 +3082,52 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
-function histogram(im, channel, cdf)
+function histogram(im, channel, ret_cdf, ret_norm)
 {
     channel = channel || 0;
-    var h = new A32F(256), v, i, l = im.length,
+    var h = new A32F(256), v, i,
+        ALPHA = FILTER.CHANNEL.A,
+        l = im.length, total = 0,
         accum = 0, min = 255, max = 0;
-    for (i=0; i<256; ++i) h[i] = 0;
+    for (i=0; i<256; ++i)
+    {
+        h[i] = 0;
+    }
     for (i=0; i<l; i+=4)
     {
-        if (0 < im[i+3])
+        if (0 < im[i+ALPHA])
         {
             v = im[i+channel];
             ++h[v];
+            ++total;
             min = Min(v, min);
             max = Max(v, max);
         }
     }
-    if (cdf)
+    if (ret_cdf)
     {
-        for (i=0; i<256; )
+        for (i=0; i<256; ++i)
         {
-            // partial loop unrolling
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
+            accum += h[i];
+            h[i] = accum;
         }
     }
-    return {bin:h, channel:channel, min:min, max:max, total:l>>>2};
+    if (ret_norm)
+    {
+        for (i=0; i<256; ++i)
+        {
+            h[i] /= total;
+        }
+    }
+    return {bin:h, channel:channel, min:min, max:max, total:total};
 }
 function integral_histogram(im, w, h, channel)
 {
     var r, g, b, i, j, k, kk, x, y,
+        RED = FILTER.CHANNEL.R,
+        GREEN = FILTER.CHANNEL.G,
+        BLUE = FILTER.CHANNEL.B,
+        ALPHA = FILTER.CHANNEL.A,
         l = im.length, total = (l>>>2),
         w4 = w*4, w256 = w*256,
         minr = 255, maxr = 0,
@@ -3134,11 +3148,11 @@ function integral_histogram(im, w, h, channel)
             hg[0+j] = 0;
             hb[0+j] = 0;
         }
-        if (0 < im[0+3])
+        if (0 < im[0+ALPHA])
         {
-            r = im[0  ];
-            g = im[0+1];
-            b = im[0+2];
+            r = im[0+RED];
+            g = im[0+GREEN];
+            b = im[0+BLUE];
             hr[0+r] = 1;
             hg[0+g] = 1;
             hb[0+b] = 1;
@@ -3157,11 +3171,11 @@ function integral_histogram(im, w, h, channel)
                 hg[k+j] = hg[kk+j];
                 hb[k+j] = hb[kk+j];
             }
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
+                r = im[i+RED];
+                g = im[i+GREEN];
+                b = im[i+BLUE];
                 ++hr[k+r];
                 ++hg[k+g];
                 ++hb[k+b];
@@ -3186,11 +3200,11 @@ function integral_histogram(im, w, h, channel)
                 hg[k+j] = hg[kk+j] + (sumg[j]||0);
                 hb[k+j] = hb[kk+j] + (sumb[j]||0);
             }
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
-                r = im[i  ];
-                g = im[i+1];
-                b = im[i+2];
+                r = im[i+RED];
+                g = im[i+GREEN];
+                b = im[i+BLUE];
                 ++hr[k+r];
                 ++hg[k+g];
                 ++hb[k+b];
@@ -3212,7 +3226,7 @@ function integral_histogram(im, w, h, channel)
     {
         channel = channel || 0;
         for (x=0,y=0,j=0; j<256; ++j) hr[0+j] = 0;
-        if (0 < im[0+3])
+        if (0 < im[0+ALPHA])
         {
             r = im[i+channel];
             hr[0+r] = 1;
@@ -3222,7 +3236,7 @@ function integral_histogram(im, w, h, channel)
         for (x=1,y=0,i=4,k=256; i<w4; ++x,i+=4,k+=256)
         {
             for (kk=k-256,j=0; j<256; ++j) hr[k+j] = hr[kk+j];
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
                 r = im[i+channel];
                 ++hr[k+r];
@@ -3238,7 +3252,7 @@ function integral_histogram(im, w, h, channel)
                 for (j=0; j<256; ++j) sumr[j] = 0;
             }
             for (kk=k-w256,j=0; j<256; ++j) hr[k+j] = hr[kk+j] + (sumr[j]||0);
-            if (0 < im[i+3])
+            if (0 < im[i+ALPHA])
             {
                 r = im[i+channel];
                 ++hr[k+r]; sumr[r] = (sumr[r]||0) + 1;
@@ -3248,6 +3262,55 @@ function integral_histogram(im, w, h, channel)
         }
         // pdf only
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
+    }
+}
+function match_histogram(l, actual_cdf, desired_cdf, min0, max0)
+{
+    if (null == min0) {min0 = 0; max0 = 255;}
+    var i, j, jprev, min, max, diff, count, match;
+    if (l === (+l))
+    {
+        min = min0;
+        max = max0;
+        i = l;
+        j = i;
+        jprev = j;
+        for (;;)
+        {
+            // binary search, O(log(256))=O(8) thus O(1)
+            diff = desired_cdf[j] - actual_cdf[i];
+            if (0 === diff) return j;
+            else if (0 > diff) min = j;
+            else max = j;
+            j = (min + max) >>> 1;
+            if (jprev === j || min >= max) return j;
+            jprev = j;
+        }
+    }
+    else
+    {
+        // binary search, O(256*log(256))=O(256*8) thus O(1)
+        count = max0 - min0 + 1;
+        match = l && (count <= l.length) ? l : (new A8U(count));
+        for (i=min0; i<=max0; ++i)
+        {
+            min = min0;
+            max = max0;
+            j = i;
+            jprev = j;
+            for (;;)
+            {
+                diff = desired_cdf[j] - actual_cdf[i];
+                if (0 === diff) break;
+                else if (0 > diff) min = j;
+                else max = j;
+                j = (min + max) >>> 1;
+                if (jprev === j || min >= max) break;
+                jprev = j;
+            }
+            match[i-min0] = j;
+        }
+        return match;
     }
 }
 function _otsu(bin, tot, min, max, ret_sigma)
@@ -4319,7 +4382,45 @@ function cm_convolve(cm1, cm2, matrix)
     }
     return cm12;
 }
-
+var typed_arrays = ['ImArray','Array32F','Array64F','Array8I','Array16I','Array32I','Array8U','Array16U','Array32U'];
+function to_array(a, A)
+{
+    var i, l = a.length, array = new (A || Array)(l);
+    for (i=0; i<l; ++i) array[i] = a[i];
+    return array;
+}
+function replacer(k, v)
+{
+    if (Array !== FILTER.Array32F)
+    {
+        for (var i=0,l=typed_arrays.length; i<l; ++i)
+        {
+            if (v instanceof FILTER[typed_arrays[i]])
+            {
+                return {typed:typed_arrays[i], array:to_array(v, Array)};
+            }
+        }
+    }
+    return v;
+}
+function reviver(o)
+{
+    if (o instanceof Object)
+    {
+        if (o.typed && o.array && (-1 < typed_arrays.indexOf(o.typed)))
+        {
+            return to_array(o.array, FILTER[o.typed]);
+        }
+        else
+        {
+            for (var k=Object.keys(o),l=k.length,i=0; i<l; ++i)
+            {
+                o[k[i]] = reviver(o[k[i]]);
+            }
+        }
+    }
+    return o;
+}
 ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
     if ((null == a) || (a instanceof A)) return a;
     else if (Array.isArray(a)) return Array === A ? a : new A(a);
@@ -4327,7 +4428,7 @@ ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
     return Array === A ? Array.prototype.slice.call(a) : new A(Array.prototype.slice.call(a));
 } : function(a, A) {return a;};
 ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
-    return null == o ? o : (unserialise ? JSON.parse(o) : JSON.stringify(o));
+    return null == o ? o : (unserialise ? reviver(JSON.parse(o)) : JSON.stringify(o, replacer));
 } : function(o) {return o;};
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;
@@ -4366,6 +4467,7 @@ FilterUtil.optimum_gradient = optimum_gradient;
 FilterUtil.gradient_glsl = gradient_glsl;
 FilterUtil.histogram = histogram;
 FilterUtil.integral_histogram = integral_histogram;
+FilterUtil.match_histogram = match_histogram;
 FilterUtil.otsu = otsu;
 FilterUtil.otsu_multi = otsu_multi;
 FilterUtil.otsu_multiclass = otsu_multiclass;
@@ -18715,6 +18817,9 @@ FilterUtil.connectedComponents = connected_components;
 * Histogram Equalize,
 * Histogram Equalize for grayscale images,
 * RGB Histogram Equalize
+* Histogram Matching,
+* Histogram Matching for grayscale images,
+* RGB Histogram Matching
 * @package FILTER.js
 *
 **/
@@ -18724,6 +18829,9 @@ FilterUtil.connectedComponents = connected_components;
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
     FilterUtil = FILTER.Util.Filter,
+    compute_histogram = FilterUtil.histogram,
+    match_histogram = FilterUtil.match_histogram,
+    TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, Min = stdMath.min, Max = stdMath.max;
 
 // a simple histogram equalizer filter  http://en.wikipedia.org/wiki/Histogram_equalization
@@ -18765,7 +18873,7 @@ FILTER.Create({
 
     ,_apply_rgb: function(im, w, h) {
         var self = this,
-            r ,g, b,
+            r, g, b,
             rangeR, rangeG, rangeB,
             cdfR, cdfG, cdfB,
             f = self.factor || 0,
@@ -18777,11 +18885,11 @@ FILTER.Create({
             ba = (null == range[4] ? ra : range[4]) || 0,
             bb = (null == range[5] ? rb : range[5]) || 255,
             t0, t1, t2, v,
-            i, l=im.length;
+            i, l = im.length;
 
-        cdfR = FilterUtil.histogram(im, CHANNEL.R, true);
-        cdfG = FilterUtil.histogram(im, CHANNEL.G, true);
-        cdfB = FilterUtil.histogram(im, CHANNEL.B, true);
+        cdfR = compute_histogram(im, CHANNEL.R, true);
+        cdfG = compute_histogram(im, CHANNEL.G, true);
+        cdfB = compute_histogram(im, CHANNEL.B, true);
         // equalize each channel separately
         f = 1 - Min(Max(f, 0), 1);
         rangeR = (cdfR.max - cdfR.min)/cdfR.total;
@@ -18796,7 +18904,7 @@ FILTER.Create({
                 b = im[i+2];
                 if (ra <= r && r <= rb)
                 {
-                    v = cdf.binR[r]*rangeR;
+                    v = cdfR.bin[r]*rangeR;
                     t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
                 }
                 else
@@ -18805,7 +18913,7 @@ FILTER.Create({
                 }
                 if (ga <= g && g <= gb)
                 {
-                    v = cdf.binG[g]*rangeG;
+                    v = cdfG.bin[g]*rangeG;
                     t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
                 }
                 else
@@ -18814,7 +18922,7 @@ FILTER.Create({
                 }
                 if (ba <= b && b <= bb)
                 {
-                    v = cdf.binB[b]*rangeB;
+                    v = cdfB.bin[b]*rangeB;
                     t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
                 }
                 else
@@ -18839,7 +18947,7 @@ FILTER.Create({
                 b = im[i+2];
                 if (ra <= r && r <= rb)
                 {
-                    v = cdf.binR[r]*rangeR;
+                    v = cdfR.bin[r]*rangeR;
                     t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
                 }
                 else
@@ -18848,7 +18956,7 @@ FILTER.Create({
                 }
                 if (ga <= g && g <= gb)
                 {
-                    v = cdf.binG[g]*rangeG;
+                    v = cdfG.bin[g]*rangeG;
                     t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
                 }
                 else
@@ -18857,7 +18965,7 @@ FILTER.Create({
                 }
                 if (ba <= b && b <= bb)
                 {
-                    v = cdf.binB[b]*rangeB;
+                    v = cdfB.bin[b]*rangeB;
                     t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
                 }
                 else
@@ -18888,7 +18996,7 @@ FILTER.Create({
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
-            cdf = FilterUtil.histogram(im, channel, true);
+            cdf = compute_histogram(im, channel, true);
         }
         else
         {
@@ -18908,7 +19016,7 @@ FILTER.Create({
                 im[i+1] = y;
                 im[i+2] = cb;
             }
-            cdf = FilterUtil.histogram(im, CHANNEL.G, true);
+            cdf = compute_histogram(im, CHANNEL.G, true);
         }
         // equalize only the intesity channel
         f = 1 - Min(Max(f, 0), 1);
@@ -19042,6 +19150,177 @@ FILTER.Create({
                     im[i+1] = g|0;
                     im[i+2] = b|0;
                 }
+            }
+        }
+        return im;
+    }
+});
+
+// a simple histogram matching filter  https://en.wikipedia.org/wiki/Histogram_matching
+FILTER.Create({
+    name : "HistogramMatchFilter"
+
+    ,path: FILTER.Path
+
+    ,mode: MODE.INTENSITY
+    ,cdf: null
+    ,channel: 0
+    ,range: null
+
+    ,init: function(mode, cdf, channel, range) {
+        var self = this;
+        self.mode = mode || MODE.INTENSITY;
+        self.cdf = cdf;
+        self.channel = channel || 0;
+        self.range = [0, 255];
+        if (range && (0 < range.length) && (0 === (range.length&1))) self.range = range;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+             channel: self.channel,
+             cdf: TypedObj(self.cdf),
+             range: self.range
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.channel = params.channel;
+        self.cdf = TypedObj(params.cdf, 1);
+        self.range = params.range;
+        return self;
+    }
+
+    ,_apply_rgb: function(im, w, h) {
+        var self = this, r, g, b,
+            range = self.range,
+            ra = range[0] || 0,
+            rb = range[1] || 255,
+            ga = (null == range[2] ? ra : range[2]) || 0,
+            gb = (null == range[3] ? rb : range[3]) || 255,
+            ba = (null == range[4] ? ra : range[4]) || 0,
+            bb = (null == range[5] ? rb : range[5]) || 255,
+            cdf = self.cdf, cdfR, cdfG, cdfB,
+            matchR, matchG, matchB, i, l = im.length;
+
+        cdfR = compute_histogram(im, CHANNEL.R, true, true);
+        cdfG = compute_histogram(im, CHANNEL.G, true, true);
+        cdfB = compute_histogram(im, CHANNEL.B, true, true);
+        matchR = match_histogram(null, cdfR.bin, cdf[0]);
+        matchG = match_histogram(null, cdfG.bin, cdf[1]);
+        matchB = match_histogram(null, cdfB.bin, cdf[2]);
+        // match each channel separately
+        for (i=0; i<l; i+=4)
+        {
+            r = im[i  ];
+            g = im[i+1];
+            b = im[i+2];
+            if (ra <= r && r <= rb)
+            {
+                im[i  ] = matchR[r];
+            }
+            if (ga <= g && g <= gb)
+            {
+                im[i+1] = matchG[g];
+            }
+            if (ba <= b && b <= bb)
+            {
+                im[i+2] = matchB[b];
+            }
+        }
+        // return the new image data
+        return im;
+    }
+
+    ,apply: function(im, w, h) {
+        var self = this;
+
+        if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
+
+        var r, g, b, y, cb, cr, v,
+            va = self.range[0] || 0,
+            vb = self.range[1] || 255,
+            cdf, i, l = im.length,
+            channel = self.channel || 0,
+            match, mode = self.mode;
+
+        if (MODE.GRAY === mode || MODE.CHANNEL === mode)
+        {
+            cdf = compute_histogram(im, channel, true, true);
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                r = im[i  ];
+                g = im[i+1];
+                b = im[i+2];
+                y  = (0   + 0.299*r    + 0.587*g     + 0.114*b)|0;
+                cb = (128 - 0.168736*r - 0.331264*g  + 0.5*b)|0;
+                cr = (128 + 0.5*r      - 0.418688*g  - 0.081312*b)|0;
+                // clamp them manually
+                cr = cr<0 ? 0 : (cr>255 ? 255 : cr);
+                y = y<0 ? 0 : (y>255 ? 255 : y);
+                cb = cb<0 ? 0 : (cb>255 ? 255 : cb);
+                im[i  ] = cr;
+                im[i+1] = y;
+                im[i+2] = cb;
+            }
+            cdf = compute_histogram(im, CHANNEL.G, true, true);
+            channel = 0;
+        }
+        // match only the intesity channel
+        match = match_histogram(null, cdf.bin, self.cdf[channel] && self.cdf[channel].length ? self.cdf[channel] : self.cdf);
+        if (MODE.GRAY === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                v = im[i+channel];
+                if (va <= v && v <= vb)
+                {
+                    v = match[v];
+                    im[i] = v; im[i+1] = v; im[i+2] = v;
+                }
+            }
+        }
+        else if (MODE.CHANNEL === mode)
+        {
+            for (i=0; i<l; i+=4)
+            {
+                v = im[i+channel];
+                if (va <= v && v <= vb)
+                {
+                    im[i+channel] = match[v];
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i+=4)
+            {
+                v = im[i+1];
+                if (va <= v && v <= vb)
+                {
+                    y = match[v];
+                }
+                else
+                {
+                    y = v;
+                }
+                cb = im[i+2];
+                cr = im[i  ];
+                r = (y                      + 1.402   * (cr-128));
+                g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
+                b = (y + 1.772   * (cb-128));
+                // clamp them manually
+                r = r<0 ? 0 : (r>255 ? 255 : r);
+                g = g<0 ? 0 : (g>255 ? 255 : g);
+                b = b<0 ? 0 : (b>255 ? 255 : b);
+                im[i  ] = r|0;
+                im[i+1] = g|0;
+                im[i+2] = b|0;
             }
         }
         return im;

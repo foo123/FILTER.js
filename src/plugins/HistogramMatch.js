@@ -351,19 +351,23 @@ FILTER.Create({
     ,mode: MODE.INTENSITY
     ,cdf: null
     ,channel: 0
+    ,range: null
 
-    ,init: function(mode, cdf, channel) {
+    ,init: function(mode, cdf, channel, range) {
         var self = this;
         self.mode = mode || MODE.INTENSITY;
         self.cdf = cdf;
         self.channel = channel || 0;
+        self.range = [0, 255];
+        if (range && (0 < range.length) && (0 === (range.length&1))) self.range = range;
     }
 
     ,serialize: function() {
         var self = this;
         return {
              channel: self.channel,
-             cdf: TypedObj(self.cdf)
+             cdf: TypedObj(self.cdf),
+             range: self.range
         };
     }
 
@@ -371,11 +375,19 @@ FILTER.Create({
         var self = this;
         self.channel = params.channel;
         self.cdf = TypedObj(params.cdf, 1);
+        self.range = params.range;
         return self;
     }
 
     ,_apply_rgb: function(im, w, h) {
         var self = this, r, g, b,
+            range = self.range,
+            ra = range[0] || 0,
+            rb = range[1] || 255,
+            ga = (null == range[2] ? ra : range[2]) || 0,
+            gb = (null == range[3] ? rb : range[3]) || 255,
+            ba = (null == range[4] ? ra : range[4]) || 0,
+            bb = (null == range[5] ? rb : range[5]) || 255,
             cdf = self.cdf, cdfR, cdfG, cdfB,
             matchR, matchG, matchB, i, l = im.length;
 
@@ -391,9 +403,18 @@ FILTER.Create({
             r = im[i  ];
             g = im[i+1];
             b = im[i+2];
-            im[i  ] = matchR[r];
-            im[i+1] = matchG[g];
-            im[i+2] = matchB[b];
+            if (ra <= r && r <= rb)
+            {
+                im[i  ] = matchR[r];
+            }
+            if (ga <= g && g <= gb)
+            {
+                im[i+1] = matchG[g];
+            }
+            if (ba <= b && b <= bb)
+            {
+                im[i+2] = matchB[b];
+            }
         }
         // return the new image data
         return im;
@@ -404,7 +425,9 @@ FILTER.Create({
 
         if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
 
-        var r, g, b, y, cb, cr,
+        var r, g, b, y, cb, cr, v,
+            va = self.range[0] || 0,
+            vb = self.range[1] || 255,
             cdf, i, l = im.length,
             channel = self.channel || 0,
             match, mode = self.mode;
@@ -440,22 +463,38 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                r = match[im[i+channel]];
-                im[i] = r; im[i+1] = r; im[i+2] = r;
+                v = im[i+channel];
+                if (va <= v && v <= vb)
+                {
+                    v = match[v];
+                    im[i] = v; im[i+1] = v; im[i+2] = v;
+                }
             }
         }
         else if (MODE.CHANNEL === mode)
         {
             for (i=0; i<l; i+=4)
             {
-                im[i+channel] = match[im[i+channel]];
+                v = im[i+channel];
+                if (va <= v && v <= vb)
+                {
+                    im[i+channel] = match[v];
+                }
             }
         }
         else
         {
             for (i=0; i<l; i+=4)
             {
-                y = match[im[i+1]];
+                v = im[i+1];
+                if (va <= v && v <= vb)
+                {
+                    y = match[v];
+                }
+                else
+                {
+                    y = v;
+                }
                 cb = im[i+2];
                 cr = im[i  ];
                 r = (y                      + 1.402   * (cr-128));
