@@ -1670,7 +1670,7 @@ function histogram(im, channel, cdf, norm)
 {
     channel = channel || 0;
     var h = new A32F(256), v, i,
-        l = im.length, total = (l >>> 2),
+        l = im.length, total = 0,
         accum = 0, min = 255, max = 0;
     for (i=0; i<256; ++i) h[i] = 0;
     for (i=0; i<l; i+=4)
@@ -1679,31 +1679,18 @@ function histogram(im, channel, cdf, norm)
         {
             v = im[i+channel];
             ++h[v];
+            ++total;
             min = Min(v, min);
             max = Max(v, max);
         }
     }
     if (cdf)
     {
-        for (i=0; i<256; )
-        {
-            // partial loop unrolling
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
-            accum += h[i]; h[i++] = accum;
-        }
+        for (i=0; i<256; ++i) {accum += h[i]; h[i] = accum;}
     }
     if (norm)
     {
-        for (i=0; i<256; )
-        {
-            // partial loop unrolling
-            h[i++] /= total;
-            h[i++] /= total;
-            h[i++] /= total;
-            h[i++] /= total;
-        }
+        for (i=0; i<256; ++i) h[i] /= total;
     }
     return {bin:h, channel:channel, min:min, max:max, total:total};
 }
@@ -1846,19 +1833,52 @@ function integral_histogram(im, w, h, channel)
         return {bin:hr, channel:channel, min:minr, max:maxr, width:w, height:h, total:total};
     }
 }
-function match_histogram(i, actual_cdf, desired_cdf, min, max)
+function match_histogram(l, actual_cdf, desired_cdf, min, max)
 {
-    var /*min = 0, max = 255,*/ diff, j = i, jprev = j;
-    // binary search, O(log(256))=O(8) thus O(1)
-    for (;;)
+    var diff, i, j, jprev, min0, max0, count, match;
+    if (null == min) {min = 0; max = 255;}
+    if (l === (+l))
     {
-        diff = desired_cdf[j] - actual_cdf[i];
-        if (0 === diff) return j;
-        else if (0 > diff) min = j;
-        else max = j;
-        j = (min + max) >>> 1;
-        if (jprev === j || min >= max) return j;
+        i = l;
+        j = i;
         jprev = j;
+        for (;;)
+        {
+            // binary search, O(log(256))=O(8) thus O(1)
+            diff = desired_cdf[j] - actual_cdf[i];
+            if (0 === diff) return j;
+            else if (0 > diff) min = j;
+            else max = j;
+            j = (min + max) >>> 1;
+            if (jprev === j || min >= max) return j;
+            jprev = j;
+        }
+    }
+    else
+    {
+        // binary search, O(256*log(256))=O(256*8) thus O(1)
+        min0 = min; max0 = max;
+        count = max0 - min0 + 1;
+        match = l && (count <= l.length) ? l : (new A8U(count));
+        for (i=min0; i<=max0; ++i)
+        {
+            min = min0;
+            max = max0;
+            j = i;
+            jprev = j;
+            for (;;)
+            {
+                diff = desired_cdf[j] - actual_cdf[i];
+                if (0 === diff) break;
+                else if (0 > diff) min = j;
+                else max = j;
+                j = (min + max) >>> 1;
+                if (jprev === j || min >= max) break;
+                jprev = j;
+            }
+            match[i-min0] = j;
+        }
+        return match;
     }
 }
 function _otsu(bin, tot, min, max, ret_sigma)
@@ -2930,7 +2950,45 @@ function cm_convolve(cm1, cm2, matrix)
     }
     return cm12;
 }
-
+var typed_arrays = ['ImArray','Array32F','Array64F','Array8I','Array16I','Array32I','Array8U','Array16U','Array32U'];
+function to_array(a, A)
+{
+    var i, l = a.length, array = new (A || Array)(l);
+    for (i=0; i<l; ++i) array[i] = a[i];
+    return array;
+}
+function replacer(k, v)
+{
+    if (Array !== FILTER.Array32F)
+    {
+        for (var i=0,l=typed_arrays.length, i<l; ++i)
+        {
+            if (v instanceof FILTER[typed_arrays[i]])
+            {
+                return {typed:typed_arrays[i], array:to_array(v, Array)};
+            }
+        }
+    }
+    return v;
+}
+function reviver(o)
+{
+    if (o instanceof Object)
+    {
+        if (o.typed && o.array && (-1 < typed_arrays.indexOf(o.typed)))
+        {
+            return to_array(o.array, FILTER[o.typed]);
+        }
+        else
+        {
+            for (var k=Object.keys(o),l=k.length,i=0; i<l; ++i)
+            {
+                o[k[i]] = reviver(o[k[i]]);
+            }
+        }
+    }
+    return o;
+}
 ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
     if ((null == a) || (a instanceof A)) return a;
     else if (Array.isArray(a)) return Array === A ? a : new A(a);
@@ -2938,7 +2996,7 @@ ArrayUtil.typed = FILTER.Browser.isNode ? function(a, A) {
     return Array === A ? Array.prototype.slice.call(a) : new A(Array.prototype.slice.call(a));
 } : function(a, A) {return a;};
 ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
-    return null == o ? o : (unserialise ? JSON.parse(o) : JSON.stringify(o));
+    return null == o ? o : (unserialise ? reviver(JSON.parse(o)) : JSON.stringify(o, replacer));
 } : function(o) {return o;};
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;

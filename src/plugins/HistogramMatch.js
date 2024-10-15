@@ -90,7 +90,7 @@ FILTER.Create({
                 b = im[i+2];
                 if (ra <= r && r <= rb)
                 {
-                    v = cdf.binR[r]*rangeR;
+                    v = cdfR.bin[r]*rangeR;
                     t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
                 }
                 else
@@ -99,7 +99,7 @@ FILTER.Create({
                 }
                 if (ga <= g && g <= gb)
                 {
-                    v = cdf.binG[g]*rangeG;
+                    v = cdfG.bin[g]*rangeG;
                     t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
                 }
                 else
@@ -108,7 +108,7 @@ FILTER.Create({
                 }
                 if (ba <= b && b <= bb)
                 {
-                    v = cdf.binB[b]*rangeB;
+                    v = cdfB.bin[b]*rangeB;
                     t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
                 }
                 else
@@ -133,7 +133,7 @@ FILTER.Create({
                 b = im[i+2];
                 if (ra <= r && r <= rb)
                 {
-                    v = cdf.binR[r]*rangeR;
+                    v = cdfR.bin[r]*rangeR;
                     t0 = ((f)*(v + cdfR.min) + (1-f)*(cdfR.max - v));
                 }
                 else
@@ -142,7 +142,7 @@ FILTER.Create({
                 }
                 if (ga <= g && g <= gb)
                 {
-                    v = cdf.binG[g]*rangeG;
+                    v = cdfG.bin[g]*rangeG;
                     t1 = ((f)*(v + cdfG.min) + (1-f)*(cdfG.max - v));
                 }
                 else
@@ -151,7 +151,7 @@ FILTER.Create({
                 }
                 if (ba <= b && b <= bb)
                 {
-                    v = cdf.binB[b]*rangeB;
+                    v = cdfB.bin[b]*rangeB;
                     t2 = ((f)*(v + cdfB.min) + (1-f)*(cdfB.max - v));
                 }
                 else
@@ -375,24 +375,25 @@ FILTER.Create({
     }
 
     ,_apply_rgb: function(im, w, h) {
-        var self = this,
-            r, g, b, v, i,
-            cdf = self.cdf,
-            cdfR, cdfG, cdfB,
-            l = im.length;
+        var self = this, r, g, b,
+            cdf = self.cdf, cdfR, cdfG, cdfB,
+            matchR, matchG, matchB, i, l = im.length;
 
         cdfR = compute_histogram(im, CHANNEL.R, true, true);
         cdfG = compute_histogram(im, CHANNEL.G, true, true);
         cdfB = compute_histogram(im, CHANNEL.B, true, true);
+        matchR = match_histogram(null, cdfR.bin, cdf[0]);
+        matchG = match_histogram(null, cdfG.bin, cdf[1]);
+        matchB = match_histogram(null, cdfB.bin, cdf[2]);
         // match each channel separately
         for (i=0; i<l; i+=4)
         {
             r = im[i  ];
             g = im[i+1];
             b = im[i+2];
-            im[i  ] = match_histogram(r, cdfR.bin, cdf[0], 0, 255);
-            im[i+1] = match_histogram(g, cdfG.bin, cdf[1], 0, 255);
-            im[i+2] = match_histogram(b, cdfB.bin, cdf[2], 0, 255);
+            im[i  ] = matchR[r];
+            im[i+1] = matchG[g];
+            im[i+2] = matchB[b];
         }
         // return the new image data
         return im;
@@ -404,14 +405,13 @@ FILTER.Create({
         if (MODE.RGB === self.mode) return self._apply_rgb(im, w, h);
 
         var r, g, b, y, cb, cr,
-            cdf, i, v, l = im.length,
+            cdf, i, l = im.length,
             channel = self.channel || 0,
-            cdf2, mode = self.mode;
+            match, mode = self.mode;
 
         if (MODE.GRAY === mode || MODE.CHANNEL === mode)
         {
             cdf = compute_histogram(im, channel, true, true);
-            cdf2 = self.cdf[channel];
         }
         else
         {
@@ -432,14 +432,15 @@ FILTER.Create({
                 im[i+2] = cb;
             }
             cdf = compute_histogram(im, CHANNEL.G, true, true);
-            cdf2 = self.cdf[0];
+            channel = 0;
         }
         // match only the intesity channel
+        match = match_histogram(null, cdf.bin, self.cdf[channel] && self.cdf[channel].length ? self.cdf[channel] : self.cdf);
         if (MODE.GRAY === mode)
         {
             for (i=0; i<l; i+=4)
             {
-                r = match_histogram(im[i+channel], cdf.bin, cdf2, 0, 255);
+                r = match[im[i+channel]];
                 im[i] = r; im[i+1] = r; im[i+2] = r;
             }
         }
@@ -447,19 +448,23 @@ FILTER.Create({
         {
             for (i=0; i<l; i+=4)
             {
-                im[i+channel] = match_histogram(im[i+channel], cdf.bin, cdf2, 0, 255);
+                im[i+channel] = match[im[i+channel]];
             }
         }
         else
         {
             for (i=0; i<l; i+=4)
             {
-                y = match_histogram(im[i+1], cdf.bin, cdf2, 0, 255);
+                y = match[im[i+1]];
                 cb = im[i+2];
                 cr = im[i  ];
                 r = (y                      + 1.402   * (cr-128));
                 g = (y - 0.34414 * (cb-128) - 0.71414 * (cr-128));
                 b = (y + 1.772   * (cb-128));
+                // clamp them manually
+                r = r<0 ? 0 : (r>255 ? 255 : r);
+                g = g<0 ? 0 : (g>255 ? 255 : g);
+                b = b<0 ? 0 : (b>255 ? 255 : b);
                 im[i  ] = r|0;
                 im[i+1] = g|0;
                 im[i+2] = b|0;
