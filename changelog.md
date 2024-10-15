@@ -3,6 +3,7 @@
 __1.12.0 (in progress)__
 
 * HistogramMatchFilter
+* HoughDetectorFilter
 * various edits and updates
 
 __1.11.0__

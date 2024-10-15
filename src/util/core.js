@@ -2961,7 +2961,7 @@ function replacer(k, v)
 {
     if (Array !== FILTER.Array32F)
     {
-        for (var i=0,l=typed_arrays.length, i<l; ++i)
+        for (var i=0,l=typed_arrays.length; i<l; ++i)
         {
             if (v instanceof FILTER[typed_arrays[i]])
             {
