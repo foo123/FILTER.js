@@ -194,9 +194,11 @@ var ColorTableFilter = FILTER.Create({
     ,quantize: function(numLevels) {
         if (null == numLevels) numLevels = 64;
         if (numLevels < 2) numLevels = 2;
-        var j, q=new CT(numLevels), nL=255/(numLevels-1), nR=numLevels/256;
-        for (j=0; j<numLevels; ++j) q[j] = clamp(nL * j)|0;
-        return this.set(eye(function(i) {return q[(nR * i)|0];}));
+        if (numLevels > 256) numLevels = 256;
+        var qi = stdMath.ceil(255 / (numLevels - 1))
+            /*j, q = new CT(numLevels), nL = 255/(numLevels-1), nR = numLevels/256,*/;
+        //for (j=0; j<numLevels; ++j) q[j] = clamp((nL * j)|0);
+        return this.set(eye(function(i) {return clamp(stdMath.round(i / qi) * qi)/*q[(nR * i)|0]*/;}));
     }
     ,posterize: null
 
