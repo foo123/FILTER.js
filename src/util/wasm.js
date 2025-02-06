@@ -264,33 +264,4 @@ WASM.instantiate = instantiate;
 WASM.isSupported = FILTER.supportsWASM();
 WASM.isLoaded = true;
 FILTER.Util.WASM = WASM;
-if (WASM.isSupported && FILTER.Util.Filter._wasm)
-{
-    FILTER.waitFor(1);
-    var module = FILTER.Util.Filter._wasm();
-    instantiate(module.wasm, module.imports, module.exports).then(function(wasm) {
-        if (wasm)
-        {
-            FILTER.Util.Image.wasm = {
-                interpolate_nearest: wasm.interpolate_nearest,
-                interpolate_bilinear: wasm.interpolate_bilinear,
-                interpolate: wasm.interpolate_bilinear
-            };
-            FILTER.Util.Filter.wasm = {
-                integral_convolution: wasm.integral_convolution,
-                separable_convolution: wasm.separable_convolution,
-                histogram: wasm.histogram,
-                gaussian: wasm.gaussian,
-                gradient: wasm.gradient,
-                optimum_gradient: wasm.optimum_gradient
-            };
-        }
-        /*else
-        {
-            FILTER.Util.Image.wasm = {};
-            FILTER.Util.Filter.wasm = {};
-        }*/
-        FILTER.unwaitFor(1);
-    });
-}
 }(FILTER);

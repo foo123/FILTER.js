@@ -1,5 +1,11 @@
 ## ChangeLog
 
+__1.13.0__
+
+* HoughDetectorFilter for lines, rectangles, circles and ellipses in progress
+* wasm filters code as separate files to be included at will
+* various edits, typo corrections
+
 __1.12.0__
 
 * HistogramMatchFilter

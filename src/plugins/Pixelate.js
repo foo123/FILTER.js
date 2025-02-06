@@ -49,10 +49,6 @@ var PixelateFilter = FILTER.Create({
         return glsl(this);
     }
 
-    ,getWASM: function() {
-        return wasm(this);
-    }
-
     ,apply: function(im, w, h) {
         var self = this, pattern = self.pattern;
         if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
@@ -60,27 +56,6 @@ var PixelateFilter = FILTER.Create({
         return PIXELATION[pattern](im, w, h, self.scale);
     }
 });
-if (FILTER.Util.WASM.isSupported)
-{
-FILTER.waitFor(1);
-FILTER.Util.WASM.instantiate(wasm(), {}, {
-    rectangular: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
-    triangular: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
-    rhomboidal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}},
-    hexagonal: {inputs: [{arg:0,type:FILTER.ImArray}], output: {type:FILTER.ImArray}}
-}).then(function(wasm) {
-    if (wasm)
-    {
-    PixelateFilter.prototype._apply_wasm = function(im, w, h) {
-        var self = this, pattern = self.pattern;
-        if (self.scale <= 1  || !pattern || !PIXELATION[pattern]) return im;
-        if (self.scale > 100) self.scale = 100;
-        return (wasm[pattern] || PIXELATION[pattern])(im, w, h, self.scale);
-    };
-    }
-    FILTER.unwaitFor(1);
-});
-}
 
 // private methods
 var PIXELATION = PixelateFilter.PATTERN = {
