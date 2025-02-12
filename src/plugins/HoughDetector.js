@@ -140,19 +140,17 @@ function hough_lines(im, w, h, threshold, thetas)
 function hough_rectangles(im, w, h, threshold, thetas)
 {
     var lines = hough_lines(im, w, h, threshold, thetas),
-        unique_lines = [],
-        parallel_lines = [],
-        rectangles = [],
+        unique_lines, parallel_lines, rectangles,
         eps_theta = 3, eps_alpha = 3,
         eps_rho = 0.025*(w+h), n, i, j,
         l1, l2, t1, t2, r1, r2,
         p1, p2, p3, p4, r;
+    lines.sort(function(a, b){return (a.theta-b.theta) || (a.rho-b.rho);});
     n = lines.length;
+    unique_lines = [];
     for (i=0; i<n; ++i)
     {
         l1 = lines[i];
-        if (0 > l1.theta) l1.theta += 360;
-        if (360 < l1.theta) l1.theta -= 360;
         if (0 === i)
         {
             unique_lines.push(l1);
@@ -163,7 +161,7 @@ function hough_rectangles(im, w, h, threshold, thetas)
             r1 = l1.rho;
             t2 = l2.theta;
             r2 = l2.rho;
-            if (stdMath.abs(t1-t2) > eps_theta || stdMath.abs(r1-r1) > eps_rho)
+            if (stdMath.abs(t1-t2) > eps_theta && stdMath.abs(r1-r2) > eps_rho)
             {
                 unique_lines.push(l1);
             }
@@ -171,26 +169,28 @@ function hough_rectangles(im, w, h, threshold, thetas)
         l2 = l1;
     }
     n = unique_lines.length;
+    parallel_lines = [];
     for (i=0; i<n; ++i)
     {
         l1 = unique_lines[i];
         for (j=i+1; j<n; ++j)
         {
             l2 = unique_lines[j];
-            if (stdMath.abs(l1.theta-l2.theta) <= eps_theta)
+            if (stdMath.abs(l1.theta-l2.theta) <= eps_theta || stdMath.abs(stdMath.abs(l1.theta-l2.theta)-180) <= eps_theta)
             {
-                parallel_lines.push([l1, l2, (l1.theta+l2.theta)/2, (l1.rho-l2.rho)/2]);
+                parallel_lines.push([l1, l2, stdMath.min(l1.theta,l2.theta)]);
             }
         }
     }
     n = parallel_lines.length;
+    rectangles = [];
     for (i=0; i<n; ++i)
     {
         l1 = parallel_lines[i];
         for (j=i+1; j<n; ++j)
         {
             l2 = parallel_lines[j];
-            if (stdMath.abs(stdMath.abs(l1[2]-l2[2])-90) < eps_alpha)
+            if (stdMath.abs(stdMath.abs(l1[2]-l2[2])-90) <= eps_alpha || stdMath.abs(stdMath.abs(l1[2]-l2[2])-270) <= eps_alpha)
             {
                 p1 = lines_intersection(l1[0], l2[0], w, h);
                 p2 = lines_intersection(l1[0], l2[1], w, h);
@@ -198,9 +198,9 @@ function hough_rectangles(im, w, h, threshold, thetas)
                 p4 = lines_intersection(l1[1], l2[1], w, h);
                 r = {
                     shape: 'rectangle',
-                    pts: [p1,p2,p3,p4].sort(topocmp({x:(p1.x+p2.x+p3.x+p4.x)/4,y:(p1.y+p2.y+p3.y+p4.y)/4}))
+                    pts: [p1,p2,p3,p4].sort(topological_sort({x:(p1.x+p2.x+p3.x+p4.x)/4,y:(p1.y+p2.y+p3.y+p4.y)/4}))
                 };
-                r.area = stdMath.round(hypot(r.pts[1].x-r.pts[0].x,r.pts[1].y-r.pts[0].y)*hypot(r.pts[3].x-r.pts[0].x,r.pts[3].y-r.pts[0].y));
+                //r.area = stdMath.round(hypot(r.pts[1].x-r.pts[0].x,r.pts[1].y-r.pts[0].y)*hypot(r.pts[3].x-r.pts[0].x,r.pts[3].y-r.pts[0].y));
                 rectangles.push(r);
             }
         }
@@ -354,7 +354,7 @@ function sincos(sin, cos, thetas)
         cos[t] = stdMath.cos(thetas[t]*deg2rad);
     }
 }
-function topocmp(p0)
+function topological_sort(p0)
 {
     // topological sort
     return function(a, b) {
@@ -362,40 +362,37 @@ function topocmp(p0)
             day = a.y - p0.y, dby = b.y - p0.y;
         if (dax >= 0 && dbx < 0) return 1;
         if (dax < 0 && dbx >= 0) return -1;
-        if (dax === 0 && dbx === 0) return (day >= 0 || dby >= 0) ? (a.y - b.y) : (b.y - a.y);
+        if (dax === 0 && dbx === 0) return (day >= 0 || dby >= 0) ? (b.y - a.y) : (a.y - b.y);
 
         var det = dax*dby - dbx*day;
         if (det < 0) return -1;
         if (det > 0) return 1;
 
-        return dax*dax + day*day > dbx*dbx + dby*dby ? -1 : 1;
+        return (dbx*dbx + dby*dby) - (dax*dax + day*day);
     };
 }
-function line_endpoints(l, w, h)
+function line_endpoints(p, q, l, w, h)
 {
-    var a = stdMath.cos(stdMath.PI*l.theta/180),
-        b = stdMath.sin(stdMath.PI*l.theta/180),
-        x0 = a*l.rho + w/2,
-        y0 = b*l.rho + h/2;
-    return [{
-    x: stdMath.round(x0 + w*(-b)),
-    y: stdMath.round(y0 + w*(a))
-    }, {
-    x: stdMath.round(x0 - w*(-b)),
-    y: stdMath.round(y0 - w*(a)),
-    }];
+    var c = stdMath.cos(stdMath.PI*l.theta/180),
+        s = stdMath.sin(stdMath.PI*l.theta/180),
+        x0 = c*l.rho + w/2, y0 = s*l.rho + h/2;
+    p.x = x0 - w*s; p.y = y0 + w*c;
+    q.x = x0 + w*s; q.y = y0 - w*c;
 }
 function lines_intersection(l1, l2, w, h)
 {
-    var p1 = line_endpoints(l1, w, h),
-        p2 = line_endpoints(l2, w, h),
-        x1 = p1[0].x, x2 = p1[1].x,
-        y1 = p1[0].y, y2 = p1[1].y,
-        x3 = p2[0].x, x4 = p2[1].x,
-        y3 = p2[0].y, y4 = p2[1].y,
+    var p1 = {x:0,y:0}, p2 = {x:0,y:0},
+        q1 = {x:0,y:0}, q2 = {x:0,y:0};
+    line_endpoints(p1, p2, l1, w, h);
+    line_endpoints(q1, q2, l2, w, h);
+    var x1 = p1.x, x2 = p2.x,
+        y1 = p1.y, y2 = p2.y,
+        x3 = q1.x, x4 = q2.x,
+        y3 = q1.y, y4 = q2.y,
+        f = x1*y2 - y1*x2, g = x3*y4 - y3*x4,
         D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
     ;
-    return {x: stdMath.round(((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/D), y: stdMath.round(((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/D)};
+    return {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)};
 }
 function circle_points(pt, sin, cos, r)
 {
