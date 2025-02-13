@@ -28,12 +28,13 @@ FILTER.Create({
     ,radii: null
     ,thetas: null
     ,minsize: 10
+    ,maxsize: null
 
     ,init: function(shape) {
         var self = this;
         if (null != shape) self.shape = String(shape);
         self.radii = null;
-        self.thetas = arr(180, function(i) {return i;});
+        self.thetas = arr(60, function(i) {return 3*i;});
     }
 
     ,params: function(params) {
@@ -44,6 +45,7 @@ FILTER.Create({
             if (null != params.radii) self.radii = params.radii;
             if (null != params.thetas) self.thetas = params.thetas;
             if (null != params.minsize) self.minsize = +params.minsize;
+            if (undef !== params.maxsize) self.maxsize = params.maxsize;
         }
         return self;
     }
@@ -56,6 +58,7 @@ FILTER.Create({
             ,radii: self.radii ? self.radii.join(',') : null
             ,thetas: self.thetas ? self.thetas.join(',') : null
             ,minsize: self.minsize
+            ,maxsize: self.maxsize
         };
         return json;
     }
@@ -67,6 +70,7 @@ FILTER.Create({
         self.radii = params.radii ? params.radii.split(',').map(num) : null;
         self.thetas = params.thetas ? params.thetas.split(',').map(num) : null;
         self.minsize = params.minsize;
+        self.maxsize = params.maxsize;
         return self;
     }
 
@@ -82,6 +86,7 @@ FILTER.Create({
 
     ,apply: function(im, w, h) {
         var self = this, shape = self.shape;
+        self.hasMeta = true;
         self.meta = {objects: []};
         if ('lines' === shape)
         {
@@ -97,8 +102,9 @@ FILTER.Create({
         }
         else if ('ellipses' === shape)
         {
-            self.meta.objects = hough_ellipses(im, w, h, self.threshold, self.minsize);
+            self.meta.objects = hough_ellipses(im, w, h, self.threshold, self.minsize, self.maxsize);
         }
+        self._update = false;
         return im;
     }
 });
@@ -107,9 +113,9 @@ function hough_lines(im, w, h, threshold, thetas)
 {
     // https://en.wikipedia.org/wiki/Hough_transform
     if (!thetas || !thetas.length) return [];
-    var d = stdMath.round(hypot(w, h)),
+    var d = stdMath.ceil(hypot(w, h)),
         ox = w/2, oy = h/2,
-        numrho = 2*d + 1,
+        numrho = 2*d,
         numangle = thetas.length,
         accum = new A32U(numangle*numrho),
         sin = new A32F(numangle),
@@ -220,7 +226,7 @@ function hough_circles(im, w, h, threshold, radii)
         accum = new A32U(numrad*area),
         sin = new A32F(numpts),
         cos = new A32F(numpts),
-        circle, r, i, x, y, c, tx, ty;
+        circle, r, i, x, y, c, cx, cy;
 
     circle = new Array(numpts);
     sincos(sin, cos, thetas);
@@ -232,11 +238,11 @@ function hough_circles(im, w, h, threshold, radii)
             x = p[i].x; y = p[i].y;
             for (c=0; c<numpts; ++c)
             {
-                tx = stdMath.round(x - circle[c].x);
-                ty = stdMath.round(y - circle[c].y);
-                if (0 <= tx && tx < w && 0 <= ty && ty < h)
+                cx = stdMath.round(x - circle[c].x);
+                cy = stdMath.round(y - circle[c].y);
+                if (0 <= cx && cx < w && 0 <= cy && cy < h)
                 {
-                    ++accum[r*area+ty*w+tx];
+                    ++accum[r*area+cy*w+cx];
                 }
             }
         }
@@ -250,83 +256,87 @@ function hough_circles(im, w, h, threshold, radii)
         };
     });
 }
-function hough_ellipses(im, w, h, threshold, minsize)
+function hough_ellipses(im, w, h, threshold, minsize, maxsize)
 {
     // “A new efficient ellipse detection method”, Y. Xie and Q. Ji, 2002
     // https://sites.ecse.rpi.edu/~cvrl/Publication/pdf/Xie2002.pdf
+    if (null == maxsize) maxsize = stdMath.max(w, h) >>> 1;
     var p = nonzero(im, w, h, 0),
-        accum = new A32U(stdMath.max(w, h) >>> 1),
+        accum = new A32U(maxsize),
         k, ij1, ij2, ij3,
         x1, y1, x2, y2, x3, y3,
         dx, dy, d, f, g,
-        m = stdMath.ceil(minsize/2),
-        cos2_tau, sin2_tau,
-        x0, y0, a, b, alpha,
+        cos2_tau, x0, y0,
+        a, b, alpha,
         max, found = [];
     k = p.length - 1;
     for (ij1=0; ij1<k; ++ij1)
     {
         if (p[ij1].u) continue;
-        for (ij2=k; ij2>ij1; --ij2)
+        x1 = p[ij1].x;
+        y1 = p[ij1].y;
+        for (ij2=0; ij2<ij1; ++ij2)
         {
             if (p[ij2].u) continue;
-            x1 = p[ij1].x;
-            y1 = p[ij1].y;
             x2 = p[ij2].x;
             y2 = p[ij2].y;
-            dx = x2 - x1;
-            dy = y2 - y1;
-            a = hypot(dx, dy);
-            if (a > minsize)
+            dx = x1 - x2;
+            dy = y1 - y2;
+            a = hypot(dx, dy)/2;
+            if (2*a <= minsize) continue;
+            p[ij1].u = 1;
+            p[ij2].u = 1;
+            x0 = (x1 + x2)/2;
+            y0 = (y1 + y2)/2;
+            zero(accum);
+            for (ij3=0; ij3<=k; ++ij3)
             {
-                p[ij1].u = 1;
-                p[ij2].u = 1;
-                zero(accum);
-                a = a/2;
-                x0 = (x1 + x2)/2;
-                y0 = (y1 + y2)/2;
-                for (ij3=0; ij3<=k; ++ij3)
+                if (p[ij3].u || (ij3 === ij1) || (ij3 === ij2)) continue;
+                x3 = p[ij3].x;
+                y3 = p[ij3].y;
+                d = hypot(x3-x0, y3-y0);
+                if (d <= minsize) continue;
+                f = x3-x1;
+                g = y3-y1;
+                cos2_tau = (a*a + d*d - f*f - g*g) / (2 * a * d);
+                cos2_tau = cos2_tau*cos2_tau;
+                b = stdMath.round(stdMath.sqrt((a*a * d*d * (1.0 - cos2_tau)) / (a*a - d*d * cos2_tau)));
+                if (b >= 0 && b < maxsize)
                 {
-                    if (p[ij3].u || ((ij3 === ij1) && (ij3 === ij2))) continue;
-                    x3 = p[ij3].x;
-                    y3 = p[ij3].y;
-                    d = hypot(x3-x0, y3-y0);
-                    if (d <= minsize || d >= a) continue;
-                    f = hypot(x3-x2, y3-y2);
-                    g = (a*a + d*d - f*f) / (2 * a * d);
-                    cos2_tau = g*g;
-                    sin2_tau = 1.0 - cos2_tau;
-                    b = stdMath.round(stdMath.sqrt((a*a * d*d * sin2_tau) / (a*a - d*d * cos2_tau))) - m;
-                    if (b >= 0 && b < accum.length)
-                    {
-                        ++accum[b];
-                        //if (accum[b] > threshold) p[ij3].u = 1;
-                    }
+                    ++accum[b];
+                    //if (accum[b] > threshold) p[ij3].u = 1;
                 }
-                max = local_max([], accum, threshold, accum.length, null, null);
-                if (max.length)
-                {
-                    // Center
-                    x0 = stdMath.round(x0);
-                    y0 = stdMath.round(y0);
-                    // Half-length of the major axis
-                    a = stdMath.round(a);
-                    // Half-length of the minor axis
-                    // b
-                    // Orientation
-                    alpha = stdMath.atan2(dy, dx);
-                    //if (0 > alpha) alpha += 360;
-                    found.push.apply(found, max.map(function(b) {
-                        return {
-                            shape: 'ellipse',
-                            cx: x0,
-                            cy: y0,
-                            rx: a,
-                            ry: b+m,
-                            angle: alpha
-                        };
-                        }));
-                }
+            }
+            max = local_max([], accum, threshold, maxsize, null, null);
+            if (max.length)
+            {
+                // Center
+                x0 = stdMath.round(x0);
+                y0 = stdMath.round(y0);
+                // Half-length of the major axis
+                a = stdMath.round(a);
+                // Half-length of the minor axis
+                // b
+                // Orientation
+                alpha = stdMath.round(180*stdMath.atan2(dy, dx)/stdMath.PI);
+                //if (alpha) alpha = 180 - alpha;
+                found.push.apply(found, max.map(function(b) {
+                    /*return alpha > 180 ? {
+                        shape: 'ellipse',
+                        cx: x0,
+                        cy: y0,
+                        rx: b,
+                        ry: a,
+                        angle: alpha - 90
+                    } :*/ return {
+                        shape: 'ellipse',
+                        cx: x0,
+                        cy: y0,
+                        rx: a,
+                        ry: b,
+                        angle: alpha
+                    };
+                }));
             }
         }
     }
