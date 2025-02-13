@@ -263,13 +263,14 @@ function hough_ellipses(im, w, h, threshold, minsize, maxsize)
     if (null == maxsize) maxsize = stdMath.max(w, h) >>> 1;
     var p = nonzero(im, w, h, 0),
         accum = new A32U(maxsize),
+        acc = new Array(maxsize),
         k, ij1, ij2, ij3,
         x1, y1, x2, y2, x3, y3,
         dx, dy, d, f, g,
         cos2_tau, x0, y0,
         a, b, alpha,
         max, found = [];
-    k = p.length - 1;
+    k = p.length;
     for (ij1=0; ij1<k; ++ij1)
     {
         if (p[ij1].u) continue;
@@ -284,18 +285,17 @@ function hough_ellipses(im, w, h, threshold, minsize, maxsize)
             dy = y1 - y2;
             a = hypot(dx, dy)/2;
             if (2*a <= minsize) continue;
-            p[ij1].u = 1;
-            p[ij2].u = 1;
             x0 = (x1 + x2)/2;
             y0 = (y1 + y2)/2;
-            zero(accum);
-            for (ij3=0; ij3<=k; ++ij3)
+            zero(accum, 0);
+            zero(acc, null);
+            for (ij3=0; ij3<k; ++ij3)
             {
                 if (p[ij3].u || (ij3 === ij1) || (ij3 === ij2)) continue;
                 x3 = p[ij3].x;
                 y3 = p[ij3].y;
                 d = hypot(x3-x0, y3-y0);
-                if (d <= minsize) continue;
+                if (d >= a) continue;
                 f = x3-x1;
                 g = y3-y1;
                 cos2_tau = (a*a + d*d - f*f - g*g) / (2 * a * d);
@@ -304,7 +304,8 @@ function hough_ellipses(im, w, h, threshold, minsize, maxsize)
                 if (b >= 0 && b < maxsize)
                 {
                     ++accum[b];
-                    //if (accum[b] > threshold) p[ij3].u = 1;
+                    if (!acc[b]) acc[b] = [ij1, ij2];
+                    acc[b].push(ij3);
                 }
             }
             max = local_max([], accum, threshold, maxsize, null, null);
@@ -319,16 +320,9 @@ function hough_ellipses(im, w, h, threshold, minsize, maxsize)
                 // b
                 // Orientation
                 alpha = stdMath.round(180*stdMath.atan2(dy, dx)/stdMath.PI);
-                //if (alpha) alpha = 180 - alpha;
                 found.push.apply(found, max.map(function(b) {
-                    /*return alpha > 180 ? {
-                        shape: 'ellipse',
-                        cx: x0,
-                        cy: y0,
-                        rx: b,
-                        ry: a,
-                        angle: alpha - 90
-                    } :*/ return {
+                    acc[b].forEach(function(i) {p[i].u=1;});
+                    return {
                         shape: 'ellipse',
                         cx: x0,
                         cy: y0,
@@ -351,9 +345,9 @@ function arr(n, f)
     for (var a=new Array(n),i=0; i<n; ++i) a[i] = f(i);
     return a;
 }
-function zero(a)
+function zero(a, z)
 {
-    for (var i=0,n=a.length; i<n; ++i) a[i] = 0;
+    for (var i=0,n=a.length; i<n; ++i) a[i] = z;
     return a;
 }
 function sincos(sin, cos, thetas)
