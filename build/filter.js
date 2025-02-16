@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-02-16 18:23:22
+*   @built on 2025-02-16 20:53:19
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-02-16 18:23:22
+*   @built on 2025-02-16 20:53:19
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -20963,30 +20963,30 @@ FILTER.Create({
         }
         if ('lines' === shape)
         {
-            self.meta.objects = hough_lines(im, w, h, 4, x1, y1, x2, y2, self.threshold, self.thetas);
+            self.meta.objects = hough_lines(im, w, h, 4, x1, y1, x2, y2, self.thetas, self.threshold);
         }
         else if ('linesegments' === shape)
         {
-            self.meta.objects = hough_line_segments(im, w, h, 4, x1, y1, x2, y2, self.threshold, self.thetas, self.gap);
+            self.meta.objects = hough_line_segments(im, w, h, 4, x1, y1, x2, y2, self.thetas, self.threshold, self.gap);
         }
         else if ('rectangles' === shape)
         {
-            self.meta.objects = hough_rectangles(im, w, h, 4, x1, y1, x2, y2, self.threshold, self.thetas, self.gap);
+            self.meta.objects = hough_rectangles(im, w, h, 4, x1, y1, x2, y2, self.thetas, self.threshold, self.gap);
         }
         else if ('circles' === shape)
         {
-            self.meta.objects = hough_circles(im, w, h, 4, x1, y1, x2, y2, self.threshold, self.radii);
+            self.meta.objects = hough_circles(im, w, h, 4, x1, y1, x2, y2, self.radii, self.threshold);
         }
         else if ('ellipses' === shape)
         {
-            self.meta.objects = hough_ellipses(im, w, h, 4, x1, y1, x2, y2, self.threshold, self.amin, self.amax, self.bmin, self.bmax);
+            self.meta.objects = hough_ellipses(im, w, h, 4, x1, y1, x2, y2, self.amin, self.amax, self.bmin, self.bmax, self.threshold);
         }
         self._update = false;
         return im;
     }
 });
 
-function hough_lines(im, w, h, ch, xa, ya, xb, yb, threshold, thetas)
+function hough_lines(im, w, h, nch, xa, ya, xb, yb, thetas, threshold)
 {
     // https://en.wikipedia.org/wiki/Hough_transform
     if (!thetas || !thetas.length) return [];
@@ -21000,14 +21000,15 @@ function hough_lines(im, w, h, ch, xa, ya, xb, yb, threshold, thetas)
         acc = new Array(size),
         sin = new A32F(numangle),
         cos = new A32F(numangle),
-        alpha = 4 === ch ? 3 : 0,
+        alpha = 4 === nch ? 3 : 0,
+        shl = 4 === nch ? 2 : 0,
         x, y, yw, i, j, l, a, r, index, mm;
 
     sincos(sin, cos, thetas);
-    for (x=xa,y=ya,yw=y*w,j=0,l=((ww*hh)*ch); j<l; j+=ch,++x)
+    for (x=xa,y=ya,yw=y*w,j=0,l=((ww*hh)<<shl); j<l; j+=nch,++x)
     {
         if (x > xb) {x=xa; ++y; yw+=w;};
-        i = (yw + x) * ch;
+        i = (yw + x) << shl;
         if (im[i] && im[i+alpha])
         {
             for (a=0; a<numangle; ++a)
@@ -21043,48 +21044,31 @@ function hough_lines(im, w, h, ch, xa, ya, xb, yb, threshold, thetas)
         };
     });
 }
-function hough_line_segments(im, w, h, ch, xa, ya, xb, yb, threshold, thetas, gap)
+function hough_line_segments(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, gap)
 {
-    return hough_lines(im, w, h, ch, xa, ya, xb, yb, threshold, thetas).reduce(function(segments, line) {
-        segments.push.apply(segments, line_to_segments(line, im, w, h, ch, threshold, gap));
+    return hough_lines(im, w, h, nch, xa, ya, xb, yb, thetas, threshold).reduce(function(segments, line) {
+        segments.push.apply(segments, line_to_segments(line, im, w, h, nch, threshold, gap));
         return segments;
     }, []);
 }
-function hough_rectangles(im, w, h, ch, xa, ya, xb, yb, threshold, thetas, gap)
+function hough_rectangles(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, gap)
 {
-    var lines = hough_lines(im, w, h, ch, xa, ya, xb, yb, threshold, thetas),
-        unique_lines, unique_segments, parallel_lines, rectangles,
+    var lines = hough_lines(im, w, h, nch, xa, ya, xb, yb, thetas, threshold),
+        unique_lines, parallel_lines, rectangles,
         ww = xb-xa+1, hh = yb-ya+1,
         eps_theta = 3, eps_alpha = 3, eps_p = 5,
         eps_rho = 0.025*stdMath.min(ww,hh), n, i, j,
-        l1, l2, p1, p2, p3, p4, m1, m2, m3, m4, corners, r,
-        eq3 = function(x0, y0, x1, y1, x2, y2) {
-            return eq(x0, x1, eps_p) && eq(y0, y1, eps_p) && eq(x0, x2, eps_p) && eq(y0, y2, eps_p);
-        },
-        meet_at = function(l1, l2, p) {
-            for (var i=0,ic=l1._segments.length; i<ic; ++i)
-            {
-                for (var j=0,jc=l2._segments.length; j<jc; ++j)
-                {
-                    if (
-                    eq3(p.x, p.y, l1._segments[i].x0, l1._segments[i].y0, l2._segments[j].x0, l2._segments[j].y0) ||
-                    eq3(p.x, p.y, l1._segments[i].x0, l1._segments[i].y0, l2._segments[j].x1, l2._segments[j].y1) ||
-                    eq3(p.x, p.y, l1._segments[i].x1, l1._segments[i].y1, l2._segments[j].x0, l2._segments[j].y0) ||
-                    eq3(p.x, p.y, l1._segments[i].x1, l1._segments[i].y1, l2._segments[j].x1, l2._segments[j].y1)
-                    ) return [i, j];
-                }
-            }
-        };
-    lines.sort(function(a, b) {return (a.theta-b.theta) || (a.rho-b.rho);});
+        l1, l2, p1, p2, p3, p4, m1, m2, m3, m4, corners, r;
+    lines.sort(polar_sort);
     n = lines.length;
     unique_lines = [];
     for (i=0; i<n; ++i)
     {
         l1 = lines[i];
-        if ((0 === i) || (!eq(l1.theta, l2.theta, eps_theta) && !eq(l1.rho, l2.rho, eps_rho)))
+        if ((0 === i) || (!eq(l1.theta, l2.theta, eps_theta) || !eq(l1.rho, l2.rho, eps_rho)))
         {
+            l1._segments = line_to_segments(l1, im, w, h, nch, threshold, gap).map(function(seg) {seg._line = l1; return seg;});
             unique_lines.push(l1);
-            l1._segments = line_to_segments(l1, im, w, h, ch, threshold, gap).map(function(seg) {seg._line = l1; return seg;});
         }
         l2 = l1;
     }
@@ -21097,13 +21081,8 @@ function hough_rectangles(im, w, h, ch, xa, ya, xb, yb, threshold, thetas, gap)
         {
             l2 = unique_lines[j];
             if (
-                /*(
-                l1._line !== l2._line
-                ) &&*/
-                (
                 stdMath.abs(l1.theta-l2.theta) <= eps_theta ||
                 stdMath.abs(stdMath.abs(l1.theta-l2.theta)-180) <= eps_theta
-                )
             )
             {
                 parallel_lines.push([l1, l2, stdMath.min(l1.theta,l2.theta)]);
@@ -21124,10 +21103,10 @@ function hough_rectangles(im, w, h, ch, xa, ya, xb, yb, threshold, thetas, gap)
                 p2 = lines_intersection(l1[0], l2[1], w, h);
                 p3 = lines_intersection(l1[1], l2[0], w, h);
                 p4 = lines_intersection(l1[1], l2[1], w, h);
-                m1 = meet_at(l1[0], l2[0], p1);
-                m2 = meet_at(l1[0], l2[1], p2);
-                m3 = meet_at(l1[1], l2[0], p3);
-                m4 = meet_at(l1[1], l2[1], p4);
+                m1 = meet_at(l1[0], l2[0], p1, eps_p);
+                m2 = meet_at(l1[0], l2[1], p2, eps_p);
+                m3 = meet_at(l1[1], l2[0], p3, eps_p);
+                m4 = meet_at(l1[1], l2[1], p4, eps_p);
                 if (
                     (m1 && m2 && m3 && m4) &&
                     (m1[0] === m2[0] && m1[1] === m3[1] && m3[0] === m4[0] && m2[1] === m4[1])
@@ -21149,11 +21128,11 @@ function hough_rectangles(im, w, h, ch, xa, ya, xb, yb, threshold, thetas, gap)
     }
     return rectangles;
 }
-function hough_circles(im, w, h, ch, xa, ya, xb, yb, threshold, radii)
+function hough_circles(im, w, h, nch, xa, ya, xb, yb, radii, threshold)
 {
     // https://en.wikipedia.org/wiki/Circle_Hough_Transform
     if (!radii || !radii.length) return [];
-    var p = nonzero(im, w, h, 0, ch, xa, ya, xb, yb),
+    var p = nonzero(im, w, h, 0, nch, xa, ya, xb, yb),
         numpix = p.length,
         ww = xb-xa+1, hh = yb-ya+1, area = ww*hh,
         numrad = radii.length,
@@ -21192,7 +21171,7 @@ function hough_circles(im, w, h, ch, xa, ya, xb, yb, threshold, radii)
         };
     });
 }
-function hough_ellipses(im, w, h, ch, xa, ya, xb, yb, threshold, amin, amax, bmin, bmax)
+function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, threshold)
 {
     // “A new efficient ellipse detection method”, Y. Xie and Q. Ji, 2002
     // https://sites.ecse.rpi.edu/~cvrl/Publication/pdf/Xie2002.pdf
@@ -21203,7 +21182,7 @@ function hough_ellipses(im, w, h, ch, xa, ya, xb, yb, threshold, amin, amax, bmi
     if (null == bmin) bmin = 3;
     bmax = null == bmax ? amax : stdMath.min(amax, bmax);
     if (bmin > bmax) return [];
-    var p = nonzero(im, w, h, 0, ch, xa, ya, xb, yb),
+    var p = nonzero(im, w, h, 0, nch, xa, ya, xb, yb),
         maxsize = bmax-bmin+1,
         accum = new A32U(maxsize),
         acc = new Array(maxsize),
@@ -21321,10 +21300,33 @@ function sincos(sin, cos, thetas)
         cos[t] = stdMath.cos(thetas[t]*deg2rad);
     }
 }
+function meet_at(l1, l2, p, eps)
+{
+    var ls1 = l1._segments, ls2 = l2._segments,
+        i, ic = ls1.length, s1,
+        j, jc = ls2.length, s2,
+        eq3 = function(x0, y0, x1, y1, x2, y2) {
+            return eq(x0, x1, eps) && eq(y0, y1, eps) && eq(x0, x2, eps) && eq(y0, y2, eps);
+        };
+    for (i=0; i<ic; ++i)
+    {
+        s1 = ls1[i];
+        for (j=0; j<jc; ++j)
+        {
+            s2 = ls2[j];
+            if (
+            eq3(p.x, p.y, s1.x0, s1.y0, s2.x0, s2.y0) ||
+            eq3(p.x, p.y, s1.x0, s1.y0, s2.x1, s2.y1) ||
+            eq3(p.x, p.y, s1.x1, s1.y1, s2.x0, s2.y0) ||
+            eq3(p.x, p.y, s1.x1, s1.y1, s2.x1, s2.y1)
+            ) return [i, j];
+        }
+    }
+}
 function line_to_segments(line, im, w, h, channels, thresh, gap)
 {
     var right = channels, down = w*channels, segments = [],
-        alpha = 4 === channels ? 3 : 0,
+        alpha = 4 === channels ? 3 : 0, shl = 4 === channels ? 2 : 0,
         dx = line.x1 - line.x0, dy = line.y1 - line.y0, on_segment,
         xs, ys, xe, ye, x, y, st, s, g, i, u, d, l, r, lu, ru, ld, rd;
     if (stdMath.abs(dx) >= stdMath.abs(dy))
@@ -21334,7 +21336,7 @@ function line_to_segments(line, im, w, h, channels, thresh, gap)
             y = stdMath.round(dy*(x-line.x0)/dx) + line.y0;
             if (0 <= y && y < h)
             {
-                i = (y*w + x) * channels;
+                i = (y*w + x) << shl;
                 r = x+1 < w ? (i+right) : i;
                 l = x-1 >= 0 ? (i-right) : i;
                 u = y-1 >= 0 ? (i-down) : i;
@@ -21393,7 +21395,7 @@ function line_to_segments(line, im, w, h, channels, thresh, gap)
             x = stdMath.round(dx*(y-line.y0)/dy) + line.x0;
             if (0 <= x && x < w)
             {
-                i = (y*w + x) * channels;
+                i = (y*w + x) << shl;
                 r = x+1 < w ? (i+right) : i;
                 l = x-1 >= 0 ? (i-right) : i;
                 u = y-1 >= 0 ? (i-down) : i;
@@ -21487,6 +21489,10 @@ function circle_points(pt, sin, cos, r)
         pt[i] = {x: r*cos[i], y: r*sin[i]};
     }
     return pt;
+}
+function polar_sort(a, b)
+{
+    return (a.theta-b.theta) || (a.rho-b.rho);
 }
 function topological_sort(p0)
 {
