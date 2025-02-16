@@ -23,8 +23,9 @@ FILTER.Create({
 
     ,_update: false // filter by itself does not alter image data, just processes information
     ,hasMeta: true
-    ,shape: 'lines'// or 'rectangles' or 'circles' or 'ellipses'
+    ,shape: 'lines'// or 'linesegments' or 'rectangles' or 'circles' or 'ellipses'
     ,threshold: 10
+    ,gap: 4
     ,radii: null
     ,thetas: null
     ,amin: 10
@@ -44,6 +45,7 @@ FILTER.Create({
         if (params)
         {
             if (null != params.threshold) self.threshold = +params.threshold;
+            if (null != params.gap) self.gap = +params.gap;
             if (null != params.radii) self.radii = params.radii;
             if (null != params.thetas) self.thetas = params.thetas;
             if (null != params.amin) self.amin = +params.amin;
@@ -59,6 +61,7 @@ FILTER.Create({
         json = {
              shape: self.shape
             ,threshold: self.threshold
+            ,gap: self.gap
             ,radii: self.radii ? self.radii.join(',') : null
             ,thetas: self.thetas ? self.thetas.join(',') : null
             ,amin: self.amin
@@ -73,6 +76,7 @@ FILTER.Create({
         var self = this;
         self.shape = params.shape;
         self.threshold = params.threshold;
+        self.gap = params.gap;
         self.radii = params.radii ? params.radii.split(',').map(num) : null;
         self.thetas = params.thetas ? params.thetas.split(',').map(num) : null;
         self.amin = params.amin;
@@ -100,9 +104,13 @@ FILTER.Create({
         {
             self.meta.objects = hough_lines(im, w, h, self.threshold, self.thetas);
         }
+        else if ('linesegments' === shape)
+        {
+            self.meta.objects = hough_line_segments(im, w, h, self.threshold, self.thetas, self.gap);
+        }
         else if ('rectangles' === shape)
         {
-            self.meta.objects = hough_rectangles(im, w, h, self.threshold, self.thetas);
+            self.meta.objects = hough_rectangles(im, w, h, self.threshold, self.thetas, self.gap);
         }
         else if ('circles' === shape)
         {
@@ -123,12 +131,14 @@ function hough_lines(im, w, h, threshold, thetas)
     if (!thetas || !thetas.length) return [];
     var d = stdMath.ceil(hypot(w, h)),
         ox = w/2, oy = h/2,
-        numrho = 2*d,
+        numrho = 2*d+1,
         numangle = thetas.length,
-        accum = new A32U(numangle*numrho),
+        size = numangle*numrho,
+        accum = new A32U(size),
+        acc = new Array(size),
         sin = new A32F(numangle),
         cos = new A32F(numangle),
-        x, y, i, l, a, r;
+        x, y, i, l, a, r, index, mm;
 
     sincos(sin, cos, thetas);
     for (x=0,y=0,i=0,l=im.length; i<l; i+=4,++x)
@@ -139,49 +149,69 @@ function hough_lines(im, w, h, threshold, thetas)
             for (a=0; a<numangle; ++a)
             {
                 r = stdMath.round((x - ox)*cos[a] + (y - oy)*sin[a]) + d;
-                ++accum[r*numangle + a];
+                index = r*numangle + a;
+                ++accum[index];
+                mm = acc[index];
+                if (!mm)
+                {
+                    acc[index] = {xmin:x,ymin:y,xmax:x,ymax:y,xminy:y,xmaxy:y};
+                }
+                else
+                {
+                    if (mm.xmin > x) mm.xminy = y;
+                    if (mm.xmax < x) mm.xmaxy = y;
+                    mm.xmin = stdMath.min(x, mm.xmin);
+                    mm.xmax = stdMath.max(x, mm.xmax);
+                    mm.ymin = stdMath.min(y, mm.ymin);
+                    mm.ymax = stdMath.max(y, mm.ymax);
+                }
             }
         }
     }
     return local_max([], accum, threshold, numrho, numangle, null).map(function(i) {
+        var mm = acc[i];
         return {
             shape: 'line',
             rho: stdMath.floor(i/numangle)-d,
-            theta: thetas[i % numangle]
+            theta: thetas[i % numangle],
+            x0: mm.xmin, y0: mm.xmin === mm.xmax ? mm.ymin : mm.xminy,
+            x1: mm.xmax, y1: mm.xmin === mm.xmax ? mm.ymax : mm.xmaxy
         };
     });
 }
-function hough_rectangles(im, w, h, threshold, thetas)
+function hough_line_segments(im, w, h, threshold, thetas, gap)
+{
+    return hough_lines(im, w, h, threshold, thetas).reduce(function(segments, line) {
+        segments.push.apply(segments, line_to_segments(line, im, w, h, threshold, gap));
+        return segments;
+    }, []);
+}
+function hough_rectangles(im, w, h, threshold, thetas, gap)
 {
     var lines = hough_lines(im, w, h, threshold, thetas),
         unique_lines, parallel_lines, rectangles,
-        eps_theta = 3, eps_alpha = 3,
+        eps_theta = 3, eps_alpha = 3, eps_p = 3,
         eps_rho = 0.025*(w+h), n, i, j,
-        l1, l2, t1, t2, r1, r2,
-        p1, p2, p3, p4, r;
-    lines.sort(function(a, b){return (a.theta-b.theta) || (a.rho-b.rho);});
+        l1, l2, p1, p2, p3, p4, corners, r,
+        eq3 = function(x0, y0, x1, y1, x2, y2) {
+            return eq(x0, x1, eps_p) && eq(y0, y1, eps_p) && eq(x0, x2, eps_p) && eq(y0, y2, eps_p);
+        };
+    lines.sort(function(a, b) {return (a.theta-b.theta) || (a.rho-b.rho);});
     n = lines.length;
     unique_lines = [];
     for (i=0; i<n; ++i)
     {
         l1 = lines[i];
-        if (0 === i)
+        if ((0 === i) || (!eq(l1.theta, l2.theta, eps_theta) && !eq(l1.rho, l2.rho, eps_rho)))
         {
             unique_lines.push(l1);
         }
-        else
-        {
-            t1 = l1.theta;
-            r1 = l1.rho;
-            t2 = l2.theta;
-            r2 = l2.rho;
-            if (stdMath.abs(t1-t2) > eps_theta && stdMath.abs(r1-r2) > eps_rho)
-            {
-                unique_lines.push(l1);
-            }
-        }
         l2 = l1;
     }
+    unique_lines = unique_lines.reduce(function(segments, line, i) {
+        segments.push.apply(segments, line_to_segments(line, im, w, h, threshold, gap).map(function(seg) {seg._line = i; return seg;}));
+        return segments;
+    }, []);
     n = unique_lines.length;
     parallel_lines = [];
     for (i=0; i<n; ++i)
@@ -190,7 +220,15 @@ function hough_rectangles(im, w, h, threshold, thetas)
         for (j=i+1; j<n; ++j)
         {
             l2 = unique_lines[j];
-            if (stdMath.abs(l1.theta-l2.theta) <= eps_theta || stdMath.abs(stdMath.abs(l1.theta-l2.theta)-180) <= eps_theta)
+            if (
+                (
+                l1._line !== l2._line
+                ) &&
+                (
+                stdMath.abs(l1.theta-l2.theta) <= eps_theta ||
+                stdMath.abs(stdMath.abs(l1.theta-l2.theta)-180) <= eps_theta
+                )
+            )
             {
                 parallel_lines.push([l1, l2, stdMath.min(l1.theta,l2.theta)]);
             }
@@ -210,12 +248,44 @@ function hough_rectangles(im, w, h, threshold, thetas)
                 p2 = lines_intersection(l1[0], l2[1], w, h);
                 p3 = lines_intersection(l1[1], l2[0], w, h);
                 p4 = lines_intersection(l1[1], l2[1], w, h);
-                r = {
-                    shape: 'rectangle',
-                    pts: [p1,p2,p3,p4].sort(topological_sort({x:(p1.x+p2.x+p3.x+p4.x)/4,y:(p1.y+p2.y+p3.y+p4.y)/4}))
-                };
-                //r.area = stdMath.round(hypot(r.pts[1].x-r.pts[0].x,r.pts[1].y-r.pts[0].y)*hypot(r.pts[3].x-r.pts[0].x,r.pts[3].y-r.pts[0].y));
-                rectangles.push(r);
+                if (
+                    (
+                    eq3(p1.x, p1.y, l1[0].x0, l1[0].y0, l2[0].x0, l2[0].y0) ||
+                    eq3(p1.x, p1.y, l1[0].x0, l1[0].y0, l2[0].x1, l2[0].y1) ||
+                    eq3(p1.x, p1.y, l1[0].x1, l1[0].y1, l2[0].x0, l2[0].y0) ||
+                    eq3(p1.x, p1.y, l1[0].x1, l1[0].y1, l2[0].x1, l2[0].y1)
+                    ) &&
+                    (
+                    eq3(p2.x, p2.y, l1[0].x0, l1[0].y0, l2[1].x0, l2[1].y0) ||
+                    eq3(p2.x, p2.y, l1[0].x0, l1[0].y0, l2[1].x1, l2[1].y1) ||
+                    eq3(p2.x, p2.y, l1[0].x1, l1[0].y1, l2[1].x0, l2[1].y0) ||
+                    eq3(p2.x, p2.y, l1[0].x1, l1[0].y1, l2[1].x1, l2[1].y1)
+                    ) &&
+                    (
+                    eq3(p3.x, p3.y, l1[1].x0, l1[1].y0, l2[0].x0, l2[0].y0) ||
+                    eq3(p3.x, p3.y, l1[1].x0, l1[1].y0, l2[0].x1, l2[0].y1) ||
+                    eq3(p3.x, p3.y, l1[1].x1, l1[1].y1, l2[0].x0, l2[0].y0) ||
+                    eq3(p3.x, p3.y, l1[1].x1, l1[1].y1, l2[0].x1, l2[0].y1)
+                    ) &&
+                    (
+                    eq3(p4.x, p4.y, l1[1].x0, l1[1].y0, l2[1].x0, l2[1].y0) ||
+                    eq3(p4.x, p4.y, l1[1].x0, l1[1].y0, l2[1].x1, l2[1].y1) ||
+                    eq3(p4.x, p4.y, l1[1].x1, l1[1].y1, l2[1].x0, l2[1].y0) ||
+                    eq3(p4.x, p4.y, l1[1].x1, l1[1].y1, l2[1].x1, l2[1].y1)
+                    )
+                )
+                {
+                    corners = [p1,p2,p3,p4].sort(topological_sort({x:(p1.x+p2.x+p3.x+p4.x)/4,y:(p1.y+p2.y+p3.y+p4.y)/4}));
+                    r = {
+                        shape: 'rectangle',
+                        x0: corners[0].x, y0: corners[0].y,
+                        x1: corners[1].x, y1: corners[1].y,
+                        x2: corners[2].x, y2: corners[2].y,
+                        x3: corners[3].x, y3: corners[3].y
+                    };
+                    //r.area = stdMath.round(hypot(r.x1-r.x0,r.y1-r.y0)*hypot(r.x3-r.x0,r.y3-r.y0));
+                    rectangles.push(r);
+                }
             }
         }
     }
@@ -270,31 +340,27 @@ function hough_ellipses(im, w, h, threshold, amin, amax, bmin, bmax)
     // https://sites.ecse.rpi.edu/~cvrl/Publication/pdf/Xie2002.pdf
     if (null == amin) amin = 10;
     if (null == amax) amax = stdMath.max(w, h) >>> 1;
-    if (amin > amax) amax = amin;
+    if (amin > amax) return [];
     if (null == bmin) bmin = 3;
     bmax = null == bmax ? amax : stdMath.min(amax, bmax);
-    if (bmin > bmax) bmin = bmax;
+    if (bmin > bmax) return [];
     var p = nonzero(im, w, h, 0),
         maxsize = bmax-bmin+1,
         accum = new A32U(maxsize),
         acc = new Array(maxsize),
-        k, ij1, ij2, ij3,
-        x1, y1, x2, y2, x3, y3,
-        dx, dy, d, f, g,
-        cos2_tau, x0, y0,
+        hash, k, i1, i2, i3,
+        x1, y1, x2, y2, x3, y3, x0, y0,
+        dx, dy, d, f, g, cos2,
         a, b, alpha,
         max, found = [];
-    k = p.length;
-    for (ij1=0; ij1<k; ++ij1)
+    for (i1=0; i1<p.length; ++i1)
     {
-        if (p[ij1].u) continue;
-        x1 = p[ij1].x;
-        y1 = p[ij1].y;
-        for (ij2=0; ij2<ij1; ++ij2)
+        x1 = p[i1].x;
+        y1 = p[i1].y;
+        for (i2=0; i2<i1; ++i2)
         {
-            if (p[ij2].u) continue;
-            x2 = p[ij2].x;
-            y2 = p[ij2].y;
+            x2 = p[i2].x;
+            y2 = p[i2].y;
             dx = x1 - x2;
             dy = y1 - y2;
             a = hypot(dx, dy)/2;
@@ -303,37 +369,40 @@ function hough_ellipses(im, w, h, threshold, amin, amax, bmin, bmax)
             y0 = (y1 + y2)/2;
             zero(accum, 0);
             zero(acc, null);
-            for (ij3=0; ij3<k; ++ij3)
+            for (i3=0,k=p.length; i3<k; ++i3)
             {
-                if (p[ij3].u || (ij3 === ij1) || (ij3 === ij2)) continue;
-                x3 = p[ij3].x;
-                y3 = p[ij3].y;
+                if ((i3 === i1) || (i3 === i2)) continue;
+                x3 = p[i3].x;
+                y3 = p[i3].y;
                 d = hypot(x3-x0, y3-y0);
-                if (d > a) continue;
+                if (d >= a) continue;
                 f = x3-x1;
                 g = y3-y1;
-                cos2_tau = (a*a + d*d - f*f - g*g) / (2 * a * d);
-                cos2_tau = cos2_tau*cos2_tau;
-                b = stdMath.round(stdMath.sqrt((a*a * d*d * (1.0 - cos2_tau)) / (a*a - d*d * cos2_tau)));
+                cos2 = (a*a + d*d - f*f - g*g) / (2 * a * d);
+                cos2 = cos2*cos2;
+                b = stdMath.round(stdMath.sqrt((a*a * d*d * (1.0 - cos2)) / (a*a - d*d * cos2)));
                 if (b >= bmin && b <= bmax)
                 {
                     b -= bmin;
                     ++accum[b];
                     if (!acc[b]) acc[b] = [];
-                    acc[b].push(ij3);
+                    acc[b].push(i3);
                 }
             }
             max = local_max([], accum, threshold, maxsize, null, null);
             if (max.length)
             {
-                p[ij1].u = 1;
-                p[ij2].u = 1;
+                hash = {};
+                hash[i1] = 1;
+                hash[i2] = 1;
                 x0 = stdMath.round(x0);
                 y0 = stdMath.round(y0);
                 a = stdMath.round(a);
                 alpha = stdMath.round(180*stdMath.atan2(dy, dx)/stdMath.PI);
                 found.push.apply(found, max.map(function(b) {
-                    acc[b].forEach(function(i) {p[i].u = 1;});
+                    acc[b].forEach(function(i) {
+                        hash[i] = 1;
+                    });
                     return {
                         shape: 'ellipse',
                         cx: x0,
@@ -343,11 +412,25 @@ function hough_ellipses(im, w, h, threshold, amin, amax, bmin, bmax)
                         angle: alpha
                     };
                 }));
+                Object.keys(hash)
+                .map(function(i) {
+                    return +i;
+                })
+                .sort(function(i, j) {
+                    return j-i; // desc
+                })
+                .forEach(function(i) {
+                    p.splice(i, 1);
+                    if (i < i1) --i1;
+                    if (i < i2) --i2;
+                });
             }
         }
     }
     return found;
 }
+
+// utils
 function num(x)
 {
     return (+x) || 0;
@@ -356,6 +439,10 @@ function arr(n, f)
 {
     for (var a=new Array(n),i=0; i<n; ++i) a[i] = f(i);
     return a;
+}
+function eq(a, b, eps)
+{
+    return stdMath.abs(a-b) <= (eps || 0);
 }
 function zero(a, z)
 {
@@ -369,6 +456,172 @@ function sincos(sin, cos, thetas)
         sin[t] = stdMath.sin(thetas[t]*deg2rad);
         cos[t] = stdMath.cos(thetas[t]*deg2rad);
     }
+}
+function line_to_segments(line, im, w, h, thresh, gap)
+{
+    var len = im.length, right = 4, down = w << 2, segments = [],
+        dx = line.x1 - line.x0, dy = line.y1 - line.y0, on_segment,
+        xs, ys, xe, ye, x, y, st, s, g, i, u, d, l, r, lu, ru, ld, rd;
+    if (stdMath.abs(dx) >= stdMath.abs(dy))
+    {
+        for (s=0,g=0,st=line.x1>=line.x0?1:-1,xs=x=line.x0,ys=y=line.y0;x!==line.x1;x+=st)
+        {
+            y = stdMath.round(dy*(x-line.x0)/dx) + line.y0;
+            if (0 <= y && y < h)
+            {
+                i = (w*y+x) << 2;
+                r = x+1 < w ? i+right : i;
+                l = x-1 >= 0 ? i-right : i;
+                u = y-1 >= 0 ? i-down : i;
+                d = y+1 < h ? i+down : i;
+                ru = x+1 < w && y-1 >= 0 ? i+right-down : i;
+                lu = x-1 >= 0 && y-1 >= 0 ? i-right-down : i;
+                rd = x+1 < w && y+1 < h ? i+right+down : i;
+                ld = x-1 >= 0 && y+1 < h ? i-right+down : i;
+                on_segment = ((im[i] && im[i+3]) ||
+                (im[i+l] && im[i+l+3]) ||
+                (im[i+r] && im[i+r+3]) ||
+                (im[i+u] && im[i+u+3]) ||
+                (im[i+d] && im[i+d+3]) ||
+                (im[i+lu] && im[i+lu+3]) ||
+                (im[i+ru] && im[i+ru+3]) ||
+                (im[i+ld] && im[i+ld+3]) ||
+                (im[i+rd] && im[i+rd+3]));
+            }
+            else
+            {
+                on_segment = 0;
+            }
+            if (on_segment)
+            {
+                ++s; // segment continues
+                g = 0;
+                xe = x;
+                ye = y;
+            }
+            else
+            {
+                ++g; // segment breaks
+                if (g > gap)
+                {
+                    if (s > thresh)
+                    {
+                        segments.push({
+                            shape: 'line',
+                            rho: line.rho,
+                            theta: line.theta,
+                            x0: xs, y0: ys,
+                            x1: xe, y1: ye
+                        });
+                    }
+                    s = 0;
+                    xs = x;
+                    ys = y;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (s=0,g=0,st=line.y1>=line.y0?1:-1,xs=x=line.x0,ys=y=line.y0;y!==line.y1;y+=st)
+        {
+            x = stdMath.round(dx*(y-line.y0)/dy) + line.x0;
+            if (0 <= x && x < w)
+            {
+                i = (w*y+x) << 2;
+                r = x+1 < w ? i+right : i;
+                l = x-1 >= 0 ? i-right : i;
+                u = y-1 >= 0 ? i-down : i;
+                d = y+1 < h ? i+down : i;
+                ru = x+1 < w && y-1 >= 0 ? i+right-down : i;
+                lu = x-1 >= 0 && y-1 >= 0 ? i-right-down : i;
+                rd = x+1 < w && y+1 < h ? i+right+down : i;
+                ld = x-1 >= 0 && y+1 < h ? i-right+down : i;
+                on_segment = ((im[i] && im[i+3]) ||
+                (im[i+l] && im[i+l+3]) ||
+                (im[i+r] && im[i+r+3]) ||
+                (im[i+u] && im[i+u+3]) ||
+                (im[i+d] && im[i+d+3]) ||
+                (im[i+lu] && im[i+lu+3]) ||
+                (im[i+ru] && im[i+ru+3]) ||
+                (im[i+ld] && im[i+ld+3]) ||
+                (im[i+rd] && im[i+rd+3]));
+            }
+            else
+            {
+                on_segment = 0;
+            }
+            if (on_segment)
+            {
+                ++s; // segment continues
+                g = 0;
+                xe = x;
+                ye = y;
+            }
+            else
+            {
+                ++g; // segment breaks
+                if (g > gap)
+                {
+                    if (s > thresh)
+                    {
+                        segments.push({
+                            shape: 'line',
+                            rho: line.rho,
+                            theta: line.theta,
+                            x0: xs, y0: ys,
+                            x1: xe, y1: ye
+                        });
+                    }
+                    s = 0;
+                    xs = x;
+                    ys = y;
+                }
+            }
+        }
+    }
+    if (s > thresh)
+    {
+        segments.push({
+            shape: 'line',
+            rho: line.rho,
+            theta: line.theta,
+            x0: xs, y0: ys,
+            x1: xe, y1: ye
+        });
+    }
+    return segments;
+}
+/*function line_endpoints(p, q, l, w, h)
+{
+    var c = stdMath.cos(stdMath.PI*l.theta/180),
+        s = stdMath.sin(stdMath.PI*l.theta/180),
+        x0 = c*l.rho + w/2, y0 = s*l.rho + h/2;
+    p.x = x0 - w*s; p.y = y0 + w*c;
+    q.x = x0 + w*s; q.y = y0 - w*c;
+}*/
+function lines_intersection(l1, l2, w, h)
+{
+    var p1 = {x:l1.x0,y:l1.y0}, p2 = {x:l1.x1,y:l1.y1},
+        q1 = {x:l2.x0,y:l2.y0}, q2 = {x:l2.x1,y:l2.y1};
+    //line_endpoints(p1, p2, l1, w, h);
+    //line_endpoints(q1, q2, l2, w, h);
+    var x1 = p1.x, x2 = p2.x,
+        y1 = p1.y, y2 = p2.y,
+        x3 = q1.x, x4 = q2.x,
+        y3 = q1.y, y4 = q2.y,
+        f = x1*y2 - y1*x2, g = x3*y4 - y3*x4,
+        D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+    ;
+    return {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)};
+}
+function circle_points(pt, sin, cos, r)
+{
+    for (var i=0,n=sin.length; i<n; ++i)
+    {
+        pt[i] = {x: r*cos[i], y: r*sin[i]};
+    }
+    return pt;
 }
 function topological_sort(p0)
 {
@@ -386,36 +639,5 @@ function topological_sort(p0)
 
         return (dbx*dbx + dby*dby) - (dax*dax + day*day);
     };
-}
-function line_endpoints(p, q, l, w, h)
-{
-    var c = stdMath.cos(stdMath.PI*l.theta/180),
-        s = stdMath.sin(stdMath.PI*l.theta/180),
-        x0 = c*l.rho + w/2, y0 = s*l.rho + h/2;
-    p.x = x0 - w*s; p.y = y0 + w*c;
-    q.x = x0 + w*s; q.y = y0 - w*c;
-}
-function lines_intersection(l1, l2, w, h)
-{
-    var p1 = {x:0,y:0}, p2 = {x:0,y:0},
-        q1 = {x:0,y:0}, q2 = {x:0,y:0};
-    line_endpoints(p1, p2, l1, w, h);
-    line_endpoints(q1, q2, l2, w, h);
-    var x1 = p1.x, x2 = p2.x,
-        y1 = p1.y, y2 = p2.y,
-        x3 = q1.x, x4 = q2.x,
-        y3 = q1.y, y4 = q2.y,
-        f = x1*y2 - y1*x2, g = x3*y4 - y3*x4,
-        D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
-    ;
-    return {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)};
-}
-function circle_points(pt, sin, cos, r)
-{
-    for (var i=0,n=sin.length; i<n; ++i)
-    {
-        pt[i] = {x: r*cos[i], y: r*sin[i]};
-    }
-    return pt;
 }
 }(FILTER);
