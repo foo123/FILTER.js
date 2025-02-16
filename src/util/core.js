@@ -2310,14 +2310,22 @@ function local_max(max, accum, thresh, N, M, K)
     }
     return max;
 }
-function nonzero_pixels(im, w, h, channel)
+function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
 {
+    if (null == xa) {xa = 0; ya = 0; xb = w-1; yb = h-1;}
     channel = channel || 0;
-    var nz = new Array(w*h), i, k, l, x, y;
-    for (k=0,y=0,x=0,i=0,l=im.length; i<l; i+=4,++x)
+    var ww = xb-xa+1, hh = yb-ya+1, count = ww*hh, nz = new Array(count),
+        i, j, k, l, x, y, yw, alpha = 4 === channels ? 3 : channel;
+    if (0 <= xb && xa < w && 0 <= yb && ya < h)
     {
-        if (x >= w) {x=0; ++y};
-        if (im[i+channel] && im[i+3]) nz[k++] = {x:x, y:y};
+        for (k=0,x=xa,y=ya,yw=y*w,j=0,l=(count*channels); j<l; j+=channels,++x)
+        {
+            if (x > xb) {x=xa; ++y; yw+=w;};
+            if (y >= h) break;
+            if (0 > x || x >= w || 0 > y) continue;
+            i = (yw + x) << 2;
+            if (im[i+channel] && im[i+alpha]) nz[k++] = {x:x, y:y};
+        }
     }
     nz.length = k;
     return nz;

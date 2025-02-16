@@ -1,28 +1,15 @@
 "use strict";
 
-function line_endpoints(l, w, h)
-{
-    var a = Math.cos(Math.PI*l.theta/180),
-        b = Math.sin(Math.PI*l.theta/180),
-        x0 = a*l.rho + w/2,
-        y0 = b*l.rho + h/2;
-    return [{
-    x: Math.round(x0 + w*(-b)),
-    y: Math.round(y0 + w*(a))
-    }, {
-    x: Math.round(x0 - w*(-b)),
-    y: Math.round(y0 - w*(a)),
-    }];
-}
 var parse_args = require('./commargs.js'),
     fs = require('fs'),
     F = require('./filterwithcanvas.js'),
     parallel = !!parse_args().options['parallel'],
     shape_detector = F.CompositeFilter([
-        F.HoughDetectorFilter('lines').params({threshold:45,thetas:[0, 45, 90]}),
-        F.HoughDetectorFilter('circles').params({threshold:25,radii:[20, 25, 30]}),
-        F.HoughDetectorFilter('rectangles').params({threshold:50,thetas:[75, 165, 255, 345]}),
-        F.HoughDetectorFilter('ellipses').params({threshold:100,amin:40,amax:100,bmin:20}),
+        //F.HoughDetectorFilter('lines').params({threshold:45,thetas:[0, 45, 90, 135]}),
+        F.HoughDetectorFilter('linesegments').params({threshold:50,gap:1,thetas:[0, 45, 90, 135]}),
+        F.HoughDetectorFilter('circles').select(0, 0, 0.5, 0.5).params({threshold:25,radii:[20, 25, 30]}),
+        F.HoughDetectorFilter('rectangles').params({threshold:45,thetas:[75, 165, 255, 345]/*[0, 45, 90, 135]*/}),
+        F.HoughDetectorFilter('ellipses').params({threshold:150,amin:40,amax:100,bmin:20}),
     ]).update(false);
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
@@ -48,10 +35,9 @@ fs.readFile(__dirname+'/shapes.png', function(err, buffer) {
                 console.log(JSON.stringify(features.map(function(f, i) {
                     if ('line' === f.shape)
                     {
-                        var endpts = line_endpoints(f, img.width, img.height);
                         ctx.beginPath();
-                        ctx.moveTo(endpts[0].x, endpts[0].y);
-                        ctx.lineTo(endpts[1].x, endpts[1].y);
+                        ctx.moveTo(f.x0, f.y0);
+                        ctx.lineTo(f.x1, f.y1);
                         ctx.strokeStyle = '#f00';
                         ctx.stroke();
                     }
@@ -66,10 +52,10 @@ fs.readFile(__dirname+'/shapes.png', function(err, buffer) {
                     else if ('rectangle' === f.shape)
                     {
                         ctx.beginPath();
-                        ctx.moveTo(f.pts[0].x, f.pts[0].y);
-                        ctx.lineTo(f.pts[1].x, f.pts[1].y);
-                        ctx.lineTo(f.pts[2].x, f.pts[2].y);
-                        ctx.lineTo(f.pts[3].x, f.pts[3].y);
+                        ctx.moveTo(f.x0, f.y0);
+                        ctx.lineTo(f.x1, f.y1);
+                        ctx.lineTo(f.x2, f.y2);
+                        ctx.lineTo(f.x3, f.y3);
                         ctx.closePath();
                         ctx.strokeStyle = '#00f';
                         ctx.stroke();
