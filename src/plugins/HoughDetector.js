@@ -137,7 +137,7 @@ FILTER.Create({
         }
         else if ('rectangles' === shape)
         {
-            self.meta.objects = hough_rectangles(im, w, h, 4, x1, y1, x2, y2, self.thetas, self.threshold, self.gap);
+            self.meta.objects = hough_parallelograms(im, w, h, 4, x1, y1, x2, y2, self.thetas, 90, self.threshold, self.gap);
         }
         else if ('circles' === shape)
         {
@@ -156,6 +156,7 @@ function hough_lines(im, w, h, nch, xa, ya, xb, yb, thetas, threshold)
 {
     // https://en.wikipedia.org/wiki/Hough_transform
     if (!thetas || !thetas.length) return [];
+    thetas = normalize(thetas);
     var ww = xb-xa+1, hh = yb-ya+1,
         ox = ww/2, oy = hh/2,
         d = stdMath.ceil(hypot(ww, hh)),
@@ -217,14 +218,14 @@ function hough_line_segments(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, g
         return segments;
     }, []);
 }
-function hough_rectangles(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, gap)
+function hough_parallelograms(im, w, h, nch, xa, ya, xb, yb, thetas, angle, threshold, gap)
 {
     var lines = hough_lines(im, w, h, nch, xa, ya, xb, yb, thetas, threshold),
-        unique_lines, parallel_lines, rectangles,
+        unique_lines, parallel_lines, parallelograms,
         ww = xb-xa+1, hh = yb-ya+1,
         eps_theta = 3, eps_alpha = 3, eps_p = 5,
-        eps_rho = 0.025*stdMath.min(ww,hh), n, i, j,
-        l1, l2, p1, p2, p3, p4, m1, m2, m3, m4, corners, r;
+        eps_rho = 0.025*stdMath.min(ww,hh), ang, a1, a2, n, i, j,
+        l1, l2, p1, p2, p3, p4, m1, m2, m3, m4, corners, pg;
     lines.sort(polar_sort);
     n = lines.length;
     unique_lines = [];
@@ -246,24 +247,27 @@ function hough_rectangles(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, gap)
         for (j=i+1; j<n; ++j)
         {
             l2 = unique_lines[j];
-            if (
-                stdMath.abs(l1.theta-l2.theta) <= eps_theta ||
-                stdMath.abs(stdMath.abs(l1.theta-l2.theta)-180) <= eps_theta
-            )
+            if (stdMath.abs(l1.theta-l2.theta) <= eps_theta)
             {
-                parallel_lines.push([l1, l2, stdMath.min(l1.theta,l2.theta)]);
+                parallel_lines.push([l1, l2, (l1.theta+l2.theta)/2]);
             }
         }
     }
     n = parallel_lines.length;
-    rectangles = [];
+    if (null != angle)
+    {
+        a1 = (angle+360) % 180;
+        a2 = 180 - a1;
+    }
+    parallelograms = [];
     for (i=0; i<n; ++i)
     {
         l1 = parallel_lines[i];
         for (j=i+1; j<n; ++j)
         {
             l2 = parallel_lines[j];
-            if (stdMath.abs(stdMath.abs(l1[2]-l2[2])-90) <= eps_alpha || stdMath.abs(stdMath.abs(l1[2]-l2[2])-270) <= eps_alpha)
+            ang = stdMath.abs(l1[2]-l2[2]);
+            if ((null == angle) || (stdMath.abs(ang-a1) <= eps_alpha || stdMath.abs(ang-a2) <= eps_alpha))
             {
                 p1 = lines_intersection(l1[0], l2[0], w, h);
                 p2 = lines_intersection(l1[0], l2[1], w, h);
@@ -279,20 +283,20 @@ function hough_rectangles(im, w, h, nch, xa, ya, xb, yb, thetas, threshold, gap)
                 )
                 {
                     corners = [p1,p2,p3,p4].sort(topological_sort({x:(p1.x+p2.x+p3.x+p4.x)/4,y:(p1.y+p2.y+p3.y+p4.y)/4}));
-                    r = {
-                        shape: 'rectangle',
+                    pg = {
+                        shape: 90 === angle ? 'rectangle' : 'parallelogram',
                         x0: corners[0].x, y0: corners[0].y,
                         x1: corners[1].x, y1: corners[1].y,
                         x2: corners[2].x, y2: corners[2].y,
                         x3: corners[3].x, y3: corners[3].y
                     };
-                    //r.area = stdMath.round(hypot(r.x1-r.x0,r.y1-r.y0)*hypot(r.x3-r.x0,r.y3-r.y0));
-                    rectangles.push(r);
+                    if (90 !== angle) pg.angle = null == angle ? ang : stdMath.min(a1, a2);
+                    parallelograms.push(pg);
                 }
             }
         }
     }
-    return rectangles;
+    return parallelograms;
 }
 function hough_circles(im, w, h, nch, xa, ya, xb, yb, radii, threshold)
 {
@@ -435,7 +439,7 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
 }
 FILTER.Util.Filter.hough_lines = hough_lines;
 FILTER.Util.Filter.hough_line_segments = hough_line_segments;
-FILTER.Util.Filter.hough_rectangles = hough_rectangles;
+FILTER.Util.Filter.hough_parallelograms = hough_parallelograms;
 FILTER.Util.Filter.hough_circles = hough_circles;
 FILTER.Util.Filter.hough_ellipses = hough_ellipses;
 
@@ -457,6 +461,24 @@ function zero(a, z)
 {
     for (var i=0,n=a.length; i<n; ++i) a[i] = z;
     return a;
+}
+function normalize(thetas)
+{
+    var prev_t = null, len = 0;
+    thetas = (thetas
+        .map(function(t) {
+            return ((t % 360)+360) % 180;
+        })
+        .sort(function(a, b) {
+            return a-b;
+        })
+        .reduce(function(thetas, t) {
+            if (t !== prev_t) thetas[len++] = t;
+            prev_t = t;
+            return thetas;
+        }, new Array(thetas.length)));
+    thetas.length = len;
+    return thetas;
 }
 function sincos(sin, cos, thetas)
 {
