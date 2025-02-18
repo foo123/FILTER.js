@@ -496,18 +496,21 @@ function meet_at(l1, l2, p, eps)
         eq3 = function(x0, y0, x1, y1, x2, y2) {
             return eq(x0, x1, eps) && eq(y0, y1, eps) && eq(x0, x2, eps) && eq(y0, y2, eps);
         };
-    for (i=0; i<ic; ++i)
+    if (p)
     {
-        s1 = ls1[i];
-        for (j=0; j<jc; ++j)
+        for (i=0; i<ic; ++i)
         {
-            s2 = ls2[j];
-            if (
-            eq3(p.x, p.y, s1.x0, s1.y0, s2.x0, s2.y0) ||
-            eq3(p.x, p.y, s1.x0, s1.y0, s2.x1, s2.y1) ||
-            eq3(p.x, p.y, s1.x1, s1.y1, s2.x0, s2.y0) ||
-            eq3(p.x, p.y, s1.x1, s1.y1, s2.x1, s2.y1)
-            ) return [i, j];
+            s1 = ls1[i];
+            for (j=0; j<jc; ++j)
+            {
+                s2 = ls2[j];
+                if (
+                eq3(p.x, p.y, s1.x0, s1.y0, s2.x0, s2.y0) ||
+                eq3(p.x, p.y, s1.x0, s1.y0, s2.x1, s2.y1) ||
+                eq3(p.x, p.y, s1.x1, s1.y1, s2.x0, s2.y0) ||
+                eq3(p.x, p.y, s1.x1, s1.y1, s2.x1, s2.y1)
+                ) return [i, j];
+            }
         }
     }
 }
@@ -668,7 +671,7 @@ function lines_intersection(l1, l2, w, h)
         f = x1*y2 - y1*x2, g = x3*y4 - y3*x4,
         D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
     ;
-    return {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)};
+    return D ? {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)} : false;
 }
 function circle_points(pt, sin, cos, r)
 {
