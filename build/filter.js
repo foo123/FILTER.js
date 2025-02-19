@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-02-17 20:07:41
+*   @built on 2025-02-19 13:42:10
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-02-17 20:07:41
+*   @built on 2025-02-19 13:42:10
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -3729,17 +3729,21 @@ function local_max(max, accum, thresh, N, M, K)
 function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
 {
     if (null == xa) {xa = 0; ya = 0; xb = w-1; yb = h-1;}
+    if (null == channels) channels = 4;
     channel = channel || 0;
-    var ww = xb-xa+1, hh = yb-ya+1, count = ww*hh, nz = new Array(count),
-        i, j, k, l, x, y, yw, alpha = 4 === channels ? 3 : channel;
+    var ww = xb-xa+1, hh = yb-ya+1,
+        count = ww*hh, nz = new Array(count),
+        i, j, k, x, y, yw,
+        alpha = 4 === channels ? 3 : channel,
+        shl = 4 === channels ? 2 : 0;
     if (0 <= xb && xa < w && 0 <= yb && ya < h)
     {
-        for (k=0,x=xa,y=ya,yw=y*w,j=0,l=(count*channels); j<l; j+=channels,++x)
+        for (k=0,x=xa,y=ya,yw=y*w,j=0; j<count; ++j,++x)
         {
             if (x > xb) {x=xa; ++y; yw+=w;};
             if (y >= h) break;
             if (0 > x || x >= w || 0 > y) continue;
-            i = (yw + x) << 2;
+            i = (yw + x) << shl;
             if (im[i+channel] && im[i+alpha]) nz[k++] = {x:x, y:y};
         }
     }
@@ -21330,18 +21334,21 @@ function meet_at(l1, l2, p, eps)
         eq3 = function(x0, y0, x1, y1, x2, y2) {
             return eq(x0, x1, eps) && eq(y0, y1, eps) && eq(x0, x2, eps) && eq(y0, y2, eps);
         };
-    for (i=0; i<ic; ++i)
+    if (p)
     {
-        s1 = ls1[i];
-        for (j=0; j<jc; ++j)
+        for (i=0; i<ic; ++i)
         {
-            s2 = ls2[j];
-            if (
-            eq3(p.x, p.y, s1.x0, s1.y0, s2.x0, s2.y0) ||
-            eq3(p.x, p.y, s1.x0, s1.y0, s2.x1, s2.y1) ||
-            eq3(p.x, p.y, s1.x1, s1.y1, s2.x0, s2.y0) ||
-            eq3(p.x, p.y, s1.x1, s1.y1, s2.x1, s2.y1)
-            ) return [i, j];
+            s1 = ls1[i];
+            for (j=0; j<jc; ++j)
+            {
+                s2 = ls2[j];
+                if (
+                eq3(p.x, p.y, s1.x0, s1.y0, s2.x0, s2.y0) ||
+                eq3(p.x, p.y, s1.x0, s1.y0, s2.x1, s2.y1) ||
+                eq3(p.x, p.y, s1.x1, s1.y1, s2.x0, s2.y0) ||
+                eq3(p.x, p.y, s1.x1, s1.y1, s2.x1, s2.y1)
+                ) return [i, j];
+            }
         }
     }
 }
@@ -21502,7 +21509,7 @@ function lines_intersection(l1, l2, w, h)
         f = x1*y2 - y1*x2, g = x3*y4 - y3*x4,
         D = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
     ;
-    return {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)};
+    return D ? {x: stdMath.round((f*(x3-x4)-(x1-x2)*g)/D), y: stdMath.round((f*(y3-y4)-(y1-y2)*g)/D)} : false;
 }
 function circle_points(pt, sin, cos, r)
 {

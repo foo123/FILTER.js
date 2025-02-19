@@ -2313,17 +2313,21 @@ function local_max(max, accum, thresh, N, M, K)
 function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
 {
     if (null == xa) {xa = 0; ya = 0; xb = w-1; yb = h-1;}
+    if (null == channels) channels = 4;
     channel = channel || 0;
-    var ww = xb-xa+1, hh = yb-ya+1, count = ww*hh, nz = new Array(count),
-        i, j, k, l, x, y, yw, alpha = 4 === channels ? 3 : channel;
+    var ww = xb-xa+1, hh = yb-ya+1,
+        count = ww*hh, nz = new Array(count),
+        i, j, k, x, y, yw,
+        alpha = 4 === channels ? 3 : channel,
+        shl = 4 === channels ? 2 : 0;
     if (0 <= xb && xa < w && 0 <= yb && ya < h)
     {
-        for (k=0,x=xa,y=ya,yw=y*w,j=0,l=(count*channels); j<l; j+=channels,++x)
+        for (k=0,x=xa,y=ya,yw=y*w,j=0; j<count; ++j,++x)
         {
             if (x > xb) {x=xa; ++y; yw+=w;};
             if (y >= h) break;
             if (0 > x || x >= w || 0 > y) continue;
-            i = (yw + x) << 2;
+            i = (yw + x) << shl;
             if (im[i+channel] && im[i+alpha]) nz[k++] = {x:x, y:y};
         }
     }
