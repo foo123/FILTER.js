@@ -2,7 +2,7 @@
 
 __1.13.0__
 
-* HoughDetectorFilter for lines, rectangles, circles and ellipses in progress
+* HoughDetectorFilter for lines, linesegments, rectangles, circles and ellipses
 * wasm filters code as separate files to be included at will
 * various edits, typo corrections
 

@@ -981,7 +981,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>HistogramMatch</td> <td>fast histogram matching (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>OtsuThreshold</td>    <td>fast automatic threshold (Otsu method)</td></tr>
 <tr><td>CannyEdges</td>   <td>efficient Canny Edges Detector/Extractor<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
-<tr><td>HoughDetector</td> <td>find simple shapes like lines, rectangles, circles and ellipses using Hough transform (in progress)</td></tr>
+<tr><td>HoughDetector</td> <td>find simple shapes like lines, rectangles, circles and ellipses using Hough transform</td></tr>
 <tr><td>TemplateMatcher</td> <td>find rotation-invariant and scale-invariant matches of a template image and their bounding boxes against another image (selection) using very fast correlation</td></tr>
 <tr><td>HaarDetector</td> <td>detect fast features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
 </tbody>

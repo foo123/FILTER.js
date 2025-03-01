@@ -356,17 +356,19 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
         maxsize = bmax-bmin+1,
         accum = new A32U(maxsize),
         acc = new Array(maxsize),
-        hash, k, i1, i2, i3,
+        k, i1, i2, i3,
         x1, y1, x2, y2, x3, y3, x0, y0,
         dx, dy, d, f, g, cos2,
         a, b, alpha,
         max, found = [];
     for (i1=0; i1<p.length; ++i1)
     {
+        if (p[i1].u) continue;
         x1 = p[i1].x;
         y1 = p[i1].y;
         for (i2=0; i2<i1; ++i2)
         {
+            if (p[i2].u) continue;
             x2 = p[i2].x;
             y2 = p[i2].y;
             dx = x1 - x2;
@@ -379,7 +381,7 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
             zero(acc, null);
             for (i3=0,k=p.length; i3<k; ++i3)
             {
-                if ((i3 === i1) || (i3 === i2)) continue;
+                if (p[i3].u || (i3 === i1) || (i3 === i2)) continue;
                 x3 = p[i3].x;
                 y3 = p[i3].y;
                 d = hypot(x3-x0, y3-y0);
@@ -400,16 +402,15 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
             max = local_max([], accum, threshold, maxsize, null, null);
             if (max.length)
             {
-                hash = {};
-                hash[i1] = 1;
-                hash[i2] = 1;
+                p[i1].u = 1;
+                p[i2].u = 1;
                 x0 = stdMath.round(x0);
                 y0 = stdMath.round(y0);
                 a = stdMath.round(a);
                 alpha = stdMath.round(180*stdMath.atan2(dy, dx)/stdMath.PI);
                 found.push.apply(found, max.map(function(b) {
                     acc[b].forEach(function(i) {
-                        hash[i] = 1;
+                        p[i].u = 1;
                     });
                     return {
                         shape: 'ellipse',
@@ -420,18 +421,6 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
                         angle: alpha
                     };
                 }));
-                Object.keys(hash)
-                .map(function(i) {
-                    return +i;
-                })
-                .sort(function(i, j) {
-                    return j-i; // desc
-                })
-                .forEach(function(i) {
-                    p.splice(i, 1);
-                    if (i < i1) --i1;
-                    if (i < i2) --i2;
-                });
             }
         }
     }

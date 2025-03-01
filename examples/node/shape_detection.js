@@ -9,7 +9,7 @@ var parse_args = require('./commargs.js'),
         F.HoughDetectorFilter('linesegments').params({threshold:50,gap:1,thetas:[0, 45, 90, 135]}),
         F.HoughDetectorFilter('circles').select(0, 0, 0.5, 0.5).params({threshold:25,radii:[20, 25, 30]}),
         F.HoughDetectorFilter('rectangles').params({threshold:45,thetas:[75, 165, 255, 345]/*[0, 45, 90, 135]*/}),
-        F.HoughDetectorFilter('ellipses').params({threshold:150,amin:40,amax:100,bmin:20}),
+        F.HoughDetectorFilter('ellipses').params({threshold:150,amin:60,amax:100,bmin:20}),
     ]).update(false);
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');

@@ -7,7 +7,7 @@
 This is a library for processing images/video in pure JavaScript using HTML5 features like `Canvas`, **Web Workers, WebAssembly and WebGL** or alternatives in Node.js (eg `CanvasLite`, `node-canvas`, `node-gl`, node `processes`).
 
 
-**version 1.13.0 in progress** (290 kB minified)
+**version 1.13.0** (293 kB minified)
 
 
 ### Contents
