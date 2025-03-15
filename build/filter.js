@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-03-01 16:12:29
+*   @built on 2025-03-15 16:13:59
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.13.0
-*   @built on 2025-03-01 16:12:29
+*   @built on 2025-03-15 16:13:59
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -21201,12 +21201,12 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
         maxsize = bmax-bmin+1,
         accum = new A32U(maxsize),
         acc = new Array(maxsize),
-        k, i1, i2, i3,
+        k = p.length, i1, i2, i3,
         x1, y1, x2, y2, x3, y3, x0, y0,
         dx, dy, d, f, g, cos2,
         a, b, alpha,
         max, found = [];
-    for (i1=0; i1<p.length; ++i1)
+    for (i1=0; i1<k; ++i1)
     {
         if (p[i1].u) continue;
         x1 = p[i1].x;
@@ -21224,7 +21224,7 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
             y0 = (y1 + y2)/2;
             zero(accum, 0);
             zero(acc, null);
-            for (i3=0,k=p.length; i3<k; ++i3)
+            for (i3=0; i3<k; ++i3)
             {
                 if (p[i3].u || (i3 === i1) || (i3 === i2)) continue;
                 x3 = p[i3].x;
@@ -21266,6 +21266,7 @@ function hough_ellipses(im, w, h, nch, xa, ya, xb, yb, amin, amax, bmin, bmax, t
                         angle: alpha
                     };
                 }));
+                break; // break out, go for new
             }
         }
     }
