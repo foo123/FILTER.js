@@ -44,15 +44,12 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 
 ### Credits
 
-Some filters code has been adapted from open source libraries, see the comments in the code for details.
+Some filters code has been adapted from open source libraries and/or public domain code, see comments in source code for details.
 
 * [**Image Processing Library in Java**](http://www.jhlabs.com/ip/filters/)
 * [**AS3 Image Processing Library**](http://je2050.de/imageprocessing/)
 * [**OpenCV**](https://github.com/opencv)
-* [**AS3 ColorMatrix**](http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html) **by @GSkinner**
-* [**Simplex Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/simplexnoise1234.c) and [**Perlin Noise**](https://github.com/kev009/craftd/blob/master/plugins/survival/mapgen/noise/noise1234.c) by **Stefan Gustavson**
 * [**HAAR.js**](https://github.com/foo123/HAAR.js)
-* [**glfx.js**](https://github.com/evanw/glfx.js)
 
 
 ### Features
