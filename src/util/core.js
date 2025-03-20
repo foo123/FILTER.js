@@ -2679,7 +2679,7 @@ function ImageSelection(image, width, height, channels, selection)
                     points = new Array(area);
                     if (4 === channels)
                     {
-                        if (null = color)
+                        if (null == color)
                         {
                             for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                             {
@@ -2719,7 +2719,7 @@ function ImageSelection(image, width, height, channels, selection)
                     }
                     else
                     {
-                        if (null = color)
+                        if (null == color)
                         {
                             for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                             {

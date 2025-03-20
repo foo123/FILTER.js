@@ -75,9 +75,11 @@ FILTER.Create({
         var self = this, areas = self.areas,
             Area = FILTER.Util.Image.Selection;
         if (areas && areas.length) areas.forEach(function(area) {
-            var src = self.input(area.src);
-            if (!src) return;
-            patchmatch(new Area(im, w, h, 4, area.selectionDst || {x:0, y:0, width:w, height:h}), new Area(src[0], src[1], src[2], 4, area.selectionSrc || {x:0, y:0, width:src[1], height:src[2]}), self.patch, self.iters, self.alpha, self.radius).apply().dispose(true);
+            var srcInput = self.input(area.from), dst, src;
+            if (!srcInput) return;
+            dst = new Area(im, w, h, 4, area.toSelection || {x:0, y:0, width:w, height:h});
+            src = new Area(srcInput[0], srcInput[1], srcInput[2], 4, area.fromSelection || {x:0, y:0, width:srcInput[1], height:srcInput[2]});
+            patchmatch(dst, src, self.patch, self.iters, self.alpha, self.radius).apply().dispose(true);
         });
         return im;
     }
@@ -99,11 +101,17 @@ function NNF(dst, src)
         self.src = src;
         self._ = null;
     }
+    self.dstImg = self.dst.data();
+    self.dstImg.rect = self.dst.rect();
+    self.srcImg = self.src.data();
+    self.srcImg.rect = self.src.rect();
 }
 NNF.prototype = {
     constructor: NNF,
     dst: null,
     src: null,
+    dstImg: null,
+    srcImg: null,
     _: null,
     dispose: function(complete) {
         var self = this;
@@ -112,38 +120,34 @@ NNF.prototype = {
             if (self.dst) self.dst.dispose();
             if (self.src) self.src.dispose();
         }
+        self.dstImg = self.srcImg = null;
         self.dst = self.src = self._ = null;
     },
     clone: function() {
         return new NNF(this);
     },
-    dist: function(a, b, patch, dataA, dataB) {
+    dist: function(a, b, patch) {
         var self = this,
             AA = self.dst,
             BB = self.src,
+            dataA = self.dstImg,
+            dataB = self.srcImg,
             p = patch >>> 1,
             diff = 0,
             completed = 0,
             excluded = 0,
-            imgA, imgB,
-            aw, ah, bw, bh,
+            imgA = dataA.data,
+            imgB = dataB.data,
+            aw = dataA.width,
+            ah = dataA.height,
+            bw = dataB.width,
+            bh = dataB.height,
             A = AA.points(),
             B = BB.points(),
             ax = A[a].x, ay = A[a].y,
             bx = B[b].x, by = B[b].y,
             x, y, xa, ya, yaw, xb, yb, ybw,
             i, j, r, g, b, isRGBA;
-        if (null == dataA)
-        {
-            dataA = AA.data();
-            dataB = BB.data();
-            imgA = dataA.data;
-            imgB = dataB.data;
-            aw = dataA.width;
-            ah = dataA.height;
-            bw = dataB.width;
-            bh = dataB.height;
-        }
         isRGBA = 4 === dataA.channels;
         for (y=-p; y<=p; ++y)
         {
@@ -183,7 +187,7 @@ NNF.prototype = {
                 ++completed;
             }
         }
-        return 20*excluded >= P*P ? false : (completed ? diff/completed : Infinity);
+        return 20*excluded >= patch*patch ? false : (completed ? diff/completed : Infinity);
     },
     init: function(patch) {
         var self = this, _,
@@ -191,8 +195,6 @@ NNF.prototype = {
             BB = self.src,
             A = AA.points(),
             B = BB.points(),
-            dataA = AA.data(),
-            dataB = BB.data(),
             n = A.length, a, b,
             res, tries;
         if (!self._) self._ = new Array(A.length);
@@ -204,7 +206,7 @@ NNF.prototype = {
             {
                 ++tries;
                 b = randInt(0, B.length-1);
-                res = self.dist(a, b, patch, dataA, dataB);
+                res = self.dist(a, b, patch);
             }
             _[a] = [b, false === res ? INF : res];
         }
@@ -212,7 +214,7 @@ NNF.prototype = {
     },
     propagation: function(a, patch, is_odd) {
         var self = this, _ = self._, AA = self.dst,
-            rectA = AA.rect(), A = AA.points(),
+            rectA = self.dstImg.rect, A = AA.points(),
             ap = A[a], x = ap.x, y = ap.y, i, j, res,
             left, up, down, right, current;
         current = _[a][1];
@@ -233,6 +235,7 @@ NNF.prototype = {
                 res = self.dist(a, _[j][0], patch);
                 if (false !== res) _[a] = [_[j][0], res];
             }
+        }
         else
         {
             i = AA.indexOf(stdMath.min(x+1, rectA.to.x), y);
@@ -254,37 +257,30 @@ NNF.prototype = {
     },
     random_search: function(a, patch, alpha, radius) {
         var self = this, _ = self._,
-            AA = self.dst, BB = self.src,
-            dataA = AA.data(), dataB = BB.data(),
-            rectA = AA.rect(), rectB = BB.rect(),
-            A = AA.points(), B = BB.points(),
-            ap, bp, ax, ay, bx, by, rx, ry,
-            alphai = 1, win, res, tries, best;
-        radius = stdMath.min(radius, rectB.width/2, rectB.height/2);
-        ap = A[a];
-        ax = ap.x; ay = ap.y;
-        bp = B[_[a][0]];
+            AA = self.dst, BB = self.src, B = BB.points(),
+            dataA = self.dstImg, dataB = self.srcImg,
+            rectA = dataA.rect, rectB = dataB.rect,
+            b, bp, bx, by, rx, ry, d, tries, best;
+        b = _[a][0];
+        bp = B[b];
         bx = bp.x; by = bp.y;
         best = {b:_[a][0], d:_[a][1]};
         while (radius >= 1)
         {
-            res = false; tries = 0;
-            while (false === res && tries < 5)
+            d = false; tries = 0;
+            while (false === d && tries < 5)
             {
                 ++tries;
                 rx = clamp(bx + randInt(-radius, radius), rectB.from.x, rectB.to.x);
                 ry = clamp(by + randInt(-radius, radius), rectB.from.y, rectB.to.y);
                 b = BB.indexOf(rx, ry);
                 if (-1 === b) continue;
-                res = self.dist(a, b, patch, dataA, dataB);
-                if (false !== res && res < best.d) break;
+                d = b === best.b ? best.d : self.dist(a, b, patch);
             }
-            if .(false !== res && res < best.d)
+            if (false !== d && d < best.d)
             {
                 best.b = b;
-                best.d = res;
-                bx = B[b].x;
-                by = B[b].y;
+                best.d = d;
             }
             radius *= alpha;
         }
@@ -292,7 +288,8 @@ NNF.prototype = {
         return self;
     },
     run: function(iters, patch, alpha, radius) {
-        var self = this, n = self._.length;
+        var self = this, n = self._.length, rectB = self.srcImg.rect, i, a;
+        radius = stdMath.min(radius, rectB.width/2, rectB.height/2);
         for (i=0; i<iters; ++i)
         {
             if (0 === (i & 1))
@@ -315,38 +312,41 @@ NNF.prototype = {
     apply: function() {
         var self = this,
             _ = self._,
-            dataA = self.dst.data(),
-            dataB = self.src.data(),
+            dataA = self.dstImg,
+            dataB = self.srcImg,
             // should be imgA !== imgB else distortion can result
             imgA = dataA.data,
             imgB = dataB.data,
             A = self.dst.points(),
             B = self.src.points(),
-            al = A.length,
-            bl = B.length,
-            ap, bp,, ai, bj,
-            isRGBA = 4 === dataA.channels;
+            n = _.length, i, ap, bp, ai, bj;
 
-        for (i=0; i<al; ++i)
+        if (4 === dataA.channels)
         {
-            ap = A[i];
-            bp = B[_[i][0]];
-            if (isRGBA)
+            for (i=0; i<n; ++i)
             {
+                ap = A[i];
+                bp = B[_[i][0]];
                 ai = ap.index << 2;
                 bj = bp.index << 2;
                 imgA[ai + 0] = imgB[bj + 0];
                 imgA[ai + 1] = imgB[bj + 1];
                 imgA[ai + 2] = imgB[bj + 2];
             }
-            else
+        }
+        else
+        {
+            for (i=0; i<n; ++i)
             {
+                ap = A[i];
+                bp = B[_[i][0]];
                 imgA[ap.index] = imgB[bp.index];
             }
         }
         return self;
     }
 };
+
 function patchmatch(dst, src, patch, iters, alpha, radius)
 {
     var srcData = src.data(), srcRect = src.rect();
@@ -365,6 +365,7 @@ function patchmatch(dst, src, patch, iters, alpha, radius)
 }
 patchmatch.NNF = NNF;
 FILTER.Util.Filter.patchmatch = patchmatch;
+
 function randInt(a, b)
 {
     return stdMath.round(stdMath.random()*(b-a)+a);

@@ -984,5 +984,6 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>HoughDetector</td> <td>find simple shapes like lines, rectangles, circles and ellipses using Hough transform</td></tr>
 <tr><td>TemplateMatcher</td> <td>find rotation-invariant and scale-invariant matches of a template image and their bounding boxes against another image (selection) using very fast correlation</td></tr>
 <tr><td>HaarDetector</td> <td>detect fast features and their bounding boxes in image (selection) using Viola-Jones-Lienhart algorithm with <code>HAAR</code> cascades (adapted from <a href="https://github.com/foo123/HAAR.js">HAAR.js</a>)</td></tr>
+<tr><td>PatchMatch</td> <td>image inpaiting, structural editing and completion using fast PatchMatch algorithm, in progress</td></tr>
 </tbody>
 </table>
