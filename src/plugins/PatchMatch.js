@@ -9,7 +9,8 @@
 
 var stdMath = Math, INF = Infinity,
     copy = FILTER.Util.Array.copy,
-    clamp = FILTER.Util.Math.clamp;
+    clamp = FILTER.Util.Math.clamp,
+    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj;
 
 // PatchMatch algorithm filter
 // https://en.wikipedia.org/wiki/PatchMatch
@@ -36,6 +37,7 @@ FILTER.Create({
     // support worker serialize/unserialize interface
     ,path: FILTER.Path
     ,hasInputs: true
+    ,hasMeta: false
 
     ,params: function(params) {
         var self = this;
@@ -71,16 +73,28 @@ FILTER.Create({
         return self;
     }
 
+    ,metaData: function(serialisation) {
+        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        return this;
+    }
+    
     ,apply: function(im, w, h) {
         var self = this, areas = self.areas,
-            Area = FILTER.Util.Image.Selection;
-        if (areas && areas.length) areas.forEach(function(area) {
-            var srcInput = self.input(area.from), dst, src;
+            Area = FILTER.Util.Image.Selection, meta = self.hasMeta ? {nnf:[]} : null;
+        if (areas && areas.length) areas.forEach(function(selection) {
+            if (!selection['from'] || !selection['to']) return;
+            var srcInput = self.input(selection['from'].data), dst, src, nnf;
             if (!srcInput) return;
-            dst = new Area(im, w, h, 4, area.toSelection || {x:0, y:0, width:w, height:h});
-            src = new Area(srcInput[0], srcInput[1], srcInput[2], 4, area.fromSelection || {x:0, y:0, width:srcInput[1], height:srcInput[2]});
-            patchmatch(dst, src, self.patch, self.iters, self.alpha, self.radius).apply().dispose(true);
+            src = new Area(srcInput[0], srcInput[1], srcInput[2], 4, selection['from']);
+            dst = new Area(im, w, h, 4, selection['to']);
+            nnf = patchmatch(dst, src, self.patch, self.iters, self.alpha, self.radius).apply();
+            if (meta) meta.nnf.push(nnf); else nnf.dispose(true);
         });
+        self.meta = meta;
         return im;
     }
 });
@@ -187,7 +201,7 @@ NNF.prototype = {
                 ++completed;
             }
         }
-        return 20*excluded >= patch*patch ? false : (completed ? diff/completed : Infinity);
+        return 20*excluded >= patch*patch ? false : (completed ? diff/completed : INF);
     },
     init: function(patch) {
         var self = this, _,
