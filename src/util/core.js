@@ -7,17 +7,23 @@
 !function(FILTER, undef) {
 "use strict";
 
+FILTER.Util.Array = FILTER.Util.Array || {};
+FILTER.Util.String = FILTER.Util.String || {};
+FILTER.Util.Math = FILTER.Util.Math || {};
+FILTER.Util.Image = FILTER.Util.Image || {};
+FILTER.Util.Filter = FILTER.Util.Filter || {};
+
 var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     IMG = FILTER.ImArray, copy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
     AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
-    ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
-    StringUtil = FILTER.Util.String = FILTER.Util.String || {},
-    MathUtil = FILTER.Util.Math = FILTER.Util.Math || {},
-    ImageUtil = FILTER.Util.Image = FILTER.Util.Image || {},
-    FilterUtil = FILTER.Util.Filter = FILTER.Util.Filter || {},
+    ArrayUtil = FILTER.Util.Array,
+    StringUtil = FILTER.Util.String,
+    MathUtil = FILTER.Util.Math,
+    ImageUtil = FILTER.Util.Image,
+    FilterUtil = FILTER.Util.Filter,
     stdMath = Math, Exp = stdMath.exp, Sqrt = stdMath.sqrt,
     Pow = stdMath.pow, Ceil = stdMath.ceil, Floor = stdMath.floor,
     Log = stdMath.log, Sin = stdMath.sin, Cos = stdMath.cos,
@@ -37,6 +43,11 @@ function function_body(func)
 {
     return /*Function.prototype.toString.call(*/func.toString().match(func_body_re)[1] || '';
 }
+StringUtil.esc = esc;
+StringUtil.trim = String.prototype.trim
+? function(s) {return s.trim();}
+: function(s) {return s.replace(trim_re, '');};
+StringUtil.function_body = function_body;
 
 function clamp(x, m, M)
 {
@@ -53,6 +64,8 @@ function hypot(a, b, c)
     c /= m;
     return m*Sqrt(a*a + b*b + c*c);
 }
+MathUtil.clamp = clamp;
+MathUtil.hypot = hypot;
 
 function arrayset_shim(a, b, offset, b0, b1)
 {
@@ -224,6 +237,11 @@ function interpolate_bilinear(im, w, h, nw, nh)
     }
     return interpolated;
 }
+ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
+ImageUtil.interpolate_nearest = interpolate_nearest;
+ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
+
 ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
     var b = new a.constructor(a.length);
     b.set(a, 0);
@@ -270,6 +288,8 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2)
         if (++x >= w) {x=0; ++y; sum=sum2=0;}
     }
 }
+FilterUtil.sat = integral2;
+
 function gaussian(dx, dy, sigma)
 {
     var rx = dx >>> 1,
@@ -669,6 +689,11 @@ return {
 ].join('\n')
 };
 }
+FilterUtil.gaussian = gaussian;
+FilterUtil.gradient = gradient;
+FilterUtil.optimum_gradient = optimum_gradient;
+FilterUtil.gradient_glsl = gradient_glsl;
+
 function image_glsl()
 {
 return {
@@ -705,6 +730,8 @@ return {
 ].join('\n')
 };
 }
+ImageUtil.glsl = image_glsl;
+
 // speed-up convolution for special kernels like moving-average
 function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
@@ -1666,6 +1693,9 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
+FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+
 function histogram(im, channel, ret_cdf, ret_norm)
 {
     channel = channel || 0;
@@ -1897,6 +1927,10 @@ function match_histogram(l, actual_cdf, desired_cdf, min0, max0)
         return match;
     }
 }
+FilterUtil.histogram = histogram;
+FilterUtil.integral_histogram = integral_histogram;
+FilterUtil.match_histogram = match_histogram;
+
 function _otsu(bin, tot, min, max, ret_sigma)
 {
     var omega0, omega1,
@@ -1963,6 +1997,10 @@ function otsu_multiclass(bin, tot, min, max, n)
     left.push.apply(left, right);
     return left;
 }
+FilterUtil.otsu = otsu;
+FilterUtil.otsu_multi = otsu_multi;
+FilterUtil.otsu_multiclass = otsu_multiclass;
+
 var SIN = {}, COS = {};
 function sine(i)
 {
@@ -2210,6 +2248,11 @@ function _fft2(re, im, nx, ny, inv, output_re, output_im)
 
     if (ret) return {r:output_re, i:output_im};
 }
+FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
+FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
+FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
+FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
+
 function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
 {
     stride = stride || 0; offset = offset || 0;
@@ -2250,6 +2293,16 @@ function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
         return {max:max, maxpos:maxpos};
     }
 }
+FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
+    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
+};
+FilterUtil.min = function(d, w, h, tl, stride, offset) {
+    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
+};
+FilterUtil.max = function(d, w, h, th, stride, offset) {
+    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
+};
+
 function local_max(max, accum, thresh, N, M, K)
 {
     max = max || [];
@@ -2310,6 +2363,8 @@ function local_max(max, accum, thresh, N, M, K)
     }
     return max;
 }
+FilterUtil.localmax = local_max;
+
 function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
 {
     if (null == xa) {xa = 0; ya = 0; xb = w-1; yb = h-1;}
@@ -2334,6 +2389,7 @@ function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
     nz.length = k;
     return nz;
 }
+ImageUtil.nonzero_pixels = nonzero_pixels;
 
 function equals(r1, r2, eps)
 {
@@ -2438,6 +2494,516 @@ function merge_features(rects, min_neighbors, epsilon)
 
     return feats/*.sort(by_area)*/;
 }
+FilterUtil.merge_features = merge_features;
+
+function join_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(n+m);
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            r[k] = b;
+            ++j; ++k;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            r[k] = b;
+            ++j; ++k;
+        }
+        else
+        {
+            r[k] = a;
+            ++i; ++j; ++k;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = p[i++];
+    }
+    while (j < m)
+    {
+        r[k++] = q[j++];
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function intersect_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(stdMath.min(n,m));
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            ++i;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            ++i;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            r[k] = a;
+            ++i; ++j; ++k;
+        }
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function subtract_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(n);
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            ++i; ++j;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = p[i++];
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function complement_points(p, w, h, ch)
+{
+    var n = w*h, m = p.length,
+        i = 0, j = 0, k = 0,
+        x, y, a, b, r = new Array(n);
+    while (i < n && j < m)
+    {
+        a = {x:(i % w), y:stdMath.floor(i / w), index:i*ch};
+        b = p[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            ++i; ++j;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = {x:(i % w), y:stdMath.floor(i / w), index:i*ch};
+        ++i;
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function ImageSelection(image, width, height, channels, selection)
+{
+    var self = this,
+        points = null,
+        rows = null, cols = null,
+        x, y, w, h, area = 0, color = null;
+
+    if (null == channels) channels = 4;
+    if (-1 === [1,4].indexOf(channels)) channels = 1;
+
+    x = (+selection.x)||0;
+    y = (+selection.y)||0;
+    w = stdMath.max(0, (+selection.width)||0);
+    h = stdMath.max(0, (+selection.height)||0);
+    area = w*h;
+
+    if (null != selection.color) color = selection.color;
+    if (Array.isArray(selection.points)) points = selection.points;
+
+    selection = null;
+
+    function get_points()
+    {
+        if (!points && image)
+        {
+            if (0 < w && 0 < h)
+            {
+                var px, py, pyw, i, j, k, index, r, g, b;
+                if (x < width && y < height && x+w > 0 && y+h > 0)
+                {
+                    points = new Array(area);
+                    if (4 === channels)
+                    {
+                        if (null = color)
+                        {
+                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            {
+                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                                if (py >= y+h || py >= height) break;
+                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
+                                {
+                                    index = px+pyw;
+                                    j = index << 2;
+                                    if (0 < image[j+3])
+                                    {
+                                        points[k++] = {x:px, y:py, index:index};
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            r = (color >>> 16) & 255;
+                            g = (color >>> 8) & 255;
+                            b = color & 255;
+                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            {
+                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                                if (py >= y+h || py >= height) break;
+                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
+                                {
+                                    index = px+pyw;
+                                    j = index << 2;
+                                    if ((r === image[j+0]) && (g === image[j+1]) && (b === image[j+2]))
+                                    {
+                                        points[k++] = {x:px, y:py, index:index};
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (null = color)
+                        {
+                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            {
+                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                                if (py >= y+h || py >= height) break;
+                                index = px+pyw;
+                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (image[index]))
+                                {
+                                    points[k++] = {x:px, y:py, index:index};
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            {
+                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                                if (py >= y+h || py >= height) break;
+                                index = px+pyw;
+                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (color === image[index]))
+                                {
+                                    points[k++] = {x:px, y:py, index:index};
+                                }
+                            }
+                        }
+                    }
+                    points.length = k; // truncate to actual length
+                }
+                else
+                {
+                    points = [];
+                }
+            }
+            else
+            {
+                points = [];
+            }
+        }
+        return points;
+    }
+    function get_rows()
+    {
+        if (!rows)
+        {
+            get_points();
+            rows = {};
+            for (var p,r,i=0,n=points.length; i<n; ++i)
+            {
+                p = points[i];
+                r = rows[p.y];
+                if (!r || !r.length) rows[p.y] = [i];
+                else r.push(i);
+            }
+        }
+        return rows;
+    }
+    function get_cols()
+    {
+        if (!cols)
+        {
+            get_points();
+            cols = {};
+            for (var p,c,i=0,n=points.length; i<n; ++i)
+            {
+                p = points[i];
+                c = cols[p.x];
+                if (!c || !c.length) cols[p.x] = [i];
+                else c.push(i);
+            }
+        }
+        return cols;
+    }
+    self.dispose = function() {
+        image = points = rows = cols = null;
+    };
+    self.data = function() {
+        return {data:image, width:width, height:height, channels:channels};
+    };
+    self.rect = function() {
+        return {from:{x:x,y:y}, to:{x:x+w-1,y:y+h-1}, width:w, height:h, area:area};
+    };
+    self.points = function() {
+        return get_points();
+    };
+    self.rows = function() {
+        return get_rows();
+    };
+    self.cols = function() {
+        return get_cols();
+    };
+    self.empty = function() {
+        return (0 >= w) || (0 >= h) || (0 === get_points().length);
+    };
+    self.has = function(x, y) {
+        if (null == y) return !!get_cols()[x];
+        else if (null == x) return !!get_rows()[y];
+        return !!(get_rows()[y] && get_cols()[x]);
+    };
+    self.indexOf = function(x, y) {
+        var r, c, i, j, n, m, ri, cj;
+        r = get_rows()[y];
+        if (!r) return -1;
+        c = get_cols()[x];
+        if (!c) return -1;
+        i = 0;
+        j = 0;
+        n = r.length;
+        m = c.length;
+        while (i < n && j < m)
+        {
+            ri = r[i]; cj = c[j];
+            if (ri < cj) ++i;
+            else if (ri > cj) ++j;
+            else return ri;
+        }
+        return -1;
+    };
+}
+ImageSelection.prototype = {
+    constructor: ImageSelection,
+    dispose: null,
+    data: null,
+    rect: null,
+    points: null,
+    rows: null,
+    cols: null,
+    empty: null,
+    hash: null,
+    indexOf: null,
+    join: function(other) {
+        var self = this;
+        if (other.empty()) return self;
+        if (self.empty()) return other;
+        var data = self.data(),
+            self_rect = self.rect(),
+            other_rect = other.rect(),
+            x1 = stdMath.min(self_rect.from.x, other_rect.from.x),
+            y1 = stdMath.min(self_rect.from.y, other_rect.from.y),
+            x2 = stdMath.max(self_rect.to.x, other_rect.to.x),
+            y2 = stdMath.max(self_rect.to.y, other_rect.to.y);
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:x1, y:y1, width:x2-x1+1, height:y2-y1+1,
+            points:ImageSelection.Join(self.points(), other.points())
+            }
+        );
+    },
+    intersect: function(other) {
+        var self = this;
+        if (self.empty()) return self;
+        if (other.empty()) return other;
+        var data = self.data(),
+            self_rect = self.rect(),
+            other_rect = other.rect(),
+            x1 = stdMath.max(self_rect.from.x, other_rect.from.x),
+            y1 = stdMath.max(self_rect.from.y, other_rect.from.y),
+            x2 = stdMath.min(self_rect.to.x, other_rect.to.x),
+            y2 = stdMath.min(self_rect.to.y, other_rect.to.y);
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:x1, y:y1, width:x2-x1+1, height:y2-y1+1,
+            points:(x2 < x1 || y2 < y1 ? [] : ImageSelection.Intersect(self.points(), other.points()))
+            }
+        );
+    },
+    subtract: function(other) {
+        var self = this;
+        if (self.empty() || other.empty()) return self;
+        var data = self.data(), rect = self.rect();
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:rect.from.x, y:rect.from.y, width:rect.width, height:rect.height,
+            points:ImageSelection.Subtract(self.points(), other.points())
+            }
+        );
+    },
+    complement: function() {
+        var self = this;
+        var data = self.data();
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:0, y:0, width:data.width, height:data.height,
+            points:ImageSelection.Complement(self.points(), data.width, data.height, data.channels)
+            }
+        );
+    }
+};
+ImageSelection.Join = join_points;
+ImageSelection.Intersect = intersect_points;
+ImageSelection.Subtract = subtract_points;
+ImageSelection.Complement = complement_points;
+ImageUtil.Selection = ImageSelection;
+
+/*function ImagePyramid()
+{
+    this.levels = [];
+}
+ImagePyramid.prototype = {
+    constructor: ImagePyramid,
+    levels: null,
+    dispose: function() {
+        this.levels = null;
+    },
+    build: function(img, width, height, channels, minsize) {
+        var self = this,
+            kernel = [1,5,10,10,5,1], // lowpass binomial separable
+            x, y, x2, y2, y2w, dx, dy, xk, yk, ykw,
+            i, k, ky, r, g, b, a, m, s,
+            img2, w, h, w2, h2;
+        if ((!self.levels) || (self.levels.length)) return self;
+        minsize = 2*(null == minsize ? 2 : minsize);
+        channels = null == channels ? 4 : channels;
+        if (4 !== channels) channels = 1;
+        w = width; h = height;
+        self.levels = [{img:img, width:w, height:h, channels:channels}];
+        while (w >= minsize && h >= minsize)
+        {
+            w2 = w >>> 1; h2 = h >>> 1;
+            img2 = new IMG(w2*h2*channels);
+            for (y=0,y2=0,y2w=0; y2<h2; y+=2,++y2,y2w+=w2)
+            {
+                for (x=0,x2=0; x2<w2; x+=2,++x2)
+                {
+                    r=0; g=0; b=0; a=0; m=0; s=0;
+                    for (dy=-2; dy<=3; ++dy)
+                    {
+                        yk = y+dy;
+                        if (yk<0 || yk>=h) continue;
+                        ykw = yk*w;
+                        ky = kernel[2+dy];
+                        for (dx=-2; dx<=3; ++dx)
+                        {
+                            xk = x+dx;
+                            if (xk<0 || xk>=w) continue;
+                            i = xk + ykw;
+                            k = kernel[2+dx]*ky;
+                            if (4 === channels)
+                            {
+                                i = i << 2;
+                                r += k*img[i + 0];
+                                g += k*img[i + 1];
+                                b += k*img[i + 2];
+                                a +=   img[i + 3];
+                            }
+                            else
+                            {
+                                r += k*img[i];
+                            }
+                            s += k;
+                            ++m;
+                        }
+                    }
+                    if (0 < m)
+                    {
+                        if (0 < s) {r /= s; g /= s; b /= s;}
+                        i = x2 + y2w;
+                        if (4 === channels)
+                        {
+                            a /= m;
+                            i = i << 2;
+                            img2[i + 0] = clamp(stdMath.round(r), 0, 255);
+                            img2[i + 1] = clamp(stdMath.round(g), 0, 255);
+                            img2[i + 2] = clamp(stdMath.round(b), 0, 255);
+                            img2[i + 3] = clamp(stdMath.round(a), 0, 255);
+                        }
+                        else
+                        {
+                            img2[i] = clamp(stdMath.round(r), 0, 255);
+                        }
+                    }
+                }
+            }
+            img = img2; w = w2; h = h2;
+            self.levels.push({img:img, width:w, height:h, channels:channels});
+        }
+        return self;
+    };
+};
+ImageUtil.Pyramid = ImagePyramid;*/
+
 function clmp(x, a, b)
 {
     return a > b ? (x < b ? b : (x > a ? a : x)) : (x < a ? a : (x > b ? b : x));
@@ -2933,6 +3499,11 @@ function rsatsum(rsat, w, h, xh, yh, ww, hh)
     var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 }
+FilterUtil.satsum = satsum;
+FilterUtil.satsums = satsums;
+FilterUtil.satsumt = satsumt;
+FilterUtil.satsumr = satsumr;
+FilterUtil.rsatsum = rsatsum;
 
 function am_eye()
 {
@@ -3050,6 +3621,16 @@ function cm_convolve(cm1, cm2, matrix)
     }
     return cm12;
 }
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
+FilterUtil.ct_eye = ct_eye;
+FilterUtil.ct_multiply = ct_multiply;
+FilterUtil.cm_eye = cm_eye;
+FilterUtil.cm_multiply = cm_multiply;
+FilterUtil.cm_rechannel = cm_rechannel;
+FilterUtil.cm_combine = cm_combine;
+FilterUtil.cm_convolve = cm_convolve;
+
 var typed_arrays = ['ImArray','Array32F','Array64F','Array8I','Array16I','Array32I','Array8U','Array16U','Array32U'];
 function to_array(a, A)
 {
@@ -3101,65 +3682,5 @@ ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subarray(i1, i2);} : function(a, i1, i2){ return a.slice(i1, i2); };
-
-
-MathUtil.clamp = clamp;
-MathUtil.hypot = hypot;
-
-StringUtil.esc = esc;
-StringUtil.trim = String.prototype.trim
-? function(s) {return s.trim();}
-: function(s) {return s.replace(trim_re, '');};
-StringUtil.function_body = function_body;
-
-ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
-ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
-ImageUtil.interpolate_nearest = interpolate_nearest;
-ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
-ImageUtil.nonzero_pixels = nonzero_pixels;
-ImageUtil.glsl = image_glsl;
-
-FilterUtil.am_eye = am_eye;
-FilterUtil.am_multiply = am_multiply;
-FilterUtil.ct_eye = ct_eye;
-FilterUtil.ct_multiply = ct_multiply;
-FilterUtil.cm_eye = cm_eye;
-FilterUtil.cm_multiply = cm_multiply;
-FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.cm_combine = cm_combine;
-FilterUtil.cm_convolve = cm_convolve;
-FilterUtil.gaussian = gaussian;
-FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
-FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
-FilterUtil.gradient = gradient;
-FilterUtil.optimum_gradient = optimum_gradient;
-FilterUtil.gradient_glsl = gradient_glsl;
-FilterUtil.histogram = histogram;
-FilterUtil.integral_histogram = integral_histogram;
-FilterUtil.match_histogram = match_histogram;
-FilterUtil.otsu = otsu;
-FilterUtil.otsu_multi = otsu_multi;
-FilterUtil.otsu_multiclass = otsu_multiclass;
-FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
-FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
-FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
-FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
-FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
-    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
-};
-FilterUtil.min = function(d, w, h, tl, stride, offset) {
-    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
-};
-FilterUtil.max = function(d, w, h, th, stride, offset) {
-    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
-};
-FilterUtil.localmax = local_max;
-FilterUtil.merge_features = merge_features;
-FilterUtil.sat = integral2;
-FilterUtil.satsum = satsum;
-FilterUtil.satsums = satsums;
-FilterUtil.satsumt = satsumt;
-FilterUtil.satsumr = satsumr;
-FilterUtil.rsatsum = rsatsum;
 
 }(FILTER);

@@ -1,5 +1,10 @@
 ## ChangeLog
 
+__1.14.0__
+
+* PatchMatch algorithm for image editing, inpainting and completion, in progress
+* FILTER.Util.Image.Selection class
+
 __1.13.0__
 
 * HoughDetectorFilter for lines, linesegments, rectangles, circles and ellipses
