@@ -8,7 +8,8 @@
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
-    slice = AP.slice, splice = AP.splice, concat = AP.push;
+    slice = AP.slice, splice = AP.splice, concat = AP.push,
+    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj;
 
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({
@@ -103,8 +104,32 @@ var CompositeFilter = FILTER.Create({
         return self;
     }
 
+    ,metaData: function(serialisation) {
+        var self = this, stack = self.filters, i, l,
+            meta = self.meta, meta_s = meta;
+        if (serialisation && FILTER.isWorker)
+        {
+            if (meta && meta.filters)
+            {
+                l = meta.filters.length;
+                meta_s = {filters:new Array(l)};
+                for (i=0; i<l; ++i) meta_s.filters[i] = stack[meta.filters[i][0]].metaData(serialisation);
+                if (null != meta._IMG_WIDTH)
+                {
+                    meta_s._IMG_WIDTH = meta._IMG_WIDTH;
+                    meta_s._IMG_HEIGHT = meta._IMG_HEIGHT;
+                }
+            }
+            return TypedObj(meta_s);
+        }
+        else
+        {
+            return meta;
+        }
+    }
     ,setMetaData: function(meta, serialisation) {
         var self = this, stack = self.filters, i, l;
+        if (serialisation && ("string" === typeof meta)) meta = TypedObj(meta, 1);
         if (meta && meta.filters && (l=meta.filters.length) && stack.length)
             for (i=0; i<l; ++i) stack[meta.filters[i][0]].setMetaData(meta.filters[i][1], serialisation);
         if (meta && (null != meta._IMG_WIDTH))

@@ -127,7 +127,7 @@ FILTER.Create({
         var self = this, filter = self._filter;
         if (!filter) return im;
         if ('function' === typeof filter.filter) filter = filter.filter;
-        return filter(self._params, im, w, h, metaData);
+        return filter(self._params, im, w, h, metaData, self);
     }
 
     ,canRun: function() {

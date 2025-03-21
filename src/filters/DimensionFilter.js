@@ -56,11 +56,11 @@ FILTER.Create({
     }
 
     ,metaData: function(serialisation) {
-        return serialisation ? JSON.stringify(this.meta) : this.meta;
+        return serialisation && FILTER.isWorker ? JSON.stringify(this.meta) : this.meta;
     }
 
     ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation ? JSON.parse(meta) : meta;
+        this.meta = serialisation && ("string" === typeof meta) ? JSON.parse(meta) : meta;
         return this;
     }
 

@@ -18,6 +18,10 @@ var stdMath = Math, INF = Infinity,
 FILTER.Create({
     name: "PatchMatchFilter"
 
+    ,_update: true
+    ,hasMeta: false
+    ,hasInputs: true
+
     // parameters
     // The iterations amount
     ,iters: 5
@@ -29,6 +33,7 @@ FILTER.Create({
     ,alpha: 0.5
     // patch areas/selections
     ,areas: null
+    ,returnNNF: false
 
     ,init: function() {
         var self = this;
@@ -36,8 +41,6 @@ FILTER.Create({
 
     // support worker serialize/unserialize interface
     ,path: FILTER.Path
-    ,hasInputs: true
-    ,hasMeta: false
 
     ,params: function(params) {
         var self = this;
@@ -48,6 +51,7 @@ FILTER.Create({
             if (null != params.radius) self.radius = +params.radius;
             if (null != params.alpha) self.alpha = +params.alpha;
             if (null != params.areas) self.areas = params.areas;
+            if (null != params.returnNNF) self.returnNNF = params.returnNNF;
         }
         return self;
     }
@@ -59,7 +63,8 @@ FILTER.Create({
         patch: self.patch,
         radius: self.radius,
         alpha: self.alpha,
-        areas: JSON.stringify(self.areas)
+        areas: JSON.stringify(self.areas),
+        returnNNF: self.returnNNF
         };
     }
 
@@ -70,31 +75,69 @@ FILTER.Create({
         self.radius = params.radius;
         self.alpha = params.alpha;
         self.areas = JSON.parse(params.areas);
+        self.returnNNF = params.returnNNF;
         return self;
     }
 
     ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
+        if (serialisation && FILTER.isWorker)
+        {
+            return TypedObj(this.meta && this.meta.nnf ? {nnf:this.meta.nnf.map(function(nnf) {
+                return patchmatch.NNF.serialize(nnf);
+            })} : this.meta);
+        }
+        else
+        {
+            return this.meta;
+        }
     }
 
     ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
+        if (serialisation && ("string" === typeof meta))
+        {
+            this.meta = TypedObj(meta, 1);
+            if (this.meta.nnf) this.meta.nnf = this.meta.nnf.map(function(nnf) {
+                return patchmatch.NNF.unserialize(null, null, nnf);
+            });
+        }
+        else
+        {
+            this.meta = meta;
+        }
         return this;
     }
-    
+
     ,apply: function(im, w, h) {
         var self = this, areas = self.areas,
-            Area = FILTER.Util.Image.Selection, meta = self.hasMeta ? {nnf:[]} : null;
+            Area = FILTER.Util.Image.Selection;
+        if (self.returnNNF)
+        {
+            self._update = false;
+            self.hasMeta = true;
+            self.meta = {nnf:[]};
+        }
+        else
+        {
+            self._update = true;
+            self.hasMeta = false;
+            self.meta = null;
+        }
         if (areas && areas.length) areas.forEach(function(selection) {
             if (!selection['from'] || !selection['to']) return;
             var srcInput = self.input(selection['from'].data), dst, src, nnf;
             if (!srcInput) return;
             src = new Area(srcInput[0], srcInput[1], srcInput[2], 4, selection['from']);
             dst = new Area(im, w, h, 4, selection['to']);
-            nnf = patchmatch(dst, src, self.patch, self.iters, self.alpha, self.radius).apply();
-            if (meta) meta.nnf.push(nnf); else nnf.dispose(true);
+            nnf = patchmatch(dst, src, self.patch, self.iters, self.alpha, self.radius);
+            if (self.returnNNF)
+            {
+                self.meta.nnf.push(nnf);
+            }
+            else
+            {
+                nnf.apply().dispose(true);
+            }
         });
-        self.meta = meta;
         return im;
     }
 });
@@ -139,6 +182,32 @@ NNF.prototype = {
     },
     clone: function() {
         return new NNF(this);
+    },
+    normalize: function() {
+        var self = this,
+            _ = self._, n = _.length,
+            a, b, d, sum, mu, sigma;
+        sum = 0.0;
+        for (a=0; a<n; ++a)
+        {
+            d = _[a][1];
+            sum += d;
+        }
+        mu = sum / n;
+        sum = 0.0;
+        for (a=0; a<n; ++a)
+        {
+            d = _[a][1] - mu;
+            sum += d * d;
+        }
+        sigma = stdMath.sqrt(sum / (n - 1));
+        for (a=0; a<n; ++a)
+        {
+            b = _[a][0];
+            d = stdMath.abs((_[a][1] - mu) / sigma);
+            _[a] = [b, d];
+        }
+        return self;
     },
     dist: function(a, b, patch) {
         var self = this,
@@ -201,7 +270,7 @@ NNF.prototype = {
                 ++completed;
             }
         }
-        return 20*excluded >= patch*patch ? false : (completed ? diff/completed : INF);
+        return /*20*excluded >= patch*patch ? false :*/ (completed ? (diff+excluded*65025/*255*255*/*(isRGBA?3:1))/(completed+excluded) : INF);
     },
     init: function(patch) {
         var self = this, _,
@@ -278,7 +347,7 @@ NNF.prototype = {
         b = _[a][0];
         bp = B[b];
         bx = bp.x; by = bp.y;
-        best = {b:_[a][0], d:_[a][1]};
+        best = {b:b, d:_[a][1]};
         while (radius >= 1)
         {
             d = false; tries = 0;
@@ -306,18 +375,18 @@ NNF.prototype = {
         radius = stdMath.min(radius, rectB.width/2, rectB.height/2);
         for (i=0; i<iters; ++i)
         {
-            if (0 === (i & 1))
-            {
-                for (a=n-1; a>=0; --a)
-                {
-                    self.propagation(a, patch, false).random_search(a, patch, alpha, radius);
-                }
-            }
-            else
+            if (i & 1)
             {
                 for (a=0; a<n; ++a)
                 {
                     self.propagation(a, patch, true).random_search(a, patch, alpha, radius);
+                }
+            }
+            else
+            {
+                for (a=n-1; a>=0; --a)
+                {
+                    self.propagation(a, patch, false).random_search(a, patch, alpha, radius);
                 }
             }
         }
@@ -341,8 +410,8 @@ NNF.prototype = {
             {
                 ap = A[i];
                 bp = B[_[i][0]];
-                ai = ap.index << 2;
-                bj = bp.index << 2;
+                ai = ap.index;
+                bj = bp.index;
                 imgA[ai + 0] = imgB[bj + 0];
                 imgA[ai + 1] = imgB[bj + 1];
                 imgA[ai + 2] = imgB[bj + 2];
@@ -360,7 +429,21 @@ NNF.prototype = {
         return self;
     }
 };
-
+NNF.serialize = function(nnf) {
+    return {
+    dst: FILTER.Util.Image.Selection.serialize(nnf.dst),
+    src: FILTER.Util.Image.Selection.serialize(nnf.src),
+    _: nnf._
+    };
+};
+NNF.unserialize = function(dst, src, obj) {
+    var nnf = new NNF(
+    FILTER.Util.Image.Selection.unserialize(dst, obj.dst),
+    FILTER.Util.Image.Selection.unserialize(src, obj.src)
+    );
+    nnf._ = obj._;
+    return nnf;
+};
 function patchmatch(dst, src, patch, iters, alpha, radius)
 {
     var srcData = src.data(), srcRect = src.rect();

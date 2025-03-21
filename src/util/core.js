@@ -2915,6 +2915,22 @@ ImageSelection.Join = join_points;
 ImageSelection.Intersect = intersect_points;
 ImageSelection.Subtract = subtract_points;
 ImageSelection.Complement = complement_points;
+ImageSelection.serialize = function(sel) {
+    var data = sel.data();
+    return {
+    width: data.width,
+    height: data.height,
+    channels: data.channels,
+    rect: sel.rect(),
+    points: sel.points()
+    };
+};
+ImageSelection.unserialize = function(img, obj) {
+    return new ImageSelection(
+    img, obj.width, obj.height, obj.channels,
+    {x:obj.rect.from.x, y:obj.rect.from.y, width:obj.rect.width, height:obj.rect.height, points:obj.points}
+    );
+};
 ImageUtil.Selection = ImageSelection;
 
 /*function ImagePyramid()

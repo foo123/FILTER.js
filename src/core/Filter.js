@@ -261,11 +261,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
 
     // @override
-    ,metaData: function(meta, serialisation) {
+    ,metaData: function(serialisation) {
         return this.meta;
     }
-    ,getMetaData: function(meta, serialisation) {
-        return this.metaData(meta, serialisation);
+    ,getMetaData: function(serialisation) {
+        return this.metaData(serialisation);
     }
     // @override
     ,setMetaData: function(meta, serialisation) {
