@@ -410,8 +410,8 @@ NNF.prototype = {
             {
                 ap = A[i];
                 bp = B[_[i][0]];
-                ai = ap.index;
-                bj = bp.index;
+                ai = ap.index << 2;
+                bj = bp.index << 2;
                 imgA[ai + 0] = imgB[bj + 0];
                 imgA[ai + 1] = imgB[bj + 1];
                 imgA[ai + 2] = imgB[bj + 2];
