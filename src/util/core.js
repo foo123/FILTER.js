@@ -2613,7 +2613,7 @@ function complement_points(p, w, h, ch)
         x, y, a, b, r = new Array(n);
     while (i < n && j < m)
     {
-        a = {x:(i % w), y:stdMath.floor(i / w), index:i*ch};
+        a = {x:(i % w), y:stdMath.floor(i / w), index:i};
         b = p[j];
         if (a.y < b.y)
         {
@@ -2640,7 +2640,7 @@ function complement_points(p, w, h, ch)
     }
     while (i < n)
     {
-        r[k++] = {x:(i % w), y:stdMath.floor(i / w), index:i*ch};
+        r[k++] = {x:(i % w), y:stdMath.floor(i / w), index:i};
         ++i;
     }
     r.length = k; // truncate to actual length

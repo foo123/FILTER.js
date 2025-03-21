@@ -277,7 +277,7 @@ NNF.prototype = {
         }
         return /*20*excluded >= patch*patch ? false :*/ (completed ? (diff+excluded*65025/*255*255*/*(isRGBA?3:1))/(completed+excluded) : INF);
     },
-    avg: function(bx, by, output) {
+    avg: function(bp, output) {
         var self = this,
             B = self.src,
             dataB = self.srcImg,
@@ -285,6 +285,7 @@ NNF.prototype = {
             width = dataB.width,
             height = dataB.height,
             patch = self.patch,
+            bx = bp.x, by = bp.y,
             dx, dy, x, y, yw,
             r = 0.0, g = 0.0,
             b = 0.0, sum = 0.0,
@@ -329,6 +330,7 @@ NNF.prototype = {
             }
             output[0] = clamp(stdMath.round(r / sum), 0, 255);
         }
+        return output;
     },
     init: function() {
         var self = this, _,
@@ -476,11 +478,11 @@ NNF.prototype = {
                     ap = A[i];
                     bp = B[_[i][0]];
                     ai = ap.index << 2;
-                    self.avg(bp.x, bp.y, color);
+                    self.avg(bp, color);
                     dr = imgA[ai + 0] - color[0];
                     dg = imgA[ai + 1] - color[1];
                     db = imgA[ai + 2] - color[2];
-                    nmse += (dr*dr + dg*dg + db*db) / 195075/*3*255*255*/;
+                    nmse += (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                     imgA[ai + 0] = color[0];
                     imgA[ai + 1] = color[1];
                     imgA[ai + 2] = color[2];
@@ -497,7 +499,7 @@ NNF.prototype = {
                     dr = imgA[ai + 0] - imgB[bj + 0];
                     dg = imgA[ai + 1] - imgB[bj + 1];
                     db = imgA[ai + 2] - imgB[bj + 2];
-                    nmse += (dr*dr + dg*dg + db*db) / 195075/*3*255*255*/;
+                    nmse += (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                     imgA[ai + 0] = imgB[bj + 0];
                     imgA[ai + 1] = imgB[bj + 1];
                     imgA[ai + 2] = imgB[bj + 2];
@@ -514,9 +516,9 @@ NNF.prototype = {
                     ap = A[i];
                     bp = B[_[i][0]];
                     ai = ap.index;
-                    self.avg(bp.x, bp.y, color);
+                    self.avg(bp, color);
                     dr = imgA[ai] - color[0];
-                    nmse += (dr*dr) / 65025/*255*255*/;
+                    nmse += (dr * dr) / 65025/*255*255*/;
                     imgA[ai] = color[0];
                 }
             }
@@ -529,7 +531,7 @@ NNF.prototype = {
                     ai = ap.index;
                     bj = bp.index;
                     dr = imgA[ai] - imgB[bj];
-                    nmse += (dr*dr) / 65025/*255*255*/;
+                    nmse += (dr * dr) / 65025/*255*255*/;
                     imgA[ai] = imgB[bj];
                 }
             }
