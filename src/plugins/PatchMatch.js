@@ -119,12 +119,12 @@ FILTER.Create({
         else
         {
             self._update = true;
-            self.hasMeta = false;
-            self.meta = null;
+            self.hasMeta = true;
+            self.meta = {metrics:[]};
         }
         if (areas && areas.length) areas.forEach(function(selection) {
             if (!selection['from'] || !selection['to']) return;
-            var srcInput = self.input(selection['from'].data), dst, src, nnf;
+            var srcInput = self.input(selection['from'].data), dst, src, nnf, metrics;
             if (!srcInput) return;
             src = new Area(srcInput[0], srcInput[1], srcInput[2], 4, selection['from']);
             dst = new Area(im, w, h, 4, selection['to']);
@@ -135,14 +135,15 @@ FILTER.Create({
             }
             else
             {
-                nnf.apply().dispose(true);
+                nnf.apply(metrics={mode:selection.mode,NMSE:0}).dispose(true);
+                self.meta.metrics.push(metrics.NMSE);
             }
         });
         return im;
     }
 });
 
-function NNF(dst, src)
+function NNF(dst, src, patch)
 {
     var self = this, other;
     if (dst instanceof NNF)
@@ -150,12 +151,14 @@ function NNF(dst, src)
         other = dst;
         self.dst = other.dst;
         self.src = other.src;
+        self.patch = other.patch;
         self._ = other._ ? other._.slice() : other._;
     }
     else
     {
         self.dst = dst;
         self.src = src;
+        self.patch = patch;
         self._ = null;
     }
     self.dstImg = self.dst.data();
@@ -169,6 +172,7 @@ NNF.prototype = {
     src: null,
     dstImg: null,
     srcImg: null,
+    patch: 0,
     _: null,
     dispose: function(complete) {
         var self = this;
@@ -209,12 +213,13 @@ NNF.prototype = {
         }
         return self;
     },
-    dist: function(a, b, patch) {
+    dist: function(a, b) {
         var self = this,
             AA = self.dst,
             BB = self.src,
             dataA = self.dstImg,
             dataB = self.srcImg,
+            patch = self.patch,
             p = patch >>> 1,
             diff = 0,
             completed = 0,
@@ -272,7 +277,60 @@ NNF.prototype = {
         }
         return /*20*excluded >= patch*patch ? false :*/ (completed ? (diff+excluded*65025/*255*255*/*(isRGBA?3:1))/(completed+excluded) : INF);
     },
-    init: function(patch) {
+    avg: function(bx, by, output) {
+        var self = this,
+            B = self.src,
+            dataB = self.srcImg,
+            imgB = dataB.data,
+            width = dataB.width,
+            height = dataB.height,
+            patch = self.patch,
+            dx, dy, x, y, yw,
+            r = 0.0, g = 0.0,
+            b = 0.0, sum = 0.0,
+            i, index, p = patch >>> 1;
+        if (4 === dataB.channels)
+        {
+            for (dy=-p; dy<=p; ++dy)
+            {
+                y = by+dy;
+                if (0 > y || y >= height || !B.has(null, y)) continue;
+                yw = y*width;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    x = bx+dx;
+                    if (0 > x || x >= width || !B.has(x, null)) continue;
+                    index = (x + yw) << 2;
+                    r += imgB[index + 0];
+                    g += imgB[index + 1];
+                    b += imgB[index + 2];
+                    sum += 1;
+                }
+            }
+            output[0] = clamp(stdMath.round(r / sum), 0, 255);
+            output[1] = clamp(stdMath.round(g / sum), 0, 255);
+            output[2] = clamp(stdMath.round(b / sum), 0, 255);
+        }
+        else
+        {
+            for (dy=-p; dy<=p; ++dy)
+            {
+                y = by+dy;
+                if (0 > y || y >= height || !B.has(null, y)) continue;
+                yw = y*width;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    x = bx+dx;
+                    if (0 > x || x >= width || !B.has(x, null)) continue;
+                    index = (x + yw);
+                    r += imgB[index];
+                    sum += 1;
+                }
+            }
+            output[0] = clamp(stdMath.round(r / sum), 0, 255);
+        }
+    },
+    init: function() {
         var self = this, _,
             AA = self.dst,
             BB = self.src,
@@ -289,13 +347,13 @@ NNF.prototype = {
             {
                 ++tries;
                 b = randInt(0, B.length-1);
-                res = self.dist(a, b, patch);
+                res = self.dist(a, b);
             }
             _[a] = [b, false === res ? INF : res];
         }
         return self;
     },
-    propagation: function(a, patch, is_odd) {
+    propagation: function(a, is_odd) {
         var self = this, _ = self._, AA = self.dst,
             rectA = self.dstImg.rect, A = AA.points(),
             ap = A[a], x = ap.x, y = ap.y, i, j, res,
@@ -310,12 +368,12 @@ NNF.prototype = {
             up = -1 === j ? INF : _[j][1];
             if (false === res && left < current && left <= up)
             {
-                res = self.dist(a, _[i][0], patch);
+                res = self.dist(a, _[i][0]);
                 if (false !== res) _[a] = [_[i][0], res];
             }
             if (false === res && up < current && up <= left)
             {
-                res = self.dist(a, _[j][0], patch);
+                res = self.dist(a, _[j][0]);
                 if (false !== res) _[a] = [_[j][0], res];
             }
         }
@@ -327,18 +385,18 @@ NNF.prototype = {
             down = -1 === j ? INF : _[j][1];
             if (false === res && right < current && right <= down)
             {
-                res = self.dist(a, _[i][0], patch);
+                res = self.dist(a, _[i][0]);
                 if (false !== res) _[a] = [_[i][0], res];
             }
             if (false === res && down < current && down <= right)
             {
-                res = self.dist(a, _[j][0], patch);
+                res = self.dist(a, _[j][0]);
                 if (false !== res) _[a] = [_[j][0], res];
             }
         }
         return self;
     },
-    random_search: function(a, patch, alpha, radius) {
+    random_search: function(a, alpha, radius) {
         var self = this, _ = self._,
             AA = self.dst, BB = self.src, B = BB.points(),
             dataA = self.dstImg, dataB = self.srcImg,
@@ -358,7 +416,7 @@ NNF.prototype = {
                 ry = clamp(by + randInt(-radius, radius), rectB.from.y, rectB.to.y);
                 b = BB.indexOf(rx, ry);
                 if (-1 === b) continue;
-                d = b === best.b ? best.d : self.dist(a, b, patch);
+                d = b === best.b ? best.d : self.dist(a, b);
             }
             if (false !== d && d < best.d)
             {
@@ -370,7 +428,7 @@ NNF.prototype = {
         _[a] = [best.b, best.d];
         return self;
     },
-    run: function(iters, patch, alpha, radius) {
+    run: function(iters, alpha, radius) {
         var self = this, n = self._.length, rectB = self.srcImg.rect, i, a;
         radius = stdMath.min(radius, rectB.width/2, rectB.height/2);
         for (i=0; i<iters; ++i)
@@ -379,20 +437,20 @@ NNF.prototype = {
             {
                 for (a=0; a<n; ++a)
                 {
-                    self.propagation(a, patch, true).random_search(a, patch, alpha, radius);
+                    self.propagation(a, true).random_search(a, alpha, radius);
                 }
             }
             else
             {
                 for (a=n-1; a>=0; --a)
                 {
-                    self.propagation(a, patch, false).random_search(a, patch, alpha, radius);
+                    self.propagation(a, false).random_search(a, alpha, radius);
                 }
             }
         }
         return self;
     },
-    apply: function() {
+    apply: function(metrics) {
         var self = this,
             _ = self._,
             dataA = self.dstImg,
@@ -402,30 +460,81 @@ NNF.prototype = {
             imgB = dataB.data,
             A = self.dst.points(),
             B = self.src.points(),
-            n = _.length, i, ap, bp, ai, bj;
+            n = _.length, i,
+            ap, bp, ai, bj,
+            dr, dg, db,
+            color, nmse = 0,
+            mode = metrics ? metrics.mode : "default";
 
         if (4 === dataA.channels)
         {
-            for (i=0; i<n; ++i)
+            if ("average" === mode)
             {
-                ap = A[i];
-                bp = B[_[i][0]];
-                ai = ap.index << 2;
-                bj = bp.index << 2;
-                imgA[ai + 0] = imgB[bj + 0];
-                imgA[ai + 1] = imgB[bj + 1];
-                imgA[ai + 2] = imgB[bj + 2];
+                color = [0,0,0,0];
+                for (i=0; i<n; ++i)
+                {
+                    ap = A[i];
+                    bp = B[_[i][0]];
+                    ai = ap.index << 2;
+                    self.avg(bp.x, bp.y, color);
+                    dr = imgA[ai + 0] - color[0];
+                    dg = imgA[ai + 1] - color[1];
+                    db = imgA[ai + 2] - color[2];
+                    nmse += (dr*dr + dg*dg + db*db) / 195075/*3*255*255*/;
+                    imgA[ai + 0] = color[0];
+                    imgA[ai + 1] = color[1];
+                    imgA[ai + 2] = color[2];
+                }
+            }
+            else
+            {
+                for (i=0; i<n; ++i)
+                {
+                    ap = A[i];
+                    bp = B[_[i][0]];
+                    ai = ap.index << 2;
+                    bj = bp.index << 2;
+                    dr = imgA[ai + 0] - imgB[bj + 0];
+                    dg = imgA[ai + 1] - imgB[bj + 1];
+                    db = imgA[ai + 2] - imgB[bj + 2];
+                    nmse += (dr*dr + dg*dg + db*db) / 195075/*3*255*255*/;
+                    imgA[ai + 0] = imgB[bj + 0];
+                    imgA[ai + 1] = imgB[bj + 1];
+                    imgA[ai + 2] = imgB[bj + 2];
+                }
             }
         }
         else
         {
-            for (i=0; i<n; ++i)
+            if ("average" === mode)
             {
-                ap = A[i];
-                bp = B[_[i][0]];
-                imgA[ap.index] = imgB[bp.index];
+                color = [0];
+                for (i=0; i<n; ++i)
+                {
+                    ap = A[i];
+                    bp = B[_[i][0]];
+                    ai = ap.index;
+                    self.avg(bp.x, bp.y, color);
+                    dr = imgA[ai] - color[0];
+                    nmse += (dr*dr) / 65025/*255*255*/;
+                    imgA[ai] = color[0];
+                }
+            }
+            else
+            {
+                for (i=0; i<n; ++i)
+                {
+                    ap = A[i];
+                    bp = B[_[i][0]];
+                    ai = ap.index;
+                    bj = bp.index;
+                    dr = imgA[ai] - imgB[bj];
+                    nmse += (dr*dr) / 65025/*255*255*/;
+                    imgA[ai] = imgB[bj];
+                }
             }
         }
+        if (metrics) metrics.NMSE = nmse / n;
         return self;
     }
 };
@@ -433,17 +542,20 @@ NNF.serialize = function(nnf) {
     return {
     dst: FILTER.Util.Image.Selection.serialize(nnf.dst),
     src: FILTER.Util.Image.Selection.serialize(nnf.src),
+    patch: nnf.patch,
     _: nnf._
     };
 };
 NNF.unserialize = function(dst, src, obj) {
     var nnf = new NNF(
     FILTER.Util.Image.Selection.unserialize(dst, obj.dst),
-    FILTER.Util.Image.Selection.unserialize(src, obj.src)
+    FILTER.Util.Image.Selection.unserialize(src, obj.src),
+    obj.patch
     );
     nnf._ = obj._;
     return nnf;
 };
+
 function patchmatch(dst, src, patch, iters, alpha, radius)
 {
     var srcData = src.data(), srcRect = src.rect();
@@ -458,7 +570,7 @@ function patchmatch(dst, src, patch, iters, alpha, radius)
             }
         );
     }
-    return (new patchmatch.NNF(dst, src)).init(patch).run(iters, patch, alpha, radius);
+    return (new patchmatch.NNF(dst, src, patch)).init().run(iters, alpha, radius);
 }
 patchmatch.NNF = NNF;
 FILTER.Util.Filter.patchmatch = patchmatch;

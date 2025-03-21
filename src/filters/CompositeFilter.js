@@ -113,7 +113,7 @@ var CompositeFilter = FILTER.Create({
             {
                 l = meta.filters.length;
                 meta_s = {filters:new Array(l)};
-                for (i=0; i<l; ++i) meta_s.filters[i] = stack[meta.filters[i][0]].metaData(serialisation);
+                for (i=0; i<l; ++i) meta_s.filters[i] = [meta.filters[i][0], stack[meta.filters[i][0]].metaData(serialisation)];
                 if (null != meta._IMG_WIDTH)
                 {
                     meta_s._IMG_WIDTH = meta._IMG_WIDTH;
