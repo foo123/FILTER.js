@@ -135,8 +135,8 @@ FILTER.Create({
             }
             else
             {
-                nnf.apply(metrics={mode:selection.mode,NMSE:0}).dispose(true);
-                self.meta.metrics.push(metrics.NMSE);
+                nnf.apply(metrics={error:0,mode:selection.mode||"default"}).dispose(true);
+                self.meta.metrics.push(metrics.error);
             }
         });
         return im;
@@ -534,7 +534,7 @@ NNF.prototype = {
                 }
             }
         }
-        if (metrics) metrics.NMSE = nmse / n;
+        if (metrics) metrics.error = nmse / n;
         return self;
     }
 };
