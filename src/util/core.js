@@ -2862,23 +2862,24 @@ ImageSelection.prototype = {
     has: null,
     indexOf: null,
     bitmap: function(bitmapClass) {
-        var data = this.data(), bmp = new (bitmapClass||Array)(data.width*data.height);
-        this.points().forEach(function(pt) {bmp[pt.index] = 1});
+        var data = this.data(),
+            area = data.width*data.height,
+            bmp = new (bitmapClass||Array)(area);
+        this.points().forEach(function(pt) {bmp[pt.index] = 1;})
         return bmp;
     },
     scale: function(image, scale) {
         var data = this.data(),
             rect = this.rect(),
-            bmp = this.bitmap(),
             sw = stdMath.floor(scale*data.width),
             sh = stdMath.floor(scale*data.height),
             sx = stdMath.floor(scale*rect.x),
             sy = stdMath.floor(scale*rect.y),
             sww = stdMath.floor(scale*rect.width),
             shh = stdMath.floor(scale*rect.height),
-            sbmp = interpolate_nearest_data(bmp, data.width, data.height, sw, sh),
+            bitmap = interpolate_nearest_data(this.bitmap(), data.width, data.height, sw, sh),
             area = sw*sh, index, points = new Array(area), length = 0;
-        for (index=0; index<area; ++index) if (sbmp[index]) points[length++] = {x:index % sw, y:stdMath.floor(index / sw), index:index};
+        for (index=0; index<area; ++index) if (bitmap[index]) points[length++] = {x:index % sw, y:stdMath.floor(index / sw), index:index};
         points.length = length
         return new ImageSelection(image, sw, sh, data.channels, {x:sx, y:sy, width:sww, height:shh, points:points});
     },
