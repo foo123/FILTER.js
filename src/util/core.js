@@ -172,6 +172,23 @@ function pad_shim(im, w, h, pad_right, pad_bot, pad_left, pad_top)
     }
     return padded;
 }
+function interpolate_nearest_data(data, w, h, nw, nh)
+{
+    var size = (nw*nh),
+        interpolated = new data.constructor(size),
+        x, y, xn, yn, nearest, point,
+        round = stdMath.round
+    ;
+    for (x=0,y=0,point=0; point<size; ++point,++x)
+    {
+        if (x >= nw) {x=0; ++y;}
+        xn = clamp(round(x/nw*w), 0, w-1);
+        yn = clamp(round(y/nh*h), 0, h-1);
+        nearest = (yn*w + xn);
+        interpolated[point] = data[nearest];
+    }
+    return interpolated;
+}
 function interpolate_nearest(im, w, h, nw, nh)
 {
     var size = (nw*nh) << 2,
@@ -2651,7 +2668,7 @@ function ImageSelection(image, width, height, channels, selection)
     var self = this,
         points = null,
         rows = null, cols = null,
-        x, y, w, h, area = 0, color = null;
+        x, y, w, h, area = 0, selector = null;
 
     if (null == channels) channels = 4;
     if (-1 === [1,4].indexOf(channels)) channels = 1;
@@ -2662,7 +2679,7 @@ function ImageSelection(image, width, height, channels, selection)
     h = stdMath.max(0, (+selection.height)||0);
     area = w*h;
 
-    if (null != selection.color) color = selection.color;
+    if (null != selection.selector) selector = selection.selector;
     if (Array.isArray(selection.points)) points = selection.points;
 
     selection = null;
@@ -2673,13 +2690,13 @@ function ImageSelection(image, width, height, channels, selection)
         {
             if (0 < w && 0 < h)
             {
-                var px, py, pyw, i, j, k, index, r, g, b;
+                var px, py, pyw, i, j, k, index;
                 if (x < width && y < height && x+w > 0 && y+h > 0)
                 {
                     points = new Array(area);
                     if (4 === channels)
                     {
-                        if (null == color)
+                        if (null == selector)
                         {
                             for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                             {
@@ -2688,8 +2705,7 @@ function ImageSelection(image, width, height, channels, selection)
                                 if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
                                 {
                                     index = px+pyw;
-                                    j = index << 2;
-                                    if (0 < image[j+3])
+                                    if (0 < image[(index << 2)+3])
                                     {
                                         points[k++] = {x:px, y:py, index:index};
                                     }
@@ -2698,9 +2714,6 @@ function ImageSelection(image, width, height, channels, selection)
                         }
                         else
                         {
-                            r = (color >>> 16) & 255;
-                            g = (color >>> 8) & 255;
-                            b = color & 255;
                             for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                             {
                                 if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
@@ -2708,8 +2721,7 @@ function ImageSelection(image, width, height, channels, selection)
                                 if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
                                 {
                                     index = px+pyw;
-                                    j = index << 2;
-                                    if ((r === image[j+0]) && (g === image[j+1]) && (b === image[j+2]))
+                                    if (selector(image, px, py, channels))
                                     {
                                         points[k++] = {x:px, y:py, index:index};
                                     }
@@ -2719,7 +2731,7 @@ function ImageSelection(image, width, height, channels, selection)
                     }
                     else
                     {
-                        if (null == color)
+                        if (null == selector)
                         {
                             for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                             {
@@ -2739,7 +2751,7 @@ function ImageSelection(image, width, height, channels, selection)
                                 if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
                                 if (py >= y+h || py >= height) break;
                                 index = px+pyw;
-                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (color === image[index]))
+                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (selector(image, px, py, channels)))
                                 {
                                     points[k++] = {x:px, y:py, index:index};
                                 }
@@ -2793,7 +2805,7 @@ function ImageSelection(image, width, height, channels, selection)
         return cols;
     }
     self.dispose = function() {
-        image = points = rows = cols = null;
+        image = selector = points = rows = cols = null;
     };
     self.data = function() {
         return {data:image, width:width, height:height, channels:channels};
@@ -2847,8 +2859,29 @@ ImageSelection.prototype = {
     rows: null,
     cols: null,
     empty: null,
-    hash: null,
+    has: null,
     indexOf: null,
+    bitmap: function(bitmapClass) {
+        var data = this.data(), bmp = new (bitmapClass||Array)(data.width*data.height);
+        this.points().forEach(function(pt) {bmp[pt.index] = 1});
+        return bmp;
+    },
+    scale: function(image, scale) {
+        var data = this.data(),
+            rect = this.rect(),
+            bmp = this.bitmap(),
+            sw = stdMath.floor(scale*data.width),
+            sh = stdMath.floor(scale*data.height),
+            sx = stdMath.floor(scale*rect.x),
+            sy = stdMath.floor(scale*rect.y),
+            sww = stdMath.floor(scale*rect.width),
+            shh = stdMath.floor(scale*rect.height),
+            sbmp = interpolate_nearest_data(bmp, data.width, data.height, sw, sh),
+            area = sw*sh, index, points = new Array(area), length = 0;
+        for (index=0; index<area; ++index) if (sbmp[index]) points[length++] = {x:index % sw, y:stdMath.floor(index / sw), index:index};
+        points.length = length
+        return new ImageSelection(image, sw, sh, data.channels, {x:sx, y:sy, width:sww, height:shh, points:points});
+    },
     join: function(other) {
         var self = this;
         if (other.empty()) return self;
@@ -2933,7 +2966,7 @@ ImageSelection.unserialize = function(img, obj) {
 };
 ImageUtil.Selection = ImageSelection;
 
-/*function ImagePyramid()
+function ImagePyramid()
 {
     this.levels = [];
 }
@@ -2943,7 +2976,7 @@ ImagePyramid.prototype = {
     dispose: function() {
         this.levels = null;
     },
-    build: function(img, width, height, channels, minsize) {
+    build: function(img, width, height, channels, minsize, area) {
         var self = this,
             kernel = [1,5,10,10,5,1], // lowpass binomial separable
             x, y, x2, y2, y2w, dx, dy, xk, yk, ykw,
@@ -2954,7 +2987,7 @@ ImagePyramid.prototype = {
         channels = null == channels ? 4 : channels;
         if (4 !== channels) channels = 1;
         w = width; h = height;
-        self.levels = [{img:img, width:w, height:h, channels:channels}];
+        self.levels = [{img:img, width:w, height:h, channels:channels, area:area}];
         while (w >= minsize && h >= minsize)
         {
             w2 = w >>> 1; h2 = h >>> 1;
@@ -2963,7 +2996,7 @@ ImagePyramid.prototype = {
             {
                 for (x=0,x2=0; x2<w2; x+=2,++x2)
                 {
-                    r=0; g=0; b=0; a=0; m=0; s=0;
+                    r=0; g=0; b=0; a=0; s=0; m=0;
                     for (dy=-2; dy<=3; ++dy)
                     {
                         yk = y+dy;
@@ -2994,31 +3027,30 @@ ImagePyramid.prototype = {
                     }
                     if (0 < m)
                     {
-                        if (0 < s) {r /= s; g /= s; b /= s;}
                         i = x2 + y2w;
                         if (4 === channels)
                         {
-                            a /= m;
                             i = i << 2;
-                            img2[i + 0] = clamp(stdMath.round(r), 0, 255);
-                            img2[i + 1] = clamp(stdMath.round(g), 0, 255);
-                            img2[i + 2] = clamp(stdMath.round(b), 0, 255);
-                            img2[i + 3] = clamp(stdMath.round(a), 0, 255);
+                            img2[i + 0] = clamp(stdMath.round(r/s), 0, 255);
+                            img2[i + 1] = clamp(stdMath.round(g/s), 0, 255);
+                            img2[i + 2] = clamp(stdMath.round(b/s), 0, 255);
+                            img2[i + 3] = clamp(stdMath.round(a/m), 0, 255);
                         }
                         else
                         {
-                            img2[i] = clamp(stdMath.round(r), 0, 255);
+                            img2[i] = clamp(stdMath.round(r/s), 0, 255);
                         }
                     }
                 }
             }
             img = img2; w = w2; h = h2;
-            self.levels.push({img:img, width:w, height:h, channels:channels});
+            if (area) area = area.scale(img, 0.5);
+            self.levels.push({img:img, width:w, height:h, channels:channels, area:area});
         }
         return self;
-    };
+    }
 };
-ImageUtil.Pyramid = ImagePyramid;*/
+ImageUtil.Pyramid = ImagePyramid;
 
 function clmp(x, a, b)
 {

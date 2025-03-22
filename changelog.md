@@ -3,7 +3,7 @@
 __1.14.0__
 
 * PatchMatch algorithm for image editing, inpainting and completion, in progress
-* FILTER.Util.Image.Selection class
+* FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
 * handle metaData serialization in CompositeFilter
 
 __1.13.0__

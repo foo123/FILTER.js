@@ -11,7 +11,7 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     sat = FilterUtil.sat, satsum = FilterUtil.satsum,
     satsums = FilterUtil.satsums, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
     // 1 default direction
     rot1  = [0],

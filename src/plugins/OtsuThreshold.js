@@ -9,7 +9,6 @@
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    TypedArray = FILTER.Util.Array.typed,
     TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 

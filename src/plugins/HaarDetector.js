@@ -9,7 +9,7 @@
 
 var stdMath = Math, Abs = stdMath.abs, Max = stdMath.max, Min = stdMath.min,
     Floor = stdMath.floor, Round = stdMath.round, Sqrt = stdMath.sqrt,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     MAX_FEATURES = 10, push = Array.prototype.push;
 
 function by_area(r1, r2) {return r2.area-r1.area;}

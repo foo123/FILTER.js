@@ -10,7 +10,7 @@
 var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
     FilterUtil = FILTER.Util.Filter,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
 FILTER.Create({

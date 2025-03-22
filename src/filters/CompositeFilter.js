@@ -9,7 +9,7 @@
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
     slice = AP.slice, splice = AP.splice, concat = AP.push,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj;
+    TypedObj = FILTER.Util.Array.typed_obj;
 
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({

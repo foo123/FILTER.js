@@ -12,8 +12,8 @@
 "use strict";
 
 var MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
-    TypedArray = FILTER.Util.Array.typed, GLSL = FILTER.Util.GLSL,
-    stdMath = Math, Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
+    GLSL = FILTER.Util.GLSL, stdMath = Math,
+    Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
 
 // DisplacementMap Filter
 var DisplacementMapFilter = FILTER.Create({
