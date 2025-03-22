@@ -25,24 +25,20 @@ FILTER.Create({
     ,hasInputs: true
 
     // parameters
-    // The iterations amount
-    ,iters: 5
-    // The patch size (should be odd)
+    ,iterations: 5
     ,patch: 11
-    // The radius of the area for the random search
     ,radius: 100
-    // The random search alpha
     ,alpha: 0.5
-    // patch area/selection
     ,fromArea: null
     ,toArea: null
-    ,pyramid: false
+    ,pyramid: null//{iterations:0,diffThreshold:1,changedThreshold:0}
     ,average: false
     ,strict: false
     ,returnNNF: false
 
     ,init: function() {
         var self = this;
+        self.pyramid = null;
     }
 
     // support worker serialize/unserialize interface
@@ -59,7 +55,7 @@ FILTER.Create({
         var self = this;
         if (params)
         {
-            if (null != params.iters) self.iters = +params.iters;
+            if (null != params.iterations) self.iterations = +params.iterations;
             if (null != params.patch) self.patch = +params.patch;
             if (null != params.radius) self.radius = +params.radius;
             if (null != params.alpha) self.alpha = +params.alpha;
@@ -76,11 +72,11 @@ FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-        iters: self.iters,
+        iterations: self.iterations,
         patch: self.patch,
         radius: self.radius,
         alpha: self.alpha,
-        pyramid: self.pyramid,
+        pyramid: toJSON(self.pyramid),
         average: self.average,
         strict: self.strict,
         fromArea: toJSON(self.fromArea),
@@ -91,11 +87,11 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.iters = params.iters;
+        self.iterations = params.iterations;
         self.patch = params.patch;
         self.radius = params.radius;
         self.alpha = params.alpha;
-        self.pyramid = params.pyramid;
+        self.pyramid = fromJSON(params.pyramid);
         self.average = params.average;
         self.strict = params.strict;
         self.fromArea = fromJSON(params.fromArea);
@@ -135,7 +131,7 @@ FILTER.Create({
             fromArea = self.fromArea,
             toArea = self.toArea,
             input, metrics, dst, src, nnf, nnf2,
-            im2, w2, h2,
+            im2, w2, h2, i, j, jn,
             Area = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -159,13 +155,13 @@ FILTER.Create({
                 {
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Area(im, w, h, 4, toArea));
                     src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Area(im2, w2, h2, 4, fromArea));
-                    for (var i=dst.levels.length-1; i>=0; --i)
+                    for (i=dst.levels.length-1; i>=0; --i)
                     {
                         nnf2 = nnf ? patchmatch(
                             nnf.scale(dst.levels[i].area, src.levels[i].area, 2),
                             null,
                             self.patch,
-                            self.iters,
+                            self.iterations,
                             self.alpha,
                             self.radius,
                             self.strict
@@ -173,13 +169,20 @@ FILTER.Create({
                             dst.levels[i].area,
                             src.levels[i].area,
                             self.patch,
-                            self.iters,
+                            self.iterations,
                             self.alpha,
                             self.radius,
                             self.strict
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
+                        for (j=1,jn=self.pyramid.iterations||0; j<jn; ++j)
+                        {
+                            metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, mode:self.average ? "average" : "default"};
+                            nnf.apply(metrics);
+                            if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
+                            patchmatch(nnf.init(), null, self.iterations, self.alpha, self.radius);
+                        }
                     }
                     dst.dispose(); src.dispose();
                 }
@@ -189,7 +192,7 @@ FILTER.Create({
                         new Area(im, w, h, 4, toArea),
                         new Area(im2, w2, h2, 4, fromArea),
                         self.patch,
-                        self.iters,
+                        self.iterations,
                         self.alpha,
                         self.radius,
                         self.strict
@@ -201,7 +204,7 @@ FILTER.Create({
                 }
                 else
                 {
-                    metrics = {error:0, mode:self.average ? "average" : "default"};
+                    metrics = {error:0, changed:0, threshold:0, mode:self.average ? "average" : "default"};
                     nnf.apply(metrics).dispose(true);
                     self.meta.metric = metrics.error;
                     self._update = true;
@@ -689,8 +692,9 @@ NNF.prototype = {
             n = _.length, i,
             ap, bp, ai, bj,
             dr, dg, db,
-            color, nmse = 0,
-            mode = metrics ? metrics.mode : "default";
+            color, diff, nmse = 0, changed = 0,
+            mode = metrics ? metrics.mode : "default",
+            threshold = (metrics ? metrics.threshold : 0)||0;
 
         if (4 === dataA.channels)
         {
@@ -706,7 +710,9 @@ NNF.prototype = {
                     dr = imgA[ai + 0] - color[0];
                     dg = imgA[ai + 1] - color[1];
                     db = imgA[ai + 2] - color[2];
-                    nmse += (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) changed++;
                     imgA[ai + 0] = color[0];
                     imgA[ai + 1] = color[1];
                     imgA[ai + 2] = color[2];
@@ -723,7 +729,9 @@ NNF.prototype = {
                     dr = imgA[ai + 0] - imgB[bj + 0];
                     dg = imgA[ai + 1] - imgB[bj + 1];
                     db = imgA[ai + 2] - imgB[bj + 2];
-                    nmse += (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) changed++;
                     imgA[ai + 0] = imgB[bj + 0];
                     imgA[ai + 1] = imgB[bj + 1];
                     imgA[ai + 2] = imgB[bj + 2];
@@ -742,7 +750,9 @@ NNF.prototype = {
                     ai = ap.index;
                     self.avg(bp, color, 1);
                     dr = imgA[ai] - color[0];
-                    nmse += (dr * dr) / 65025/*255*255*/;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) changed++;
                     imgA[ai] = color[0];
                 }
             }
@@ -755,12 +765,18 @@ NNF.prototype = {
                     ai = ap.index;
                     bj = bp.index;
                     dr = imgA[ai] - imgB[bj];
-                    nmse += (dr * dr) / 65025/*255*255*/;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) changed++;
                     imgA[ai] = imgB[bj];
                 }
             }
         }
-        if (metrics) metrics.error = nmse / n;
+        if (metrics)
+        {
+            metrics.changed = changed / n;
+            metrics.error = nmse / n;
+        }
         return self;
     }
 };
