@@ -299,13 +299,17 @@ NNF.prototype = {
                     ay = stdMath.floor(scale*A[a].y),
                     bx = stdMath.floor(scale*B[b].x),
                     by = stdMath.floor(scale*B[b].y);
-                for (dy=0; dy<n; ++dy)
+                bb = scaled.src.indexOf(bx + 0, by + 0);
+                if (-1 !== bb)
                 {
-                    for (dx=0; dx<n; ++dx)
+                    for (dy=0; dy<n; ++dy)
                     {
-                        aa = scaled.dst.indexOf(ax + dx, ay + dy);
-                        bb = scaled.src.indexOf(bx + dx, by + dy);
-                        if (-1 !== aa && -1 !== bb) scaled._[aa] = [bb, d];
+                        for (dx=0; dx<n; ++dx)
+                        {
+                            aa = scaled.dst.indexOf(ax + dx, ay + dy);
+                            //bb = scaled.src.indexOf(bx + dx, by + dy);
+                            if (-1 !== aa /*&& -1 !== bb*/) scaled._[aa] = [bb, d];
+                        }
                     }
                 }
             });
