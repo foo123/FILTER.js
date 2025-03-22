@@ -281,14 +281,14 @@ NNF.prototype = {
             scaled = (new NNF(dst, src, self.patch)).init();
         if (self._)
         {
-            A = self.dst.points();
-            B = self.src.points();
+            A = self.dst.points(); B = self.src.points();
             self._.forEach(function(v, a) {
-                var n = stdMath.floor(scale), dx, dy, aa, bb, b = v[0], d = v[1],
-                    ax = stdMath.round(scale*A[a].x),
-                    ay = stdMath.round(scale*A[a].y),
-                    bx = stdMath.round(scale*B[b].x),
-                    by = stdMath.round(scale*B[b].y);
+                var n = stdMath.floor(scale),
+                    dx, dy, aa, bb, b = v[0], d = v[1],
+                    ax = stdMath.floor(scale*A[a].x),
+                    ay = stdMath.floor(scale*A[a].y),
+                    bx = stdMath.floor(scale*B[b].x),
+                    by = stdMath.floor(scale*B[b].y);
                 for (dy=0; dy<n; ++dy)
                 {
                     for (dx=0; dx<n; ++dx)
