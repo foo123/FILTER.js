@@ -38,6 +38,7 @@ FILTER.Create({
     ,toArea: null
     ,pyramid: false
     ,average: false
+    ,strict: false
     ,returnNNF: false
 
     ,init: function() {
@@ -64,6 +65,7 @@ FILTER.Create({
             if (null != params.alpha) self.alpha = +params.alpha;
             if (null != params.pyramid) self.pyramid = params.pyramid;
             if (null != params.average) self.average = params.average;
+            if (null != params.strict) self.strict = params.strict;
             if (null != params.fromArea) self.fromArea = params.fromArea;
             if (null != params.toArea) self.toArea = params.toArea;
             if (null != params.returnNNF) self.returnNNF = params.returnNNF;
@@ -80,6 +82,7 @@ FILTER.Create({
         alpha: self.alpha,
         pyramid: self.pyramid,
         average: self.average,
+        strict: self.strict,
         fromArea: toJSON(self.fromArea),
         toArea: toJSON(self.toArea),
         returnNNF: self.returnNNF
@@ -94,6 +97,7 @@ FILTER.Create({
         self.alpha = params.alpha;
         self.pyramid = params.pyramid;
         self.average = params.average;
+        self.strict = params.strict;
         self.fromArea = fromJSON(params.fromArea);
         self.toArea = fromJSON(params.toArea);
         self.returnNNF = params.returnNNF;
@@ -163,14 +167,16 @@ FILTER.Create({
                             self.patch,
                             self.iters,
                             self.alpha,
-                            self.radius
+                            self.radius,
+                            self.strict
                         ) : patchmatch(
                             dst.levels[i].area,
                             src.levels[i].area,
                             self.patch,
                             self.iters,
                             self.alpha,
-                            self.radius
+                            self.radius,
+                            self.strict
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
@@ -185,7 +191,8 @@ FILTER.Create({
                         self.patch,
                         self.iters,
                         self.alpha,
-                        self.radius
+                        self.radius,
+                        self.strict
                     );
                 }
                 if (self.returnNNF)
@@ -205,7 +212,7 @@ FILTER.Create({
     }
 });
 
-function patchmatch(dst, src, patch, iters, alpha, radius)
+function patchmatch(dst, src, patch, iters, alpha, radius, strict)
 {
     if (dst instanceof patchmatch.NNF)
     {
@@ -225,12 +232,12 @@ function patchmatch(dst, src, patch, iters, alpha, radius)
                 }
             );
         }
-        return (new patchmatch.NNF(dst, src, patch)).init().run(iters, alpha, radius);
+        return (new patchmatch.NNF(dst, src, patch, strict)).init().run(iters, alpha, radius);
     }
 }
 FILTER.Util.Filter.patchmatch = patchmatch;
 
-function NNF(dst, src, patch)
+function NNF(dst, src, patch, strict)
 {
     var self = this, other;
     if (dst instanceof NNF)
@@ -239,6 +246,7 @@ function NNF(dst, src, patch)
         self.dst = other.dst;
         self.src = other.src;
         self.patch = other.patch;
+        self.strict = other.strict;
         self._ = other._ ? other._.slice() : other._;
     }
     else
@@ -246,6 +254,7 @@ function NNF(dst, src, patch)
         self.dst = dst;
         self.src = src;
         self.patch = patch;
+        self.strict = !!strict;
         self._ = null;
     }
     self.dstImg = self.dst.data();
@@ -260,6 +269,7 @@ NNF.prototype = {
     dstImg: null,
     srcImg: null,
     patch: 0,
+    strict: false,
     mu: 0.0,
     sigma: 1.0,
     _: null,
@@ -278,13 +288,13 @@ NNF.prototype = {
     },
     scale: function(dst, src, scale) {
         var self = this, A, B,
-            scaled = (new NNF(dst, src, self.patch)).init();
-        if (self._)
+            n = stdMath.floor(scale),
+            scaled = (new NNF(dst, src, self.patch, self.strict)).init();
+        if (self._ && (0 < n))
         {
             A = self.dst.points(); B = self.src.points();
-            self._.forEach(function(v, a) {
-                var n = stdMath.floor(scale),
-                    dx, dy, aa, bb, b = v[0], d = v[1],
+            self._.forEach(function(f, a) {
+                var dx, dy, aa, bb, b = f[0], d = f[1],
                     ax = stdMath.floor(scale*A[a].x),
                     ay = stdMath.floor(scale*A[a].y),
                     bx = stdMath.floor(scale*B[b].x),
@@ -346,6 +356,7 @@ NNF.prototype = {
             dataA = self.dstImg,
             dataB = self.srcImg,
             patch = self.patch,
+            strict = self.strict,
             p = patch >>> 1,
             diff = 0,
             completed = 0,
@@ -360,48 +371,48 @@ NNF.prototype = {
             B = BB.points(),
             ax = A[a].x, ay = A[a].y,
             bx = B[b].x, by = B[b].y,
-            x, y, xa, ya, yaw, xb, yb, ybw,
-            i, j, r, g, b, isRGBA;
+            dx, dy, xa, ya, yaw, xb, yb, ybw,
+            i, j, dr, dg, db, isRGBA;
         isRGBA = 4 === dataA.channels;
-        for (y=-p; y<=p; ++y)
+        for (dy=-p; dy<=p; ++dy)
         {
-            ya = ay+y; yb = by+y;
+            ya = ay+dy; yb = by+dy;
             if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
-            /*if (!AA.has(null, ya) || !BB.has(null, yb))
+            if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
             {
                 excluded += patch;
                 continue;
-            }*/
+            }
             yaw = ya*aw; ybw = yb*bw;
-            for (x=-p; x<=p; ++x)
+            for (dx=-p; dx<=p; ++dx)
             {
-                xa = ax+x; xb = bx+x;
+                xa = ax+dx; xb = bx+dx;
                 if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                /*if (!AA.has(xa, null) || !BB.has(xb, null))
+                if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
                 {
                     excluded += 1;
                     continue;
-                }*/
+                }
                 if (isRGBA)
                 {
                     i = (xa + yaw) << 2;
                     j = (xb + ybw) << 2;
-                    r = imgA[i + 0] - imgB[j + 0];
-                    g = imgA[i + 1] - imgB[j + 1];
-                    b = imgA[i + 2] - imgB[j + 2];
-                    diff += r*r + g*g + b*b;
+                    dr = imgA[i + 0] - imgB[j + 0];
+                    dg = imgA[i + 1] - imgB[j + 1];
+                    db = imgA[i + 2] - imgB[j + 2];
+                    diff += (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                 }
                 else
                 {
                     i = (xa + yaw);
                     j = (xb + ybw);
-                    r = imgA[i] - imgB[j];
-                    diff += r*r;
+                    dr = imgA[i] - imgB[j];
+                    diff += (dr * dr) / 65025/*255*255*/;
                 }
                 ++completed;
             }
         }
-        return /*20*excluded >= patch*patch ? false :*/ (completed ? (diff/*+excluded*65025/*255*255* /*(isRGBA?3:1)*/)/(completed/*+excluded*/) : INF);
+        return strict && (20*excluded >= patch*patch) ? false : (completed ? (diff/*+excluded*65025/*255*255* /*(isRGBA?3:1)*/)/(completed/*+excluded*/) : 1);
     },
     avg: function(bp, output, weight) {
         var self = this,
@@ -415,7 +426,8 @@ NNF.prototype = {
             dx, dy, x, y, yw,
             r = 0.0, g = 0.0,
             b = 0.0, sum = 0.0,
-            index, p = patch >>> 1;
+            index, p = patch >>> 1,
+            gy, gx, sigma2 = 2*p*p;
 
         weight = 1;
         if (4 === dataB.channels)
@@ -424,11 +436,14 @@ NNF.prototype = {
             {
                 y = by+dy;
                 if (0 > y || y >= height || !B.has(null, y)) continue;
+                gy = stdMath.exp(-(dy*dy)/sigma2);
                 yw = y*width;
                 for (dx=-p; dx<=p; ++dx)
                 {
                     x = bx+dx;
                     if (0 > x || x >= width || !B.has(x, null)) continue;
+                    gx = stdMath.exp(-(dx*dx)/sigma2);
+                    weight = gx*gy;
                     index = (x + yw) << 2;
                     r += imgB[index + 0] * weight;
                     g += imgB[index + 1] * weight;
@@ -446,11 +461,14 @@ NNF.prototype = {
             {
                 y = by+dy;
                 if (0 > y || y >= height || !B.has(null, y)) continue;
+                gy = stdMath.exp(-(dy*dy)/sigma2);
                 yw = y*width;
                 for (dx=-p; dx<=p; ++dx)
                 {
                     x = bx+dx;
                     if (0 > x || x >= width || !B.has(x, null)) continue;
+                    gx = stdMath.exp(-(dx*dx)/sigma2);
+                    weight = gx*gy;
                     index = (x + yw);
                     r += imgB[index] * weight;
                     sum += weight;
@@ -551,7 +569,7 @@ NNF.prototype = {
                 b = randInt(0, B.length-1);
                 res = self.dist(a, b);
             }
-            _[a] = [b, false === res ? INF : res];
+            _[a] = [b, false === res ? 1 : res];
         }
         return self;
     },
@@ -566,8 +584,8 @@ NNF.prototype = {
         {
             i = AA.indexOf(stdMath.max(rectA.from.x, x-1), y);
             j = AA.indexOf(x, stdMath.max(rectA.from.y, y-1));
-            left = -1 === i ? INF : _[i][1];
-            up = -1 === j ? INF : _[j][1];
+            left = -1 === i ? 1 : _[i][1];
+            up = -1 === j ? 1 : _[j][1];
             if (false === res && left < current && left <= up)
             {
                 res = self.dist(a, _[i][0]);
@@ -583,8 +601,8 @@ NNF.prototype = {
         {
             i = AA.indexOf(stdMath.min(x+1, rectA.to.x), y);
             j = AA.indexOf(x, stdMath.min(y+1, rectA.to.y));
-            right = -1 === i ? INF : _[i][1];
-            down = -1 === j ? INF : _[j][1];
+            right = -1 === i ? 1 : _[i][1];
+            down = -1 === j ? 1 : _[j][1];
             if (false === res && right < current && right <= down)
             {
                 res = self.dist(a, _[i][0]);
@@ -747,6 +765,7 @@ NNF.serialize = function(nnf) {
     dst: FILTER.Util.Image.Selection.serialize(nnf.dst),
     src: FILTER.Util.Image.Selection.serialize(nnf.src),
     patch: nnf.patch,
+    strict: nnf.strict,
     _: nnf._
     };
 };
@@ -754,7 +773,8 @@ NNF.unserialize = function(dst, src, obj) {
     var nnf = new NNF(
     FILTER.Util.Image.Selection.unserialize(dst, obj.dst),
     FILTER.Util.Image.Selection.unserialize(src, obj.src),
-    obj.patch
+    obj.patch,
+    obj.strict
     );
     nnf._ = obj._;
     return nnf;
