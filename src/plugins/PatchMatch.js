@@ -38,7 +38,6 @@ FILTER.Create({
 
     ,init: function() {
         var self = this;
-        self.pyramid = null;
     }
 
     // support worker serialize/unserialize interface
@@ -46,7 +45,7 @@ FILTER.Create({
 
     ,dispose: function() {
         var self = this;
-        self.fromArea = self.toArea = null;
+        self.fromArea = self.toArea = self.pyramid = null;
         self.$super('dispose');
         return self;
     }
@@ -153,8 +152,8 @@ FILTER.Create({
                 if (im2 === im) im2 = copy(im2);
                 if (self.pyramid)
                 {
-                    dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Area(im, w, h, 4, toArea));
-                    src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Area(im2, w2, h2, 4, fromArea));
+                    dst = (new Pyramid()).build(im, w, h, 4, self.patch+2, new Area(im, w, h, 4, toArea));
+                    src = (new Pyramid()).build(im2, w2, h2, 4, self.patch+2, new Area(im2, w2, h2, 4, fromArea));
                     for (i=dst.levels.length-1; i>=0; --i)
                     {
                         nnf2 = nnf ? patchmatch(
@@ -179,7 +178,7 @@ FILTER.Create({
                         for (j=1,jn=self.pyramid.iterations||0; j<jn; ++j)
                         {
                             metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, mode:self.average ? "average" : "default"};
-                            nnf.apply(metrics);
+                            nnf.apply(true, metrics);
                             if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
                             patchmatch(nnf.init(), null, self.iterations, self.alpha, self.radius);
                         }
@@ -205,7 +204,7 @@ FILTER.Create({
                 else
                 {
                     metrics = {error:0, changed:0, threshold:0, mode:self.average ? "average" : "default"};
-                    nnf.apply(metrics).dispose(true);
+                    nnf.apply(true, metrics).dispose(true);
                     self.meta.metric = metrics.error;
                     self._update = true;
                 }
@@ -215,15 +214,15 @@ FILTER.Create({
     }
 });
 
-function patchmatch(dst, src, patch, iters, alpha, radius, strict)
+function patchmatch(dst, src, patch, iterations, alpha, radius, strict)
 {
     if (dst instanceof patchmatch.NNF)
     {
-        return dst.run(iters, alpha, radius);
+        return dst.run(iterations, alpha, radius);
     }
     else
     {
-        var srcData = src.data(), srcRect = src.rect();
+        /*var srcData = src.data(), srcRect = src.rect();
         if (dst.data().data === srcData.data)
         {
             // dst === src, make copy to avoid distortions
@@ -234,8 +233,8 @@ function patchmatch(dst, src, patch, iters, alpha, radius, strict)
                 points:src.points()
                 }
             );
-        }
-        return (new patchmatch.NNF(dst, src, patch, strict)).init().run(iters, alpha, radius);
+        }*/
+        return (new patchmatch.NNF(dst, src, patch, strict)).init().run(iterations, alpha, radius);
     }
 }
 FILTER.Util.Filter.patchmatch = patchmatch;
@@ -251,6 +250,7 @@ function NNF(dst, src, patch, strict)
         self.patch = other.patch;
         self.strict = other.strict;
         self._ = other._ ? other._.slice() : other._;
+        self.mu = other.mu; self.sigma = other.sigma;
     }
     else
     {
@@ -678,7 +678,7 @@ NNF.prototype = {
         }
         return self;
     },
-    apply: function(metrics) {
+    apply: function(apply, metrics) {
         if (!this._) return this;
         var self = this,
             _ = self._,
@@ -692,10 +692,12 @@ NNF.prototype = {
             n = _.length, i,
             ap, bp, ai, bj,
             dr, dg, db,
-            color, diff, nmse = 0, changed = 0,
+            color, diff,
+            nmse = 0, changed = 0,
             mode = metrics ? metrics.mode : "default",
             threshold = (metrics ? metrics.threshold : 0)||0;
 
+        apply = false !== apply;
         if (4 === dataA.channels)
         {
             if ("average" === mode)
@@ -713,9 +715,12 @@ NNF.prototype = {
                     diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                     nmse += diff;
                     if (diff > threshold) changed++;
-                    imgA[ai + 0] = color[0];
-                    imgA[ai + 1] = color[1];
-                    imgA[ai + 2] = color[2];
+                    if (apply)
+                    {
+                        imgA[ai + 0] = color[0];
+                        imgA[ai + 1] = color[1];
+                        imgA[ai + 2] = color[2];
+                    }
                 }
             }
             else
@@ -732,9 +737,12 @@ NNF.prototype = {
                     diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                     nmse += diff;
                     if (diff > threshold) changed++;
-                    imgA[ai + 0] = imgB[bj + 0];
-                    imgA[ai + 1] = imgB[bj + 1];
-                    imgA[ai + 2] = imgB[bj + 2];
+                    if (apply)
+                    {
+                        imgA[ai + 0] = imgB[bj + 0];
+                        imgA[ai + 1] = imgB[bj + 1];
+                        imgA[ai + 2] = imgB[bj + 2];
+                    }
                 }
             }
         }
@@ -753,7 +761,10 @@ NNF.prototype = {
                     diff = (dr * dr) / 65025/*255*255*/;
                     nmse += diff;
                     if (diff > threshold) changed++;
-                    imgA[ai] = color[0];
+                    if (apply)
+                    {
+                        imgA[ai] = color[0];
+                    }
                 }
             }
             else
@@ -768,7 +779,10 @@ NNF.prototype = {
                     diff = (dr * dr) / 65025/*255*255*/;
                     nmse += diff;
                     if (diff > threshold) changed++;
-                    imgA[ai] = imgB[bj];
+                    if (apply)
+                    {
+                        imgA[ai] = imgB[bj];
+                    }
                 }
             }
         }
@@ -786,6 +800,8 @@ NNF.serialize = function(nnf) {
     src: FILTER.Util.Image.Selection.serialize(nnf.src),
     patch: nnf.patch,
     strict: nnf.strict,
+    mu: nnf.mu,
+    sigma: nnf.sigma,
     _: nnf._
     };
 };
@@ -797,6 +813,8 @@ NNF.unserialize = function(dst, src, obj) {
     obj.strict
     );
     nnf._ = obj._;
+    nnf.mu = obj.mu;
+    nnf.sigma = obj.sigma;
     return nnf;
 };
 patchmatch.NNF = NNF;

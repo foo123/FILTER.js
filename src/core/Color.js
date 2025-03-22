@@ -565,6 +565,73 @@ var Color = FILTER.Color = FILTER.Class({
             return ccc;
         },
 
+        /*RGB2LAB: function(ccc, p) {
+            //p = p || 0;
+            var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2],
+                K1 = 1.0 / 1.055, K2 = 1.0 / 12.92, Xr = 1.0 / 95.047, Yr = 1.0 / 100.0, Zr = 1.0 / 108.883,
+                e = 0.008856, k = 7.787, S = 16.0 / 116.0, S2 = 1.0 / 2.4, OneThird = 1.0 / 3.0,
+                R = r / 255, G = g / 255, B = b / 255, xr, y, zr, fx, fy, fz;
+
+            // Inverse sRBG Companding http://www.brucelindbloom.com/index.html?Math.html
+            r = R > 0.04045 ? (stdMath.pow((R + 0.055) * K1, 2.4) * 100.0) : (R * K2 * 100.0);
+            g = G > 0.04045 ? (stdMath.pow((G + 0.055) * K1, 2.4) * 100.0) : (G * K2 * 100.0);
+            b = B > 0.04045 ? (stdMath.pow((B + 0.055) * K1, 2.4) * 100.0) : (B * K2 * 100.0);
+
+            // Step 2. Linear RGB to XYZ
+            xr = (r * 0.4124 + g * 0.3576 + b * 0.1805) * Xr;
+            yr = (r * 0.2126 + g * 0.7152 + b * 0.0722) * Yr;
+            zr = (r * 0.0193 + g * 0.1192 + b * 0.9505) * Zr;
+
+            fx = xr > e ? stdMath.pow(xr, OneThird) : (k * xr) + S;
+            fy = yr > e ? stdMath.pow(yr, OneThird) : (k * yr) + S;
+            fz = zr > e ? stdMath.pow(zr, OneThird) : (k * zr) + S;
+
+            // each take full range from 0-255
+            ccc[p+0] = ( 116.0 * fy - 16.0 )|0;
+            ccc[p+1] = ( 500.0 * (fx - fy) )|0;
+            ccc[p+2] = ( 200.0 * (fy - fz) )|0;
+            return ccc;
+        },
+
+        LAB2RGB: function(ccc, p) {
+            //p = p || 0;
+            var L = ccc[p+0], A = ccc[p+1], B = ccc[p+2],
+                e = 0.008856, k = 7.787, S = 16.0 / 116.0, S2 = 1.0 / 2.4,
+                Xr = 95.047, Yr = 100.000, Zr = 108.883,
+                K1 = 1.0 / 116.0, K2 = 1.0 / 500.0, K3 = 1.0 / 200.0,
+                K4 = 1.0 / k, W = 0.0031308,
+                Xr2 = 1.0 / 100.0, Yr2 = 1.0 / 100.0, Zr2 = 1.0 / 100.0,
+                fx, fy, fz, xr, yr, zr, X, Y, Z, r, g, b;
+
+            fy = (L + 16.0) * K1;
+            fx = (A * K2) + fy;
+            fz = fy - (B * K3);
+
+            yr = fy * fy * fy;
+            if (yr <= e) yr = (fy - S) * K4;
+            xr = fx * fx * fx;
+            if (xr <= e) xr = (fx - S) * K4;
+            zr = fz * fz * fz;
+            if (zr <= e) zr = (fz - S) * K4;
+
+            X = xr * Xr * Xr2;
+            Y = yr * Yr * Yr2;
+            Z = zr * Zr * Zr2;
+
+            // Step 1.  XYZ to Linear RGB
+            r = X * 3.2406 + Y * -1.5372 + Z * -0.4986;
+            g = X * -0.9689 + Y * 1.8758 + Z * 0.0415;
+            b = X * 0.0557 + Y * -0.2040 + Z * 1.0570;
+
+            // Step 2.  Companding
+            // sRGB Companding
+            // each take full range from 0-255
+            ccc[p+0] = ( r > W ? (1.055 * stdMath.pow(r, S2) - 0.055) : (12.92 * r) )|0;
+            ccc[p+1] = ( g > W ? (1.055 * stdMath.pow(g, S2) - 0.055) : (12.92 * g) )|0;
+            ccc[p+2] = ( b > W ? (1.055 * stdMath.pow(b, S2) - 0.055) : (12.92 * b) )|0;
+            return ccc;
+        },*/
+
         // https://www.cs.harvard.edu/~sjg/papers/cspace.pdf
         RGB2ILL: function(ccc, p) {
             //p = p || 0;
