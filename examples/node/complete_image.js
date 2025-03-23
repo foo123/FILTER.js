@@ -19,10 +19,10 @@ F.Image.load(image, function(img) {
         const fromArea = removeArea.complement();
         console.log('Completing image..')
         completer.params({
-            patch: 55,
-            radius: 50,
-            pyramid: {iterations:5, changedThreshold:0.05, diffThreshold:0.2},
-            //average: true,
+            patch: 51,
+            radius: 20,
+            pyramid: {iterations:5, changedThreshold:0.02, diffThreshold:0.09},
+            op: "resolve",
             strict: true,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
