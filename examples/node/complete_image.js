@@ -5,9 +5,9 @@ var parse_args = require('./commargs.js'),
     F = require('./filterwithcanvas.js'),
     parallel = !!parse_args().options['parallel'],
     completer = F.PatchMatchFilter(),
-    image = __dirname+'/t067.jpg',
-    markup = __dirname+'/m067.png',
-    output = __dirname+'/t067_completed.png';
+    image = __dirname+'/t009.jpg',
+    markup = __dirname+'/m009.png',
+    output = __dirname+'/t009_completed.png';
 
 console.log('Editing runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if (parallel) completer.worker(true);
@@ -19,10 +19,10 @@ F.Image.load(image, function(img) {
         const fromArea = removeArea.complement();
         console.log('Completing image..')
         completer.params({
-            patch: 51,
-            radius: 20,
-            pyramid: {iterations:5, changedThreshold:0.02, diffThreshold:0.09},
-            op: "resolve",
+            patch: 5,
+            radius: 100,
+            pyramid: {iterations:10, changedThreshold:0.02, diffThreshold:0.1},
+            op: "patch_alt",
             strict: true,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}

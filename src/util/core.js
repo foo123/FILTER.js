@@ -2842,8 +2842,8 @@ function ImageSelection(image, width, height, channels, selection)
         m = c.length;
         while (i < n && j < m)
         {
-            ri = r[i];//points[r[i]].index;
-            cj = c[j];//points[c[j]].index;
+            ri = r[i];
+            cj = c[j];
             if (ri < cj) ++i;
             else if (ri > cj) ++j;
             else return ri;
