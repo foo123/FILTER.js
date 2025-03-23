@@ -2861,27 +2861,42 @@ ImageSelection.prototype = {
     empty: null,
     has: null,
     indexOf: null,
-    bitmap: function(bitmapClass) {
-        var data = this.data(),
+    bitmap: function(arrayClass) {
+        var self = this, data = self.data(),
             area = data.width*data.height,
-            bmp = new (bitmapClass||Array)(area);
-        this.points().forEach(function(pt) {bmp[pt.index] = 1;})
-        return bmp;
+            bitmap = new (arrayClass||Array)(area);
+        self.points().forEach(function(pt) {bitmap[pt.index] = 1;})
+        return bitmap;
     },
-    scale: function(image, scale) {
-        var data = this.data(),
-            rect = this.rect(),
-            sw = stdMath.floor(scale*data.width),
-            sh = stdMath.floor(scale*data.height),
-            sx = stdMath.floor(scale*rect.x),
-            sy = stdMath.floor(scale*rect.y),
-            sww = stdMath.floor(scale*rect.width),
-            shh = stdMath.floor(scale*rect.height),
-            bitmap = interpolate_nearest_data(this.bitmap(), data.width, data.height, sw, sh),
-            area = sw*sh, index, points = new Array(area), length = 0;
-        for (index=0; index<area; ++index) if (bitmap[index]) points[length++] = {x:index % sw, y:stdMath.floor(index / sw), index:index};
+    scale: function(image, width, height, scaleX, scaleY) {
+        var self = this, data = self.data(), rect = self.rect(),
+            bitmap = interpolate_nearest_data(self.bitmap(Array), data.width, data.height, width, height),
+            area = width*height, points = new Array(area), index, length = 0;
+        if (null == scaleX)
+        {
+            scaleX = width/data.width;
+            scaleY = height/data.height;
+        }
+        if (null == scaleY)
+        {
+            scaleY = scaleX;
+        }
+        for (index=0; index<area; ++index)
+        {
+            if (bitmap[index])
+            {
+                points[length++] = {x:index % width, y:stdMath.floor(index / width), index:index};
+            }
+        }
         points.length = length
-        return new ImageSelection(image, sw, sh, data.channels, {x:sx, y:sy, width:sww, height:shh, points:points});
+        return new ImageSelection(
+            image, width, height, data.channels,
+            {
+            x:stdMath.floor(scaleX*rect.x), y:stdMath.floor(scaleY*rect.y),
+            width:stdMath.floor(scaleX*rect.width), height:stdMath.floor(scaleY*rect.height),
+            points:points
+            }
+        );
     },
     join: function(other) {
         var self = this;
@@ -2977,7 +2992,7 @@ ImagePyramid.prototype = {
     dispose: function() {
         this.levels = null;
     },
-    build: function(img, width, height, channels, minsize, area) {
+    build: function(img, width, height, channels, minsize, sel) {
         var self = this,
             kernel = [1,5,10,10,5,1], // lowpass binomial separable
             x, y, x2, y2, y2w, dx, dy, xk, yk, ykw,
@@ -2988,7 +3003,7 @@ ImagePyramid.prototype = {
         channels = null == channels ? 4 : channels;
         if (4 !== channels) channels = 1;
         w = width; h = height;
-        self.levels = [{img:img, width:w, height:h, channels:channels, area:area}];
+        self.levels = [{img:img, width:w, height:h, channels:channels, sel:sel}];
         while (w >= minsize && h >= minsize)
         {
             w2 = w >>> 1; h2 = h >>> 1;
@@ -3045,8 +3060,8 @@ ImagePyramid.prototype = {
                 }
             }
             img = img2; w = w2; h = h2;
-            if (area) area = area.scale(img, 0.5);
-            self.levels.push({img:img, width:w, height:h, channels:channels, area:area});
+            if (sel) sel = sel.scale(img, w, h, 0.5);
+            self.levels.push({img:img, width:w, height:h, channels:channels, sel:sel});
         }
         return self;
     }

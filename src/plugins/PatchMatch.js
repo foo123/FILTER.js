@@ -31,8 +31,8 @@ FILTER.Create({
     ,alpha: 0.5
     ,fromArea: null
     ,toArea: null
-    ,pyramid: null//{iterations:0,diffThreshold:1,changedThreshold:0}
-    ,average: false
+    ,pyramid: null//{iterations:1,diffThreshold:1,changedThreshold:0}
+    ,smooth: false
     ,strict: false
     ,returnNNF: false
 
@@ -59,7 +59,7 @@ FILTER.Create({
             if (null != params.radius) self.radius = +params.radius;
             if (null != params.alpha) self.alpha = +params.alpha;
             if (null != params.pyramid) self.pyramid = params.pyramid;
-            if (null != params.average) self.average = params.average;
+            if (null != params.smooth) self.smooth = params.smooth;
             if (null != params.strict) self.strict = params.strict;
             if (null != params.fromArea) self.fromArea = params.fromArea;
             if (null != params.toArea) self.toArea = params.toArea;
@@ -76,7 +76,7 @@ FILTER.Create({
         radius: self.radius,
         alpha: self.alpha,
         pyramid: toJSON(self.pyramid),
-        average: self.average,
+        smooth: self.smooth,
         strict: self.strict,
         fromArea: toJSON(self.fromArea),
         toArea: toJSON(self.toArea),
@@ -91,7 +91,7 @@ FILTER.Create({
         self.radius = params.radius;
         self.alpha = params.alpha;
         self.pyramid = fromJSON(params.pyramid);
-        self.average = params.average;
+        self.smooth = params.smooth;
         self.strict = params.strict;
         self.fromArea = fromJSON(params.fromArea);
         self.toArea = fromJSON(params.toArea);
@@ -131,7 +131,7 @@ FILTER.Create({
             toArea = self.toArea,
             input, metrics, dst, src, nnf, nnf2,
             im2, w2, h2, i, j, jn,
-            Area = FILTER.Util.Image.Selection,
+            Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
         self.hasMeta = true;
@@ -152,12 +152,12 @@ FILTER.Create({
                 if (im2 === im) im2 = copy(im2);
                 if (self.pyramid)
                 {
-                    dst = (new Pyramid()).build(im, w, h, 4, self.patch+2, new Area(im, w, h, 4, toArea));
-                    src = (new Pyramid()).build(im2, w2, h2, 4, self.patch+2, new Area(im2, w2, h2, 4, fromArea));
+                    dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
+                    src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Selection(im2, w2, h2, 4, fromArea));
                     for (i=dst.levels.length-1; i>=0; --i)
                     {
                         nnf2 = nnf ? patchmatch(
-                            nnf.scale(dst.levels[i].area, src.levels[i].area, 2),
+                            nnf.scale(dst.levels[i].sel, src.levels[i].sel, 2),
                             null,
                             self.patch,
                             self.iterations,
@@ -165,8 +165,8 @@ FILTER.Create({
                             self.radius,
                             self.strict
                         ) : patchmatch(
-                            dst.levels[i].area,
-                            src.levels[i].area,
+                            dst.levels[i].sel,
+                            src.levels[i].sel,
                             self.patch,
                             self.iterations,
                             self.alpha,
@@ -177,7 +177,7 @@ FILTER.Create({
                         nnf = nnf2;
                         for (j=1,jn=self.pyramid.iterations||0; j<jn; ++j)
                         {
-                            metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, mode:self.average ? "average" : "default"};
+                            metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, mode:self.smooth ? "smooth" : "default"};
                             nnf.apply(true, metrics);
                             if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
                             patchmatch(nnf.init(), null, self.iterations, self.alpha, self.radius);
@@ -188,8 +188,8 @@ FILTER.Create({
                 else
                 {
                     nnf = patchmatch(
-                        new Area(im, w, h, 4, toArea),
-                        new Area(im2, w2, h2, 4, fromArea),
+                        new Selection(im, w, h, 4, toArea),
+                        new Selection(im2, w2, h2, 4, fromArea),
                         self.patch,
                         self.iterations,
                         self.alpha,
@@ -203,7 +203,7 @@ FILTER.Create({
                 }
                 else
                 {
-                    metrics = {error:0, changed:0, threshold:0, mode:self.average ? "average" : "default"};
+                    metrics = {error:0, changed:0, threshold:0, mode:self.smooth ? "smooth" : "default"};
                     nnf.apply(true, metrics).dispose(true);
                     self.meta.metric = metrics.error;
                     self._update = true;
@@ -289,25 +289,27 @@ NNF.prototype = {
     clone: function() {
         return new NNF(this);
     },
-    scale: function(dst, src, scale) {
+    scale: function(dst, src, scaleX, scaleY) {
+        if (null ==scaleY) scaleY = scaleX;
         var self = this, A, B,
-            n = stdMath.floor(scale),
+            nX = stdMath.floor(scaleX),
+            nY = stdMath.floor(scaleY),
             scaled = (new NNF(dst, src, self.patch, self.strict)).init();
-        if (self._ && (0 < n))
+        if (self._ && (0 < nX) && (0 < nY))
         {
             A = self.dst.points(); B = self.src.points();
             self._.forEach(function(f, a) {
                 var dx, dy, aa, bb, b = f[0], d = f[1],
-                    ax = stdMath.floor(scale*A[a].x),
-                    ay = stdMath.floor(scale*A[a].y),
-                    bx = stdMath.floor(scale*B[b].x),
-                    by = stdMath.floor(scale*B[b].y);
+                    ax = stdMath.floor(scaleX*A[a].x),
+                    ay = stdMath.floor(scaleY*A[a].y),
+                    bx = stdMath.floor(scaleX*B[b].x),
+                    by = stdMath.floor(scaleY*B[b].y);
                 bb = scaled.src.indexOf(bx + 0, by + 0);
                 if (-1 !== bb)
                 {
-                    for (dy=0; dy<n; ++dy)
+                    for (dy=0; dy<nY; ++dy)
                     {
-                        for (dx=0; dx<n; ++dx)
+                        for (dx=0; dx<nX; ++dx)
                         {
                             aa = scaled.dst.indexOf(ax + dx, ay + dy);
                             //bb = scaled.src.indexOf(bx + dx, by + dy);
@@ -421,41 +423,39 @@ NNF.prototype = {
         }
         return strict && (20*excluded >= patch*patch) ? false : (completed ? (diff/*+excluded*65025/*255*255* /*(isRGBA?3:1)*/)/(completed/*+excluded*/) : 1);
     },
-    avg: function(bp, output, weight) {
+    avg: function(bp, output, kernel) {
         var self = this,
             B = self.src,
             dataB = self.srcImg,
             imgB = dataB.data,
             width = dataB.width,
             height = dataB.height,
-            patch = self.patch,
             bx = bp.x, by = bp.y,
             dx, dy, x, y, yw,
             r = 0.0, g = 0.0,
             b = 0.0, sum = 0.0,
-            index, p = patch >>> 1,
-            gy, gx, sigma2 = 2*p*p;
+            index, w, ky, kx,
+            p = self.patch >>> 1;
 
-        weight = 1;
         if (4 === dataB.channels)
         {
             for (dy=-p; dy<=p; ++dy)
             {
                 y = by+dy;
                 if (0 > y || y >= height || !B.has(null, y)) continue;
-                gy = stdMath.exp(-(dy*dy)/sigma2);
+                ky = kernel[dy+p];
                 yw = y*width;
                 for (dx=-p; dx<=p; ++dx)
                 {
                     x = bx+dx;
                     if (0 > x || x >= width || !B.has(x, null)) continue;
-                    gx = stdMath.exp(-(dx*dx)/sigma2);
-                    weight = gx*gy;
+                    kx = kernel[dx+p];
+                    w = kx*ky;
                     index = (x + yw) << 2;
-                    r += imgB[index + 0] * weight;
-                    g += imgB[index + 1] * weight;
-                    b += imgB[index + 2] * weight;
-                    sum += weight;
+                    r += imgB[index + 0] * w;
+                    g += imgB[index + 1] * w;
+                    b += imgB[index + 2] * w;
+                    sum += w;
                 }
             }
             output[0] = clamp(stdMath.round(r / sum), 0, 255);
@@ -468,17 +468,17 @@ NNF.prototype = {
             {
                 y = by+dy;
                 if (0 > y || y >= height || !B.has(null, y)) continue;
-                gy = stdMath.exp(-(dy*dy)/sigma2);
+                ky = kernel[dy+p];
                 yw = y*width;
                 for (dx=-p; dx<=p; ++dx)
                 {
                     x = bx+dx;
                     if (0 > x || x >= width || !B.has(x, null)) continue;
-                    gx = stdMath.exp(-(dx*dx)/sigma2);
-                    weight = gx*gy;
+                    kx = kernel[dx+p];
+                    w = kx*ky;
                     index = (x + yw);
-                    r += imgB[index] * weight;
-                    sum += weight;
+                    r += imgB[index] * w;
+                    sum += w;
                 }
             }
             output[0] = clamp(stdMath.round(r / sum), 0, 255);
@@ -690,6 +690,8 @@ NNF.prototype = {
             A = self.dst.points(),
             B = self.src.points(),
             n = _.length, i,
+            p = self.patch >>> 1,
+            kernel, sigma2,
             ap, bp, ai, bj,
             dr, dg, db,
             color, diff,
@@ -698,9 +700,18 @@ NNF.prototype = {
             threshold = (metrics ? metrics.threshold : 0)||0;
 
         apply = false !== apply;
+        if ("smooth" === mode)
+        {
+            kernel = new Array(self.patch);
+            sigma2 = 2*p*p;
+            for (i=-p; i<=p; ++i)
+            {
+                kernel[i+p] = stdMath.exp(-(i*i)/sigma2);
+            }
+        }
         if (4 === dataA.channels)
         {
-            if ("average" === mode)
+            if ("smooth" === mode)
             {
                 color = [0,0,0,0];
                 for (i=0; i<n; ++i)
@@ -708,7 +719,7 @@ NNF.prototype = {
                     ap = A[i];
                     bp = B[_[i][0]];
                     ai = ap.index << 2;
-                    self.avg(bp, color, 1);
+                    self.avg(bp, color, kernel);
                     dr = imgA[ai + 0] - color[0];
                     dg = imgA[ai + 1] - color[1];
                     db = imgA[ai + 2] - color[2];
@@ -748,7 +759,7 @@ NNF.prototype = {
         }
         else
         {
-            if ("average" === mode)
+            if ("smooth" === mode)
             {
                 color = [0];
                 for (i=0; i<n; ++i)
@@ -756,7 +767,7 @@ NNF.prototype = {
                     ap = A[i];
                     bp = B[_[i][0]];
                     ai = ap.index;
-                    self.avg(bp, color, 1);
+                    self.avg(bp, color, kernel);
                     dr = imgA[ai] - color[0];
                     diff = (dr * dr) / 65025/*255*255*/;
                     nmse += diff;
