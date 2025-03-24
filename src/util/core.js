@@ -2995,7 +2995,7 @@ ImagePyramid.prototype = {
     },
     build: function(img, width, height, channels, minsize, sel) {
         var self = this,
-            kernel = [1,5,10,10,5,1], // lowpass binomial separable
+            kernel = [1, 3,  3,  1], // lowpass binomial separable
             x, y, x2, y2, y2w, dx, dy, xk, yk, ykw,
             i, k, ky, r, g, b, a, m, s,
             img2, w, h, w2, h2;
@@ -3014,18 +3014,18 @@ ImagePyramid.prototype = {
                 for (x=0,x2=0; x2<w2; x+=2,++x2)
                 {
                     r=0; g=0; b=0; a=0; s=0; m=0;
-                    for (dy=-2; dy<=3; ++dy)
+                    for (dy=-1; dy<=2; ++dy)
                     {
                         yk = y+dy;
                         if (yk<0 || yk>=h) continue;
                         ykw = yk*w;
-                        ky = kernel[2+dy];
-                        for (dx=-2; dx<=3; ++dx)
+                        ky = kernel[1+dy];
+                        for (dx=-1; dx<=2; ++dx)
                         {
                             xk = x+dx;
                             if (xk<0 || xk>=w) continue;
                             i = xk + ykw;
-                            k = kernel[2+dx]*ky;
+                            k = kernel[1+dx]*ky;
                             if (4 === channels)
                             {
                                 i = i << 2;

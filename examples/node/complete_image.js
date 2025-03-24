@@ -20,9 +20,9 @@ F.Image.load(image, function(img) {
         console.log('Completing image..')
         completer.params({
             patch: 5,
-            radius: 100,
-            pyramid: {iterations:10, changedThreshold:0.02, diffThreshold:0.1},
-            op: "patch_alt",
+            radius: 20,
+            pyramid: {iterations:5, changedThreshold:0.02, diffThreshold:0.1},
+            op: "patch",
             strict: true,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
