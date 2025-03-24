@@ -633,7 +633,7 @@ NNF.prototype = {
             weight = new Array(patch*patch);
             if ("patch" === op)
             {
-                factor = compute_confidence(self, metrics ? metrics.confident : 1., stdMath.pow(metrics ? metrics.gamma : 1.3, -1));
+                factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3, -1));
             }
             else
             {
