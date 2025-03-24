@@ -183,12 +183,16 @@ FILTER.Create({
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
-                        for (j=1,jn=self.pyramid.iterations||0; j<jn; ++j)
+                        jn = self.pyramid.iterations || 0;
+                        if (1 < jn && 0 < i)
                         {
-                            metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, gamma:self.gamma, confident:self.confident, op:self.op};
-                            nnf.apply(true, metrics);
-                            if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
-                            patchmatch(nnf.init(), null, self.iterations, self.alpha, self.radius);
+                            for (j=1; j<jn; ++j)
+                            {
+                                metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, gamma:self.gamma, confident:self.confident, op:self.op};
+                                nnf.apply(true, metrics);
+                                if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
+                                patchmatch(nnf.init(), null, self.iterations, self.alpha, self.radius);
+                            }
                         }
                     }
                     dst.dispose(); src.dispose();
@@ -699,7 +703,7 @@ NNF.prototype = {
                                 bp = B[b];
                                 d = field[ii][1];
                                 pos[cnt] = bp.index;
-                                weight[cnt] = factor[i] * compute_similarity(d);
+                                weight[cnt] = factor[ii] * compute_similarity(d);
                                 ++cnt;
                             }
                         }
@@ -778,7 +782,7 @@ NNF.prototype = {
                                 bp = B[b];
                                 d = field[ii][1];
                                 pos[cnt] = bp.index;
-                                weight[cnt] = confidence[i] * compute_similarity(d);
+                                weight[cnt] = factor[ii] * compute_similarity(d);
                                 ++cnt;
                             }
                         }
