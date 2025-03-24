@@ -2807,8 +2807,16 @@ function ImageSelection(image, width, height, channels, selection)
     self.dispose = function() {
         image = selector = points = rows = cols = null;
     };
-    self.data = function() {
-        return {data:image, width:width, height:height, channels:channels};
+    self.data = function(newImage) {
+        if (arguments.length)
+        {
+            if (newImage) image = newImage;
+            return self;
+        }
+        else
+        {
+            return {data:image, width:width, height:height, channels:channels};
+        }
     };
     self.rect = function() {
         return {from:{x:x,y:y}, to:{x:x+w-1,y:y+h-1}, width:w, height:h, area:area};
