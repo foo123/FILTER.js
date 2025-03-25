@@ -1,6 +1,6 @@
 /**
 *
-* Connected Components Extractor
+* Connected Components Extractor, Color Detector
 * @package FILTER.js
 *
 **/
@@ -216,10 +216,10 @@ FILTER.Create({
                 xf = 1;
                 yf = 1;
             }
-            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf));
-            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf));
-            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf));
-            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf));
+            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf))|0;
+            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf))|0;
+            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf))|0;
+            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf))|0;
         }
         else
         {

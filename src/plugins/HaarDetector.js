@@ -169,10 +169,10 @@ FILTER.Create({
                 xf = 1;
                 yf = 1;
             }
-            x1 = Min(w-1, Max(0, selection[0]*xf));
-            y1 = Min(h-1, Max(0, selection[1]*yf));
-            x2 = Min(w-1, Max(0, selection[2]*xf));
-            y2 = Min(h-1, Max(0, selection[3]*yf));
+            x1 = Min(w-1, Max(0, selection[0]*xf))|0;
+            y1 = Min(h-1, Max(0, selection[1]*yf))|0;
+            x2 = Min(w-1, Max(0, selection[2]*xf))|0;
+            y2 = Min(h-1, Max(0, selection[3]*yf))|0;
         }
         else
         {

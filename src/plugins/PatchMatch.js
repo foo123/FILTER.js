@@ -166,6 +166,7 @@ FILTER.Create({
                 if (self.pyramid)
                 {
                     metrics.threshold = self.pyramid.diffThreshold || 0;
+                    jn = self.pyramid.iterations || 0;
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
                     src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Selection(im2, w2, h2, 4, fromArea));
                     for (i=dst.levels.length-1; i>=0; --i)
@@ -191,7 +192,6 @@ FILTER.Create({
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
-                        jn = self.pyramid.iterations || 0;
                         if (1 < jn && 0 < i)
                         {
                             for (j=1; j<jn; ++j)
@@ -216,7 +216,6 @@ FILTER.Create({
                     }
                     else
                     {
-                        jn = self.pyramid.iterations || 0;
                         apply = true;
                         for (j=1; j<jn; ++j)
                         {
