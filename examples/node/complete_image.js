@@ -15,16 +15,16 @@ console.log('Loading images..');
 
 F.Image.load(image, function(img) {
     F.Image.load(markup, function(part_to_remove) {
-        const removeArea = new F.Util.Image.Selection(part_to_remove.getData(), img.width, img.height, 4, {x:0, y:0, width:img.width, height:img.height});
+        const removeArea = new F.Util.Image.Selection(part_to_remove.getData(), img.width, img.height, 4);
         const fromArea = removeArea.complement();
         console.log('Completing image..')
         completer.params({
             patch: 5,
             radius: 20,
-            pyramid: {iterations:1, changedThreshold:0.015, diffThreshold:0.15},
+            pyramid: {iterations:5, changedThreshold:0.015, diffThreshold:0.15},
             op: "patch",
             strict: true,
-            //bidirectional: true,
+            bidirectional: true,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
         }).apply(img, function () {

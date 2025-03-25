@@ -2673,6 +2673,7 @@ function ImageSelection(image, width, height, channels, selection)
     if (null == channels) channels = 4;
     if (-1 === [1,4].indexOf(channels)) channels = 1;
 
+    if (!selection) selection = {x:0, y:0, width:width, height:height};
     x = (+selection.x)||0;
     y = (+selection.y)||0;
     w = stdMath.max(0, (+selection.width)||0);
