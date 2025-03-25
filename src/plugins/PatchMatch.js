@@ -37,7 +37,7 @@ FILTER.Create({
     ,op: "pixel"
     ,strict: false
     ,bidirectional: false
-    ,returnNNF: false
+    ,returnMatch: false
 
     ,init: function() {
         var self = this;
@@ -69,7 +69,7 @@ FILTER.Create({
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
             if (null != params.fromArea) self.fromArea = params.fromArea;
             if (null != params.toArea) self.toArea = params.toArea;
-            if (null != params.returnNNF) self.returnNNF = params.returnNNF;
+            if (null != params.returnMatch) self.returnMatch = params.returnMatch;
         }
         return self;
     }
@@ -89,7 +89,7 @@ FILTER.Create({
         bidirectional: self.bidirectional,
         fromArea: toJSON(self.fromArea),
         toArea: toJSON(self.toArea),
-        returnNNF: self.returnNNF
+        returnMatch: self.returnMatch
         };
     }
 
@@ -107,7 +107,7 @@ FILTER.Create({
         self.bidirectional = params.bidirectional;
         self.fromArea = fromJSON(params.fromArea);
         self.toArea = fromJSON(params.toArea);
-        self.returnNNF = params.returnNNF;
+        self.returnMatch = params.returnMatch;
         return self;
     }
 
@@ -115,7 +115,7 @@ FILTER.Create({
         var self = this;
         if (serialisation && FILTER.isWorker)
         {
-            return TypedObj(self.meta && self.meta.nnf ? {nnf:patchmatch.NNF.serialize(self.meta.nnf)} : self.meta);
+            return TypedObj(/*self.meta && self.meta.nnf ? {nnf:patchmatch.NNF.serialize(self.meta.nnf)} :*/ self.meta);
         }
         else
         {
@@ -128,7 +128,7 @@ FILTER.Create({
         if (serialisation && ("string" === typeof meta))
         {
             self.meta = TypedObj(meta, 1);
-            if (self.meta.nnf) self.meta.nnf = patchmatch.NNF.unserialize(null, null, self.meta.nnf);
+            //if (self.meta.nnf) self.meta.nnf = patchmatch.NNF.unserialize(null, null, self.meta.nnf);
         }
         else
         {
@@ -147,9 +147,9 @@ FILTER.Create({
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
         self.hasMeta = true;
-        if (self.returnNNF)
+        if (self.returnMatch)
         {
-            self.meta = {nnf:null};
+            self.meta = {match:null};
         }
         else
         {
@@ -162,9 +162,10 @@ FILTER.Create({
             {
                 im2 = input[0]; w2 = input[1]; h2 = input[2];
                 if (im2 === im) im2 = copy(im2);
-                metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, gamma:self.gamma, confident:self.confident, op:self.op};
+                metrics = {op:self.op, error:0, changed:0, threshold:0, gamma:self.gamma, confident:self.confident};
                 if (self.pyramid)
                 {
+                    metrics.threshold = self.pyramid.diffThreshold || 0;
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
                     src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Selection(im2, w2, h2, 4, fromArea));
                     for (i=dst.levels.length-1; i>=0; --i)
@@ -209,9 +210,9 @@ FILTER.Create({
                             }
                         }
                     }
-                    if (self.returnNNF)
+                    if (self.returnMatch)
                     {
-                        self.meta.nnf = nnf;
+                        self.meta.match = nnf.field;
                     }
                     else
                     {
@@ -235,10 +236,11 @@ FILTER.Create({
                                 self.bidirectional
                             );
                         }
-                        nnf.apply(apply, metrics).dispose(true);
+                        nnf.apply(apply, metrics);
                         self.meta.metric = metrics.error;
                         self._update = true;
                     }
+                    nnf.dispose(true);
                     dst.dispose(); src.dispose();
                 }
                 else
@@ -253,16 +255,17 @@ FILTER.Create({
                         self.strict,
                         self.bidirectional
                     );
-                    if (self.returnNNF)
+                    if (self.returnMatch)
                     {
-                        self.meta.nnf = nnf;
+                        self.meta.match = nnf.field;
                     }
                     else
                     {
-                        nnf.apply(true, metrics).dispose(true);
+                        nnf.apply(true, metrics);
                         self.meta.metric = metrics.error;
                         self._update = true;
                     }
+                    nnf.dispose(true);
                 }
             }
         }
@@ -326,7 +329,7 @@ NNF.prototype = {
     src: null,
     dstImg: null,
     srcImg: null,
-    patch: 0,
+    patch: 5,
     strict: false,
     field: null,
     fieldr: null,
@@ -338,7 +341,8 @@ NNF.prototype = {
             if (self.src) self.src.dispose();
         }
         self.dstImg = self.srcImg = null;
-        self.dst = self.src = self.field = self.fieldr = null;
+        self.dst = self.src = null;
+        self.field = self.fieldr = null;
     },
     clone: function() {
         return new NNF(this);
@@ -696,14 +700,9 @@ NNF.prototype = {
             output = new Array(field.length * (4 === dataA.channels ? 4 : 2)),
             factor, op = metrics ? metrics.op : "pixel";
 
-        if (-1 === ["pixel","patch","patch_simple"].indexOf(op)) op = "pixel";
+        if (-1 === ["pixel","patch","patch_nested"].indexOf(op)) op = "pixel";
 
-        /*if ("patch_simple" === op)
-        {
-            factor = new Array(patch);
-            for (var sigma=2*p*p,x=-p; x<=p; ++x) factor[x+p] = stdMath.exp(-(x*x)/sigma);
-        }*/
-        factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3, -1));
+        factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3));
 
         if (field)  expectation(self, op, field,  AA, dataA, BB, dataB, pos, weight, factor, output,  1);
         if (fieldr) expectation(self, op, fieldr, BB, dataB, AA, dataA, pos, weight, factor, output, -1);
@@ -786,7 +785,7 @@ function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, 
                 {
                     ax = ap.x+dx; bx = bp.x+dx;
                     if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                    if ("patch_simple" === op)
+                    if ("patch" === op)
                     {
                         if (-1 === dir)
                         {
@@ -803,7 +802,7 @@ function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, 
                             ++cnt;
                         }
                     }
-                    else // "patch" === op
+                    else // "patch_nested" === op
                     {
                         if (-1 === dir)
                         {
@@ -1014,7 +1013,7 @@ function compute_similarity(distance, mu, sigma)
         vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
     return vj + (100*t - j) * (vk - vj); //base[stdMath.round(distance * 10)];
 }
-function compute_statistics(nnf, stats)
+/*function compute_statistics(nnf, stats)
 {
     if (nnf.field)
     {
@@ -1040,7 +1039,7 @@ function compute_statistics(nnf, stats)
         stats.sigma = sigma;
     }
     return stats;
-}
+}*/
 function rand_int(a, b)
 {
     return stdMath.round(stdMath.random()*(b-a)+a);

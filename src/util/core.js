@@ -2674,10 +2674,10 @@ function ImageSelection(image, width, height, channels, selection)
     if (-1 === [1,4].indexOf(channels)) channels = 1;
 
     if (!selection) selection = {x:0, y:0, width:width, height:height};
-    x = (+selection.x)||0;
-    y = (+selection.y)||0;
-    w = stdMath.max(0, (+selection.width)||0);
-    h = stdMath.max(0, (+selection.height)||0);
+    x = null == selection.x ? 0 : ((+selection.x)||0);
+    y = null == selection.y ? 0 : ((+selection.y)||0);
+    w = null == selection.width ? width : stdMath.max(0, (+selection.width)||0);
+    h = null == selection.height ? height : stdMath.max(0, (+selection.height)||0);
     area = w*h;
 
     if (null != selection.selector) selector = selection.selector;

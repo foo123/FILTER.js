@@ -2,7 +2,8 @@
 
 __1.14.0__
 
-* PatchMatch algorithm for image editing, inpainting and completion, in progress
+* PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
+* ColorDetectorFilter variation of ConnectedComponentsFilter
 * FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
 * handle metaData serialization in CompositeFilter
 

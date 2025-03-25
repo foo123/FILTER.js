@@ -118,7 +118,7 @@ FILTER.Create({
     }
 });
 
-/*FILTER.Create({
+FILTER.Create({
     name: "ColorDetectorFilter"
 
     // parameters
@@ -235,7 +235,7 @@ FILTER.Create({
         self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, minArea, maxArea, x1, y1, x2, y2)};
         return im;
     }
-});*/
+});
 
 // private methods
 function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
@@ -496,5 +496,5 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
     return output;
 }
 FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
-FilterUtil.connectedComponents = connected_components;
+FilterUtil.connectedComponents = FilterUtil.connected_components = connected_components;
 }(FILTER);
