@@ -8,6 +8,7 @@
 "use strict";
 
 var stdMath = Math, INF = Infinity,
+    A32U = FILTER.Array32U, A32F = FILTER.Array32F,
     copy = FILTER.Util.Array.copy,
     clamp = FILTER.Util.Math.clamp,
     toJSON = JSON.stringify,
@@ -142,7 +143,7 @@ FILTER.Create({
             fromArea = self.fromArea,
             toArea = self.toArea,
             input, metrics, dst, src, nnf, nnf2,
-            im2, w2, h2, i, j, jn, apply,
+            im2, w2, h2, level, iter, iters, apply,
             Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -166,13 +167,13 @@ FILTER.Create({
                 if (self.pyramid)
                 {
                     metrics.threshold = self.pyramid.diffThreshold || 0;
-                    jn = self.pyramid.iterations || 0;
+                    iters = self.pyramid.iterations || 0;
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
                     src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Selection(im2, w2, h2, 4, fromArea));
-                    for (i=dst.levels.length-1; i>=0; --i)
+                    for (level=dst.levels.length-1; level>=0; --level)
                     {
                         nnf2 = nnf ? patchmatch(
-                            nnf.scale(dst.levels[i].sel, src.levels[i].sel, 2),
+                            nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2),
                             null,
                             self.patch,
                             self.iterations,
@@ -181,8 +182,8 @@ FILTER.Create({
                             self.strict,
                             self.bidirectional
                         ) : patchmatch(
-                            dst.levels[i].sel,
-                            src.levels[i].sel,
+                            dst.levels[level].sel,
+                            src.levels[level].sel,
                             self.patch,
                             self.iterations,
                             self.alpha,
@@ -192,9 +193,9 @@ FILTER.Create({
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
-                        if (1 < jn && 0 < i)
+                        if (1 < iters && 0 < level)
                         {
-                            for (j=1; j<jn; ++j)
+                            for (iter=1; iter<iters; ++iter)
                             {
                                 nnf.apply(true, metrics);
                                 if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
@@ -217,7 +218,7 @@ FILTER.Create({
                     else
                     {
                         apply = true;
-                        for (j=1; j<jn; ++j)
+                        for (iter=1; iter<iters; ++iter)
                         {
                             nnf.apply(true, metrics);
                             if (metrics.changed <= (self.pyramid.changedThreshold||0))
@@ -235,7 +236,7 @@ FILTER.Create({
                                 self.bidirectional
                             );
                         }
-                        nnf.apply(apply, metrics);
+                        if (apply) nnf.apply(true, metrics);
                         self.meta.metric = metrics.error;
                         self._update = true;
                     }
@@ -694,16 +695,17 @@ NNF.prototype = {
             AA = self.dst, BB = self.src,
             dataA = self.dstImg, dataB = self.srcImg,
             patch = self.patch, p = patch >>> 1,
-            pos = new Array(patch*patch),
-            weight = new Array(patch*patch),
-            output = new Array(field.length * (4 === dataA.channels ? 4 : 2)),
+            pos = new A32U(patch*patch),
+            weight = new A32F(patch*patch),
+            output = new A32F(field.length * (4 === dataA.channels ? 4 : 2)),
             factor, op = metrics ? metrics.op : "pixel";
 
         if (-1 === ["pixel","patch","patch_nested"].indexOf(op)) op = "pixel";
 
-        factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3));
+        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+        //factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3));
 
-        if (field)  expectation(self, op, field,  AA, dataA, BB, dataB, pos, weight, factor, output,  1);
+        if (field ) expectation(self, op, field,  AA, dataA, BB, dataB, pos, weight, factor, output,  1);
         if (fieldr) expectation(self, op, fieldr, BB, dataB, AA, dataA, pos, weight, factor, output, -1);
         maximization(self, arguments.length ? apply : true, output, (metrics ? metrics.threshold : 0)||0, metrics);
 
@@ -733,7 +735,7 @@ NNF.unserialize = function(dst, src, obj) {
 };
 patchmatch.NNF = NNF;
 
-function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, output, dir)
+function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, expected, dir)
 {
     var n = field.length, cnt,
         patch = nnf.patch, p = patch >>> 1,
@@ -744,85 +746,110 @@ function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, 
         a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by;
     if ("pixel" === op)
     {
-        for (a=0; a<n; ++a)
+        if (-1 === dir)
         {
-            f = field[a];
-            b = f[0];
-            d = f[1];
-            ap = A[a];
-            bp = B[b];
-            cnt = 1;
-            if (-1 === dir)
+            for (a=0; a<n; ++a)
             {
-                pos[0] = ap.index;
-                weight[0] = factor[b] * compute_similarity(d);
-                accumulate_result(nnf, pos, weight, cnt, output, b);
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                cnt = 1;
+                pos[0] = A[a].index;
+                weight[0] = /*factor[b] **/ compute_similarity(d);
+                accumulate_result(nnf, pos, weight, cnt, expected, b);
             }
-            else
+        }
+        else
+        {
+            for (a=0; a<n; ++a)
             {
-                pos[0] = bp.index;
-                weight[0] = factor[a] * compute_similarity(d);
-                accumulate_result(nnf, pos, weight, cnt, output, a);
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                cnt = 1;
+                pos[0] = B[b].index;
+                weight[0] = /*factor[a] **/ compute_similarity(d);
+                accumulate_result(nnf, pos, weight, cnt, expected, a);
             }
         }
     }
     else
     {
-        for (a=0; a<n; ++a)
+        if (-1 === dir)
         {
-            f = field[a];
-            b = f[0];
-            d = f[1];
-            ap = A[a];
-            bp = B[b];
-            cnt = 0;
-            for (dy=-p; dy<=p; ++dy)
+            for (a=0; a<n; ++a)
             {
-                ay = ap.y+dy; by = bp.y+dy;
-                if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
-                for (dx=-p; dx<=p; ++dx)
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                ap = A[a];
+                bp = B[b];
+                cnt = 0;
+                for (dy=-p; dy<=p; ++dy)
                 {
-                    ax = ap.x+dx; bx = bp.x+dx;
-                    if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                    if ("patch" === op)
+                    ay = ap.y+dy; by = bp.y+dy;
+                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                    for (dx=-p; dx<=p; ++dx)
                     {
-                        if (-1 === dir)
+                        ax = ap.x+dx; bx = bp.x+dx;
+                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                        if ("patch" === op)
                         {
                             if (-1 === AA.indexOf(ax, ay)) continue;
                             pos[cnt] = ax + ay*widthA;
-                            weight[cnt] = /*1*//*factor[p+dx] * factor[p+dy];*/factor[b] * compute_similarity(d);
+                            weight[cnt] = /*factor[b] **/ compute_similarity(d);
                             ++cnt;
                         }
-                        else
-                        {
-                            if (-1 === BB.indexOf(bx, by)) continue;
-                            pos[cnt] = bx + by*widthB;
-                            weight[cnt] = /*1*//*factor[p+dx] * factor[p+dy];*/factor[a] * compute_similarity(d);
-                            ++cnt;
-                        }
-                    }
-                    else // "patch_nested" === op
-                    {
-                        if (-1 === dir)
+                        else // "patch_nested" === op
                         {
                             i = BB.indexOf(bx, by);
                             if (-1 === i) continue;
                             pos[cnt] = A[field[i][0]].index;
-                            weight[cnt] = factor[b] * compute_similarity(field[i][1]);
-                            ++cnt;
-                        }
-                        else
-                        {
-                            i = AA.indexOf(ax, ay);
-                            if (-1 === i) continue;
-                            pos[cnt] = B[field[i][0]].index;
-                            weight[cnt] = factor[a] * compute_similarity(field[i][1]);
+                            weight[cnt] = /*factor[b] **/ compute_similarity(field[i][1]);
                             ++cnt;
                         }
                     }
                 }
+                accumulate_result(nnf, pos, weight, cnt, expected, b);
             }
-            accumulate_result(nnf, pos, weight, cnt, output, -1 === dir ? b : a);
+        }
+        else
+        {
+            for (a=0; a<n; ++a)
+            {
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                ap = A[a];
+                bp = B[b];
+                cnt = 0;
+                for (dy=-p; dy<=p; ++dy)
+                {
+                    ay = ap.y+dy; by = bp.y+dy;
+                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                    for (dx=-p; dx<=p; ++dx)
+                    {
+                        ax = ap.x+dx; bx = bp.x+dx;
+                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                        if ("patch" === op)
+                        {
+                            if (-1 === BB.indexOf(bx, by)) continue;
+                            pos[cnt] = bx + by*widthB;
+                            weight[cnt] = /*factor[a] **/ compute_similarity(d);
+                            ++cnt;
+                        }
+                        else // "patch_nested" === op
+                        {
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            pos[cnt] = B[field[i][0]].index;
+                            weight[cnt] = /*factor[a] **/ compute_similarity(field[i][1]);
+                            ++cnt;
+                        }
+                    }
+                }
+                accumulate_result(nnf, pos, weight, cnt, expected, a);
+            }
         }
     }
 }
@@ -907,10 +934,6 @@ function accumulate_result(nnf, pos, weight, cnt, output, outpos)
             sum += w;
         }
         outpos <<= 2;
-        if (null == output[outpos + 0]) output[outpos + 0] = 0;
-        if (null == output[outpos + 1]) output[outpos + 1] = 0;
-        if (null == output[outpos + 2]) output[outpos + 2] = 0;
-        if (null == output[outpos + 3]) output[outpos + 3] = 0;
         output[outpos + 0] += r;
         output[outpos + 1] += g;
         output[outpos + 2] += b;
@@ -926,11 +949,19 @@ function accumulate_result(nnf, pos, weight, cnt, output, outpos)
             sum += w;
         }
         outpos <<= 1;
-        if (null == output[outpos + 0]) output[outpos + 0] = 0;
-        if (null == output[outpos + 1]) output[outpos + 1] = 0;
         output[outpos + 0] += r;
         output[outpos + 1] += sum;
     }
+}
+var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
+function compute_similarity(distance, mu, sigma)
+{
+    // 0 <= distance <= 1
+    //return stdMath.exp(distance);
+    //return stdMath.pow(0.337, stdMath.abs((distance - mu) / sigma));
+    var t = distance, j = stdMath.floor(100*t), k = j+1,
+        vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
+    return vj + (100*t - j) * (vk - vj); //base[stdMath.round(distance * 10)];
 }
 function compute_confidence(nnf, confident_value, gamma)
 {
@@ -941,7 +972,7 @@ function compute_confidence(nnf, confident_value, gamma)
         height = nnf.dstImg.height,
         i, j, ii, v, vals, ads,
         a = 1.0, b = 1.5,
-        result = new Array(n),
+        result = new A32F(n),
         x, y, lx, ty, rx, by,
         cs, cx, cy;
     vals = [0,0,0,0];
@@ -1002,15 +1033,6 @@ function compute_confidence(nnf, confident_value, gamma)
         result[i] = 0 == result[i] ? confident_value : stdMath.pow(gamma, result[i]);
     }
     return result;
-}
-function compute_similarity(distance, mu, sigma)
-{
-    // 0 <= distance <= 1
-    //return stdMath.pow(0.337, stdMath.abs((distamce - mu) / sigma));
-    var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0],
-        t = distance, j = stdMath.floor(100*t), k = j+1,
-        vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
-    return vj + (100*t - j) * (vk - vj); //base[stdMath.round(distance * 10)];
 }
 /*function compute_statistics(nnf, stats)
 {
