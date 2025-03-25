@@ -977,6 +977,7 @@ Included Plugins support parallel thread/worker filters (see code and examples)
 <tr><td>SeamlessTile</td> <td>create a seamless tileable pattern from target image<br><b>supports WebGL</b><br><b>supports WebAssembly</b></td></tr>
 <tr><td>ColorFill<br />PatternFill</td> <td>fast color flood-fill (scanline seed fill) to paint a connected region of an image (with given tolerance factor)<br />fast pattern flood-fill to a connected region of an image using another image as pattern</td></tr>
 <tr><td>ConnectedComponents</td>  <td>fast extraction of all (or only those matching Color/Intensity/Hue) connected components of an image (and their bounding boxes)</td></tr>
+<tr><td>ColorDetector</td>  <td>fast extraction of connected components matching Color/Intensity/Hue and their bounding boxes, in progress</td></tr>
 <tr><td>HistogramEqualize</td> <td>fast histogram equalization (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>HistogramMatch</td> <td>fast histogram matching (intensity-based, grayscale-based or per separate rgb channel)</td></tr>
 <tr><td>OtsuThreshold</td>    <td>fast automatic threshold (Otsu method)</td></tr>

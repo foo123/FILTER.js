@@ -705,8 +705,8 @@ NNF.prototype = {
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
         //factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3));
 
-        if (field ) expectation(self, op, field,  AA, dataA, BB, dataB, pos, weight, factor, output,  1);
-        if (fieldr) expectation(self, op, fieldr, BB, dataB, AA, dataA, pos, weight, factor, output, -1);
+        if (field ) expectation(self, op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, factor, output,  1);
+        if (fieldr) expectation(self, op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, factor, output, -1);
         maximization(self, arguments.length ? apply : true, output, (metrics ? metrics.threshold : 0)||0, metrics);
 
         return self;
@@ -735,7 +735,7 @@ NNF.unserialize = function(dst, src, obj) {
 };
 patchmatch.NNF = NNF;
 
-function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, expected, dir)
+function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, factor, expected, dir)
 {
     var n = field.length, cnt,
         patch = nnf.patch, p = patch >>> 1,
@@ -804,8 +804,8 @@ function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, 
                         {
                             i = BB.indexOf(bx, by);
                             if (-1 === i) continue;
-                            pos[cnt] = A[field[i][0]].index;
-                            weight[cnt] = /*factor[b] **/ compute_similarity(field[i][1]);
+                            pos[cnt] = A[fieldr[i][0]].index;
+                            weight[cnt] = /*factor[b] **/ compute_similarity(fieldr[i][1]);
                             ++cnt;
                         }
                     }
