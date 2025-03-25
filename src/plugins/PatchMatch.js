@@ -27,7 +27,7 @@ FILTER.Create({
 
     // parameters
     ,iterations: 5
-    ,patch: 11
+    ,patch: 3
     ,radius: 100
     ,alpha: 0.5
     ,gamma: 1.3
@@ -143,7 +143,8 @@ FILTER.Create({
             fromArea = self.fromArea,
             toArea = self.toArea,
             input, metrics, dst, src, nnf, nnf2,
-            im2, w2, h2, level, iter, iters, apply,
+            im2, w2, h2, level, iter, iters,
+            thresh, err, apply,
             Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -167,6 +168,7 @@ FILTER.Create({
                 if (self.pyramid)
                 {
                     metrics.threshold = self.pyramid.diffThreshold || 0;
+                    thresh = self.pyramid.changedThreshold || 0;
                     iters = self.pyramid.iterations || 0;
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
                     src = (new Pyramid()).build(im2, w2, h2, 4, self.patch, new Selection(im2, w2, h2, 4, fromArea));
@@ -193,12 +195,13 @@ FILTER.Create({
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2;
+                        err = 1;
                         if (1 < iters && 0 < level)
                         {
                             for (iter=1; iter<iters; ++iter)
                             {
                                 nnf.apply(true, metrics);
-                                if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
+                                if (err < metrics.error || metrics.changed < thresh) break;
                                 patchmatch(
                                     nnf,
                                     null,
@@ -208,6 +211,7 @@ FILTER.Create({
                                     self.strict,
                                     self.bidirectional
                                 );
+                                err = metrics.error;
                             }
                         }
                     }
@@ -217,11 +221,11 @@ FILTER.Create({
                     }
                     else
                     {
-                        apply = true;
+                        apply = true; err = 1;
                         for (iter=1; iter<iters; ++iter)
                         {
                             nnf.apply(true, metrics);
-                            if (metrics.changed <= (self.pyramid.changedThreshold||0))
+                            if (err < metrics.error || metrics.changed < thresh)
                             {
                                 apply = false;
                                 break;
@@ -235,13 +239,15 @@ FILTER.Create({
                                 self.strict,
                                 self.bidirectional
                             );
+                            err = metrics.error;
                         }
                         if (apply) nnf.apply(true, metrics);
                         self.meta.metric = metrics.error;
                         self._update = true;
                     }
                     nnf.dispose(true);
-                    dst.dispose(); src.dispose();
+                    dst.dispose();
+                    src.dispose();
                 }
                 else
                 {
@@ -329,7 +335,7 @@ NNF.prototype = {
     src: null,
     dstImg: null,
     srcImg: null,
-    patch: 5,
+    patch: 3,
     strict: false,
     field: null,
     fieldr: null,
@@ -558,7 +564,7 @@ NNF.prototype = {
             if (!self.field) self.field = new Array(n);
             field = self.field;
         }
-        for (a=0; a<n; ++a) field[a] = [0, 1];
+        for (a=0; a<n; ++a) field[a] = [0, 1.05];
         return self;
     },
     randomize: function(dir) {
@@ -700,7 +706,7 @@ NNF.prototype = {
             output = new A32F(field.length * (4 === dataA.channels ? 4 : 2)),
             factor, op = metrics ? metrics.op : "pixel";
 
-        if (-1 === ["pixel","patch","patch_nested"].indexOf(op)) op = "pixel";
+        if (-1 === ["pixel","block","patch"].indexOf(op)) op = "pixel";
 
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
         //factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3));
@@ -793,14 +799,14 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                     {
                         ax = ap.x+dx; bx = bp.x+dx;
                         if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        if ("patch" === op)
+                        if ("block" === op)
                         {
                             if (-1 === AA.indexOf(ax, ay)) continue;
                             pos[cnt] = ax + ay*widthA;
                             weight[cnt] = /*factor[b] **/ compute_similarity(d);
                             ++cnt;
                         }
-                        else // "patch_nested" === op
+                        else // "patch" === op
                         {
                             i = BB.indexOf(bx, by);
                             if (-1 === i) continue;
@@ -831,14 +837,14 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                     {
                         ax = ap.x+dx; bx = bp.x+dx;
                         if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        if ("patch" === op)
+                        if ("block" === op)
                         {
                             if (-1 === BB.indexOf(bx, by)) continue;
                             pos[cnt] = bx + by*widthB;
                             weight[cnt] = /*factor[a] **/ compute_similarity(d);
                             ++cnt;
                         }
-                        else // "patch_nested" === op
+                        else // "patch" === op
                         {
                             i = AA.indexOf(ax, ay);
                             if (-1 === i) continue;
