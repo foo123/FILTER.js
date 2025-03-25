@@ -21,9 +21,10 @@ F.Image.load(image, function(img) {
         completer.params({
             patch: 5,
             radius: 20,
-            pyramid: {iterations:5, changedThreshold:0.02, diffThreshold:0.1},
+            pyramid: {iterations:1, changedThreshold:0.015, diffThreshold:0.15},
             op: "patch",
             strict: true,
+            //bidirectional: true,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
         }).apply(img, function () {
