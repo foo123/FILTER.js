@@ -703,10 +703,7 @@ NNF.prototype = {
             factor = new Array(patch);
             for (var sigma=2*p*p,x=-p; x<=p; ++x) factor[x+p] = stdMath.exp(-(x*x)/sigma);
         }*/
-        if ("patch" === op || "patch_simple" === op)
-        {
-            factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3, -1));
-        }
+        factor = compute_confidence(self, metrics ? metrics.confident : 1.5, stdMath.pow(metrics ? metrics.gamma : 1.3, -1));
 
         if (field)  expectation(self, op, field,  AA, dataA, BB, dataB, pos, weight, factor, output,  1);
         if (fieldr) expectation(self, op, fieldr, BB, dataB, AA, dataA, pos, weight, factor, output, -1);
@@ -756,10 +753,19 @@ function expectation(nnf, op, field, AA, dataA, BB, dataB, pos, weight, factor, 
             d = f[1];
             ap = A[a];
             bp = B[b];
-            pos[0] = -1 === dir ? ap.index : bp.index;
-            weight[0] = compute_similarity(d);
             cnt = 1;
-            accumulate_result(nnf, pos, weight, cnt, output, -1 === dir ? b : a);
+            if (-1 === dir)
+            {
+                pos[0] = ap.index;
+                weight[0] = factor[b] * compute_similarity(d);
+                accumulate_result(nnf, pos, weight, cnt, output, b);
+            }
+            else
+            {
+                pos[0] = bp.index;
+                weight[0] = factor[a] * compute_similarity(d);
+                accumulate_result(nnf, pos, weight, cnt, output, a);
+            }
         }
     }
     else
