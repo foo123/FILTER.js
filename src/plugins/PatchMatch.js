@@ -142,7 +142,7 @@ FILTER.Create({
             fromArea = self.fromArea,
             toArea = self.toArea,
             input, metrics, dst, src, nnf, nnf2,
-            im2, w2, h2, i, j, jn,
+            im2, w2, h2, i, j, jn, apply,
             Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -162,6 +162,7 @@ FILTER.Create({
             {
                 im2 = input[0]; w2 = input[1]; h2 = input[2];
                 if (im2 === im) im2 = copy(im2);
+                metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, gamma:self.gamma, confident:self.confident, op:self.op};
                 if (self.pyramid)
                 {
                     dst = (new Pyramid()).build(im, w, h, 4, self.patch, new Selection(im, w, h, 4, toArea));
@@ -194,7 +195,6 @@ FILTER.Create({
                         {
                             for (j=1; j<jn; ++j)
                             {
-                                metrics = {error:0, changed:0, threshold:self.pyramid.diffThreshold||0, gamma:self.gamma, confident:self.confident, op:self.op};
                                 nnf.apply(true, metrics);
                                 if (metrics.changed <= (self.pyramid.changedThreshold||0)) break;
                                 patchmatch(
@@ -208,6 +208,36 @@ FILTER.Create({
                                 );
                             }
                         }
+                    }
+                    if (self.returnNNF)
+                    {
+                        self.meta.nnf = nnf;
+                    }
+                    else
+                    {
+                        jn = self.pyramid.iterations || 0;
+                        apply = true;
+                        for (j=1; j<jn; ++j)
+                        {
+                            nnf.apply(true, metrics);
+                            if (metrics.changed <= (self.pyramid.changedThreshold||0))
+                            {
+                                apply = false;
+                                break;
+                            }
+                            patchmatch(
+                                nnf,
+                                null,
+                                self.iterations,
+                                self.alpha,
+                                self.radius,
+                                self.strict,
+                                self.bidirectional
+                            );
+                        }
+                        nnf.apply(apply, metrics).dispose(true);
+                        self.meta.metric = metrics.error;
+                        self._update = true;
                     }
                     dst.dispose(); src.dispose();
                 }
@@ -223,17 +253,16 @@ FILTER.Create({
                         self.strict,
                         self.bidirectional
                     );
-                }
-                if (self.returnNNF)
-                {
-                    self.meta.nnf = nnf;
-                }
-                else
-                {
-                    metrics = {error:0, changed:0, threshold:0, gamma:self.gamma, confident:self.confident, op:self.op};
-                    nnf.apply(true, metrics).dispose(true);
-                    self.meta.metric = metrics.error;
-                    self._update = true;
+                    if (self.returnNNF)
+                    {
+                        self.meta.nnf = nnf;
+                    }
+                    else
+                    {
+                        nnf.apply(true, metrics).dispose(true);
+                        self.meta.metric = metrics.error;
+                        self._update = true;
+                    }
                 }
             }
         }
