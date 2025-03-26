@@ -2992,9 +2992,12 @@ ImageSelection.unserialize = function(img, obj) {
 };
 ImageUtil.Selection = ImageSelection;
 
-function ImagePyramid()
+function ImagePyramid(img, width, height, channels, sel)
 {
-    this.levels = [];
+    channels = null == channels ? 4 : channels;
+    if (4 !== channels) channels = 1;
+    if (!sel || !(sel instanceof ImageSelection)) sel = null;
+    this.levels = [{img:img, width:width, height:height, channels:channels, sel:sel}];
 }
 ImagePyramid.prototype = {
     constructor: ImagePyramid,
@@ -3002,77 +3005,98 @@ ImagePyramid.prototype = {
     dispose: function() {
         this.levels = null;
     },
-    build: function(img, width, height, channels, minsize, sel) {
+    add: function(min_size, do_lowpass) {
         var self = this,
-            kernel = [1, 3,  3,  1], // lowpass binomial separable
-            x, y, x2, y2, y2w, dx, dy, xk, yk, ykw,
-            i, k, ky, r, g, b, a, m, s,
-            img2, w, h, w2, h2;
-        if ((!self.levels) || (self.levels.length)) return self;
-        minsize = 2*(null == minsize ? 2 : minsize);
-        channels = null == channels ? 4 : channels;
-        if (4 !== channels) channels = 1;
-        w = width; h = height;
-        self.levels = [{img:img, width:w, height:h, channels:channels, sel:sel}];
-        while (w >= minsize && h >= minsize)
+            kernel = [1, 2, 1], // lowpass binomial separable
+            x1, y1, x2, y2, y2w2, dx, dy, xk, yk, ykw,
+            i1, i2, k, ky, r, g, b, a, s, n,
+            last, channels, img1, w1, h1, sel, img2, w2, h2;
+        last = self.levels && self.levels.length ? self.levels[self.levels.length-1] : null;
+        if (!last) return false;
+        img1 = last.img;
+        w1 = last.width;
+        h1 = last.height;
+        sel = last.sel;
+        channels = last.channels;
+        w2 = w1 >>> 1;
+        h2 = h1 >>> 1;
+        if (w2 < min_size || h2 < min_size) return false;
+        img2 = new IMG(w2*h2*channels);
+        if (sel) sel = sel.scale(img2, w2, h2, 0.5);
+        for (y1=0,y2=0,y2w2=0; y2<h2; y1+=2,++y2,y2w2+=w2)
         {
-            w2 = w >>> 1; h2 = h >>> 1;
-            img2 = new IMG(w2*h2*channels);
-            for (y=0,y2=0,y2w=0; y2<h2; y+=2,++y2,y2w+=w2)
+            for (x1=0,x2=0; x2<w2; x1+=2,++x2)
             {
-                for (x=0,x2=0; x2<w2; x+=2,++x2)
+                if (do_lowpass)
                 {
-                    r=0; g=0; b=0; a=0; s=0; m=0;
-                    for (dy=-1; dy<=2; ++dy)
+                    r=0; g=0; b=0; a=0; s=0; n=0;
+                    for (dy=-1; dy<=1; ++dy)
                     {
-                        yk = y+dy;
-                        if (yk<0 || yk>=h) continue;
-                        ykw = yk*w;
+                        yk = y1+dy;
+                        if (yk<0 || yk>=h1) continue;
+                        ykw = yk*w1;
                         ky = kernel[1+dy];
-                        for (dx=-1; dx<=2; ++dx)
+                        for (dx=-1; dx<=1; ++dx)
                         {
-                            xk = x+dx;
-                            if (xk<0 || xk>=w) continue;
-                            i = xk + ykw;
+                            xk = x1+dx;
+                            if (xk<0 || xk>=w1) continue;
                             k = kernel[1+dx]*ky;
+                            i1 = xk + ykw;
                             if (4 === channels)
                             {
-                                i = i << 2;
-                                r += k*img[i + 0];
-                                g += k*img[i + 1];
-                                b += k*img[i + 2];
-                                a +=   img[i + 3];
+                                i1 = i1 << 2;
+                                r += k*img1[i1 + 0];
+                                g += k*img1[i1 + 1];
+                                b += k*img1[i1 + 2];
+                                a +=   img1[i1 + 3];
                             }
                             else
                             {
-                                r += k*img[i];
+                                r += k*img1[i1];
                             }
                             s += k;
-                            ++m;
+                            ++n;
                         }
                     }
-                    if (0 < m)
+                    i2 = x2 + y2w2;
+                    if (4 === channels)
                     {
-                        i = x2 + y2w;
-                        if (4 === channels)
-                        {
-                            i = i << 2;
-                            img2[i + 0] = clamp(stdMath.round(r/s), 0, 255);
-                            img2[i + 1] = clamp(stdMath.round(g/s), 0, 255);
-                            img2[i + 2] = clamp(stdMath.round(b/s), 0, 255);
-                            img2[i + 3] = clamp(stdMath.round(a/m), 0, 255);
-                        }
-                        else
-                        {
-                            img2[i] = clamp(stdMath.round(r/s), 0, 255);
-                        }
+                        i2 = i2 << 2;
+                        img2[i2 + 0] = clamp(stdMath.round(r/s), 0, 255);
+                        img2[i2 + 1] = clamp(stdMath.round(g/s), 0, 255);
+                        img2[i2 + 2] = clamp(stdMath.round(b/s), 0, 255);
+                        img2[i2 + 3] = clamp(stdMath.round(a/n), 0, 255);
+                    }
+                    else
+                    {
+                        img2[i2] = clamp(stdMath.round(r/s), 0, 255);
+                    }
+                }
+                else
+                {
+                    i2 = x2 + y2w2; i1 = x1 + y1*w1;
+                    if (4 === channels)
+                    {
+                        i2 = i2 << 2; i1 = i1 << 2;
+                        img2[i2 + 0] = img1[i1 + 0];
+                        img2[i2 + 1] = img1[i1 + 1];
+                        img2[i2 + 2] = img1[i1 + 2];
+                        img2[i2 + 3] = img1[i1 + 3];
+                    }
+                    else
+                    {
+                        img2[i2] = img1[i1];
                     }
                 }
             }
-            img = img2; w = w2; h = h2;
-            if (sel) sel = sel.scale(img, w, h, 0.5);
-            self.levels.push({img:img, width:w, height:h, channels:channels, sel:sel});
         }
+        self.levels.push({img:img2, width:w2, height:h2, channels:channels, sel:sel});
+        return true;
+    },
+    build: function(min_size, do_lowpass) {
+        var self = this;
+        if (2 > arguments.length) do_lowpass = true;
+        for (;self.add(min_size, do_lowpass);) {/*loop*/}
         return self;
     }
 };

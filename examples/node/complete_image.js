@@ -19,16 +19,19 @@ F.Image.load(image, function(img) {
         const fromArea = removeArea.complement();
         console.log('Completing image..')
         completer.params({
-            patch: 5,
+            patch: 3,
             radius: 20,
-            pyramid: {iterations:2, changedThreshold:0.02, diffThreshold:0.1},
-            op: "patch",
-            strict: true,
+            pyramid: true,
+            threshold: 0.05,
+            delta: 0.015,
+            repeat: 10,
+            evaluate: "block",
+            strict: false,
             bidirectional: false,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
         }).apply(img, function () {
-            console.log('Editing completed');
+            console.log('Editing completed', completer.meta.metric);
             if (parallel) completer.worker(false);
             img.oCanvas.toPNG().then(function(png) {
                 fs.writeFile(output, png, function(err) {
