@@ -182,16 +182,13 @@ FILTER.Create({
                     src = (new Pyramid(im2, w2, h2, 4, new Selection(im2, w2, h2, 4, fromArea))).build(patch, true);
                     for (level=dst.levels.length-1; level>=0; --level)
                     {
-                        nnf2x = nnf ? patchmatch(
-                            nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2),
-                            null,
-                            patch,
-                            iterations,
-                            alpha,
-                            radius
-                        ) : patchmatch(
-                            dst.levels[level].sel,
-                            src.levels[level].sel,
+                        nnf2x = patchmatch(
+                            nnf
+                            ? nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2)
+                            : dst.levels[level].sel,
+                            nnf
+                            ? null
+                            : src.levels[level].sel,
                             patch,
                             iterations,
                             alpha,
@@ -211,7 +208,7 @@ FILTER.Create({
                                     break;
                                 }
                                 patchmatch(
-                                    nnf.initialize(1).initialize(-1),
+                                    nnf.reset(),
                                     null,
                                     iterations,
                                     alpha,
@@ -236,7 +233,7 @@ FILTER.Create({
                                 break;
                             }
                             patchmatch(
-                                nnf.initialize(1).initialize(-1),
+                                nnf.reset(),
                                 null,
                                 iterations,
                                 alpha,
@@ -279,7 +276,7 @@ FILTER.Create({
                                 break;
                             }
                             patchmatch(
-                                nnf.initialize(1).initialize(-1),
+                                nnf.reset(),
                                 null,
                                 iterations,
                                 alpha,
@@ -429,167 +426,11 @@ NNF.prototype = {
         }
         return scaled;
     },
-    dist: function(a, b, dir) {
-        var self = this,
-            AA = -1 === dir ? self.src : self.dst,
-            BB = -1 === dir ? self.dst : self.src,
-            dataA = -1 === dir ? self.srcData : self.dstData,
-            dataB = -1 === dir ? self.dstData : self.srcData,
-            patch = self.patch,
-            strict = self.strict,
-            p = patch >>> 1,
-            diff = 0,
-            completed = 0,
-            excluded = 0,
-            imgA = dataA.data,
-            imgB = dataB.data,
-            aw = dataA.width,
-            ah = dataA.height,
-            bw = dataB.width,
-            bh = dataB.height,
-            A = AA.points(),
-            B = BB.points(),
-            ax = A[a].x, ay = A[a].y,
-            bx = B[b].x, by = B[b].y,
-            dx, dy, xa, ya, yaw, xb, yb, ybw,
-            i, j, i1, i2, dr, dg, db,
-            gar, gag, gab, gbr, gbg, gbb;
-
-        if (4 === dataA.channels)
-        {
-            for (dy=-p; dy<=p; ++dy)
-            {
-                ya = ay+dy; yb = by+dy;
-                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
-                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
-                {
-                    excluded += patch;
-                    continue;
-                }
-                yaw = ya*aw; ybw = yb*bw;
-                for (dx=-p; dx<=p; ++dx)
-                {
-                    xa = ax+dx; xb = bx+dx;
-                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
-                    {
-                        excluded += 1;
-                        continue;
-                    }
-                    i = (xa + yaw) << 2; j = (xb + ybw) << 2;
-                    dr = imgA[i + 0] - imgB[j + 0];
-                    dg = imgA[i + 1] - imgB[j + 1];
-                    db = imgA[i + 2] - imgB[j + 2];
-                    diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
-
-                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
-                    {
-                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
-                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
-
-                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
-                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
-
-                        dr = gar - gbr;
-                        dg = gag - gbg;
-                        db = gab - gbb;
-                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
-
-                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
-                    {
-                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
-                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
-
-                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
-                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
-
-                        dr = gar - gbr;
-                        dg = gag - gbg;
-                        db = gab - gbb;
-                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
-                    ++completed;
-                }
-            }
-        }
-        else
-        {
-            for (dy=-p; dy<=p; ++dy)
-            {
-                ya = ay+dy; yb = by+dy;
-                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
-                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
-                {
-                    excluded += patch;
-                    continue;
-                }
-                yaw = ya*aw; ybw = yb*bw;
-                for (dx=-p; dx<=p; ++dx)
-                {
-                    xa = ax+dx; xb = bx+dx;
-                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
-                    {
-                        excluded += 1;
-                        continue;
-                    }
-                    i = (xa + yaw); j = (xb + ybw);
-                    dr = imgA[i] - imgB[j];
-                    diff += (dr * dr) / 195075/*3*255*255*/;
-
-                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
-                    {
-                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-
-                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-
-                        dr = gar - gbr;
-                        diff += (dr * dr) / 195075/*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
-
-                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
-                    {
-                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-
-                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-
-                        dr = gar - gbr;
-                        diff += (dr * dr) / 195075/*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
-                    ++completed;
-                }
-            }
-        }
-        return (completed ? stdMath.min((diff+excluded)/(completed+excluded), 1) : 1);
+    reset: function() {
+        var self = this;
+        if (self.field ) self.initialize( 1);
+        if (self.fieldr) self.initialize(-1);
+        return self;
     },
     initialize: function(dir) {
         var self = this, field,
@@ -767,6 +608,168 @@ NNF.prototype = {
         maximization(self, arguments.length ? apply : true, output, (params ? params.threshold : 0)||0, params);
 
         return self;
+    },
+    dist: function(a, b, dir) {
+        var self = this,
+            AA = -1 === dir ? self.src : self.dst,
+            BB = -1 === dir ? self.dst : self.src,
+            dataA = -1 === dir ? self.srcData : self.dstData,
+            dataB = -1 === dir ? self.dstData : self.srcData,
+            patch = self.patch,
+            strict = self.strict,
+            p = patch >>> 1,
+            diff = 0,
+            completed = 0,
+            excluded = 0,
+            imgA = dataA.data,
+            imgB = dataB.data,
+            aw = dataA.width,
+            ah = dataA.height,
+            bw = dataB.width,
+            bh = dataB.height,
+            A = AA.points(),
+            B = BB.points(),
+            ax = A[a].x, ay = A[a].y,
+            bx = B[b].x, by = B[b].y,
+            dx, dy, xa, ya, yaw, xb, yb, ybw,
+            i, j, i1, i2, dr, dg, db,
+            gar, gag, gab, gbr, gbg, gbb;
+
+        if (4 === dataA.channels)
+        {
+            for (dy=-p; dy<=p; ++dy)
+            {
+                ya = ay+dy; yb = by+dy;
+                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
+                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
+                {
+                    excluded += patch;
+                    continue;
+                }
+                yaw = ya*aw; ybw = yb*bw;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    xa = ax+dx; xb = bx+dx;
+                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
+                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    {
+                        excluded += 1;
+                        continue;
+                    }
+                    i = (xa + yaw) << 2; j = (xb + ybw) << 2;
+                    dr = imgA[i + 0] - imgB[j + 0];
+                    dg = imgA[i + 1] - imgB[j + 1];
+                    db = imgA[i + 2] - imgB[j + 2];
+                    diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
+
+                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                    {
+                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+
+                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+
+                        dr = gar - gbr;
+                        dg = gag - gbg;
+                        db = gab - gbb;
+                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
+                    }
+                    else
+                    {
+                        diff += 1/3;
+                    }
+
+                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                    {
+                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+
+                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+
+                        dr = gar - gbr;
+                        dg = gag - gbg;
+                        db = gab - gbb;
+                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
+                    }
+                    else
+                    {
+                        diff += 1/3;
+                    }
+                    ++completed;
+                }
+            }
+        }
+        else
+        {
+            for (dy=-p; dy<=p; ++dy)
+            {
+                ya = ay+dy; yb = by+dy;
+                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
+                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
+                {
+                    excluded += patch;
+                    continue;
+                }
+                yaw = ya*aw; ybw = yb*bw;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    xa = ax+dx; xb = bx+dx;
+                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
+                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    {
+                        excluded += 1;
+                        continue;
+                    }
+                    i = (xa + yaw); j = (xb + ybw);
+                    dr = imgA[i] - imgB[j];
+                    diff += (dr * dr) / 195075/*3*255*255*/;
+
+                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                    {
+                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+
+                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+
+                        dr = gar - gbr;
+                        diff += (dr * dr) / 195075/*3*255*255*/;
+                    }
+                    else
+                    {
+                        diff += 1/3;
+                    }
+
+                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                    {
+                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+
+                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+
+                        dr = gar - gbr;
+                        diff += (dr * dr) / 195075/*3*255*255*/;
+                    }
+                    else
+                    {
+                        diff += 1/3;
+                    }
+                    ++completed;
+                }
+            }
+        }
+        return (completed ? stdMath.min((diff+excluded)/(completed+excluded), 1) : 1);
     }
 };
 NNF.serialize = function(nnf) {
@@ -794,10 +797,12 @@ patchmatch.NNF = NNF;
 
 function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir)
 {
-    var n = field.length, factor = nnf.cf, A = AA.points(), B = BB.points(),
-        imgA = dataA.data, widthA = dataA.width, heightA = dataA.height,
-        imgB = dataB.data, widthB = dataB.width, heightB = dataB.height,
-        a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by, cnt, p = nnf.patch >>> 1;
+    var n = field.length, factor = nnf.cf,
+        A = AA.points(), B = BB.points(),
+        widthA = dataA.width, heightA = dataA.height,
+        widthB = dataB.width, heightB = dataB.height,
+        a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
+        cnt, p = nnf.patch >>> 1;
     if ("center" === op)
     {
         if (-1 === dir)
