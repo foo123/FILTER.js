@@ -19,14 +19,16 @@ F.Image.load(image, function(img) {
         const fromArea = removeArea.complement();
         console.log('Completing image..')
         completer.params({
-            patch: 3,
-            radius: 20,
-            pyramid: true,
+            patch: 5,
+            radius: 100,
+            alpha: 0.7,
             threshold: 0.05,
-            delta: 0.015,
+            delta: 0.0012,
+            epsilon: 0.0012,
             repeat: 10,
             evaluate: "block",
-            strict: false,
+            pyramid: true,
+            strict: true,
             bidirectional: false,
             fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
             toArea: {x:0, y:0, width:img.width, height:img.height, points:removeArea.points()}
@@ -36,7 +38,7 @@ F.Image.load(image, function(img) {
             img.oCanvas.toPNG().then(function(png) {
                 fs.writeFile(output, png, function(err) {
                     if (err) console.log('error while saving image: ' + err.toString());
-                    else console.log('edited image saved');
+                    else console.log('Edited image saved');
                 })
             }).catch(function(err) {
                 console.log('error while saving image: ' + err.toString());

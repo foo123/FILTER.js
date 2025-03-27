@@ -34,7 +34,7 @@ FILTER.Create({
     ,repeat: 1
     ,threshold: 0
     ,delta: 0
-    ,epsilon: 2e-6
+    ,epsilon: 0
     ,evaluate: "center"
     ,strict: false
     ,bidirectional: false
@@ -150,21 +150,20 @@ FILTER.Create({
         var self = this,
             fromArea = self.fromArea,
             toArea = self.toArea,
-            repeats = self.repeat,
-            pyramid = self.pyramid,
             patch = self.patch,
             iterations = self.iterations,
             alpha = self.alpha,
             radius = self.radius,
             strict = self.strict,
+            pyramid = self.pyramid,
+            repeats = self.repeat,
+            delta = self.delta,
+            eps = self.epsilon,
             bidirectional = self.bidirectional,
             returnMatch = self.returnMatch,
-            meta, input, metrics,
-            dst, src, nnf, nnf2x,
-            im2, w2, h2, level,
-            eps = self.epsilon,
-            delta = self.delta,
-            repeat, thresh, err, apply,
+            meta, input, params, apply,
+            im2, w2, h2, level, repeat,
+            nnf, nnf2x, dst, src,
             Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -176,7 +175,7 @@ FILTER.Create({
             {
                 im2 = input[0]; w2 = input[1]; h2 = input[2];
                 if (im2 === im) im2 = copy(im2);
-                metrics = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
+                params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (pyramid)
                 {
                     dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toArea))).build(patch, true);
@@ -202,21 +201,22 @@ FILTER.Create({
                         );
                         if (nnf) nnf.dispose(true);
                         nnf = nnf2x;
-                        err = 1;
                         if (1 < repeats && 0 < level)
                         {
                             for (repeat=1; repeat<repeats; ++repeat)
                             {
-                                nnf.apply(true, metrics);
-                                if (metrics.delta < delta || stdMath.abs(err - metrics.error) < eps) break;
+                                nnf.apply(true, params);
+                                if (params.delta < delta || params.error < eps)
+                                {
+                                    break;
+                                }
                                 patchmatch(
-                                    nnf,
+                                    nnf.initialize(1).initialize(-1),
                                     null,
                                     iterations,
                                     alpha,
                                     radius
                                 );
-                                err = metrics.error;
                             }
                         }
                     }
@@ -226,26 +226,25 @@ FILTER.Create({
                     }
                     else
                     {
-                        apply = true; err = 1;
+                        apply = true;
                         for (repeat=1; repeat<repeats; ++repeat)
                         {
-                            nnf.apply(true, metrics);
-                            if (metrics.delta < delta || stdMath.abs(err - metrics.error) < eps) break;
+                            nnf.apply(true, params);
+                            if (params.delta < delta || params.error < eps)
                             {
                                 apply = false;
                                 break;
                             }
                             patchmatch(
-                                nnf,
+                                nnf.initialize(1).initialize(-1),
                                 null,
                                 iterations,
                                 alpha,
                                 radius
                             );
-                            err = metrics.error;
                         }
-                        if (apply) nnf.apply(true, metrics);
-                        meta.metric = metrics.error;
+                        if (apply) nnf.apply(true, params);
+                        meta.metric = params.error;
                         self._update = true;
                     }
                     nnf.dispose(true);
@@ -270,26 +269,25 @@ FILTER.Create({
                     }
                     else
                     {
-                        apply = true; err = 1;
+                        apply = true;
                         for (repeat=1; repeat<repeats; ++repeat)
                         {
-                            nnf.apply(true, metrics);
-                            if (metrics.delta < delta || stdMath.abs(err - metrics.error) < eps) break;
+                            nnf.apply(true, params);
+                            if (params.delta < delta || params.error < eps)
                             {
                                 apply = false;
                                 break;
                             }
                             patchmatch(
-                                nnf,
+                                nnf.initialize(1).initialize(-1),
                                 null,
                                 iterations,
                                 alpha,
                                 radius
                             );
-                            err = metrics.error;
                         }
-                        if (apply) nnf.apply(true, metrics);
-                        meta.metric = metrics.error;
+                        if (apply) nnf.apply(true, params);
+                        meta.metric = params.error;
                         self._update = true;
                     }
                     nnf.dispose(true);
@@ -343,21 +341,21 @@ function NNF(dst, src, patch, strict)
     }
     if (self.dst)
     {
-        self.dstImg = self.dst.data();
-        self.dstImg.rect = self.dst.rect();
+        self.dstData = self.dst.data();
+        self.dstData.rect = self.dst.rect();
     }
     if (self.src)
     {
-        self.srcImg = self.src.data();
-        self.srcImg.rect = self.src.rect();
+        self.srcData = self.src.data();
+        self.srcData.rect = self.src.rect();
     }
 }
 NNF.prototype = {
     constructor: NNF,
     dst: null,
     src: null,
-    dstImg: null,
-    srcImg: null,
+    dstData: null,
+    srcData: null,
     patch: 3,
     strict: false,
     field: null,
@@ -370,7 +368,7 @@ NNF.prototype = {
             if (self.dst) self.dst.dispose();
             if (self.src) self.src.dispose();
         }
-        self.dstImg = self.srcImg = null;
+        self.dstData = self.srcData = null;
         self.dst = self.src = null;
         self.field = self.fieldr = self.cf = null;
     },
@@ -403,7 +401,7 @@ NNF.prototype = {
                         {
                             aa = scaled.dst.indexOf(ax + dx, ay + dy);
                             //bb = scaled.src.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa /*&& -1 !== bb*/) scaled.field[aa] = [bb, d];
+                            if (-1 !== aa /*&& -1 !== bb*/) scaled.field[aa] = [bb, /*d*/scaled.dist(aa, bb, 1)];
                         }
                     }
                 }
@@ -423,7 +421,7 @@ NNF.prototype = {
                         {
                             aa = scaled.src.indexOf(ax + dx, ay + dy);
                             //bb = scaled.dst.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa /*&& -1 !== bb*/) scaled.fieldr[aa] = [bb, d];
+                            if (-1 !== aa /*&& -1 !== bb*/) scaled.fieldr[aa] = [bb, /*d*/scaled.dist(aa, bb, -1)];
                         }
                     }
                 }
@@ -435,8 +433,8 @@ NNF.prototype = {
         var self = this,
             AA = -1 === dir ? self.src : self.dst,
             BB = -1 === dir ? self.dst : self.src,
-            dataA = -1 === dir ? self.srcImg : self.dstImg,
-            dataB = -1 === dir ? self.dstImg : self.srcImg,
+            dataA = -1 === dir ? self.srcData : self.dstData,
+            dataB = -1 === dir ? self.dstData : self.srcData,
             patch = self.patch,
             strict = self.strict,
             p = patch >>> 1,
@@ -643,45 +641,58 @@ NNF.prototype = {
         }
         return self;
     },
-    propagation: function(a, is_odd, dir) {
+    propagate: function(a, is_forward, dir) {
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
             AA = -1 === dir ? self.src : self.dst,
-            rectA = (-1 === dir ? self.srcImg : self.dstImg).rect,
-            A = AA.points(), ap = A[a], x = ap.x, y = ap.y, i, j, f = field[a],
-            left, up, down, right, current = f[1], b = f[0];
-        if (is_odd)
+            A = AA.points(), ap = A[a], x = ap.x, y = ap.y, f = field[a],
+            i, j, k, left, up, down, right, diag, current = f[1], b = f[0];
+        if (is_forward)
         {
-            i = AA.indexOf(stdMath.max(rectA.from.x, x-1), y);
-            j = AA.indexOf(x, stdMath.max(rectA.from.y, y-1));
-            left = -1 === i ? current : self.dist(a, field[i][0], dir);
-            up = -1 === j ? current : self.dist(a, field[j][0], dir);
-            if (left < current && left <= up)
+            i = AA.indexOf(x-1, y);
+            j = AA.indexOf(x, y-1);
+            k = AA.indexOf(x-1, y-1);
+            left = -1 === i ? 2 : self.dist(a, field[i][0], dir);
+            up = -1 === j ? 2 : self.dist(a, field[j][0], dir);
+            diag = -1 === k ? 2 : self.dist(a, field[k][0], dir);
+            if (left < current)
             {
                 b = field[i][0];
                 current = left;
             }
-            if (up < current && up <= left)
+            if (up < current)
             {
                 b = field[j][0];
                 current = up;
             }
+            if (diag < current)
+            {
+                b = field[k][0];
+                current = diag;
+            }
         }
         else
         {
-            i = AA.indexOf(stdMath.min(x+1, rectA.to.x), y);
-            j = AA.indexOf(x, stdMath.min(y+1, rectA.to.y));
-            right = -1 === i ? current : self.dist(a, field[i][0], dir);
-            down = -1 === j ? current : self.dist(a, field[j][0], dir);
-            if (right < current && right <= down)
+            i = AA.indexOf(x+1, y);
+            j = AA.indexOf(x, y+1);
+            k = AA.indexOf(x+1, y+1);
+            right = -1 === i ? 2 : self.dist(a, field[i][0], dir);
+            down = -1 === j ? 2 : self.dist(a, field[j][0], dir);
+            diag = -1 === k ? 2 : self.dist(a, field[k][0], dir);
+            if (right < current)
             {
                 b = field[i][0];
                 current = right;
             }
-            if (down < current && down <= right)
+            if (down < current)
             {
                 b = field[j][0];
                 current = down;
+            }
+            if (diag < current)
+            {
+                b = field[k][0];
+                current = diag;
             }
         }
         f[0] = b; f[1] = current;
@@ -690,19 +701,15 @@ NNF.prototype = {
     random_search: function(a, alpha, radius, dir) {
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
-            AA = -1 === dir ? self.src : self.dst,
             BB = -1 === dir ? self.dst : self.src,
-            dataA = -1 === dir ? self.srcImg : self.dstImg,
-            dataB = -1 === dir ? self.dstImg : self.srcImg,
-            B = BB.points(), rectA = dataA.rect, rectB = dataB.rect,
             f = field[a], d = f[1], b = f[0],
-            bp = B[b], bx = bp.x, by = bp.y,
+            bp = BB.points()[b], bx = bp.x, by = bp.y,
             best = {b:b, d:d};
         while (radius >= 1)
         {
             b = BB.indexOf(
-                clamp(bx + rand_int(-radius, radius), rectB.from.x, rectB.to.x),
-                clamp(by + rand_int(-radius, radius), rectB.from.y, rectB.to.y)
+                bx + rand_int(-radius, radius),
+                by + rand_int(-radius, radius)
             );
             if (-1 !== b)
             {
@@ -718,37 +725,37 @@ NNF.prototype = {
     optimize: function(iterations, alpha, radius, dir) {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this, n = (-1 === dir ? self.fieldr : self.field).length,
-        rectB = (-1 === dir ? self.dstImg : self.srcImg).rect, i, a;
-        radius = stdMath.min(radius, rectB.width/2, rectB.height/2);
+        rectB = (-1 === dir ? self.dstData : self.srcData).rect, i, a;
+        radius = stdMath.min(radius, rectB.width, rectB.height);
         for (i=0; i<iterations; ++i)
         {
             if (i & 1)
             {
                 for (a=0; a<n; ++a)
                 {
-                    self.propagation(a, true, dir).random_search(a, alpha, radius, dir);
+                    self.propagate(a, true, dir).random_search(a, alpha, radius, dir);
                 }
             }
             else
             {
                 for (a=n-1; a>=0; --a)
                 {
-                    self.propagation(a, false, dir).random_search(a, alpha, radius, dir);
+                    self.propagate(a, false, dir).random_search(a, alpha, radius, dir);
                 }
             }
         }
         return self;
     },
-    apply: function(apply, metrics) {
+    apply: function(apply, params) {
         if (!this.field) return this;
         var self = this,
             field = self.field, fieldr = self.fieldr,
             AA = self.dst, BB = self.src,
             size = self.patch*self.patch,
-            dataA = self.dstImg, dataB = self.srcImg,
+            dataA = self.dstData, dataB = self.srcData,
             pos = new A32U(size), weight = new A32F(size),
             output = new A32F(field.length * (4 === dataA.channels ? 4 : 2)),
-            op = metrics ? String(metrics.evaluate).toLowerCase() : "center";
+            op = params ? String(params.evaluate).toLowerCase() : "center";
 
         if (-1 === ["center","patch","block"].indexOf(op)) op = "center";
 
@@ -757,7 +764,7 @@ NNF.prototype = {
 
         if (field ) expectation(self, op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
         if (fieldr) expectation(self, op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
-        maximization(self, arguments.length ? apply : true, output, (metrics ? metrics.threshold : 0)||0, metrics);
+        maximization(self, arguments.length ? apply : true, output, (params ? params.threshold : 0)||0, params);
 
         return self;
     }
@@ -941,7 +948,7 @@ function maximization(nnf, apply, expected, threshold, metrics)
 {
     var field = nnf.field, n = field.length,
         A = nnf.dst.points(), B = nnf.src.points(),
-        dataA = nnf.dstImg, imgA = dataA.data,
+        dataA = nnf.dstData, imgA = dataA.data,
         i, ai, bi, dr, dg, db, sum, r, g, b,
         diff, nmse = 0, delta = 0;
     if (4 === dataA.channels)
@@ -1000,7 +1007,7 @@ function maximization(nnf, apply, expected, threshold, metrics)
 }
 function accumulate_result(nnf, pos, weight, cnt, output, outpos)
 {
-    var dataB = nnf.srcImg,
+    var dataB = nnf.srcData,
         imgB = dataB.data,
         r = 0.0, g = 0.0,
         b = 0.0, sum = 0.0,
@@ -1057,8 +1064,8 @@ function compute_confidence(nnf)
 {
     var A = nnf.dst.points(),
         mapA = {}, n = A.length,
-        width = nnf.dstImg.width,
-        height = nnf.dstImg.height,
+        width = nnf.dstData.width,
+        height = nnf.dstData.height,
         res = new A32F(n),
         i, j, ii, v, vals,
         a = 1.0, b = 1.5, c = 1.5,
