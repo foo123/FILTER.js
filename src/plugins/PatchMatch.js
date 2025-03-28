@@ -455,14 +455,13 @@ NNF.prototype = {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
-            AA = -1 === dir ? self.src : self.dst,
-            BB = -1 === dir ? self.dst : self.src,
-            A = AA.points(), B = BB.points(),
-            n = field.length, f, a, b, d,
-            best = {b:0, d:1}, tries, maxtries = 2;
+            //AA = -1 === dir ? self.src : self.dst, A = AA.points(),
+            BB = -1 === dir ? self.dst : self.src, B = BB.points(),
+            n = field.length, f, a, b, d, best = {b:0, d:1}, tries, maxtries = 2;
         for (a=0; a<n; ++a)
         {
             f = field[a];
+            if (!f) field[a] = f = [0, 1.05];
             best.b = f[0];
             best.d = f[1];
             tries = 0;
@@ -471,7 +470,7 @@ NNF.prototype = {
                 ++tries;
                 b = rand_int(0, B.length-1);
                 d = self.dist(a, b, dir);
-                if (d < best.d)
+                if (maxtries < 2 || d < best.d)
                 {
                     best.b = b;
                     best.d = d;
