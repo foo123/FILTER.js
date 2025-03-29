@@ -35,8 +35,9 @@ FILTER.Create({
     ,threshold: 0
     ,delta: 0
     ,epsilon: 0
-    ,evaluate: "center"
+    ,evaluate: "majority"
     ,strict: false
+    ,gradients: false
     ,bidirectional: false
     ,fromArea: null
     ,toArea: null
@@ -71,6 +72,7 @@ FILTER.Create({
             if (null != params.epsilon) self.epsilon = +params.epsilon;
             if (null != params.evaluate) self.evaluate = params.evaluate;
             if (null != params.strict) self.strict = params.strict;
+            if (null != params.gradients) self.gradients = params.gradients;
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
             if (null != params.fromArea) self.fromArea = params.fromArea;
             if (null != params.toArea) self.toArea = params.toArea;
@@ -93,6 +95,7 @@ FILTER.Create({
         epsilon: self.epsilon,
         evaluate: self.evaluate,
         strict: self.strict,
+        gradients: self.gradients,
         bidirectional: self.bidirectional,
         fromArea: toJSON(self.fromArea),
         toArea: toJSON(self.toArea),
@@ -113,6 +116,7 @@ FILTER.Create({
         self.epsilon = params.epsilon;
         self.evaluate = params.evaluate;
         self.strict = params.strict;
+        self.gradients = params.gradients;
         self.bidirectional = params.bidirectional;
         self.fromArea = fromJSON(params.fromArea);
         self.toArea = fromJSON(params.toArea);
@@ -155,6 +159,7 @@ FILTER.Create({
             alpha = self.alpha,
             radius = self.radius,
             strict = self.strict,
+            gradients = self.gradients,
             pyramid = self.pyramid,
             repeats = self.repeat,
             delta = self.delta,
@@ -194,6 +199,7 @@ FILTER.Create({
                             alpha,
                             radius,
                             strict,
+                            gradients,
                             bidirectional
                         );
                         if (nnf) nnf.dispose(true);
@@ -258,6 +264,7 @@ FILTER.Create({
                         alpha,
                         radius,
                         strict,
+                        gradients,
                         bidirectional
                     );
                     if (returnMatch)
@@ -297,7 +304,7 @@ FILTER.Create({
     }
 });
 
-function patchmatch(dst, src, patch, iterations, alpha, radius, strict, bidirectional)
+function patchmatch(dst, src, patch, iterations, alpha, radius, strict, gradients, bidirectional)
 {
     var nnf;
     if (dst instanceof patchmatch.NNF)
@@ -306,7 +313,7 @@ function patchmatch(dst, src, patch, iterations, alpha, radius, strict, bidirect
     }
     else
     {
-        nnf = new patchmatch.NNF(dst, src, patch, strict);
+        nnf = new patchmatch.NNF(dst, src, patch, strict, gradients);
         nnf.initialize(1); if (bidirectional) nnf.initialize(-1);
     }
     if (nnf.field ) nnf.randomize( 1).optimize(iterations, alpha, radius,  1);
@@ -315,7 +322,7 @@ function patchmatch(dst, src, patch, iterations, alpha, radius, strict, bidirect
 }
 FILTER.Util.Filter.patchmatch = patchmatch;
 
-function NNF(dst, src, patch, strict)
+function NNF(dst, src, patch, strict, gradients)
 {
     var self = this, other;
     if (dst instanceof NNF)
@@ -325,6 +332,7 @@ function NNF(dst, src, patch, strict)
         self.src = other.src;
         self.patch = other.patch;
         self.strict = other.strict;
+        self.gradients = other.gradients;
         self.field = other.field ? other.field.map(function(f) {return f.slice();}) : other.field;
         self.fieldr = other.fieldr ? other.fieldr.map(function(f) {return f.slice();}) : other.fieldr;
     }
@@ -334,6 +342,7 @@ function NNF(dst, src, patch, strict)
         self.src = src;
         self.patch = patch;
         self.strict = !!strict;
+        self.gradients = !!gradients;
         self.field = self.fieldr = null;
     }
     if (self.dst)
@@ -355,6 +364,7 @@ NNF.prototype = {
     srcData: null,
     patch: 3,
     strict: false,
+    gradients: false,
     field: null,
     fieldr: null,
     cf: null,
@@ -377,7 +387,7 @@ NNF.prototype = {
         var self = this, A, B,
             nX = stdMath.floor(scaleX),
             nY = stdMath.floor(scaleY),
-            scaled = new NNF(dst, src, self.patch, self.strict);
+            scaled = new NNF(dst, src, self.patch, self.strict, self.gradients);
         if (self.field ) scaled.initialize( 1);
         if (self.fieldr) scaled.initialize(-1);
         if (self.field && scaled.field && (0 < nX) && (0 < nY))
@@ -486,15 +496,13 @@ NNF.prototype = {
             field = -1 === dir ? self.fieldr : self.field,
             AA = -1 === dir ? self.src : self.dst,
             A = AA.points(), ap = A[a], x = ap.x, y = ap.y, f = field[a],
-            i, j, k, left, up, down, right, diag, current = f[1], b = f[0];
+            i, j, left, up, down, right, current = f[1], b = f[0];
         if (is_forward)
         {
             i = AA.indexOf(x-1, y);
             j = AA.indexOf(x, y-1);
-            k = AA.indexOf(x-1, y-1);
             left = -1 === i ? 2 : self.dist(a, field[i][0], dir);
             up = -1 === j ? 2 : self.dist(a, field[j][0], dir);
-            diag = -1 === k ? 2 : self.dist(a, field[k][0], dir);
             if (left < current)
             {
                 b = field[i][0];
@@ -505,20 +513,13 @@ NNF.prototype = {
                 b = field[j][0];
                 current = up;
             }
-            if (diag < current)
-            {
-                b = field[k][0];
-                current = diag;
-            }
         }
         else
         {
             i = AA.indexOf(x+1, y);
             j = AA.indexOf(x, y+1);
-            k = AA.indexOf(x+1, y+1);
             right = -1 === i ? 2 : self.dist(a, field[i][0], dir);
             down = -1 === j ? 2 : self.dist(a, field[j][0], dir);
-            diag = -1 === k ? 2 : self.dist(a, field[k][0], dir);
             if (right < current)
             {
                 b = field[i][0];
@@ -528,11 +529,6 @@ NNF.prototype = {
             {
                 b = field[j][0];
                 current = down;
-            }
-            if (diag < current)
-            {
-                b = field[k][0];
-                current = diag;
             }
         }
         f[0] = b; f[1] = current;
@@ -591,20 +587,28 @@ NNF.prototype = {
         var self = this,
             field = self.field, fieldr = self.fieldr,
             AA = self.dst, BB = self.src,
-            size = self.patch*self.patch,
+            size = self.patch*self.patch, output,
             dataA = self.dstData, dataB = self.srcData,
             pos = new A32U(size), weight = new A32F(size),
-            output = new A32F(field.length * (4 === dataA.channels ? 4 : 2)),
-            op = params ? String(params.evaluate).toLowerCase() : "center";
+            op = params ? String(params.evaluate).toLowerCase() : "majority";
 
-        if (-1 === ["center","patch","block"].indexOf(op)) op = "center";
+        if (-1 === ["center","patch","block","majority"].indexOf(op)) op = "majority";
 
-        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-        if (!self.cf) self.cf = compute_confidence(self);
+        if ("majority" === op)
+        {
+            output = new Array(field.length);
+            for (var i=0,l=output.length; i<l; ++i) output[i] = {o:{v:0,c:0}};
+        }
+        else
+        {
+            output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
+            for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+            if (!self.cf) self.cf = compute_confidence(self);
+        }
 
         if (field ) expectation(self, op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
         if (fieldr) expectation(self, op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
-        maximization(self, arguments.length ? apply : true, output, (params ? params.threshold : 0)||0, params);
+        maximization(self, arguments.length ? apply : true, op, output, (params ? params.threshold : 0)||0, params);
 
         return self;
     },
@@ -616,7 +620,8 @@ NNF.prototype = {
             dataB = -1 === dir ? self.dstData : self.srcData,
             patch = self.patch,
             strict = self.strict,
-            p = patch >>> 1,
+            gradients = self.gradients,
+            factor, p = patch >>> 1,
             diff = 0,
             completed = 0,
             excluded = 0,
@@ -636,6 +641,7 @@ NNF.prototype = {
 
         if (4 === dataA.channels)
         {
+            factor = gradients ? 585225/*3*3*255*255*/ : 195075/*3*255*255*/;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
@@ -659,50 +665,53 @@ NNF.prototype = {
                     dr = imgA[i + 0] - imgB[j + 0];
                     dg = imgA[i + 1] - imgB[j + 1];
                     db = imgA[i + 2] - imgB[j + 2];
-                    diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
+                    diff += (dr * dr + dg * dg + db * db) / factor;
 
-                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                    if (gradients)
                     {
-                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
-                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                        if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                        {
+                            i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                            gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                            gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                            gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
 
-                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
-                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                            i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                            gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                            gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                            gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
 
-                        dr = gar - gbr;
-                        dg = gag - gbg;
-                        db = gab - gbb;
-                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
+                            dr = gar - gbr;
+                            dg = gag - gbg;
+                            db = gab - gbb;
+                            diff += (dr * dr + dg * dg + db * db) / factor;
+                        }
+                        else
+                        {
+                            diff += 1/3;
+                        }
 
-                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
-                    {
-                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
-                        gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
-                        gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                        if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                        {
+                            i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                            gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                            gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                            gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
 
-                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
-                        gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
-                        gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                            i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                            gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                            gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                            gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
 
-                        dr = gar - gbr;
-                        dg = gag - gbg;
-                        db = gab - gbb;
-                        diff += (dr * dr + dg * dg + db * db) / 585225/*3*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
+                            dr = gar - gbr;
+                            dg = gag - gbg;
+                            db = gab - gbb;
+                            diff += (dr * dr + dg * dg + db * db) / factor;
+                        }
+                        else
+                        {
+                            diff += 1/3;
+                        }
                     }
                     ++completed;
                 }
@@ -710,6 +719,7 @@ NNF.prototype = {
         }
         else
         {
+            factor = gradients ? 195075/*3*255*255*/ : 65025/*255*255*/;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
@@ -731,38 +741,41 @@ NNF.prototype = {
                     }
                     i = (xa + yaw); j = (xb + ybw);
                     dr = imgA[i] - imgB[j];
-                    diff += (dr * dr) / 195075/*3*255*255*/;
+                    diff += (dr * dr) / factor;
 
-                    if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                    if (gradients)
                     {
-                        i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                        if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                        {
+                            i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                            gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
 
-                        i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                            i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                            gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
 
-                        dr = gar - gbr;
-                        diff += (dr * dr) / 195075/*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
-                    }
+                            dr = gar - gbr;
+                            diff += (dr * dr) / factor;
+                        }
+                        else
+                        {
+                            diff += 1/3;
+                        }
 
-                    if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
-                    {
-                        i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
-                        gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                        if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                        {
+                            i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                            gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
 
-                        i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
-                        gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                            i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                            gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
 
-                        dr = gar - gbr;
-                        diff += (dr * dr) / 195075/*3*255*255*/;
-                    }
-                    else
-                    {
-                        diff += 1/3;
+                            dr = gar - gbr;
+                            diff += (dr * dr) / factor;
+                        }
+                        else
+                        {
+                            diff += 1/3;
+                        }
                     }
                     ++completed;
                 }
@@ -777,6 +790,7 @@ NNF.serialize = function(nnf) {
     src: FILTER.Util.Image.Selection.serialize(nnf.src),
     patch: nnf.patch,
     strict: nnf.strict,
+    gradients: nnf.gradients,
     field: nnf.field,
     fieldr: nnf.fieldr
     };
@@ -786,7 +800,8 @@ NNF.unserialize = function(dst, src, obj) {
     FILTER.Util.Image.Selection.unserialize(dst, obj.dst),
     FILTER.Util.Image.Selection.unserialize(src, obj.src),
     obj.patch,
-    obj.strict
+    obj.strict,
+    obj.gradients
     );
     nnf.field = obj.field;
     nnf.fieldr = obj.fieldr;
@@ -802,7 +817,62 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
         widthB = dataB.width, heightB = dataB.height,
         a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
         cnt, p = nnf.patch >>> 1;
-    if ("center" === op)
+    if ("majority" === op)
+    {
+        if (-1 === dir)
+        {
+            for (a=0; a<n; ++a)
+            {
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                ap = A[a];
+                bp = B[b];
+                cnt = 0;
+                for (dy=-p; dy<=p; ++dy)
+                {
+                    ay = ap.y+dy; by = bp.y+dy;
+                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                    for (dx=-p; dx<=p; ++dx)
+                    {
+                        ax = ap.x+dx; bx = bp.x+dx;
+                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                        if (-1 === AA.indexOf(ax, ay)) continue;
+                        pos[cnt] = ax + ay*widthA;
+                        ++cnt;
+                    }
+                }
+                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
+            }
+        }
+        else
+        {
+            for (a=0; a<n; ++a)
+            {
+                f = field[a];
+                b = f[0];
+                d = f[1];
+                ap = A[a];
+                bp = B[b];
+                cnt = 0;
+                for (dy=-p; dy<=p; ++dy)
+                {
+                    ay = ap.y+dy; by = bp.y+dy;
+                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                    for (dx=-p; dx<=p; ++dx)
+                    {
+                        ax = ap.x+dx; bx = bp.x+dx;
+                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                        if (-1 === BB.indexOf(bx, by)) continue;
+                        pos[cnt] = bx + by*widthB;
+                        ++cnt;
+                    }
+                }
+                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
+            }
+        }
+    }
+    else if ("center" === op)
     {
         if (-1 === dir)
         {
@@ -814,7 +884,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                 cnt = 1;
                 pos[0] = A[a].index;
                 weight[0] = factor[b] * compute_similarity(d);
-                accumulate_result(nnf, pos, weight, cnt, expected, b);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
             }
         }
         else
@@ -827,7 +897,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                 cnt = 1;
                 pos[0] = B[b].index;
                 weight[0] = factor[a] * compute_similarity(d);
-                accumulate_result(nnf, pos, weight, cnt, expected, a);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
             }
         }
     }
@@ -857,7 +927,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                         ++cnt;
                     }
                 }
-                accumulate_result(nnf, pos, weight, cnt, expected, b);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
             }
         }
         else
@@ -884,7 +954,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                         ++cnt;
                     }
                 }
-                accumulate_result(nnf, pos, weight, cnt, expected, a);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
             }
         }
     }
@@ -915,7 +985,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                         ++cnt;
                     }
                 }
-                accumulate_result(nnf, pos, weight, cnt, expected, b);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
             }
         }
         else
@@ -943,62 +1013,116 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                         ++cnt;
                     }
                 }
-                accumulate_result(nnf, pos, weight, cnt, expected, a);
+                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
             }
         }
     }
 }
-function maximization(nnf, apply, expected, threshold, metrics)
+function maximization(nnf, apply, op, expected, threshold, metrics)
 {
     var field = nnf.field, n = field.length,
         A = nnf.dst.points(), B = nnf.src.points(),
         dataA = nnf.dstData, imgA = dataA.data,
-        i, ai, bi, dr, dg, db, sum, r, g, b,
+        i, ai, bi, dr, dg, db, sum, res, r, g, b,
         diff, nmse = 0, delta = 0;
     if (4 === dataA.channels)
     {
-        for (i=0; i<n; ++i)
+        if ("majority" === op)
         {
-            ai = A[i].index << 2;
-            bi = i << 2;
-            sum = expected[bi + 3];
-            if (sum)
+            for (i=0; i<n; ++i)
             {
-                r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
-                g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
-                b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
-                dr = imgA[ai + 0] - r;
-                dg = imgA[ai + 1] - g;
-                db = imgA[ai + 2] - b;
-                diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
-                nmse += diff;
-                if (diff > threshold) delta++;
-                if (apply)
+                ai = A[i].index << 2;
+                bi = i;
+                res = expected[bi].o;
+                if (res.v)
                 {
-                    imgA[ai + 0] = r;
-                    imgA[ai + 1] = g;
-                    imgA[ai + 2] = b;
+                    r = (res.c >>> 16) & 255;
+                    g = (res.c >>> 8) & 255;
+                    b = (res.c) & 255;
+                    dr = imgA[ai + 0] - r;
+                    dg = imgA[ai + 1] - g;
+                    db = imgA[ai + 2] - b;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                        imgA[ai + 1] = g;
+                        imgA[ai + 2] = b;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<n; ++i)
+            {
+                ai = A[i].index << 2;
+                bi = i << 2;
+                sum = expected[bi + 3];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
+                    g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
+                    b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    dg = imgA[ai + 1] - g;
+                    db = imgA[ai + 2] - b;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                        imgA[ai + 1] = g;
+                        imgA[ai + 2] = b;
+                    }
                 }
             }
         }
     }
     else
     {
-        for (i=0; i<n; ++i)
+        if ("majority" === op)
         {
-            ai = A[i].index;
-            bi = i << 1;
-            sum = expected[bi + 1];
-            if (sum)
+            for (i=0; i<n; ++i)
             {
-                r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
-                dr = imgA[ai + 0] - r;
-                diff = (dr * dr) / 65025/*255*255*/;
-                nmse += diff;
-                if (diff > threshold) delta++;
-                if (apply)
+                ai = A[i].index;
+                bi = i;
+                res = expected[bi].o;
+                if (res.v)
                 {
-                    imgA[ai + 0] = r;
+                    r = (res.c) & 255;
+                    dr = imgA[ai + 0] - r;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<n; ++i)
+            {
+                ai = A[i].index;
+                bi = i << 1;
+                sum = expected[bi + 1];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                    }
                 }
             }
         }
@@ -1009,43 +1133,83 @@ function maximization(nnf, apply, expected, threshold, metrics)
         metrics.error = nmse / n;
     }
 }
-function accumulate_result(nnf, pos, weight, cnt, output, outpos)
+function accumulate_result(nnf, op, pos, weight, cnt, output, outpos)
 {
     var dataB = nnf.srcData,
         imgB = dataB.data,
         r = 0.0, g = 0.0,
         b = 0.0, sum = 0.0,
-        i, index, w;
+        i, index, w, o;
 
     if (4 === dataB.channels)
     {
-        for (i=0; i<cnt; ++i)
+        if ("majority" === op)
         {
-            w = weight[i];
-            index = pos[i] << 2;
-            r += imgB[index + 0] * w;
-            g += imgB[index + 1] * w;
-            b += imgB[index + 2] * w;
-            sum += w;
+            o = output[outpos];
+            for (i=0; i<cnt; ++i)
+            {
+                index = pos[i] << 2;
+                r = ((imgB[index + 0]&255) << 16) + ((imgB[index + 1]&255) << 8) + (imgB[index + 2]&255);
+                w = o[r];
+                w = (w||0)+1;
+                o[r] = w;
+                if (w > o.o.v)
+                {
+                    o.o.v = w;
+                    o.o.c = r;
+                }
+            }
         }
-        outpos <<= 2;
-        output[outpos + 0] += r;
-        output[outpos + 1] += g;
-        output[outpos + 2] += b;
-        output[outpos + 3] += sum;
+        else
+        {
+            for (i=0; i<cnt; ++i)
+            {
+                w = weight[i];
+                index = pos[i] << 2;
+                r += imgB[index + 0] * w;
+                g += imgB[index + 1] * w;
+                b += imgB[index + 2] * w;
+                sum += w;
+            }
+            outpos <<= 2;
+            output[outpos + 0] += r;
+            output[outpos + 1] += g;
+            output[outpos + 2] += b;
+            output[outpos + 3] += sum;
+        }
     }
     else
     {
-        for (i=0; i<cnt; ++i)
+        if ("majority" === op)
         {
-            w = weight[i];
-            index = pos[i];
-            r += imgB[index] * w;
-            sum += w;
+            o = output[outpos];
+            for (i=0; i<cnt; ++i)
+            {
+                index = pos[i];
+                r = (imgB[index]&255);
+                w = o[r];
+                w = (w||0)+1;
+                o[r] = w;
+                if (w > o.o.v)
+                {
+                    o.o.v = w;
+                    o.o.c = r;
+                }
+            }
         }
-        outpos <<= 1;
-        output[outpos + 0] += r;
-        output[outpos + 1] += sum;
+        else
+        {
+            for (i=0; i<cnt; ++i)
+            {
+                w = weight[i];
+                index = pos[i];
+                r += imgB[index] * w;
+                sum += w;
+            }
+            outpos <<= 1;
+            output[outpos + 0] += r;
+            output[outpos + 1] += sum;
+        }
     }
 }
 var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];

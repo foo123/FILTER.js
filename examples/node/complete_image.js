@@ -20,17 +20,18 @@ F.Image.load(image, function(img) {
         {
             console.log('Completing image..')
             completer.params({
-                patch: 45,
-                radius: 50,
+                patch: 15,
+                radius: 20,
                 alpha: 0.5,
                 threshold: 0.05,
                 delta: 0.0001,
                 epsilon: 0.0002,
                 repeat: 5,
-                evaluate: "center",
+                evaluate: "majority",
                 pyramid: true,
                 strict: false,
-                bidirectional: false,
+                gradients: true,
+                bidirectional: true,
                 fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
                 toArea: {x:0, y:0, width:img.width, height:img.height, points:toArea.points()}
             }).apply(img, function () {
