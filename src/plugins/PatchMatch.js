@@ -368,9 +368,9 @@ NNF.prototype = {
     gradients: false,
     field: null,
     fieldr: null,
-    al: null,
-    mu: 0,
-    sigma: 1,
+    alphai: null,
+    mu: 0.0,
+    sigma: 1.0,
     dispose: function(complete) {
         var self = this;
         if (true === complete)
@@ -380,7 +380,7 @@ NNF.prototype = {
         }
         self.dstData = self.srcData = null;
         self.dst = self.src = null;
-        self.field = self.fieldr = self.al = null;
+        self.field = self.fieldr = self.alphai = null;
     },
     clone: function() {
         return new NNF(this);
@@ -468,7 +468,6 @@ NNF.prototype = {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
-            //AA = -1 === dir ? self.src : self.dst, A = AA.points(),
             BB = -1 === dir ? self.dst : self.src, B = BB.points(),
             n = field.length, f, a, b, d, best = {b:0, d:1}, tries, maxtries = 2;
         for (a=0; a<n; ++a)
@@ -595,20 +594,12 @@ NNF.prototype = {
             pos = new A32U(size), weight = new A32F(size),
             op = params ? String(params.evaluate).toLowerCase() : "block";
 
-        if (-1 === ["center","block","majority"].indexOf(op)) op = "block";
+        if (-1 === ["center","block"].indexOf(op)) op = "block";
 
-        if ("majority" === op)
-        {
-            output = new Array(field.length);
-            for (var i=0,l=output.length; i<l; ++i) output[i] = {o:{v:0,c:0}};
-        }
-        else
-        {
-            output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
-            for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-            if (!self.al) self.al = compute_confidence(self);
-            compute_statistics(self);
-        }
+        output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
+        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+        if (!self.alphai) self.alphai = compute_confidence(self);
+        compute_statistics(self);
 
         if (field ) expectation(self, op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
         if (fieldr) expectation(self, op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
@@ -815,68 +806,13 @@ patchmatch.NNF = NNF;
 
 function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir)
 {
-    var n = field.length, alpha = nnf.al,
+    var n = field.length, alpha = nnf.alphai,
         A = AA.points(), B = BB.points(),
         widthA = dataA.width, heightA = dataA.height,
         widthB = dataB.width, heightB = dataB.height,
         a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
         cnt, p = nnf.patch >>> 1;
-    if ("majority" === op)
-    {
-        if (-1 === dir)
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                ap = A[a];
-                bp = B[b];
-                cnt = 0;
-                for (dy=-p; dy<=p; ++dy)
-                {
-                    ay = ap.y+dy; by = bp.y+dy;
-                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
-                    for (dx=-p; dx<=p; ++dx)
-                    {
-                        ax = ap.x+dx; bx = bp.x+dx;
-                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        if (-1 === AA.indexOf(ax, ay)) continue;
-                        pos[cnt] = ax + ay*widthA;
-                        ++cnt;
-                    }
-                }
-                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
-            }
-        }
-        else
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                ap = A[a];
-                bp = B[b];
-                cnt = 0;
-                for (dy=-p; dy<=p; ++dy)
-                {
-                    ay = ap.y+dy; by = bp.y+dy;
-                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
-                    for (dx=-p; dx<=p; ++dx)
-                    {
-                        ax = ap.x+dx; bx = bp.x+dx;
-                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        if (-1 === BB.indexOf(bx, by)) continue;
-                        pos[cnt] = bx + by*widthB;
-                        ++cnt;
-                    }
-                }
-                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
-            }
-        }
-    }
-    else if ("center" === op)
+    if ("center" === op)
     {
         if (-1 === dir)
         {
@@ -887,7 +823,7 @@ function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, 
                 d = f[1];
                 cnt = 1;
                 pos[0] = A[a].index;
-                weight[0] = alpha[b] * sim(d, nnf);
+                weight[0] = alphai[b] * sim(d, nnf);
                 accumulate_result(nnf, op, pos, weight, cnt, expected, b);
             }
         }
@@ -974,102 +910,48 @@ function maximization(nnf, apply, op, expected, threshold, metrics)
         diff, nmse = 0, delta = 0;
     if (4 === dataA.channels)
     {
-        if ("majority" === op)
+        for (i=0; i<n; ++i)
         {
-            for (i=0; i<n; ++i)
+            ai = A[i].index << 2;
+            bi = i << 2;
+            sum = expected[bi + 3];
+            if (sum)
             {
-                ai = A[i].index << 2;
-                bi = i;
-                res = expected[bi].o;
-                if (res.v)
+                r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
+                g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
+                b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
+                dr = imgA[ai + 0] - r;
+                dg = imgA[ai + 1] - g;
+                db = imgA[ai + 2] - b;
+                diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                nmse += diff;
+                if (diff > threshold) delta++;
+                if (apply)
                 {
-                    r = (res.c >>> 16) & 255;
-                    g = (res.c >>> 8) & 255;
-                    b = (res.c) & 255;
-                    dr = imgA[ai + 0] - r;
-                    dg = imgA[ai + 1] - g;
-                    db = imgA[ai + 2] - b;
-                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
-                    nmse += diff;
-                    if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                        imgA[ai + 1] = g;
-                        imgA[ai + 2] = b;
-                    }
-                }
-            }
-        }
-        else
-        {
-            for (i=0; i<n; ++i)
-            {
-                ai = A[i].index << 2;
-                bi = i << 2;
-                sum = expected[bi + 3];
-                if (sum)
-                {
-                    r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
-                    g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
-                    b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
-                    dr = imgA[ai + 0] - r;
-                    dg = imgA[ai + 1] - g;
-                    db = imgA[ai + 2] - b;
-                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
-                    nmse += diff;
-                    if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                        imgA[ai + 1] = g;
-                        imgA[ai + 2] = b;
-                    }
+                    imgA[ai + 0] = r;
+                    imgA[ai + 1] = g;
+                    imgA[ai + 2] = b;
                 }
             }
         }
     }
     else
     {
-        if ("majority" === op)
+        for (i=0; i<n; ++i)
         {
-            for (i=0; i<n; ++i)
+            ai = A[i].index;
+            bi = i << 1;
+            sum = expected[bi + 1];
+            if (sum)
             {
-                ai = A[i].index;
-                bi = i;
-                res = expected[bi].o;
-                if (res.v)
+                r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                dr = imgA[ai + 0] - r;
+                diff = (dr * dr) / 65025/*255*255*/;
+                nmse += diff;
+                if (diff > threshold) delta++;
+                if (apply)
                 {
-                    r = (res.c) & 255;
-                    dr = imgA[ai + 0] - r;
-                    diff = (dr * dr) / 65025/*255*255*/;
-                    nmse += diff;
-                    if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                    }
-                }
-            }
-        }
-        else
-        {
-            for (i=0; i<n; ++i)
-            {
-                ai = A[i].index;
-                bi = i << 1;
-                sum = expected[bi + 1];
-                if (sum)
-                {
-                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
-                    dr = imgA[ai + 0] - r;
-                    diff = (dr * dr) / 65025/*255*255*/;
-                    nmse += diff;
-                    if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                    }
+                    imgA[ai + 0] = r;
                 }
             }
         }
@@ -1090,92 +972,51 @@ function accumulate_result(nnf, op, pos, weight, cnt, output, outpos)
 
     if (4 === dataB.channels)
     {
-        if ("majority" === op)
+        for (i=0; i<cnt; ++i)
         {
-            o = output[outpos];
-            for (i=0; i<cnt; ++i)
-            {
-                index = pos[i] << 2;
-                r = ((imgB[index + 0]&255) << 16) + ((imgB[index + 1]&255) << 8) + (imgB[index + 2]&255);
-                w = o[r];
-                w = (w||0)+1;
-                o[r] = w;
-                if (w > o.o.v)
-                {
-                    o.o.v = w;
-                    o.o.c = r;
-                }
-            }
+            w = weight[i];
+            index = pos[i] << 2;
+            r += imgB[index + 0] * w;
+            g += imgB[index + 1] * w;
+            b += imgB[index + 2] * w;
+            sum += w;
         }
-        else
-        {
-            for (i=0; i<cnt; ++i)
-            {
-                w = weight[i];
-                index = pos[i] << 2;
-                r += imgB[index + 0] * w;
-                g += imgB[index + 1] * w;
-                b += imgB[index + 2] * w;
-                sum += w;
-            }
-            outpos <<= 2;
-            output[outpos + 0] += r;
-            output[outpos + 1] += g;
-            output[outpos + 2] += b;
-            output[outpos + 3] += sum;
-        }
+        outpos <<= 2;
+        output[outpos + 0] += r;
+        output[outpos + 1] += g;
+        output[outpos + 2] += b;
+        output[outpos + 3] += sum;
     }
     else
     {
-        if ("majority" === op)
+        for (i=0; i<cnt; ++i)
         {
-            o = output[outpos];
-            for (i=0; i<cnt; ++i)
-            {
-                index = pos[i];
-                r = (imgB[index]&255);
-                w = o[r];
-                w = (w||0)+1;
-                o[r] = w;
-                if (w > o.o.v)
-                {
-                    o.o.v = w;
-                    o.o.c = r;
-                }
-            }
+            w = weight[i];
+            index = pos[i];
+            r += imgB[index] * w;
+            sum += w;
         }
-        else
-        {
-            for (i=0; i<cnt; ++i)
-            {
-                w = weight[i];
-                index = pos[i];
-                r += imgB[index] * w;
-                sum += w;
-            }
-            outpos <<= 1;
-            output[outpos + 0] += r;
-            output[outpos + 1] += sum;
-        }
+        outpos <<= 1;
+        output[outpos + 0] += r;
+        output[outpos + 1] += sum;
     }
 }
-var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
+//var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
 function sim(distance, nnf)
 {
     // 0 <= distance <= 1
-    return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
-    /*var key = String(stdMath.round(distance*1e5)), similarity = sim.memo[key];
+    var key = String(stdMath.round(distance*1e5)), similarity = sim.memoization[key];
     if (null == similarity)
     {
-        //similarity = stdMath.pow(0.33373978049163078, stdMath.abs((distance - mu) / sigma));
+        similarity = stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
         //similarity = base[stdMath.round(distance * 10)];
-        var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
-        similarity = vj + (100*t - j) * (vk - vj);
-        sim.memo[key] = similarity;
+        /*var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
+        similarity = vj + (100*t - j) * (vk - vj);*/
+        sim.memoization[key] = similarity;
     }
-    return similarity;*/
+    return similarity;
 }
-sim.memo = {};
+sim.memoization = {};
 function compute_confidence(nnf)
 {
     var A = nnf.dst.points(),

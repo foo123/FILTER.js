@@ -2666,7 +2666,7 @@ function complement_points(p, w, h, ch)
 function ImageSelection(image, width, height, channels, selection)
 {
     var self = this,
-        points = null,
+        points = null, bbox = null,
         rows = null, cols = null,
         x, y, w, h, area = 0, selector = null;
 
@@ -2822,6 +2822,20 @@ function ImageSelection(image, width, height, channels, selection)
     self.rect = function() {
         return {from:{x:x,y:y}, to:{x:x+w-1,y:y+h-1}, width:w, height:h, area:area};
     };
+    self.bbox = function() {
+        if (!bbox)
+        {
+            bbox = get_points().reduce(function(bb, pt) {
+                bb.xm = stdMath.min(bb.xm, pt.x);
+                bb.ym = stdMath.min(bb.ym, pt.y);
+                bb.xM = stdMath.max(bb.xM, pt.x);
+                bb.yM = stdMath.max(bb.yM, pt.y);
+                return bb;
+            }, {xm:Infinity,ym:Infinity,xM:-Infinity,yM:-Infinity});
+        }
+        if (bbox.xm > bbox.xM) return {from:{x:0,y:0}, to:{x:-1,y:-1}, width:0, height:0};
+        return {from:{x:bbox.xm,y:bbox.ym}, to:{x:bbox.xM,y:bbox.yM}, width:bbox.xM-bbox.xm+1, height:bbox.yM-bbox.ym+1};
+    };
     self.points = function() {
         return get_points();
     };
@@ -2865,6 +2879,7 @@ ImageSelection.prototype = {
     dispose: null,
     data: null,
     rect: null,
+    bbox: null,
     points: null,
     rows: null,
     cols: null,
