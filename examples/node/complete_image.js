@@ -16,24 +16,24 @@ console.log('Loading images..');
 
 F.Image.load(image, function(img) {
     F.Image.load(markup, function(part_to_remove) {
-        function inpaint(toArea, fromArea)
+        function inpaint(toSelection, fromSelection)
         {
             console.log('Completing image..')
             completer.params({
-                patch: 5,
-                radius: 400,
+                patch: 3,
+                radius: 200,
                 alpha: 0.5,
                 threshold: 0,
-                delta: 1/25,
+                delta: 1e-4,
                 epsilon: 0,
-                repeat: 900,
+                repeat: 10000,
                 evaluate: "block",
                 multiscale: true,
                 strict: true,
                 gradients: true,
                 bidirectional: false,
-                fromArea: {x:0, y:0, width:img.width, height:img.height, points:fromArea.points()},
-                toArea: {x:0, y:0, width:img.width, height:img.height, points:toArea.points()}
+                fromSelection: {x:0, y:0, width:img.width, height:img.height, points:fromSelection.points(), data:fromSelection.input||null},
+                toSelection: {x:0, y:0, width:img.width, height:img.height, points:toSelection.points()}
             }).apply(img, function () {
                 console.log('Editing completed', completer.meta.metric);
                 if (parallel) completer.worker(false);
@@ -47,16 +47,16 @@ F.Image.load(image, function(img) {
                 });
             });
         }
-        const removeArea = new F.Util.Image.Selection(part_to_remove.getData(), img.width, img.height, 4);
+        const removeSelection = new F.Util.Image.Selection(part_to_remove.getData(), img.width, img.height, 4);
         if (donor)
         {
             F.Image.load(donor, function(donor_part) {
-                inpaint(removeArea, new F.Util.Image.Selection(donor_part.getData(), img.width, img.height, 4));
+                inpaint(removeSelection, new F.Util.Image.Selection(donor_part.getData(), img.width, img.height, 4));
             });
         }
         else
         {
-            inpaint(removeArea, removeArea.complement());
+            inpaint(removeSelection, removeSelection.complement());
         }
     });
 });

@@ -40,8 +40,8 @@ FILTER.Create({
     ,strict: false
     ,gradients: false
     ,bidirectional: false
-    ,fromArea: null
-    ,toArea: null
+    ,fromSelection: null
+    ,toSelection: null
     ,returnMatch: false
 
     ,init: function() {
@@ -53,7 +53,7 @@ FILTER.Create({
 
     ,dispose: function() {
         var self = this;
-        self.fromArea = self.toArea = null;
+        self.fromSelection = self.toSelection = null;
         self.$super('dispose');
         return self;
     }
@@ -75,8 +75,8 @@ FILTER.Create({
             if (null != params.strict) self.strict = params.strict;
             if (null != params.gradients) self.gradients = params.gradients;
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
-            if (null != params.fromArea) self.fromArea = params.fromArea;
-            if (null != params.toArea) self.toArea = params.toArea;
+            if (null != params.fromSelection) self.fromSelection = params.fromSelection;
+            if (null != params.toSelection) self.toSelection = params.toSelection;
             if (null != params.returnMatch) self.returnMatch = params.returnMatch;
         }
         return self;
@@ -98,8 +98,8 @@ FILTER.Create({
         strict: self.strict,
         gradients: self.gradients,
         bidirectional: self.bidirectional,
-        fromArea: toJSON(self.fromArea),
-        toArea: toJSON(self.toArea),
+        fromSelection: toJSON(self.fromSelection),
+        toSelection: toJSON(self.toSelection),
         returnMatch: self.returnMatch
         };
     }
@@ -119,8 +119,8 @@ FILTER.Create({
         self.strict = params.strict;
         self.gradients = params.gradients;
         self.bidirectional = params.bidirectional;
-        self.fromArea = fromJSON(params.fromArea);
-        self.toArea = fromJSON(params.toArea);
+        self.fromSelection = fromJSON(params.fromSelection);
+        self.toSelection = fromJSON(params.toSelection);
         self.returnMatch = params.returnMatch;
         return self;
     }
@@ -153,8 +153,8 @@ FILTER.Create({
 
     ,apply: function(im, w, h) {
         var self = this,
-            fromArea = self.fromArea,
-            toArea = self.toArea,
+            fromSelection = self.fromSelection,
+            toSelection = self.toSelection,
             patch = self.patch,
             iterations = self.iterations,
             alpha = self.alpha,
@@ -174,9 +174,9 @@ FILTER.Create({
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
         meta = returnMatch ? {match:null} : {metric:0};
-        if (fromArea && toArea)
+        if (fromSelection && toSelection)
         {
-            input = fromArea.data ? self.input(fromArea.data) : [im, w, h];
+            input = fromSelection.data ? self.input(fromSelection.data) : [im, w, h];
             if (input)
             {
                 im2 = input[0]; w2 = input[1]; h2 = input[2];
@@ -184,27 +184,37 @@ FILTER.Create({
                 params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toArea))).build(patch, true);
-                    src = (new Pyramid(im2, w2, h2, 4, new Selection(im2, w2, h2, 4, fromArea))).build(patch, true);
+                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, true);
+                    src = (new Pyramid(im2, w2, h2, 4, new Selection(im2, w2, h2, 4, fromSelection))).build(patch, true);
                     for (level=dst.levels.length-1; level>=0; --level)
                     {
-                        nnf2x = patchmatch(
-                            nnf
-                            ? nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2)
-                            : dst.levels[level].sel,
-                            nnf
-                            ? null
-                            : src.levels[level].sel,
-                            patch,
-                            iterations,
-                            alpha,
-                            radius,
-                            strict,
-                            gradients,
-                            bidirectional
-                        );
-                        if (nnf) nnf.dispose(true);
-                        nnf = nnf2x;
+                        if (nnf)
+                        {
+                            nnf2x = patchmatch(
+                                nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2),
+                                null,
+                                patch,
+                                iterations,
+                                alpha,
+                                radius
+                            );
+                            nnf.dispose(true);
+                            nnf = nnf2x;
+                        }
+                        else
+                        {
+                            nnf = patchmatch(
+                                dst.levels[level].sel,
+                                src.levels[level].sel,
+                                patch,
+                                iterations,
+                                alpha,
+                                radius,
+                                strict,
+                                gradients,
+                                bidirectional
+                            );
+                        }
                         if (1 < repeats && 0 < level)
                         {
                             for (repeat=1; repeat<repeats; ++repeat)
@@ -215,7 +225,7 @@ FILTER.Create({
                                     break;
                                 }
                                 patchmatch(
-                                    nnf.reset(),
+                                    nnf/*.reset()*/,
                                     null,
                                     iterations,
                                     alpha,
@@ -240,7 +250,7 @@ FILTER.Create({
                                 break;
                             }
                             patchmatch(
-                                nnf.reset(),
+                                nnf/*.reset()*/,
                                 null,
                                 iterations,
                                 alpha,
@@ -258,8 +268,8 @@ FILTER.Create({
                 else
                 {
                     nnf = patchmatch(
-                        new Selection(im, w, h, 4, toArea),
-                        new Selection(im2, w2, h2, 4, fromArea),
+                        new Selection(im, w, h, 4, toSelection),
+                        new Selection(im2, w2, h2, 4, fromSelection),
                         patch,
                         iterations,
                         alpha,
@@ -284,7 +294,7 @@ FILTER.Create({
                                 break;
                             }
                             patchmatch(
-                                nnf.reset(),
+                                nnf/*.reset()*/,
                                 null,
                                 iterations,
                                 alpha,
@@ -388,53 +398,34 @@ NNF.prototype = {
     },
     scale: function(dst, src, scaleX, scaleY) {
         if (null == scaleY) scaleY = scaleX;
-        var self = this, A, B,
-            nX = stdMath.floor(scaleX),
-            nY = stdMath.floor(scaleY),
+        var self = this, A, B, AA, BB,
             scaled = new NNF(dst, src, self.patch, self.strict, self.gradients);
         if (self.field ) scaled.initialize( 1);
         if (self.fieldr) scaled.initialize(-1);
-        if (self.field && scaled.field && (0 < nX) && (0 < nY))
+        if (self.field && scaled.field)
         {
-            A = self.dst.points(); B = self.src.points();
-            self.field.forEach(function(f, a) {
-                var dx, dy, aa, bb, bb0, b = f[0], d = f[1],
-                    ax = stdMath.floor(scaleX*A[a].x),
-                    ay = stdMath.floor(scaleY*A[a].y),
-                    bx = stdMath.floor(scaleX*B[b].x),
-                    by = stdMath.floor(scaleY*B[b].y);
-                bb0 = scaled.src.indexOf(bx + 0, by + 0);
-                if (-1 !== bb0)
+            A = self.dst.points();
+            B = self.src.points();
+            AA = scaled.dst.points();
+            BB = scaled.src.points();
+            scaled.field.forEach(function(f, aa) {
+                var a, b, bb;
+                a = self.dst.indexOf(stdMath.floor(AA[aa].x/scaleX), stdMath.floor(AA[aa].y/scaleY));
+                if (-1 !== a)
                 {
-                    for (dy=0; dy<nY; ++dy)
-                    {
-                        for (dx=0; dx<nX; ++dx)
-                        {
-                            aa = scaled.dst.indexOf(ax + dx, ay + dy);
-                            bb = scaled.src.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa) scaled.field[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.distance(aa, -1 !== bb ? bb : bb0, 1)];
-                        }
-                    }
+                    b = self.field[a][0];
+                    bb = scaled.src.indexOf(stdMath.floor(B[b].x*scaleX), stdMath.floor(B[b].y*scaleY));
+                    if (-1 !== bb) scaled.field[aa] = [bb, scaled.distance(aa, bb, 1)];
                 }
             });
-            if (self.fieldr) self.fieldr.forEach(function(f, a) {
-                var dx, dy, aa, bb, bb0, b = f[0], d = f[1],
-                    ax = stdMath.floor(scaleX*B[a].x),
-                    ay = stdMath.floor(scaleY*B[a].y),
-                    bx = stdMath.floor(scaleX*A[b].x),
-                    by = stdMath.floor(scaleY*A[b].y);
-                bb0 = scaled.dst.indexOf(bx + 0, by + 0);
-                if (-1 !== bb0)
+            if (scaled.fieldr) scaled.fieldr.forEach(function(f, bb) {
+                var a, b, aa;
+                b = self.src.indexOf(stdMath.floor(BB[bb].x/scaleX), stdMath.floor(BB[bb].y/scaleY));
+                if (-1 !== b)
                 {
-                    for (dy=0; dy<nY; ++dy)
-                    {
-                        for (dx=0; dx<nX; ++dx)
-                        {
-                            aa = scaled.src.indexOf(ax + dx, ay + dy);
-                            bb = scaled.dst.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa) scaled.fieldr[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.distance(aa, -1 !== bb ? bb : bb0, -1)];
-                        }
-                    }
+                    a = self.fieldr[b][0];
+                    aa = scaled.dst.indexOf(stdMath.floor(A[a].x*scaleX), stdMath.floor(A[a].y*scaleY));
+                    if (-1 !== aa) scaled.fieldr[bb] = [aa, scaled.distance(bb, aa, -1)];
                 }
             });
         }
@@ -469,28 +460,31 @@ NNF.prototype = {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
-            BB = -1 === dir ? self.dst : self.src, B = BB.points(),
-            n = field.length, f, a, b, d, best = {b:0, d:1}, tries, maxtries = 2;
+            Blen = (-1 === dir ? self.dst : self.src).points().length - 1,
+            n = field.length,
+            f, a, b, d,
+            best_b, best_d,
+            tries, maxtries = 2;
         for (a=0; a<n; ++a)
         {
             f = field[a];
             if (!f) field[a] = f = [0, 1.05];
-            best.b = f[0];
-            best.d = f[1];
+            best_b = f[0];
+            best_d = f[1];
             tries = 0;
             while (tries < maxtries)
             {
                 ++tries;
-                b = rand_int(0, B.length-1);
+                b = rand_int(0, Blen);
                 d = self.distance(a, b, dir);
-                if (maxtries < 2 || d < best.d)
+                if (maxtries < 2 || d < best_d)
                 {
-                    best.b = b;
-                    best.d = d;
+                    best_b = b;
+                    best_d = d;
                 }
             }
-            f[0] = best.b;
-            f[1] = best.d;
+            f[0] = best_b;
+            f[1] = best_d;
         }
         return self;
     },
@@ -959,7 +953,7 @@ NNF.prototype = {
     similarity: function(distance) {
         // 0 <= distance <= 1
         var nnf = this;
-        return stdMath.exp(-distance / (2*nnf.percentile));
+        return stdMath.exp(-distance / (nnf.percentile));
         //return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
         /*var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
         var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
