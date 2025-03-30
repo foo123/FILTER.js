@@ -20,13 +20,13 @@ F.Image.load(image, function(img) {
         {
             console.log('Completing image..')
             completer.params({
-                patch: 25,
-                radius: 200,
+                patch: 5,
+                radius: 400,
                 alpha: 0.5,
                 threshold: 0,
-                delta: 0.02,
+                delta: 1/25,
                 epsilon: 0,
-                repeat: 100,
+                repeat: 900,
                 evaluate: "block",
                 multiscale: true,
                 strict: true,

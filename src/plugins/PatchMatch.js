@@ -411,7 +411,7 @@ NNF.prototype = {
                         {
                             aa = scaled.dst.indexOf(ax + dx, ay + dy);
                             bb = scaled.src.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa) scaled.field[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.dist(aa, -1 !== bb ? bb : bb0, 1)];
+                            if (-1 !== aa) scaled.field[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.distance(aa, -1 !== bb ? bb : bb0, 1)];
                         }
                     }
                 }
@@ -431,7 +431,7 @@ NNF.prototype = {
                         {
                             aa = scaled.src.indexOf(ax + dx, ay + dy);
                             bb = scaled.dst.indexOf(bx + dx, by + dy);
-                            if (-1 !== aa) scaled.fieldr[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.dist(aa, -1 !== bb ? bb : bb0, -1)];
+                            if (-1 !== aa) scaled.fieldr[aa] = [-1 !== bb ? bb : bb0, /*d*/scaled.distance(aa, -1 !== bb ? bb : bb0, -1)];
                         }
                     }
                 }
@@ -481,7 +481,7 @@ NNF.prototype = {
             {
                 ++tries;
                 b = rand_int(0, B.length-1);
-                d = self.dist(a, b, dir);
+                d = self.distance(a, b, dir);
                 if (maxtries < 2 || d < best.d)
                 {
                     best.b = b;
@@ -493,93 +493,73 @@ NNF.prototype = {
         }
         return self;
     },
-    propagate: function(a, is_forward, dir) {
-        var self = this,
-            field = -1 === dir ? self.fieldr : self.field,
-            AA = -1 === dir ? self.src : self.dst,
-            A = AA.points(), ap = A[a], x = ap.x, y = ap.y, f = field[a],
-            i, j, left, up, down, right, current = f[1], b = f[0];
-        if (is_forward)
-        {
-            i = AA.indexOf(x-1, y);
-            j = AA.indexOf(x, y-1);
-            left = -1 === i ? 2 : self.dist(a, field[i][0], dir);
-            up = -1 === j ? 2 : self.dist(a, field[j][0], dir);
-            if (left < current)
-            {
-                b = field[i][0];
-                current = left;
-            }
-            if (up < current)
-            {
-                b = field[j][0];
-                current = up;
-            }
-        }
-        else
-        {
-            i = AA.indexOf(x+1, y);
-            j = AA.indexOf(x, y+1);
-            right = -1 === i ? 2 : self.dist(a, field[i][0], dir);
-            down = -1 === j ? 2 : self.dist(a, field[j][0], dir);
-            if (right < current)
-            {
-                b = field[i][0];
-                current = right;
-            }
-            if (down < current)
-            {
-                b = field[j][0];
-                current = down;
-            }
-        }
-        f[0] = b; f[1] = current;
-        return self;
-    },
-    random_search: function(a, alpha, radius, dir) {
-        var self = this,
-            field = -1 === dir ? self.fieldr : self.field,
-            BB = -1 === dir ? self.dst : self.src,
-            f = field[a], d = f[1], b = f[0],
-            bp = BB.points()[b], bx = bp.x, by = bp.y,
-            best = {b:b, d:d};
-        while (radius >= 1)
-        {
-            b = BB.indexOf(
-                bx + rand_int(-radius, radius),
-                by + rand_int(-radius, radius)
-            );
-            if (-1 !== b)
-            {
-                d = b === best.b ? best.d : self.dist(a, b, dir);
-                if (d < best.d) {best.b = b; best.d = d;}
-                if (alpha >= 1) break;
-            }
-            radius *= alpha;
-        }
-        f[0] = best.b; f[1] = best.d;
-        return self;
-    },
     optimize: function(iterations, alpha, radius, dir) {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
-        var self = this, n = (-1 === dir ? self.fieldr : self.field).length,
-        rectB = (-1 === dir ? self.dstData : self.srcData).rect, i, a;
+        var self = this,
+        field = -1 === dir ? self.fieldr : self.field,
+        AA = -1 === dir ? self.src : self.dst, A = AA.points(),
+        BB = -1 === dir ? self.dst : self.src, B = BB.points(),
+        rectB = (-1 === dir ? self.dstData : self.srcData).rect,
+        iter, i, n = field.length, start, step, f, d, r,
+        a, b, ai, ap, ax, ay, bp, bx, by, best_b, best_d;
         radius = stdMath.min(radius, rectB.width, rectB.height);
-        for (i=0; i<iterations; ++i)
+        for (iter=0; iter<iterations; ++iter)
         {
-            if (i & 1)
+            if (iter & 1)
             {
-                for (a=0; a<n; ++a)
-                {
-                    self.propagate(a, true, dir).random_search(a, alpha, radius, dir);
-                }
+                start = n-1;
+                step = -1;
             }
             else
             {
-                for (a=n-1; a>=0; --a)
+                start = 0;
+                step = 1;
+            }
+            for (i=0,a=start; i<n; ++i,a+=step)
+            {
+                ap = A[a];
+                ax = ap.x;
+                ay = ap.y;
+                f = field[a];
+                best_b = f[0];
+                best_d = f[1];
+
+                // propagate
+                ai = AA.indexOf(ax-step, ay);
+                d = -1 === ai ? 2 : self.distance(a, field[ai][0], dir);
+                if (d < best_d)
                 {
-                    self.propagate(a, false, dir).random_search(a, alpha, radius, dir);
+                    best_b = field[ai][0];
+                    best_d = d;
                 }
+                ai = AA.indexOf(ax, ay-step);
+                d = -1 === ai ? 2 : self.distance(a, field[ai][0], dir);
+                if (d < best_d)
+                {
+                    best_b = field[ai][0];
+                    best_d = d;
+                }
+
+                // local random search
+                bp = B[best_b];
+                bx = bp.x;
+                by = bp.y;
+                r = radius;
+                while (r >= 1)
+                {
+                    b = BB.indexOf(bx + rand_int(-r, r), by + rand_int(-r, r));
+                    if (-1 !== b)
+                    {
+                        d = b === best_b ? best_d : self.distance(a, b, dir);
+                        if (d < best_d) {best_b = b; best_d = d;}
+                        if (alpha >= 1) break;
+                    }
+                    r *= alpha;
+                }
+
+                // update
+                f[0] = best_b;
+                f[1] = best_d;
             }
         }
         return self;
@@ -598,16 +578,213 @@ NNF.prototype = {
 
         output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-        if (!self.alphai) self.alphai = compute_confidence(self);
-        compute_statistics(self);
+        if (!self.alphai) self.alphai = self.distance_transform();
+        self.statistics();
 
-        if (field ) expectation(self, op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
-        if (fieldr) expectation(self, op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
-        maximization(self, arguments.length ? apply : true, op, output, (params ? params.threshold : 0)||0, params);
+        if (field ) self.expectation(op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
+        if (fieldr) self.expectation(op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
+        self.maximization(arguments.length ? apply : true, op, output, (params ? params.threshold : 0)||0, params);
 
         return self;
     },
-    dist: function(a, b, dir) {
+    expectation: function(op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir) {
+        var nnf = this, n = field.length, alpha = nnf.alphai,
+            A = AA.points(), B = BB.points(),
+            widthA = dataA.width, heightA = dataA.height,
+            widthB = dataB.width, heightB = dataB.height,
+            a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
+            cnt, p = nnf.patch >>> 1;
+        if ("center" === op)
+        {
+            if (-1 === dir)
+            {
+                for (a=0; a<n; ++a)
+                {
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    cnt = 1;
+                    pos[0] = A[a].index;
+                    weight[0] = alpha[b] * nnf.similarity(d);
+                    nnf.accumulate(op, pos, weight, cnt, expected, b);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    cnt = 1;
+                    pos[0] = B[b].index;
+                    weight[0] = alpha[a] * nnf.similarity(d);
+                    nnf.accumulate(op, pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        else // "block" === op
+        {
+            if (-1 === dir)
+            {
+                for (a=0; a<n; ++a)
+                {
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    ap = A[a];
+                    bp = B[b];
+                    cnt = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        ay = ap.y+dy; by = bp.y+dy;
+                        if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            ax = ap.x+dx; bx = bp.x+dx;
+                            if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                            i = BB.indexOf(bx, by);
+                            if (-1 === i) continue;
+                            pos[cnt] = A[fieldr[i][0]].index;
+                            weight[cnt] = alpha[b] * nnf.similarity(fieldr[i][1]);
+                            ++cnt;
+                        }
+                    }
+                    nnf.accumulate(op, pos, weight, cnt, expected, b);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    ap = A[a];
+                    bp = B[b];
+                    cnt = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        ay = ap.y+dy; by = bp.y+dy;
+                        if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            ax = ap.x+dx; bx = bp.x+dx;
+                            if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            pos[cnt] = B[field[i][0]].index;
+                            weight[cnt] = alpha[a] * nnf.similarity(field[i][1]);
+                            ++cnt;
+                        }
+                    }
+                    nnf.accumulate(op, pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        return nnf;
+    },
+    maximization: function(apply, op, expected, threshold, metrics) {
+        var nnf = this, field = nnf.field, n = field.length,
+            A = nnf.dst.points(), B = nnf.src.points(),
+            dataA = nnf.dstData, imgA = dataA.data,
+            i, ai, bi, dr, dg, db, sum, res, r, g, b,
+            diff, nmse = 0, delta = 0;
+        if (4 === dataA.channels)
+        {
+            for (i=0; i<n; ++i)
+            {
+                ai = A[i].index << 2;
+                bi = i << 2;
+                sum = expected[bi + 3];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
+                    g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
+                    b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    dg = imgA[ai + 1] - g;
+                    db = imgA[ai + 2] - b;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                        imgA[ai + 1] = g;
+                        imgA[ai + 2] = b;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<n; ++i)
+            {
+                ai = A[i].index;
+                bi = i << 1;
+                sum = expected[bi + 1];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    if (apply)
+                    {
+                        imgA[ai + 0] = r;
+                    }
+                }
+            }
+        }
+        if (metrics)
+        {
+            metrics.delta = delta / n;
+            metrics.error = nmse / n;
+        }
+        return nnf;
+    },
+    accumulate: function(op, pos, weight, cnt, output, outpos) {
+        var nnf = this, dataB = nnf.srcData,
+            imgB = dataB.data,
+            r = 0.0, g = 0.0,
+            b = 0.0, sum = 0.0,
+            i, index, w, o;
+
+        if (4 === dataB.channels)
+        {
+            for (i=0; i<cnt; ++i)
+            {
+                w = weight[i];
+                index = pos[i] << 2;
+                r += imgB[index + 0] * w;
+                g += imgB[index + 1] * w;
+                b += imgB[index + 2] * w;
+                sum += w;
+            }
+            outpos <<= 2;
+            output[outpos + 0] += r;
+            output[outpos + 1] += g;
+            output[outpos + 2] += b;
+            output[outpos + 3] += sum;
+        }
+        else
+        {
+            for (i=0; i<cnt; ++i)
+            {
+                w = weight[i];
+                index = pos[i];
+                r += imgB[index] * w;
+                sum += w;
+            }
+            outpos <<= 1;
+            output[outpos + 0] += r;
+            output[outpos + 1] += sum;
+        }
+        return nnf;
+    },
+    distance: function(a, b, dir) {
         var self = this,
             AA = -1 === dir ? self.src : self.dst,
             BB = -1 === dir ? self.dst : self.src,
@@ -777,6 +954,117 @@ NNF.prototype = {
             }
         }
         return (completed ? stdMath.min((diff+excluded)/(completed+excluded), 1) : 1);
+    },
+    similarity: function(distance) {
+        // 0 <= distance <= 1
+        var nnf = this;
+        return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
+        /*var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
+        var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
+        return vj + (100*t - j) * (vk - vj);*/
+    },
+    statistics: function() {
+        var nnf = this;
+        if (nnf.field)
+        {
+            var field = nnf.field, n = field.length,
+                a, b, d, sum, mu, sigma;
+            sum = 0.0;
+            for (a=0; a<n; ++a)
+            {
+                d = field[a][1];
+                sum += d;
+            }
+            mu = sum / n;
+            sum = 0.0;
+            for (a=0; a<n; ++a)
+            {
+                d = field[a][1] - mu;
+                sum += d * d;
+            }
+            sigma = stdMath.sqrt(sum / (n - 1));
+
+            nnf.mu = mu;
+            nnf.sigma = sigma;
+        }
+        return nnf;
+    },
+    distance_transform: function() {
+        var nnf = this, A = nnf.dst.points(),
+            mapA = {}, n = A.length,
+            width = nnf.dstData.width,
+            height = nnf.dstData.height,
+            res = new A32F(n),
+            i, j, ii, v, vals,
+            a = 1.0, b = 1.4,
+            c = 1.5, gamma = 1.3,
+            x, y, lx, ty, rx, by,
+            ads, cs, cx, cy;
+        vals = [0,0,0,0];
+        ads = [b, a, b, a];
+        cs = [null,null,null,null];
+        for (i=0; i<n; ++i) mapA[A[i].index] = i;
+        for (i=0; i<n; ++i)
+        {
+            x = A[i].x;
+            y = A[i].y;
+            lx = x - 1;
+            ty = y - 1;
+            rx = x + 1;
+            cs[0] = [lx, ty];
+            cs[1] = [x, ty];
+            cs[2] = [rx, ty];
+            cs[3] = [lx, y];
+            for (j=0; j<4; ++j)
+            {
+                cx = cs[j][0]; cy = cs[j][1];
+                if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                {
+                    ii = mapA[(cx + cy * width)];
+                    v = null != ii ? (res[ii]||0) : 0;
+                    vals[j] = v + ads[j];
+                }
+                else
+                {
+                    vals[j] = a;
+                }
+            }
+            res[i] = stdMath.min.apply(stdMath, vals);
+        }
+        vals = [0,0,0,0,0];
+        for (i=n-1; i>=0; --i)
+        {
+            x = A[i].x;
+            y = A[i].y;
+            lx = x - 1;
+            by = y + 1;
+            rx = x + 1;
+            cs[0] = [lx, by];
+            cs[1] = [x, by];
+            cs[2] = [rx, by];
+            cs[3] = [rx, y];
+            for (j=0; j<4; ++j)
+            {
+                cx = cs[j][0]; cy = cs[j][1];
+                if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                {
+                    ii = mapA[(cx + cy * width)];
+                    v = null != ii ? (res[ii]||0) : 0;
+                    vals[j] = v + ads[j];
+                }
+                else
+                {
+                    vals[j] = a;
+                }
+            }
+            vals[4] = res[i];
+            res[i] = stdMath.min.apply(stdMath, vals);
+        }
+        for (i=0; i<n; ++i)
+        {
+            res[i] = 0 == res[i] ? c : stdMath.pow(gamma, -res[i]);
+        }
+        return res;
     }
 };
 NNF.serialize = function(nnf) {
@@ -804,323 +1092,6 @@ NNF.unserialize = function(dst, src, obj) {
 };
 patchmatch.NNF = NNF;
 
-function expectation(nnf, op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir)
-{
-    var n = field.length, alpha = nnf.alphai,
-        A = AA.points(), B = BB.points(),
-        widthA = dataA.width, heightA = dataA.height,
-        widthB = dataB.width, heightB = dataB.height,
-        a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
-        cnt, p = nnf.patch >>> 1;
-    if ("center" === op)
-    {
-        if (-1 === dir)
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                cnt = 1;
-                pos[0] = A[a].index;
-                weight[0] = alphai[b] * sim(d, nnf);
-                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
-            }
-        }
-        else
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                cnt = 1;
-                pos[0] = B[b].index;
-                weight[0] = alpha[a] * sim(d, nnf);
-                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
-            }
-        }
-    }
-    else // "block" === op
-    {
-        if (-1 === dir)
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                ap = A[a];
-                bp = B[b];
-                cnt = 0;
-                for (dy=-p; dy<=p; ++dy)
-                {
-                    ay = ap.y+dy; by = bp.y+dy;
-                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
-                    for (dx=-p; dx<=p; ++dx)
-                    {
-                        ax = ap.x+dx; bx = bp.x+dx;
-                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        i = BB.indexOf(bx, by);
-                        if (-1 === i) continue;
-                        pos[cnt] = A[fieldr[i][0]].index;
-                        weight[cnt] = alpha[b] * sim(fieldr[i][1], nnf);
-                        ++cnt;
-                    }
-                }
-                accumulate_result(nnf, op, pos, weight, cnt, expected, b);
-            }
-        }
-        else
-        {
-            for (a=0; a<n; ++a)
-            {
-                f = field[a];
-                b = f[0];
-                d = f[1];
-                ap = A[a];
-                bp = B[b];
-                cnt = 0;
-                for (dy=-p; dy<=p; ++dy)
-                {
-                    ay = ap.y+dy; by = bp.y+dy;
-                    if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
-                    for (dx=-p; dx<=p; ++dx)
-                    {
-                        ax = ap.x+dx; bx = bp.x+dx;
-                        if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
-                        i = AA.indexOf(ax, ay);
-                        if (-1 === i) continue;
-                        pos[cnt] = B[field[i][0]].index;
-                        weight[cnt] = alpha[a] * sim(field[i][1], nnf);
-                        ++cnt;
-                    }
-                }
-                accumulate_result(nnf, op, pos, weight, cnt, expected, a);
-            }
-        }
-    }
-}
-function maximization(nnf, apply, op, expected, threshold, metrics)
-{
-    var field = nnf.field, n = field.length,
-        A = nnf.dst.points(), B = nnf.src.points(),
-        dataA = nnf.dstData, imgA = dataA.data,
-        i, ai, bi, dr, dg, db, sum, res, r, g, b,
-        diff, nmse = 0, delta = 0;
-    if (4 === dataA.channels)
-    {
-        for (i=0; i<n; ++i)
-        {
-            ai = A[i].index << 2;
-            bi = i << 2;
-            sum = expected[bi + 3];
-            if (sum)
-            {
-                r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
-                g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
-                b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
-                dr = imgA[ai + 0] - r;
-                dg = imgA[ai + 1] - g;
-                db = imgA[ai + 2] - b;
-                diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
-                nmse += diff;
-                if (diff > threshold) delta++;
-                if (apply)
-                {
-                    imgA[ai + 0] = r;
-                    imgA[ai + 1] = g;
-                    imgA[ai + 2] = b;
-                }
-            }
-        }
-    }
-    else
-    {
-        for (i=0; i<n; ++i)
-        {
-            ai = A[i].index;
-            bi = i << 1;
-            sum = expected[bi + 1];
-            if (sum)
-            {
-                r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
-                dr = imgA[ai + 0] - r;
-                diff = (dr * dr) / 65025/*255*255*/;
-                nmse += diff;
-                if (diff > threshold) delta++;
-                if (apply)
-                {
-                    imgA[ai + 0] = r;
-                }
-            }
-        }
-    }
-    if (metrics)
-    {
-        metrics.delta = delta / n;
-        metrics.error = nmse / n;
-    }
-}
-function accumulate_result(nnf, op, pos, weight, cnt, output, outpos)
-{
-    var dataB = nnf.srcData,
-        imgB = dataB.data,
-        r = 0.0, g = 0.0,
-        b = 0.0, sum = 0.0,
-        i, index, w, o;
-
-    if (4 === dataB.channels)
-    {
-        for (i=0; i<cnt; ++i)
-        {
-            w = weight[i];
-            index = pos[i] << 2;
-            r += imgB[index + 0] * w;
-            g += imgB[index + 1] * w;
-            b += imgB[index + 2] * w;
-            sum += w;
-        }
-        outpos <<= 2;
-        output[outpos + 0] += r;
-        output[outpos + 1] += g;
-        output[outpos + 2] += b;
-        output[outpos + 3] += sum;
-    }
-    else
-    {
-        for (i=0; i<cnt; ++i)
-        {
-            w = weight[i];
-            index = pos[i];
-            r += imgB[index] * w;
-            sum += w;
-        }
-        outpos <<= 1;
-        output[outpos + 0] += r;
-        output[outpos + 1] += sum;
-    }
-}
-//var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
-function sim(distance, nnf)
-{
-    // 0 <= distance <= 1
-    var key = String(stdMath.round(distance*1e5)), similarity = sim.memoization[key];
-    if (null == similarity)
-    {
-        similarity = stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
-        //similarity = base[stdMath.round(distance * 10)];
-        /*var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
-        similarity = vj + (100*t - j) * (vk - vj);*/
-        sim.memoization[key] = similarity;
-    }
-    return similarity;
-}
-sim.memoization = {};
-function compute_confidence(nnf)
-{
-    var A = nnf.dst.points(),
-        mapA = {}, n = A.length,
-        width = nnf.dstData.width,
-        height = nnf.dstData.height,
-        res = new A32F(n),
-        i, j, ii, v, vals,
-        a = 1.0, b = 1.4,
-        c = 1.5, gamma = 1.3,
-        x, y, lx, ty, rx, by,
-        ads, cs, cx, cy;
-    vals = [0,0,0,0];
-    ads = [b, a, b, a];
-    cs = [null,null,null,null];
-    for (i=0; i<n; ++i) mapA[A[i].index] = i;
-    for (i=0; i<n; ++i)
-    {
-        x = A[i].x;
-        y = A[i].y;
-        lx = x - 1;
-        ty = y - 1;
-        rx = x + 1;
-        cs[0] = [lx, ty];
-        cs[1] = [x, ty];
-        cs[2] = [rx, ty];
-        cs[3] = [lx, y];
-        for (j=0; j<4; ++j)
-        {
-            cx = cs[j][0]; cy = cs[j][1];
-            if (0 <= cx && cx < width && 0 <= cy && cy < height)
-            {
-                ii = mapA[(cx + cy * width)];
-                v = null != ii ? (res[ii]||0) : 0;
-                vals[j] = v + ads[j];
-            }
-            else
-            {
-                vals[j] = a;
-            }
-        }
-        res[i] = stdMath.min.apply(stdMath, vals);
-    }
-    vals = [0,0,0,0,0];
-    for (i=n-1; i>=0; --i)
-    {
-        x = A[i].x;
-        y = A[i].y;
-        lx = x - 1;
-        by = y + 1;
-        rx = x + 1;
-        cs[0] = [lx, by];
-        cs[1] = [x, by];
-        cs[2] = [rx, by];
-        cs[3] = [rx, y];
-        for (j=0; j<4; ++j)
-        {
-            cx = cs[j][0]; cy = cs[j][1];
-            if (0 <= cx && cx < width && 0 <= cy && cy < height)
-            {
-                ii = mapA[(cx + cy * width)];
-                v = null != ii ? (res[ii]||0) : 0;
-                vals[j] = v + ads[j];
-            }
-            else
-            {
-                vals[j] = a;
-            }
-        }
-        vals[4] = res[i];
-        res[i] = stdMath.min.apply(stdMath, vals);
-    }
-    for (i=0; i<n; ++i)
-    {
-        res[i] = 0 == res[i] ? c : stdMath.pow(gamma, -res[i]);
-    }
-    return res;
-}
-function compute_statistics(nnf)
-{
-    if (nnf.field)
-    {
-        var field = nnf.field, n = field.length,
-            a, b, d, sum, mu, sigma;
-        sum = 0.0;
-        for (a=0; a<n; ++a)
-        {
-            d = field[a][1];
-            sum += d;
-        }
-        mu = sum / n;
-        sum = 0.0;
-        for (a=0; a<n; ++a)
-        {
-            d = field[a][1] - mu;
-            sum += d * d;
-        }
-        sigma = stdMath.sqrt(sum / (n - 1));
-
-        nnf.mu = mu;
-        nnf.sigma = sigma;
-    }
-    return nnf;
-}
 function rand_int(a, b)
 {
     return stdMath.round(stdMath.random()*(b-a)+a);
