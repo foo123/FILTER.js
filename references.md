@@ -108,6 +108,7 @@
 * [Robust Wide Baseline Stereo from Maximally Stable Extremal Regions, Matas, Chum, Urban, Pajdla 2002](http://cmp.felk.cvut.cz/~matas/papers/matas-bmvc02.pdf)
 * [Linear Time Maximally Stable Extremal Regions, Nistér, Stewénius 2008](http://link.springer.com/chapter/10.1007%2F978-3-540-88688-4_14)
 * [Automatic and Accurate Lip Tracking, Eveno, Caplier, Coulon 2004](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.95.6646&rep=rep1&type=pdf)
+* [Space-Time Completion of Video, Yonatan Wexler, Eli Shechtman, Michal Irani, 2007](https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/wexler07.pdf)
 * [PatchMatch: A Randomized Correspondence Algorithm for Structural Image Editing, Connelly Barnes, Eli Shechtman, Adam Finkelstein, Dan B Goldman 2009](https://gfx.cs.princeton.edu/pubs/Barnes_2009_PAR/patchmatch.pdf)
 * [Symmetric Smoothing Filters from Global Consistency Constraints, Mohammadul Haque†, Gautam Pai, Venu Madhav Govindu 2014](https://ee.iisc.ac.in/cvlab/papers/consistency.pdf)
 * [Visual Tracking with Histograms and Articulating Blocks, Nejhum, Ho, Yang 2008](http://faculty.ucmerced.edu/mhyang/papers/cvpr08a.pdf)
