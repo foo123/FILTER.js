@@ -371,6 +371,7 @@ NNF.prototype = {
     alphai: null,
     mu: 0.0,
     sigma: 1.0,
+    percentile: 0.0,
     dispose: function(complete) {
         var self = this;
         if (true === complete)
@@ -958,7 +959,8 @@ NNF.prototype = {
     similarity: function(distance) {
         // 0 <= distance <= 1
         var nnf = this;
-        return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
+        return stdMath.exp(-distance / (2*nnf.percentile));
+        //return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
         /*var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
         var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
         return vj + (100*t - j) * (vk - vj);*/
@@ -968,12 +970,14 @@ NNF.prototype = {
         if (nnf.field)
         {
             var field = nnf.field, n = field.length,
-                a, b, d, sum, mu, sigma;
+                a, b, d, sum, mu, sigma,
+                percentile75, dist = new Array(n);
             sum = 0.0;
             for (a=0; a<n; ++a)
             {
                 d = field[a][1];
                 sum += d;
+                dist[a] = d;
             }
             mu = sum / n;
             sum = 0.0;
@@ -984,8 +988,11 @@ NNF.prototype = {
             }
             sigma = stdMath.sqrt(sum / (n - 1));
 
+            percentile75 = dist.sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))];
+
             nnf.mu = mu;
             nnf.sigma = sigma;
+            nnf.percentile = percentile75;
         }
         return nnf;
     },
