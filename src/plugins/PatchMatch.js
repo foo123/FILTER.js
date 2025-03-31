@@ -27,19 +27,19 @@ FILTER.Create({
     ,hasInputs: true
 
     // parameters
-    ,iterations: 5
     ,patch: 5
-    ,radius: 100
+    ,iterations: 5
     ,alpha: 0.5
-    ,multiscale: false
-    ,repeat: 1
+    ,radius: 100
     ,threshold: 0
     ,delta: 0
     ,epsilon: 0
-    ,evaluate: "block"
     ,strict: false
     ,gradients: false
     ,bidirectional: false
+    ,evaluate: "block"
+    ,repeat: 1
+    ,multiscale: false
     ,fromSelection: null
     ,toSelection: null
     ,returnMatch: false
@@ -62,19 +62,19 @@ FILTER.Create({
         var self = this;
         if (params)
         {
-            if (null != params.iterations) self.iterations = +params.iterations;
             if (null != params.patch) self.patch = +params.patch;
-            if (null != params.radius) self.radius = +params.radius;
+            if (null != params.iterations) self.iterations = +params.iterations;
             if (null != params.alpha) self.alpha = +params.alpha;
-            if (null != params.multiscale) self.multiscale = params.multiscale;
-            if (null != params.repeat) self.repeat = +params.repeat;
+            if (null != params.radius) self.radius = +params.radius;
             if (null != params.threshold) self.threshold = +params.threshold;
             if (null != params.delta) self.delta = +params.delta;
             if (null != params.epsilon) self.epsilon = +params.epsilon;
-            if (null != params.evaluate) self.evaluate = params.evaluate;
             if (null != params.strict) self.strict = params.strict;
             if (null != params.gradients) self.gradients = params.gradients;
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
+            if (null != params.evaluate) self.evaluate = params.evaluate;
+            if (null != params.repeat) self.repeat = +params.repeat;
+            if (null != params.multiscale) self.multiscale = params.multiscale;
             if (null != params.fromSelection) self.fromSelection = params.fromSelection;
             if (null != params.toSelection) self.toSelection = params.toSelection;
             if (null != params.returnMatch) self.returnMatch = params.returnMatch;
@@ -85,19 +85,19 @@ FILTER.Create({
     ,serialize: function() {
         var self = this;
         return {
-        iterations: self.iterations,
         patch: self.patch,
-        radius: self.radius,
+        iterations: self.iterations,
         alpha: self.alpha,
-        multiscale: self.multiscale,
-        repeat: self.repeat,
+        radius: self.radius,
         threshold: self.threshold,
         delta: self.delta,
         epsilon: self.epsilon,
-        evaluate: self.evaluate,
         strict: self.strict,
         gradients: self.gradients,
         bidirectional: self.bidirectional,
+        evaluate: self.evaluate,
+        repeat: self.repeat,
+        multiscale: self.multiscale,
         fromSelection: toJSON(self.fromSelection),
         toSelection: toJSON(self.toSelection),
         returnMatch: self.returnMatch
@@ -106,19 +106,19 @@ FILTER.Create({
 
     ,unserialize: function(params) {
         var self = this;
-        self.iterations = params.iterations;
         self.patch = params.patch;
-        self.radius = params.radius;
+        self.iterations = params.iterations;
         self.alpha = params.alpha;
-        self.multiscale = params.multiscale;
-        self.repeat = params.repeat;
+        self.radius = params.radius;
         self.threshold = params.threshold;
         self.delta = params.delta;
         self.epsilon = params.epsilon;
-        self.evaluate = params.evaluate;
         self.strict = params.strict;
         self.gradients = params.gradients;
         self.bidirectional = params.bidirectional;
+        self.evaluate = params.evaluate;
+        self.repeat = params.repeat;
+        self.multiscale = params.multiscale;
         self.fromSelection = fromJSON(params.fromSelection);
         self.toSelection = fromJSON(params.toSelection);
         self.returnMatch = params.returnMatch;
@@ -184,8 +184,8 @@ FILTER.Create({
                 params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, true);
-                    src = (new Pyramid(im2, w2, h2, 4, new Selection(im2, w2, h2, 4, fromSelection))).build(patch, true);
+                    dst = (new FILTER.Util.Image.Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, false);
+                    src = (new FILTER.Util.Image.Pyramid(im2, w2, h2, 4, new Selection(im2, w2, h2, 4, fromSelection))).build(patch, false);
                     for (level=dst.levels.length-1; level>=0; --level)
                     {
                         if (nnf)
@@ -219,7 +219,7 @@ FILTER.Create({
                         {
                             for (repeat=1; repeat<repeats; ++repeat)
                             {
-                                nnf.apply(true, params);
+                                nnf.apply(params);
                                 if (params.delta <= delta || params.error <= eps)
                                 {
                                     break;
@@ -243,7 +243,7 @@ FILTER.Create({
                         apply = true;
                         for (repeat=1; repeat<repeats; ++repeat)
                         {
-                            nnf.apply(true, params);
+                            nnf.apply(params);
                             if (params.delta <= delta || params.error <= eps)
                             {
                                 apply = false;
@@ -257,7 +257,7 @@ FILTER.Create({
                                 radius
                             );
                         }
-                        if (apply) nnf.apply(true, params);
+                        if (apply) nnf.apply(params);
                         meta.metric = params.error;
                         self._update = true;
                     }
@@ -287,7 +287,7 @@ FILTER.Create({
                         apply = true;
                         for (repeat=1; repeat<repeats; ++repeat)
                         {
-                            nnf.apply(true, params);
+                            nnf.apply(params);
                             if (params.delta <= delta || params.error <= eps)
                             {
                                 apply = false;
@@ -301,7 +301,7 @@ FILTER.Create({
                                 radius
                             );
                         }
-                        if (apply) nnf.apply(true, params);
+                        if (apply) nnf.apply(params);
                         meta.metric = params.error;
                         self._update = true;
                     }
@@ -381,7 +381,7 @@ NNF.prototype = {
     alphai: null,
     mu: 0.0,
     sigma: 1.0,
-    percentile: 0.0,
+    q: 1.0,
     dispose: function(complete) {
         var self = this;
         if (true === complete)
@@ -494,7 +494,7 @@ NNF.prototype = {
         field = -1 === dir ? self.fieldr : self.field,
         AA = -1 === dir ? self.src : self.dst, A = AA.points(),
         BB = -1 === dir ? self.dst : self.src, B = BB.points(),
-        rectB = (-1 === dir ? self.dstData : self.srcData).rect,
+        rectB = -1 === dir ? self.dstData : self.srcData,
         iter, i, n = field.length, start, step, f, d, r,
         a, b, ai, ap, ax, ay, bp, bx, by, best_b, best_d;
         radius = stdMath.min(radius, rectB.width, rectB.height);
@@ -559,7 +559,7 @@ NNF.prototype = {
         }
         return self;
     },
-    apply: function(apply, params) {
+    apply: function(params) {
         if (!this.field) return this;
         var self = this,
             field = self.field, fieldr = self.fieldr,
@@ -578,7 +578,7 @@ NNF.prototype = {
 
         if (field ) self.expectation(op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output,  1);
         if (fieldr) self.expectation(op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
-        self.maximization(arguments.length ? apply : true, op, output, (params ? params.threshold : 0)||0, params);
+        self.maximization(op, output, (params ? params.threshold : 0)||0, params);
 
         return self;
     },
@@ -598,10 +598,10 @@ NNF.prototype = {
                     f = field[a];
                     b = f[0];
                     d = f[1];
-                    cnt = 1;
                     pos[0] = A[a].index;
                     weight[0] = alpha[b] * nnf.similarity(d);
-                    nnf.accumulate(op, pos, weight, cnt, expected, b);
+                    cnt = 1;
+                    nnf.accumulate(pos, weight, cnt, expected, b);
                 }
             }
             else
@@ -611,10 +611,10 @@ NNF.prototype = {
                     f = field[a];
                     b = f[0];
                     d = f[1];
-                    cnt = 1;
                     pos[0] = B[b].index;
                     weight[0] = alpha[a] * nnf.similarity(d);
-                    nnf.accumulate(op, pos, weight, cnt, expected, a);
+                    cnt = 1;
+                    nnf.accumulate(pos, weight, cnt, expected, a);
                 }
             }
         }
@@ -627,25 +627,27 @@ NNF.prototype = {
                     f = field[a];
                     b = f[0];
                     d = f[1];
-                    ap = A[a];
                     bp = B[b];
                     cnt = 0;
                     for (dy=-p; dy<=p; ++dy)
                     {
-                        ay = ap.y+dy; by = bp.y+dy;
-                        if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                        by = bp.y+dy;
+                        if (0 > by || by >= heightB) continue;
                         for (dx=-p; dx<=p; ++dx)
                         {
-                            ax = ap.x+dx; bx = bp.x+dx;
-                            if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                            bx = bp.x+dx;
+                            if (0 > bx || bx >= widthB) continue;
                             i = BB.indexOf(bx, by);
                             if (-1 === i) continue;
-                            pos[cnt] = A[fieldr[i][0]].index;
+                            ap = A[fieldr[i][0]];
+                            ax = ap.x-dx; ay = ap.y-dy;
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            pos[cnt] = ax + ay*widthA;
                             weight[cnt] = alpha[b] * nnf.similarity(fieldr[i][1]);
                             ++cnt;
                         }
                     }
-                    nnf.accumulate(op, pos, weight, cnt, expected, b);
+                    nnf.accumulate(pos, weight, cnt, expected, b);
                 }
             }
             else
@@ -656,30 +658,32 @@ NNF.prototype = {
                     b = f[0];
                     d = f[1];
                     ap = A[a];
-                    bp = B[b];
                     cnt = 0;
                     for (dy=-p; dy<=p; ++dy)
                     {
-                        ay = ap.y+dy; by = bp.y+dy;
-                        if (0 > ay || ay >= heightA || 0 > by || by >= heightB) continue;
+                        ay = ap.y+dy;
+                        if (0 > ay || ay >= heightA) continue;
                         for (dx=-p; dx<=p; ++dx)
                         {
-                            ax = ap.x+dx; bx = bp.x+dx;
-                            if (0 > ax || ax >= widthA || 0 > bx || bx >= widthB) continue;
+                            ax = ap.x+dx;
+                            if (0 > ax || ax >= widthA) continue;
                             i = AA.indexOf(ax, ay);
                             if (-1 === i) continue;
-                            pos[cnt] = B[field[i][0]].index;
+                            bp = B[field[i][0]];
+                            bx = bp.x-dx; by = bp.y-dy;
+                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                            pos[cnt] = bx + by*widthB;
                             weight[cnt] = alpha[a] * nnf.similarity(field[i][1]);
                             ++cnt;
                         }
                     }
-                    nnf.accumulate(op, pos, weight, cnt, expected, a);
+                    nnf.accumulate(pos, weight, cnt, expected, a);
                 }
             }
         }
         return nnf;
     },
-    maximization: function(apply, op, expected, threshold, metrics) {
+    maximization: function(op, expected, threshold, metrics) {
         var nnf = this, field = nnf.field, n = field.length,
             A = nnf.dst.points(), B = nnf.src.points(),
             dataA = nnf.dstData, imgA = dataA.data,
@@ -694,21 +698,18 @@ NNF.prototype = {
                 sum = expected[bi + 3];
                 if (sum)
                 {
-                    r = clamp(stdMath.round(expected[bi+ 0] / sum), 0, 255);
-                    g = clamp(stdMath.round(expected[bi+ 1] / sum), 0, 255);
-                    b = clamp(stdMath.round(expected[bi+ 2] / sum), 0, 255);
+                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                    g = clamp(stdMath.round(expected[bi + 1] / sum), 0, 255);
+                    b = clamp(stdMath.round(expected[bi + 2] / sum), 0, 255);
                     dr = imgA[ai + 0] - r;
                     dg = imgA[ai + 1] - g;
                     db = imgA[ai + 2] - b;
                     diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
                     nmse += diff;
                     if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                        imgA[ai + 1] = g;
-                        imgA[ai + 2] = b;
-                    }
+                    imgA[ai + 0] = r;
+                    imgA[ai + 1] = g;
+                    imgA[ai + 2] = b;
                 }
             }
         }
@@ -726,10 +727,7 @@ NNF.prototype = {
                     diff = (dr * dr) / 65025/*255*255*/;
                     nmse += diff;
                     if (diff > threshold) delta++;
-                    if (apply)
-                    {
-                        imgA[ai + 0] = r;
-                    }
+                    imgA[ai + 0] = r;
                 }
             }
         }
@@ -740,7 +738,7 @@ NNF.prototype = {
         }
         return nnf;
     },
-    accumulate: function(op, pos, weight, cnt, output, outpos) {
+    accumulate: function(pos, weight, cnt, output, outpos) {
         var nnf = this, dataB = nnf.srcData,
             imgB = dataB.data,
             r = 0.0, g = 0.0,
@@ -808,7 +806,7 @@ NNF.prototype = {
 
         if (4 === dataA.channels)
         {
-            factor = gradients ? 585225/*3*3*255*255*/ : 195075/*3*255*255*/;
+            factor = gradients ? /*325125*//*5*255*255*/ 585225/*3*3*255*255*/ : 195075/*3*255*255*/;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
@@ -842,11 +840,17 @@ NNF.prototype = {
                             gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
                             gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
                             gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                            // intensity only
+                            //gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
+                            //gag = gab = 0;
 
                             i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
                             gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
                             gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
                             gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                            // intensity only
+                            //gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
+                            //gbg = gbb = 0;
 
                             dr = gar - gbr;
                             dg = gag - gbg;
@@ -864,11 +868,17 @@ NNF.prototype = {
                             gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
                             gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
                             gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                            // intensity only
+                            //gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
+                            //gag = gab = 0;
 
                             i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
                             gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
                             gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
                             gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                            // intensity only
+                            //gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
+                            //gbg = gbb = 0;
 
                             dr = gar - gbr;
                             dg = gag - gbg;
@@ -953,8 +963,7 @@ NNF.prototype = {
     similarity: function(distance) {
         // 0 <= distance <= 1
         var nnf = this;
-        return stdMath.exp(-distance / (nnf.percentile));
-        //return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
+        return stdMath.exp(-distance / nnf.q);
         /*var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
         var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
         return vj + (100*t - j) * (vk - vj);*/
@@ -964,16 +973,16 @@ NNF.prototype = {
         if (nnf.field)
         {
             var field = nnf.field, n = field.length,
-                a, b, d, sum, mu, sigma,
-                percentile75, dist = new Array(n);
-            sum = 0.0;
+                a, d, sum, mu, sigma, q = 0
+            ;
+            //sum = 0.0;
             for (a=0; a<n; ++a)
             {
                 d = field[a][1];
-                sum += d;
-                dist[a] = d;
+                q = stdMath.max(q, d);
+                //sum += d;
             }
-            mu = sum / n;
+            /*mu = sum / n;
             sum = 0.0;
             for (a=0; a<n; ++a)
             {
@@ -982,11 +991,11 @@ NNF.prototype = {
             }
             sigma = stdMath.sqrt(sum / (n - 1));
 
-            percentile75 = dist.sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))];
-
             nnf.mu = mu;
             nnf.sigma = sigma;
-            nnf.percentile = percentile75;
+            nnf.q = field.map(function(f) {return f[1];}).sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))];
+            */
+            nnf.q = 0.75*q;
         }
         return nnf;
     },
@@ -1092,6 +1101,7 @@ NNF.unserialize = function(dst, src, obj) {
     return nnf;
 };
 patchmatch.NNF = NNF;
+patchmatch.NNF.patchmatch = patchmatch;
 
 function rand_int(a, b)
 {
