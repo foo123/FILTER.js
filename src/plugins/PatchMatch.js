@@ -213,8 +213,10 @@ FILTER.Create({
                                 iterations,
                                 alpha,
                                 radius,
-                                ignore_excluded, with_gradients,
-                                without_distance_transform, kernel,
+                                ignore_excluded,
+                                with_gradients,
+                                without_distance_transform,
+                                kernel,
                                 bidirectional
                             );
                         }
@@ -268,8 +270,10 @@ FILTER.Create({
                         iterations,
                         alpha,
                         radius,
-                        ignore_excluded, with_gradients,
-                        without_distance_transform, kernel,
+                        ignore_excluded,
+                        with_gradients,
+                        without_distance_transform,
+                        kernel,
                         bidirectional
                     );
                     if (returnMatch)
@@ -482,7 +486,7 @@ NNF.prototype = {
         iter, i, n = field.length, start, step, f, d, r,
         a, b, ai, ap, ax, ay, bp, bx, by, best_b, best_d;
         radius = stdMath.min(radius, rectB.width, rectB.height);
-        for (iter=0; iter<iterations; ++iter)
+        for (iter=1; iter<=iterations; ++iter)
         {
             if (iter & 1)
             {

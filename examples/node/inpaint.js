@@ -5,10 +5,10 @@ var parse_args = require('./commargs.js'),
     F = require('./filterwithcanvas.js'),
     parallel = !!parse_args().options['parallel'],
     inpainter = F.PatchMatchFilter(),
-    target = __dirname+'/t067.jpg',
-    markup = __dirname+'/m067.png',
+    target = __dirname+'/t009.jpg',
+    markup = __dirname+'/m009.png',
     source = null,
-    output = __dirname+'/r067.png';
+    output = __dirname+'/r009.png';
 
 console.log('Inpainting runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if (parallel) inpainter.worker(true);
@@ -21,7 +21,7 @@ F.Image.load(target, function(img) {
             console.log('Inpainting image..')
             if (fromInput) inpainter.setInput("input", fromInput);
             inpainter.params({
-                patch: 11,
+                patch: 21,
                 iterations: 15,
                 alpha: 0.5,
                 radius: 50,
@@ -31,8 +31,8 @@ F.Image.load(target, function(img) {
                 ignore_excluded: false,
                 with_gradients: true,
                 without_distance_transform: false,
-                kernel: 0,
-                bidirectional: false,
+                kernel: 0.5,
+                bidirectional: true,
                 evaluate: "block",
                 repeat: 2,
                 multiscale: true,
