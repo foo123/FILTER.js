@@ -4,39 +4,43 @@ var parse_args = require('./commargs.js'),
     fs = require('fs'),
     F = require('./filterwithcanvas.js'),
     parallel = !!parse_args().options['parallel'],
-    completer = F.PatchMatchFilter(),
-    target = __dirname+'/t009.jpg',
-    markup = __dirname+'/m009.png',
+    inpainter = F.PatchMatchFilter(),
+    target = __dirname+'/t067.jpg',
+    markup = __dirname+'/m067.png',
     source = null,
-    output = __dirname+'/t009_inpainted.png';
+    output = __dirname+'/r067.png';
 
 console.log('Inpainting runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
-if (parallel) completer.worker(true);
+if (parallel) inpainter.worker(true);
 console.log('Loading images..');
 
 F.Image.load(target, function(img) {
     F.Image.load(markup, function(mkup) {
-        function inpaint(toSelection, fromSelection)
+        function inpaint(toSelection, fromSelection, fromInput)
         {
             console.log('Inpainting image..')
-            completer.params({
-                patch: 5,
+            if (fromInput) inpainter.setInput("input", fromInput);
+            inpainter.params({
+                patch: 11,
+                iterations: 15,
                 alpha: 0.5,
-                radius: 200,
+                radius: 50,
                 threshold: 0,
                 delta: 1/100,
                 epsilon: 0,
-                strict: true,
-                gradients: true,
+                ignore_excluded: false,
+                with_gradients: true,
+                without_distance_transform: false,
+                kernel: 0,
                 bidirectional: false,
                 evaluate: "block",
-                repeat: 1,
+                repeat: 2,
                 multiscale: true,
-                fromSelection: {x:0, y:0, width:img.width, height:img.height, points:fromSelection.points()},
-                toSelection: {x:0, y:0, width:img.width, height:img.height, points:toSelection.points()}
+                fromSelection: {points:fromSelection.points(), data:fromInput?"input":null},
+                toSelection: {points:toSelection.points()}
             }).apply(img, function () {
-                console.log('Inpainting completed', completer.meta.metric);
-                if (parallel) completer.worker(false);
+                console.log('Inpainting completed', inpainter.meta.metric.delta, inpainter.meta.metric.error);
+                if (parallel) inpainter.worker(false);
                 img.oCanvas.toPNG().then(function(png) {
                     fs.writeFile(output, png, function(err) {
                         if (err) console.log('error while saving image: ' + err.toString());
@@ -47,11 +51,12 @@ F.Image.load(target, function(img) {
                 });
             });
         }
+        // eg remove part/complete image
         const removeSelection = new F.Util.Image.Selection(mkup.getData(), img.width, img.height, 4);
         if (source)
         {
             F.Image.load(source, function(src) {
-                inpaint(removeSelection, new F.Util.Image.Selection(src.getData(), img.width, img.height, 4));
+                inpaint(removeSelection, new F.Util.Image.Selection(src.getData(), img.width, img.height, 4), src);
             });
         }
         else

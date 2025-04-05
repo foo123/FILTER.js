@@ -34,10 +34,10 @@ FILTER.Create({
     ,threshold: 0
     ,delta: 0
     ,epsilon: 0
-    ,strict: false
-    ,gradients: false
-    ,simple: false
-    ,kernel: false
+    ,ignore_excluded: false
+    ,with_gradients: false
+    ,without_distance_transform: false
+    ,kernel: 0
     ,bidirectional: false
     ,evaluate: "block"
     ,repeat: 1
@@ -71,9 +71,9 @@ FILTER.Create({
             if (null != params.threshold) self.threshold = +params.threshold;
             if (null != params.delta) self.delta = +params.delta;
             if (null != params.epsilon) self.epsilon = +params.epsilon;
-            if (null != params.strict) self.strict = params.strict;
-            if (null != params.gradients) self.gradients = params.gradients;
-            if (null != params.simple) self.simple = params.simple;
+            if (null != params.ignore_excluded) self.ignore_excluded = params.ignore_excluded;
+            if (null != params.with_gradients) self.with_gradients = params.with_gradients;
+            if (null != params.without_distance_transform) self.without_distance_transform = params.without_distance_transform;
             if (null != params.kernel) self.kernel = params.kernel;
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
             if (null != params.evaluate) self.evaluate = params.evaluate;
@@ -96,9 +96,9 @@ FILTER.Create({
         threshold: self.threshold,
         delta: self.delta,
         epsilon: self.epsilon,
-        strict: self.strict,
-        gradients: self.gradients,
-        simple: self.simple,
+        ignore_excluded: self.ignore_excluded,
+        with_gradients: self.with_gradients,
+        without_distance_transform: self.without_distance_transform,
         kernel: self.kernel,
         bidirectional: self.bidirectional,
         evaluate: self.evaluate,
@@ -119,9 +119,9 @@ FILTER.Create({
         self.threshold = params.threshold;
         self.delta = params.delta;
         self.epsilon = params.epsilon;
-        self.strict = params.strict;
-        self.gradients = params.gradients;
-        self.simple = params.simple;
+        self.ignore_excluded = params.ignore_excluded;
+        self.with_gradients = params.with_gradients;
+        self.without_distance_transform = params.without_distance_transform;
         self.kernel = params.kernel;
         self.bidirectional = params.bidirectional;
         self.evaluate = params.evaluate;
@@ -167,9 +167,9 @@ FILTER.Create({
             iterations = self.iterations,
             alpha = self.alpha,
             radius = self.radius,
-            strict = self.strict,
-            gradients = self.gradients,
-            simple = self.simple,
+            ignore_excluded = self.ignore_excluded,
+            with_gradients = self.with_gradients,
+            without_distance_transform = self.without_distance_transform,
             kernel = self.kernel,
             multiscale = self.multiscale,
             repeats = self.repeat,
@@ -213,8 +213,8 @@ FILTER.Create({
                                 iterations,
                                 alpha,
                                 radius,
-                                strict, gradients,
-                                simple, kernel,
+                                ignore_excluded, with_gradients,
+                                without_distance_transform, kernel,
                                 bidirectional
                             );
                         }
@@ -227,7 +227,7 @@ FILTER.Create({
                                 {
                                     break;
                                 }
-                                nnf/*.initialization()*/.randomization(5).optimization(iterations, alpha, radius);
+                                nnf.randomization(2).optimization(iterations, alpha, radius);
                             }
                         }
                     }
@@ -248,11 +248,11 @@ FILTER.Create({
                                     apply = false;
                                     break;
                                 }
-                                nnf/*.initialization()*/.randomization(5).optimization(iterations, alpha, radius);
+                                nnf.randomization(2).optimization(iterations, alpha, radius);
                             }
                         }
                         if (apply) nnf.apply(params);
-                        meta.metric = params.delta;
+                        meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
                     nnf.dispose(true);
@@ -268,8 +268,8 @@ FILTER.Create({
                         iterations,
                         alpha,
                         radius,
-                        strict, gradients,
-                        simple, kernel,
+                        ignore_excluded, with_gradients,
+                        without_distance_transform, kernel,
                         bidirectional
                     );
                     if (returnMatch)
@@ -289,11 +289,11 @@ FILTER.Create({
                                     apply = false;
                                     break;
                                 }
-                                nnf/*.initialization()*/.randomization(5).optimization(iterations, alpha, radius);
+                                nnf.randomization(2).optimization(iterations, alpha, radius);
                             }
                         }
                         if (apply) nnf.apply(params);
-                        meta.metric = params.delta;
+                        meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
                     nnf.dispose(true);
@@ -306,9 +306,9 @@ FILTER.Create({
     }
 });
 
-function patchmatch(dst, src, patch, iterations, alpha, radius, strict, gradients, simple, kernel, bidirectional)
+function patchmatch(dst, src, patch, iterations, alpha, radius, ignore_excluded, with_gradients, without_distance_transform, kernel, bidirectional)
 {
-    var nnf = new patchmatch.NNF(dst, src, patch, strict, gradients, simple, kernel);
+    var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel);
     nnf.initialize(+1).randomize(2, +1);
     if (bidirectional) nnf.initialize(-1).randomize(2, -1);
     nnf.optimization(iterations, alpha, radius);
@@ -316,7 +316,7 @@ function patchmatch(dst, src, patch, iterations, alpha, radius, strict, gradient
 }
 FILTER.Util.Filter.patchmatch = patchmatch;
 
-function NNF(dst, src, patch, strict, gradients, simple, kernel)
+function NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel)
 {
     var self = this, other;
     if (dst instanceof NNF)
@@ -325,10 +325,10 @@ function NNF(dst, src, patch, strict, gradients, simple, kernel)
         self.dst = other.dst;
         self.src = other.src;
         self.patch = other.patch;
-        self.strict = other.strict;
-        self.gradients = other.gradients;
-        self.simple = other.simple;
-        self.kernel = other.kernel;
+        self._ignore_excluded = other._ignore_excluded;
+        self._with_gradients = other._with_gradients;
+        self._without_distance_transform = other._without_distance_transform;
+        self._kernel = other._kernel;
         self.field = other.field ? other.field.map(function(f) {return f.slice();}) : other.field;
         self.fieldr = other.fieldr ? other.fieldr.map(function(f) {return f.slice();}) : other.fieldr;
     }
@@ -337,10 +337,10 @@ function NNF(dst, src, patch, strict, gradients, simple, kernel)
         self.dst = dst;
         self.src = src;
         self.patch = patch;
-        self.strict = !!strict;
-        self.gradients = !!gradients;
-        self.simple = !!simple;
-        self.kernel = !!kernel;
+        self._ignore_excluded = !!ignore_excluded;
+        self._with_gradients = !!with_gradients;
+        self._without_distance_transform = !!without_distance_transform;
+        self._kernel = kernel;
         self.field = self.fieldr = null;
     }
     if (self.dst)
@@ -360,14 +360,15 @@ NNF.prototype = {
     src: null,
     dstData: null,
     srcData: null,
-    patch: 3,
-    strict: false,
-    gradients: false,
-    simple: false,
-    kernel: false,
     field: null,
     fieldr: null,
-    alphai: null,
+    patch: 5,
+    _ignore_excluded: false,
+    _with_gradients: false,
+    _without_distance_transform: false,
+    _kernel: 0,
+    a: null,
+    k: null,
     mu: 0.0,
     sigma: 1.0,
     q: 1.0,
@@ -380,7 +381,7 @@ NNF.prototype = {
         }
         self.dstData = self.srcData = null;
         self.dst = self.src = null;
-        self.field = self.fieldr = self.alphai = null;
+        self.field = self.fieldr = self.a = self.k = null;
     },
     clone: function() {
         return new NNF(this);
@@ -388,7 +389,7 @@ NNF.prototype = {
     scale: function(dst, src, scaleX, scaleY) {
         if (null == scaleY) scaleY = scaleX;
         var self = this, A, B, AA, BB,
-            scaled = new NNF(dst, src, self.patch, self.strict, self.gradients, self.simple, self.kernel);
+            scaled = new NNF(dst, src, self.patch, self._ignore_excluded, self._with_gradients, self._without_distance_transform, self._kernel);
         if (self.field ) scaled.initialize(+1).randomize(1, +1);
         if (self.fieldr) scaled.initialize(-1).randomize(1, -1);
         if (self.field && scaled.field)
@@ -556,7 +557,7 @@ NNF.prototype = {
 
         output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-        if (!self.alphai) self.alphai = self.distance_transform();
+        if (!self.a || !self.k) self.preparation();
 
         if (fieldr)
         {
@@ -591,12 +592,12 @@ NNF.prototype = {
         return self;
     },
     expectation: function(op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir) {
-        var nnf = this, n = field.length, alpha = nnf.alphai,
+        var nnf = this, n = field.length,
             A = AA.points(), B = BB.points(),
             widthA = dataA.width, heightA = dataA.height,
             widthB = dataB.width, heightB = dataB.height,
             a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
-            cnt, p = nnf.patch >>> 1, k;
+            cnt, p = nnf.patch >>> 1, alpha = nnf.a, k = nnf.k;
         if ("center" === op)
         {
             if (-1 === dir)
@@ -628,9 +629,6 @@ NNF.prototype = {
         }
         else // "block" === op
         {
-            k = new Array(nnf.patch);
-            if (nnf.kernel) for (dx=-p; dx<=p; ++dx) k[p+dx] = stdMath.exp(-dx*dx/(2*p*p));
-            else for (dx=-p; dx<=p; ++dx) k[p+dx] = 1;
             if (-1 === dir)
             {
                 for (a=0; a<n; ++a)
@@ -795,8 +793,8 @@ NNF.prototype = {
             dataA = -1 === dir ? self.srcData : self.dstData,
             dataB = -1 === dir ? self.dstData : self.srcData,
             patch = self.patch,
-            strict = self.strict,
-            gradients = self.gradients,
+            ignore_excluded = self._ignore_excluded,
+            with_gradients = self._with_gradients,
             factor, p = patch >>> 1,
             diff = 0,
             completed = 0,
@@ -817,12 +815,12 @@ NNF.prototype = {
 
         if (4 === dataA.channels)
         {
-            factor = gradients ? /*325125*//*5*255*255*/ 585225/*3*3*255*255*/ : 195075/*3*255*255*/;
+            factor = with_gradients ? /*325125*//*5*255*255*/ 585225/*3*3*255*255*/ : 195075/*3*255*255*/;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
                 if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
-                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
+                if (ignore_excluded && (!AA.has(null, ya) || !BB.has(null, yb)))
                 {
                     excluded += patch;
                     continue;
@@ -832,7 +830,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    if (ignore_excluded && (!AA.has(xa, null) || !BB.has(xb, null)))
                     {
                         excluded += 1;
                         continue;
@@ -843,7 +841,7 @@ NNF.prototype = {
                     db = imgA[i + 2] - imgB[j + 2];
                     diff += (dr * dr + dg * dg + db * db) / factor;
 
-                    if (gradients)
+                    if (with_gradients)
                     {
                         if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
                         {
@@ -907,12 +905,12 @@ NNF.prototype = {
         }
         else
         {
-            factor = gradients ? 195075/*3*255*255*/ : 65025/*255*255*/;
+            factor = with_gradients ? 195075/*3*255*255*/ : 65025/*255*255*/;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
                 if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
-                if (strict && (!AA.has(null, ya) || !BB.has(null, yb)))
+                if (ignore_excluded && (!AA.has(null, ya) || !BB.has(null, yb)))
                 {
                     excluded += patch;
                     continue;
@@ -922,7 +920,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (strict && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    if (ignore_excluded && (!AA.has(xa, null) || !BB.has(xb, null)))
                     {
                         excluded += 1;
                         continue;
@@ -931,7 +929,7 @@ NNF.prototype = {
                     dr = imgA[i] - imgB[j];
                     diff += (dr * dr) / factor;
 
-                    if (gradients)
+                    if (with_gradients)
                     {
                         if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
                         {
@@ -1011,7 +1009,7 @@ NNF.prototype = {
         }
         return nnf;
     },
-    distance_transform: function() {
+    preparation: function() {
         var nnf = this, A = nnf.dst.points(),
             mapA = {}, n = A.length,
             width = nnf.dstData.width,
@@ -1021,73 +1019,102 @@ NNF.prototype = {
             a = 1.0, b = 1.4,
             c = 1.5, gamma = 1.3,
             x, y, lx, ty, rx, by,
-            ads, cs, cx, cy;
-        if (nnf.simple) {for (i=0; i<n; ++i) res[i] = 1.0; return res;}
-        vals = [0,0,0,0];
-        ads = [b, a, b, a];
-        cs = [null,null,null,null];
-        for (i=0; i<n; ++i) mapA[A[i].index] = i;
-        for (i=0; i<n; ++i)
+            ads, cs, cx, cy,
+            p = nnf.patch >>> 1, w;
+
+        nnf.k = new A32F(nnf.patch);
+        if (nnf._kernel)
         {
-            x = A[i].x;
-            y = A[i].y;
-            lx = x - 1;
-            ty = y - 1;
-            rx = x + 1;
-            cs[0] = [lx, ty];
-            cs[1] = [x, ty];
-            cs[2] = [rx, ty];
-            cs[3] = [lx, y];
-            for (j=0; j<4; ++j)
+            w = (true === nnf._kernel ? 1.0 : nnf._kernel) / (2*p*p);
+            for (i=-p; i<=p; ++i)
             {
-                cx = cs[j][0]; cy = cs[j][1];
-                if (0 <= cx && cx < width && 0 <= cy && cy < height)
-                {
-                    ii = mapA[(cx + cy * width)];
-                    v = null != ii ? (res[ii]||0) : 0;
-                    vals[j] = v + ads[j];
-                }
-                else
-                {
-                    vals[j] = a;
-                }
+                nnf.k[p+i] = stdMath.exp(-w*i*i);
             }
-            res[i] = stdMath.min.apply(stdMath, vals);
         }
-        vals = [0,0,0,0,0];
-        for (i=n-1; i>=0; --i)
+        else
         {
-            x = A[i].x;
-            y = A[i].y;
-            lx = x - 1;
-            by = y + 1;
-            rx = x + 1;
-            cs[0] = [lx, by];
-            cs[1] = [x, by];
-            cs[2] = [rx, by];
-            cs[3] = [rx, y];
-            for (j=0; j<4; ++j)
+            for (i=-p; i<=p; ++i)
             {
-                cx = cs[j][0]; cy = cs[j][1];
-                if (0 <= cx && cx < width && 0 <= cy && cy < height)
-                {
-                    ii = mapA[(cx + cy * width)];
-                    v = null != ii ? (res[ii]||0) : 0;
-                    vals[j] = v + ads[j];
-                }
-                else
-                {
-                    vals[j] = a;
-                }
+                nnf.k[p+i] = 1.0;
             }
-            vals[4] = res[i];
-            res[i] = stdMath.min.apply(stdMath, vals);
         }
-        for (i=0; i<n; ++i)
+
+        if (nnf._without_distance_transform)
         {
-            res[i] = 0 == res[i] ? c : stdMath.pow(gamma, -res[i]);
+            for (i=0; i<n; ++i)
+            {
+                res[i] = 1.0;
+            }
         }
-        return res;
+        else
+        {
+            vals = [0,0,0,0];
+            ads = [b, a, b, a];
+            cs = [null,null,null,null];
+            for (i=0; i<n; ++i) mapA[A[i].index] = i;
+            for (i=0; i<n; ++i)
+            {
+                x = A[i].x;
+                y = A[i].y;
+                lx = x - 1;
+                ty = y - 1;
+                rx = x + 1;
+                cs[0] = [lx, ty];
+                cs[1] = [x, ty];
+                cs[2] = [rx, ty];
+                cs[3] = [lx, y];
+                for (j=0; j<4; ++j)
+                {
+                    cx = cs[j][0]; cy = cs[j][1];
+                    if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                    {
+                        ii = mapA[(cx + cy * width)];
+                        v = null != ii ? (res[ii]||0) : 0;
+                        vals[j] = v + ads[j];
+                    }
+                    else
+                    {
+                        vals[j] = a;
+                    }
+                }
+                res[i] = stdMath.min.apply(stdMath, vals);
+            }
+            vals = [0,0,0,0,0];
+            for (i=n-1; i>=0; --i)
+            {
+                x = A[i].x;
+                y = A[i].y;
+                lx = x - 1;
+                by = y + 1;
+                rx = x + 1;
+                cs[0] = [lx, by];
+                cs[1] = [x, by];
+                cs[2] = [rx, by];
+                cs[3] = [rx, y];
+                for (j=0; j<4; ++j)
+                {
+                    cx = cs[j][0]; cy = cs[j][1];
+                    if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                    {
+                        ii = mapA[(cx + cy * width)];
+                        v = null != ii ? (res[ii]||0) : 0;
+                        vals[j] = v + ads[j];
+                    }
+                    else
+                    {
+                        vals[j] = a;
+                    }
+                }
+                vals[4] = res[i];
+                res[i] = stdMath.min.apply(stdMath, vals);
+            }
+            for (i=0; i<n; ++i)
+            {
+                res[i] = 0 == res[i] ? c : stdMath.pow(gamma, -res[i]);
+            }
+        }
+        nnf.a = res;
+        return nnf;
     }
 };
 NNF.serialize = function(nnf) {
@@ -1095,8 +1122,10 @@ NNF.serialize = function(nnf) {
     dst: FILTER.Util.Image.Selection.serialize(nnf.dst),
     src: FILTER.Util.Image.Selection.serialize(nnf.src),
     patch: nnf.patch,
-    strict: nnf.strict,
-    gradients: nnf.gradients,
+    _ignore_excluded: nnf._ignore_excluded,
+    _with_gradients: nnf._with_gradients,
+    _without_distance_transform: nnf._without_distance_transform,
+    _kernel: nnf._kernel,
     field: nnf.field,
     fieldr: nnf.fieldr
     };
@@ -1106,8 +1135,10 @@ NNF.unserialize = function(dst, src, obj) {
     FILTER.Util.Image.Selection.unserialize(dst, obj.dst),
     FILTER.Util.Image.Selection.unserialize(src, obj.src),
     obj.patch,
-    obj.strict,
-    obj.gradients
+    obj._ignore_excluded,
+    obj._with_gradients,
+    obj._without_distance_transform,
+    obj._kernel
     );
     nnf.field = obj.field;
     nnf.fieldr = obj.fieldr;
