@@ -654,7 +654,7 @@ NNF.prototype = {
                             if (-1 === i) continue;
                             ap = A[fieldr[i][0]];
                             ax = ap.x-dx; ay = ap.y-dy;
-                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA || -1 === AA.indexOf(ax, ay)) continue;
                             pos[cnt] = ax + ay*widthA;
                             weight[cnt] = alpha[b] * k[p+dx]*k[p+dy] * nnf.similarity(fieldr[i][1]);
                             ++cnt;
@@ -684,7 +684,7 @@ NNF.prototype = {
                             if (-1 === i) continue;
                             bp = B[field[i][0]];
                             bx = bp.x-dx; by = bp.y-dy;
-                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB || -1 === BB.indexOf(bx, by)) continue;
                             pos[cnt] = bx + by*widthB;
                             weight[cnt] = alpha[a] * k[p+dx]*k[p+dy] * nnf.similarity(field[i][1]);
                             ++cnt;
@@ -752,11 +752,12 @@ NNF.prototype = {
         return nnf;
     },
     accumulate: function(pos, weight, cnt, output, outpos) {
-        var nnf = this, dataB = nnf.srcData,
+        var nnf = this,
+            dataB = nnf.srcData,
             imgB = dataB.data,
             r = 0.0, g = 0.0,
             b = 0.0, sum = 0.0,
-            i, index, w, o;
+            i, index, w;
 
         if (4 === dataB.channels)
         {
@@ -834,7 +835,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (ignore_excluded && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    if (ignore_excluded && (-1 === AA.has(xa, ya) || -1 === BB.has(xb, yb)))
                     {
                         excluded += 1;
                         continue;
@@ -924,7 +925,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (ignore_excluded && (!AA.has(xa, null) || !BB.has(xb, null)))
+                    if (ignore_excluded && (-1 === AA.has(xa, ya) || -1 === BB.has(xb, yb)))
                     {
                         excluded += 1;
                         continue;
@@ -971,7 +972,7 @@ NNF.prototype = {
                 }
             }
         }
-        return (completed ? stdMath.min((diff+excluded)/(completed+excluded), 1) : 1);
+        return (completed ? (/*excluded ? 10 : */stdMath.min((diff+excluded)/(completed+excluded), 1)) : 1);
     },
     similarity: function(distance) {
         // 0 <= distance <= 1
