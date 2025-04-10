@@ -194,7 +194,7 @@ FILTER.Create({
                 params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, false);
+                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, true);
                     src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(patch, false);
                     for (level=dst.levels.length-1; level>=0; --level)
                     {
@@ -309,16 +309,6 @@ FILTER.Create({
         return im;
     }
 });
-
-function patchmatch(dst, src, patch, iterations, alpha, radius, ignore_excluded, with_gradients, without_distance_transform, kernel, bidirectional)
-{
-    var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel);
-    nnf.initialize(+1).randomize(2, +1);
-    if (bidirectional) nnf.initialize(-1).randomize(2, -1);
-    nnf.optimization(iterations, alpha, radius);
-    return nnf;
-}
-FILTER.Util.Filter.patchmatch = patchmatch;
 
 function NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel)
 {
@@ -444,15 +434,15 @@ NNF.prototype = {
         for (a=0; a<n; ++a) field[a] = [0, 1.05];
         return self;
     },
-    randomize: function(numtries, dir) {
+    randomize: function(num_tries, dir) {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
             Blen = (-1 === dir ? self.dst : self.src).points().length - 1,
             n = field.length,
-            f, a, b, d,
-            best_b, best_d,
-            tries;
+            f, a, b, d, tries,
+            best_b, best_d;
+        num_tries = num_tries || 1;
         for (a=0; a<n; ++a)
         {
             f = field[a];
@@ -460,12 +450,12 @@ NNF.prototype = {
             best_b = f[0];
             best_d = f[1];
             tries = 0;
-            while (tries < numtries)
+            while (tries < num_tries)
             {
                 ++tries;
                 b = rand_int(0, Blen);
                 d = self.distance(a, b, dir);
-                if (numtries < 2 || d < best_d)
+                if (num_tries < 2 || d < best_d)
                 {
                     best_b = b;
                     best_d = d;
@@ -550,11 +540,12 @@ NNF.prototype = {
     apply: function(params) {
         if (!this.field) return this;
         var self = this,
-            field = self.field, fieldr = self.fieldr,
-            AA = self.dst, BB = self.src,
-            size = self.patch*self.patch, output,
-            dataA = self.dstData, dataB = self.srcData,
-            pos = new A32U(size), weight = new A32F(size),
+            field = self.field,
+            fieldr = self.fieldr,
+            size = self.patch*self.patch,
+            output, dataA = self.dstData,
+            pos = new A32U(size),
+            weight = new A32F(size),
             op = params ? String(params.evaluate).toLowerCase() : "block";
 
         if (-1 === ["center","block"].indexOf(op)) op = "block";
@@ -565,15 +556,13 @@ NNF.prototype = {
 
         if (fieldr)
         {
-            self.statistics(-1);
-            self.expectation(op, fieldr, field,  BB, dataB, AA, dataA, pos, weight, output, -1);
+            self.statistics(-1).expectation(op, pos, weight, output, -1);
         }
         if (field )
         {
-            self.statistics(+1);
-            self.expectation(op, field,  fieldr, AA, dataA, BB, dataB, pos, weight, output, +1);
+            self.statistics(+1).expectation(op, pos, weight, output, +1);
         }
-        self.maximization(op, output, (params ? params.threshold : 0)||0, params);
+        self.maximization(output, (params ? params.threshold : 0)||0, params);
 
         return self;
     },
@@ -583,10 +572,10 @@ NNF.prototype = {
         if (self.fieldr) self.initialize(-1);
         return self;
     },
-    randomization: function(numtries) {
+    randomization: function(num_tries) {
         var self = this;
-        if (self.field ) self.randomize(numtries, +1);
-        if (self.fieldr) self.randomize(numtries, -1);
+        if (self.field ) self.randomize(num_tries, +1);
+        if (self.fieldr) self.randomize(num_tries, -1);
         return self;
     },
     optimization: function(iterations, alpha, radius) {
@@ -595,26 +584,39 @@ NNF.prototype = {
         if (self.fieldr) self.optimize(iterations, alpha, radius, -1);
         return self;
     },
-    expectation: function(op, field, fieldr, AA, dataA, BB, dataB, pos, weight, expected, dir) {
-        var nnf = this, n = field.length,
-            A = AA.points(), B = BB.points(),
-            widthA = dataA.width, heightA = dataA.height,
-            widthB = dataB.width, heightB = dataB.height,
-            a, b, d, i, f, ap, bp, dx, dy, ax, ay, bx, by,
-            cnt, p = nnf.patch >>> 1, alpha = nnf.a, k = nnf.k;
+    expectation: function(op, pos, weight, expected, dir) {
+        var nnf = this,
+            field = nnf.field,
+            fieldr = nnf.fieldr,
+            AA = nnf.dst,
+            BB = nnf.src,
+            dataA = nnf.dstData,
+            dataB = nnf.srcData,
+            A = AA.points(),
+            B = BB.points(),
+            widthA = dataA.width,
+            heightA = dataA.height,
+            widthB = dataB.width,
+            heightB = dataB.height,
+            n = field.length,
+            a, b, d, i, j, f,
+            ap, bp, dx, dy,
+            ax, ay, bx, by,
+            cnt, p = nnf.patch >>> 1,
+            alpha = nnf.a, k = nnf.k;
         if ("center" === op)
         {
             if (-1 === dir)
             {
-                for (a=0; a<n; ++a)
+                for (b=0; b<n; ++b)
                 {
-                    f = field[a];
-                    b = f[0];
+                    f = fieldr[b];
+                    a = f[0];
                     d = f[1];
-                    pos[0] = A[a].index;
-                    weight[0] = alpha[b] * nnf.similarity(d);
+                    pos[0] = B[b].index;
+                    weight[0] = alpha[a] * nnf.similarity(d);
                     cnt = 1;
-                    nnf.accumulate(pos, weight, cnt, expected, b);
+                    nnf.accumulate(pos, weight, cnt, expected, a);
                 }
             }
             else
@@ -635,10 +637,10 @@ NNF.prototype = {
         {
             if (-1 === dir)
             {
-                for (a=0; a<n; ++a)
+                for (b=0; b<n; ++b)
                 {
-                    f = field[a];
-                    b = f[0];
+                    f = fieldr[b];
+                    a = f[0];
                     d = f[1];
                     bp = B[b];
                     cnt = 0;
@@ -650,17 +652,19 @@ NNF.prototype = {
                         {
                             bx = bp.x+dx;
                             if (0 > bx || bx >= widthB) continue;
-                            i = BB.indexOf(bx, by);
-                            if (-1 === i) continue;
-                            ap = A[fieldr[i][0]];
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            ap = A[fieldr[j][0]];
                             ax = ap.x-dx; ay = ap.y-dy;
-                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA || -1 === AA.indexOf(ax, ay)) continue;
-                            pos[cnt] = ax + ay*widthA;
-                            weight[cnt] = alpha[b] * k[p+dx]*k[p+dy] * nnf.similarity(fieldr[i][1]);
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            pos[cnt] = B[j].index;
+                            weight[cnt] = alpha[i] * k[p+dx]*k[p+dy] * nnf.similarity(fieldr[j][1]);
                             ++cnt;
                         }
                     }
-                    nnf.accumulate(pos, weight, cnt, expected, b);
+                    nnf.accumulate(pos, weight, cnt, expected, a);
                 }
             }
             else
@@ -684,9 +688,11 @@ NNF.prototype = {
                             if (-1 === i) continue;
                             bp = B[field[i][0]];
                             bx = bp.x-dx; by = bp.y-dy;
-                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB || -1 === BB.indexOf(bx, by)) continue;
-                            pos[cnt] = bx + by*widthB;
-                            weight[cnt] = alpha[a] * k[p+dx]*k[p+dy] * nnf.similarity(field[i][1]);
+                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            pos[cnt] = B[j].index;
+                            weight[cnt] = alpha[i] * k[p+dx]*k[p+dy] * nnf.similarity(field[i][1]);
                             ++cnt;
                         }
                     }
@@ -696,7 +702,7 @@ NNF.prototype = {
         }
         return nnf;
     },
-    maximization: function(op, expected, threshold, metrics) {
+    maximization: function(expected, threshold, metrics) {
         var nnf = this, field = nnf.field,
             A = nnf.dst.points(), n = field.length,
             dataA = nnf.dstData, imgA = dataA.data,
@@ -835,7 +841,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (ignore_excluded && (-1 === AA.has(xa, ya) || -1 === BB.has(xb, yb)))
+                    if (ignore_excluded && (-1 === AA.indexOf(xa, ya) || -1 === BB.indexOf(xb, yb)))
                     {
                         excluded += 1;
                         continue;
@@ -925,7 +931,7 @@ NNF.prototype = {
                 {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
-                    if (ignore_excluded && (-1 === AA.has(xa, ya) || -1 === BB.has(xb, yb)))
+                    if (ignore_excluded && (-1 === AA.indexOf(xa, ya) || -1 === BB.indexOf(xb, yb)))
                     {
                         excluded += 1;
                         continue;
@@ -1149,8 +1155,17 @@ NNF.unserialize = function(dst, src, obj) {
     nnf.fieldr = obj.fieldr;
     return nnf;
 };
+function patchmatch(dst, src, patch, iterations, alpha, radius, ignore_excluded, with_gradients, without_distance_transform, kernel, bidirectional)
+{
+    var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel);
+    nnf.initialize(+1).randomize(2, +1);
+    if (bidirectional) nnf.initialize(-1).randomize(2, -1);
+    nnf.optimization(iterations, alpha, radius);
+    return nnf;
+}
 patchmatch.NNF = NNF;
 patchmatch.NNF.patchmatch = patchmatch;
+FILTER.Util.Filter.patchmatch = patchmatch;
 
 function rand_int(a, b)
 {
