@@ -605,7 +605,7 @@ NNF.prototype = {
             heightA = dataA.height,
             widthB = dataB.width,
             heightB = dataB.height,
-            n = field.length,
+            n = -1 === dir ? fieldr.length : field.length,
             a, b, d, i, j, f,
             ap, bp, dx, dy,
             ax, ay, bx, by,
