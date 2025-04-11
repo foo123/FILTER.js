@@ -159,7 +159,7 @@ FILTER.Create({
         return self;
     }
 
-    ,apply: function(im, w, h) {
+    ,apply: function(im_dst, w_dst, h_dst) {
         var self = this,
             fromSelection = self.fromSelection,
             toSelection = self.toSelection,
@@ -186,16 +186,16 @@ FILTER.Create({
         meta = returnMatch ? {match:null} : {metric:0};
         if (fromSelection && toSelection)
         {
-            source = fromSelection.data ? self.input(fromSelection.data) : [im, w, h];
+            source = fromSelection.data ? self.input(fromSelection.data) : [im_dst, w_dst, h_dst];
             if (source)
             {
                 im_src = source[0]; w_src = source[1]; h_src = source[2];
-                if (im_src === im) im_src = copy(im_src);
+                if (im_src === im_dst) im_src = copy(im_src);
                 params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im, w, h, 4, new Selection(im, w, h, 4, toSelection))).build(patch, true);
-                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(patch, false);
+                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(patch, false);
+                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(patch, true);
                     for (level=dst.levels.length-1; level>=0; --level)
                     {
                         if (nnf)
@@ -235,7 +235,7 @@ FILTER.Create({
                     }
                     if (returnMatch)
                     {
-                        meta.match = nnf.field;
+                        meta.match = nnf.getMatch();
                     }
                     else
                     {
@@ -264,7 +264,7 @@ FILTER.Create({
                 else
                 {
                     nnf = patchmatch(
-                        new Selection(im, w, h, 4, toSelection),
+                        new Selection(im_dst, w_dst, h_dst, 4,   toSelection),
                         new Selection(im_src, w_src, h_src, 4, fromSelection),
                         patch,
                         iterations,
@@ -278,7 +278,7 @@ FILTER.Create({
                     );
                     if (returnMatch)
                     {
-                        meta.match = nnf.field;
+                        meta.match = nnf.getMatch();
                     }
                     else
                     {
@@ -306,7 +306,7 @@ FILTER.Create({
         }
         self.hasMeta = true;
         self.meta = meta;
-        return im;
+        return im_dst;
     }
 });
 
@@ -376,6 +376,13 @@ NNF.prototype = {
         self.dstData = self.srcData = null;
         self.dst = self.src = null;
         self.field = self.fieldr = self.a = self.k = null;
+    },
+    getMatch: function() {
+        var self = this, A = self.dst.points(), B = self.src.points();
+        return (self.field||[]).map(function(f, a) {
+            var b = f[0], d = f[1], ap = A[a], bp = B[b];
+            return {src:{x:bp.x,y:bp.y}, dst:{x:ap.x,y:ap.y}, dist:d};
+        });
     },
     clone: function() {
         return new NNF(this);
@@ -992,17 +999,26 @@ NNF.prototype = {
     statistics: function(dir) {
         var nnf = this,
             field = -1 === dir ? nnf.fieldr : nnf.field,
-            n, a, d, sum, mu, sigma, q;
+            n, a, d, sum, mu, sigma, q, q2;
         if (field)
         {
             n = field.length;
-            sum = 0.0;
-            q = 0;
-            for (a=0; a<n; ++a)
+            q2 = 0;
+            q = field[0][1];
+            sum = q;
+            for (a=1; a<n; ++a)
             {
                 d = field[a][1];
-                q = stdMath.max(q, d);
                 sum += d;
+                if (d > q)
+                {
+                    q2 = q;
+                    q = d;
+                }
+                else if (d > q2)
+                {
+                    q2 = d;
+                }
             }
             mu = sum / n;
             sum = 0.0;
@@ -1015,7 +1031,7 @@ NNF.prototype = {
 
             nnf.mu = mu;
             nnf.sigma = sigma;
-            nnf.q = 0.75*q;
+            nnf.q = (0.75*q2) || 0.5;
             //nnf.q = field.map(function(f) {return f[1];}).sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))];
         }
         return nnf;
