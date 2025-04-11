@@ -17,8 +17,9 @@ var stdMath = Math, INF = Infinity,
 
 // PatchMatch algorithm filter
 // https://en.wikipedia.org/wiki/PatchMatch
-// [PatchMatch: A Randomized Correspondence Algorithm for Structural Image Editing, Connelly Barnes, Eli Shechtman, Adam Finkelstein, Dan B Goldman, 2009](https://gfx.cs.princeton.edu/pubs/Barnes_2009_PAR/patchmatch.pdf)
-// [Space-Time Completion of Video, Yonatan Wexler, Eli Shechtman, Michal Irani, 2007](https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/wexler07.pdf)
+// [PatchMatch: A Randomized Correspondence Algorithm for Structural Image Editing, Connelly Barnes, Eli Shechtman, Adam Finkelstein, Dan B Goldman 2009](https://gfx.cs.princeton.edu/pubs/Barnes_2009_PAR/patchmatch.pdf)
+// [Space-Time Completion of Video, Yonatan Wexler, Eli Shechtman, Michal Irani 2007](https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/wexler07.pdf)
+// [Video Inpainting of Complex Scenes, Alasdair Newson, Andrés Almansa, Matthieu Fradet, Yann Gousseau, Patrick Pérez 2015](https://arxiv.org/abs/1503.05528)
 FILTER.Create({
     name: "PatchMatchFilter"
 
@@ -42,6 +43,7 @@ FILTER.Create({
     ,evaluate: "block"
     ,repeat: 1
     ,multiscale: false
+    ,layered: false
     ,fromSelection: null
     ,toSelection: null
     ,returnMatch: false
@@ -79,6 +81,7 @@ FILTER.Create({
             if (null != params.evaluate) self.evaluate = params.evaluate;
             if (null != params.repeat) self.repeat = +params.repeat;
             if (null != params.multiscale) self.multiscale = params.multiscale;
+            if (null != params.layered) self.layered = params.layered;
             if (null != params.fromSelection) self.fromSelection = params.fromSelection;
             if (null != params.toSelection) self.toSelection = params.toSelection;
             if (null != params.returnMatch) self.returnMatch = params.returnMatch;
@@ -104,6 +107,7 @@ FILTER.Create({
         evaluate: self.evaluate,
         repeat: self.repeat,
         multiscale: self.multiscale,
+        layered: self.layered,
         fromSelection: toJSON(self.fromSelection),
         toSelection: toJSON(self.toSelection),
         returnMatch: self.returnMatch
@@ -127,6 +131,7 @@ FILTER.Create({
         self.evaluate = params.evaluate;
         self.repeat = params.repeat;
         self.multiscale = params.multiscale;
+        self.layered = params.layered;
         self.fromSelection = fromJSON(params.fromSelection);
         self.toSelection = fromJSON(params.toSelection);
         self.returnMatch = params.returnMatch;
@@ -172,6 +177,7 @@ FILTER.Create({
             without_distance_transform = self.without_distance_transform,
             kernel = self.kernel,
             multiscale = self.multiscale,
+            layered = self.layered,
             repeats = self.repeat,
             delta = self.delta,
             eps = self.epsilon,
@@ -217,7 +223,8 @@ FILTER.Create({
                                 with_gradients,
                                 without_distance_transform,
                                 kernel,
-                                bidirectional
+                                bidirectional,
+                                layered
                             );
                         }
                         if (1 < repeats && 0 < level)
@@ -229,7 +236,7 @@ FILTER.Create({
                                 {
                                     break;
                                 }
-                                nnf.randomization(2).optimization(iterations, alpha, radius);
+                                nnf.optimization(iterations, alpha, radius);
                             }
                         }
                     }
@@ -250,7 +257,7 @@ FILTER.Create({
                                     apply = false;
                                     break;
                                 }
-                                nnf.randomization(2).optimization(iterations, alpha, radius);
+                                nnf.optimization(iterations, alpha, radius);
                             }
                         }
                         if (apply) nnf.apply(params);
@@ -274,7 +281,8 @@ FILTER.Create({
                         with_gradients,
                         without_distance_transform,
                         kernel,
-                        bidirectional
+                        bidirectional,
+                        layered
                     );
                     if (returnMatch)
                     {
@@ -293,7 +301,7 @@ FILTER.Create({
                                     apply = false;
                                     break;
                                 }
-                                nnf.randomization(2).optimization(iterations, alpha, radius);
+                                nnf.optimization(iterations, alpha, radius);
                             }
                         }
                         if (apply) nnf.apply(params);
@@ -445,10 +453,11 @@ NNF.prototype = {
         if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
         var self = this,
             field = -1 === dir ? self.fieldr : self.field,
-            Blen = (-1 === dir ? self.dst : self.src).points().length - 1,
+            BB = -1 === dir ? self.dst : self.src,
+            Blen = BB.points().length - 1,
             n = field.length,
             f, a, b, d, tries,
-            best_b, best_d;
+            best_b, best_d
         num_tries = num_tries || 1;
         for (a=0; a<n; ++a)
         {
@@ -470,6 +479,39 @@ NNF.prototype = {
             }
             f[0] = best_b;
             f[1] = best_d;
+        }
+        return self;
+    },
+    onionize: function(dir) {
+        if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
+        var self = this,
+            field = -1 === dir ? self.fieldr : self.field,
+            AA = -1 === dir ? self.src : self.dst,
+            BB = -1 === dir ? self.dst : self.src,
+            AAp, AAb, p, onion;
+        AAp = AA.erode([
+        1,1,1,
+        1,1,1,
+        1,1,1
+        ], 3);
+        if (!AAp.points().length) return self.randomize(2, dir);
+        while (AAp.points().length)
+        {
+
+            AAb = AA.subtract(AAp);
+            onion = (new NNF(AAb, BB, self.patch, self._ignore_excluded, self._with_gradients, true, 0)).initialize(+1).onionize(+1).optimize(10, 0.5, 50, +1);
+            p = AAb.points();
+            onion.field.forEach(function(f, a) {
+                field[AAb.indexOf(p[a].x, p[a].y)] = [f[0], f[1]];
+            });
+            onion.dispose();
+            AAb.dispose();
+            AA = AAp;
+            AAp = AA.erode([
+            1,1,1,
+            1,1,1,
+            1,1,1
+            ], 3);
         }
         return self;
     },
@@ -555,7 +597,7 @@ NNF.prototype = {
             weight = new A32F(size),
             op = params ? String(params.evaluate).toLowerCase() : "block";
 
-        if (-1 === ["center","block"].indexOf(op)) op = "block";
+        if (-1 === ["center","best","block"].indexOf(op)) op = "block";
 
         output = new A32F(field.length * (4 === dataA.channels ? 4 : 2));
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
@@ -585,6 +627,12 @@ NNF.prototype = {
         if (self.fieldr) self.randomize(num_tries, -1);
         return self;
     },
+    onionization: function() {
+        var self = this;
+        if (self.field ) self.onionize(+1);
+        if (self.fieldr) self.onionize(-1);
+        return self;
+    },
     optimization: function(iterations, alpha, radius) {
         var self = this;
         if (self.field ) self.optimize(iterations, alpha, radius, +1);
@@ -606,7 +654,7 @@ NNF.prototype = {
             widthB = dataB.width,
             heightB = dataB.height,
             n = -1 === dir ? fieldr.length : field.length,
-            a, b, d, i, j, f,
+            a, b, d, i, j, f, w,
             ap, bp, dx, dy,
             ax, ay, bx, by,
             cnt, p = nnf.patch >>> 1,
@@ -636,6 +684,81 @@ NNF.prototype = {
                     pos[0] = B[b].index;
                     weight[0] = alpha[a] * nnf.similarity(d);
                     cnt = 1;
+                    nnf.accumulate(pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        else if ("best" === op)
+        {
+            if (-1 === dir)
+            {
+                for (b=0; b<n; ++b)
+                {
+                    f = fieldr[b];
+                    a = f[0];
+                    d = f[1];
+                    bp = B[b];
+                    cnt = 1;
+                    weight[0] = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        by = bp.y+dy;
+                        if (0 > by || by >= heightB) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            bx = bp.x+dx;
+                            if (0 > bx || bx >= widthB) continue;
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            ap = A[fieldr[j][0]];
+                            ax = ap.x-dx; ay = ap.y-dy;
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            w = alpha[i] * k[p+dx]*k[p+dy] * nnf.similarity(fieldr[j][1]);
+                            if (w > weight[0])
+                            {
+                                pos[0] = B[j].index;
+                                weight[0] = w;
+                            }
+                        }
+                    }
+                    nnf.accumulate(pos, weight, cnt, expected, a);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    ap = A[a];
+                    cnt = 1;
+                    weight[0] = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        ay = ap.y+dy;
+                        if (0 > ay || ay >= heightA) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            ax = ap.x+dx;
+                            if (0 > ax || ax >= widthA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            bp = B[field[i][0]];
+                            bx = bp.x-dx; by = bp.y-dy;
+                            if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            w = alpha[i] * k[p+dx]*k[p+dy] * nnf.similarity(field[i][1]);
+                            if (w > weight[0])
+                            {
+                                pos[0] = B[j].index;
+                                weight[0] = w;
+                            }
+                        }
+                    }
                     nnf.accumulate(pos, weight, cnt, expected, a);
                 }
             }
@@ -991,7 +1114,7 @@ NNF.prototype = {
         // 0 <= distance <= 1
         var nnf = this;
         //return stdMath.pow(0.33373978049163078, stdMath.abs((distance - nnf.mu) / nnf.sigma));
-        return stdMath.exp(-distance / nnf.q);
+        return stdMath.exp(-distance / (2*nnf.q));
         /*var base = [1.0, 0.99, 0.96, 0.83, 0.38, 0.11, 0.02, 0.005, 0.0006, 0.0001, 0];
         var t = distance, j = stdMath.floor(100*t), k = j+1, vj = j<11 ? base[j] : 0, vk = k<11 ? base[k] : 0;
         return vj + (100*t - j) * (vk - vj);*/
@@ -999,40 +1122,46 @@ NNF.prototype = {
     statistics: function(dir) {
         var nnf = this,
             field = -1 === dir ? nnf.fieldr : nnf.field,
-            n, a, d, sum, mu, sigma, q, q2;
+            n, a, d, sum, mu, sigma, q1, q2, q3;
         if (field)
         {
             n = field.length;
-            q2 = 0;
-            q = field[0][1];
-            sum = q;
+            q2 = q3 = 0;
+            q1 = field[0][1];
+            //sum = q1;
             for (a=1; a<n; ++a)
             {
                 d = field[a][1];
-                sum += d;
-                if (d > q)
+                //sum += d;
+                if (d > q1)
                 {
-                    q2 = q;
-                    q = d;
+                    q3 = q2;
+                    q2 = q1;
+                    q1 = d;
                 }
                 else if (d > q2)
                 {
+                    q3 = q2;
                     q2 = d;
                 }
+                else if (d > q3)
+                {
+                    q3 = d;
+                }
             }
-            mu = sum / n;
-            sum = 0.0;
+            //mu = sum / n;
+            /*sum = 0.0;
             for (a=0; a<n; ++a)
             {
                 d = field[a][1] - mu;
                 sum += d * d;
             }
-            sigma = stdMath.sqrt(sum / (n - 1));
+            sigma = stdMath.sqrt(sum / (n - 1));*/
 
-            nnf.mu = mu;
-            nnf.sigma = sigma;
-            nnf.q = (0.75*q2) || 0.5;
-            //nnf.q = field.map(function(f) {return f[1];}).sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))];
+            nnf.mu = 0.0;//mu;
+            nnf.sigma = 1.0;//sigma;
+            nnf.q = (0.75*(q2+q3)/2) || 1e-3;
+            //nnf.q = field.map(function(f) {return f[1];}).sort(function(a, b) {return a-b;})[stdMath.round(0.75*(n-1))] || 1e-3;
         }
         return nnf;
     },
@@ -1171,11 +1300,16 @@ NNF.unserialize = function(dst, src, obj) {
     nnf.fieldr = obj.fieldr;
     return nnf;
 };
-function patchmatch(dst, src, patch, iterations, alpha, radius, ignore_excluded, with_gradients, without_distance_transform, kernel, bidirectional)
+function patchmatch(dst, src, patch,
+                    iterations, alpha, radius,
+                    ignore_excluded, with_gradients,
+                    without_distance_transform, kernel,
+                    bidirectional, layered)
 {
     var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel);
-    nnf.initialize(+1).randomize(2, +1);
-    if (bidirectional) nnf.initialize(-1).randomize(2, -1);
+    nnf.initialize(+1); if (bidirectional) nnf.initialize(-1);
+    if (layered) nnf.onionization();
+    else nnf.randomization(2);
     nnf.optimization(iterations, alpha, radius);
     return nnf;
 }

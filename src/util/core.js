@@ -2913,7 +2913,7 @@ ImageSelection.prototype = {
                 points[length++] = {x:index % width, y:stdMath.floor(index / width), index:index};
             }
         }
-        points.length = length
+        points.length = length;
         return new ImageSelection(
             image, width, height, data.channels,
             {
@@ -2981,6 +2981,85 @@ ImageSelection.prototype = {
             {
             x:0, y:0, width:data.width, height:data.height,
             points:ImageSelection.Complement(self.points(), data.width, data.height, data.channels)
+            }
+        );
+    },
+    erode: function(elem, n) {
+        var self = this, data = self.data(),
+            nn = elem.length, nh = n >>> 1;
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            points:self.points().reduce(function(points, pt) {
+                var dx, dy, i, needed = 0, existing = 0;
+                for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+                {
+                    if (dx > nh) {dx=-nh; ++dy;}
+                    if (elem[i])
+                    {
+                        ++needed;
+                        if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))
+                        {
+                            ++existing;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                if (0 < needed && needed === existing) points.push({x:pt.x, y:pt.y, index:pt.index});
+                return points;
+            }, [])
+            }
+        );
+    },
+    dilate: function(elem, n) {
+        var self = this, data = self.data(),
+            nn = elem.length, nh = n >>> 1,
+            w = data.width, h = data.height,
+            binary = self.bitmap(Array);
+            area = w*h, points = new Array(area),
+            index, length = 0, x, y, dx, dy, xx, yy, i, j;
+        for (x=0,y=0,index=0; index<area; ++index,++x)
+        {
+            if (x >= w) {x=0; ++y;}
+            for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+            {
+                if (dx > nh) {dx=-nh; ++dy;}
+                if (elem[i])
+                {
+                    xx = x+dx; yy = y+dy; j = xx + w*yy;
+                    if ((0 <= xx) && (xx < w) && (0 <= yy) && (yy < h) && binary[j])
+                    {
+                        points[length++] = {x:x, y:y, index:index};
+                        break;
+                    }
+                }
+            }
+        }
+        points.length = length;
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            points:points/*self.points().reduce(function(points, pt) {
+                var dx, dy, i, needed = 0, existing = 0;
+                for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+                {
+                    if (dx > nh) {dx=-nh; ++dy;}
+                    if (elem[i])
+                    {
+                        ++needed;
+                        if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))
+                        {
+                            ++existing;
+                            break;
+                        }
+                    }
+                }
+                if (0 < existing) points.push({x:pt.x, y:pt.y, index:pt.index});
+                return points;
+            }, [])*/
             }
         );
     }
