@@ -2666,7 +2666,7 @@ function complement_points(p, w, h, ch)
 function ImageSelection(image, width, height, channels, selection)
 {
     var self = this,
-        points = null, bbox = null,
+        points = null, bitmap = null, bbox = null,
         rows = null, cols = null,
         x, y, w, h, area = 0, selector = null;
 
@@ -2805,8 +2805,17 @@ function ImageSelection(image, width, height, channels, selection)
         }
         return cols;
     }
+    function get_bitmap()
+    {
+        if (!bitmap)
+        {
+            bitmap = new Array(width*height);
+            (get_points()||[]).forEach(function(pt) {bitmap[pt.index] = 1;});
+        }
+        return bitmap;
+    }
     self.dispose = function() {
-        image = selector = points = rows = cols = null;
+        image = selector = points = rows = cols = bitmap = null;
     };
     self.data = function(newImage) {
         if (arguments.length)
@@ -2844,6 +2853,9 @@ function ImageSelection(image, width, height, channels, selection)
     };
     self.cols = function() {
         return get_cols();
+    };
+    self.bitmap = function() {
+        return get_bitmap();
     };
     self.empty = function() {
         return (0 >= w) || (0 >= h) || (0 === get_points().length);
@@ -2886,16 +2898,10 @@ ImageSelection.prototype = {
     empty: null,
     has: null,
     indexOf: null,
-    bitmap: function(arrayClass) {
-        var self = this, data = self.data(),
-            area = data.width*data.height,
-            bitmap = new (arrayClass||Array)(area);
-        self.points().forEach(function(pt) {bitmap[pt.index] = 1;})
-        return bitmap;
-    },
+    bitmap: null,
     scale: function(image, width, height, scaleX, scaleY) {
         var self = this, data = self.data(), rect = self.rect(),
-            bitmap = interpolate_nearest_data(self.bitmap(Array), data.width, data.height, width, height),
+            bitmap = interpolate_nearest_data(self.bitmap(), data.width, data.height, width, height),
             area = width*height, points = new Array(area), index, length = 0;
         if (null == scaleX)
         {
@@ -2985,8 +2991,13 @@ ImageSelection.prototype = {
         );
     },
     erode: function(elem, n) {
+        if (1 === arguments.length)
+        {
+            n = elem;
+            elem = null;
+        }
         var self = this, data = self.data(),
-            nn = elem.length, nh = n >>> 1;
+            is_default = !elem, nn = n*n, nh = n >>> 1;
         return new ImageSelection(
             data.data, data.width, data.height, data.channels,
             {
@@ -2995,7 +3006,7 @@ ImageSelection.prototype = {
                 for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
                 {
                     if (dx > nh) {dx=-nh; ++dy;}
-                    if (elem[i])
+                    if (is_default || elem[i])
                     {
                         ++needed;
                         if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))
@@ -3015,10 +3026,15 @@ ImageSelection.prototype = {
         );
     },
     dilate: function(elem, n) {
+        if (1 === arguments.length)
+        {
+            n = elem;
+            elem = null;
+        }
         var self = this, data = self.data(),
-            nn = elem.length, nh = n >>> 1,
+            is_default = !elem, nn = n*n, nh = n >>> 1,
             w = data.width, h = data.height,
-            binary = self.bitmap(Array);
+            binary = self.bitmap();
             area = w*h, points = new Array(area),
             index, length = 0, x, y, dx, dy, xx, yy, i, j;
         for (x=0,y=0,index=0; index<area; ++index,++x)
@@ -3027,7 +3043,7 @@ ImageSelection.prototype = {
             for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
             {
                 if (dx > nh) {dx=-nh; ++dy;}
-                if (elem[i])
+                if (is_default || elem[i])
                 {
                     xx = x+dx; yy = y+dy; j = xx + w*yy;
                     if ((0 <= xx) && (xx < w) && (0 <= yy) && (yy < h) && binary[j])
@@ -3047,7 +3063,7 @@ ImageSelection.prototype = {
                 for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
                 {
                     if (dx > nh) {dx=-nh; ++dy;}
-                    if (elem[i])
+                    if (is_default || elem[i])
                     {
                         ++needed;
                         if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))

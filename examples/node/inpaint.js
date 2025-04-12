@@ -65,7 +65,7 @@ function process(target, markup, source, output, params)
     epsilon: 0,
     ignore_excluded: false,
     with_gradients: true,
-    without_distance_transform: false,
+    with_distance_transform: true,
     kernel: 0,
     bidirectional: false,
     evaluate: "block",
@@ -73,7 +73,7 @@ function process(target, markup, source, output, params)
     multiscale: false
     }
 );*/
-/*process(
+process(
     __dirname+'/t067.jpg',
     __dirname+'/m067.png',
     null,
@@ -88,7 +88,7 @@ function process(target, markup, source, output, params)
     epsilon: 0,
     ignore_excluded: false,
     with_gradients: true,
-    without_distance_transform: true,
+    with_distance_transform: false,
     kernel: 0,
     bidirectional: false,
     evaluate: "block",
@@ -96,8 +96,8 @@ function process(target, markup, source, output, params)
     multiscale: true,
     layered: true
     }
-);*/
-process(
+);
+/*process(
     __dirname+'/t009.jpg',
     __dirname+'/m009.png',
     null,
@@ -112,7 +112,7 @@ process(
     epsilon: 0,
     ignore_excluded: false,
     with_gradients: true,
-    without_distance_transform: true,
+    with_distance_transform: false,
     kernel: 0,
     bidirectional: false,
     evaluate: "block",
@@ -120,4 +120,4 @@ process(
     multiscale: true,
     layered: true
     }
-);
+);*/

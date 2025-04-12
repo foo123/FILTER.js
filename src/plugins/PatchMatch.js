@@ -37,7 +37,7 @@ FILTER.Create({
     ,epsilon: 0
     ,ignore_excluded: false
     ,with_gradients: false
-    ,without_distance_transform: false
+    ,with_distance_transform: false
     ,kernel: 0
     ,bidirectional: false
     ,evaluate: "block"
@@ -75,7 +75,7 @@ FILTER.Create({
             if (null != params.epsilon) self.epsilon = +params.epsilon;
             if (null != params.ignore_excluded) self.ignore_excluded = params.ignore_excluded;
             if (null != params.with_gradients) self.with_gradients = params.with_gradients;
-            if (null != params.without_distance_transform) self.without_distance_transform = params.without_distance_transform;
+            if (null != params.with_distance_transform) self.with_distance_transform = params.with_distance_transform;
             if (null != params.kernel) self.kernel = params.kernel;
             if (null != params.bidirectional) self.bidirectional = params.bidirectional;
             if (null != params.evaluate) self.evaluate = params.evaluate;
@@ -101,7 +101,7 @@ FILTER.Create({
         epsilon: self.epsilon,
         ignore_excluded: self.ignore_excluded,
         with_gradients: self.with_gradients,
-        without_distance_transform: self.without_distance_transform,
+        with_distance_transform: self.with_distance_transform,
         kernel: self.kernel,
         bidirectional: self.bidirectional,
         evaluate: self.evaluate,
@@ -125,7 +125,7 @@ FILTER.Create({
         self.epsilon = params.epsilon;
         self.ignore_excluded = params.ignore_excluded;
         self.with_gradients = params.with_gradients;
-        self.without_distance_transform = params.without_distance_transform;
+        self.with_distance_transform = params.with_distance_transform;
         self.kernel = params.kernel;
         self.bidirectional = params.bidirectional;
         self.evaluate = params.evaluate;
@@ -174,7 +174,7 @@ FILTER.Create({
             radius = self.radius,
             ignore_excluded = self.ignore_excluded,
             with_gradients = self.with_gradients,
-            without_distance_transform = self.without_distance_transform,
+            with_distance_transform = self.with_distance_transform,
             kernel = self.kernel,
             multiscale = self.multiscale,
             layered = self.layered,
@@ -221,7 +221,7 @@ FILTER.Create({
                                 radius,
                                 ignore_excluded,
                                 with_gradients,
-                                without_distance_transform,
+                                with_distance_transform,
                                 kernel,
                                 bidirectional,
                                 layered
@@ -279,7 +279,7 @@ FILTER.Create({
                         radius,
                         ignore_excluded,
                         with_gradients,
-                        without_distance_transform,
+                        with_distance_transform,
                         kernel,
                         bidirectional,
                         layered
@@ -318,7 +318,7 @@ FILTER.Create({
     }
 });
 
-function NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel)
+function NNF(dst, src, patch, ignore_excluded, with_gradients, with_distance_transform, kernel)
 {
     var self = this, other;
     if (dst instanceof NNF)
@@ -329,7 +329,7 @@ function NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_
         self.patch = other.patch;
         self._ignore_excluded = other._ignore_excluded;
         self._with_gradients = other._with_gradients;
-        self._without_distance_transform = other._without_distance_transform;
+        self._with_distance_transform = other._with_distance_transform;
         self._kernel = other._kernel;
         self.field = other.field ? other.field.map(function(f) {return f.slice();}) : other.field;
         self.fieldr = other.fieldr ? other.fieldr.map(function(f) {return f.slice();}) : other.fieldr;
@@ -341,7 +341,7 @@ function NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_
         self.patch = patch;
         self._ignore_excluded = !!ignore_excluded;
         self._with_gradients = !!with_gradients;
-        self._without_distance_transform = !!without_distance_transform;
+        self._with_distance_transform = !!with_distance_transform;
         self._kernel = kernel;
         self.field = self.fieldr = null;
     }
@@ -367,7 +367,7 @@ NNF.prototype = {
     patch: 5,
     _ignore_excluded: false,
     _with_gradients: false,
-    _without_distance_transform: false,
+    _with_distance_transform: false,
     _kernel: 0,
     a: null,
     k: null,
@@ -398,7 +398,7 @@ NNF.prototype = {
     scale: function(dst, src, scaleX, scaleY) {
         if (null == scaleY) scaleY = scaleX;
         var self = this, A, B, AA, BB,
-            scaled = new NNF(dst, src, self.patch, self._ignore_excluded, self._with_gradients, self._without_distance_transform, self._kernel);
+            scaled = new NNF(dst, src, self.patch, self._ignore_excluded, self._with_gradients, self._with_distance_transform, self._kernel);
         if (self.field ) scaled.initialize(+1).randomize(1, +1);
         if (self.fieldr) scaled.initialize(-1).randomize(1, -1);
         if (self.field && scaled.field)
@@ -488,30 +488,21 @@ NNF.prototype = {
             field = -1 === dir ? self.fieldr : self.field,
             AA = -1 === dir ? self.src : self.dst,
             BB = -1 === dir ? self.dst : self.src,
-            AAp, AAb, p, onion;
-        AAp = AA.erode([
-        1,1,1,
-        1,1,1,
-        1,1,1
-        ], 3);
-        if (!AAp.points().length) return self.randomize(2, dir);
+            AAc = AA, AAp = AAc.erode(3), AAb, p, layer;
+        if (!AAp.points().length) return self.randomize(1, dir);
         while (AAp.points().length)
         {
 
-            AAb = AA.subtract(AAp);
-            onion = (new NNF(AAb, BB, self.patch, self._ignore_excluded, self._with_gradients, true, 0)).initialize(+1).onionize(+1).optimize(10, 0.5, 50, +1);
+            AAb = AAc.subtract(AAp);
+            layer = (new NNF(AAb, BB, self.patch, self._ignore_excluded, self._with_gradients, true, 0)).initialize(+1).randomize(1,+1).optimize(10, 0.5, 20, +1);
             p = AAb.points();
-            onion.field.forEach(function(f, a) {
-                field[AAb.indexOf(p[a].x, p[a].y)] = [f[0], f[1]];
+            layer.field.forEach(function(f, a) {
+                field[AA.indexOf(p[a].x, p[a].y)] = [f[0], f[1]];
             });
-            onion.dispose();
+            layer.dispose();
             AAb.dispose();
-            AA = AAp;
-            AAp = AA.erode([
-            1,1,1,
-            1,1,1,
-            1,1,1
-            ], 3);
+            AAc = AAp;
+            AAp = AAc.erode(3);
         }
         return self;
     },
@@ -1195,7 +1186,7 @@ NNF.prototype = {
             }
         }
 
-        if (nnf._without_distance_transform)
+        if (!nnf._with_distance_transform)
         {
             for (i=0; i<n; ++i)
             {
@@ -1280,7 +1271,7 @@ NNF.serialize = function(nnf) {
     patch: nnf.patch,
     _ignore_excluded: nnf._ignore_excluded,
     _with_gradients: nnf._with_gradients,
-    _without_distance_transform: nnf._without_distance_transform,
+    _with_distance_transform: nnf._with_distance_transform,
     _kernel: nnf._kernel,
     field: nnf.field,
     fieldr: nnf.fieldr
@@ -1293,7 +1284,7 @@ NNF.unserialize = function(dst, src, obj) {
     obj.patch,
     obj._ignore_excluded,
     obj._with_gradients,
-    obj._without_distance_transform,
+    obj._with_distance_transform,
     obj._kernel
     );
     nnf.field = obj.field;
@@ -1303,10 +1294,10 @@ NNF.unserialize = function(dst, src, obj) {
 function patchmatch(dst, src, patch,
                     iterations, alpha, radius,
                     ignore_excluded, with_gradients,
-                    without_distance_transform, kernel,
+                    with_distance_transform, kernel,
                     bidirectional, layered)
 {
-    var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, without_distance_transform, kernel);
+    var nnf = new patchmatch.NNF(dst, src, patch, ignore_excluded, with_gradients, with_distance_transform, kernel);
     nnf.initialize(+1); if (bidirectional) nnf.initialize(-1);
     if (layered) nnf.onionization();
     else nnf.randomization(2);
