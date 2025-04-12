@@ -2816,6 +2816,7 @@ function ImageSelection(image, width, height, channels, selection)
     }
     self.dispose = function() {
         image = selector = points = rows = cols = bitmap = null;
+        self.attached = null;
     };
     self.data = function(newImage) {
         if (arguments.length)
@@ -2885,6 +2886,7 @@ function ImageSelection(image, width, height, channels, selection)
         }
         return -1;
     };
+    self.attached = {};
 }
 ImageSelection.prototype = {
     constructor: ImageSelection,
@@ -2899,6 +2901,7 @@ ImageSelection.prototype = {
     has: null,
     indexOf: null,
     bitmap: null,
+    attached: null,
     scale: function(image, width, height, scaleX, scaleY) {
         var self = this, data = self.data(), rect = self.rect(),
             bitmap = interpolate_nearest_data(self.bitmap(), data.width, data.height, width, height),
