@@ -205,8 +205,8 @@ FILTER.Create({
                 params = {evaluate:self.evaluate, error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(2*patch, false);
-                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(2*patch, true);
+                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(1.4*patch, false);
+                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(1.4*patch, false);
                     if (with_texture)
                     {
                         dst.levels[0].sel.attached.tex = NNF.computeTexture(dst.levels[0].sel, patch);
@@ -413,6 +413,8 @@ NNF.prototype = {
     scale: function(dst, src, scaleX, scaleY) {
         if (null == scaleY) scaleY = scaleX;
         var self = this, A, B, AA, BB,
+            dataA, dataAA, dataB, dataBB,
+            imgA, imgB, imgAA, imgBB,
             scaled = new NNF(dst, src, self.patch, self._ignore_excluded, self._with_gradients, self._with_distance_transform, self._kernel);
         if (self.field ) scaled.initialize(+1).randomize(1, +1);
         if (self.fieldr) scaled.initialize(-1).randomize(1, -1);
@@ -422,18 +424,34 @@ NNF.prototype = {
             B = self.src.points();
             AA = scaled.dst.points();
             BB = scaled.src.points();
+            dataA = self.dst.data();
+            dataAA = scaled.dst.data();
+            imgA = dataA.data;
+            imgAA = dataAA.data;
             scaled.field.forEach(function(f, aa) {
-                var a, b, bb;
+                var a, b, bb, indexA, indexAA;
                 a = self.dst.indexOf(stdMath.floor(AA[aa].x/scaleX), stdMath.floor(AA[aa].y/scaleY));
                 if (-1 !== a)
                 {
                     b = self.field[a][0];
                     bb = scaled.src.indexOf(stdMath.floor(B[b].x*scaleX), stdMath.floor(B[b].y*scaleY));
                     if (-1 !== bb) scaled.field[aa] = [bb, scaled.distance(aa, bb, +1)];
-                    if (self.dst.attached.tex && scaled.dst.attached.tex)
+                    /*if (self.dst.attached.tex && scaled.dst.attached.tex)
                     {
                         scaled.dst.attached.tex[aa] = {gx:self.dst.attached.tex[a].gx, gy:self.dst.attached.tex[a].gy};
-                    }
+                        indexAA = AA[aa].index; indexA = A[a].index;
+                        if (4 === dataA.channels)
+                        {
+                            indexAA <<= 2; indexA <<= 2;
+                            imgAA[indexAA + 0] = imgA[indexA + 0];
+                            imgAA[indexAA + 1] = imgA[indexA + 1];
+                            imgAA[indexAA + 2] = imgA[indexA + 2];
+                        }
+                        else
+                        {
+                            imgAA[indexAA] = imgA[indexA];
+                        }
+                    }*/
                 }
             });
             if (scaled.fieldr) scaled.fieldr.forEach(function(f, bb) {
@@ -444,10 +462,6 @@ NNF.prototype = {
                     a = self.fieldr[b][0];
                     aa = scaled.dst.indexOf(stdMath.floor(A[a].x*scaleX), stdMath.floor(A[a].y*scaleY));
                     if (-1 !== aa) scaled.fieldr[bb] = [aa, scaled.distance(bb, aa, -1)];
-                    if (self.src.attached.tex && scaled.src.attached.tex)
-                    {
-                        scaled.src.attached.tex[bb] = {gx:self.src.attached.tex[b].gx, gy:self.src.attached.tex[b].gy};
-                    }
                 }
             });
         }
@@ -514,7 +528,8 @@ NNF.prototype = {
             texA = AA.attached.tex,
             AAc = AA, AAp = AAc.erode(3),
             AAb, pt, layer;
-        if (AAp.empty()) return self.randomize(1, dir);
+        // onionize only forward, else src will become tainted
+        if ((-1 === dir) || AAp.empty()) return self.randomize(1, dir);
         while (!AAp.empty())
         {
             if (AAc.attached.tex) AAp.attached.tex = NNF.transferTexture(AAc.attached.tex, AAc, AAp);
@@ -983,7 +998,8 @@ NNF.prototype = {
             dataA = -1 === dir ? self.srcData : self.dstData,
             dataB = -1 === dir ? self.dstData : self.srcData,
             patch = self.patch,
-            factor, p = patch >>> 1,
+            factor, factorg,
+            p = patch >>> 1,
             ssd = 0,
             completed = 0,
             excluded = 0,
@@ -1008,7 +1024,8 @@ NNF.prototype = {
 
         if (4 === dataA.channels)
         {
-            factor = with_gradients ? (has_textures ? 1950750/*10*3*255*255*/ : /*325125*//*5*255*255*/ 585225/*3*3*255*255*/) : 195075/*3*255*255*/;
+            factor = 195075/*3*255*255*/;
+            factorg = with_gradients ? 3 : 1;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
@@ -1032,7 +1049,7 @@ NNF.prototype = {
                     dr = imgA[i + 0] - imgB[j + 0];
                     dg = imgA[i + 1] - imgB[j + 1];
                     db = imgA[i + 2] - imgB[j + 2];
-                    ssd += (dr * dr + dg * dg + db * db) / factor;
+                    ssd += (dr * dr + dg * dg + db * db) / (factor*factorg);
 
                     if (with_gradients)
                     {
@@ -1042,14 +1059,14 @@ NNF.prototype = {
                             tb = BB.indexOf(xb, yb);
                             if (-1 === ta || -1 === tb)
                             {
-                                ssd += 9/10;
+                                ssd += 2/3;
                             }
                             else
                             {
 
                                 dgx = texA[ta].gx - texB[tb].gx;
                                 dgy = texA[ta].gy - texB[tb].gy;
-                                ssd += 9*(dgx * dgx + dgy * dgy)/20;
+                                ssd += (2/3)*(1/2)*(dgx * dgx + dgy * dgy);
                             }
                         }
                         else
@@ -1062,7 +1079,7 @@ NNF.prototype = {
                                 gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
                                 // intensity only
                                 //gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
-                                //gag = gab = 0;
+                                //gag = gab = gar;
 
                                 i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
                                 gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
@@ -1070,12 +1087,12 @@ NNF.prototype = {
                                 gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
                                 // intensity only
                                 //gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
-                                //gbg = gbb = 0;
+                                //gbg = gbb = gbr;
 
                                 dr = gar - gbr;
                                 dg = gag - gbg;
                                 db = gab - gbb;
-                                ssd += (dr * dr + dg * dg + db * db) / factor;
+                                ssd += (2/3)*(1/2)*(dr * dr + dg * dg + db * db) / factor;
                             }
                             else
                             {
@@ -1090,7 +1107,7 @@ NNF.prototype = {
                                 gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
                                 // intensity only
                                 //gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
-                                //gag = gab = 0;
+                                //gag = gab = gar;
 
                                 i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
                                 gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
@@ -1098,12 +1115,12 @@ NNF.prototype = {
                                 gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
                                 // intensity only
                                 //gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
-                                //gbg = gbb = 0;
+                                //gbg = gbb = gbr;
 
                                 dr = gar - gbr;
                                 dg = gag - gbg;
                                 db = gab - gbb;
-                                ssd += (dr * dr + dg * dg + db * db) / factor;
+                                ssd += (2/3)*(1/2)*(dr * dr + dg * dg + db * db) / factor;
                             }
                             else
                             {
@@ -1117,7 +1134,8 @@ NNF.prototype = {
         }
         else
         {
-            factor = with_gradients ? (has_textures ? 650250/*10*255*255*/ : 195075/*3*255*255*/) : 65025/*255*255*/;
+            factor = 65025/*255*255*/;
+            factorg = with_gradients ? 3 : 1;
             for (dy=-p; dy<=p; ++dy)
             {
                 ya = ay+dy; yb = by+dy;
@@ -1139,7 +1157,7 @@ NNF.prototype = {
                     }
                     i = (xa + yaw); j = (xb + ybw);
                     dr = imgA[i] - imgB[j];
-                    ssd += (dr * dr) / factor;
+                    ssd += (dr * dr) / (factor*factorg);
 
                     if (with_gradients)
                     {
@@ -1149,14 +1167,14 @@ NNF.prototype = {
                             tb = BB.indexOf(xb, yb);
                             if (-1 === ta || -1 === tb)
                             {
-                                ssd += 9/10;
+                                ssd += 2/3;
                             }
                             else
                             {
 
                                 dgx = texA[ta].gx - texB[tb].gx;
                                 dgy = texA[ta].gy - texB[tb].gy;
-                                ssd += 9*(dgx * dgx + dgy * dgy)/20;
+                                ssd += (2/3)*(1/2)*(dgx * dgx + dgy * dgy);
                             }
                         }
                         else
@@ -1170,7 +1188,7 @@ NNF.prototype = {
                                 gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
 
                                 dr = gar - gbr;
-                                ssd += (dr * dr) / factor;
+                                ssd += (2/3)*(1/2)*(dr * dr) / factor;
                             }
                             else
                             {
@@ -1186,7 +1204,7 @@ NNF.prototype = {
                                 gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
 
                                 dr = gar - gbr;
-                                ssd += (dr * dr) / factor;
+                                ssd += (2/3)*(1/2)*(dr * dr) / factor;
                             }
                             else
                             {

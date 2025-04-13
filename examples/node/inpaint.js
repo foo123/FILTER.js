@@ -49,31 +49,33 @@ function process(target, markup, source, output, params)
         });
     });
 }
+const run = 0, notrun = 1;
 
-/*process(
+notrun || process(
     __dirname+'/che.jpg',
     __dirname+'/che_mask.png',
     __dirname+'/che_donor.png',
     __dirname+'/che_inpainted.png',
     {
-    patch: 101,
-    iterations: 6,
+    patch: 11,
+    iterations: 9,
     alpha: 0.5,
-    radius: 50,
+    radius: 20,
     threshold: 1/(255*255),
-    delta: 1/10000,
+    delta: 1/100,
     epsilon: 0,
     ignore_excluded: false,
-    with_gradients: true,
-    with_distance_transform: true,
+    with_gradients: false,
+    with_distance_transform: false,
     kernel: 0,
     bidirectional: false,
     evaluate: "block",
-    repeat: 5,
-    multiscale: false
+    repeat: 2,
+    multiscale: true,
+    layered: true
     }
-);*/
-process(
+);
+notrun || process(
     __dirname+'/t067.jpg',
     __dirname+'/m067.png',
     null,
@@ -88,8 +90,6 @@ process(
     epsilon: 0,
     ignore_excluded: false,
     with_gradients: true,
-    with_distance_transform: false,
-    kernel: 0,
     bidirectional: false,
     evaluate: "block",
     repeat: 10,
@@ -97,27 +97,26 @@ process(
     layered: true
     }
 );
-/*process(
+run || process(
     __dirname+'/t009.jpg',
     __dirname+'/m009.png',
     null,
     __dirname+'/r009.png',
     {
-    patch: 11,
+    patch: 21,
     iterations: 10,
     alpha: 0.5,
     radius: 50,
     threshold: 1/(255*255),
-    delta: 1/100,
+    delta: 1/400,
     epsilon: 0,
     ignore_excluded: false,
-    with_gradients: true,
-    with_distance_transform: false,
-    kernel: 0,
+    with_gradients: false,
+    with_texture: true,
     bidirectional: false,
     evaluate: "block",
     repeat: 10,
     multiscale: true,
     layered: true
     }
-);*/
+);
