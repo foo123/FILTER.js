@@ -2667,7 +2667,7 @@ function ImageSelection(image, width, height, channels, selection)
 {
     var self = this,
         points = null, bitmap = null, bbox = null,
-        rows = null, cols = null,
+        rows = null, cols = null, indices = null,
         x, y, w, h, area = 0, selector = null;
 
     if (null == channels) channels = 4;
@@ -2676,8 +2676,8 @@ function ImageSelection(image, width, height, channels, selection)
     if (!selection) selection = {x:0, y:0, width:width, height:height};
     x = null == selection.x ? 0 : ((+selection.x)||0);
     y = null == selection.y ? 0 : ((+selection.y)||0);
-    w = null == selection.width ? width : stdMath.max(0, (+selection.width)||0);
-    h = null == selection.height ? height : stdMath.max(0, (+selection.height)||0);
+    w = null == selection.width ? width : stdMath.max((+selection.width)||0, 0);
+    h = null == selection.height ? height : stdMath.max((+selection.height)||0, 0);
     area = w*h;
 
     if (null != selection.selector) selector = selection.selector;
@@ -2773,6 +2773,19 @@ function ImageSelection(image, width, height, channels, selection)
         }
         return points;
     }
+    function get_indices()
+    {
+        if (!indices)
+        {
+            get_points();
+            indices = {};
+            for (var i=0,n=points.length; i<n; ++i)
+            {
+                indices[points[i].index] = i;
+            }
+        }
+        return indices;
+    }
     function get_rows()
     {
         if (!rows)
@@ -2815,7 +2828,7 @@ function ImageSelection(image, width, height, channels, selection)
         return bitmap;
     }
     self.dispose = function() {
-        image = selector = points = rows = cols = bitmap = null;
+        image = selector = points = rows = cols = indices = bitmap = null;
         self.attached = null;
     };
     self.data = function(newImage) {
@@ -2849,25 +2862,45 @@ function ImageSelection(image, width, height, channels, selection)
     self.points = function() {
         return get_points();
     };
+    self.indices = function() {
+        return get_indices();
+    };
     self.rows = function() {
         return get_rows();
     };
     self.cols = function() {
         return get_cols();
     };
-    self.bitmap = function() {
-        return get_bitmap();
+    self.bitmap = function(bmp) {
+        if (arguments.length)
+        {
+            bitmap = bmp;
+            points = new Array(bitmap.length);
+            for (var area=bitmap.length,index=0,length=0; index<area; ++index)
+            {
+                if (bitmap[index])
+                {
+                    points[length++] = {x:index % width, y:stdMath.floor(index / width), index:index};
+                }
+            }
+            points.length = length;
+            return self;
+        }
+        else
+        {
+            return get_bitmap();
+        }
     };
     self.empty = function() {
         return (0 >= w) || (0 >= h) || (0 === get_points().length);
     };
     self.has = function(x, y) {
-        if (null == y) return !!get_cols()[x];
-        else if (null == x) return !!get_rows()[y];
-        return !!(get_rows()[y] && get_cols()[x]);
+        if (null == y) return !!(get_cols()[x]);
+        else if (null == x) return !!(get_rows()[y]);
+        return -1 !== self.indexOf(x, y);
     };
     self.indexOf = function(x, y) {
-        var r, c, i, j, n, m, ri, cj;
+        /*var r, c, i, j, n, m, ri, cj;
         r = get_rows()[y];
         if (!r) return -1;
         c = get_cols()[x];
@@ -2884,7 +2917,9 @@ function ImageSelection(image, width, height, channels, selection)
             else if (ri > cj) ++j;
             else return ri;
         }
-        return -1;
+        return -1;*/
+        var i = (0 <= x && x < width && 0 <= y && y < height) ? (get_indices()[(y*width + x)]) : null;
+        return null == i ? -1 : i;
     };
     self.attached = {};
 }
@@ -2895,6 +2930,7 @@ ImageSelection.prototype = {
     rect: null,
     bbox: null,
     points: null,
+    indices: null,
     rows: null,
     cols: null,
     empty: null,
@@ -2903,9 +2939,7 @@ ImageSelection.prototype = {
     bitmap: null,
     attached: null,
     scale: function(image, width, height, scaleX, scaleY) {
-        var self = this, data = self.data(), rect = self.rect(),
-            bitmap = interpolate_nearest_data(self.bitmap(), data.width, data.height, width, height),
-            area = width*height, points = new Array(area), index, length = 0;
+        var self = this, data = self.data(), rect = self.rect();
         if (null == scaleX)
         {
             scaleX = width/data.width;
@@ -2915,22 +2949,13 @@ ImageSelection.prototype = {
         {
             scaleY = scaleX;
         }
-        for (index=0; index<area; ++index)
-        {
-            if (bitmap[index])
-            {
-                points[length++] = {x:index % width, y:stdMath.floor(index / width), index:index};
-            }
-        }
-        points.length = length;
-        return new ImageSelection(
+        return (new ImageSelection(
             image, width, height, data.channels,
             {
             x:stdMath.floor(scaleX*rect.x), y:stdMath.floor(scaleY*rect.y),
-            width:stdMath.floor(scaleX*rect.width), height:stdMath.floor(scaleY*rect.height),
-            points:points
+            width:stdMath.floor(scaleX*rect.width), height:stdMath.floor(scaleY*rect.height)
             }
-        );
+        )).bitmap(interpolate_nearest_data(self.bitmap(), data.width, data.height, width, height));
     },
     join: function(other) {
         var self = this;
@@ -3037,7 +3062,7 @@ ImageSelection.prototype = {
         var self = this, data = self.data(),
             is_default = !elem, nn = n*n, nh = n >>> 1,
             w = data.width, h = data.height,
-            binary = self.bitmap();
+            binary = self.bitmap(),
             area = w*h, points = new Array(area),
             index, length = 0, x, y, dx, dy, xx, yy, i, j;
         for (x=0,y=0,index=0; index<area; ++index,++x)
