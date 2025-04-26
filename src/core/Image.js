@@ -123,7 +123,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     ,select: function(x1, y1, x2, y2, absolute) {
-        var self = this, argslen = arguments.length;
+        var self = this, argslen = arguments.length, sel;
         if (false === x1)
         {
             // deselect
@@ -131,6 +131,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iDataSel = null;
             self.oDataSel = null;
             self._refresh &= CLEAR_SEL;
+        }
+        else if (x1 instanceof FILTER.Util.Image.Selection)
+        {
+            // select from selection
+            sel = x1;
+            self.selection = [
+                0, 0,
+                1, 1,
+                1, sel
+            ];
+            self._refresh |= SEL;
         }
         else
         {
@@ -146,14 +157,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 0 > y1 ? 0 : y1,
                 0 > x2 ? 0 : x2,
                 0 > y2 ? 0 : y2,
-                0
+                0, null
             ] : [
                 // clamp
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
                 0 > y2 ? 0 : (1 < y2 ? 1 : y2),
-                1
+                1, null
             ];
             self._refresh |= SEL;
         }
@@ -520,24 +531,53 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setSelectedData: function(a) {
         var self = this, sel = self.selection,
             w = self.width, h = self.height,
-            xs, ys, ws, hs, xf, yf;
+            xs, ys, ws, hs, xf, yf, data, bb, i, x, y, yw;
         if (sel)
         {
-            if (sel[4])
+            if (sel[5])
             {
-                xf = w - 1;
-                yf = h - 1;
+                bb = sel[5].bbox();
+                xs = bb.from.x;
+                ys = bb.from.y;
+                ws = bb.width;
+                hs = bb.height;
+                data = self.oCanvas.getContext('2d',self.ctxOpts).getImageData(DPR*xs, DPR*ys, DPR*ws, DPR*hs);
+                a = FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs);
+                for (y=0,yw=0; y<hs; ++y,yw+=ws)
+                {
+                    for (x=0; x<ws; ++x)
+                    {
+                        if (-1 !== sel[5].indexOf(xs+x, ys+y))
+                        {
+                            // is part of selection
+                            i = (x + yw) << 2;
+                            data.data[i + 0] = a.data[i + 0];
+                            data.data[i + 1] = a.data[i + 1];
+                            data.data[i + 2] = a.data[i + 2];
+                            data.data[i + 3] = a.data[i + 3];
+                        }
+                    }
+                }
+                self.oCanvas.getContext('2d',self.ctxOpts).putImageData(data, DPR*xs, DPR*ys);
             }
             else
             {
-                xf = 1;
-                yf = 1;
+                if (sel[4])
+                {
+                    xf = w - 1;
+                    yf = h - 1;
+                }
+                else
+                {
+                    xf = 1;
+                    yf = 1;
+                }
+                xs = Floor(sel[0]*xf);
+                ys = Floor(sel[1]*yf);
+                ws = Floor(sel[2]*xf)-xs+1;
+                hs = Floor(sel[3]*yf)-ys+1;
+                self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
             }
-            xs = Floor(sel[0]*xf);
-            ys = Floor(sel[1]*yf);
-            ws = Floor(sel[2]*xf)-xs+1;
-            hs = Floor(sel[3]*yf)-ys+1;
-            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
         }
         else
         {
@@ -731,12 +771,12 @@ function set_dimensions(scope, w, h, what)
         var sel = scope.selection,
             ow = scope.width-1,
             oh = scope.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1;
+            xs = sel[5] ? sel[5].bbox().from.x : sel[0],
+            ys = sel[5] ? sel[5].bbox().from.y : sel[1],
+            xf = sel[5] ? sel[5].bbox().to.x : sel[2],
+            yf = sel[5] ? sel[5].bbox().to.y : sel[3],
+            fx = !sel[5] && sel[4] ? ow : 1,
+            fy = !sel[5] && sel[4] ? oh : 1;
         xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
         xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
         ws = xf-xs+DPR; hs = yf-ys+DPR;
@@ -796,12 +836,12 @@ function refresh_selected_data(scope, what)
         var sel = scope.selection,
             ow = scope.width-1,
             oh = scope.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1,
+            xs = sel[5] ? sel[5].bbox().from.x : sel[0],
+            ys = sel[5] ? sel[5].bbox().from.y : sel[1],
+            xf = sel[5] ? sel[5].bbox().to.x : sel[2],
+            yf = sel[5] ? sel[5].bbox().to.y : sel[3],
+            fx = !sel[5] && sel[4] ? ow : 1,
+            fy = !sel[5] && sel[4] ? oh : 1,
             ws, hs;
         xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
         xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
