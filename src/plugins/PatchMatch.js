@@ -39,7 +39,7 @@ FILTER.Create({
     ,with_texture: false
     ,needs_dilate: false
     ,bidirectional: false
-    ,reconstruct: "best"
+    ,reconstruct: null
     ,repeat: 1
     ,multiscale: false
     ,layered: false
@@ -49,6 +49,7 @@ FILTER.Create({
 
     ,init: function() {
         var self = this;
+        self.reconstruct = ["block", "best"];
     }
 
     // support worker serialize/unserialize interface
@@ -101,7 +102,7 @@ FILTER.Create({
         with_texture: self.with_texture,
         needs_dilate: self.needs_dilate,
         bidirectional: self.bidirectional,
-        reconstruct: self.reconstruct,
+        reconstruct: toJSON(self.reconstruct),
         repeat: self.repeat,
         multiscale: self.multiscale,
         layered: self.layered,
@@ -124,7 +125,7 @@ FILTER.Create({
         self.with_texture = params.with_texture;
         self.needs_dilate = params.needs_dilate;
         self.bidirectional = params.bidirectional;
-        self.reconstruct = params.reconstruct;
+        self.reconstruct = fromJSON(params.reconstruct);
         self.repeat = params.repeat;
         self.multiscale = params.multiscale;
         self.layered = params.layered;
@@ -192,7 +193,7 @@ FILTER.Create({
             {
                 im_src = source[0]; w_src = source[1]; h_src = source[2];
                 if (im_src === im_dst) im_src = copy(im_src);
-                params = {reconstruct:self.reconstruct, error:0, delta:0, threshold:self.threshold || 0};
+                params = {reconstruct:self.reconstruct[0], error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
                     dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(1.4*patch, false);
@@ -260,7 +261,8 @@ FILTER.Create({
                     }
                     else
                     {
-                        if (apply) nnf.apply(params);
+                        params.reconstruct = self.reconstruct[1];
+                        nnf.apply(params);
                         meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
@@ -305,7 +307,8 @@ FILTER.Create({
                     }
                     else
                     {
-                        if (apply) nnf.apply(params);
+                        params.reconstruct = self.reconstruct[1];
+                        nnf.apply(params);
                         meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
@@ -555,7 +558,7 @@ ANNF.prototype = {
                 }
             }
 
-            self._optimize(field, AA, BB, occVolPatchMatch, occVolDilate, rectA, rectB, 10, 0.5, stdMath.min(rectB.width, rectB.height), dir);
+            self._optimize(field, AA, BB, occVolPatchMatch, occVolDilate, rectA, rectB, 10, 0.5, stdMath.max(rectB.width, rectB.height), dir);
 
             occVolBorder = occVolIter.slice();
             for (i=0,l=occVolBorder.length; i<l; ++i)
@@ -672,28 +675,6 @@ ANNF.prototype = {
         self._optimize(field, AA, BB, null, null, rectA, rectB, iterations, alpha, radius, dir);
         return self;
     },
-    apply: function(params) {
-        if (!this.field) return this;
-        var self = this,
-            field = self.field,
-            fieldr = self.fieldr,
-            size = self.patch*self.patch,
-            output, dataA = self.dstData,
-            pos = new A32U(size),
-            weight = new A32F(size),
-            op = params ? String(params.reconstruct).toLowerCase() : "best";
-
-        if (-1 === ["center","best","block"].indexOf(op)) op = "best";
-
-        output = new A32F(field.length * (4 === dataA.channels ? 6 : 4));
-        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-
-        if (fieldr) self.expectation(op, pos, weight, output, -1, null, null, true);
-        if (field ) self.expectation(op, pos, weight, output, +1, null, null, true);
-        self.maximization(output, (params ? params.threshold : 0)||0, params);
-
-        return self;
-    },
     initialization: function() {
         var self = this;
         if (self.field ) self.initialize(+1);
@@ -737,6 +718,95 @@ ANNF.prototype = {
             ap, bp, dx, dy,
             ax, ay, bx, by,
             cnt, p = nnf.patch >>> 1;
+
+        function adaptive_sigma(val, n, quantile)
+        {
+            //return Array.prototype.sort.call(val.slice(n), function(a, b) {return a-b;})[stdMath.round(quantile*(n-1))];
+            var i, v, q2 = 0, q3 = 0, q1 = val[0];
+            for (i=1; i<n; ++i)
+            {
+                v = val[i];
+                if (v > q1)
+                {
+                    q3 = q2;
+                    q2 = q1;
+                    q1 = v;
+                }
+                else if (v > q2)
+                {
+                    q3 = q2;
+                    q2 = v;
+                }
+                else if (v > q3)
+                {
+                    q3 = v;
+                }
+            }
+            return quantile*stdMath.min(1.0, 2 > n ? q1 : ((q2+q3)/2));
+        }
+        function accumulate(nnf, pos, weight, cnt, output, outpos)
+        {
+            if (0 < cnt)
+            {
+                var B = nnf.src.points(),
+                    dataB = nnf.srcData,
+                    imgB = dataB.data,
+                    texB = nnf.src.attached.tex,
+                    r = 0.0, g = 0.0,
+                    b = 0.0, sum = 0.0,
+                    gx = 0.0, gy = 0.0,
+                    i, bi, index, w,
+                    sigma2 = adaptive_sigma(weight, cnt, 0.75) || 1e-6;
+
+                if (4 === dataB.channels)
+                {
+                    for (i=0; i<cnt; ++i)
+                    {
+                        w = stdMath.exp(-weight[i] / (2*sigma2));
+                        bi = pos[i];
+                        index = B[bi].index << 2;
+                        r += imgB[index + 0] * w;
+                        g += imgB[index + 1] * w;
+                        b += imgB[index + 2] * w;
+                        if (texB)
+                        {
+                            gx += texB[bi].gx * w;
+                            gy += texB[bi].gy * w;
+                        }
+                        sum += w;
+                    }
+                    outpos *= 6;
+                    output[outpos + 0] += r;
+                    output[outpos + 1] += g;
+                    output[outpos + 2] += b;
+                    output[outpos + 3] += gx;
+                    output[outpos + 4] += gy;
+                    output[outpos + 5] += sum;
+                }
+                else
+                {
+                    for (i=0; i<cnt; ++i)
+                    {
+                        w = stdMath.exp(-weight[i] / (2*sigma2));
+                        bi = pos[i];
+                        index = B[bi].index;
+                        r += imgB[index] * w;
+                        if (texB)
+                        {
+                            gx += texB[bi].gx * w;
+                            gy += texB[bi].gy * w;
+                        }
+                        sum += w;
+                    }
+                    outpos *= 4;
+                    output[outpos + 0] += r;
+                    output[outpos + 1] += gx;
+                    output[outpos + 2] += gy;
+                    output[outpos + 3] += sum;
+                }
+            }
+        }
+
         if ("center" === op)
         {
             if (-1 === dir)
@@ -751,7 +821,7 @@ ANNF.prototype = {
                     pos[0] = b;
                     weight[0] = d;
                     cnt = 1;
-                    nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
             else
@@ -766,7 +836,7 @@ ANNF.prototype = {
                     pos[0] = b;
                     weight[0] = d;
                     cnt = 1;
-                    nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
         }
@@ -811,7 +881,7 @@ ANNF.prototype = {
                             }
                         }
                     }
-                    if (0 < cnt) nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
             else
@@ -853,7 +923,7 @@ ANNF.prototype = {
                             }
                         }
                     }
-                    if (0 < cnt) nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
         }
@@ -893,7 +963,7 @@ ANNF.prototype = {
                             }
                         }
                     }
-                    if (0 < cnt) nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
             else
@@ -930,7 +1000,7 @@ ANNF.prototype = {
                             }
                         }
                     }
-                    if (0 < cnt) nnf.accumulate(pos, weight, cnt, expected, a);
+                    accumulate(nnf, pos, weight, cnt, expected, a);
                 }
             }
         }
@@ -1010,65 +1080,27 @@ ANNF.prototype = {
         }
         return nnf;
     },
-    accumulate: function(pos, weight, cnt, output, outpos) {
-        var nnf = this,
-            B = nnf.src.points(),
-            dataB = nnf.srcData,
-            imgB = dataB.data,
-            texB = nnf.src.attached.tex,
-            r = 0.0, g = 0.0,
-            b = 0.0, sum = 0.0,
-            gx = 0.0, gy = 0.0,
-            i, bi, index, w,
-            sigma2 = adaptive_sigma(weight, cnt, 0.75) || 1e-6;
+    apply: function(params) {
+        if (!this.field) return this;
+        var self = this,
+            field = self.field,
+            fieldr = self.fieldr,
+            size = self.patch*self.patch,
+            output, dataA = self.dstData,
+            pos = new A32U(size),
+            weight = new A32F(size),
+            op = params ? String(params.reconstruct).toLowerCase() : "best";
 
-        if (4 === dataB.channels)
-        {
-            for (i=0; i<cnt; ++i)
-            {
-                w = stdMath.exp(-weight[i] / (2*sigma2));
-                bi = pos[i];
-                index = B[bi].index << 2;
-                r += imgB[index + 0] * w;
-                g += imgB[index + 1] * w;
-                b += imgB[index + 2] * w;
-                if (texB)
-                {
-                    gx += texB[bi].gx * w;
-                    gy += texB[bi].gy * w;
-                }
-                sum += w;
-            }
-            outpos *= 6;
-            output[outpos + 0] += r;
-            output[outpos + 1] += g;
-            output[outpos + 2] += b;
-            output[outpos + 3] += gx;
-            output[outpos + 4] += gy;
-            output[outpos + 5] += sum;
-        }
-        else
-        {
-            for (i=0; i<cnt; ++i)
-            {
-                w = stdMath.exp(-weight[i] / (2*sigma2));
-                bi = pos[i];
-                index = B[bi].index;
-                r += imgB[index] * w;
-                if (texB)
-                {
-                    gx += texB[bi].gx * w;
-                    gy += texB[bi].gy * w;
-                }
-                sum += w;
-            }
-            outpos *= 4;
-            output[outpos + 0] += r;
-            output[outpos + 1] += gx;
-            output[outpos + 2] += gy;
-            output[outpos + 3] += sum;
-        }
-        return nnf;
+        if (-1 === ["center","best","block"].indexOf(op)) op = "best";
+
+        output = new A32F(field.length * (4 === dataA.channels ? 6 : 4));
+        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+
+        if (fieldr) self.expectation(op, pos, weight, output, -1, null, null, true);
+        if (field ) self.expectation(op, pos, weight, output, +1, null, null, true);
+        self.maximization(output, (params ? params.threshold : 0)||0, params);
+
+        return self;
     },
     distance: function(a, b, dir, OO, MM) {
         var self = this,
@@ -1105,7 +1137,7 @@ ANNF.prototype = {
         if (4 === dataA.channels)
         {
             factor = 195075/*3*255*255*/;
-            factorg = with_gradients ? 3 : 1;
+            factorg = with_gradients ? 10 : 1;
             factorgg = (factorg-1) / factorg;
             for (dy=-p; dy<=p; ++dy)
             {
@@ -1218,7 +1250,7 @@ ANNF.prototype = {
         else
         {
             factor = 65025/*255*255*/;
-            factorg = with_gradients ? 3 : 1;
+            factorg = with_gradients ? 10 : 1;
             factorgg = (factorg-1) / factorg;
             for (dy=-p; dy<=p; ++dy)
             {
@@ -1531,31 +1563,6 @@ patchmatch.ANNF = ANNF;
 patchmatch.ANNF.patchmatch = patchmatch;
 FILTER.Util.Filter.patchmatch = patchmatch;
 
-function adaptive_sigma(val, n, quantile)
-{
-    //return Array.prototype.sort.call(val.slice(n), function(a, b) {return a-b;})[stdMath.round(quantile*(n-1))];
-    var i, v, q2 = 0, q3 = 0, q1 = val[0];
-    for (i=1; i<n; ++i)
-    {
-        v = val[i];
-        if (v > q1)
-        {
-            q3 = q2;
-            q2 = q1;
-            q1 = v;
-        }
-        else if (v > q2)
-        {
-            q3 = q2;
-            q2 = v;
-        }
-        else if (v > q3)
-        {
-            q3 = v;
-        }
-    }
-    return quantile*stdMath.min(1.0, 2 > n ? q1 : ((q2+q3)/2));
-}
 function rand_int(a, b)
 {
     return stdMath.round(stdMath.random()*(b-a)+a);

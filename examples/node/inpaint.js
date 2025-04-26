@@ -69,7 +69,7 @@ notrun || process(
     with_distance_transform: false,
     kernel: 0,
     bidirectional: false,
-    reconstruct: "best",
+    reconstruct: ["block", "best"],
     repeat: 5,
     multiscale: true,
     layered: true
@@ -84,15 +84,15 @@ run || process(
     patch: 11,
     iterations: 10,
     alpha: 0.5,
-    radius: 100,
+    radius: 50,
     threshold: 1/(255*255),
     delta: 1/100,
     epsilon: 0,
     with_gradients: true,
     with_texture: true,
     bidirectional: false,
-    reconstruct: "best",
-    repeat: 20,
+    reconstruct: ["block", "best"],
+    repeat: 10,
     multiscale: true,
     layered: true
     }
@@ -103,7 +103,7 @@ notrun || process(
     null,
     __dirname+'/r009.png',
     {
-    patch: 15,
+    patch: 11,
     iterations: 10,
     alpha: 0.5,
     radius: 100,
@@ -113,7 +113,7 @@ notrun || process(
     with_gradients: true,
     with_texture: true,
     bidirectional: false,
-    reconstruct: "best",
+    reconstruct: ["block", "best"],
     repeat: 10,
     multiscale: true,
     layered: true
