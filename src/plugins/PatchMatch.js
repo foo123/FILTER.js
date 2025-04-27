@@ -49,7 +49,7 @@ FILTER.Create({
 
     ,init: function() {
         var self = this;
-        self.reconstruct = ["block", "best"];
+        self.reconstruct = ["average", "best"];
     }
 
     // support worker serialize/unserialize interface
@@ -574,7 +574,7 @@ ANNF.prototype = {
             }
 
             for (i=0,l=output.length; i<l; ++i) output[i] = 0.0;
-            self.expectation("block", pos, weight, output, dir, occVolBorder, null, false);
+            self.expectation("average", pos, weight, output, dir, occVolBorder, null, false);
             self.maximization(output, 0, null);
             occVolIter = occVolErode;
         }
@@ -927,7 +927,7 @@ ANNF.prototype = {
                 }
             }
         }
-        else // "block" === op
+        else // "average" === op
         {
             if (-1 === dir)
             {
@@ -1091,7 +1091,7 @@ ANNF.prototype = {
             weight = new A32F(size),
             op = params ? String(params.reconstruct).toLowerCase() : "best";
 
-        if (-1 === ["center","best","block"].indexOf(op)) op = "best";
+        if (-1 === ["center","best","average"].indexOf(op)) op = "best";
 
         output = new A32F(field.length * (4 === dataA.channels ? 6 : 4));
         for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;

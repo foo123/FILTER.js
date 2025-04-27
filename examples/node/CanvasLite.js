@@ -707,8 +707,8 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         if (null == h) h = H;
         x1 = stdMath.max(0, stdMath.min(x, w-1, W-1));
         y1 = stdMath.max(0, stdMath.min(y, h-1, H-1));
-        x2 = stdMath.min(x1+w-1, w-1, W-1);
-        y2 = stdMath.min(y1+h-1, h-1, H-1);
+        x2 = stdMath.min(x1+w-1, W-1);
+        y2 = stdMath.min(y1+h-1, H-1);
         return {data: get_data(null, W, H, x1, y1, x2, y2), width: x2-x1+1, height: y2-y1+1};
     };
     self.putImageData = function(imgData, x, y) {

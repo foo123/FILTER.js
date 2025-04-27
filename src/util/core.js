@@ -2689,82 +2689,75 @@ function ImageSelection(image, width, height, channels, selection)
     {
         if (!points && image)
         {
-            if (0 < w && 0 < h)
+            if (0 < w && 0 < h && x < width && y < height && x+w > 0 && y+h > 0)
             {
                 var px, py, pyw, i, j, k, index;
-                if (x < width && y < height && x+w > 0 && y+h > 0)
+                points = new Array(area);
+                if (4 === channels)
                 {
-                    points = new Array(area);
-                    if (4 === channels)
+                    if (null == selector)
                     {
-                        if (null == selector)
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                         {
-                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
                             {
-                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
-                                if (py >= y+h || py >= height) break;
-                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
+                                index = px+pyw;
+                                if (0 < image[(index << 2)+3])
                                 {
-                                    index = px+pyw;
-                                    if (0 < image[(index << 2)+3])
-                                    {
-                                        points[k++] = {x:px, y:py, index:index};
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
-                            {
-                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
-                                if (py >= y+h || py >= height) break;
-                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
-                                {
-                                    index = px+pyw;
-                                    if (selector(image, px, py, channels))
-                                    {
-                                        points[k++] = {x:px, y:py, index:index};
-                                    }
+                                    points[k++] = {x:px, y:py, index:index};
                                 }
                             }
                         }
                     }
                     else
                     {
-                        if (null == selector)
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
                         {
-                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
                             {
-                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
-                                if (py >= y+h || py >= height) break;
                                 index = px+pyw;
-                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (image[index]))
-                                {
-                                    points[k++] = {x:px, y:py, index:index};
-                                }
-                            }
-                        }
-                        else
-                        {
-                            for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
-                            {
-                                if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
-                                if (py >= y+h || py >= height) break;
-                                index = px+pyw;
-                                if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (selector(image, px, py, channels)))
+                                if (selector(image, px, py, channels))
                                 {
                                     points[k++] = {x:px, y:py, index:index};
                                 }
                             }
                         }
                     }
-                    points.length = k; // truncate to actual length
                 }
                 else
                 {
-                    points = [];
+                    if (null == selector)
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            index = px+pyw;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (image[index]))
+                            {
+                                points[k++] = {x:px, y:py, index:index};
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            index = px+pyw;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (selector(image, px, py, channels)))
+                            {
+                                points[k++] = {x:px, y:py, index:index};
+                            }
+                        }
+                    }
                 }
+                points.length = k; // truncate to actual length
             }
             else
             {
