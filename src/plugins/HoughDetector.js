@@ -101,6 +101,7 @@ FILTER.Create({
         var self = this, shape = self.shape,
             selection = self.selection || null,
             x1, y1, x2, y2, xf, yf;
+        self._update = false;
         self.hasMeta = true;
         self.meta = {objects: []};
         if (selection)
@@ -147,7 +148,6 @@ FILTER.Create({
         {
             self.meta.objects = hough_ellipses(im, w, h, 4, x1, y1, x2, y2, self.amin, self.amax, self.bmin, self.bmax, self.threshold);
         }
-        self._update = false;
         return im;
     }
 });

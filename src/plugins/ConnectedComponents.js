@@ -190,6 +190,8 @@ FILTER.Create({
             xf, yf, x1, y1, x2, y2, D,
             area, minArea, maxArea;
 
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {matches: []};
         if (null == color) return im;
 

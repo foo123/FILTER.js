@@ -5,8 +5,9 @@ __1.14.0__
 * PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
 * ColorDetectorFilter variation of ConnectedComponentsFilter
 * FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
-* FILTER.Image.select method can accept FILTER.Util.Image.Selection as well
+* FILTER.Image.select method can also accept a FILTER.Util.Image.Selection instance
 * handle metaData serialization in CompositeFilter
+* various edits, typo corrections
 
 __1.13.0__
 

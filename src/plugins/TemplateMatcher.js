@@ -181,6 +181,8 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template"), all_matches = [];
 
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {matches: all_matches};
         if (!t || !tpldata || !w || !h) return im;
 

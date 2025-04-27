@@ -145,6 +145,8 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h, metaData) {
         var self = this;
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {objects: []};
         if (!self.haardata || !w || !h) return im;
 
