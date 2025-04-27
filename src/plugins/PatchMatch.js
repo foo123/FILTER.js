@@ -261,8 +261,11 @@ FILTER.Create({
                     }
                     else
                     {
-                        params.reconstruct = self.reconstruct[1];
-                        nnf.apply(params);
+                        if (apply || (self.reconstruct[1] !== self.reconstruct[0]))
+                        {
+                            params.reconstruct = self.reconstruct[1];
+                            nnf.apply(params);
+                        }
                         meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
@@ -307,8 +310,11 @@ FILTER.Create({
                     }
                     else
                     {
-                        params.reconstruct = self.reconstruct[1];
-                        nnf.apply(params);
+                        if (apply || (self.reconstruct[1] !== self.reconstruct[0]))
+                        {
+                            params.reconstruct = self.reconstruct[1];
+                            nnf.apply(params);
+                        }
                         meta.metric = {delta:params.delta, error:params.error};
                         self._update = true;
                     }
@@ -1043,8 +1049,8 @@ ANNF.prototype = {
                         texA[j].gx = expected[bi + 3] / sum;
                         texA[j].gy = expected[bi + 4] / sum;
                     }
+                    ++m;
                 }
-                ++m;
             }
         }
         else
@@ -1069,14 +1075,14 @@ ANNF.prototype = {
                         texA[j].gx = expected[bi + 1] / sum;
                         texA[j].gy = expected[bi + 2] / sum;
                     }
+                    ++m;
                 }
-                ++m;
             }
         }
         if (metrics)
         {
-            metrics.delta = delta / m;
-            metrics.error = nmse / m;
+            metrics.delta = m ? delta / m : 0;
+            metrics.error = m ? nmse / m : 0;
         }
         return nnf;
     },
