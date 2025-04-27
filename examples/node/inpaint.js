@@ -69,13 +69,13 @@ notrun || process(
     with_distance_transform: false,
     kernel: 0,
     bidirectional: false,
-    reconstruct: ["block", "best"],
+    reconstruct: ["average", "best"],
     repeat: 5,
     multiscale: true,
     layered: true
     }
 );
-run || process(
+notrun || process(
     __dirname+'/t067.jpg',
     __dirname+'/m067.png',
     null,
@@ -91,29 +91,29 @@ run || process(
     with_gradients: true,
     with_texture: true,
     bidirectional: false,
-    reconstruct: ["block", "best"],
+    reconstruct: ["average", "best"],
     repeat: 10,
     multiscale: true,
     layered: true
     }
 );
-notrun || process(
+run || process(
     __dirname+'/t009.jpg',
     __dirname+'/m009.png',
     null,
     __dirname+'/r009.png',
     {
-    patch: 11,
+    patch: 21,
     iterations: 10,
     alpha: 0.5,
-    radius: 100,
+    radius: 200,
     threshold: 1/(255*255),
-    delta: 1/100,
+    delta: 1/400,
     epsilon: 0,
     with_gradients: true,
     with_texture: true,
     bidirectional: false,
-    reconstruct: ["block", "best"],
+    reconstruct: ["average", "best"],
     repeat: 10,
     multiscale: true,
     layered: true
