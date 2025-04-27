@@ -21,25 +21,38 @@ selection = __dirname+'/che_mask.png';
 if (wasm) filter.makeWASM(true);
 if (parallel) filter.worker(true);
 
+function process(img, filter)
+{
+    console.log('Applying filter to image/selection..');
+    filter.apply(img, function() {
+        if (parallel) filter.worker(false);
+        console.log('Saving filtered image..');
+        img.oCanvas.toPNG().then(function(png) {
+            fs.writeFile(output, png, function(err) {
+                if (err) console.log('error while saving image: ' + err.toString());
+                else console.log('filtered image saved');
+            })
+        }).catch(function(err) {
+            console.log('error while saving image: ' + err.toString());
+        });
+    });
+}
+
 console.log('Loading image..');
 fs.readFile(input, function(err, buffer) {
     if (err) console.log('error while reading image: ' + err.toString());
     else F.Image.load(buffer, function(img) {
         console.log('image loaded with dims: ' + img.width + ',' + img.height);
-        F.Image.load(selection, function(mask) {
-            console.log('Applying filter to selection..');
-            filter.apply(img.select(new F.Util.Image.Selection(mask.getData(), img.width, img.height, 4)), function() {
-                if (parallel) filter.worker(false);
-                console.log('Saving filtered image..');
-                img.oCanvas.toPNG().then(function(png) {
-                    fs.writeFile(output, png, function(err) {
-                        if (err) console.log('error while saving image: ' + err.toString());
-                        else console.log('filtered image saved');
-                    })
-                }).catch(function(err) {
-                    console.log('error while saving image: ' + err.toString());
-                });
+        if (selection)
+        {
+            F.Image.load(selection, function(mask) {
+                img.select(new F.Util.Image.Selection(mask.getData(), img.width, img.height, 4));
+                process(img, filter);
             });
-        });
+        }
+        else
+        {
+            process(img, filter);
+        }
     });
 });
