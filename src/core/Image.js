@@ -531,7 +531,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setSelectedData: function(a) {
         var self = this, sel = self.selection,
             w = self.width, h = self.height,
-            xs, ys, ws, hs, xf, yf, b, bb, i, x, y, yw;
+            xs, ys, ws, hs, xf, yf, b, bb;
         if (sel)
         {
             if (sel[5])
@@ -546,21 +546,18 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 {
                     b = self.oCanvas.getContext('2d',self.ctxOpts).getImageData(DPR*xs, DPR*ys, DPR*ws, DPR*hs);
                     if (!b) b = self.oCanvas.getContext('2d',self.ctxOpts).createImageData(DPR*ws, DPR*hs);
-                    for (y=0,yw=0; y<hs; ++y,yw+=ws)
-                    {
-                        for (x=0; x<ws; ++x)
+                    // add only selection points
+                    sel[5].points().forEach(function(pt) {
+                        var x = pt.x - xs, y = pt.y - ys, i;
+                        if (0 <= x && x < ws && 0 <= y && y < hs)
                         {
-                            if (-1 !== sel[5].indexOf(xs+x, ys+y))
-                            {
-                                // add from selection
-                                i = (x + yw) << 2;
-                                b.data[i + 0] = a.data[i + 0];
-                                b.data[i + 1] = a.data[i + 1];
-                                b.data[i + 2] = a.data[i + 2];
-                                b.data[i + 3] = a.data[i + 3];
-                            }
+                            i = (x + y*ws) << 2;
+                            b.data[i + 0] = a.data[i + 0];
+                            b.data[i + 1] = a.data[i + 1];
+                            b.data[i + 2] = a.data[i + 2];
+                            b.data[i + 3] = a.data[i + 3];
                         }
-                    }
+                    });
                     a = b;
                 }
                 self.oCanvas.getContext('2d',self.ctxOpts).putImageData(a, DPR*xs, DPR*ys);

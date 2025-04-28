@@ -1,8 +1,8 @@
 /**
 *
 *   FILTER.js
-*   @version: 1.13.0
-*   @built on 2025-03-17 11:20:17
+*   @version: 1.14.0-alpha
+*   @built on 2025-04-28 18:48:27
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -11,8 +11,8 @@
 **//**
 *
 *   FILTER.js
-*   @version: 1.13.0
-*   @built on 2025-03-17 11:20:17
+*   @version: 1.14.0-alpha
+*   @built on 2025-04-28 18:48:27
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -32,7 +32,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__FILTER() {
 /* main code starts here */
 "use strict";
-var FILTER = {VERSION: "1.13.0"};
+var FILTER = {VERSION: "1.14.0-alpha"};
 /**
 *
 *   Asynchronous.js
@@ -1423,17 +1423,23 @@ FILTER.onReady = function(cb) {
 !function(FILTER, undef) {
 "use strict";
 
+FILTER.Util.Array = FILTER.Util.Array || {};
+FILTER.Util.String = FILTER.Util.String || {};
+FILTER.Util.Math = FILTER.Util.Math || {};
+FILTER.Util.Image = FILTER.Util.Image || {};
+FILTER.Util.Filter = FILTER.Util.Filter || {};
+
 var MODE = FILTER.MODE, notSupportClamp = FILTER._notSupportClamp,
     IMG = FILTER.ImArray, copy,
     A32F = FILTER.Array32F, A64F = FILTER.Array64F,
     A32I = FILTER.Array32I, A16I = FILTER.Array16I, A8U = FILTER.Array8U,
     ColorTable = FILTER.ColorTable, ColorMatrix = FILTER.ColorMatrix,
     AffineMatrix = FILTER.AffineMatrix, ConvolutionMatrix = FILTER.ConvolutionMatrix,
-    ArrayUtil = FILTER.Util.Array = FILTER.Util.Array || {},
-    StringUtil = FILTER.Util.String = FILTER.Util.String || {},
-    MathUtil = FILTER.Util.Math = FILTER.Util.Math || {},
-    ImageUtil = FILTER.Util.Image = FILTER.Util.Image || {},
-    FilterUtil = FILTER.Util.Filter = FILTER.Util.Filter || {},
+    ArrayUtil = FILTER.Util.Array,
+    StringUtil = FILTER.Util.String,
+    MathUtil = FILTER.Util.Math,
+    ImageUtil = FILTER.Util.Image,
+    FilterUtil = FILTER.Util.Filter,
     stdMath = Math, Exp = stdMath.exp, Sqrt = stdMath.sqrt,
     Pow = stdMath.pow, Ceil = stdMath.ceil, Floor = stdMath.floor,
     Log = stdMath.log, Sin = stdMath.sin, Cos = stdMath.cos,
@@ -1453,6 +1459,11 @@ function function_body(func)
 {
     return /*Function.prototype.toString.call(*/func.toString().match(func_body_re)[1] || '';
 }
+StringUtil.esc = esc;
+StringUtil.trim = String.prototype.trim
+? function(s) {return s.trim();}
+: function(s) {return s.replace(trim_re, '');};
+StringUtil.function_body = function_body;
 
 function clamp(x, m, M)
 {
@@ -1469,6 +1480,8 @@ function hypot(a, b, c)
     c /= m;
     return m*Sqrt(a*a + b*b + c*c);
 }
+MathUtil.clamp = clamp;
+MathUtil.hypot = hypot;
 
 function arrayset_shim(a, b, offset, b0, b1)
 {
@@ -1575,6 +1588,23 @@ function pad_shim(im, w, h, pad_right, pad_bot, pad_left, pad_top)
     }
     return padded;
 }
+function interpolate_nearest_data(data, w, h, nw, nh)
+{
+    var size = (nw*nh),
+        interpolated = new data.constructor(size),
+        x, y, xn, yn, nearest, point,
+        round = stdMath.round
+    ;
+    for (x=0,y=0,point=0; point<size; ++point,++x)
+    {
+        if (x >= nw) {x=0; ++y;}
+        xn = clamp(round(x/nw*w), 0, w-1);
+        yn = clamp(round(y/nh*h), 0, h-1);
+        nearest = (yn*w + xn);
+        interpolated[point] = data[nearest];
+    }
+    return interpolated;
+}
 function interpolate_nearest(im, w, h, nw, nh)
 {
     var size = (nw*nh) << 2,
@@ -1640,6 +1670,11 @@ function interpolate_bilinear(im, w, h, nw, nh)
     }
     return interpolated;
 }
+ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
+ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
+ImageUtil.interpolate_nearest = interpolate_nearest;
+ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
+
 ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
     var b = new a.constructor(a.length);
     b.set(a, 0);
@@ -1686,6 +1721,8 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2)
         if (++x >= w) {x=0; ++y; sum=sum2=0;}
     }
 }
+FilterUtil.sat = integral2;
+
 function gaussian(dx, dy, sigma)
 {
     var rx = dx >>> 1,
@@ -2085,6 +2122,11 @@ return {
 ].join('\n')
 };
 }
+FilterUtil.gaussian = gaussian;
+FilterUtil.gradient = gradient;
+FilterUtil.optimum_gradient = optimum_gradient;
+FilterUtil.gradient_glsl = gradient_glsl;
+
 function image_glsl()
 {
 return {
@@ -2121,6 +2163,8 @@ return {
 ].join('\n')
 };
 }
+ImageUtil.glsl = image_glsl;
+
 // speed-up convolution for special kernels like moving-average
 function integral_convolution(mode, im, w, h, stride, matrix, matrix2, dimX, dimY, dimX2, dimY2, coeff1, coeff2, numRepeats)
 {
@@ -3082,6 +3126,9 @@ function separable_convolution_clamp(mode, im, w, h, stride, matrix, matrix2, in
     }
     return dst;
 }
+FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
+FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
+
 function histogram(im, channel, ret_cdf, ret_norm)
 {
     channel = channel || 0;
@@ -3313,6 +3360,10 @@ function match_histogram(l, actual_cdf, desired_cdf, min0, max0)
         return match;
     }
 }
+FilterUtil.histogram = histogram;
+FilterUtil.integral_histogram = integral_histogram;
+FilterUtil.match_histogram = match_histogram;
+
 function _otsu(bin, tot, min, max, ret_sigma)
 {
     var omega0, omega1,
@@ -3379,6 +3430,10 @@ function otsu_multiclass(bin, tot, min, max, n)
     left.push.apply(left, right);
     return left;
 }
+FilterUtil.otsu = otsu;
+FilterUtil.otsu_multi = otsu_multi;
+FilterUtil.otsu_multiclass = otsu_multiclass;
+
 var SIN = {}, COS = {};
 function sine(i)
 {
@@ -3626,6 +3681,11 @@ function _fft2(re, im, nx, ny, inv, output_re, output_im)
 
     if (ret) return {r:output_re, i:output_im};
 }
+FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
+FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
+FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
+FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
+
 function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
 {
     stride = stride || 0; offset = offset || 0;
@@ -3666,6 +3726,16 @@ function min_max_loc(data, w, h, tlo, thi, hasMin, hasMax, stride, offset)
         return {max:max, maxpos:maxpos};
     }
 }
+FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
+    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
+};
+FilterUtil.min = function(d, w, h, tl, stride, offset) {
+    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
+};
+FilterUtil.max = function(d, w, h, th, stride, offset) {
+    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
+};
+
 function local_max(max, accum, thresh, N, M, K)
 {
     max = max || [];
@@ -3726,6 +3796,8 @@ function local_max(max, accum, thresh, N, M, K)
     }
     return max;
 }
+FilterUtil.localmax = local_max;
+
 function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
 {
     if (null == xa) {xa = 0; ya = 0; xb = w-1; yb = h-1;}
@@ -3750,6 +3822,7 @@ function nonzero_pixels(im, w, h, channel, channels, xa, ya, xb, yb)
     nz.length = k;
     return nz;
 }
+ImageUtil.nonzero_pixels = nonzero_pixels;
 
 function equals(r1, r2, eps)
 {
@@ -3854,6 +3927,728 @@ function merge_features(rects, min_neighbors, epsilon)
 
     return feats/*.sort(by_area)*/;
 }
+FilterUtil.merge_features = merge_features;
+
+function join_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(n+m);
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            r[k] = b;
+            ++j; ++k;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            r[k] = b;
+            ++j; ++k;
+        }
+        else
+        {
+            r[k] = a;
+            ++i; ++j; ++k;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = p[i++];
+    }
+    while (j < m)
+    {
+        r[k++] = q[j++];
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function intersect_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(stdMath.min(n,m));
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            ++i;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            ++i;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            r[k] = a;
+            ++i; ++j; ++k;
+        }
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function subtract_points(p, q)
+{
+    var n = p.length, m = q.length, i = 0, j = 0, k = 0, a, b, r = new Array(n);
+    while (i < n && j < m)
+    {
+        a = p[i]; b = q[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            ++i; ++j;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = p[i++];
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function complement_points(p, w, h, ch)
+{
+    var n = w*h, m = p.length,
+        i = 0, j = 0, k = 0,
+        x, y, a, b, r = new Array(n);
+    while (i < n && j < m)
+    {
+        a = {x:(i % w), y:stdMath.floor(i / w), index:i};
+        b = p[j];
+        if (a.y < b.y)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.y > b.y)
+        {
+            ++j;
+        }
+        else if (a.x < b.x)
+        {
+            r[k] = a;
+            ++i; ++k;
+        }
+        else if (a.x > b.x)
+        {
+            ++j;
+        }
+        else
+        {
+            ++i; ++j;
+        }
+    }
+    while (i < n)
+    {
+        r[k++] = {x:(i % w), y:stdMath.floor(i / w), index:i};
+        ++i;
+    }
+    r.length = k; // truncate to actual length
+    return r;
+}
+function ImageSelection(image, width, height, channels, selection)
+{
+    var self = this,
+        points = null, bitmap = null, bbox = null,
+        rows = null, cols = null, indices = null,
+        x, y, w, h, area = 0, selector = null;
+
+    if (null == channels) channels = 4;
+    if (-1 === [1,4].indexOf(channels)) channels = 1;
+
+    if (!selection) selection = {x:0, y:0, width:width, height:height};
+    x = null == selection.x ? 0 : ((+selection.x)||0);
+    y = null == selection.y ? 0 : ((+selection.y)||0);
+    w = null == selection.width ? width : stdMath.max((+selection.width)||0, 0);
+    h = null == selection.height ? height : stdMath.max((+selection.height)||0, 0);
+    area = w*h;
+
+    if (null != selection.selector) selector = selection.selector;
+    if (Array.isArray(selection.points)) points = selection.points;
+
+    selection = null;
+
+    function get_points()
+    {
+        if (!points && image)
+        {
+            if (0 < w && 0 < h && x < width && y < height && x+w > 0 && y+h > 0)
+            {
+                var px, py, pyw, i, j, k, index;
+                points = new Array(area);
+                if (4 === channels)
+                {
+                    if (null == selector)
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
+                            {
+                                index = px+pyw;
+                                if (0 < image[(index << 2)+3])
+                                {
+                                    points[k++] = {x:px, y:py, index:index};
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height))
+                            {
+                                index = px+pyw;
+                                if (selector(image, px, py, channels))
+                                {
+                                    points[k++] = {x:px, y:py, index:index};
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (null == selector)
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            index = px+pyw;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (image[index]))
+                            {
+                                points[k++] = {x:px, y:py, index:index};
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (px=x,py=y,pyw=py*width,i=0,k=0; i<area; ++i,++px)
+                        {
+                            if (px >= x+w || px >= width) {px=x; ++py; pyw+=width;}
+                            if (py >= y+h || py >= height) break;
+                            index = px+pyw;
+                            if ((0 <= px) && (px < width) && (0 <= py) && (py < height) && (selector(image, px, py, channels)))
+                            {
+                                points[k++] = {x:px, y:py, index:index};
+                            }
+                        }
+                    }
+                }
+                points.length = k; // truncate to actual length
+            }
+            else
+            {
+                points = [];
+            }
+        }
+        return points;
+    }
+    function get_indices()
+    {
+        if (!indices)
+        {
+            get_points();
+            indices = {};
+            for (var i=0,n=points.length; i<n; ++i)
+            {
+                indices[points[i].index] = i;
+            }
+        }
+        return indices;
+    }
+    function get_rows()
+    {
+        if (!rows)
+        {
+            get_points();
+            rows = {};
+            for (var p,r,i=0,n=points.length; i<n; ++i)
+            {
+                p = points[i];
+                r = rows[p.y];
+                if (!r || !r.length) rows[p.y] = [i];
+                else r.push(i);
+            }
+        }
+        return rows;
+    }
+    function get_cols()
+    {
+        if (!cols)
+        {
+            get_points();
+            cols = {};
+            for (var p,c,i=0,n=points.length; i<n; ++i)
+            {
+                p = points[i];
+                c = cols[p.x];
+                if (!c || !c.length) cols[p.x] = [i];
+                else c.push(i);
+            }
+        }
+        return cols;
+    }
+    function get_bitmap()
+    {
+        if (!bitmap)
+        {
+            bitmap = new Array(width*height);
+            (get_points()||[]).forEach(function(pt) {bitmap[pt.index] = 1;});
+        }
+        return bitmap;
+    }
+    self.dispose = function() {
+        image = selector = points = rows = cols = indices = bitmap = null;
+        self.attached = null;
+    };
+    self.data = function(newImage) {
+        if (arguments.length)
+        {
+            if (newImage) image = newImage;
+            return self;
+        }
+        else
+        {
+            return {data:image, width:width, height:height, channels:channels};
+        }
+    };
+    self.rect = function() {
+        return {from:{x:x,y:y}, to:{x:x+w-1,y:y+h-1}, width:w, height:h, area:area};
+    };
+    self.bbox = function() {
+        if (!bbox)
+        {
+            bbox = get_points().reduce(function(bb, pt) {
+                bb.xm = stdMath.min(bb.xm, pt.x);
+                bb.ym = stdMath.min(bb.ym, pt.y);
+                bb.xM = stdMath.max(bb.xM, pt.x);
+                bb.yM = stdMath.max(bb.yM, pt.y);
+                return bb;
+            }, {xm:Infinity,ym:Infinity,xM:-Infinity,yM:-Infinity});
+        }
+        if (bbox.xm > bbox.xM) return {from:{x:0,y:0}, to:{x:-1,y:-1}, width:0, height:0};
+        return {from:{x:bbox.xm,y:bbox.ym}, to:{x:bbox.xM,y:bbox.yM}, width:bbox.xM-bbox.xm+1, height:bbox.yM-bbox.ym+1};
+    };
+    self.points = function() {
+        return get_points();
+    };
+    self.indices = function() {
+        return get_indices();
+    };
+    self.rows = function() {
+        return get_rows();
+    };
+    self.cols = function() {
+        return get_cols();
+    };
+    self.bitmap = function(bmp) {
+        if (arguments.length)
+        {
+            bitmap = bmp;
+            points = new Array(bitmap.length);
+            for (var area=bitmap.length,index=0,length=0; index<area; ++index)
+            {
+                if (bitmap[index])
+                {
+                    points[length++] = {x:index % width, y:stdMath.floor(index / width), index:index};
+                }
+            }
+            points.length = length;
+            return self;
+        }
+        else
+        {
+            return get_bitmap();
+        }
+    };
+    self.empty = function() {
+        return (0 >= w) || (0 >= h) || (0 === get_points().length);
+    };
+    self.has = function(x, y) {
+        if (null == y) return !!(get_cols()[x]);
+        else if (null == x) return !!(get_rows()[y]);
+        return -1 !== self.indexOf(x, y);
+    };
+    self.indexOf = function(x, y) {
+        /*var r, c, i, j, n, m, ri, cj;
+        r = get_rows()[y];
+        if (!r) return -1;
+        c = get_cols()[x];
+        if (!c) return -1;
+        i = 0;
+        j = 0;
+        n = r.length;
+        m = c.length;
+        while (i < n && j < m)
+        {
+            ri = r[i];
+            cj = c[j];
+            if (ri < cj) ++i;
+            else if (ri > cj) ++j;
+            else return ri;
+        }
+        return -1;*/
+        var i = (0 <= x && x < width && 0 <= y && y < height) ? (get_indices()[(y*width + x)]) : null;
+        return null == i ? -1 : i;
+    };
+    self.attached = {};
+}
+ImageSelection.prototype = {
+    constructor: ImageSelection,
+    dispose: null,
+    data: null,
+    rect: null,
+    bbox: null,
+    points: null,
+    indices: null,
+    rows: null,
+    cols: null,
+    empty: null,
+    has: null,
+    indexOf: null,
+    bitmap: null,
+    attached: null,
+    scale: function(image, width, height, scaleX, scaleY) {
+        var self = this, data = self.data(), rect = self.rect();
+        if (null == scaleX)
+        {
+            scaleX = width/data.width;
+            scaleY = height/data.height;
+        }
+        if (null == scaleY)
+        {
+            scaleY = scaleX;
+        }
+        return (new ImageSelection(
+            image, width, height, data.channels,
+            {
+            x:stdMath.floor(scaleX*rect.x), y:stdMath.floor(scaleY*rect.y),
+            width:stdMath.floor(scaleX*rect.width), height:stdMath.floor(scaleY*rect.height)
+            }
+        )).bitmap(interpolate_nearest_data(self.bitmap(), data.width, data.height, width, height));
+    },
+    join: function(other) {
+        var self = this;
+        if (other.empty()) return self;
+        if (self.empty()) return other;
+        var data = self.data(),
+            self_rect = self.rect(),
+            other_rect = other.rect(),
+            x1 = stdMath.min(self_rect.from.x, other_rect.from.x),
+            y1 = stdMath.min(self_rect.from.y, other_rect.from.y),
+            x2 = stdMath.max(self_rect.to.x, other_rect.to.x),
+            y2 = stdMath.max(self_rect.to.y, other_rect.to.y);
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:x1, y:y1, width:x2-x1+1, height:y2-y1+1,
+            points:ImageSelection.Join(self.points(), other.points())
+            }
+        );
+    },
+    intersect: function(other) {
+        var self = this;
+        if (self.empty()) return self;
+        if (other.empty()) return other;
+        var data = self.data(),
+            self_rect = self.rect(),
+            other_rect = other.rect(),
+            x1 = stdMath.max(self_rect.from.x, other_rect.from.x),
+            y1 = stdMath.max(self_rect.from.y, other_rect.from.y),
+            x2 = stdMath.min(self_rect.to.x, other_rect.to.x),
+            y2 = stdMath.min(self_rect.to.y, other_rect.to.y);
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:x1, y:y1, width:x2-x1+1, height:y2-y1+1,
+            points:(x2 < x1 || y2 < y1 ? [] : ImageSelection.Intersect(self.points(), other.points()))
+            }
+        );
+    },
+    subtract: function(other) {
+        var self = this;
+        if (self.empty() || other.empty()) return self;
+        var data = self.data(), rect = self.rect();
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:rect.from.x, y:rect.from.y, width:rect.width, height:rect.height,
+            points:ImageSelection.Subtract(self.points(), other.points())
+            }
+        );
+    },
+    complement: function() {
+        var self = this;
+        var data = self.data();
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            x:0, y:0, width:data.width, height:data.height,
+            points:ImageSelection.Complement(self.points(), data.width, data.height, data.channels)
+            }
+        );
+    },
+    erode: function(elem, n) {
+        if (1 === arguments.length)
+        {
+            n = elem;
+            elem = null;
+        }
+        var self = this, data = self.data(),
+            is_default = !elem, nn = n*n, nh = n >>> 1;
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            points:self.points().reduce(function(points, pt) {
+                var dx, dy, i, needed = 0, existing = 0;
+                for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+                {
+                    if (dx > nh) {dx=-nh; ++dy;}
+                    if (is_default || elem[i])
+                    {
+                        ++needed;
+                        if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))
+                        {
+                            ++existing;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                if (0 < needed && needed === existing) points.push({x:pt.x, y:pt.y, index:pt.index});
+                return points;
+            }, [])
+            }
+        );
+    },
+    dilate: function(elem, n) {
+        if (1 === arguments.length)
+        {
+            n = elem;
+            elem = null;
+        }
+        var self = this, data = self.data(),
+            is_default = !elem, nn = n*n, nh = n >>> 1,
+            w = data.width, h = data.height,
+            binary = self.bitmap(),
+            area = w*h, points = new Array(area),
+            index, length = 0, x, y, dx, dy, xx, yy, i, j;
+        for (x=0,y=0,index=0; index<area; ++index,++x)
+        {
+            if (x >= w) {x=0; ++y;}
+            for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+            {
+                if (dx > nh) {dx=-nh; ++dy;}
+                if (is_default || elem[i])
+                {
+                    xx = x+dx; yy = y+dy; j = xx + w*yy;
+                    if ((0 <= xx) && (xx < w) && (0 <= yy) && (yy < h) && binary[j])
+                    {
+                        points[length++] = {x:x, y:y, index:index};
+                        break;
+                    }
+                }
+            }
+        }
+        points.length = length;
+        return new ImageSelection(
+            data.data, data.width, data.height, data.channels,
+            {
+            points:points/*self.points().reduce(function(points, pt) {
+                var dx, dy, i, needed = 0, existing = 0;
+                for (dx=-nh,dy=-nh,i=0; i<nn; ++i,++dx)
+                {
+                    if (dx > nh) {dx=-nh; ++dy;}
+                    if (is_default || elem[i])
+                    {
+                        ++needed;
+                        if (-1 !== self.indexOf(pt.x+dx, pt.y+dy))
+                        {
+                            ++existing;
+                            break;
+                        }
+                    }
+                }
+                if (0 < existing) points.push({x:pt.x, y:pt.y, index:pt.index});
+                return points;
+            }, [])*/
+            }
+        );
+    }
+};
+ImageSelection.Join = join_points;
+ImageSelection.Intersect = intersect_points;
+ImageSelection.Subtract = subtract_points;
+ImageSelection.Complement = complement_points;
+ImageSelection.serialize = function(sel) {
+    var data = sel.data();
+    return {
+    width: data.width,
+    height: data.height,
+    channels: data.channels,
+    rect: sel.rect(),
+    points: sel.points()
+    };
+};
+ImageSelection.unserialize = function(img, obj) {
+    return new ImageSelection(
+    img, obj.width, obj.height, obj.channels,
+    {x:obj.rect.from.x, y:obj.rect.from.y, width:obj.rect.width, height:obj.rect.height, points:obj.points}
+    );
+};
+ImageUtil.Selection = ImageSelection;
+
+function ImagePyramid(img, width, height, channels, sel)
+{
+    channels = null == channels ? 4 : channels;
+    if (4 !== channels) channels = 1;
+    if (!sel || !(sel instanceof ImageSelection)) sel = null;
+    this.levels = [{img:img, width:width, height:height, channels:channels, sel:sel}];
+}
+ImagePyramid.prototype = {
+    constructor: ImagePyramid,
+    levels: null,
+    dispose: function() {
+        this.levels = null;
+    },
+    add: function(min_size, do_lowpass) {
+        var self = this,
+            kernel = [1, 2, 1], // lowpass binomial separable
+            x1, y1, x2, y2, y2w2, dx, dy, xk, yk, ykw,
+            i1, i2, k, ky, r, g, b, a, s, n,
+            last, channels, img1, w1, h1, sel, img2, w2, h2;
+        last = self.levels && self.levels.length ? self.levels[self.levels.length-1] : null;
+        if (!last) return false;
+        img1 = last.img;
+        w1 = last.width;
+        h1 = last.height;
+        sel = last.sel;
+        channels = last.channels;
+        w2 = w1 >>> 1;
+        h2 = h1 >>> 1;
+        if (w2 < min_size || h2 < min_size) return false;
+        img2 = new IMG(w2*h2*channels);
+        if (sel) sel = sel.scale(img2, w2, h2, 0.5);
+        for (y1=0,y2=0,y2w2=0; y2<h2; y1+=2,++y2,y2w2+=w2)
+        {
+            for (x1=0,x2=0; x2<w2; x1+=2,++x2)
+            {
+                if (do_lowpass)
+                {
+                    r=0; g=0; b=0; a=0; s=0; n=0;
+                    for (dy=-1; dy<=1; ++dy)
+                    {
+                        yk = y1+dy;
+                        if (yk<0 || yk>=h1) continue;
+                        ykw = yk*w1;
+                        ky = kernel[1+dy];
+                        for (dx=-1; dx<=1; ++dx)
+                        {
+                            xk = x1+dx;
+                            if (xk<0 || xk>=w1) continue;
+                            k = kernel[1+dx]*ky;
+                            i1 = xk + ykw;
+                            if (4 === channels)
+                            {
+                                i1 = i1 << 2;
+                                r += k*img1[i1 + 0];
+                                g += k*img1[i1 + 1];
+                                b += k*img1[i1 + 2];
+                                a +=   img1[i1 + 3];
+                            }
+                            else
+                            {
+                                r += k*img1[i1];
+                            }
+                            s += k;
+                            ++n;
+                        }
+                    }
+                    i2 = x2 + y2w2;
+                    if (4 === channels)
+                    {
+                        i2 = i2 << 2;
+                        img2[i2 + 0] = clamp(stdMath.round(r/s), 0, 255);
+                        img2[i2 + 1] = clamp(stdMath.round(g/s), 0, 255);
+                        img2[i2 + 2] = clamp(stdMath.round(b/s), 0, 255);
+                        img2[i2 + 3] = clamp(stdMath.round(a/n), 0, 255);
+                    }
+                    else
+                    {
+                        img2[i2] = clamp(stdMath.round(r/s), 0, 255);
+                    }
+                }
+                else
+                {
+                    i2 = x2 + y2w2; i1 = x1 + y1*w1;
+                    if (4 === channels)
+                    {
+                        i2 = i2 << 2; i1 = i1 << 2;
+                        img2[i2 + 0] = img1[i1 + 0];
+                        img2[i2 + 1] = img1[i1 + 1];
+                        img2[i2 + 2] = img1[i1 + 2];
+                        img2[i2 + 3] = img1[i1 + 3];
+                    }
+                    else
+                    {
+                        img2[i2] = img1[i1];
+                    }
+                }
+            }
+        }
+        self.levels.push({img:img2, width:w2, height:h2, channels:channels, sel:sel});
+        return true;
+    },
+    build: function(min_size, do_lowpass) {
+        var self = this;
+        if (2 > arguments.length) do_lowpass = true;
+        for (;self.add(min_size, do_lowpass);) {/*loop*/}
+        return self;
+    }
+};
+ImageUtil.Pyramid = ImagePyramid;
+
 function clmp(x, a, b)
 {
     return a > b ? (x < b ? b : (x > a ? a : x)) : (x < a ? a : (x > b ? b : x));
@@ -4349,6 +5144,11 @@ function rsatsum(rsat, w, h, xh, yh, ww, hh)
     var x = xh+hh-1, y = yh-hh+1, xw = x+ww-1, yw = y+ww-1, xwh = x+ww-hh, ywh = y+ww-1+hh-1;
     return (xw>=0 && xw<w && yw>=0 && yw<h ? rsat[xw + w*yw] : 0) + (xh>=0 && xh<w && yh>=0 && yh<h ? rsat[xh + w*yh] : 0) - (x>=0 && x<w && y>=0 && y<h ? rsat[x + w*y] : 0) - (xwh>=0 && xwh<w && ywh>=0 && ywh<h ? rsat[xwh + w*ywh] : 0);
 }
+FilterUtil.satsum = satsum;
+FilterUtil.satsums = satsums;
+FilterUtil.satsumt = satsumt;
+FilterUtil.satsumr = satsumr;
+FilterUtil.rsatsum = rsatsum;
 
 function am_eye()
 {
@@ -4466,6 +5266,16 @@ function cm_convolve(cm1, cm2, matrix)
     }
     return cm12;
 }
+FilterUtil.am_eye = am_eye;
+FilterUtil.am_multiply = am_multiply;
+FilterUtil.ct_eye = ct_eye;
+FilterUtil.ct_multiply = ct_multiply;
+FilterUtil.cm_eye = cm_eye;
+FilterUtil.cm_multiply = cm_multiply;
+FilterUtil.cm_rechannel = cm_rechannel;
+FilterUtil.cm_combine = cm_combine;
+FilterUtil.cm_convolve = cm_convolve;
+
 var typed_arrays = ['ImArray','Array32F','Array64F','Array8I','Array16I','Array32I','Array8U','Array16U','Array32U'];
 function to_array(a, A)
 {
@@ -4517,66 +5327,6 @@ ArrayUtil.typed_obj = FILTER.Browser.isNode ? function(o, unserialise) {
 ArrayUtil.arrayset_shim = arrayset_shim;
 ArrayUtil.arrayset = ArrayUtil.hasArrayset ? function(a, b, offset) {a.set(b, offset||0);} : arrayset_shim;
 ArrayUtil.subarray = ArrayUtil.hasSubarray ? function(a, i1, i2) {return a.subarray(i1, i2);} : function(a, i1, i2){ return a.slice(i1, i2); };
-
-
-MathUtil.clamp = clamp;
-MathUtil.hypot = hypot;
-
-StringUtil.esc = esc;
-StringUtil.trim = String.prototype.trim
-? function(s) {return s.trim();}
-: function(s) {return s.replace(trim_re, '');};
-StringUtil.function_body = function_body;
-
-ImageUtil.crop = ArrayUtil.hasArrayset ? crop : crop_shim;
-ImageUtil.pad = ArrayUtil.hasArrayset ? pad : pad_shim;
-ImageUtil.interpolate_nearest = interpolate_nearest;
-ImageUtil.interpolate = ImageUtil.interpolate_bilinear = interpolate_bilinear;
-ImageUtil.nonzero_pixels = nonzero_pixels;
-ImageUtil.glsl = image_glsl;
-
-FilterUtil.am_eye = am_eye;
-FilterUtil.am_multiply = am_multiply;
-FilterUtil.ct_eye = ct_eye;
-FilterUtil.ct_multiply = ct_multiply;
-FilterUtil.cm_eye = cm_eye;
-FilterUtil.cm_multiply = cm_multiply;
-FilterUtil.cm_rechannel = cm_rechannel;
-FilterUtil.cm_combine = cm_combine;
-FilterUtil.cm_convolve = cm_convolve;
-FilterUtil.gaussian = gaussian;
-FilterUtil.integral_convolution = notSupportClamp ? integral_convolution_clamp : integral_convolution;
-FilterUtil.separable_convolution = notSupportClamp ? separable_convolution_clamp : separable_convolution;
-FilterUtil.gradient = gradient;
-FilterUtil.optimum_gradient = optimum_gradient;
-FilterUtil.gradient_glsl = gradient_glsl;
-FilterUtil.histogram = histogram;
-FilterUtil.integral_histogram = integral_histogram;
-FilterUtil.match_histogram = match_histogram;
-FilterUtil.otsu = otsu;
-FilterUtil.otsu_multi = otsu_multi;
-FilterUtil.otsu_multiclass = otsu_multiclass;
-FilterUtil.fft1d = function(re, im, n) {return _fft1(re, im, n, false);};
-FilterUtil.ifft1d = function(re, im, n) {return _fft1(re, im, n, true);};
-FilterUtil.fft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, false);};
-FilterUtil.ifft2d = function(re, im, nx, ny) {return _fft2(re, im, nx, ny, true);};
-FilterUtil.minmax = function(d, w, h, tl, th, stride, offset) {
-    return min_max_loc(d, w, h, tl, th, true, true, stride, offset);
-};
-FilterUtil.min = function(d, w, h, tl, stride, offset) {
-    return min_max_loc(d, w, h, tl, null, true, false, stride, offset);
-};
-FilterUtil.max = function(d, w, h, th, stride, offset) {
-    return min_max_loc(d, w, h, null, th, false, true, stride, offset);
-};
-FilterUtil.localmax = local_max;
-FilterUtil.merge_features = merge_features;
-FilterUtil.sat = integral2;
-FilterUtil.satsum = satsum;
-FilterUtil.satsums = satsums;
-FilterUtil.satsumt = satsumt;
-FilterUtil.satsumr = satsumr;
-FilterUtil.rsatsum = rsatsum;
 
 }(FILTER);/**
 *
@@ -5956,11 +6706,11 @@ var Filter = FILTER.Filter = FILTER.Class(FilterThread, {
     }
 
     // @override
-    ,metaData: function(meta, serialisation) {
+    ,metaData: function(serialisation) {
         return this.meta;
     }
-    ,getMetaData: function(meta, serialisation) {
-        return this.metaData(meta, serialisation);
+    ,getMetaData: function(serialisation) {
+        return this.metaData(serialisation);
     }
     // @override
     ,setMetaData: function(meta, serialisation) {
@@ -6981,6 +7731,73 @@ var Color = FILTER.Color = FILTER.Class({
             return ccc;
         },
 
+        /*RGB2LAB: function(ccc, p) {
+            //p = p || 0;
+            var r = ccc[p+0], g = ccc[p+1], b = ccc[p+2],
+                K1 = 1.0 / 1.055, K2 = 1.0 / 12.92, Xr = 1.0 / 95.047, Yr = 1.0 / 100.0, Zr = 1.0 / 108.883,
+                e = 0.008856, k = 7.787, S = 16.0 / 116.0, S2 = 1.0 / 2.4, OneThird = 1.0 / 3.0,
+                R = r / 255, G = g / 255, B = b / 255, xr, y, zr, fx, fy, fz;
+
+            // Inverse sRBG Companding http://www.brucelindbloom.com/index.html?Math.html
+            r = R > 0.04045 ? (stdMath.pow((R + 0.055) * K1, 2.4) * 100.0) : (R * K2 * 100.0);
+            g = G > 0.04045 ? (stdMath.pow((G + 0.055) * K1, 2.4) * 100.0) : (G * K2 * 100.0);
+            b = B > 0.04045 ? (stdMath.pow((B + 0.055) * K1, 2.4) * 100.0) : (B * K2 * 100.0);
+
+            // Step 2. Linear RGB to XYZ
+            xr = (r * 0.4124 + g * 0.3576 + b * 0.1805) * Xr;
+            yr = (r * 0.2126 + g * 0.7152 + b * 0.0722) * Yr;
+            zr = (r * 0.0193 + g * 0.1192 + b * 0.9505) * Zr;
+
+            fx = xr > e ? stdMath.pow(xr, OneThird) : (k * xr) + S;
+            fy = yr > e ? stdMath.pow(yr, OneThird) : (k * yr) + S;
+            fz = zr > e ? stdMath.pow(zr, OneThird) : (k * zr) + S;
+
+            // each take full range from 0-255
+            ccc[p+0] = ( 116.0 * fy - 16.0 )|0;
+            ccc[p+1] = ( 500.0 * (fx - fy) )|0;
+            ccc[p+2] = ( 200.0 * (fy - fz) )|0;
+            return ccc;
+        },
+
+        LAB2RGB: function(ccc, p) {
+            //p = p || 0;
+            var L = ccc[p+0], A = ccc[p+1], B = ccc[p+2],
+                e = 0.008856, k = 7.787, S = 16.0 / 116.0, S2 = 1.0 / 2.4,
+                Xr = 95.047, Yr = 100.000, Zr = 108.883,
+                K1 = 1.0 / 116.0, K2 = 1.0 / 500.0, K3 = 1.0 / 200.0,
+                K4 = 1.0 / k, W = 0.0031308,
+                Xr2 = 1.0 / 100.0, Yr2 = 1.0 / 100.0, Zr2 = 1.0 / 100.0,
+                fx, fy, fz, xr, yr, zr, X, Y, Z, r, g, b;
+
+            fy = (L + 16.0) * K1;
+            fx = (A * K2) + fy;
+            fz = fy - (B * K3);
+
+            yr = fy * fy * fy;
+            if (yr <= e) yr = (fy - S) * K4;
+            xr = fx * fx * fx;
+            if (xr <= e) xr = (fx - S) * K4;
+            zr = fz * fz * fz;
+            if (zr <= e) zr = (fz - S) * K4;
+
+            X = xr * Xr * Xr2;
+            Y = yr * Yr * Yr2;
+            Z = zr * Zr * Zr2;
+
+            // Step 1.  XYZ to Linear RGB
+            r = X * 3.2406 + Y * -1.5372 + Z * -0.4986;
+            g = X * -0.9689 + Y * 1.8758 + Z * 0.0415;
+            b = X * 0.0557 + Y * -0.2040 + Z * 1.0570;
+
+            // Step 2.  Companding
+            // sRGB Companding
+            // each take full range from 0-255
+            ccc[p+0] = ( r > W ? (1.055 * stdMath.pow(r, S2) - 0.055) : (12.92 * r) )|0;
+            ccc[p+1] = ( g > W ? (1.055 * stdMath.pow(g, S2) - 0.055) : (12.92 * g) )|0;
+            ccc[p+2] = ( b > W ? (1.055 * stdMath.pow(b, S2) - 0.055) : (12.92 * b) )|0;
+            return ccc;
+        },*/
+
         // https://www.cs.harvard.edu/~sjg/papers/cspace.pdf
         RGB2ILL: function(ccc, p) {
             //p = p || 0;
@@ -7804,7 +8621,7 @@ var FilterImage = FILTER.Image = FILTER.Class({
     }
 
     ,select: function(x1, y1, x2, y2, absolute) {
-        var self = this, argslen = arguments.length;
+        var self = this, argslen = arguments.length, sel;
         if (false === x1)
         {
             // deselect
@@ -7812,6 +8629,17 @@ var FilterImage = FILTER.Image = FILTER.Class({
             self.iDataSel = null;
             self.oDataSel = null;
             self._refresh &= CLEAR_SEL;
+        }
+        else if (x1 instanceof FILTER.Util.Image.Selection)
+        {
+            // select from selection
+            sel = x1;
+            self.selection = [
+                0, 0,
+                1, 1,
+                1, sel
+            ];
+            self._refresh |= SEL;
         }
         else
         {
@@ -7827,14 +8655,14 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 0 > y1 ? 0 : y1,
                 0 > x2 ? 0 : x2,
                 0 > y2 ? 0 : y2,
-                0
+                0, null
             ] : [
                 // clamp
                 0 > x1 ? 0 : (1 < x1 ? 1 : x1),
                 0 > y1 ? 0 : (1 < y1 ? 1 : y1),
                 0 > x2 ? 0 : (1 < x2 ? 1 : x2),
                 0 > y2 ? 0 : (1 < y2 ? 1 : y2),
-                1
+                1, null
             ];
             self._refresh |= SEL;
         }
@@ -8201,24 +9029,55 @@ var FilterImage = FILTER.Image = FILTER.Class({
     ,setSelectedData: function(a) {
         var self = this, sel = self.selection,
             w = self.width, h = self.height,
-            xs, ys, ws, hs, xf, yf;
+            xs, ys, ws, hs, xf, yf, b, bb;
         if (sel)
         {
-            if (sel[4])
+            if (sel[5])
             {
-                xf = w - 1;
-                yf = h - 1;
+                bb = sel[5].bbox();
+                xs = bb.from.x;
+                ys = bb.from.y;
+                ws = bb.to.x-xs+1;
+                hs = bb.to.y-ys+1;
+                a = FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs);
+                if (sel[5].points().length < ws*hs)
+                {
+                    b = self.oCanvas.getContext('2d',self.ctxOpts).getImageData(DPR*xs, DPR*ys, DPR*ws, DPR*hs);
+                    if (!b) b = self.oCanvas.getContext('2d',self.ctxOpts).createImageData(DPR*ws, DPR*hs);
+                    // add only selection points
+                    sel[5].points().forEach(function(pt) {
+                        var x = pt.x - xs, y = pt.y - ys, i;
+                        if (0 <= x && x < ws && 0 <= y && y < hs)
+                        {
+                            i = (x + y*ws) << 2;
+                            b.data[i + 0] = a.data[i + 0];
+                            b.data[i + 1] = a.data[i + 1];
+                            b.data[i + 2] = a.data[i + 2];
+                            b.data[i + 3] = a.data[i + 3];
+                        }
+                    });
+                    a = b;
+                }
+                self.oCanvas.getContext('2d',self.ctxOpts).putImageData(a, DPR*xs, DPR*ys);
             }
             else
             {
-                xf = 1;
-                yf = 1;
+                if (sel[4])
+                {
+                    xf = w - 1;
+                    yf = h - 1;
+                }
+                else
+                {
+                    xf = 1;
+                    yf = 1;
+                }
+                xs = Floor(sel[0]*xf);
+                ys = Floor(sel[1]*yf);
+                ws = Floor(sel[2]*xf)-xs+1;
+                hs = Floor(sel[3]*yf)-ys+1;
+                self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
             }
-            xs = Floor(sel[0]*xf);
-            ys = Floor(sel[1]*yf);
-            ws = Floor(sel[2]*xf)-xs+1;
-            hs = Floor(sel[3]*yf)-ys+1;
-            self.oCanvas.getContext('2d',self.ctxOpts).putImageData(FILTER.Canvas.ImageData(a, DPR*ws, DPR*hs), DPR*xs, DPR*ys);
         }
         else
         {
@@ -8412,12 +9271,13 @@ function set_dimensions(scope, w, h, what)
         var sel = scope.selection,
             ow = scope.width-1,
             oh = scope.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1;
+            bb = sel[5] ? sel[5].bbox() : null,
+            xs = sel[5] ? bb.from.x : sel[0],
+            ys = sel[5] ? bb.from.y : sel[1],
+            xf = sel[5] ? bb.to.x   : sel[2],
+            yf = sel[5] ? bb.to.y   : sel[3],
+            fx = !sel[5] && sel[4] ? ow : 1,
+            fy = !sel[5] && sel[4] ? oh : 1;
         xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
         xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
         ws = xf-xs+DPR; hs = yf-ys+DPR;
@@ -8459,13 +9319,13 @@ function refresh_data(scope, what)
     if (scope._restorable && (what & IDATA) && (scope._refresh & IDATA))
     {
         scope.iData = scope.iCanvas.getContext('2d',scope.ctxOpts).getImageData(0, 0, w, h);
-        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, w, h);
+        if (!scope.iData) scope.iData = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(w, h);
         scope._refresh &= ~IDATA;
     }
     if ((what & ODATA) && (scope._refresh & ODATA))
     {
         scope.oData = scope.oCanvas.getContext('2d',scope.ctxOpts).getImageData(0, 0, w, h);
-        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, w, h);
+        if (!scope.oData) scope.oData = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(w, h);
         scope._refresh &= ~ODATA;
     }
     return scope;
@@ -8477,12 +9337,13 @@ function refresh_selected_data(scope, what)
         var sel = scope.selection,
             ow = scope.width-1,
             oh = scope.height-1,
-            xs = sel[0],
-            ys = sel[1],
-            xf = sel[2],
-            yf = sel[3],
-            fx = sel[4] ? ow : 1,
-            fy = sel[4] ? oh : 1,
+            bb = sel[5] ? sel[5].bbox() : null,
+            xs = sel[5] ? bb.from.x : sel[0],
+            ys = sel[5] ? bb.from.y : sel[1],
+            xf = sel[5] ? bb.to.x   : sel[2],
+            yf = sel[5] ? bb.to.y   : sel[3],
+            fx = !sel[5] && sel[4] ? ow : 1,
+            fy = !sel[5] && sel[4] ? oh : 1,
             ws, hs;
         xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
         xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
@@ -8491,13 +9352,13 @@ function refresh_selected_data(scope, what)
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
             scope.iDataSel = scope.iCanvas.getContext('2d',scope.ctxOpts).getImageData(xs, ys, ws, hs);
-            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, ws, hs);
+            if (!scope.iDataSel) scope.iDataSel = scope.iCanvas.getContext('2d',scope.ctxOpts).createImageData(ws, hs);
             scope._refresh &= ~ISEL;
         }
         if ((what & OSEL) && (scope._refresh & OSEL))
         {
             scope.oDataSel = scope.oCanvas.getContext('2d',scope.ctxOpts).getImageData(xs, ys, ws, hs);
-            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(0, 0, ws, hs);
+            if (!scope.oDataSel) scope.oDataSel = scope.oCanvas.getContext('2d',scope.ctxOpts).createImageData(ws, hs);
             scope._refresh &= ~OSEL;
         }
     }
@@ -8513,7 +9374,8 @@ function refresh_selected_data(scope, what)
 "use strict";
 
 var OP = Object.prototype, FP = Function.prototype, AP = Array.prototype,
-    slice = AP.slice, splice = AP.splice, concat = AP.push;
+    slice = AP.slice, splice = AP.splice, concat = AP.push,
+    TypedObj = FILTER.Util.Array.typed_obj;
 
 // Composite Filter Stack  (a variation of Composite Design Pattern)
 var CompositeFilter = FILTER.Create({
@@ -8608,8 +9470,32 @@ var CompositeFilter = FILTER.Create({
         return self;
     }
 
+    ,metaData: function(serialisation) {
+        var self = this, stack = self.filters, i, l,
+            meta = self.meta, meta_s = meta;
+        if (serialisation && FILTER.isWorker)
+        {
+            if (meta && meta.filters)
+            {
+                l = meta.filters.length;
+                meta_s = {filters:new Array(l)};
+                for (i=0; i<l; ++i) meta_s.filters[i] = [meta.filters[i][0], stack[meta.filters[i][0]].metaData(serialisation)];
+                if (null != meta._IMG_WIDTH)
+                {
+                    meta_s._IMG_WIDTH = meta._IMG_WIDTH;
+                    meta_s._IMG_HEIGHT = meta._IMG_HEIGHT;
+                }
+            }
+            return TypedObj(meta_s);
+        }
+        else
+        {
+            return meta;
+        }
+    }
     ,setMetaData: function(meta, serialisation) {
         var self = this, stack = self.filters, i, l;
+        if (serialisation && ("string" === typeof meta)) meta = TypedObj(meta, 1);
         if (meta && meta.filters && (l=meta.filters.length) && stack.length)
             for (i=0; i<l; ++i) stack[meta.filters[i][0]].setMetaData(meta.filters[i][1], serialisation);
         if (meta && (null != meta._IMG_WIDTH))
@@ -9228,11 +10114,11 @@ FILTER.Create({
     }
 
     ,metaData: function(serialisation) {
-        return serialisation ? JSON.stringify(this.meta) : this.meta;
+        return serialisation && FILTER.isWorker ? JSON.stringify(this.meta) : this.meta;
     }
 
     ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation ? JSON.parse(meta) : meta;
+        this.meta = serialisation && ("string" === typeof meta) ? JSON.parse(meta) : meta;
         return this;
     }
 
@@ -11556,8 +12442,8 @@ function glsl(filter)
 "use strict";
 
 var MODE = FILTER.MODE, CHANNEL = FILTER.CHANNEL,
-    TypedArray = FILTER.Util.Array.typed, GLSL = FILTER.Util.GLSL,
-    stdMath = Math, Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
+    GLSL = FILTER.Util.GLSL, stdMath = Math,
+    Min = stdMath.min, Max = stdMath.max, Floor = stdMath.floor;
 
 // DisplacementMap Filter
 var DisplacementMapFilter = FILTER.Create({
@@ -14791,7 +15677,7 @@ FILTER.Create({
         var self = this, filter = self._filter;
         if (!filter) return im;
         if ('function' === typeof filter.filter) filter = filter.filter;
-        return filter(self._params, im, w, h, metaData);
+        return filter(self._params, im, w, h, metaData, self);
     }
 
     ,canRun: function() {
@@ -18045,7 +18931,7 @@ FilterUtil.dissimilarity_rgb = dissimilarity_rgb;
 FilterUtil.floodRegion = flood_region;
 }(FILTER);/**
 *
-* Connected Components Extractor
+* Connected Components Extractor, Color Detector
 * @package FILTER.js
 *
 **/
@@ -18055,7 +18941,7 @@ FilterUtil.floodRegion = flood_region;
 var MODE = FILTER.MODE, A32F = FILTER.Array32F, IMG = FILTER.ImArray,
     FilterUtil = FILTER.Util.Filter,
     stdMath = Math, min = stdMath.min, max = stdMath.max,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     abs = stdMath.abs, cos = stdMath.cos, toRad = FILTER.CONST.toRad;
 
 FILTER.Create({
@@ -18163,7 +19049,7 @@ FILTER.Create({
     }
 });
 
-/*FILTER.Create({
+FILTER.Create({
     name: "ColorDetectorFilter"
 
     // parameters
@@ -18235,6 +19121,8 @@ FILTER.Create({
             xf, yf, x1, y1, x2, y2, D,
             area, minArea, maxArea;
 
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {matches: []};
         if (null == color) return im;
 
@@ -18261,10 +19149,10 @@ FILTER.Create({
                 xf = 1;
                 yf = 1;
             }
-            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf));
-            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf));
-            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf));
-            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf));
+            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf))|0;
+            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf))|0;
+            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf))|0;
+            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf))|0;
         }
         else
         {
@@ -18280,7 +19168,7 @@ FILTER.Create({
         self.meta = {matches: connected_components(null, x2-x1+1, y2-y1+1, 0, D, 8, delta, color, false, true, minArea, maxArea, x1, y1, x2, y2)};
         return im;
     }
-});*/
+});
 
 // private methods
 function dissimilarity_rgb_2(im, w, h, stride, D, delta, mode, x0, y0, x1, y1)
@@ -18541,7 +19429,7 @@ function connected_components(output, w, h, stride, D, K, delta, V0, invert, ret
     return output;
 }
 FilterUtil.dissimilarity_rgb_2 = dissimilarity_rgb_2;
-FilterUtil.connectedComponents = connected_components;
+FilterUtil.connectedComponents = FilterUtil.connected_components = connected_components;
 }(FILTER);/**
 *
 * Histogram Equalize,
@@ -19068,7 +19956,6 @@ FILTER.Create({
 
 var notSupportClamp = FILTER._notSupportClamp,
     CHANNEL = FILTER.CHANNEL, MODE = FILTER.MODE,
-    TypedArray = FILTER.Util.Array.typed,
     TypedObj = FILTER.Util.Array.typed_obj,
     FilterUtil = FILTER.Util.Filter;
 
@@ -19559,7 +20446,7 @@ function glsl(filter)
 
 var stdMath = Math, Abs = stdMath.abs, Max = stdMath.max, Min = stdMath.min,
     Floor = stdMath.floor, Round = stdMath.round, Sqrt = stdMath.sqrt,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     MAX_FEATURES = 10, push = Array.prototype.push;
 
 function by_area(r1, r2) {return r2.area-r1.area;}
@@ -19695,6 +20582,8 @@ FILTER.Create({
     // this is the filter actual apply method routine
     ,apply: function(im, w, h, metaData) {
         var self = this;
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {objects: []};
         if (!self.haardata || !w || !h) return im;
 
@@ -19719,10 +20608,10 @@ FILTER.Create({
                 xf = 1;
                 yf = 1;
             }
-            x1 = Min(w-1, Max(0, selection[0]*xf));
-            y1 = Min(h-1, Max(0, selection[1]*yf));
-            x2 = Min(w-1, Max(0, selection[2]*xf));
-            y2 = Min(h-1, Max(0, selection[3]*yf));
+            x1 = Min(w-1, Max(0, selection[0]*xf))|0;
+            y1 = Min(h-1, Max(0, selection[1]*yf))|0;
+            x2 = Min(w-1, Max(0, selection[2]*xf))|0;
+            y2 = Min(h-1, Max(0, selection[3]*yf))|0;
         }
         else
         {
@@ -19986,7 +20875,7 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     sat = FilterUtil.sat, satsum = FilterUtil.satsum,
     satsums = FilterUtil.satsums, satsumr = FilterUtil.satsumr,
     merge_features = FilterUtil.merge_features,
-    TypedArray = FILTER.Util.Array.typed, TypedObj = FILTER.Util.Array.typed_obj,
+    TypedObj = FILTER.Util.Array.typed_obj,
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
     // 1 default direction
     rot1  = [0],
@@ -20156,6 +21045,8 @@ FILTER.Create({
     ,apply: function(im, w, h, metaData) {
         var self = this, tpldata = self.tpldata(true), t = self.input("template"), all_matches = [];
 
+        self._update = false;
+        self.hasMeta = true;
         self.meta = {matches: all_matches};
         if (!t || !tpldata || !w || !h) return im;
 
@@ -20944,6 +21835,7 @@ FILTER.Create({
         var self = this, shape = self.shape,
             selection = self.selection || null,
             x1, y1, x2, y2, xf, yf;
+        self._update = false;
         self.hasMeta = true;
         self.meta = {objects: []};
         if (selection)
@@ -20990,7 +21882,6 @@ FILTER.Create({
         {
             self.meta.objects = hough_ellipses(im, w, h, 4, x1, y1, x2, y2, self.amin, self.amax, self.bmin, self.bmax, self.threshold);
         }
-        self._update = false;
         return im;
     }
 });
@@ -21534,6 +22425,1613 @@ function topological_sort(p0)
 
         return (dbx*dbx + dby*dby) - (dax*dax + day*day);
     };
+}
+}(FILTER);/**
+*
+* PatchMatch Filter
+* @package FILTER.js
+*
+**/
+!function(FILTER){
+"use strict";
+
+var stdMath = Math, INF = Infinity,
+    A32U = FILTER.Array32U, A32F = FILTER.Array32F,
+    copy = FILTER.Util.Array.copy,
+    clamp = FILTER.Util.Math.clamp,
+    toJSON = JSON.stringify,
+    fromJSON = JSON.parse,
+    TypedObj = FILTER.Util.Array.typed_obj;
+
+// PatchMatch algorithm filter
+// https://en.wikipedia.org/wiki/PatchMatch
+// [PatchMatch: A Randomized Correspondence Algorithm for Structural Image Editing, Connelly Barnes, Eli Shechtman, Adam Finkelstein, Dan B Goldman 2009](https://gfx.cs.princeton.edu/pubs/Barnes_2009_PAR/patchmatch.pdf)
+// [Space-Time Completion of Video, Yonatan Wexler, Eli Shechtman, Michal Irani 2007](https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/wexler07.pdf)
+// [Video Inpainting of Complex Scenes, Alasdair Newson, Andrés Almansa, Matthieu Fradet, Yann Gousseau, Patrick Pérez 2015](https://arxiv.org/abs/1503.05528)
+FILTER.Create({
+    name: "PatchMatchFilter"
+
+    ,_update: true
+    ,hasMeta: true
+    ,hasInputs: true
+
+    // parameters
+    ,patch: 5
+    ,iterations: 10
+    ,alpha: 0.5
+    ,radius: 100
+    ,threshold: 0
+    ,delta: 0
+    ,epsilon: 0
+    ,with_gradients: false
+    ,with_texture: false
+    ,needs_dilate: false
+    ,bidirectional: false
+    ,reconstruct: null
+    ,repeat: 1
+    ,multiscale: false
+    ,layered: false
+    ,fromSelection: null
+    ,toSelection: null
+    ,returnMatch: false
+
+    ,init: function() {
+        var self = this;
+        self.reconstruct = ["average", "best"];
+    }
+
+    // support worker serialize/unserialize interface
+    ,path: FILTER.Path
+
+    ,dispose: function() {
+        var self = this;
+        self.fromSelection = self.toSelection = null;
+        self.$super('dispose');
+        return self;
+    }
+
+    ,params: function(params) {
+        var self = this;
+        if (params)
+        {
+            if (null != params.patch) self.patch = +params.patch;
+            if (null != params.iterations) self.iterations = +params.iterations;
+            if (null != params.alpha) self.alpha = +params.alpha;
+            if (null != params.radius) self.radius = +params.radius;
+            if (null != params.threshold) self.threshold = +params.threshold;
+            if (null != params.delta) self.delta = +params.delta;
+            if (null != params.epsilon) self.epsilon = +params.epsilon;
+            if (null != params.with_gradients) self.with_gradients = params.with_gradients;
+            if (null != params.with_texture) self.with_texture = params.with_texture;
+            if (null != params.needs_dilate) self.needs_dilate = params.needs_dilate;
+            if (null != params.bidirectional) self.bidirectional = params.bidirectional;
+            if (null != params.reconstruct) self.reconstruct = params.reconstruct;
+            if (null != params.repeat) self.repeat = +params.repeat;
+            if (null != params.multiscale) self.multiscale = params.multiscale;
+            if (null != params.layered) self.layered = params.layered;
+            if (null != params.fromSelection) self.fromSelection = params.fromSelection;
+            if (null != params.toSelection) self.toSelection = params.toSelection;
+            if (null != params.returnMatch) self.returnMatch = params.returnMatch;
+        }
+        return self;
+    }
+
+    ,serialize: function() {
+        var self = this;
+        return {
+        patch: self.patch,
+        iterations: self.iterations,
+        alpha: self.alpha,
+        radius: self.radius,
+        threshold: self.threshold,
+        delta: self.delta,
+        epsilon: self.epsilon,
+        with_gradients: self.with_gradients,
+        with_texture: self.with_texture,
+        needs_dilate: self.needs_dilate,
+        bidirectional: self.bidirectional,
+        reconstruct: toJSON(self.reconstruct),
+        repeat: self.repeat,
+        multiscale: self.multiscale,
+        layered: self.layered,
+        fromSelection: toJSON(self.fromSelection),
+        toSelection: toJSON(self.toSelection),
+        returnMatch: self.returnMatch
+        };
+    }
+
+    ,unserialize: function(params) {
+        var self = this;
+        self.patch = params.patch;
+        self.iterations = params.iterations;
+        self.alpha = params.alpha;
+        self.radius = params.radius;
+        self.threshold = params.threshold;
+        self.delta = params.delta;
+        self.epsilon = params.epsilon;
+        self.with_gradients = params.with_gradients;
+        self.with_texture = params.with_texture;
+        self.needs_dilate = params.needs_dilate;
+        self.bidirectional = params.bidirectional;
+        self.reconstruct = fromJSON(params.reconstruct);
+        self.repeat = params.repeat;
+        self.multiscale = params.multiscale;
+        self.layered = params.layered;
+        self.fromSelection = fromJSON(params.fromSelection);
+        self.toSelection = fromJSON(params.toSelection);
+        self.returnMatch = params.returnMatch;
+        return self;
+    }
+
+    ,metaData: function(serialisation) {
+        var self = this;
+        if (serialisation && FILTER.isWorker)
+        {
+            return TypedObj(/*self.meta && self.meta.nnf ? {nnf:patchmatch.ANNF.serialize(self.meta.nnf)} :*/ self.meta);
+        }
+        else
+        {
+            return self.meta;
+        }
+    }
+
+    ,setMetaData: function(meta, serialisation) {
+        var self = this;
+        if (serialisation && ("string" === typeof meta))
+        {
+            self.meta = TypedObj(meta, 1);
+            //if (self.meta.nnf) self.meta.nnf = patchmatch.ANNF.unserialize(null, null, self.meta.nnf);
+        }
+        else
+        {
+            self.meta = meta;
+        }
+        return self;
+    }
+
+    ,apply: function(im_dst, w_dst, h_dst) {
+        var self = this,
+            fromSelection = self.fromSelection,
+            toSelection = self.toSelection,
+            patch = self.patch,
+            iterations = self.iterations,
+            alpha = self.alpha,
+            radius = self.radius,
+            with_gradients = self.with_gradients,
+            with_texture = self.with_texture,
+            needs_dilate = self.needs_dilate,
+            multiscale = self.multiscale,
+            layered = self.layered,
+            repeats = self.repeat,
+            delta = self.delta,
+            eps = self.epsilon,
+            bidirectional = self.bidirectional,
+            returnMatch = self.returnMatch,
+            meta, params, apply, level, repeat,
+            source, im_src, w_src, h_src,
+            nnf, nnf2x, dst, src,
+            Selection = FILTER.Util.Image.Selection,
+            Pyramid = FILTER.Util.Image.Pyramid;
+        self._update = false;
+        meta = returnMatch ? {match:null} : {metric:null};
+        if (fromSelection && toSelection)
+        {
+            source = fromSelection.data ? self.input(fromSelection.data) : [im_dst, w_dst, h_dst];
+            if (source)
+            {
+                im_src = source[0]; w_src = source[1]; h_src = source[2];
+                if (im_src === im_dst) im_src = copy(im_src);
+                params = {reconstruct:self.reconstruct[0], error:0, delta:0, threshold:self.threshold || 0};
+                if (multiscale)
+                {
+                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(1.4*patch, false);
+                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(1.4*patch, false);
+                    if (with_texture)
+                    {
+                        dst.levels[0].sel.attached.tex = ANNF.computeTexture(dst.levels[0].sel, patch);
+                        src.levels[0].sel.attached.tex = ANNF.computeTexture(src.levels[0].sel, patch);
+                        for (level=1; level<dst.levels.length; ++level)
+                        {
+                            dst.levels[level].sel.attached.tex = ANNF.transferTexture(null, dst.levels[level].sel, dst.levels[level-1].sel.attached.tex, dst.levels[level-1].sel, 2);
+                            src.levels[level].sel.attached.tex = ANNF.transferTexture(null, src.levels[level].sel, src.levels[level-1].sel.attached.tex, src.levels[level-1].sel, 2);
+                        }
+                    }
+                    for (level=dst.levels.length-1; level>=0; --level)
+                    {
+                        if (nnf)
+                        {
+                            nnf2x = nnf.scale(dst.levels[level].sel, src.levels[level].sel, 2);
+                            nnf.dispose(true);
+                            nnf = nnf2x;
+                        }
+                        else
+                        {
+                            nnf = patchmatch(
+                                dst.levels[level].sel,
+                                src.levels[level].sel,
+                                patch,
+                                iterations,
+                                alpha,
+                                radius,
+                                with_gradients || with_texture,
+                                needs_dilate || layered,
+                                bidirectional,
+                                layered
+                            );
+                        }
+                        if (1 < repeats && 0 < level)
+                        {
+                            for (repeat=1; repeat<repeats; ++repeat)
+                            {
+                                nnf.apply(params);
+                                if (params.delta <= delta || params.error <= eps)
+                                {
+                                    break;
+                                }
+                                nnf.optimization(iterations, alpha, radius);
+                            }
+                        }
+                    }
+                    apply = true; level = 0;
+                    for (repeat=1; repeat<repeats; ++repeat)
+                    {
+                        nnf.apply(params);
+                        if (params.delta <= delta || params.error <= eps)
+                        {
+                            apply = false;
+                            break;
+                        }
+                        nnf.optimization(iterations, alpha, radius);
+                    }
+                    if (returnMatch)
+                    {
+                        meta.match = nnf.getMatch();
+                    }
+                    else
+                    {
+                        if (apply || (self.reconstruct[1] !== self.reconstruct[0]))
+                        {
+                            params.reconstruct = self.reconstruct[1];
+                            nnf.apply(params);
+                        }
+                        meta.metric = {delta:params.delta, error:params.error};
+                        self._update = true;
+                    }
+                    nnf.dispose(true);
+                    dst.dispose();
+                    src.dispose();
+                }
+                else
+                {
+                    dst = new Selection(returnMatch ? copy(im_dst) : im_dst, w_dst, h_dst, 4,   toSelection);
+                    src = new Selection(im_src, w_src, h_src, 4, fromSelection);
+                    if (with_texture)
+                    {
+                        dst.attached.tex = ANNF.computeTexture(dst, patch);
+                        src.attached.tex = ANNF.computeTexture(src, patch);
+                    }
+                    nnf = patchmatch(
+                        dst, src,
+                        patch,
+                        iterations,
+                        alpha,
+                        radius,
+                        with_gradients || with_texture,
+                        needs_dilate || layered,
+                        bidirectional,
+                        layered
+                    );
+                    apply = true;
+                    for (repeat=1; repeat<repeats; ++repeat)
+                    {
+                        nnf.apply(params);
+                        if (params.delta <= delta || params.error <= eps)
+                        {
+                            apply = false;
+                            break;
+                        }
+                        nnf.optimization(iterations, alpha, radius);
+                    }
+                    if (returnMatch)
+                    {
+                        meta.match = nnf.getMatch();
+                    }
+                    else
+                    {
+                        if (apply || (self.reconstruct[1] !== self.reconstruct[0]))
+                        {
+                            params.reconstruct = self.reconstruct[1];
+                            nnf.apply(params);
+                        }
+                        meta.metric = {delta:params.delta, error:params.error};
+                        self._update = true;
+                    }
+                    nnf.dispose(true);
+                }
+            }
+        }
+        self.hasMeta = true;
+        self.meta = meta;
+        return im_dst;
+    }
+});
+
+// Approximate Nearest Neighbor Field
+function ANNF(dst, src, patch, with_gradients, needs_dilate)
+{
+    var self = this, other;
+    if (dst instanceof ANNF)
+    {
+        other = dst;
+        self.dst = other.dst;
+        self.src = other.src;
+        self.patch = other.patch;
+        self._with_gradients = other._with_gradients;
+        self._needs_dilate = other._needs_dilate;
+        self.field = other.field ? other.field.map(function(f) {return f.slice();}) : other.field;
+        self.fieldr = other.fieldr ? other.fieldr.map(function(f) {return f.slice();}) : other.fieldr;
+    }
+    else
+    {
+        self.dst = dst;
+        self.src = src;
+        self.patch = patch;
+        self._with_gradients = !!with_gradients;
+        self._needs_dilate = !!needs_dilate;
+        self.field = self.fieldr = null;
+    }
+    if (self.dst)
+    {
+        self.dstData = self.dst.data();
+        self.dstData.rect = self.dst.rect();
+        if (self._needs_dilate) self.dstData.dilated = self.dst.dilate(patch);
+    }
+    if (self.src)
+    {
+        self.srcData = self.src.data();
+        self.srcData.rect = self.src.rect();
+    }
+}
+ANNF.prototype = {
+    constructor: ANNF,
+    dst: null,
+    src: null,
+    dstData: null,
+    srcData: null,
+    field: null,
+    fieldr: null,
+    patch: 5,
+    _with_gradients: false,
+    _needs_dilate: false,
+    dispose: function(complete) {
+        var self = this;
+        if (true === complete)
+        {
+            if (self.dst) self.dst.dispose();
+            if (self.src) self.src.dispose();
+        }
+        if (self.dstData && self.dstData.dilated) self.dstData.dilated.dispose();
+        self.dstData = self.srcData = null;
+        self.dst = self.src = null;
+        self.field = self.fieldr = null;
+    },
+    getMatch: function() {
+        var self = this, AO = self.dstData.dilated || self.dst, AA = self.dst,
+            O = AO.points(), A = AA.points(), B = self.src.points();
+        return (self.field||[]).reduce(function(ret, f, a) {
+            var b = f[0], d = f[1], aa, ap = null, bp = null;
+            if (AO === AA)
+            {
+                ap = A[a];
+                bp = B[b];
+            }
+            else
+            {
+                aa = AO.indexOf(O[a].x, O[a].y);
+                if (-1 !== aa)
+                {
+                    ap = A[aa];
+                    bp = B[b];
+                }
+            }
+            if (ap && bp) ret.push({src:{x:bp.x,y:bp.y}, dst:{x:ap.x,y:ap.y}, dist:d});
+            return ret;
+        }, []);
+    },
+    clone: function() {
+        return new ANNF(this);
+    },
+    scale: function(dst, src, scaleX, scaleY) {
+        if (null == scaleY) scaleY = scaleX;
+        var self = this,
+            dst, src, dsts, srcs,
+            A, B, AA, BB,
+            scaled = new ANNF(dst, src, self.patch, self._with_gradients, self._needs_dilate);
+        if (self.field ) scaled.initialize(+1).randomize(1, +1);
+        if (self.fieldr) scaled.initialize(-1).randomize(1, -1);
+        if (self.field && scaled.field)
+        {
+            dst = self.dstData.dilated || self.dst;
+            src = self.src;
+            dsts = scaled.dstData.dilated || scaled.dst;
+            srcs = scaled.src;
+            A = dst.points();
+            B = src.points();
+            AA = dsts.points();
+            BB = srcs.points();
+            scaled.field.forEach(function(f, aa) {
+                var a, b, bb, indexA, indexAA;
+                a = dst.indexOf(stdMath.floor(AA[aa].x/scaleX), stdMath.floor(AA[aa].y/scaleY));
+                if (-1 !== a)
+                {
+                    b = self.field[a][0];
+                    bb = srcs.indexOf(stdMath.floor(B[b].x*scaleX), stdMath.floor(B[b].y*scaleY));
+                    if (-1 !== bb)
+                    {
+                        scaled.field[aa] = [bb, scaled.distance(aa, bb, +1)];
+                    }
+                    /*if (dsts.attached.tex && dst.attached.tex)
+                    {
+                        dsts.attached.tex[aa] = dst.attached.tex[a];
+                    }*/
+                }
+            });
+            if (scaled.fieldr) scaled.fieldr.forEach(function(f, bb) {
+                var a, b, aa;
+                b = src.indexOf(stdMath.floor(BB[bb].x/scaleX), stdMath.floor(BB[bb].y/scaleY));
+                if (-1 !== b)
+                {
+                    a = self.fieldr[b][0];
+                    aa = dsts.indexOf(stdMath.floor(A[a].x*scaleX), stdMath.floor(A[a].y*scaleY));
+                    if (-1 !== aa)
+                    {
+                        scaled.fieldr[bb] = [aa, scaled.distance(bb, aa, -1)];
+                    }
+                }
+            });
+        }
+        return scaled;
+    },
+    initialize: function(dir) {
+        var self = this, field,
+            AA = -1 ===dir ? self.src : (self.dstData.dilated || self.dst),
+            BB = -1 ===dir ? (self.dstData.dilated || self.dst) : self.src,
+            A = AA.points(), B = BB.points(), n = A.length, a;
+        if (!A.length || !B.length) {self.field = self.fieldr = null; return self;}
+        if (-1 === dir)
+        {
+            if (!self.fieldr) self.fieldr = new Array(n);
+            field = self.fieldr;
+        }
+        else
+        {
+            if (!self.field) self.field = new Array(n);
+            field = self.field;
+        }
+        for (a=0; a<n; ++a) field[a] = [0, 2];
+        return self;
+    },
+    randomize: function(num_tries, dir) {
+        if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
+        var self = this,
+            field = -1 === dir ? self.fieldr : self.field,
+            AA = -1 === dir ? self.src : (self.dstData.dilated || self.dst),
+            BB = -1 === dir ? (self.dstData.dilated || self.dst) : self.src,
+            pts = BB.points(), Blen = pts.length - 1,
+            n = field.length,
+            f, a, b, d, tries,
+            best_b, best_d
+        num_tries = num_tries || 1;
+        for (a=0; a<n; ++a)
+        {
+            f = field[a];
+            if (!f) field[a] = f = [0, 2];
+            best_b = f[0];
+            best_d = f[1];
+            tries = 0;
+            while (((tries < num_tries) || (best_d > 1)) && (tries < 10))
+            {
+                ++tries;
+                b = rand_int(0, Blen);
+                d = self.distance(a, b, dir);
+                if (num_tries < 2 || d < best_d)
+                {
+                    best_b = b;
+                    best_d = d;
+                }
+            }
+            f[0] = best_b;
+            f[1] = best_d;
+        }
+        return self;
+    },
+    onionize: function(dir) {
+        if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
+        var self = this,
+            field = -1 === dir ? self.fieldr : self.field,
+            AO = -1 === dir ? self.src : self.dst,
+            BO = -1 === dir ? self.dst : self.src,
+            AA = -1 === dir ? self.src : (self.dstData.dilated || self.dst),
+            BB = -1 === dir ? (self.dstData.dilated || self.dst) : self.src,
+            rectA = -1 === dir ? self.srcData : self.dstData,
+            rectB = -1 === dir ? self.dstData : self.srcData,
+            occVol, occVolDilate, occVolIter, occVolErode,
+            occVolPatchMatch, occVolBorder,
+            size, pos, weight, output, i, l;
+        self.randomize(1, dir);
+        // onionize only forward, else src will become tainted
+        if (-1 === dir) return self;
+
+        occVol = AO.bitmap();
+        occVolDilate = AA.bitmap();
+        occVolIter = occVol;
+
+        size = self.patch*self.patch,
+        pos = new A32U(size);
+        weight = new A32F(size);
+        output = new A32F(field.length * (4 === rectA.channels ? 6 : 4));
+
+        //fill in, in an onion peel fashion
+        while (occVolIter.filter(function(x){return !!x;}).length)
+        {
+            occVolErode = m("erode", occVolIter, rectA.width, rectA.height, null, 3);
+
+            //set up the partial occlusion volume for the PatchMatch :
+            // - 0 for non-occlusion;
+            // - 1 for occluded and not to take into account when
+            // comparing patches
+            // - 2 for occluded and to take into account (we do not allow
+            //the nearest neighbours to point to these pixels, but
+            //they have been reconstructed at this iteration
+            occVolPatchMatch = occVolDilate.slice();
+            for (i=0,l=occVolPatchMatch.length; i<l; ++i)
+            {
+                if (1 == ((occVolDilate[i]||0) - (occVolIter[i]||0)))
+                {
+                    occVolPatchMatch[i] = 2;
+                }
+            }
+
+            self._optimize(field, AA, BB, occVolPatchMatch, occVolDilate, rectA, rectB, 10, 0.5, stdMath.max(rectB.width, rectB.height), dir);
+
+            occVolBorder = occVolIter.slice();
+            for (i=0,l=occVolBorder.length; i<l; ++i)
+            {
+                if (1 == occVolErode[i])
+                {
+                    occVolBorder[i] = 2;
+                }
+                else
+                {
+                    occVolBorder[i] = stdMath.abs(occVolIter[i] - occVolErode[i]);
+                }
+            }
+
+            for (i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+            self.expectation("average", pos, weight, output, dir, occVolBorder, null, false);
+            self.maximization(output, 0, null);
+            occVolIter = occVolErode;
+        }
+        return self;
+    },
+    _optimize: function(field, AA, BB, OO, MM, rectA, rectB, iterations, alpha, radius, dir) {
+        var self = this,
+            A = AA.points(), B = BB.points(),
+            iter, i, n = field.length, start, step, f, d, r,
+            a, b, ai, ap, ax, ay, bp, bx, by, x, y, best_b, best_d;
+        radius = stdMath.min(radius, rectB.width, rectB.height);
+        for (iter=1; iter<=iterations; ++iter)
+        {
+            if ((iter-1) & 1)
+            {
+                start = n-1;
+                step = -1;
+            }
+            else
+            {
+                start = 0;
+                step = 1;
+            }
+            for (i=0,a=start; i<n; ++i,a+=step)
+            {
+                ap = A[a];
+                // do not modify this match
+                if (MM && !MM[ap.index]) continue;
+                ax = ap.x;
+                ay = ap.y;
+                f = field[a];
+                best_b = f[0];
+                best_d = f[1];
+
+                // propagate
+                ai = AA.indexOf(ax-step, ay);
+                d = -1 === ai ? 2 : self.distance(a, field[ai][0], dir, OO, MM);
+                if (d < best_d)
+                {
+                    best_b = field[ai][0];
+                    best_d = d;
+                }
+                ai = AA.indexOf(ax, ay-step);
+                d = -1 === ai ? 2 : self.distance(a, field[ai][0], dir, OO, MM);
+                if (d < best_d)
+                {
+                    best_b = field[ai][0];
+                    best_d = d;
+                }
+
+                // update
+                f[0] = best_b;
+                f[1] = best_d;
+            }
+            for (i=0,a=start; i<n; ++i,a+=step)
+            {
+                ap = A[a];
+                // do not modify this match
+                if (MM && !MM[ap.index]) continue;
+                ax = ap.x;
+                ay = ap.y;
+                f = field[a];
+                best_b = f[0];
+                best_d = f[1];
+
+                // local random search
+                bp = B[best_b];
+                bx = bp.x;
+                by = bp.y;
+                r = radius;
+                while (r >= 1)
+                {
+                    b = BB.indexOf(x = bx + rand_int(-r, r), y = by + rand_int(-r, r));
+                    if (-1 !== b)
+                    {
+                        d = b === best_b ? best_d : self.distance(a, b, dir, OO, MM);
+                        if (d < best_d) {best_b = b; best_d = d;}
+                        if (alpha >= 1) break;
+                    }
+                    r *= alpha;
+                }
+
+                // update
+                f[0] = best_b;
+                f[1] = best_d;
+            }
+        }
+        return field;
+    },
+    optimize: function(iterations, alpha, radius, dir) {
+        if ((-1 === dir && !this.fieldr) || (-1 !== dir && !this.field)) return this;
+        var self = this,
+            field = -1 === dir ? self.fieldr : self.field,
+            AA = -1 === dir ? self.src : (self.dstData.dilated || self.dst),
+            BB = -1 === dir ? (self.dstData.dilated || self.dst) : self.src,
+            rectA = -1 === dir ? self.srcData : self.dstData,
+            rectB = -1 === dir ? self.dstData : self.srcData;
+        self._optimize(field, AA, BB, null, null, rectA, rectB, iterations, alpha, radius, dir);
+        return self;
+    },
+    initialization: function() {
+        var self = this;
+        if (self.field ) self.initialize(+1);
+        if (self.fieldr) self.initialize(-1);
+        return self;
+    },
+    randomization: function(num_tries) {
+        var self = this;
+        if (self.field ) self.randomize(num_tries, +1);
+        if (self.fieldr) self.randomize(num_tries, -1);
+        return self;
+    },
+    onionization: function() {
+        var self = this;
+        if (self.field ) self.onionize(+1);
+        if (self.fieldr) self.onionize(-1);
+        return self;
+    },
+    optimization: function(iterations, alpha, radius) {
+        var self = this;
+        if (self.field ) self.optimize(iterations, alpha, radius, +1);
+        if (self.fieldr) self.optimize(iterations, alpha, radius, -1);
+        return self;
+    },
+    expectation: function(op, pos, weight, expected, dir, OO, MM, useAllPatches) {
+        var nnf = this,
+            field = nnf.field,
+            fieldr = nnf.fieldr,
+            AA = nnf.dstData.dilated || nnf.dst,
+            BB = nnf.src,
+            dataA = nnf.dstData,
+            dataB = nnf.srcData,
+            A = AA.points(),
+            B = BB.points(),
+            widthA = dataA.width,
+            heightA = dataA.height,
+            widthB = dataB.width,
+            heightB = dataB.height,
+            n = -1 === dir ? fieldr.length : field.length,
+            a, b, d, i, j, f, w,
+            ap, bp, dx, dy,
+            ax, ay, bx, by,
+            cnt, p = nnf.patch >>> 1;
+
+        function adaptive_sigma(val, n, quantile)
+        {
+            //return Array.prototype.sort.call(val.slice(n), function(a, b) {return a-b;})[stdMath.round(quantile*(n-1))];
+            var i, v, q2 = 0, q3 = 0, q1 = val[0];
+            for (i=1; i<n; ++i)
+            {
+                v = val[i];
+                if (v > q1)
+                {
+                    q3 = q2;
+                    q2 = q1;
+                    q1 = v;
+                }
+                else if (v > q2)
+                {
+                    q3 = q2;
+                    q2 = v;
+                }
+                else if (v > q3)
+                {
+                    q3 = v;
+                }
+            }
+            return quantile*stdMath.min(1.0, 2 > n ? q1 : ((q2+q3)/2));
+        }
+        function accumulate(nnf, pos, weight, cnt, output, outpos)
+        {
+            if (0 < cnt)
+            {
+                var B = nnf.src.points(),
+                    dataB = nnf.srcData,
+                    imgB = dataB.data,
+                    texB = nnf.src.attached.tex,
+                    r = 0.0, g = 0.0,
+                    b = 0.0, sum = 0.0,
+                    gx = 0.0, gy = 0.0,
+                    i, bi, index, w,
+                    sigma2 = adaptive_sigma(weight, cnt, 0.75) || 1e-6;
+
+                if (4 === dataB.channels)
+                {
+                    for (i=0; i<cnt; ++i)
+                    {
+                        w = stdMath.exp(-weight[i] / (2*sigma2));
+                        bi = pos[i];
+                        index = B[bi].index << 2;
+                        r += imgB[index + 0] * w;
+                        g += imgB[index + 1] * w;
+                        b += imgB[index + 2] * w;
+                        if (texB)
+                        {
+                            gx += texB[bi].gx * w;
+                            gy += texB[bi].gy * w;
+                        }
+                        sum += w;
+                    }
+                    outpos *= 6;
+                    output[outpos + 0] += r;
+                    output[outpos + 1] += g;
+                    output[outpos + 2] += b;
+                    output[outpos + 3] += gx;
+                    output[outpos + 4] += gy;
+                    output[outpos + 5] += sum;
+                }
+                else
+                {
+                    for (i=0; i<cnt; ++i)
+                    {
+                        w = stdMath.exp(-weight[i] / (2*sigma2));
+                        bi = pos[i];
+                        index = B[bi].index;
+                        r += imgB[index] * w;
+                        if (texB)
+                        {
+                            gx += texB[bi].gx * w;
+                            gy += texB[bi].gy * w;
+                        }
+                        sum += w;
+                    }
+                    outpos *= 4;
+                    output[outpos + 0] += r;
+                    output[outpos + 1] += gx;
+                    output[outpos + 2] += gy;
+                    output[outpos + 3] += sum;
+                }
+            }
+        }
+
+        if ("center" === op)
+        {
+            if (-1 === dir)
+            {
+                for (b=0; b<n; ++b)
+                {
+                    f = fieldr[b];
+                    a = f[0];
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    d = f[1];
+                    pos[0] = b;
+                    weight[0] = d;
+                    cnt = 1;
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    pos[0] = b;
+                    weight[0] = d;
+                    cnt = 1;
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        else if ("best" === op)
+        {
+            if (-1 === dir)
+            {
+                for (b=0; b<n; ++b)
+                {
+                    f = fieldr[b];
+                    a = f[0];
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    d = f[1];
+                    bp = B[b];
+                    cnt = 0;
+                    weight[0] = 10;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        by = bp.y+dy;
+                        if (0 > by || by >= heightB) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            bx = bp.x+dx;
+                            if (0 > bx || bx >= widthB) continue;
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            ap = A[fieldr[j][0]];
+                            ax = ap.x-dx; ay = ap.y-dy;
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            if (useAllPatches || (!OO || (!OO[A[i].index] || -1 === OO[A[i].index])))
+                            {
+                                w = fieldr[j][1];
+                                if (w < weight[0])
+                                {
+                                    pos[0] = j;
+                                    weight[0] = w;
+                                    cnt = 1;
+                                }
+                            }
+                        }
+                    }
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    ap = A[a];
+                    cnt = 0;
+                    weight[0] = 10;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        ay = ap.y+dy;
+                        if (0 > ay || ay >= heightA) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            ax = ap.x+dx;
+                            if (0 > ax || ax >= widthA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            if (useAllPatches || (!OO || (!OO[A[i].index] || -1 === OO[A[i].index])))
+                            {
+                                bp = B[field[i][0]];
+                                bx = bp.x-dx; by = bp.y-dy;
+                                if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                                j = BB.indexOf(bx, by);
+                                if (-1 === j) continue;
+                                w = field[i][1];
+                                if (w < weight[0])
+                                {
+                                    pos[0] = j;
+                                    weight[0] = w;
+                                    cnt = 1;
+                                }
+                            }
+                        }
+                    }
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        else // "average" === op
+        {
+            if (-1 === dir)
+            {
+                for (b=0; b<n; ++b)
+                {
+                    f = fieldr[b];
+                    a = f[0];
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    d = f[1];
+                    bp = B[b];
+                    cnt = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        by = bp.y+dy;
+                        if (0 > by || by >= heightB) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            bx = bp.x+dx;
+                            if (0 > bx || bx >= widthB) continue;
+                            j = BB.indexOf(bx, by);
+                            if (-1 === j) continue;
+                            ap = A[fieldr[j][0]];
+                            ax = ap.x-dx; ay = ap.y-dy;
+                            if (0 > ax || ax >= widthA || 0 > ay || ay >= heightA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            if (useAllPatches || (!OO || (!OO[A[i].index] || -1 === OO[A[i].index])))
+                            {
+                                pos[cnt] = j;
+                                weight[cnt] = fieldr[j][1];
+                                ++cnt;
+                            }
+                        }
+                    }
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+            else
+            {
+                for (a=0; a<n; ++a)
+                {
+                    // skip this point
+                    if (OO && (!OO[A[a].index] || 2 === OO[A[a].index])) continue;
+                    f = field[a];
+                    b = f[0];
+                    d = f[1];
+                    ap = A[a];
+                    cnt = 0;
+                    for (dy=-p; dy<=p; ++dy)
+                    {
+                        ay = ap.y+dy;
+                        if (0 > ay || ay >= heightA) continue;
+                        for (dx=-p; dx<=p; ++dx)
+                        {
+                            ax = ap.x+dx;
+                            if (0 > ax || ax >= widthA) continue;
+                            i = AA.indexOf(ax, ay);
+                            if (-1 === i) continue;
+                            if (useAllPatches || (!OO || (!OO[A[i].index] || -1 === OO[A[i].index])))
+                            {
+                                bp = B[field[i][0]];
+                                bx = bp.x-dx; by = bp.y-dy;
+                                if (0 > bx || bx >= widthB || 0 > by || by >= heightB) continue;
+                                j = BB.indexOf(bx, by);
+                                if (-1 === j) continue;
+                                pos[cnt] = j;
+                                weight[cnt] = field[i][1];
+                                ++cnt;
+                            }
+                        }
+                    }
+                    accumulate(nnf, pos, weight, cnt, expected, a);
+                }
+            }
+        }
+        return nnf;
+    },
+    maximization: function(expected, threshold, metrics) {
+        var nnf = this, field = nnf.field,
+            dataA = nnf.dstData, imgA = dataA.data,
+            AO = nnf.dst,
+            A = (dataA.dilated || AO).points(),
+            n = field.length, m = 0,
+            texA = AO.attached.tex,
+            i, j, ai, bi, dr, dg, db, sum, r, g, b,
+            diff, nmse = 0, delta = 0;
+        if (4 === dataA.channels)
+        {
+            for (i=0; i<n; ++i)
+            {
+                j = dataA.dilated ? AO.indexOf(A[i].x, A[i].y) : i;
+                if (-1 === j) continue;
+                ai = A[i].index << 2;
+                bi = i * 6;
+                sum = expected[bi + 5];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                    g = clamp(stdMath.round(expected[bi + 1] / sum), 0, 255);
+                    b = clamp(stdMath.round(expected[bi + 2] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    dg = imgA[ai + 1] - g;
+                    db = imgA[ai + 2] - b;
+                    diff = (dr * dr + dg * dg + db * db) / 195075/*3*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    imgA[ai + 0] = r;
+                    imgA[ai + 1] = g;
+                    imgA[ai + 2] = b;
+                    if (texA)
+                    {
+                        texA[j].gx = expected[bi + 3] / sum;
+                        texA[j].gy = expected[bi + 4] / sum;
+                    }
+                    ++m;
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<n; ++i)
+            {
+                j = dataA.dilated ? AO.indexOf(A[i].x, A[i].y) : i;
+                if (-1 === j) continue;
+                ai = A[i].index;
+                bi = i * 4;
+                sum = expected[bi + 3];
+                if (sum)
+                {
+                    r = clamp(stdMath.round(expected[bi + 0] / sum), 0, 255);
+                    dr = imgA[ai + 0] - r;
+                    diff = (dr * dr) / 65025/*255*255*/;
+                    nmse += diff;
+                    if (diff > threshold) delta++;
+                    imgA[ai + 0] = r;
+                    if (texA)
+                    {
+                        texA[j].gx = expected[bi + 1] / sum;
+                        texA[j].gy = expected[bi + 2] / sum;
+                    }
+                    ++m;
+                }
+            }
+        }
+        if (metrics)
+        {
+            metrics.delta = m ? delta / m : 0;
+            metrics.error = m ? nmse / m : 0;
+        }
+        return nnf;
+    },
+    apply: function(params) {
+        if (!this.field) return this;
+        var self = this,
+            field = self.field,
+            fieldr = self.fieldr,
+            size = self.patch*self.patch,
+            output, dataA = self.dstData,
+            pos = new A32U(size),
+            weight = new A32F(size),
+            op = params ? String(params.reconstruct).toLowerCase() : "best";
+
+        if (-1 === ["center","best","average"].indexOf(op)) op = "best";
+
+        output = new A32F(field.length * (4 === dataA.channels ? 6 : 4));
+        for (var i=0,l=output.length; i<l; ++i) output[i] = 0.0;
+
+        if (fieldr) self.expectation(op, pos, weight, output, -1, null, null, true);
+        if (field ) self.expectation(op, pos, weight, output, +1, null, null, true);
+        self.maximization(output, (params ? params.threshold : 0)||0, params);
+
+        return self;
+    },
+    distance: function(a, b, dir, OO, MM) {
+        var self = this,
+            AA = -1 === dir ? self.src : (self.dstData.dilated || self.dst),
+            BB = -1 === dir ? (self.dstData.dilated || self.dst) : self.src,
+            AO = -1 === dir ? self.src : self.dst,
+            BO = -1 === dir ? self.dst : self.src,
+            dataA = -1 === dir ? self.srcData : self.dstData,
+            dataB = -1 === dir ? self.dstData : self.srcData,
+            patch = self.patch,
+            factor, factorg, factorgg,
+            p = patch >>> 1,
+            ssd = 0,
+            completed = 0,
+            excluded = 0,
+            imgA = dataA.data,
+            imgB = dataB.data,
+            texA = AA.attached.tex,
+            texB = BB.attached.tex,
+            aw = dataA.width,
+            ah = dataA.height,
+            bw = dataB.width,
+            bh = dataB.height,
+            A = AA.points(),
+            B = BB.points(),
+            ax = A[a].x, ay = A[a].y,
+            bx = B[b].x, by = B[b].y,
+            with_gradients = self._with_gradients,
+            has_textures = texA && texB,
+            dx, dy, xa, ya, yaw, xb, yb, ybw,
+            i, j, i1, i2, dr, dg, db, ta, tb,
+            gar, gag, gab, gbr, gbg, gbb, dgx, dgy;
+
+        if (4 === dataA.channels)
+        {
+            factor = 195075/*3*255*255*/;
+            factorg = with_gradients ? 10 : 1;
+            factorgg = (factorg-1) / factorg;
+            for (dy=-p; dy<=p; ++dy)
+            {
+                ya = ay+dy; yb = by+dy;
+                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
+                if (!BO.has(null, yb))
+                {
+                    excluded += patch;
+                    continue; // pixel is excluded
+                }
+                yaw = ya*aw; ybw = yb*bw;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    xa = ax+dx; xb = bx+dx;
+                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
+                    // skip this pixel
+                    if (OO && (1 === OO[xa+yaw])) continue;
+                    tb = BO.indexOf(xb, yb);
+                    if (-1 === tb)
+                    {
+                        excluded += 1;
+                        continue; // pixel is excluded
+                    }
+                    i = (xa + yaw) << 2; j = (xb + ybw) << 2;
+                    dr = imgA[i + 0] - imgB[j + 0];
+                    dg = imgA[i + 1] - imgB[j + 1];
+                    db = imgA[i + 2] - imgB[j + 2];
+                    ssd += (dr * dr + dg * dg + db * db) / (factor*factorg);
+
+                    if (with_gradients)
+                    {
+                        if (has_textures)
+                        {
+                            ta = AO.indexOf(xa, ya);
+                            if (-1 === ta || -1 === tb)
+                            {
+                                ssd += factorgg;
+                            }
+                            else
+                            {
+
+                                dgx = texA[ta].gx - texB[tb].gx;
+                                dgy = texA[ta].gy - texB[tb].gy;
+                                ssd += factorgg*(dgx * dgx + dgy * dgy)/2;
+                            }
+                        }
+                        else
+                        {
+                            if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                            {
+                                i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                                gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                                gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                                gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                                // intensity only
+                                gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
+                                gag = gab = gar;
+
+                                i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                                gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                                gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                                gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                                // intensity only
+                                gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
+                                gbg = gbb = gbr;
+
+                                dr = gar - gbr;
+                                dg = gag - gbg;
+                                db = gab - gbb;
+                                ssd += factorgg*(dr * dr + dg * dg + db * db) / (2*factor);
+                            }
+                            else
+                            {
+                                ssd += factorgg/2;
+                            }
+
+                            if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                            {
+                                i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                                gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+                                gag = 128 + ((imgA[i2 + 1] - imgA[i1 + 1]) >> 1);
+                                gab = 128 + ((imgA[i2 + 2] - imgA[i1 + 2]) >> 1);
+                                // intensity only
+                                gar = clamp(stdMath.round(0.2126*gar+0.7152*gag+0.0722*gab), 0, 255);
+                                gag = gab = gar;
+
+                                i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                                gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+                                gbg = 128 + ((imgB[i2 + 1] - imgB[i1 + 1]) >> 1);
+                                gbb = 128 + ((imgB[i2 + 2] - imgB[i1 + 2]) >> 1);
+                                // intensity only
+                                gbr = clamp(stdMath.round(0.2126*gbr+0.7152*gbg+0.0722*gbb), 0, 255);
+                                gbg = gbb = gbr;
+
+                                dr = gar - gbr;
+                                dg = gag - gbg;
+                                db = gab - gbb;
+                                ssd += factorgg*(dr * dr + dg * dg + db * db) / (2*factor);
+                            }
+                            else
+                            {
+                                ssd += factorgg/2;
+                            }
+                        }
+                    }
+                    ++completed;
+                }
+            }
+        }
+        else
+        {
+            factor = 65025/*255*255*/;
+            factorg = with_gradients ? 10 : 1;
+            factorgg = (factorg-1) / factorg;
+            for (dy=-p; dy<=p; ++dy)
+            {
+                ya = ay+dy; yb = by+dy;
+                if (0 > ya || 0 > yb || ya >= ah || yb >= bh) continue;
+                if (!BO.has(null, yb))
+                {
+                    excluded += patch;
+                    continue; // pixel is excluded
+                }
+                yaw = ya*aw; ybw = yb*bw;
+                for (dx=-p; dx<=p; ++dx)
+                {
+                    xa = ax+dx; xb = bx+dx;
+                    if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
+                    // skip this pixel
+                    if (OO && (1 === OO[xa+yaw])) continue;
+                    tb = BO.indexOf(xb, yb);
+                    if (-1 === tb)
+                    {
+                        excluded += 1;
+                        continue; // pixel is excluded
+                    }
+                    i = (xa + yaw); j = (xb + ybw);
+                    dr = imgA[i] - imgB[j];
+                    ssd += (dr * dr) / (factor*factorg);
+
+                    if (with_gradients)
+                    {
+                        if (has_textures)
+                        {
+                            ta = AO.indexOf(xa, ya);
+                            if (-1 === ta || -1 === tb)
+                            {
+                                ssd += factorgg;
+                            }
+                            else
+                            {
+
+                                dgx = texA[ta].gx - texB[tb].gx;
+                                dgy = texA[ta].gy - texB[tb].gy;
+                                ssd += factorgg*(dgx * dgx + dgy * dgy)/2;
+                            }
+                        }
+                        else
+                        {
+                            if (0 <= xa-1 && xa+1 < aw && 0 <= xb-1 && xb+1 < bw)
+                            {
+                                i1 = (xa-1 + yaw) << 2; i2 = (xa+1 + yaw) << 2;
+                                gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+
+                                i1 = (xb-1 + ybw) << 2; i2 = (xb+1 + ybw) << 2;
+                                gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+
+                                dr = gar - gbr;
+                                ssd += factorgg*(dr * dr) / (2*factor);
+                            }
+                            else
+                            {
+                                ssd += factorgg/2;
+                            }
+
+                            if (0 <= ya-1 && ya+1 < ah && 0 <= yb-1 && yb+1 < bh)
+                            {
+                                i1 = (xa + (ya-1)*aw) << 2; i2 = (xa + (ya+1)*aw) << 2;
+                                gar = 128 + ((imgA[i2 + 0] - imgA[i1 + 0]) >> 1);
+
+                                i1 = (xb + (yb-1)*bw) << 2; i2 = (xb + (yb+1)*bw) << 2;
+                                gbr = 128 + ((imgB[i2 + 0] - imgB[i1 + 0]) >> 1);
+
+                                dr = gar - gbr;
+                                ssd += factorgg*(dr * dr) / (2*factor);
+                            }
+                            else
+                            {
+                                ssd += factorgg/2;
+                            }
+                        }
+                    }
+                    ++completed;
+                }
+            }
+        }
+        return completed ? ((excluded ? 1 : 0) + stdMath.min(ssd/completed, 1)) : 1;
+    }/*,
+    preparation: function() {
+        var nnf = this,
+            AA = nnf.dst,
+            A = AA.points(),
+            n = A.length,
+            width = nnf.dstData.width,
+            height = nnf.dstData.height,
+            res = new A32F(n),
+            i, j, ii, v, vals,
+            a = 1.0, b = 1.4,
+            c = 1.5, gamma = 1.3,
+            x, y, lx, ty, rx, by,
+            ads, cs, cx, cy,
+            p = nnf.patch >>> 1, w;
+
+        nnf.k = new A32F(nnf.patch);
+        if (nnf._kernel)
+        {
+            w = (true === nnf._kernel ? 1.0 : nnf._kernel) / (2*p*p);
+            for (i=-p; i<=p; ++i)
+            {
+                nnf.k[p+i] = stdMath.exp(-w*i*i);
+            }
+        }
+        else
+        {
+            for (i=-p; i<=p; ++i)
+            {
+                nnf.k[p+i] = 1.0;
+            }
+        }
+
+        if (!nnf._with_distance_transform)
+        {
+            for (i=0; i<n; ++i)
+            {
+                res[i] = 1.0;
+            }
+        }
+        else
+        {
+            vals = [0,0,0,0];
+            ads = [b, a, b, a];
+            cs = [null,null,null,null];
+            for (i=0; i<n; ++i)
+            {
+                x = A[i].x;
+                y = A[i].y;
+                lx = x - 1;
+                ty = y - 1;
+                rx = x + 1;
+                cs[0] = [lx, ty];
+                cs[1] = [x, ty];
+                cs[2] = [rx, ty];
+                cs[3] = [lx, y];
+                for (j=0; j<4; ++j)
+                {
+                    cx = cs[j][0]; cy = cs[j][1];
+                    if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                    {
+                        ii = AA.indexOf(cx, cy);
+                        v = -1 != ii ? (res[ii]||0) : 0;
+                        vals[j] = v + ads[j];
+                    }
+                    else
+                    {
+                        vals[j] = a;
+                    }
+                }
+                res[i] = stdMath.min.apply(stdMath, vals);
+            }
+            vals = [0,0,0,0,0];
+            for (i=n-1; i>=0; --i)
+            {
+                x = A[i].x;
+                y = A[i].y;
+                lx = x - 1;
+                by = y + 1;
+                rx = x + 1;
+                cs[0] = [lx, by];
+                cs[1] = [x, by];
+                cs[2] = [rx, by];
+                cs[3] = [rx, y];
+                for (j=0; j<4; ++j)
+                {
+                    cx = cs[j][0]; cy = cs[j][1];
+                    if (0 <= cx && cx < width && 0 <= cy && cy < height)
+                    {
+                        ii = AA.indexOf(cx, cy);
+                        v = -1 != ii ? (res[ii]||0) : 0;
+                        vals[j] = v + ads[j];
+                    }
+                    else
+                    {
+                        vals[j] = a;
+                    }
+                }
+                vals[4] = res[i];
+                res[i] = stdMath.min.apply(stdMath, vals);
+            }
+            for (i=0; i<n; ++i)
+            {
+                res[i] = 0 == res[i] ? c : stdMath.pow(gamma, -res[i]);
+            }
+        }
+        nnf.a = res;
+        return nnf;
+    }*/
+};
+ANNF.serialize = function(nnf) {
+    return {
+    dst: FILTER.Util.Image.Selection.serialize(nnf.dst),
+    src: FILTER.Util.Image.Selection.serialize(nnf.src),
+    patch: nnf.patch,
+    _with_gradients: nnf._with_gradients,
+    _needs_dilate: nnf._needs_dilate,
+    field: nnf.field,
+    fieldr: nnf.fieldr,
+    texDst: nnf.dst.attached.tex,
+    texSrc: nnf.src.attached.tex
+    };
+};
+ANNF.unserialize = function(dst, src, obj) {
+    dst = FILTER.Util.Image.Selection.unserialize(dst, obj.dst);
+    src = FILTER.Util.Image.Selection.unserialize(src, obj.src);
+    dst.attached.tex = obj.texDst;
+    src.attached.tex = obj.texSrc;
+    var nnf = new ANNF(
+    dst, src,
+    obj.patch,
+    obj._with_gradients,
+    obj._needs_dilate
+    );
+    nnf.field = obj.field;
+    nnf.fieldr = obj.fieldr;
+    return nnf;
+};
+ANNF.computeTexture = function(selection, patch) {
+    var p = patch >>> 1,
+        data = selection.data(),
+        w = data.width,
+        h = data.height,
+        img = data.data,
+        isRGBA = 4 === data.channels,
+        x, y, dx, dy, xx, yy,
+        gx, gy, cx, cy, i, j, a, b,
+        pts = selection.points(), l = pts.length,
+        tex = new Array(l), pt;
+    for (i=0; i<l; ++i)
+    {
+        pt = pts[i];
+        x = pt.x; y = pt.y;
+        gx = 0; gy = 0;
+        cx = 0; cy = 0;
+        for (dx=-p,dy=-p,j=0; j<patch; ++j,++dx)
+        {
+            if (dx > p) {dx=-p; ++dy;}
+            xx = x+dx; yy = y+dy;
+            if (
+                (xx-1 >= 0) && (xx+1 < w) &&
+                (yy >= 0) && (yy < h) &&
+                (-1 !== selection.indexOf(xx-1, yy)) &&
+                (-1 !== selection.indexOf(xx+1, yy))
+            )
+            {
+                ++cx;
+                a = xx-1 + yy*w; b = a+2;
+                if (isRGBA)
+                {
+                    a = a << 2; b = b << 2;
+                    gx += stdMath.abs(0.2126*(img[b+0] - img[a+0])+0.7152*(img[b+1] - img[a+1])+0.0722*(img[b+2] - img[a+2]))/255;
+                }
+                else
+                {
+                    gx += stdMath.abs(img[b] - img[a])/255;
+                }
+            }
+            if (
+                (xx >= 0) && (xx < w) &&
+                (yy-1 >= 0) && (yy+1 < h) &&
+                (-1 !== selection.indexOf(xx, yy-1)) &&
+                (-1 !== selection.indexOf(xx, yy+1))
+            )
+            {
+                ++cy;
+                a = xx + (yy-1)*w; b = a+2*w;
+                if (isRGBA)
+                {
+                    a = a << 2; b = b << 2;
+                    gy += stdMath.abs(0.2126*(img[b+0] - img[a+0])+0.7152*(img[b+1] - img[a+1])+0.0722*(img[b+2] - img[a+2]))/255;
+                }
+                else
+                {
+                    gy += stdMath.abs(img[b] - img[a])/255;
+                }
+            }
+        }
+        tex[i] = {gx:cx?gx/cx:0, gy:cy?gy/cy:0};
+    }
+    return tex;
+};
+ANNF.transferTexture = function(tex_b, b, tex_a, a, scaleXforA, scaleYforA) {
+    if (null == scaleXforA) scaleXforA = 1;
+    if (null == scaleYforA) scaleYforA = scaleXforA;
+    if (!tex_b) tex_b = new Array(b.points().length);
+    a.points().forEach(function(pt, j) {
+        var i = b.indexOf(stdMath.floor(pt.x/scaleXforA), stdMath.floor(pt.y/scaleYforA));
+        if (-1 !== i) tex_b[i] = {gx:tex_a[j].gx, gy:tex_a[j].gy};
+    });
+    return tex_b;
+};
+function patchmatch(dst, src, patch,
+                    iterations, alpha, radius,
+                    with_gradients, needs_dilate,
+                    bidirectional, layered)
+{
+    var nnf = new patchmatch.ANNF(dst, src, patch, with_gradients, needs_dilate);
+    nnf.initialize(+1); if (bidirectional) nnf.initialize(-1);
+    if (layered) nnf.onionization();
+    else nnf.randomization(2);
+    nnf.optimization(iterations, alpha, radius);
+    return nnf;
+}
+patchmatch.ANNF = ANNF;
+patchmatch.ANNF.patchmatch = patchmatch;
+FILTER.Util.Filter.patchmatch = patchmatch;
+
+function rand_int(a, b)
+{
+    return stdMath.round(stdMath.random()*(b-a)+a);
+}
+function m(op, bmp, w, h, el, n)
+{
+    var nh = n >> 1, nn = n*n,
+        x, y, dx, dy, xx, yy,
+        i, j, v, l = bmp.length,
+        output = new Array(l),
+        op_func = "dilate" === op ? stdMath.max : stdMath.min,
+        op_0 = "dilate" === op ? -Infinity : Infinity;
+    for (i=0,y=0; y<h; ++y)
+    {
+        for (x=0; x<w; ++x,++i)
+        {
+            for (v=op_0,j=0,dy=-nh; dy<=nh; ++dy)
+            {
+                yy = y+dy;
+                if (0 <= yy && yy < h)
+                {
+                    for (dx=-nh; dx<=nh; ++dx,++j)
+                    {
+                        xx = x+dx;
+                        if (0 <= xx && xx < w && (!el || el[j]))
+                        {
+                            v = op_func(v, bmp[xx + w*yy]||0);
+                        }
+                    }
+                }
+            }
+            output[i] = v;
+        }
+    }
+    return output;
 }
 }(FILTER);/* main code ends here */
 /* export the module */

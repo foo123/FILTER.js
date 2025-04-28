@@ -1160,7 +1160,7 @@ ANNF.prototype = {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
                     // skip this pixel
-                    if (OO && (1 !== OO[xa+yaw])) continue;
+                    if (OO && (1 === OO[xa+yaw])) continue;
                     tb = BO.indexOf(xb, yb);
                     if (-1 === tb)
                     {
@@ -1273,7 +1273,7 @@ ANNF.prototype = {
                     xa = ax+dx; xb = bx+dx;
                     if (0 > xa || 0 > xb || xa >= aw || xb >= bw) continue;
                     // skip this pixel
-                    if (OO && (1 !== OO[xa+yaw])) continue;
+                    if (OO && (1 === OO[xa+yaw])) continue;
                     tb = BO.indexOf(xb, yb);
                     if (-1 === tb)
                     {
