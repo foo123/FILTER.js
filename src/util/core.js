@@ -3136,12 +3136,13 @@ ImagePyramid.prototype = {
     dispose: function() {
         this.levels = null;
     },
-    add: function(min_size, do_lowpass) {
+    add: function(min_size, max_level, do_lowpass) {
         var self = this,
             kernel = [1, 2, 1], // lowpass binomial separable
             x1, y1, x2, y2, y2w2, dx, dy, xk, yk, ykw,
             i1, i2, k, ky, r, g, b, a, s, n,
             last, channels, img1, w1, h1, sel, img2, w2, h2;
+        if (self.levels.length >= max_level) return false;
         last = self.levels && self.levels.length ? self.levels[self.levels.length-1] : null;
         if (!last) return false;
         img1 = last.img;
@@ -3224,10 +3225,10 @@ ImagePyramid.prototype = {
         self.levels.push({img:img2, width:w2, height:h2, channels:channels, sel:sel});
         return true;
     },
-    build: function(min_size, do_lowpass) {
+    build: function(min_size, max_level, do_lowpass) {
         var self = this;
         if (2 > arguments.length) do_lowpass = true;
-        for (;self.add(min_size, do_lowpass);) {/*loop*/}
+        for (;self.add(min_size, max_level, do_lowpass);) {/*loop*/}
         return self;
     }
 };

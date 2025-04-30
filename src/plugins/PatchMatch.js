@@ -182,6 +182,7 @@ FILTER.Create({
             meta, params, apply, level, repeat,
             source, im_src, w_src, h_src,
             nnf, nnf2x, dst, src,
+            min_size, max_level,
             Selection = FILTER.Util.Image.Selection,
             Pyramid = FILTER.Util.Image.Pyramid;
         self._update = false;
@@ -196,8 +197,10 @@ FILTER.Create({
                 params = {reconstruct:self.reconstruct[0], error:0, delta:0, threshold:self.threshold || 0};
                 if (multiscale)
                 {
-                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(1.4*patch, false);
-                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(1.4*patch, false);
+                    min_size = 1.4*patch;
+                    max_level = stdMath.floor(stdMath.log2(stdMath.min(w_dst, h_dst, w_src, h_src)/min_size));
+                    dst = (new Pyramid(im_dst, w_dst, h_dst, 4, new Selection(im_dst, w_dst, h_dst, 4,   toSelection))).build(min_size, max_level, false);
+                    src = (new Pyramid(im_src, w_src, h_src, 4, new Selection(im_src, w_src, h_src, 4, fromSelection))).build(min_size, max_level, false);
                     if (with_texture)
                     {
                         dst.levels[0].sel.attached.tex = ANNF.computeTexture(dst.levels[0].sel, patch);
