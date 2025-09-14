@@ -620,21 +620,50 @@ var FilterImage = FILTER.Image = FILTER.Class({
         self.nref = (self.nref+1) % 1000;
         return self;
     }
-    ,mapReduce: function(mappings, reduce, done) {
-        var self = this, completed = 0, missing = 0;
-        mappings.forEach(function(mapping, index) {
-            if (!mapping || !mapping.filter) {++missing; return;}
-            var from = mapping.from || {x:0, y:0},
+    ,mapReduce: function(mappings, reduce, done, onInterval) {
+        var self = this, index = -1, completed = 0, missing = 0;
+        function process()
+        {
+            ++index;
+            if (index >= mappings.length)
+            {
+                if (done) done(self);
+                return;
+            }
+            if (!mappings[index] || !mappings[index].filter)
+            {
+                ++missing;
+                if ((completed+missing === mappings.length))
+                {
+                    if (done) done(self);
+                    return;
+                }
+            }
+            var mapping = mappings[index],
+                from = mapping.from || {x:0, y:0},
                 to = mapping.to || {x:self.width-1, y:self.height-1},
                 absolute = mapping.to ? mapping.absolute : true,
                 data = self.getDataFromSelection(from.x, from.y, to.x, to.y, absolute);
+            // allow for map/reduce to run incrementally async on interval eg setTimeout
             mapping.filter.apply_(self, data[0], data[1], data[2], function(resultData, processorFilter) {
                 ++completed;
                 if (reduce) reduce(self, resultData, from, to, absolute, processorFilter, index);
-                if ((completed+missing === mappings.length) && done) done(self);
+                if ((completed+missing === mappings.length))
+                {
+                    if (done) done(self);
+                    return;
+                }
+                else if (onInterval)
+                {
+                    setTimeout(process, onInterval);
+                }
+                else
+                {
+                    process();
+                }
             });
-        });
-        if ((missing === mappings.length) && done) done(self);
+        }
+        process();
         return self;
     }
 
