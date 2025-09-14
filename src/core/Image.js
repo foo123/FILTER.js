@@ -651,7 +651,6 @@ var FilterImage = FILTER.Image = FILTER.Class({
                 if ((completed+missing === mappings.length))
                 {
                     if (done) done(self);
-                    return;
                 }
                 else if (onInterval)
                 {
