@@ -816,9 +816,10 @@ function set_dimensions(scope, w, h, what)
     {
         ws = scope.width; hs = scope.height;
     }
-    if ((what & WIDTH) && (ws !== w))
+    if ((what & WIDTH) && (scope.width !== w))
     {
-        scope.width = stdMath.round(is_selection ? (scope.width/ws*w) : w);
+        // selection having different aspect ratio than dimensions breaks rendering (FIXED)
+        scope.width = stdMath.round(/*is_selection ? (scope.width/ws*w) :*/ w);
         scope.oCanvas.width = DPR*scope.width;
         //if (scope.oCanvas.style) scope.oCanvas.style.width = String(scope.width) + 'px';
         if (scope._restorable)
@@ -828,9 +829,10 @@ function set_dimensions(scope, w, h, what)
         }
         ret = true;
     }
-    if ((what & HEIGHT) && (hs !== h))
+    if ((what & HEIGHT) && (scope.height !== h))
     {
-        scope.height = stdMath.round(is_selection ? (scope.height/hs*h) : h);
+        // selection having different aspect ratio than dimensions breaks rendering (FIXED)
+        scope.height = stdMath.round(/*is_selection ? (scope.height/hs*h) :*/ h);
         scope.oCanvas.height = DPR*scope.height;
         //if (scope.oCanvas.style) scope.oCanvas.style.height = String(scope.height) + 'px';
         if (scope._restorable)
@@ -875,9 +877,13 @@ function refresh_selected_data(scope, what)
             fx = !sel[5] && sel[4] ? ow : 1,
             fy = !sel[5] && sel[4] ? oh : 1,
             ws, hs;
-        xs = DPR*Floor(xs*fx); ys = DPR*Floor(ys*fy);
-        xf = DPR*Floor(xf*fx); yf = DPR*Floor(yf*fy);
-        ws = xf-xs+DPR; hs = yf-ys+DPR;
+        // selection having different aspect ratio than dimensions breaks rendering (FIXED)
+        xs = DPR*stdMath.min(stdMath.max(Floor(xs*fx), 0), ow);
+        ys = DPR*stdMath.min(stdMath.max(Floor(ys*fy), 0), oh);
+        xf = DPR*stdMath.min(stdMath.max(Floor(xf*fx), 0), ow);
+        yf = DPR*stdMath.min(stdMath.max(Floor(yf*fy), 0), oh);
+        ws = stdMath.abs(xf-xs)+DPR;
+        hs = stdMath.abs(yf-ys)+DPR;
         what = what || 255;
         if (scope._restorable && (what & ISEL) && (scope._refresh & ISEL))
         {
