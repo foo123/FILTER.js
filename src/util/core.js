@@ -2161,7 +2161,7 @@ function _fft1_r(re, im, n, inv, output_re, output_im)
             output_im[i] += (f_r * _imag + f_i * _real);
 
             _real = f_r * del_f_r - f_i * del_f_i;
-            _imag = f_i = f_r * del_f_i + f_i * del_f_r;
+            _imag = f_r * del_f_i + f_i * del_f_r;
             f_r = _real;
             f_i = _imag;
         }
