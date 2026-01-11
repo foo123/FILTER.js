@@ -102,7 +102,7 @@
 * [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 * [Robust Real-Time Face Detection, Viola, Jones 2004](https://www.researchgate.net/publication/220660094_Robust_Real-Time_Face_Detection)
 * [A new approach to represent Rotated Haar-like Features for Objects Detection, Mohamed Oualla, Abdelalim Sadiq, Samir Mbarki 2015](http://www.jatit.org/volumes/Vol78No1/3Vol78No1.pdf)
-* [Shape matching and object recognition using shape contexts, S. Belongie, J. Malik, J. Puzicha, 200l](https://ieeexplore.ieee.org/document/993558)
+* [Shape matching and object recognition using shape contexts, S. Belongie, J. Malik, J. Puzicha, 2001](https://ieeexplore.ieee.org/document/993558)
 * [Shape Context: A new descriptor for shape matching and object recognition, Serge Belongie, Jitendra Malik and Jan Puzicha, 2001](https://proceedings.neurips.cc/paper_files/paper/2000/file/c44799b04a1c72e3c8593a53e8000c78-Paper.pdf)
 * [Efficient Shape Matching Using Shape Contexts, Greg Mori, Serge Belongie, Jitendra Malik, 2005](https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/shape/papers/mori-belongie-malik-pami05.pdf)
 * [Rotation Invariant Shape Contexts based on Feature-space Fourier Transformation, Su Yang, Yuanyuan Wang, 2007](https://cis.temple.edu/~lakaemper/courses/cis601_2008/etc/rotInvShapeContext.pdf)
