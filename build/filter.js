@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.14.0
-*   @built on 2026-03-08 16:56:22
+*   @built on 2026-03-08 17:56:03
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.14.0
-*   @built on 2026-03-08 16:56:22
+*   @built on 2026-03-08 17:56:03
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12763,7 +12763,7 @@ var DisplacementMapFilter = FILTER.Create({
             color = self.color||0, alpha, red, green, blue,
             sty, stx, styw, bx0, by0, bx, by, bxx = w-1, byy = h-1, rem,
             i, j, k, x, y, ty, ty2, yy, xx, mapOff, dstOff, srcOff,
-            SX = self.scaleX*0.00390625, SY = self.scaleY*0.00390625,
+            SX = self.scaleX/256, SY = self.scaleY/256,
             X = self.componentX, Y = self.componentY,
             applyArea, imArea, imLen, mapLen, imcpy, srcx, srcy,
             IGNORE = MODE.IGNORE, CLAMP = MODE.CLAMP,
@@ -12967,7 +12967,7 @@ function glsl(filter)
     '   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',
     '      gl_FragColor = texture2D(img, pix);',
     '   } else {',
-    '       vec4 mc = texture2D(map, (pix-start)/mapSize + 0.5);',
+    '       vec4 mc = texture2D(map, (pix-start)/mapSize);',
     '       vec2 p = vec2(pix.x, pix.y);',
     '       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
     '       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',
@@ -13002,8 +13002,8 @@ function glsl(filter)
         var displaceMap = filter.input("map");
         return [displaceMap[1]/w, displaceMap[2]/h];
     })
-    .input('scale', function(filter) {return [1.4*filter.scaleX/255, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.4*filter.scaleY/255];})
-    .input('start', function(filter) {return [filter.startX, filter.startY];})
+    .input('scale', function(filter, w, h) {return [1.5*filter.scaleX/256, /*if UNPACK_FLIP_Y_WEBGL*//*-*/1.5*filter.scaleY/256];})
+    .input('start', function(filter, w, h) {return [filter.startX, filter.startY];})
     .input('component', function(filter) {return [filter.componentX, filter.componentY];})
     .input('color', function(filter) {
         var color = filter.color || 0;
