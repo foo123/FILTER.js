@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.1 (2025-07-06 14:11:55)
+*   @version 1.0.2 (2026-03-08 08:38:01)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.1 (2025-07-06 14:11:55)
+*   @version 1.0.2 (2026-03-08 08:38:01)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -75,6 +75,10 @@ function Rasterizer(width, height, set_rgba_at, get_rgba_from)
     self.getContext = function(type) {
         if ('2d' === type) return ctx2D;
         err('Unsupported context "'+type+'"');
+    };
+    self.dispose = function() {
+        if (ctx2D) ctx2D.dispose();
+        ctx2D = null;
     };
 }
 Rasterizer.VERSION = '1.1.1';
@@ -1049,6 +1053,27 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         if (null == x) x = 0;
         if (null == y) y = 0;
         set_data(null, W, H, imgData.data, w, h, 0, 0, w-1, h-1, x, y);
+    };
+    self.dispose = function() {
+        get_stroke_at = null;
+        get_fill_at = null;
+        canvas = null;
+        clip_canvas = null;
+        lineCap = 'butt';
+        lineJoin = 'miter';
+        miterLimit = 10.0;
+        lineWidth = 1;
+        lineDash = null;
+        lineDashOffset = 0;
+        shadowColor = null;
+        shadowBlur = 0;
+        shadowOffsetX = 0;
+        shadowOffsetY = 0;
+        transform = null;
+        alpha = 1.0;
+        op = 'source-over';
+        stack = null;
+        currentPath = null;
     };
 
     reset(true);
@@ -7419,7 +7444,7 @@ CanvasLite[PROTO] = {
     toBlob: null,
     toPNG: null
 };
-CanvasLite.VERSION = "1.0.1";
+CanvasLite.VERSION = "1.0.2";
 CanvasLite.Image = Image;
 CanvasLite.RenderingContext2D = Rasterizer.RenderingContext2D;
 
