@@ -19,9 +19,9 @@ HAAR Feature Detector (Viola-Jones-Lienhart algorithm)
 adapted from: https://github.com/foo123/HAAR.js
 based on:
 
-1. [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
+1. [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones, 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 
-2. [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
+2. [An Extended Set of Haar-like Features for Rapid Object Detection, Lienhart, Maydt, 2002](http://www.lienhart.de/Prof._Dr._Rainer_Lienhart/Source_Code_files/ICIP2002.pdf)
 */
 FILTER.Create({
     name: "HaarDetectorFilter"

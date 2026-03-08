@@ -199,7 +199,7 @@ var ColorMatrixFilter = FILTER.Create({
     // adapted from http://gskinner.com/blog/archives/2007/12/colormatrix_cla.html
     ,colorize: function(rgb, amount, LUMA) {
         var r, g, b, inv_amount, L = LUMA || FILTER.LUMA;
-        if ( null == amount ) amount = 1;
+        if (null == amount) amount = 1;
         r = ((rgb >> 16) & 255) / 255;
         g = ((rgb >> 8) & 255) / 255;
         b = (rgb & 255) / 255;

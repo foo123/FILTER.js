@@ -2,9 +2,11 @@
 
 __1.14.0__
 
+* PairwiseClusterFilter for image clustering and segmentation by deterministic annealing
 * PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
 * ColorDetectorFilter variation of ConnectedComponentsFilter
 * FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
+* FILTER.Util.Image.Distance methods (Euclidean, Histogram, Correlation)
 * FILTER.Image.select method can also accept a FILTER.Util.Image.Selection instance
 * handle metaData serialization in CompositeFilter
 * various edits, typo corrections

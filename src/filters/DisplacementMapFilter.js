@@ -298,7 +298,7 @@ function glsl(filter)
     '   if (pix.x < start.x || pix.x > min(1.0,start.x+mapSize.x) || pix.y < start.y || pix.y > min(1.0,start.y+mapSize.y)) {',
     '      gl_FragColor = texture2D(img, pix);',
     '   } else {',
-    '       vec4 mc = texture2D(map, (pix-start)/mapSize);',
+    '       vec4 mc = texture2D(map, (pix-start)/mapSize + 0.5);',
     '       vec2 p = vec2(pix.x, pix.y);',
     '       if (ALPHA == component.x) p.x += (mc.a - 0.5)*scale.x;',
     '       else if (BLUE == component.x) p.x += (mc.b - 0.5)*scale.x;',

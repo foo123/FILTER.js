@@ -1050,7 +1050,7 @@ function functional(dx, dy, f)
 {
     var x, y, rx = dx>>>1, ry=dy>>>1, l=dx*dy, i,
         kernel = new Array(l), sum;
-    for (sum=0,x=-rx,y=-ry,i=0; i<d; ++i,++x)
+    for (sum=0,x=-rx,y=-ry,i=0; i<l; ++i,++x)
     {
         if (x > rx) {x=-rx; ++y;}
         kernel[i] = f(x, y, dx, dy);

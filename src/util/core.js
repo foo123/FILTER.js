@@ -3234,6 +3234,210 @@ ImagePyramid.prototype = {
 };
 ImageUtil.Pyramid = ImagePyramid;
 
+ImageUtil.Distance = {};
+ImageUtil.Distance.euclidean = function(im1, im2, w, h, knn) {
+    var n = w*h, kw = knn*w,
+        D = new Array(n),
+        i, j, pi, pj, dij,
+        xi, yi, xj, yj, dx, dy,
+        ri, rj, gi, gj, bi, bj,
+        dr, dg, db;
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0; i<n; ++i)
+    {
+        xi = i % w;
+        yi = i - xi;
+        for (j=i; j<n; ++j)
+        {
+            if ((j === i) && (im1 === im2))
+            {
+                D[i][i] = 0;
+                continue;
+            }
+            xj = j % w;
+            yj = j - xj;
+            dr = 0;
+            dg = 0;
+            db = 0;
+            for (dx=-knn; dx<=knn; ++dx)
+            {
+                for (dy=-kw; dy<=kw; dy+=w)
+                {
+                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
+                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
+                    ri = (im1[pi + 0] - 128) / 128;
+                    gi = (im1[pi + 1] - 128) / 128;
+                    bi = (im1[pi + 2] - 128) / 128;
+                    rj = (im2[pj + 0] - 128) / 128;
+                    gj = (im2[pj + 1] - 128) / 128;
+                    bj = (im2[pj + 2] - 128) / 128;
+                    dr += stdMath.pow((ri - rj), 2);
+                    dg += stdMath.pow((gi - gj), 2);
+                    db += stdMath.pow((bi - bj), 2);
+                }
+            }
+            // euclidean distance
+            dij = (
+                stdMath.sqrt(dr) +
+                stdMath.sqrt(dg) +
+                stdMath.sqrt(db)
+            ) / 3;
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};
+ImageUtil.Distance.histogram = function(im1, im2, w, h, knn) {
+    var n = w*h, kw = knn*w,
+        kk = (knn+1)*(knn+1),
+        D = new Array(n),
+        i, j, pi, pj, dij,
+        xi, yi, xj, yj, dx, dy,
+        ri, rj, gi, gj, bi, bj,
+        r, g, b,
+        intersect = function(hi, hj) {
+           return Object.keys(hi).reduce(function(s, v) {
+               return s + stdMath.min(hi[v], hj[v] || 0);
+           }, 0);
+        };
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0; i<n; ++i)
+    {
+        xi = i % w;
+        yi = i - xi;
+        for (j=i; j<n; ++j)
+        {
+            if ((j === i) && (im1 === im2))
+            {
+                D[i][i] = 0;
+                continue;
+            }
+            xj = j % w;
+            yj = j - xj;
+            r = {i:{}, j:{}};
+            g = {i:{}, j:{}};
+            b = {i:{}, j:{}};
+            for (dx=-knn; dx<=knn; ++dx)
+            {
+                for (dy=-kw; dy<=kw; dy+=w)
+                {
+                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
+                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
+                    ri = im1[pi + 0];
+                    gi = im1[pi + 1];
+                    bi = im1[pi + 2];
+                    rj = im2[pj + 0];
+                    gj = im2[pj + 1];
+                    bj = im2[pj + 2];
+                    r.i[ri] = (r.i[ri] || 0) + 1;
+                    r.j[rj] = (r.j[rj] || 0) + 1;
+                    g.i[gi] = (g.i[gi] || 0) + 1;
+                    g.j[gj] = (g.j[gj] || 0) + 1;
+                    b.i[bi] = (b.i[bi] || 0) + 1;
+                    b.j[bj] = (b.j[bj] || 0) + 1;
+                }
+            }
+            // histogram intersection
+            dij = 1 - (
+                intersect(r.i, r.j) +
+                intersect(g.i, g.j) +
+                intersect(b.i, b.j)
+            ) / (3 * kk);
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};
+ImageUtil.Distance.correlation = function(im1, im2, w, h, knn) {
+    var n = w*h, kw = knn*w,
+        kk = (knn+1)*(knn+1),
+        D = new Array(n),
+        i, j, pi, pj, dij,
+        xi, yi, xj,
+        yj, dx, dy,
+        ri, rj, gi,
+        gj, bi, bj,
+        rii, gii, bii,
+        rjj, gjj, bjj,
+        rij, gij, bij,
+        rim, gim, bim,
+        rjm, gjm, bjm,
+        corrcoeff = function(n, im, jm, ii, jj, ij) {
+            return 1 - stdMath.abs((n*ij - im*jm) / stdMath.sqrt(stdMath.abs((n*ii - im*im) * (n*jj - jm*jm))));
+        };
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0; i<n; ++i)
+    {
+        xi = i % w;
+        yi = i - xi;
+        for (j=i; j<n; ++j)
+        {
+            if ((j === i) && (im1 === im2))
+            {
+                D[i][i] = 0;
+                continue;
+            }
+            xj = j % w;
+            yj = j - xj;
+            rii = 0;
+            rjj = 0;
+            rij = 0;
+            rim = 0;
+            rjm = 0;
+            gii = 0;
+            gjj = 0;
+            gij = 0;
+            gim = 0;
+            gjm = 0;
+            bii = 0;
+            bjj = 0;
+            bij = 0;
+            bim = 0;
+            bjm = 0;
+            for (dx=-knn; dx<=knn; ++dx)
+            {
+                for (dy=-kw; dy<=kw; dy+=w)
+                {
+                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
+                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
+                    ri = (im1[pi + 0] - 128) / 128;
+                    gi = (im1[pi + 1] - 128) / 128;
+                    bi = (im1[pi + 2] - 128) / 128;
+                    rj = (im2[pj + 0] - 128) / 128;
+                    gj = (im2[pj + 1] - 128) / 128;
+                    bj = (im2[pj + 2] - 128) / 128;
+                    rim += ri;
+                    rjm += rj;
+                    gim += gi;
+                    gjm += gj;
+                    bim += bi;
+                    bjm += bj;
+                    rii += ri*ri;
+                    rjj += rj*rj;
+                    rij += ri*rj;
+                    gii += gi*gi;
+                    gjj += gj*gj;
+                    gij += gi*gj;
+                    bii += bi*bi;
+                    bjj += bj*bj;
+                    bij += bi*bj;
+                }
+            }
+            // correlation coefficient
+            dij = (
+                corrcoeff(kk, rim, rjm, rii, rjj, rij) +
+                corrcoeff(kk, gim, gjm, gii, gjj, gij) +
+                corrcoeff(kk, bim, bjm, bii, bjj, bij)
+            ) / 3;
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};
+
 function clmp(x, a, b)
 {
     return a > b ? (x < b ? b : (x > a ? a : x)) : (x < a ? a : (x > b ? b : x));

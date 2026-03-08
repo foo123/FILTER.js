@@ -14,8 +14,10 @@ var stdMath = Math, deg2rad = stdMath.PI/180,
     A32U = FILTER.Array32U, A32F = FILTER.Array32F,
     TypedObj = FILTER.Util.Array.typed_obj;
 
-// https://en.wikipedia.org/wiki/Hough_transform
-// Detector for lines, rectangles, circles and ellipses based on Hough Transform
+/*
+https://en.wikipedia.org/wiki/Hough_transform
+Detector for lines, rectangles, circles and ellipses based on Hough Transform
+*/
 FILTER.Create({
     name : "HoughDetectorFilter"
 

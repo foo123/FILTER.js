@@ -1,13 +1,13 @@
 /**
 *
-* Table Lookup Filter
+* Color Table Lookup Filter
 *
 * Changes target image colors according to color lookup tables for each channel
 *
 * @param tableR Optional (a lookup table of 256 color values for red channel)
 * @param tableG Optional (a lookup table of 256 color values for green channel)
 * @param tableB Optional (a lookup table of 256 color values for blue channel)
-* @param tableA Optional (a lookup table of 256 color values for alpha channel, NOT USED YET)
+* @param tableA Optional (a lookup table of 256 color values for alpha channel)
 * @package FILTER.js
 *
 **/
@@ -204,13 +204,13 @@ var ColorTableFilter = FILTER.Create({
         if (null == numLevels) numLevels = 64;
         if (numLevels < 2) numLevels = 2;
         if (numLevels > 256) numLevels = 256;
-        var qi = stdMath.ceil(255 / (numLevels - 1));
+        var qi = stdMath.ceil(255 / stdMath.max(1, numLevels - 1));
         return this.set(eye(function(i) {return clamp(stdMath.round(i / qi) * qi);}));
     }
     ,posterize: null
 
     ,binarize: function() {
-        return this.quantize(2);
+        return this.quantizeAlt(2);
     }
 
     // adapted from http://www.jhlabs.com/ip/filters/
