@@ -2,12 +2,13 @@
 
 __1.14.0__
 
-* PairwiseClusterFilter for image clustering and segmentation by deterministic annealing
-* PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
 * ColorDetectorFilter variation of ConnectedComponentsFilter
+* TemplateMatcherFilter handle templates with transparent areas
+* PairwiseClusterFilter for image clustering and segmentation by deterministic annealing, in progress
+* PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
 * FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
-* FILTER.Util.Image.Distance methods (Euclidean, Histogram, Correlation)
 * FILTER.Image.select method can also accept a FILTER.Util.Image.Selection instance
+* FILTER.Util.Image.Distance methods (Euclidean, Histogram, Correlation)
 * handle metaData serialization in CompositeFilter
 * various edits, typo corrections
 
@@ -301,7 +302,7 @@ __0.6.9__
 * update live examples / docs
 
 
-__0.6.7, 0.6.8__
+__0.6.7__, __,0.6.8__
 
 * code refactor, various optimisations, edits, tidy up
 * add `ScaledImage` class, represents an image that can be automatically down/up scaled
@@ -395,7 +396,7 @@ __0.4.1__
 __0.4__
 
 * add new `Image` methods ( `scale`, `flipHorizontal`, `flipVertical` )
-* add new generic filter type `FILTER.TableLookupFilter` and some pre-computed filters ( `posterize`, `solarize`, etc..)
+* add new generic filter type `FILTER.TableLookupFilter` and some pre-computed filters (`posterize`, `solarize`, etc..)
 * minor edits/optimizations
 * update readme / examples
 

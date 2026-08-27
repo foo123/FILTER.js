@@ -1,9 +1,9 @@
 "use strict";
 
-var parse_args = require('./commargs.js'),
+var args = require('./commargs.js')(),
     fs = require('fs'),
     F = require('./filterwithcanvas.js'),
-    parallel = !!parse_args().options['parallel'],
+    parallel = !!args.options['parallel'],
     shape_detector = F.CompositeFilter([
         //F.HoughDetectorFilter('lines').params({threshold:45,thetas:[0, 45, 90, 135]}),
         F.HoughDetectorFilter('linesegments').params({threshold:50,gap:1,thetas:[0, 45, 90, 135]}),
@@ -14,15 +14,14 @@ var parse_args = require('./commargs.js'),
 
 console.log('Detection runs "' + (parallel ? 'parallel' : 'synchronous') + '"');
 if (parallel) shape_detector.worker(true);
-console.log('Loading image..');
+console.log('Loading..');
 fs.readFile(__dirname+'/shapes.png', function(err, buffer) {
     if (err) console.log('error while reading image: ' + err.toString());
     else F.Image.load(buffer, function(img) {
-        console.log('./shapes.png' + ' loaded with dims: ' + img.width + ',' + img.height);
         console.log('Detecting..');
         shape_detector.apply(img, function() {
             if (parallel) shape_detector.worker(false);
-            console.log('Detection completed');
+            console.log('Saving..');
             var features = []
                 .concat(shape_detector.filter(0).metaData().objects)
                 .concat(shape_detector.filter(1).metaData().objects)
@@ -73,13 +72,13 @@ fs.readFile(__dirname+'/shapes.png', function(err, buffer) {
                 img.oCanvas.toPNG().then(function(png) {
                     fs.writeFile(__dirname+'/shapes_detected.png', png, function(err) {
                         if (err) console.log('error while saving image: ' + err.toString());
-                        else console.log('feature image saved');
+                        else console.log('image saved');
                     })
                 }).catch(function(err) {
                     console.log('error while saving image: ' + err.toString());
                 });
             }
-            console.log(String(features.length) + ' features were found');
+            console.log(String(features.length) + ' feature(s) were found');
         });
     });
 });

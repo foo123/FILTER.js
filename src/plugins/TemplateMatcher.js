@@ -53,6 +53,7 @@ FILTER.Create({
     ,_k: 5
     ,_q: 0.98
     ,_s: 3
+    ,_a: 0.75
     ,_tpldata: null
 
     ,init: function(tpl) {
@@ -84,22 +85,25 @@ FILTER.Create({
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.k) self._k = params.k || 0;
-            if (null != params.q) self.quality(params.q, self._s);
-            if (null != params.s) self.quality(self._q, params.s);
+            if (null != params.q) self.quality(params.q, self._s, self._a);
+            if (null != params.s) self.quality(self._q, params.s, self._a);
+            if (null != params.a) self.quality(self._q, self._s, params.a);
             if (null != params.selection) self.selection = params.selection || null;
             if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
-    ,quality: function(quality, size) {
+    ,quality: function(quality, size, alpha) {
         var self = this;
         quality = null == quality ? 0.98 : (quality || 0);
         size = null == size ? 3 : (size || 0);
-        if (quality !== self._q || size !== self._s)
+        alpha = null == alpha ? 0.75 : (alpha || 0);
+        if (quality !== self._q || size !== self._s || alpha !== self._a)
         {
             self._tpldata = null;
             self._q = quality;
             self._s = size;
+            self._a = alpha;
         }
         return self;
     }
@@ -117,7 +121,7 @@ FILTER.Create({
         else if (basis)
         {
             if (needsUpdate || !self._tpldata || !self._tpldata.basis)
-                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, channel);
+                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, self._a*255, channel);
         }
         else
         {
@@ -141,6 +145,7 @@ FILTER.Create({
             ,_k: self._k
             ,_q: self._q
             ,_s: self._s
+            ,_a: self._a
             ,noreuse: self.noreuse
         };
         if (self.scaleThreshold && self.scaleThreshold.changed) self.scaleThreshold.changed = null;
@@ -160,6 +165,7 @@ FILTER.Create({
         self._k = params._k;
         self._q = params._q;
         self._s = params._s;
+        self._a = params._a;
         self.noreuse = params.noreuse;
         return self;
     }
@@ -203,7 +209,7 @@ FILTER.Create({
             eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, max, maxc, maxv, matches, ymat,
-            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null, _:{}};
 
         // 1 default direction
         if       (1 === rot) rot = rot1;
@@ -278,7 +284,7 @@ FILTER.Create({
             for (sc=scale.min,scm=scale.max,sci=scale.inc; sc<=scm; sc*=sci)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
-                tws2 = (tws>>>1); ths2 = (ths>>>1);
+                tws2 = (tws>>1); ths2 = (ths>>1);
                 if (is_vertical)
                 {
                     tw2 = ths2;
@@ -299,7 +305,7 @@ FILTER.Create({
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
-                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['areas'], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
                         if (nccR >= tt)
                         {
                             score = nccR;
@@ -324,9 +330,9 @@ FILTER.Create({
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
-                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
-                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
-                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['areas'], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['areas'], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
+                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['areas'], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
                         if (nccR >= tt && nccG >= tt && nccB >= tt)
                         {
                             score = stdMath.min(nccR, nccG, nccB);
@@ -358,7 +364,7 @@ FILTER.Create({
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
+function ncc(x, y, sat1, sat2, areas, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
     // normalized cross-correlation centered at point (x,y)
     /*if (null == sc)
@@ -386,25 +392,26 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     rect.sat2 = sat2;
     if (is_tilted)
     {
-        tws2 = tws>>>1; ths2 = ths>>>1;
-        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        tws2 = tws>>1; ths2 = ths>>1;
+        /*x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
-        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);*/
     }
     else
     {
         // swap x/y
         if (90 === roa || 270 === roa) {tws = ths0; ths = tws0;}
-        tws2 = tws>>>1; ths2 = ths>>>1;
-        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        tws2 = tws>>1; ths2 = ths>>1;
+        /*x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rect.area = 0; rect.sum = 0; rect.sum2 = 0;
-        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
+        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);*/
     }
+    summa(areas, rect, x, y, w, h, is_tilted, roa, sc, tw, th, tws2, ths2, sin, cos, kk);
     rect.sat2 = null;
     areat = tws0*ths0;
-    area = rect.area;
-    sum1 = rect.sum;
-    sum2 = rect.sum2;
+    area = rect._.area;
+    sum1 = rect._.sum;
+    sum2 = rect._.sum2;
     f = areat/area;
     // ratio of matched computed area too different or too different for that scale, reject
     if ((2 <= f || 0.5 >= f /*|| (is_tilted && 1 < sc && f > 0.28*sc*sc)*/ /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
@@ -490,6 +497,74 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
+function summa(areas, rect, x, y, w, h, is_tilted, roa, sc, tw, th, tws2, ths2, sin, cos, kk)
+{
+    var k, K = areas.length, bk, area = 0, sum = 0, sum2 = 0, x0, y0, x1, y1;
+    for (k=0; k<K; ++k)
+    {
+        bk = areas[k];
+        if (is_tilted)
+        {
+            x0 = bk.x0;
+            y0 = bk.y0;
+            x1 = bk.x1;
+            y1 = bk.y1;
+        }
+        else // not tilted, rectangular
+        {
+            if (270 === roa) // 270
+            {
+                // swap x/y
+                x0 = bk.y0;
+                y0 = tw-1-bk.x1;
+                x1 = bk.y1;
+                y1 = tw-1-bk.x0;
+            }
+            else if (180 === roa) // 180
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (90 === roa) // 90
+            {
+                // swap x/y
+                x0 = th-1-bk.y1;
+                y0 = bk.x0;
+                x1 = th-1-bk.y0;
+                y1 = bk.x1;
+            }
+            else // 0
+            {
+                x0 = bk.x0;
+                y0 = bk.y0;
+                x1 = bk.x1;
+                y1 = bk.y1;
+            }
+        }
+        x0 = stdMath.round(sc*x0)-tws2;
+        y0 = stdMath.round(sc*y0)-ths2;
+        x1 = stdMath.round(sc*x1)-tws2;
+        y1 = stdMath.round(sc*y1)-ths2;
+        if (is_tilted)
+        {
+            rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
+            satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        }
+        else
+        {
+            rect.area = 0; rect.sum = 0; rect.sum2 = 0;
+            satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
+        }
+        area += rect.area;
+        sum += rect.sum;
+        sum2 += rect.sum2;
+    }
+    rect._.area = area;
+    rect._.sum = sum;
+    rect._.sum2 = sum2;
+}
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 {
     var x, y;
@@ -511,59 +586,223 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 
     rect.area = 0; rect.sum = 0; rect.sum2 = 0;
 }
-function preprocess_tpl(t, w, h, Jmax, minSz, channel)
+function preprocess_tpl(t, w, h, Jmax, minSz, alpha, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b, v, s, s2,
-        l = t.length, n = w*h, p;
-    for (p=0; p<l; p+=4)
-    {
-        tr += t[p  ]/n;
-        tg += t[p+1]/n;
-        tb += t[p+2]/n;
-    }
-    a = [tr, tg, tb];
+    var a, b, v, s, s2, sa,
+        l = t.length, n = w*h,
+        na, areas, area;
+    // only count non-transparent areas wrt alpha threshold
+    alpha = alpha || 0;
+    sat(t, w, h, 2, 3, sa=new A32F(n), null, null, null, alpha);
+    na = sa[n-1];
+    areas = [{x0:0,y0:0,x1:w-1,y1:h-1}];
+    a = [0, 0, 0];
+    v = [0, 0, 0];
+    b = null;
     if (null != Jmax)
     {
+        // take only non-transparent areas
+        if (alpha && (na < n)) areas = visible_areas(sa, w, h);
+
         s = [null, null, null];
         s2 = [null, null, null];
-        b = [[], [], []];
-        v = [0, 0, 0];
+
+        area = areas.reduce(function(sum, area) {return sum + satsum(sa, w, h, area.x0, area.y0, area.x1, area.y1);}, 0);
+
         if (null != channel)
         {
-            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n));
-            b[channel] = FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz);
-            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], w, h);
+            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n), null, null, alpha);
+            a[channel] = areas.reduce(function(sum, area) {
+                return sum + satsum(s[channel], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area;
+            b[channel] = areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []);
+            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], sa, w, h);
         }
         else
         {
-            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n));
-            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n));
-            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n));
+            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n), null, null, alpha);
+            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n), null, null, alpha);
+            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n), null, null, alpha);
+            a = [
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[0], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area,
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[1], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area,
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[2], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area
+            ];
             b = [
-            FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz),
-            FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz),
-            FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz)
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []),
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []),
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, [])
             ];
             v = [
-            basisv(b[0], a[0], s[0], s2[0], w, h),
-            basisv(b[1], a[1], s[1], s2[1], w, h),
-            basisv(b[2], a[2], s[2], s2[2], w, h)
+            basisv(b[0], a[0], s[0], s2[0], sa, w, h),
+            basisv(b[1], a[1], s[1], s2[1], sa, w, h),
+            basisv(b[2], a[2], s[2], s2[2], sa, w, h)
             ];
         }
     }
-    return {'avg':a, 'basis':b||null, 'var':v||null};
+    return {'areas':areas, 'avg':a, 'var':v, 'basis':b};
 }
-function approximate(t, s, w, h, c, Jmax, minSz)
+function visible_areas(sa, w, h)
 {
-    var J, J2, Jmin, bmin,
-        x0, x1, y0, y1, ww, hh,
+    var Jc, Jl, Jr, Jt, Jb,
+        Jtl, Jbr, Jtr, Jbl,
+        J, JJ, Jmax, bmax,
+        ww, hh, x0, y0, x1, y1,
+        n = w*h, k, K, b, bk;
+    b = [{k:satsum(sa, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
+    for (;;)
+    {
+        bmax = b;
+        K = b.length;
+        for (k=0; k<K; ++k)
+        {
+            bk = b[k];
+            Jmax = bk.k;
+            if (2 < bk.x1 - bk.x0 + 1 || 2 < bk.y1 - bk.y0 + 1)
+            {
+                for (y0=bk.y0; y0<=bk.y1; ++y0)
+                {
+                    for (y1=bk.y1; y1>y0; --y1)
+                    {
+                        for (x0=bk.x0; x0<=bk.x1; ++x0)
+                        {
+                            for (x1=bk.x1; x1>x0; --x1)
+                            {
+                                Jl = Jr = Jt = Jb = 0;
+                                Jtl = Jtr = Jbl = Jbr = 0;
+                                J = 0;
+
+                                ww = x1-x0+1;
+                                hh = y1-y0+1;
+                                Jc = satsum(sa, w, h, x0, y0, x1, y1)/(ww*hh);
+                                if (Jc > 0.02) continue;
+
+                                if (y0 > bk.y0)
+                                {
+                                    ww = x1-x0+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jt = satsum(sa, w, h, x0, bk.y0, x1, y0-1)/(ww*hh);
+                                    J += Jt;
+                                }
+                                if (y1 < bk.y1)
+                                {
+                                    ww = x1-x0+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jb = satsum(sa, w, h, x0, y1+1, x1, bk.y1)/(ww*hh);
+                                    J += Jb;
+                                }
+                                if (x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = y1-y0+1;
+                                    Jl = satsum(sa, w, h, bk.x0, y0, x0-1, y1)/(ww*hh);
+                                    J += Jl;
+                                }
+                                if (x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = y1-y0+1;
+                                    Jr = satsum(sa, w, h, x1+1, y0, bk.x1, y1)/(ww*hh);
+                                    J += Jr;
+                                }
+                                if (y0 > bk.y0 && x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jtl = satsum(sa, w, h, bk.x0, bk.y0, x0-1, y0-1)/(ww*hh);
+                                    J += Jtl;
+                                }
+                                if (y1 < bk.y1 && x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jbr = satsum(sa, w, h, x1+1, y1+1, bk.x1, bk.y1)/(ww*hh);
+                                    J += Jbr;
+                                }
+                                if (y0 > bk.y0 && x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jtr = satsum(sa, w, h, x1+1, bk.y0, bk.x1, y0-1)/(ww*hh);
+                                    J += Jtr;
+                                }
+                                if (y1 < bk.y1 && x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jbl = satsum(sa, w, h, bk.x0, y1+1, x0-1, bk.y1)/(ww*hh);
+                                    J += Jbl;
+                                }
+
+                                if (J > Jmax)
+                                {
+                                    Jmax = J;
+                                    bmax = b.slice(0, k);
+                                    if (Jl > 0) bmax.push({k:Jl, x0:bk.x0, y0:y0, x1:x0-1, y1:y1});
+                                    if (Jtl > 0) bmax.push({k:Jtl, x0:bk.x0, y0:bk.y0, x1:x0-1, y1:y0-1});
+                                    if (Jt > 0) bmax.push({k:Jt, x0:x0, y0:bk.y0, x1:x1, y1:y0-1});
+                                    if (Jtr > 0) bmax.push({k:Jtr, x0:x1+1, y0:bk.y0, x1:bk.x1, y1:y0-1});
+                                    if (Jr > 0) bmax.push({k:Jr, x0:x1+1, y0:y0, x1:bk.x1, y1:y1});
+                                    if (Jbr > 0) bmax.push({k:Jbr, x0:x1+1, y0:y1+1, x1:bk.x1, y1:bk.y1});
+                                    if (Jb > 0) bmax.push({k:Jb, x0:x0, y0:y1+1, x1:x1, y1:bk.y1});
+                                    if (Jbl > 0) bmax.push({k:Jbl, x0:bk.x0, y0:y1+1, x1:x0-1, y1:bk.y1});
+                                    bmax.push.apply(bmax, b.slice(k+1));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (bmax !== b) break;
+        }
+        if (bmax === b) break;
+        b = bmax;
+    }
+    b = b.filter(function(b) {return b.k > 0.5;}); // remove areas mostly transparent
+    return b;
+}
+function approximate(t, s, w, h, c, Jmax, minSz, x0, y0, x1, y1)
+{
+    if (null == x0)
+    {
+        x0 = 0;
+        y0 = 0;
+        x1 = w-1;
+        y1 = h-1;
+    }
+    var J, J2, Jmin, bmin, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
-        p, tp, l = t.length, n = l>>>2,
-        v, k, K, b, bk, bb;
-    b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
+        p, tp, l = t.length,
+        n = (x1-x0+1)*(y1-y0+1),
+        i, v, k, K, b, bk, bb;
+    b = [{k:satsum(s, w, h, x0, y0, x1, y1)/n,x0:x0,y0:y0,x1:x1,y1:y1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
-    for (p=0; p<l; p+=4) {v = (t[p+c]-bk.k); J += v*v/n;}
+    for (i=0,x=x0,yw=y0*w; i<n; ++i,++x)
+    {
+        if (x > x1) {x=x0; yw+=w;}
+        p = (x + yw) << 2;
+        v = (t[p+c]-bk.k);
+        J += v*v/n;
+    }
     Jmin = J;
     while (J > Jmax)
     {
@@ -669,7 +908,7 @@ function approximate(t, s, w, h, c, Jmax, minSz)
     b[0].q = 1-Jmin/255/255;
     return b;
 }
-function basisv(basis, avg, sat, sat2, w, h)
+function basisv(basis, avg, sat, sat2, sata, w, h)
 {
     var k, K = basis.length, bk, areak,
         x0, x1, y0, y1, diff, diffc, max = 0,
@@ -684,7 +923,7 @@ function basisv(basis, avg, sat, sat2, w, h)
         y0 = bk.y0;
         x1 = bk.x1;
         y1 = bk.y1;
-        areak = (x1-x0+1)*(y1-y0+1);
+        areak = satsum(sata, w, h, x0, y0, x1, y1)/*(x1-x0+1)*(y1-y0+1)*/;
         diff = bk.k - avg;
         sum1 = satsum(sat, w, h, x0, y0, x1, y1);
         if (areak > max)
@@ -704,7 +943,7 @@ function basisv(basis, avg, sat, sat2, w, h)
             varftc += diff*(sum1 - avg*areak);
         }
     }
-    return {v:vart/(w*h), c:(varft)/stdMath.sqrt(stdMath.abs(varf*vart)) || 0, c0:(varftc)/stdMath.sqrt(stdMath.abs(varfc*vartc)) || 0};
+    return {v:vart/sata[w*h-1]/*(w*h)*/, c:(varft)/stdMath.sqrt(stdMath.abs(varf*vart)) || 0, c0:(varftc)/stdMath.sqrt(stdMath.abs(varfc*vartc)) || 0};
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;

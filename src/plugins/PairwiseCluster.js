@@ -8,7 +8,7 @@
 "use strict";
 
 var stdMath = Math,
-    clamp = FILTER.Color.clampPixel,
+    //clamp = FILTER.Color.clampPixel,
     ImageUtil = FILTER.Util.Image,
     TypedObj = FILTER.Util.Array.typed_obj;
 
@@ -24,8 +24,6 @@ FILTER.Create({
 
     ,path: FILTER.Path
 
-    //,_update: false // filter by itself does not alter image data, just processes information
-    ,hasMeta: false
     ,k: 2
     ,knn: 1
     ,distance: "euclidean"
@@ -74,18 +72,37 @@ FILTER.Create({
         return self;
     }
 
-    ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
-    }
-
-    ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
-        return this;
-    }
-
     ,apply: function(im, w, h) {
-        var self = this, M, map, qi, i, pi, n, c;
-        M = pwcdanneal("function" === typeof self.distance ? self.distance(im, im, w, h, self.knn) : (ImageUtil.Distance[self.distance](im, im, w, h, self.knn)), self.k, self.alpha, self.iterations);
+        var self = this,
+            selection = self.selection || null,
+            xf, yf, x1, y1, x2, y2, ww,
+            D, M, map, qi, i, pi, n, c;
+        if (selection)
+        {
+            if (selection[4])
+            {
+                // selection is relative, make absolute
+                xf = w-1;
+                yf = h-1;
+            }
+            else
+            {
+                // selection is absolute
+                xf = 1;
+                yf = 1;
+            }
+            x1 = stdMath.min(w-1, stdMath.max(0, selection[0]*xf))|0;
+            y1 = stdMath.min(h-1, stdMath.max(0, selection[1]*yf))|0;
+            x2 = stdMath.min(w-1, stdMath.max(0, selection[2]*xf))|0;
+            y2 = stdMath.min(h-1, stdMath.max(0, selection[3]*yf))|0;
+        }
+        else
+        {
+            x1 = 0; y1 = 0;
+            x2 = w-1; y2 = h-1;
+        }
+        D = "function" === typeof self.distance ? self.distance(im, im, w, h, self.knn, x1, y1, x2, y2) : (ImageUtil.Distance[self.distance](im, im, w, h, self.knn, x1, y1, x2, y2));
+        M = pwcdanneal(D, self.k, self.alpha, self.iterations);
         M = array(M.length, function(i) {
             for (var Mi=M[i],cluster=0,c=1,k=self.k; c<k; ++c)
             {
@@ -104,10 +121,11 @@ FILTER.Create({
             return map;
         }, {});
         qi = stdMath.ceil(255 / stdMath.max(1, Object.keys(map).length - 1));
+        ww = x2-x1+1;
         for (i=0,n=M.length; i<n; ++i)
         {
-            pi = i << 2;
             c = map[M[i]] * qi;
+            pi = (x1 + (i % ww) + (y1 + stdMath.floor(i / ww)) * w) << 2;
             im[pi + 0] = c;
             im[pi + 1] = c;
             im[pi + 2] = c;
@@ -132,10 +150,11 @@ function pwcdanneal(D, k, alpha, max_iter)
         m, e, f, summa, sum, DM;
 
     // how to choose initial temperature? [corresponds to initial energy==>max eigenvalue]
-    Tstart = stdMath.abs(2*max(D)); // max eig estimate
+    Tstart = stdMath.abs(10*max(D)); // max eig estimate
 
     if (!Tstart)
     {
+        //console.log('exited', Tstart);
         // trivial
         return matrix(n, k, function(i, j) {
             return 0 === j ? 1 : 0;
@@ -157,7 +176,7 @@ function pwcdanneal(D, k, alpha, max_iter)
     sum = array(k, 0);
     Tfinal = Tstart/100;
     T = Tstart;
-    while ((alpha < 1) && (T > Tfinal))
+    while ((alpha < 1) && (T > 0) && (T > Tfinal))
     {
         //console.log('temperature T '+T);
         for (iter=1; iter<=max_iter; ++iter)
@@ -218,7 +237,6 @@ function pwcdanneal(D, k, alpha, max_iter)
             if (delta <= eps) break; // converged
         }
         T = alpha*T;   // decrease temperature exponentially
-        if (!T) break;
     }
     return M;
 }

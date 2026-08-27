@@ -2,7 +2,7 @@
 *
 *   FILTER.js
 *   @version: 1.14.0
-*   @built on 2026-03-08 17:56:03
+*   @built on 2026-08-27 10:01:55
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -12,7 +12,7 @@
 *
 *   FILTER.js
 *   @version: 1.14.0
-*   @built on 2026-03-08 17:56:03
+*   @built on 2026-08-27 10:01:55
 *   @dependencies: Asynchronous.js
 *
 *   JavaScript Image Processing Library
@@ -1686,10 +1686,10 @@ ArrayUtil.copy = copy = ArrayUtil.hasArrayset ? function(a) {
     return b;
 };
 
-function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2)
+function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2, alpha)
 {
     //"use asm";
-    var len = im.length, size = len>>>stride, rowLen = w<<stride,
+    var len = im.length, size = len>>>stride, rowLen = w<<stride, is_alpha = 3 === channel,
         rem = (w&31)<<stride, sum, sum2, c, i, i0, j, i32 = 32<<stride, ii = 1<<stride, x, y;
 
     // compute sat(integral), sat2(square) and rsat(tilted integral) of image in one pass
@@ -1699,27 +1699,59 @@ function integral2(im, w, h, stride, channel, sat, sat2, rsat, rsat2)
     // RSAT(-1, y) = RSAT(x, -1) = RSAT(x, -2) = RSAT(-1, -1) = RSAT(-1, -2) = 0
     // RSAT(x, y) = RSAT(x-1, y-1) + RSAT(x+1, y-1) - RSAT(x, y-2) + I(x, y) + I(x, y-1)    <-- rotated(tilted) integral image at 45deg
 
-    // first row
     sum=sum2=0;
-    for (i=0+channel,j=0; i<rowLen; i+=ii,++j)
+    if (null != alpha)
     {
-        c = im[i];
-        sum += c; sat[j] = sum;
-        if (sat2) {sum2 += c*c; sat2[j] = sum2;}
-        if (rsat) {rsat[j] = c;}
-        if (rsat2) {rsat2[j] = c*c;}
+        // first row
+        for (i=0,j=0; i<rowLen; i+=ii,++j)
+        {
+            c = is_alpha ? 1 : im[i+channel];
+            if (im[i+3] >= alpha)
+            {
+                sum += c;
+                sum2 += c*c;
+            }
+            sat[j] = sum;
+            if (sat2) sat2[j] = sum2;
+        }
+        // other rows
+        x=0; y=1; sum=sum2=0;
+        for (i=rowLen,j=0; i<len; i+=ii,++j)
+        {
+            c = is_alpha ? 1 : im[i+channel];
+            if (im[i+3] >= alpha)
+            {
+                sum += c;
+                sum2 += c*c;
+            }
+            sat[j+w] = sat[j]+sum;
+            if (sat2) sat2[j+w] = sat2[j]+sum2;
+            if (++x >= w) {x=0; ++y; sum=sum2=0;}
+        }
+    }
+    else
+    {
+        // first row
+        for (i=0+channel,j=0; i<rowLen; i+=ii,++j)
+        {
+            c = im[i];
+            sum += c; sat[j] = sum;
+            if (sat2) {sum2 += c*c; sat2[j] = sum2;}
+            if (rsat) {rsat[j] = c;}
+            if (rsat2) {rsat2[j] = c*c;}
+        }
+        // other rows
+        x=0; y=1; sum=sum2=0;
+        for (i=rowLen+channel,j=0; i<len; i+=ii,++j)
+        {
+            c = im[i]; sum += c; sat[j+w] = sat[j]+sum;
+            if (sat2) {sum2 += c*c; sat2[j+w] = sat2[j]+sum2;}
+            if (rsat) {rsat[j+w] = (rsat[j+1-w]||0) + (c+(im[(j-w)<<stride]||0)) + (y>1?(rsat[j-w-w]||0):0) + (x>0?(rsat[j-1-w]||0):0);}
+            if (rsat2) {rsat2[j+w] = (rsat2[j+1-w]||0) + (c*c+(im[(j-w)<<stride]||0)*(im[(j-w)<<stride]||0)) + (y>1?(rsat2[j-w-w]||0):0) + (x>0?(rsat2[j-1-w]||0):0);}
+            if (++x >= w) {x=0; ++y; sum=sum2=0;}
+        }
     }
 
-    // other rows
-    x=0; y=1; sum=sum2=0;
-    for (i=rowLen+channel,j=0; i<len; i+=ii,++j)
-    {
-        c = im[i]; sum += c; sat[j+w] = sat[j]+sum;
-        if (sat2) {sum2 += c*c; sat2[j+w] = sat2[j]+sum2;}
-        if (rsat) {rsat[j+w] = (rsat[j+1-w]||0) + (c+(im[(j-w)<<stride]||0)) + (y>1?(rsat[j-w-w]||0):0) + (x>0?(rsat[j-1-w]||0):0);}
-        if (rsat2) {rsat2[j+w] = (rsat2[j+1-w]||0) + (c*c+(im[(j-w)<<stride]||0)*(im[(j-w)<<stride]||0)) + (y>1?(rsat2[j-w-w]||0):0) + (x>0?(rsat2[j-1-w]||0):0);}
-        if (++x >= w) {x=0; ++y; sum=sum2=0;}
-    }
 }
 FilterUtil.sat = integral2;
 
@@ -4650,129 +4682,112 @@ ImagePyramid.prototype = {
 };
 ImageUtil.Pyramid = ImagePyramid;
 
-ImageUtil.Distance = {};
-ImageUtil.Distance.euclidean = function(im1, im2, w, h, knn) {
-    var n = w*h, kw = knn*w,
-        D = new Array(n),
-        i, j, pi, pj, dij,
-        xi, yi, xj, yj, dx, dy,
-        ri, rj, gi, gj, bi, bj,
+function d_euclidean(im1, im2, w, h, xi, yi, xj, yj, x0, x1, y0, y1, X0, Y0, X1, Y1)
+{
+    if ((xj === xi) && (yj === yi) && (im1 === im2)) return 0;
+    var pi, pj,
+        piy, pjy,
+        dx, dy,
+        ri, rj,
+        gi, gj,
+        bi, bj,
         dr, dg, db;
-    for (i=0; i<n; ++i) D[i] = new Array(n);
-    for (i=0; i<n; ++i)
+    Y0 *= w;
+    Y1 *= w;
+    y0 *= w;
+    y1 *= w;
+    yi *= w;
+    yj *= w;
+    dr = 0;
+    dg = 0;
+    db = 0;
+    for (dy=y0; dy<=y1; dy+=w)
     {
-        xi = i % w;
-        yi = i - xi;
-        for (j=i; j<n; ++j)
+        piy = clamp(yi+dy, Y0, Y1);
+        pjy = clamp(yj+dy, Y0, Y1);
+        for (dx=x0; dx<=x1; ++dx)
         {
-            if ((j === i) && (im1 === im2))
-            {
-                D[i][i] = 0;
-                continue;
-            }
-            xj = j % w;
-            yj = j - xj;
-            dr = 0;
-            dg = 0;
-            db = 0;
-            for (dx=-knn; dx<=knn; ++dx)
-            {
-                for (dy=-kw; dy<=kw; dy+=w)
-                {
-                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
-                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
-                    ri = (im1[pi + 0] - 128) / 128;
-                    gi = (im1[pi + 1] - 128) / 128;
-                    bi = (im1[pi + 2] - 128) / 128;
-                    rj = (im2[pj + 0] - 128) / 128;
-                    gj = (im2[pj + 1] - 128) / 128;
-                    bj = (im2[pj + 2] - 128) / 128;
-                    dr += stdMath.pow((ri - rj), 2);
-                    dg += stdMath.pow((gi - gj), 2);
-                    db += stdMath.pow((bi - bj), 2);
-                }
-            }
-            // euclidean distance
-            dij = (
-                stdMath.sqrt(dr) +
-                stdMath.sqrt(dg) +
-                stdMath.sqrt(db)
-            ) / 3;
-            D[i][j] = dij;
-            D[j][i] = dij;
+            pi = (clamp(xi+dx, X0, X1) + piy) << 2;
+            pj = (clamp(xj+dx, X0, X1) + pjy) << 2;
+            ri = (im1[pi + 0] - 128) / 128;
+            gi = (im1[pi + 1] - 128) / 128;
+            bi = (im1[pi + 2] - 128) / 128;
+            rj = (im2[pj + 0] - 128) / 128;
+            gj = (im2[pj + 1] - 128) / 128;
+            bj = (im2[pj + 2] - 128) / 128;
+            dr += stdMath.pow((ri - rj), 2);
+            dg += stdMath.pow((gi - gj), 2);
+            db += stdMath.pow((bi - bj), 2);
         }
     }
-    return D;
-};
-ImageUtil.Distance.histogram = function(im1, im2, w, h, knn) {
-    var n = w*h, kw = knn*w,
-        kk = (knn+1)*(knn+1),
-        D = new Array(n),
-        i, j, pi, pj, dij,
-        xi, yi, xj, yj, dx, dy,
-        ri, rj, gi, gj, bi, bj,
+    // euclidean distance
+    return (
+        stdMath.sqrt(dr) +
+        stdMath.sqrt(dg) +
+        stdMath.sqrt(db)
+    ) / 3;
+}
+function d_histogram(im1, im2, w, h, xi, yi, xj, yj, x0, x1, y0, y1, X0, Y0, X1, Y1)
+{
+    if ((xj === xi) && (yj === yi) && (im1 === im2)) return 0;
+    var kk = (x1-x0+1)*(y1-y0+1),
+        pi, pj,
+        piy, pjy,
+        dx, dy,
+        ri, rj,
+        gi, gj,
+        bi, bj,
         r, g, b,
         intersect = function(hi, hj) {
            return Object.keys(hi).reduce(function(s, v) {
                return s + stdMath.min(hi[v], hj[v] || 0);
            }, 0);
         };
-    for (i=0; i<n; ++i) D[i] = new Array(n);
-    for (i=0; i<n; ++i)
+    Y0 *= w;
+    Y1 *= w;
+    y0 *= w;
+    y1 *= w;
+    yi *= w;
+    yj *= w;
+    r = {i:{}, j:{}};
+    g = {i:{}, j:{}};
+    b = {i:{}, j:{}};
+    for (dy=y0; dy<=y1; dy+=w)
     {
-        xi = i % w;
-        yi = i - xi;
-        for (j=i; j<n; ++j)
+        piy = clamp(yi+dy, Y0, Y1);
+        pjy = clamp(yj+dy, Y0, Y1);
+        for (dx=x0; dx<=x1; ++dx)
         {
-            if ((j === i) && (im1 === im2))
-            {
-                D[i][i] = 0;
-                continue;
-            }
-            xj = j % w;
-            yj = j - xj;
-            r = {i:{}, j:{}};
-            g = {i:{}, j:{}};
-            b = {i:{}, j:{}};
-            for (dx=-knn; dx<=knn; ++dx)
-            {
-                for (dy=-kw; dy<=kw; dy+=w)
-                {
-                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
-                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
-                    ri = im1[pi + 0];
-                    gi = im1[pi + 1];
-                    bi = im1[pi + 2];
-                    rj = im2[pj + 0];
-                    gj = im2[pj + 1];
-                    bj = im2[pj + 2];
-                    r.i[ri] = (r.i[ri] || 0) + 1;
-                    r.j[rj] = (r.j[rj] || 0) + 1;
-                    g.i[gi] = (g.i[gi] || 0) + 1;
-                    g.j[gj] = (g.j[gj] || 0) + 1;
-                    b.i[bi] = (b.i[bi] || 0) + 1;
-                    b.j[bj] = (b.j[bj] || 0) + 1;
-                }
-            }
-            // histogram intersection
-            dij = 1 - (
-                intersect(r.i, r.j) +
-                intersect(g.i, g.j) +
-                intersect(b.i, b.j)
-            ) / (3 * kk);
-            D[i][j] = dij;
-            D[j][i] = dij;
+            pi = (clamp(xi+dx, X0, X1) + piy) << 2;
+            pj = (clamp(xj+dx, X0, X1) + pjy) << 2;
+            ri = im1[pi + 0];
+            gi = im1[pi + 1];
+            bi = im1[pi + 2];
+            rj = im2[pj + 0];
+            gj = im2[pj + 1];
+            bj = im2[pj + 2];
+            r.i[ri] = (r.i[ri] || 0) + 1;
+            r.j[rj] = (r.j[rj] || 0) + 1;
+            g.i[gi] = (g.i[gi] || 0) + 1;
+            g.j[gj] = (g.j[gj] || 0) + 1;
+            b.i[bi] = (b.i[bi] || 0) + 1;
+            b.j[bj] = (b.j[bj] || 0) + 1;
         }
     }
-    return D;
-};
-ImageUtil.Distance.correlation = function(im1, im2, w, h, knn) {
-    var n = w*h, kw = knn*w,
-        kk = (knn+1)*(knn+1),
-        D = new Array(n),
-        i, j, pi, pj, dij,
-        xi, yi, xj,
-        yj, dx, dy,
+    // histogram intersection
+    return 1 - (
+        intersect(r.i, r.j) +
+        intersect(g.i, g.j) +
+        intersect(b.i, b.j)
+    ) / (3 * kk);
+}
+function d_correlation(im1, im2, w, h, xi, yi, xj, yj, x0, x1, y0, y1, X0, Y0, X1, Y1)
+{
+    if ((xj === xi) && (yj === yi) && (im1 === im2)) return 0;
+    var kk = (x1-x0+1)*(y1-y0+1),
+        pi, pj,
+        piy, pjy,
+        dx, dy,
         ri, rj, gi,
         gj, bi, bj,
         rii, gii, bii,
@@ -4783,76 +4798,291 @@ ImageUtil.Distance.correlation = function(im1, im2, w, h, knn) {
         corrcoeff = function(n, im, jm, ii, jj, ij) {
             return 1 - stdMath.abs((n*ij - im*jm) / stdMath.sqrt(stdMath.abs((n*ii - im*im) * (n*jj - jm*jm))));
         };
-    for (i=0; i<n; ++i) D[i] = new Array(n);
-    for (i=0; i<n; ++i)
+    Y0 *= w;
+    Y1 *= w;
+    y0 *= w;
+    y1 *= w;
+    yi *= w;
+    yj *= w;
+    rii = 0;
+    rjj = 0;
+    rij = 0;
+    rim = 0;
+    rjm = 0;
+    gii = 0;
+    gjj = 0;
+    gij = 0;
+    gim = 0;
+    gjm = 0;
+    bii = 0;
+    bjj = 0;
+    bij = 0;
+    bim = 0;
+    bjm = 0;
+    for (dy=y0; dy<=y1; dy+=w)
     {
-        xi = i % w;
-        yi = i - xi;
-        for (j=i; j<n; ++j)
+        piy = clamp(yi+dy, Y0, Y1);
+        pjy = clamp(yj+dy, Y0, Y1);
+        for (dx=x0; dx<=x1; ++dx)
         {
-            if ((j === i) && (im1 === im2))
+            pi = (clamp(xi+dx, X0, X1) + piy) << 2;
+            pj = (clamp(xj+dx, X0, X1) + pjy) << 2;
+            ri = (im1[pi + 0] - 128) / 128;
+            gi = (im1[pi + 1] - 128) / 128;
+            bi = (im1[pi + 2] - 128) / 128;
+            rj = (im2[pj + 0] - 128) / 128;
+            gj = (im2[pj + 1] - 128) / 128;
+            bj = (im2[pj + 2] - 128) / 128;
+            rim += ri;
+            rjm += rj;
+            gim += gi;
+            gjm += gj;
+            bim += bi;
+            bjm += bj;
+            rii += ri*ri;
+            rjj += rj*rj;
+            rij += ri*rj;
+            gii += gi*gi;
+            gjj += gj*gj;
+            gij += gi*gj;
+            bii += bi*bi;
+            bjj += bj*bj;
+            bij += bi*bj;
+        }
+    }
+    // correlation coefficient
+    return (
+        corrcoeff(kk, rim, rjm, rii, rjj, rij) +
+        corrcoeff(kk, gim, gjm, gii, gjj, gij) +
+        corrcoeff(kk, bim, bjm, bii, bjj, bij)
+    ) / 3;
+}
+/*function d_kullbackleibler(im1, im2, w, h, xi, yi, xj, yj, x0, x1, y0, y1, X0, Y0, X1, Y1)
+{
+    if ((xj === xi) && (yj === yi) && (im1 === im2)) return 0;
+    var pi, pj,
+        piy, pjy,
+        dx, dy,
+        ri, rj,
+        gi, gj,
+        bi, bj,
+        r, g, b,
+        KL = function(hi, hj) {
+            // compute the Kullback-Leibler divergence
+            // normalize A and B to sum to unity (make them represent probability density functions)
+            // transform to bins
+            hi = Object.keys(hi).map(function(v) {
+                return [+v, hi[v]];
+            }).sort(function(a, b) {
+                return a[0]-b[0];
+            });
+            hj = Object.keys(hj).map(function(v) {
+                return [+v, hj[v]];
+            }).sort(function(a, b) {
+                return a[0]-b[0];
+            });
+            var i = 0, j = 0, k = 0,
+                ic = hi.length, jc = hj.length,
+                a = new Array(ic+jc),
+                b = new Array(ic+jc),
+                si = 0, sj = 0,
+                mi = Infinity,
+                mj = Infinity;
+            // merge
+            while ((i < ic) && (j < jc))
             {
-                D[i][i] = 0;
-                continue;
-            }
-            xj = j % w;
-            yj = j - xj;
-            rii = 0;
-            rjj = 0;
-            rij = 0;
-            rim = 0;
-            rjm = 0;
-            gii = 0;
-            gjj = 0;
-            gij = 0;
-            gim = 0;
-            gjm = 0;
-            bii = 0;
-            bjj = 0;
-            bij = 0;
-            bim = 0;
-            bjm = 0;
-            for (dx=-knn; dx<=knn; ++dx)
-            {
-                for (dy=-kw; dy<=kw; dy+=w)
+                if (hi[i][0] < hj[j][0])
                 {
-                    pi = (clamp(xi+dx, 0, w-1) + clamp(yi+dy, 0, n-w)) << 2;
-                    pj = (clamp(xj+dx, 0, w-1) + clamp(yj+dy, 0, n-w)) << 2;
-                    ri = (im1[pi + 0] - 128) / 128;
-                    gi = (im1[pi + 1] - 128) / 128;
-                    bi = (im1[pi + 2] - 128) / 128;
-                    rj = (im2[pj + 0] - 128) / 128;
-                    gj = (im2[pj + 1] - 128) / 128;
-                    bj = (im2[pj + 2] - 128) / 128;
-                    rim += ri;
-                    rjm += rj;
-                    gim += gi;
-                    gjm += gj;
-                    bim += bi;
-                    bjm += bj;
-                    rii += ri*ri;
-                    rjj += rj*rj;
-                    rij += ri*rj;
-                    gii += gi*gi;
-                    gjj += gj*gj;
-                    gij += gi*gj;
-                    bii += bi*bi;
-                    bjj += bj*bj;
-                    bij += bi*bj;
+                    a[k] = hi[i][1];
+                    b[k] = 0;
+                    si += a[k];
+                    sj += b[k];
+                    mi = stdMath.min(mi, a[k]);
+                    mj = stdMath.min(mj, b[k]);
+                    ++i; ++k;
+                }
+                else if (hi[i][0] > hj[j][0])
+                {
+                    a[k] = 0;
+                    b[k] = hj[j][1];
+                    si += a[k];
+                    sj += b[k];
+                    mi = stdMath.min(mi, a[k]);
+                    mj = stdMath.min(mj, b[k]);
+                    ++j; ++k;
+                }
+                else
+                {
+                    a[k] = hi[i][1];
+                    b[k] = hj[j][1];
+                    si += a[k];
+                    sj += b[k];
+                    mi = stdMath.min(mi, a[k]);
+                    mj = stdMath.min(mj, b[k]);
+                    ++i; ++j; ++k;
                 }
             }
-            // correlation coefficient
-            dij = (
-                corrcoeff(kk, rim, rjm, rii, rjj, rij) +
-                corrcoeff(kk, gim, gjm, gii, gjj, gij) +
-                corrcoeff(kk, bim, bjm, bii, bjj, bij)
-            ) / 3;
+            while (i < ic)
+            {
+                a[k] = hi[i][1];
+                b[k] = 0;
+                si += a[k];
+                sj += b[k];
+                mi = stdMath.min(mi, a[k]);
+                mj = stdMath.min(mj, b[k]);
+                ++i; ++k;
+            }
+            while (j < jc)
+            {
+                a[k] = 0;
+                b[k] = hj[j];
+                si += a[k];
+                sj += b[k];
+                mi = stdMath.min(mi, a[k]);
+                mj = stdMath.min(mj, b[k]);
+                ++j; ++k;
+            }
+            a.length = k;
+            b.length = k;
+            // normalize
+            a = a.map(function(ai) {return (ai-mi)/(si-k*mi);});
+            b = b.map(function(bi) {return (bi-mj)/(sj-k*mj);});
+            // symmetric KL
+            //sum(add(sub(dotmul(a, fn.log(dotdiv(a, b))), a), b));
+            return (a.map(function(ai, i) {
+                return ai * (stdMath.log(ai / (b[i] + 1e-6)) - 1) + b[i];
+            }).reduce(function(sum, xi) {
+                return sum + xi;
+            }, 0) + b.map(function(bi, i) {
+                return bi * (stdMath.log(bi / (a[i] + 1e-6)) - 1) + a[i];
+            }).reduce(function(sum, xi) {
+                return sum + xi;
+            }, 0)) / 2;
+        };
+    Y0 *= w;
+    Y1 *= w;
+    y0 *= w;
+    y1 *= w;
+    yi *= w;
+    yj *= w;
+    r = {i:{}, j:{}};
+    g = {i:{}, j:{}};
+    b = {i:{}, j:{}};
+    for (dy=y0; dy<=y1; dy+=w)
+    {
+        piy = clamp(yi+dy, Y0, Y1);
+        pjy = clamp(yj+dy, Y0, Y1);
+        for (dx=x0; dx<=x1; ++dx)
+        {
+            pi = (clamp(xi+dx, X0, X1) + piy) << 2;
+            pj = (clamp(xj+dx, X0, X1) + pjy) << 2;
+            ri = im1[pi + 0];
+            gi = im1[pi + 1];
+            bi = im1[pi + 2];
+            rj = im2[pj + 0];
+            gj = im2[pj + 1];
+            bj = im2[pj + 2];
+            r.i[ri] = (r.i[ri] || 0) + 1;
+            r.j[rj] = (r.j[rj] || 0) + 1;
+            g.i[gi] = (g.i[gi] || 0) + 1;
+            g.j[gj] = (g.j[gj] || 0) + 1;
+            b.i[bi] = (b.i[bi] || 0) + 1;
+            b.j[bj] = (b.j[bj] || 0) + 1;
+        }
+    }
+    // Kullback-Leibler divergence
+    return (
+        KL(r.i, r.j) +
+        KL(g.i, g.j) +
+        KL(b.i, b.j)
+    ) / 3;
+}*/
+
+ImageUtil.Distance = {};
+ImageUtil.Distance.euclidean = function(im1, im2, w, h, knn, X0, Y0, X1, Y1) {
+    if (null == X0) {X0 = 0; Y0 = 0; X1 = w-1; Y1 = h-1;}
+    if (null == knn) return d_euclidean(im1, im2, w, h, X0, Y0, X0, Y0, X0, X1, Y0, Y1, X0, Y0, X1, Y1);
+    var ww = X1-X0+1, hh = Y1-Y0+1,
+        n = ww*hh, D = new Array(n),
+        i, j, xi, yi, xj, yj, dij;
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0,yi=0,xi=0; i<n; ++i,++xi)
+    {
+        if (xi >= ww) {xi=0; ++yi;}
+        for (j=i; j<n; ++j)
+        {
+            xj = j % ww;
+            yj = stdMath.floor(j / ww);
+            dij = d_euclidean(im1, im2, w, h, X0+xi, Y0+yi, X0+xj, Y0+yj, -knn, knn, -knn, knn, X0, Y0, X1, Y1);
             D[i][j] = dij;
             D[j][i] = dij;
         }
     }
     return D;
 };
+ImageUtil.Distance.histogram = function(im1, im2, w, h, knn, X0, Y0, X1, Y1) {
+    if (null == X0) {X0 = 0; Y0 = 0; X1 = w-1; Y1 = h-1;}
+    if (null == knn) return d_histogram(im1, im2, w, h, X0, Y0, X0, Y0, X0, X1, Y0, Y1, X0, Y0, X1, Y1);
+    var ww = X1-X0+1, hh = Y1-Y0+1,
+        n = ww*hh, D = new Array(n),
+        i, j, xi, yi, xj, yj, dij;
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0,yi=0,xi=0; i<n; ++i,++xi)
+    {
+        if (xi >= ww) {xi=0; ++yi;}
+        for (j=i; j<n; ++j)
+        {
+            xj = j % ww;
+            yj = stdMath.floor(j / ww);
+            dij = d_histogram(im1, im2, w, h, X0+xi, Y0+yi, X0+xj, Y0+yj, -knn, knn, -knn, knn, X0, Y0, X1, Y1);
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};
+ImageUtil.Distance.correlation = function(im1, im2, w, h, knn, X0, Y0, X1, Y1) {
+    if (null == X0) {X0 = 0; Y0 = 0; X1 = w-1; Y1 = h-1;}
+    if (null == knn) return d_correlation(im1, im2, w, h, X0, Y0, X0, Y0, X0, X1, Y0, Y1, X0, Y0, X1, Y1);
+    var ww = X1-X0+1, hh = Y1-Y0+1,
+        n = ww*hh, D = new Array(n),
+        i, j, xi, yi, xj, yj, dij;
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0,yi=0,xi=0; i<n; ++i,++xi)
+    {
+        if (xi >= ww) {xi=0; ++yi;}
+        for (j=i; j<n; ++j)
+        {
+            xj = j % ww;
+            yj = stdMath.floor(j / ww);
+            dij = d_correlation(im1, im2, w, h, X0+xi, Y0+yi, X0+xj, Y0+yj, -knn, knn, -knn, knn, X0, Y0, X1, Y1);
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};
+/*ImageUtil.Distance.kullbackleibler = function(im1, im2, w, h, knn, X0, Y0, X1, Y1) {
+    if (null == X0) {X0 = 0; Y0 = 0; X1 = w-1; Y1 = h-1;}
+    if (null == knn) return d_kullbackleibler(im1, im2, w, h, X0, Y0, X0, Y0, X0, X1, Y0, Y1, X0, Y0, X1, Y1);
+    var ww = X1-X0+1, hh = Y1-Y0+1,
+        n = ww*hh, D = new Array(n),
+        i, j, xi, yi, xj, yj, dij;
+    for (i=0; i<n; ++i) D[i] = new Array(n);
+    for (i=0,yi=0,xi=0; i<n; ++i,++xi)
+    {
+        if (xi >= ww) {xi=0; ++yi;}
+        for (j=i; j<n; ++j)
+        {
+            xj = j % ww;
+            yj = stdMath.floor(j / ww);
+            dij = d_kullbackleibler(im1, im2, w, h, X0+xi, Y0+yi, X0+xj, Y0+yj, -knn, knn, -knn, knn, X0, Y0, X1, Y1);
+            D[i][j] = dij;
+            D[j][i] = dij;
+        }
+    }
+    return D;
+};*/
 
 function clmp(x, a, b)
 {
@@ -21156,6 +21386,7 @@ FILTER.Create({
     ,_k: 5
     ,_q: 0.98
     ,_s: 3
+    ,_a: 0.75
     ,_tpldata: null
 
     ,init: function(tpl) {
@@ -21187,22 +21418,25 @@ FILTER.Create({
             if (null != params.scales) {self.sc = params.scales || {min:1,max:1,inc:1.1}; self._glsl = null;}
             if (null != params.rotations) {self.rot = params.rotations || [0]; self._glsl = null;}
             if (null != params.k) self._k = params.k || 0;
-            if (null != params.q) self.quality(params.q, self._s);
-            if (null != params.s) self.quality(self._q, params.s);
+            if (null != params.q) self.quality(params.q, self._s, self._a);
+            if (null != params.s) self.quality(self._q, params.s, self._a);
+            if (null != params.a) self.quality(self._q, self._s, params.a);
             if (null != params.selection) self.selection = params.selection || null;
             if (undef !== params.noreuse) self.noreuse = !!params.noreuse;
         }
         return self;
     }
-    ,quality: function(quality, size) {
+    ,quality: function(quality, size, alpha) {
         var self = this;
         quality = null == quality ? 0.98 : (quality || 0);
         size = null == size ? 3 : (size || 0);
-        if (quality !== self._q || size !== self._s)
+        alpha = null == alpha ? 0.75 : (alpha || 0);
+        if (quality !== self._q || size !== self._s || alpha !== self._a)
         {
             self._tpldata = null;
             self._q = quality;
             self._s = size;
+            self._a = alpha;
         }
         return self;
     }
@@ -21220,7 +21454,7 @@ FILTER.Create({
         else if (basis)
         {
             if (needsUpdate || !self._tpldata || !self._tpldata.basis)
-                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, channel);
+                self._tpldata = preprocess_tpl(tpl[0], tpl[1], tpl[2], 1 - self._q, self._s, self._a*255, channel);
         }
         else
         {
@@ -21244,6 +21478,7 @@ FILTER.Create({
             ,_k: self._k
             ,_q: self._q
             ,_s: self._s
+            ,_a: self._a
             ,noreuse: self.noreuse
         };
         if (self.scaleThreshold && self.scaleThreshold.changed) self.scaleThreshold.changed = null;
@@ -21263,6 +21498,7 @@ FILTER.Create({
         self._k = params._k;
         self._q = params._q;
         self._s = params._s;
+        self._a = params._a;
         self.noreuse = params.noreuse;
         return self;
     }
@@ -21306,7 +21542,7 @@ FILTER.Create({
             eps = self.tolerance,
             k, x, y, x1, y1, x2, y2, xf, yf, sin, cos,
             sat1, sat2, max, maxc, maxv, matches, ymat,
-            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null};
+            rect = {x1:0,y1:0, x2:0,y2:0, x3:0,y3:0, x4:0,y4:0, area:0,sum:0,sum2:0, sat:null,sat2:null, _:{}};
 
         // 1 default direction
         if       (1 === rot) rot = rot1;
@@ -21381,7 +21617,7 @@ FILTER.Create({
             for (sc=scale.min,scm=scale.max,sci=scale.inc; sc<=scm; sc*=sci)
             {
                 tws = stdMath.round(sc*tw); ths = stdMath.round(sc*th);
-                tws2 = (tws>>>1); ths2 = (ths>>>1);
+                tws2 = (tws>>1); ths2 = (ths>>1);
                 if (is_vertical)
                 {
                     tw2 = ths2;
@@ -21402,7 +21638,7 @@ FILTER.Create({
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
-                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['areas'], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
                         if (nccR >= tt)
                         {
                             score = nccR;
@@ -21427,9 +21663,9 @@ FILTER.Create({
                     {
                         if (x+tw2 > x2) {x=x1+tw2; ++y; if (y>k) break;}
                         if (y < (ymat[x-x1-tw2] || 0)) {x+=tw2; continue;} // skip more area if inside previous match
-                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
-                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
-                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
+                        nccR = ncc(x, y, sat1[0], sat2[0], tpldata['areas'], tpldata['avg'][0], tpldata['var'][0], tpldata.basis[0], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect); // R
+                        nccG = nccR >= tt ? ncc(x, y, sat1[1], sat2[1], tpldata['areas'], tpldata['avg'][1], tpldata['var'][1], tpldata.basis[1], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // G
+                        nccB = nccR >= tt && nccG >= tt ? ncc(x, y, sat1[2], sat2[2], tpldata['areas'], tpldata['avg'][2], tpldata['var'][2], tpldata.basis[2], w, h, tw, th, sc, ro, _k, tws, ths, sin, cos, rect) : 0; // B
                         if (nccR >= tt && nccG >= tt && nccB >= tt)
                         {
                             score = stdMath.min(nccR, nccG, nccB);
@@ -21461,7 +21697,7 @@ FILTER.Create({
         return im;
     }
 });
-function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
+function ncc(x, y, sat1, sat2, areas, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0, ths0, sin, cos, rect)
 {
     // normalized cross-correlation centered at point (x,y)
     /*if (null == sc)
@@ -21489,25 +21725,26 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
     rect.sat2 = sat2;
     if (is_tilted)
     {
-        tws2 = tws>>>1; ths2 = ths>>>1;
-        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        tws2 = tws>>1; ths2 = ths>>1;
+        /*x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
-        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);*/
     }
     else
     {
         // swap x/y
         if (90 === roa || 270 === roa) {tws = ths0; ths = tws0;}
-        tws2 = tws>>>1; ths2 = ths>>>1;
-        x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
+        tws2 = tws>>1; ths2 = ths>>1;
+        /*x0 = -tws2; y0 = -ths2; x1 = tws-1-tws2; y1 = ths-1-ths2;
         rect.area = 0; rect.sum = 0; rect.sum2 = 0;
-        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
+        satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);*/
     }
+    summa(areas, rect, x, y, w, h, is_tilted, roa, sc, tw, th, tws2, ths2, sin, cos, kk);
     rect.sat2 = null;
     areat = tws0*ths0;
-    area = rect.area;
-    sum1 = rect.sum;
-    sum2 = rect.sum2;
+    area = rect._.area;
+    sum1 = rect._.sum;
+    sum2 = rect._.sum2;
     f = areat/area;
     // ratio of matched computed area too different or too different for that scale, reject
     if ((2 <= f || 0.5 >= f /*|| (is_tilted && 1 < sc && f > 0.28*sc*sc)*/ /*|| (is_tilted && 1 > sc && 0.28*f < sc*sc)*/)) return 0;
@@ -21593,6 +21830,74 @@ function ncc(x, y, sat1, sat2, avgt, vart, basis, w, h, tw, th, sc, ro, kk, tws0
         return stdMath.min(stdMath.max(cc, -1), 1);
     }
 }
+function summa(areas, rect, x, y, w, h, is_tilted, roa, sc, tw, th, tws2, ths2, sin, cos, kk)
+{
+    var k, K = areas.length, bk, area = 0, sum = 0, sum2 = 0, x0, y0, x1, y1;
+    for (k=0; k<K; ++k)
+    {
+        bk = areas[k];
+        if (is_tilted)
+        {
+            x0 = bk.x0;
+            y0 = bk.y0;
+            x1 = bk.x1;
+            y1 = bk.y1;
+        }
+        else // not tilted, rectangular
+        {
+            if (270 === roa) // 270
+            {
+                // swap x/y
+                x0 = bk.y0;
+                y0 = tw-1-bk.x1;
+                x1 = bk.y1;
+                y1 = tw-1-bk.x0;
+            }
+            else if (180 === roa) // 180
+            {
+                x0 = tw-1-bk.x1;
+                y0 = th-1-bk.y1;
+                x1 = tw-1-bk.x0;
+                y1 = th-1-bk.y0;
+            }
+            else if (90 === roa) // 90
+            {
+                // swap x/y
+                x0 = th-1-bk.y1;
+                y0 = bk.x0;
+                x1 = th-1-bk.y0;
+                y1 = bk.x1;
+            }
+            else // 0
+            {
+                x0 = bk.x0;
+                y0 = bk.y0;
+                x1 = bk.x1;
+                y1 = bk.y1;
+            }
+        }
+        x0 = stdMath.round(sc*x0)-tws2;
+        y0 = stdMath.round(sc*y0)-ths2;
+        x1 = stdMath.round(sc*x1)-tws2;
+        y1 = stdMath.round(sc*y1)-ths2;
+        if (is_tilted)
+        {
+            rot(rect, x0, y0, x1, y1, sin, cos, 0, 0);
+            satsumr(rect, w, h, x+rect.x1, y+rect.y1, x+rect.x2, y+rect.y2, x+rect.x3, y+rect.y3, x+rect.x4, y+rect.y4, kk);
+        }
+        else
+        {
+            rect.area = 0; rect.sum = 0; rect.sum2 = 0;
+            satsums(rect, w, h, x+x0, y+y0, x+x1, y+y1, 1);
+        }
+        area += rect.area;
+        sum += rect.sum;
+        sum2 += rect.sum2;
+    }
+    rect._.area = area;
+    rect._.sum = sum;
+    rect._.sum2 = sum2;
+}
 function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 {
     var x, y;
@@ -21614,59 +21919,223 @@ function rot(rect, x1, y1, x3, y3, sin, cos, ox, oy)
 
     rect.area = 0; rect.sum = 0; rect.sum2 = 0;
 }
-function preprocess_tpl(t, w, h, Jmax, minSz, channel)
+function preprocess_tpl(t, w, h, Jmax, minSz, alpha, channel)
 {
-    var tr = 0, tg = 0, tb = 0, a, b, v, s, s2,
-        l = t.length, n = w*h, p;
-    for (p=0; p<l; p+=4)
-    {
-        tr += t[p  ]/n;
-        tg += t[p+1]/n;
-        tb += t[p+2]/n;
-    }
-    a = [tr, tg, tb];
+    var a, b, v, s, s2, sa,
+        l = t.length, n = w*h,
+        na, areas, area;
+    // only count non-transparent areas wrt alpha threshold
+    alpha = alpha || 0;
+    sat(t, w, h, 2, 3, sa=new A32F(n), null, null, null, alpha);
+    na = sa[n-1];
+    areas = [{x0:0,y0:0,x1:w-1,y1:h-1}];
+    a = [0, 0, 0];
+    v = [0, 0, 0];
+    b = null;
     if (null != Jmax)
     {
+        // take only non-transparent areas
+        if (alpha && (na < n)) areas = visible_areas(sa, w, h);
+
         s = [null, null, null];
         s2 = [null, null, null];
-        b = [[], [], []];
-        v = [0, 0, 0];
+
+        area = areas.reduce(function(sum, area) {return sum + satsum(sa, w, h, area.x0, area.y0, area.x1, area.y1);}, 0);
+
         if (null != channel)
         {
-            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n));
-            b[channel] = FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz);
-            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], w, h);
+            sat(t, w, h, 2, channel, s[channel]=new A32F(n), s2[channel]=new A32F(n), null, null, alpha);
+            a[channel] = areas.reduce(function(sum, area) {
+                return sum + satsum(s[channel], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area;
+            b[channel] = areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[channel], w, h, channel, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []);
+            v[channel] = basisv(b[channel], a[channel], s[channel], s2[channel], sa, w, h);
         }
         else
         {
-            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n));
-            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n));
-            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n));
+            sat(t, w, h, 2, 0, s[0]=new A32F(n), s2[0]=new A32F(n), null, null, alpha);
+            sat(t, w, h, 2, 1, s[1]=new A32F(n), s2[1]=new A32F(n), null, null, alpha);
+            sat(t, w, h, 2, 2, s[2]=new A32F(n), s2[2]=new A32F(n), null, null, alpha);
+            a = [
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[0], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area,
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[1], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area,
+            areas.reduce(function(sum, area) {
+                return sum + satsum(s[2], w, h, area.x0, area.y0, area.x1, area.y1);
+            }, 0) / area
+            ];
             b = [
-            FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz),
-            FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz),
-            FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz)
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[0], w, h, 0, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []),
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[1], w, h, 1, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, []),
+            areas.reduce(function(b, area) {
+                b.push.apply(b, FilterUtil.tm_approximate(t, s[2], w, h, 2, Jmax, minSz, area.x0, area.y0, area.x1, area.y1));
+                return b;
+            }, [])
             ];
             v = [
-            basisv(b[0], a[0], s[0], s2[0], w, h),
-            basisv(b[1], a[1], s[1], s2[1], w, h),
-            basisv(b[2], a[2], s[2], s2[2], w, h)
+            basisv(b[0], a[0], s[0], s2[0], sa, w, h),
+            basisv(b[1], a[1], s[1], s2[1], sa, w, h),
+            basisv(b[2], a[2], s[2], s2[2], sa, w, h)
             ];
         }
     }
-    return {'avg':a, 'basis':b||null, 'var':v||null};
+    return {'areas':areas, 'avg':a, 'var':v, 'basis':b};
 }
-function approximate(t, s, w, h, c, Jmax, minSz)
+function visible_areas(sa, w, h)
 {
-    var J, J2, Jmin, bmin,
-        x0, x1, y0, y1, ww, hh,
+    var Jc, Jl, Jr, Jt, Jb,
+        Jtl, Jbr, Jtr, Jbl,
+        J, JJ, Jmax, bmax,
+        ww, hh, x0, y0, x1, y1,
+        n = w*h, k, K, b, bk;
+    b = [{k:satsum(sa, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
+    for (;;)
+    {
+        bmax = b;
+        K = b.length;
+        for (k=0; k<K; ++k)
+        {
+            bk = b[k];
+            Jmax = bk.k;
+            if (2 < bk.x1 - bk.x0 + 1 || 2 < bk.y1 - bk.y0 + 1)
+            {
+                for (y0=bk.y0; y0<=bk.y1; ++y0)
+                {
+                    for (y1=bk.y1; y1>y0; --y1)
+                    {
+                        for (x0=bk.x0; x0<=bk.x1; ++x0)
+                        {
+                            for (x1=bk.x1; x1>x0; --x1)
+                            {
+                                Jl = Jr = Jt = Jb = 0;
+                                Jtl = Jtr = Jbl = Jbr = 0;
+                                J = 0;
+
+                                ww = x1-x0+1;
+                                hh = y1-y0+1;
+                                Jc = satsum(sa, w, h, x0, y0, x1, y1)/(ww*hh);
+                                if (Jc > 0.02) continue;
+
+                                if (y0 > bk.y0)
+                                {
+                                    ww = x1-x0+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jt = satsum(sa, w, h, x0, bk.y0, x1, y0-1)/(ww*hh);
+                                    J += Jt;
+                                }
+                                if (y1 < bk.y1)
+                                {
+                                    ww = x1-x0+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jb = satsum(sa, w, h, x0, y1+1, x1, bk.y1)/(ww*hh);
+                                    J += Jb;
+                                }
+                                if (x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = y1-y0+1;
+                                    Jl = satsum(sa, w, h, bk.x0, y0, x0-1, y1)/(ww*hh);
+                                    J += Jl;
+                                }
+                                if (x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = y1-y0+1;
+                                    Jr = satsum(sa, w, h, x1+1, y0, bk.x1, y1)/(ww*hh);
+                                    J += Jr;
+                                }
+                                if (y0 > bk.y0 && x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jtl = satsum(sa, w, h, bk.x0, bk.y0, x0-1, y0-1)/(ww*hh);
+                                    J += Jtl;
+                                }
+                                if (y1 < bk.y1 && x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jbr = satsum(sa, w, h, x1+1, y1+1, bk.x1, bk.y1)/(ww*hh);
+                                    J += Jbr;
+                                }
+                                if (y0 > bk.y0 && x1 < bk.x1)
+                                {
+                                    ww = bk.x1-x1-1+1;
+                                    hh = y0-1-bk.y0+1;
+                                    Jtr = satsum(sa, w, h, x1+1, bk.y0, bk.x1, y0-1)/(ww*hh);
+                                    J += Jtr;
+                                }
+                                if (y1 < bk.y1 && x0 > bk.x0)
+                                {
+                                    ww = x0-1-bk.x0+1;
+                                    hh = bk.y1-y1-1+1;
+                                    Jbl = satsum(sa, w, h, bk.x0, y1+1, x0-1, bk.y1)/(ww*hh);
+                                    J += Jbl;
+                                }
+
+                                if (J > Jmax)
+                                {
+                                    Jmax = J;
+                                    bmax = b.slice(0, k);
+                                    if (Jl > 0) bmax.push({k:Jl, x0:bk.x0, y0:y0, x1:x0-1, y1:y1});
+                                    if (Jtl > 0) bmax.push({k:Jtl, x0:bk.x0, y0:bk.y0, x1:x0-1, y1:y0-1});
+                                    if (Jt > 0) bmax.push({k:Jt, x0:x0, y0:bk.y0, x1:x1, y1:y0-1});
+                                    if (Jtr > 0) bmax.push({k:Jtr, x0:x1+1, y0:bk.y0, x1:bk.x1, y1:y0-1});
+                                    if (Jr > 0) bmax.push({k:Jr, x0:x1+1, y0:y0, x1:bk.x1, y1:y1});
+                                    if (Jbr > 0) bmax.push({k:Jbr, x0:x1+1, y0:y1+1, x1:bk.x1, y1:bk.y1});
+                                    if (Jb > 0) bmax.push({k:Jb, x0:x0, y0:y1+1, x1:x1, y1:bk.y1});
+                                    if (Jbl > 0) bmax.push({k:Jbl, x0:bk.x0, y0:y1+1, x1:x0-1, y1:bk.y1});
+                                    bmax.push.apply(bmax, b.slice(k+1));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (bmax !== b) break;
+        }
+        if (bmax === b) break;
+        b = bmax;
+    }
+    b = b.filter(function(b) {return b.k > 0.5;}); // remove areas mostly transparent
+    return b;
+}
+function approximate(t, s, w, h, c, Jmax, minSz, x0, y0, x1, y1)
+{
+    if (null == x0)
+    {
+        x0 = 0;
+        y0 = 0;
+        x1 = w-1;
+        y1 = h-1;
+    }
+    var J, J2, Jmin, bmin, ww, hh,
         x, y, xx, yy, yw, avg1, avg2,
-        p, tp, l = t.length, n = l>>>2,
-        v, k, K, b, bk, bb;
-    b = [{k:satsum(s, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1,q:1}];
+        p, tp, l = t.length,
+        n = (x1-x0+1)*(y1-y0+1),
+        i, v, k, K, b, bk, bb;
+    b = [{k:satsum(s, w, h, x0, y0, x1, y1)/n,x0:x0,y0:y0,x1:x1,y1:y1,q:1}];
     bk = b[0];
     Jmax *= 255*255; J = 0;
-    for (p=0; p<l; p+=4) {v = (t[p+c]-bk.k); J += v*v/n;}
+    for (i=0,x=x0,yw=y0*w; i<n; ++i,++x)
+    {
+        if (x > x1) {x=x0; yw+=w;}
+        p = (x + yw) << 2;
+        v = (t[p+c]-bk.k);
+        J += v*v/n;
+    }
     Jmin = J;
     while (J > Jmax)
     {
@@ -21772,7 +22241,7 @@ function approximate(t, s, w, h, c, Jmax, minSz)
     b[0].q = 1-Jmin/255/255;
     return b;
 }
-function basisv(basis, avg, sat, sat2, w, h)
+function basisv(basis, avg, sat, sat2, sata, w, h)
 {
     var k, K = basis.length, bk, areak,
         x0, x1, y0, y1, diff, diffc, max = 0,
@@ -21787,7 +22256,7 @@ function basisv(basis, avg, sat, sat2, w, h)
         y0 = bk.y0;
         x1 = bk.x1;
         y1 = bk.y1;
-        areak = (x1-x0+1)*(y1-y0+1);
+        areak = satsum(sata, w, h, x0, y0, x1, y1)/*(x1-x0+1)*(y1-y0+1)*/;
         diff = bk.k - avg;
         sum1 = satsum(sat, w, h, x0, y0, x1, y1);
         if (areak > max)
@@ -21807,7 +22276,7 @@ function basisv(basis, avg, sat, sat2, w, h)
             varftc += diff*(sum1 - avg*areak);
         }
     }
-    return {v:vart/(w*h), c:(varft)/stdMath.sqrt(stdMath.abs(varf*vart)) || 0, c0:(varftc)/stdMath.sqrt(stdMath.abs(varfc*vartc)) || 0};
+    return {v:vart/sata[w*h-1]/*(w*h)*/, c:(varft)/stdMath.sqrt(stdMath.abs(varf*vart)) || 0, c0:(varftc)/stdMath.sqrt(stdMath.abs(varfc*vartc)) || 0};
 }
 FilterUtil.tm_approximate = approximate;
 FilterUtil.tm_ncc = ncc;
@@ -22666,254 +23135,6 @@ function topological_sort(p0)
 
         return (dbx*dbx + dby*dby) - (dax*dax + day*day);
     };
-}
-}(FILTER);/**
-*
-* PairwiseCluster
-* @package FILTER.js
-*
-**/
-!function(FILTER, undef){
-"use strict";
-
-var stdMath = Math,
-    clamp = FILTER.Color.clampPixel,
-    ImageUtil = FILTER.Util.Image,
-    TypedObj = FILTER.Util.Array.typed_obj;
-
-/*
-
-original code based on:
-
-1. [Pairwise Data Clustering by Deterministic Annealing, Thomas Hofmann, Joachim M. Buhmann, 1997](https://scispace.com/pdf/pairwise-data-clustering-by-deterministic-annealing-20cxpuy7es.pdf)
-
-*/
-FILTER.Create({
-    name : "PairwiseClusterFilter"
-
-    ,path: FILTER.Path
-
-    //,_update: false // filter by itself does not alter image data, just processes information
-    ,hasMeta: false
-    ,k: 2
-    ,knn: 1
-    ,distance: "euclidean"
-    ,alpha: 0.75
-    ,iterations: 5
-
-    ,init: function(k, knn) {
-        var self = this;
-        if (null != k) self.k = k || 2;
-        if (null != knn) self.knn = knn || 0;
-    }
-
-    ,params: function(params) {
-        var self = this;
-        if (params)
-        {
-            if (null != params.k) self.k = +params.k;
-            if (null != params.knn) self.knn = +params.knn;
-            if (null != params.distance) self.distance = params.distance;
-            if (null != params.alpha) self.alpha = +params.alpha;
-            if (null != params.iterations) self.iterations = +params.iterations;
-            if (null != params.selection) self.selection = params.selection || null;
-        }
-        return self;
-    }
-
-    ,serialize: function() {
-        var self = this, json;
-        json = {
-            k: self.k,
-            knn: self.knn,
-            distance: "function" === typeof self.distance ? self.distance.toString() : self.distance,
-            alpha: self.alpha,
-            iterations: self.iterations
-        };
-        return json;
-    }
-
-    ,unserialize: function(params) {
-        var self = this;
-        self.k = params.k;
-        self.knn = params.knn;
-        self.distance = "function" === typeof ImageUtil.Distance[params.distance] ? params.distance : ((new Function("FILTER", '"use strict"; return ' + params.distance + ';'))(FILTER));
-        self.alpha = params.alpha;
-        self.iterations = params.iterations;
-        return self;
-    }
-
-    ,metaData: function(serialisation) {
-        return serialisation && FILTER.isWorker ? TypedObj(this.meta) : this.meta;
-    }
-
-    ,setMetaData: function(meta, serialisation) {
-        this.meta = serialisation && ("string" === typeof meta) ? TypedObj(meta, 1) : meta;
-        return this;
-    }
-
-    ,apply: function(im, w, h) {
-        var self = this, M, map, qi, i, pi, n, c;
-        M = pwcdanneal("function" === typeof self.distance ? self.distance(im, im, w, h, self.knn) : (ImageUtil.Distance[self.distance](im, im, w, h, self.knn)), self.k, self.alpha, self.iterations);
-        M = array(M.length, function(i) {
-            for (var Mi=M[i],cluster=0,c=1,k=self.k; c<k; ++c)
-            {
-                if (Mi[c] > Mi[cluster]) cluster = c;
-            }
-            return cluster;
-        });
-        map = array(self.k, function(k) {
-            return {cnt:M.filter(function(mi) {return mi === k;}).length, cl:k};
-        }).filter(function(mi) {
-            return 0 < mi.cnt;
-        }).sort(function(a, b) {
-            return (b.cnt - a.cnt) || (a.cl - b.cl);
-        }).reduce(function(map, mi, k) {
-            map[mi.cl] = k;
-            return map;
-        }, {});
-        qi = stdMath.ceil(255 / stdMath.max(1, Object.keys(map).length - 1));
-        for (i=0,n=M.length; i<n; ++i)
-        {
-            pi = i << 2;
-            c = map[M[i]] * qi;
-            im[pi + 0] = c;
-            im[pi + 1] = c;
-            im[pi + 2] = c;
-        }
-        return im;
-    }
-});
-
-// pairwise clustering by deterministic annealing
-function pwcdanneal(D, k, alpha, max_iter)
-{
-    // D is the square distance or dissimilarity matrix
-    // M is the assignment matrix which consists of the
-    // a posteriori probabilities of a component zi for a given class ck
-
-    if (null == max_iter) max_iter = 5;
-    if (null == alpha) alpha = 0.75;
-
-    var n = D.length, M, prevE, E,
-        T, Tstart, Tfinal, i, j, v,
-        tmp, iter, delta, eps = 1e-6,
-        m, e, f, summa, sum, DM;
-
-    // how to choose initial temperature? [corresponds to initial energy==>max eigenvalue]
-    Tstart = stdMath.abs(2*max(D)); // max eig estimate
-
-    if (!Tstart)
-    {
-        // trivial
-        return matrix(n, k, function(i, j) {
-            return 0 === j ? 1 : 0;
-        });
-    }
-
-    // initialize in (0,1) uniformly
-    M = matrix(n, k, function() {return stdMath.random();});
-    // normalize each row to sum to unity
-    for (i=0; i<n; ++i)
-    {
-        for (summa=0,v=0; v<k; ++v) summa += M[i][v];
-        for (v=0; v<k; ++v) M[i][v] /= summa;
-    }
-    E = matrix(n, k, function() {return stdMath.random();});
-    prevE = matrix(n, k, 0);
-
-    DM = matrix(n, k, 0);
-    sum = array(k, 0);
-    Tfinal = Tstart/100;
-    T = Tstart;
-    while ((alpha < 1) && (T > Tfinal))
-    {
-        //console.log('temperature T '+T);
-        for (iter=1; iter<=max_iter; ++iter)
-        {
-            tmp = prevE;
-            prevE = E;
-            E = tmp;
-            for (i=0; i<n; ++i)
-            {
-                m = M[i];
-                e = prevE[i];
-                for (summa=0,v=0; v<k; ++v)
-                {
-                    summa += stdMath.exp(-e[v] / T);
-                }
-                for (v=0; v<k; ++v)
-                {
-                    // E-lke step: estimate M(t+1) from E(t) eq.(25)
-                    m[v] = stdMath.exp(-e[v] / T) / summa;
-                }
-            }
-
-            for (v=0; v<k; ++v)
-            {
-                for (summa=0,j=0; j<n; ++j) summa += M[j][v];
-                sum[v] = summa;
-            }
-            for (i=0; i<n; ++i)
-            {
-                m = DM[i];
-                for (v=0; v<k; ++v)
-                {
-                    for (summa=0,j=0; j<n; ++j) summa += D[i][j]*M[j][v];
-                    m[v] = summa;
-                }
-            }
-
-            delta = 0;
-
-            for (i=0; i<n; ++i)
-            {
-                m = M[i];
-                e = E[i];
-                for (v=0; v<k; ++v)
-                {
-                    f = sum[v] - m[v];
-                    for (summa=0,j=0; j<n; ++j)
-                    {
-                        summa += M[j][v] * (D[i][j] - DM[j][v]/(2*f));
-                    }
-                    // M-like step: calculate new E(t+1) from M(t+1) eq.(26)
-                    e[v] = summa / (f + 1);
-
-                    delta = stdMath.max(delta, stdMath.abs(e[v] - prevE[i][v]));
-                }
-            }
-
-            if (delta <= eps) break; // converged
-        }
-        T = alpha*T;   // decrease temperature exponentially
-        if (!T) break;
-    }
-    return M;
-}
-FILTER.Util.Filter.pairwise_cluster_det_anneal = pwcdanneal;
-
-// utils
-function max(mat)
-{
-    return stdMath.max.apply(stdMath, mat.map(function(row) {return stdMath.max.apply(stdMath, row);}));
-}
-function array(n, v)
-{
-    var arr = new Array(n);
-    for (var i=0; i<n; ++i)
-    {
-        arr[i] = "function" === typeof v ? v(i, arr) : v;
-    }
-    return arr;
-}
-function matrix(n, m, v)
-{
-    return array(n, function(i, mat) {
-        return array(m, function(j) {
-            return "function" === typeof v ? v(i, j, mat) : v;
-        });
-    });
 }
 }(FILTER);/* main code ends here */
 /* export the module */
