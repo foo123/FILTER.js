@@ -98,7 +98,7 @@
 * [Template matching using fast normalized cross correlation, Briechle, Hanebeck 2001](https://www.semanticscholar.org/paper/Template-matching-using-fast-normalized-cross-Briechle-Hanebeck/3632776737dc58adf0e278f9a7cafbeb6c1ec734)
 * [FAsT-Match: Fast Affine Template Matching, Korman, Reichman, Tsur, Avidan, 2013](https://www.cs.haifa.ac.il/~skorman/FastMatch/)
 * [Explaining Away Results in Accurate and Tolerant Template Matching, Spratling, 2019](https://arxiv.org/pdf/1911.04169v1)
-* [Explaining away results in more robust visual tracking, Bo Gao1, Michael W. Spratling, 2022](https://link.springer.com/content/pdf/10.1007/s00371-022-02466-6.pdf)
+* [Explaining away results in more robust visual tracking, Bo Gao, Michael W. Spratling, 2022](https://link.springer.com/content/pdf/10.1007/s00371-022-02466-6.pdf)
 * [Object Detection Using Feature-based Template Matching, Bianco, Buzzelli, Schettini 2013](https://www.researchgate.net/publication/268813931_Object_Detection_Using_Feature-based_Template_Matching)
 * [Rapid Object Detection using a Boosted Cascade of Simple Features, Viola, Jones 2001](http://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
 * [Robust Real-Time Object Detection, Viola, Jones 2001](https://www.researchgate.net/publication/215721846_Robust_Real-Time_Object_Detection)
