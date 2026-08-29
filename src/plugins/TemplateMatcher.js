@@ -15,6 +15,8 @@ var MODE = FILTER.MODE, GLSL = FILTER.Util.GLSL, FilterUtil = FILTER.Util.Filter
     stdMath = Math, clamp = FILTER.Util.Math.clamp, A32F = FILTER.Array32F,
     // 1 default direction
     rot1  = [0],
+    // 2 cardinal directions
+    rot2  = [0, 180],
     // 4 cardinal directions
     rot4  = [0, 90, 180, 270],
     // 8 cardinal directions
@@ -213,6 +215,8 @@ FILTER.Create({
 
         // 1 default direction
         if       (1 === rot) rot = rot1;
+        // 2 cardinal directions
+        else if  (2 === rot) rot = rot2;
         // 4 cardinal directions
         else if  (4 === rot) rot = rot4;
         // 8 cardinal directions
@@ -662,12 +666,118 @@ function preprocess_tpl(t, w, h, Jmax, minSz, alpha, channel)
 }
 function visible_areas(sa, w, h)
 {
+    // produces less and greater areas, matching score drops slightly (0.95 -> 0.93)
+    var Jc, J, Jmax, bmax = [],
+        ww, hh, x0, y0, x1, y1,
+        k, K, Km, b, bk, km, bm;
+    b = [{k:cost(sa, w, h, 0, 0, w-1, h-1), x0:0, y0:0, x1:w-1, y1:h-1}];
+    for (;;)
+    {
+        Km = bmax.length;
+        K = b.length;
+        for (k=0; k<K; ++k)
+        {
+            bk = b[k];
+            bm = null;
+            if (0.02 >= bk.k)
+            {
+                b.splice(k, 1);
+                break;
+            }
+            else if (1 === bk.k)
+            {
+                bm = {k:bk.k, x0:bk.x0, y0:bk.y0, x1:bk.x1, y1:bk.y1, i:k};
+            }
+            else if ((2 < bk.x1 - bk.x0 + 1 || 2 < bk.y1 - bk.y0 + 1))
+            {
+                Jmax = 0;
+                for (y0=bk.y0; y0<=bk.y1; ++y0)
+                {
+                    for (y1=bk.y1; y1>y0; --y1)
+                    {
+                        for (x0=bk.x0; x0<=bk.x1; ++x0)
+                        {
+                            for (x1=bk.x1; x1>x0; --x1)
+                            {
+                                ww = x1-x0+1;
+                                hh = y1-y0+1;
+                                Jc = ww*hh;
+                                J = satsum(sa, w, h, x0, y0, x1, y1)/Jc;
+                                if (J < 1) continue;
+
+                                if (Jc > Jmax)
+                                {
+                                    Jmax = Jc;
+                                    km = k;
+                                    bm = {k:J, x0:x0, y0:y0, x1:x1, y1:y1};
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (bm)
+            {
+                bk = b[km];
+                b.splice(km, 1);
+                bmax.push(bm);
+                if (bm.x0 > bk.x0)
+                {
+                    J = cost(sa, w, h, bk.x0, bm.y0, bm.x0-1, bm.y1);
+                    if (J > 0) b.push({k:J, x0:bk.x0, y0:bm.y0, x1:bm.x0-1, y1:bm.y1});
+                }
+                if (bm.x0 > bk.x0 && bm.y0 > bk.y0)
+                {
+                    J = cost(sa, w, h, bk.x0, bk.y0, bm.x0-1, bm.y0-1);
+                    if (J > 0) b.push({k:J, x0:bk.x0, y0:bk.y0, x1:bm.x0-1, y1:bm.y0-1});
+                }
+                if (bm.y0 > bk.y0)
+                {
+                    J = cost(sa, w, h, bm.x0, bk.y0, bm.x1, bm.y0-1);
+                    if (J > 0) b.push({k:J, x0:bm.x0, y0:bk.y0, x1:bm.x1, y1:bm.y0-1});
+                }
+                if (bm.x1 < bk.x1 && bm.y0 > bk.y0)
+                {
+                    J = cost(sa, w, h, bm.x1+1, bk.y0, bk.x1, bm.y0-1);
+                    if (J > 0) b.push({k:J, x0:bm.x1+1, y0:bk.y0, x1:bk.x1, y1:bm.y0-1});
+                }
+                if (bm.x1 < bk.x1)
+                {
+                    J = cost(sa, w, h, bm.x1+1, bm.y0, bk.x1, bm.y1);
+                    if (J > 0) b.push({k:J, x0:bm.x1+1, y0:bm.y0, x1:bk.x1, y1:bm.y1});
+                }
+                if (bm.x1 < bk.x1 && bm.y1 < bk.y1)
+                {
+                    J = cost(sa, w, h, bm.x1+1, bm.y1+1, bk.x1, bk.y1);
+                    if (J > 0) b.push({k:J, x0:bm.x1+1, y0:bm.y1+1, x1:bk.x1, y1:bk.y1});
+                }
+                if (bm.y1 < bk.y1)
+                {
+                    J = cost(sa, w, h, bm.x0, bm.y1+1, bm.x1, bk.y1);
+                    if (J > 0) b.push({k:J, x0:bm.x0, y0:bm.y1+1, x1:bm.x1, y1:bk.y1});
+                }
+                if (bm.x0 > bk.x0 && bm.y1 < bk.y1)
+                {
+                    J = cost(sa, w, h, bk.x0, bm.y1+1, bm.x0-1, bk.y1);
+                    if (J > 0) b.push({k:J, x0:bk.x0, y0:bm.y1+1, x1:bm.x0-1, y1:bk.y1});
+                }
+                break;
+            }
+        }
+        if (Km === bmax.length && K === b.length) break;
+    }
+    bmax.push.apply(bmax, b.filter(function(b) {return b.k > 0.5;})); // add any remaining areas not mostly transparent
+    return bmax;
+}
+/*function visible_areas(sa, w, h)
+{
+    // produces many small areas, matching score slightly increased
     var Jc, Jl, Jr, Jt, Jb,
         Jtl, Jbr, Jtr, Jbl,
         J, JJ, Jmax, bmax,
-        ww, hh, x0, y0, x1, y1,
-        n = w*h, k, K, b, bk;
-    b = [{k:satsum(sa, w, h, 0, 0, w-1, h-1)/n,x0:0,y0:0,x1:w-1,y1:h-1}];
+        x0, y0, x1, y1,
+        k, K, b, bk;
+    b = [{k:cost(sa, w, h, 0, 0, w-1, h-1), x0:0, y0:0, x1:w-1, y1:h-1}];
     for (;;)
     {
         bmax = b;
@@ -690,65 +800,47 @@ function visible_areas(sa, w, h)
                                 Jtl = Jtr = Jbl = Jbr = 0;
                                 J = 0;
 
-                                ww = x1-x0+1;
-                                hh = y1-y0+1;
-                                Jc = satsum(sa, w, h, x0, y0, x1, y1)/(ww*hh);
+                                Jc = cost(sa, w, h, x0, y0, x1, y1);
                                 if (Jc > 0.02) continue;
 
                                 if (y0 > bk.y0)
                                 {
-                                    ww = x1-x0+1;
-                                    hh = y0-1-bk.y0+1;
-                                    Jt = satsum(sa, w, h, x0, bk.y0, x1, y0-1)/(ww*hh);
+                                    Jt = cost(sa, w, h, x0, bk.y0, x1, y0-1);
                                     J += Jt;
                                 }
                                 if (y1 < bk.y1)
                                 {
-                                    ww = x1-x0+1;
-                                    hh = bk.y1-y1-1+1;
-                                    Jb = satsum(sa, w, h, x0, y1+1, x1, bk.y1)/(ww*hh);
+                                    Jb = cost(sa, w, h, x0, y1+1, x1, bk.y1);
                                     J += Jb;
                                 }
                                 if (x0 > bk.x0)
                                 {
-                                    ww = x0-1-bk.x0+1;
-                                    hh = y1-y0+1;
-                                    Jl = satsum(sa, w, h, bk.x0, y0, x0-1, y1)/(ww*hh);
+                                    Jl = cost(sa, w, h, bk.x0, y0, x0-1, y1);
                                     J += Jl;
                                 }
                                 if (x1 < bk.x1)
                                 {
-                                    ww = bk.x1-x1-1+1;
-                                    hh = y1-y0+1;
-                                    Jr = satsum(sa, w, h, x1+1, y0, bk.x1, y1)/(ww*hh);
+                                    Jr = cost(sa, w, h, x1+1, y0, bk.x1, y1);
                                     J += Jr;
                                 }
                                 if (y0 > bk.y0 && x0 > bk.x0)
                                 {
-                                    ww = x0-1-bk.x0+1;
-                                    hh = y0-1-bk.y0+1;
-                                    Jtl = satsum(sa, w, h, bk.x0, bk.y0, x0-1, y0-1)/(ww*hh);
+                                    Jtl = cost(sa, w, h, bk.x0, bk.y0, x0-1, y0-1);
                                     J += Jtl;
                                 }
                                 if (y1 < bk.y1 && x1 < bk.x1)
                                 {
-                                    ww = bk.x1-x1-1+1;
-                                    hh = bk.y1-y1-1+1;
-                                    Jbr = satsum(sa, w, h, x1+1, y1+1, bk.x1, bk.y1)/(ww*hh);
+                                    Jbr = cost(sa, w, h, x1+1, y1+1, bk.x1, bk.y1);
                                     J += Jbr;
                                 }
                                 if (y0 > bk.y0 && x1 < bk.x1)
                                 {
-                                    ww = bk.x1-x1-1+1;
-                                    hh = y0-1-bk.y0+1;
-                                    Jtr = satsum(sa, w, h, x1+1, bk.y0, bk.x1, y0-1)/(ww*hh);
+                                    Jtr = cost(sa, w, h, x1+1, bk.y0, bk.x1, y0-1);
                                     J += Jtr;
                                 }
                                 if (y1 < bk.y1 && x0 > bk.x0)
                                 {
-                                    ww = x0-1-bk.x0+1;
-                                    hh = bk.y1-y1-1+1;
-                                    Jbl = satsum(sa, w, h, bk.x0, y1+1, x0-1, bk.y1)/(ww*hh);
+                                    Jbl = cost(sa, w, h, bk.x0, y1+1, x0-1, bk.y1);
                                     J += Jbl;
                                 }
 
@@ -778,6 +870,11 @@ function visible_areas(sa, w, h)
     }
     b = b.filter(function(b) {return b.k > 0.5;}); // remove areas mostly transparent
     return b;
+}*/
+function cost(sa, w, h, x0, y0, x1, y1)
+{
+    var ww = x1-x0+1, hh = y1-y0+1;
+    return satsum(sa, w, h, x0, y0, x1, y1)/(ww*hh);
 }
 function approximate(t, s, w, h, c, Jmax, minSz, x0, y0, x1, y1)
 {

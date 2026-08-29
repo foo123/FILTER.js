@@ -324,7 +324,7 @@ function haar_detect(feats, w, h, sel_x1, sel_y1, sel_x2, sel_y2,
                         // Viola-Jones HAAR-Tree evaluator
                         features = trees[t].feats;
                         cur_node_ind = 0;
-                        while (true)
+                        for (;;)
                         {
                             feature = features[cur_node_ind];
 
