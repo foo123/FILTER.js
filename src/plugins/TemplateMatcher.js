@@ -666,7 +666,7 @@ function preprocess_tpl(t, w, h, Jmax, minSz, alpha, channel)
 }
 function visible_areas(sa, w, h)
 {
-    // produces less and greater areas, matching score drops slightly (0.95 -> 0.93)
+    // produces less and greater areas, matching score drops slightly (eg 0.952 -> 0.939)
     var Jc, J, Jmax, bmax = [],
         ww, hh, x0, y0, x1, y1,
         k, K, Km, b, bk, km, bm;
@@ -686,7 +686,8 @@ function visible_areas(sa, w, h)
             }
             else if (1 === bk.k)
             {
-                bm = {k:bk.k, x0:bk.x0, y0:bk.y0, x1:bk.x1, y1:bk.y1, i:k};
+                bm = {k:bk.k, x0:bk.x0, y0:bk.y0, x1:bk.x1, y1:bk.y1};
+                km = k;
             }
             else if ((2 < bk.x1 - bk.x0 + 1 || 2 < bk.y1 - bk.y0 + 1))
             {
