@@ -40,7 +40,8 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 ### Browser Support
 
 ![firefox](/screenshots/firefox.png) ![chrome](/screenshots/chrome.png) ![opera](/screenshots/opera.png) ![ie](/screenshots/ie.png) ![nodejs](/screenshots/node.png)
-
+  
+firefox ● chrome ● opera ● ie ● nodejs
 
 ### Credits
 
@@ -51,6 +52,7 @@ Some filters code has been adapted from open source libraries and/or public doma
 * [**OpenCV**](https://github.com/opencv)
 * [**HAAR.js**](https://github.com/foo123/HAAR.js)
 
+See also the [references](/references.md) for details on various algorithms that the source code is based on, or has been inspired from.
 
 ### Features
 
