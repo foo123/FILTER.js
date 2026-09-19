@@ -4,7 +4,7 @@ __1.14.0__
 
 * ColorDetectorFilter variation of ConnectedComponentsFilter
 * TemplateMatcherFilter handle templates with transparent areas
-* PairwiseClusterFilter for image clustering and segmentation by deterministic annealing, in progress
+* PairwiseClusterFilter for image clustering and segmentation by deterministic annealing or affinity propagation, in progress
 * PatchMatchFilter algorithm for image editing, inpainting and completion, in progress
 * FILTER.Util.Image.Selection class, FILTER.Util.Image.Pyramid class
 * FILTER.Image.select method can also accept a FILTER.Util.Image.Selection instance
