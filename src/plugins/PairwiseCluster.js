@@ -44,7 +44,7 @@ FILTER.Create({
         var self = this;
         if (params)
         {
-            if (null != params.method) self.method = params.method;
+            if (null != params.method) self.method = String(params.method);
             if (null != params.k) self.k = +params.k;
             if (null != params.knn) self.knn = +params.knn;
             if (null != params.distance) self.distance = params.distance;
@@ -112,9 +112,11 @@ FILTER.Create({
             x2 = w-1; y2 = h-1;
         }
         D = "function" === typeof self.distance ? self.distance(im, im, w, h, self.knn, x1, y1, x2, y2) : (ImageUtil.Distance[self.distance](im, im, w, h, self.knn, x1, y1, x2, y2));
-        M = "affinity" === self.method ? pwcaffinity(D.map(function(Di) {return Di.map(function(Dij) {return -Dij;})}), self.lambda, self.iterations) : pwcdanneal(D, self.k, self.alpha, self.iterations);
-        map = array(self.k, function(k) {
-            return {cnt:M.filter(function(mi) {return mi === k;}).length, cl:k};
+        M = "affinity" === self.method ? pwcaffinity(D.map(function(Di, i) {return Di.map(function(Dij, j) {
+            return i === j ? stdMath.random()/3 : -Dij;
+        })}), self.lambda, self.iterations) : pwcdanneal(D, self.k, self.alpha, self.iterations);
+        map = array(M.k, function(k) {
+            return {cnt:M.c.filter(function(mi) {return mi === k;}).length, cl:k};
         }).filter(function(mi) {
             return 0 < mi.cnt;
         }).sort(function(a, b) {
@@ -125,9 +127,9 @@ FILTER.Create({
         }, {});
         qi = stdMath.ceil(255 / stdMath.max(1, Object.keys(map).length - 1));
         ww = x2-x1+1;
-        for (i=0,n=M.length; i<n; ++i)
+        for (i=0,n=M.c.length; i<n; ++i)
         {
-            c = map[M[i]] * qi;
+            c = map[M.c[i]] * qi;
             pi = (x1 + (i % ww) + (y1 + stdMath.floor(i / ww)) * w) << 2;
             im[pi + 0] = c;
             im[pi + 1] = c;
@@ -153,7 +155,7 @@ function pwcdanneal(D, k, alpha, max_iter)
         m, e, f, summa, sum, DM;
 
     // how to choose initial temperature? [corresponds to initial energy==>max eigenvalue]
-    Tstart = 10*stdMath.abs(max(D)); // max eig estimate
+    Tstart = 5*max(D); // max eig estimate
 
     if (!Tstart)
     {
@@ -174,7 +176,7 @@ function pwcdanneal(D, k, alpha, max_iter)
 
     DM = matrix(n, k, 0);
     sum = array(k, 0);
-    Tfinal = Tstart/100;
+    Tfinal = Tstart/1000;
     T = Tstart;
     while ((alpha < 1) && (T > 0) && (T > Tfinal))
     {
@@ -237,13 +239,13 @@ function pwcdanneal(D, k, alpha, max_iter)
         }
         T = alpha*T;   // decrease temperature exponentially
     }
-    return array(n, function(i) {
+    return {k:k, c:array(n, function(i) {
         for (var Mi=M[i],cluster=0,c=1; c<k; ++c)
         {
             if (Mi[c] > Mi[cluster]) cluster = c;
         }
         return cluster;
-    });
+    })};
 }
 // pairwise clustering by affinity propagation
 function pwcaffinity(s, lambda, max_iter)
@@ -254,7 +256,7 @@ function pwcaffinity(s, lambda, max_iter)
     if (null == lambda) lambda = 0.5;
 
     var n = s.length, r, a,
-        e, e_prev,
+        e, e_prev, eps = 1e-6,
         tmp, tmp1, tmp2,
         iter, notchanged,
         i, j, k, t, K;
@@ -265,7 +267,7 @@ function pwcaffinity(s, lambda, max_iter)
         tmp1 = s[i];
         for (j=0; j<n; ++j)
         {
-            tmp1[j] += (Number.EPSILON * tmp1[j] + Number.MIN_VALUE * 100) * (stdMath.random() - 0.5);
+            tmp1[j] += (tmp1[j] || 1) * eps * (stdMath.random() - 0.5);
         }
     }
 
@@ -358,25 +360,25 @@ function pwcaffinity(s, lambda, max_iter)
         return e;
     }, []);
     K = e.length;
-    return array(n, function(i) {
-        var max = -Infinity, score = 0, cluster = 0, k, j;
-        for (k=0; k<K; ++k)
+    return {k:K, c:array(n, function(i) {
+        var max = -Infinity, score = 0, cluster = 0, c, j;
+        for (c=0; c<K; ++c)
         {
-            j = e[k];
+            j = e[c];
             if (j === i)
             {
-                cluster = k;
+                cluster = c;
                 break;
             }
             score = r[i][j] + a[j][i];
             if (score > max)
             {
                 max = score;
-                cluster = k;
+                cluster = c;
             }
         }
         return cluster;
-    });
+    })};
 }
 FILTER.Util.Filter.pairwise_cluster_det_anneal = pwcdanneal;
 FILTER.Util.Filter.pairwise_cluster_affinity = pwcaffinity;
@@ -384,11 +386,7 @@ FILTER.Util.Filter.pairwise_cluster_affinity = pwcaffinity;
 // utils
 function max(mat)
 {
-    return stdMath.max.apply(stdMath, mat.map(function(row) {return stdMath.max.apply(stdMath, row);}));
-}
-function min(mat)
-{
-    return stdMath.min.apply(stdMath, mat.map(function(row) {return stdMath.min.apply(stdMath, row);}));
+    return stdMath.max.apply(stdMath, mat.map(function(row) {return stdMath.max.apply(stdMath, row.map(stdMath.abs));}));
 }
 function array(n, v)
 {
