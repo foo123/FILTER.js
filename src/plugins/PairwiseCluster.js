@@ -160,7 +160,7 @@ function pwcdanneal(D, k, alpha, max_iter)
     if (!Tstart)
     {
         // trivial
-        return array(n, 0);
+        return {k:k, c:array(n, 0)};
     }
 
     // initialize in (0,1) uniformly
@@ -370,7 +370,7 @@ function pwcaffinity(s, lambda, max_iter)
                 cluster = c;
                 break;
             }
-            score = r[i][j] + a[j][i];
+            score = /*s[i][j]*/r[i][j] + a[j][i];
             if (score > max)
             {
                 max = score;
