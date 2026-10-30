@@ -40,7 +40,7 @@ This is a library for processing images/video in pure JavaScript using HTML5 fea
 ### Browser Support
 
 ![firefox](/screenshots/firefox.png) ![chrome](/screenshots/chrome.png) ![opera](/screenshots/opera.png) ![ie](/screenshots/ie.png) ![nodejs](/screenshots/node.png)
-  
+
 firefox ● chrome ● opera ● ie ● nodejs
 
 ### Credits
@@ -97,14 +97,14 @@ Each filter and plugin is independent and can be used in a mix-n-match manner, a
 Change the dependencies file to include your own selection of filters and plugins for your custom build
 
 ### Todo
-* make WASM versions of filters where possible [DONE]
-* make GLSL versions of filters where possible [DONE]
-* make convolutions/statistics faster [DONE partially]
-* add full support for `Node.js` [DONE]
-* add support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` [DONE]
-* use fixed-point arithmetic, micro-optimizations where possible [DONE]
-* add caching of filter parameters where applicable [DONE]
-* increase performance for `Opera`, `IE`  [DONE]
+* make WASM versions of filters where possible **[DONE]**
+* make GLSL versions of filters where possible **[DONE]**
+* make convolutions/statistics faster **[DONE PARTIALLY]**
+* full support for `nodejs` **[DONE]**
+* support for `Parallel Processing` using `Web Workers` and/or `Asynchronous Processing` **[DONE]**
+* use fixed-point arithmetic, micro-optimizations where possible **[DONE]**
+* cache filter parameters where applicable **[DONE]**
+* increase performance for (older) `Opera`, `IE`  **[DONE]**
 
 **see also:**
 
